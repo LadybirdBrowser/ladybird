@@ -8,14 +8,14 @@ JS bytecode executable ""
 [  70]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  80]       CreateVariable identifier:B, is_immutable:true, is_global:false, is_strict:false
 [  90]       GetGlobal dst:reg6, identifier:A
-[  a0]       SetLexicalEnvironment environment:reg4
-[  a8]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("m")]
-[  d0]       InitializeLexicalBinding identifier:B, src:reg7
-[  e8]       GetGlobal dst:reg7, identifier:B
-[  f8]       CallConstruct dst:reg6, callee:reg7, B
-[ 110]       GetById dst:reg7, base:reg6, property:m
-[ 128]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.m
-[ 148]       End value:reg5
+[  a8]       SetLexicalEnvironment environment:reg4
+[  b0]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+[  d8]       InitializeLexicalBinding identifier:B, src:reg7
+[  f0]       GetGlobal dst:reg7, identifier:B
+[ 108]       CallConstruct dst:reg6, callee:reg7, B
+[ 120]       GetById dst:reg7, base:reg6, property:m
+[ 140]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.m
+[ 160]       End value:reg5
 
 JS bytecode executable "B"
 [   0]    0: GetLexicalEnvironment dst:reg4

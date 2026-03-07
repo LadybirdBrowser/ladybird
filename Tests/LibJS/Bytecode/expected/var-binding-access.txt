@@ -1,10 +1,10 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:var_access
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, var_access
-[  38]       GetGlobal dst:reg7, identifier:let_access
-[  48]       Call dst:reg6, callee:reg7, this_value:Undefined, let_access
-[  68]       End value:reg6
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, var_access
+[  40]       GetGlobal dst:reg7, identifier:let_access
+[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, let_access
+[  78]       End value:reg6
 
 JS bytecode executable "var_access"
 [   0]    0: GetLexicalEnvironment dst:reg4

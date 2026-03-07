@@ -1,31 +1,31 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:f
-[  18]       NewObject dst:reg7
-[  28]       InitObjectLiteralProperty object:reg7, property:location, src:String("hello"), shape_cache_index:0, property_slot:0
-[  40]       CacheObjectShape object:reg7
-[  50]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-[  78]       End value:reg5
+[  20]       NewObject dst:reg7
+[  30]       InitObjectLiteralProperty object:reg7, property:location, src:String("hello"), shape_cache_index:0, property_slot:0
+[  48]       CacheObjectShape object:reg7
+[  58]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+[  80]       End value:reg5
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       ThrowIfNullish src:arg0
 [  10]       GetById dst:reg5, base:arg0, property:location
-[  28]       Mov dst:a~0, src:reg5
-[  38]       ThrowIfTDZ src:a~0
-[  40]       Typeof dst:reg5, src:a~0
-[  50]       LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
-[  60]       Mov dst:reg5, src:reg6
-[  70]       JumpFalse condition:reg6, target:@f8
-[  80]    1: GetGlobal dst:reg8, identifier:g
-[  90]       ThrowIfTDZ src:a~0
-[  98]       Mov dst:reg9, src:a~0
-[  a8]       Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
-[  d0]       ThrowIfTDZ src:a~0
-[  d8]       Mov dst:a~0, src:reg7
-[  e8]       Mov dst:reg5, src:reg7
-[  f8]    2: ThrowIfTDZ src:a~0
-[ 100]       Return value:a~0
+[  30]       Mov dst:a~0, src:reg5
+[  40]       ThrowIfTDZ src:a~0
+[  48]       Typeof dst:reg5, src:a~0
+[  58]       LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
+[  68]       Mov dst:reg5, src:reg6
+[  78]       JumpFalse condition:reg6, target:@108
+[  88]    1: GetGlobal dst:reg8, identifier:g
+[  a0]       ThrowIfTDZ src:a~0
+[  a8]       Mov dst:reg9, src:a~0
+[  b8]       Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
+[  e0]       ThrowIfTDZ src:a~0
+[  e8]       Mov dst:a~0, src:reg7
+[  f8]       Mov dst:reg5, src:reg7
+[ 108]    2: ThrowIfTDZ src:a~0
+[ 110]       Return value:a~0
 
 JS bytecode executable "g"
 [   0]    0: GetLexicalEnvironment dst:reg4

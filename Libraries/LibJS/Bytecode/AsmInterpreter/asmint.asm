@@ -1421,13 +1421,9 @@ handler GetById
     unbox_object t3, t1
     # Load Object.m_shape
     load64 t4, [t3, OBJECT_SHAPE]
-    # Get PropertyLookupCache*
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t5, [t0, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
+    # Get PropertyLookupCache* (direct pointer from instruction stream)
     lea t0, [pb, pc]
-    load32 t0, [t0, m_cache_index]
-    mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
-    add t5, t0
+    load64 t5, [t0, m_cache]
     # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_cache
@@ -1487,13 +1483,9 @@ handler PutById
     unbox_object t3, t1
     # Load Object.m_shape
     load64 t4, [t3, OBJECT_SHAPE]
-    # Get PropertyLookupCache*
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t5, [t0, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
+    # Get PropertyLookupCache* (direct pointer from instruction stream)
     lea t0, [pb, pc]
-    load32 t0, [t0, m_cache_index]
-    mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
-    add t5, t0
+    load64 t5, [t0, m_cache]
     # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_cache
@@ -1687,12 +1679,8 @@ handler GetLength
     branch_bits_set t0, OBJECT_FLAG_HAS_MAGICAL_LENGTH, .magical_length
     # Non-magical length: IC fast path (same as GetById)
     load64 t4, [t3, OBJECT_SHAPE]
-    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t5, [t0, EXECUTABLE_PROPERTY_LOOKUP_CACHES_DATA]
     lea t0, [pb, pc]
-    load32 t0, [t0, m_cache_index]
-    mul t0, t0, PROPERTY_LOOKUP_CACHE_SIZE
-    add t5, t0
+    load64 t5, [t0, m_cache]
     # Check entry[0].shape matches (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .slow
@@ -1744,13 +1732,9 @@ handler GetGlobal
     # Load global_declarative_environment and global_object
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
     load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
-    # Get GlobalVariableCache*
-    load64 t3, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t3, [t3, EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA]
+    # Get GlobalVariableCache* (direct pointer from instruction stream)
     lea t0, [pb, pc]
-    load32 t0, [t0, m_cache_index]
-    mul t0, t0, GLOBAL_VARIABLE_CACHE_SIZE
-    add t3, t0
+    load64 t3, [t0, m_cache]
     # Check environment_serial_number matches
     load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]
@@ -1806,13 +1790,9 @@ handler SetGlobal
     # Load global_declarative_environment and global_object
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
     load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
-    # Get GlobalVariableCache*
-    load64 t3, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t3, [t3, EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA]
+    # Get GlobalVariableCache* (direct pointer from instruction stream)
     lea t0, [pb, pc]
-    load32 t0, [t0, m_cache_index]
-    mul t0, t0, GLOBAL_VARIABLE_CACHE_SIZE
-    add t3, t0
+    load64 t3, [t0, m_cache]
     # Check environment_serial_number matches
     load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]

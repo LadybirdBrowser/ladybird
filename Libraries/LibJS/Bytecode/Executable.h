@@ -183,6 +183,8 @@ public:
 
     [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
 
+    void fixup_cache_pointers();
+
     void dump() const;
     [[nodiscard]] String dump_to_string() const;
 

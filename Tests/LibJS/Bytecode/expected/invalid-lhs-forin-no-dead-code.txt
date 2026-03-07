@@ -10,6 +10,6 @@ JS bytecode executable ""
 [  78]       Mov dst:reg5, src:Undefined
 [  88]       Jump target:@30
 [  90]    5: GetGlobal dst:reg12, identifier:f
-[  a0]       Call dst:reg11, callee:reg12, this_value:Undefined, f
-[  c0]       NewReferenceError dst:reg11, Invalid left-hand side in assignment
-[  d0]       Throw src:reg11
+[  a8]       Call dst:reg11, callee:reg12, this_value:Undefined, f
+[  c8]       NewReferenceError dst:reg11, Invalid left-hand side in assignment
+[  d8]       Throw src:reg11

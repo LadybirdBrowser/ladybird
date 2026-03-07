@@ -1,9 +1,9 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:foo
-[  18]       NewObject dst:reg7
-[  28]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-[  50]       End value:reg5
+[  20]       NewObject dst:reg7
+[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+[  58]       End value:reg5
 
 JS bytecode executable "foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

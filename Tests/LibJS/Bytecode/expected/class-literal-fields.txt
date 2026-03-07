@@ -1,24 +1,24 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:test
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, test
-[  38]       InitializeLexicalBinding identifier:a, src:reg5
-[  50]       GetGlobal dst:reg6, identifier:console
-[  60]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  78]       GetGlobal dst:reg8, identifier:a
-[  88]       GetById dst:reg9, base:reg8, property:x, base_identifier:a
-[  a0]       GetGlobal dst:reg8, identifier:a
-[  b0]       GetById dst:reg10, base:reg8, property:y, base_identifier:a
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test
+[  40]       InitializeLexicalBinding identifier:a, src:reg5
+[  58]       GetGlobal dst:reg6, identifier:console
+[  70]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  90]       GetGlobal dst:reg8, identifier:a
+[  a8]       GetById dst:reg9, base:reg8, property:x, base_identifier:a
 [  c8]       GetGlobal dst:reg8, identifier:a
-[  d8]       GetById dst:reg11, base:reg8, property:z, base_identifier:a
-[  f0]       GetGlobal dst:reg8, identifier:a
-[ 100]       GetById dst:reg12, base:reg8, property:w, base_identifier:a
-[ 118]       GetGlobal dst:reg8, identifier:a
-[ 128]       GetById dst:reg13, base:reg8, property:s, base_identifier:a
-[ 140]       GetGlobal dst:reg8, identifier:a
-[ 150]       GetById dst:reg14, base:reg8, property:computed, base_identifier:a
-[ 168]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
-[ 1a0]       End value:reg5
+[  e0]       GetById dst:reg10, base:reg8, property:y, base_identifier:a
+[ 100]       GetGlobal dst:reg8, identifier:a
+[ 118]       GetById dst:reg11, base:reg8, property:z, base_identifier:a
+[ 138]       GetGlobal dst:reg8, identifier:a
+[ 150]       GetById dst:reg12, base:reg8, property:w, base_identifier:a
+[ 170]       GetGlobal dst:reg8, identifier:a
+[ 188]       GetById dst:reg13, base:reg8, property:s, base_identifier:a
+[ 1a8]       GetGlobal dst:reg8, identifier:a
+[ 1c0]       GetById dst:reg14, base:reg8, property:computed, base_identifier:a
+[ 1e0]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
+[ 218]       End value:reg5
 
 JS bytecode executable "test"
 [   0]    0: GetLexicalEnvironment dst:reg4

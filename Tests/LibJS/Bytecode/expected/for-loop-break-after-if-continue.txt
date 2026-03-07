@@ -1,8 +1,8 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:bok
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
-[  40]       End value:reg5
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
+[  48]       End value:reg5
 
 JS bytecode executable "bok"
 [   0]    0: GetLexicalEnvironment dst:reg4

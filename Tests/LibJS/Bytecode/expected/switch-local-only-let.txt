@@ -1,21 +1,21 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:console
-[  18]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  30]       GetGlobal dst:reg9, identifier:switchLocalOnly
-[  40]       Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
-[  68]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  90]       GetGlobal dst:reg7, identifier:console
-[  a0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  b8]       GetGlobal dst:reg10, identifier:switchLocalOnly
-[  c8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
-[  f0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 118]       GetGlobal dst:reg7, identifier:console
-[ 128]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[ 140]       GetGlobal dst:reg10, identifier:switchLocalOnly
-[ 150]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
-[ 178]       Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 1a0]       End value:reg5
+[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
+[  40]       GetGlobal dst:reg9, identifier:switchLocalOnly
+[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
+[  80]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+[  a8]       GetGlobal dst:reg7, identifier:console
+[  c0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[  e0]       GetGlobal dst:reg10, identifier:switchLocalOnly
+[  f8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
+[ 120]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[ 148]       GetGlobal dst:reg7, identifier:console
+[ 160]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[ 180]       GetGlobal dst:reg10, identifier:switchLocalOnly
+[ 198]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
+[ 1c0]       Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+[ 1e8]       End value:reg5
 
 JS bytecode executable "switchLocalOnly"
 [   0]    0: GetLexicalEnvironment dst:reg4

@@ -9,13 +9,13 @@ JS bytecode executable ""
 [  50]    2: End value:reg6
 [  58]    3: Mov dst:reg5, src:Undefined
 [  68]       GetGlobal dst:reg8, identifier:f
-[  78]       Call dst:reg6, callee:reg8, this_value:Undefined, f
-[  98]       Mov dst:reg5, src:reg6
-[  a8]       Mov dst:reg6, src:reg5
-[  b8]       End value:reg6
+[  80]       Call dst:reg6, callee:reg8, this_value:Undefined, f
+[  a0]       Mov dst:reg5, src:reg6
+[  b0]       Mov dst:reg6, src:reg5
+[  c0]       End value:reg6
 
 Exception handlers:
-    from   58 to   c0 handler   10
+    from   58 to   c8 handler   10
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4

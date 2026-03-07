@@ -1,8 +1,8 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GetGlobal dst:reg6, identifier:fn
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, fn
-[  38]       End value:reg5
+[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, fn
+[  40]       End value:reg5
 
 JS bytecode executable "fn"
 [   0]    0: GetLexicalEnvironment dst:reg4

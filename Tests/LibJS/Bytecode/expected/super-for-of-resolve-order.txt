@@ -6,8 +6,8 @@ JS bytecode executable ""
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
 [  50]       InitializeLexicalBinding identifier:C, src:reg6
 [  68]       GetGlobal dst:reg6, identifier:C
-[  78]       CallConstruct dst:reg5, callee:reg6, C
-[  90]       End value:reg5
+[  80]       CallConstruct dst:reg5, callee:reg6, C
+[  98]       End value:reg5
 
 JS bytecode executable "C"
 [   0]    0: GetLexicalEnvironment dst:reg4

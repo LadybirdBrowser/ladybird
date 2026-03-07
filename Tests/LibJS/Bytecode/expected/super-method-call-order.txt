@@ -5,33 +5,33 @@ JS bytecode executable ""
 [  30]       InitObjectLiteralProperty object:reg5, property:m, src:reg6, shape_cache_index:0, property_slot:0
 [  48]       CacheObjectShape object:reg5
 [  58]       SetGlobal identifier:proto, src:reg5
-[  68]       NewObject dst:reg5
-[  78]       GetGlobal dst:reg6, identifier:proto
-[  88]       PutById base:reg5, property:__proto__, src:reg6, kind:Prototype
-[  a8]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:test, home_object:reg5
-[  c0]       PutById base:reg5, property:test, src:reg6, kind:Own
-[  e0]       NewFunction dst:reg6, shared_function_data_index:2, lhs_name:get x, home_object:reg5
-[  f8]       PutById base:reg5, property:x, src:reg6, kind:Getter
-[ 118]       NewFunction dst:reg6, shared_function_data_index:3, lhs_name:test2, home_object:reg5
-[ 130]       PutById base:reg5, property:test2, src:reg6, kind:Own
-[ 150]       SetGlobal identifier:obj, src:reg5
-[ 160]       GetGlobal dst:reg6, identifier:obj
-[ 170]       GetById dst:reg7, base:reg6, property:test, base_identifier:obj
-[ 188]       Call dst:reg5, callee:reg7, this_value:reg6, obj.test
-[ 1a8]       GetGlobal dst:reg6, identifier:obj
-[ 1b8]       GetById dst:reg7, base:reg6, property:x, base_identifier:obj
-[ 1d0]       GetGlobal dst:reg6, identifier:obj
-[ 1e0]       GetById dst:reg8, base:reg6, property:test2, base_identifier:obj
-[ 1f8]       Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
-[ 218]       End value:reg5
+[  70]       NewObject dst:reg5
+[  80]       GetGlobal dst:reg6, identifier:proto
+[  98]       PutById base:reg5, property:__proto__, src:reg6, kind:Prototype
+[  c0]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:test, home_object:reg5
+[  d8]       PutById base:reg5, property:test, src:reg6, kind:Own
+[ 100]       NewFunction dst:reg6, shared_function_data_index:2, lhs_name:get x, home_object:reg5
+[ 118]       PutById base:reg5, property:x, src:reg6, kind:Getter
+[ 140]       NewFunction dst:reg6, shared_function_data_index:3, lhs_name:test2, home_object:reg5
+[ 158]       PutById base:reg5, property:test2, src:reg6, kind:Own
+[ 180]       SetGlobal identifier:obj, src:reg5
+[ 198]       GetGlobal dst:reg6, identifier:obj
+[ 1b0]       GetById dst:reg7, base:reg6, property:test, base_identifier:obj
+[ 1d0]       Call dst:reg5, callee:reg7, this_value:reg6, obj.test
+[ 1f0]       GetGlobal dst:reg6, identifier:obj
+[ 208]       GetById dst:reg7, base:reg6, property:x, base_identifier:obj
+[ 228]       GetGlobal dst:reg6, identifier:obj
+[ 240]       GetById dst:reg8, base:reg6, property:test2, base_identifier:obj
+[ 260]       Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
+[ 280]       End value:reg5
 
 JS bytecode executable "test"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg6
 [  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
-[  50]       Return value:reg5
+[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
+[  58]       Return value:reg5
 
 JS bytecode executable "m"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -42,13 +42,13 @@ JS bytecode executable "get x"
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg6
 [  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
-[  50]       Return value:reg5
+[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
+[  58]       Return value:reg5
 
 JS bytecode executable "test2"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       ResolveThisBinding
 [  10]       ResolveSuperBase dst:reg6
 [  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  30]       Call dst:reg5, callee:reg7, this_value:this, <object>['m']
-[  50]       Return value:reg5
+[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>['m']
+[  58]       Return value:reg5

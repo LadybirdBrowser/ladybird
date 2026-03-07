@@ -9,10 +9,10 @@ JS bytecode executable ""
 [  68]       LeavePrivateEnvironment
 [  70]       InitializeLexicalBinding identifier:C, src:reg6
 [  88]       GetGlobal dst:reg7, identifier:C
-[  98]       CallConstruct dst:reg6, callee:reg7, C
-[  b0]       GetById dst:reg7, base:reg6, property:nextId
-[  c8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
-[  e8]       End value:reg5
+[  a0]       CallConstruct dst:reg6, callee:reg7, C
+[  b8]       GetById dst:reg7, base:reg6, property:nextId
+[  d8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
+[  f8]       End value:reg5
 
 JS bytecode executable "C"
 [   0]    0: GetLexicalEnvironment dst:reg4
