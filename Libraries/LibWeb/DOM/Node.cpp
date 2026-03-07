@@ -2694,8 +2694,10 @@ void Node::clear_paintable()
 
 void Node::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    if (auto* p = unsafe_paintable())
-        p->set_needs_repaint(should_invalidate_display_list);
+    if (auto* layout_node = unsafe_layout_node()) {
+        for (auto& paintable : layout_node->paintables())
+            paintable.set_needs_repaint(should_invalidate_display_list);
+    }
 }
 
 void Node::set_needs_layout_update(SetNeedsLayoutReason reason)
