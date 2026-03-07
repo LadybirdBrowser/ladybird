@@ -763,21 +763,27 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
-        // mov with large immediate needs movabs on x86_64
+        // mov with large immediate needs movabs on x86_64.
+        // Values in 0..0x7FFFFFFF fit in sign-extended imm32 (mov r64, imm32).
+        // Values in 0x80000000..0xFFFFFFFF use mov r32, imm32 (zero-extends to 64-bit).
+        // Values outside both ranges need movabs r64, imm64 (10 bytes).
         "mov" => {
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
-                let src = resolve_op(&insn.operands[1], handler, program);
-                // Check if src is a large immediate that needs movabs
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
                     let uval = val as u64;
-                    if uval > 0x7FFFFFFF && uval < 0xFFFFFFFF80000000 {
-                        // Need movabs for 64-bit immediate
-                        w!(out, "    movabs {dst}, {val}");
+                    if uval <= 0x7FFFFFFF || val < 0 && val >= -0x80000000 {
+                        // Fits in sign-extended imm32
+                        w!(out, "    mov {dst}, {val}");
+                    } else if uval <= 0xFFFFFFFF {
+                        // Fits in unsigned 32-bit: use mov r32, imm32 (zero-extends)
+                        let dst32 = to_32bit_reg(&dst);
+                        w!(out, "    mov {dst32}, {val}");
                     } else {
-                        w!(out, "    mov {dst}, {src}");
+                        w!(out, "    movabs {dst}, {val}");
                     }
                 } else {
+                    let src = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    mov {dst}, {src}");
                 }
             }
