@@ -285,6 +285,7 @@ int main()
     outln("const BOOLEAN_FALSE = 0x{:X}", static_cast<u64>(BOOLEAN_TAG << GC::TAG_SHIFT));
     outln("const UNDEFINED_SHIFTED = 0x{:X}", static_cast<u64>(UNDEFINED_TAG << GC::TAG_SHIFT));
     outln("const EMPTY_TAG_SHIFTED = 0x{:X}", static_cast<u64>(EMPTY_TAG << GC::TAG_SHIFT));
+    outln("const NAN_BASE_TAG = 0x{:X}", static_cast<u64>(GC::BASE_TAG));
     outln("const CANON_NAN_BITS = 0x{:X}", static_cast<u64>(GC::CANON_NAN_BITS));
     outln("const DOUBLE_ONE = 0x{:X}", bit_cast<u64>(1.0));
     outln("const NEGATIVE_ZERO = 0x{:X}", static_cast<u64>(NEGATIVE_ZERO_BITS));

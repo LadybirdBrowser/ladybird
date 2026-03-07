@@ -79,24 +79,30 @@ macro unbox_object(dst, src)
 end
 
 # Check if a value is a double (not a NaN-boxed tagged value).
-# Clobbers t3, t4. Jumps to fail if not a double.
+# All tagged types have (tag & NAN_BASE_TAG) == NAN_BASE_TAG in their upper 16 bits.
+# Clobbers t3. Jumps to fail if not a double.
 macro check_is_double(reg, fail)
-    mov t3, CANON_NAN_BITS
-    mov t4, reg
-    and t4, t3
-    branch_eq t4, t3, fail
+    extract_tag t3, reg
+    and t3, NAN_BASE_TAG
+    branch_eq t3, NAN_BASE_TAG, fail
+end
+
+# Check if an already-extracted tag represents a non-double type.
+# Clobbers the tag register. Jumps to fail if not a double.
+macro check_tag_is_double(tag, fail)
+    and tag, NAN_BASE_TAG
+    branch_eq tag, NAN_BASE_TAG, fail
 end
 
 # Check if both values are doubles.
 # Clobbers t3, t4. Jumps to fail if either is not a double.
 macro check_both_double(lhs, rhs, fail)
-    mov t3, CANON_NAN_BITS
-    mov t4, lhs
-    and t4, t3
-    branch_eq t4, t3, fail
-    mov t4, rhs
-    and t4, t3
-    branch_eq t4, t3, fail
+    extract_tag t3, lhs
+    and t3, NAN_BASE_TAG
+    branch_eq t3, NAN_BASE_TAG, fail
+    extract_tag t4, rhs
+    and t4, NAN_BASE_TAG
+    branch_eq t4, NAN_BASE_TAG, fail
 end
 
 # Coerce two operands (already in t1/t2) to numeric types for arithmetic/comparison.
@@ -114,16 +120,19 @@ macro coerce_to_doubles(both_int_label, fail)
     unbox_int32 t4, t2
     jmp both_int_label
 .int_rhs_maybe_double:
-    check_is_double t2, fail
+    # t4 already has rhs tag, known != INT32_TAG
+    check_tag_is_double t4, fail
     unbox_int32 t3, t1
     int_to_double ft0, t3
     fp_mov ft1, t2
     jmp .coerced
 .lhs_not_int:
-    check_is_double t1, fail
+    # t3 already has lhs tag, known != INT32_TAG
+    check_tag_is_double t3, fail
     extract_tag t4, t2
     branch_eq t4, INT32_TAG, .double_rhs_int
-    check_is_double t2, fail
+    # t4 already has rhs tag, known != INT32_TAG
+    check_tag_is_double t4, fail
     fp_mov ft0, t1
     fp_mov ft1, t2
     jmp .coerced
@@ -192,17 +201,21 @@ macro strict_equality_core(equal_label, not_equal_label, slow_label)
     branch_eq t3, INT32_TAG, .lhs_int32_diff
     branch_eq t4, INT32_TAG, .rhs_int32_diff
     # Neither is int32. If both are doubles, compare. Otherwise not equal.
-    check_both_double t1, t2, not_equal_label
+    # t3/t4 already have the tags, check them directly.
+    check_tag_is_double t3, not_equal_label
+    check_tag_is_double t4, not_equal_label
     jmp .double_compare
 .lhs_int32_diff:
-    check_is_double t2, not_equal_label
+    # t4 already has rhs tag
+    check_tag_is_double t4, not_equal_label
     unbox_int32 t3, t1
     int_to_double ft0, t3
     fp_mov ft1, t2
     branch_fp_equal ft0, ft1, equal_label
     jmp not_equal_label
 .rhs_int32_diff:
-    check_is_double t1, not_equal_label
+    # t3 already has lhs tag
+    check_tag_is_double t3, not_equal_label
     fp_mov ft0, t1
     unbox_int32 t4, t2
     int_to_double ft1, t4
@@ -259,7 +272,9 @@ macro numeric_compare(int_cc, double_cc, true_label, false_label, slow_label)
     int_cc t3, t4, true_label
     jmp false_label
 .try_double:
-    check_both_double t1, t2, slow_label
+    # t3 already has lhs tag
+    check_tag_is_double t3, slow_label
+    check_is_double t2, slow_label
     fp_mov ft0, t1
     fp_mov ft1, t2
     branch_fp_unordered ft0, ft1, false_label
@@ -907,7 +922,8 @@ handler Div
     load_operand t2, m_rhs
     extract_tag t3, t1
     branch_eq t3, INT32_TAG, .lhs_is_int32
-    check_is_double t1, .slow
+    # t3 already has lhs tag
+    check_tag_is_double t3, .slow
     fp_mov ft0, t1
     jmp .lhs_ok
 .lhs_is_int32:
@@ -917,7 +933,8 @@ handler Div
     # ft0 = lhs as double
     extract_tag t3, t2
     branch_eq t3, INT32_TAG, .rhs_is_int32
-    check_is_double t2, .slow
+    # t3 already has rhs tag
+    check_tag_is_double t3, .slow
     fp_mov ft1, t2
     jmp .do_div
 .rhs_is_int32:
@@ -993,8 +1010,8 @@ handler UnaryPlus
     # Check if int32
     extract_tag t0, t1
     branch_eq t0, INT32_TAG, .done
-    # Check if double
-    check_is_double t1, .slow
+    # t0 already has tag; check if double
+    check_tag_is_double t0, .slow
 .done:
     store_operand m_dst, t1
     dispatch_next
@@ -1225,7 +1242,8 @@ handler UnaryMinus
     store_operand m_dst, t4
     dispatch_next
 .try_double:
-    check_is_double t1, .slow
+    # t2 already has tag
+    check_tag_is_double t2, .slow
     # Negate double: flip sign bit (bit 63)
     toggle_bit t1, 63
     store_operand m_dst, t1
@@ -1268,7 +1286,9 @@ handler ToInt32
     store_operand m_dst, t1
     dispatch_next
 .try_double:
-    check_is_double t1, .try_boolean
+    # t2 already has tag; check if double (copy first, t2 needed at .try_boolean)
+    mov t3, t2
+    check_tag_is_double t3, .try_boolean
     # Convert double to int32 using JS ToInt32 semantics.
     # With FEAT_JSCVT: fjcvtzs handles everything in one instruction.
     # Without: truncate + round-trip check, slow path on mismatch.
