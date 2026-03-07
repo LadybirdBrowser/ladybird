@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            const server = httpTestServer();
+
+            const postUrl = await server.createEcho("POST", "/xhr-request-body-reset-post", {
+                status: 200,
+                headers: { "Access-Control-Allow-Origin": "*" },
+                body: "OK",
+            });
+
+            const getUrl = await server.createEcho("GET", "/xhr-request-body-reset-get", {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "application/json",
+                },
+                body: "$HEADERS",
+                reflect_headers_in_body: true,
+            });
+
+            const xhr = new XMLHttpRequest();
+
+            await new Promise((resolve, reject) => {
+                xhr.open("POST", postUrl);
+                xhr.addEventListener("load", resolve);
+                xhr.addEventListener("error", reject);
+                xhr.send("data");
+            });
+
+            await new Promise((resolve, reject) => {
+                xhr.open("GET", getUrl);
+                xhr.addEventListener("load", resolve);
+                xhr.addEventListener("error", reject);
+                xhr.send("data");
+            });
+
+            const requestHeaders = JSON.parse(xhr.responseText);
+            const headerNames = Object.keys(requestHeaders).map(h => h.toLowerCase());
+
+            if (headerNames.includes("content-length"))
+                println("FAIL: Content-Length was sent with GET (body from prior POST leaked)");
+            else
+                println("PASS");
+        } catch (e) {
+            println("FAIL: " + e.message);
+        }
+        done();
+    });
+</script>
