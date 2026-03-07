@@ -421,10 +421,13 @@ void WebContentView::mousePressEvent(QMouseEvent* event)
     auto elapsed = event->timestamp() - m_last_click_timestamp;
     auto distance = (event->position() - m_last_click_position).manhattanLength();
 
-    if (elapsed < static_cast<u64>(QApplication::doubleClickInterval()) && distance < QApplication::startDragDistance())
+    if (elapsed < static_cast<u64>(QApplication::doubleClickInterval()) && distance < QApplication::startDragDistance()) {
         ++m_click_count;
-    else
+        if (m_click_count < 1)
+            m_click_count = 1;
+    } else {
         m_click_count = 1;
+    }
     m_last_click_timestamp = event->timestamp();
     m_last_click_position = event->position();
 
