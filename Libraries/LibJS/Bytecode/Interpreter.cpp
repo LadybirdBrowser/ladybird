@@ -1186,7 +1186,7 @@ inline Value new_function(Interpreter& interpreter, u32 shared_function_data_ind
 
     if (home_object.has_value()) {
         auto home_object_value = interpreter.get(home_object.value());
-        function->set_home_object(&home_object_value.as_object());
+        function->make_method(home_object_value.as_object());
     }
 
     return function;

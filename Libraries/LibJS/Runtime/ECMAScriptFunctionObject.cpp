@@ -408,6 +408,7 @@ void ECMAScriptFunctionObject::make_method(Object& home_object)
 {
     // 1. Set F.[[HomeObject]] to homeObject.
     m_home_object = &home_object;
+    m_is_method = true;
 
     // 2. Return unused.
 }

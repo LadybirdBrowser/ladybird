@@ -106,7 +106,7 @@ public:
     bool has_simple_parameter_list() const { return shared_data().m_has_simple_parameter_list; }
 
     // Equivalent to absence of [[Construct]]
-    virtual bool has_constructor() const override { return kind() == FunctionKind::Normal && !shared_data().m_is_arrow_function; }
+    virtual bool has_constructor() const override { return kind() == FunctionKind::Normal && !shared_data().m_is_arrow_function && !m_is_method; }
 
     virtual Vector<LocalVariable> const& local_variables_names() const override { return shared_data().m_local_variables_names; }
 
@@ -161,6 +161,7 @@ private:
     mutable OwnPtr<ClassData> m_class_data;
 
     mutable bool m_may_need_lazy_prototype_instantiation { false };
+    bool m_is_method { false };
 };
 
 template<>
