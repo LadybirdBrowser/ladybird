@@ -102,6 +102,11 @@ IPC::File PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
     return m_client.request_worker_agent(worker_type);
 }
 
+void PageHost::did_fail_loading_worker_script()
+{
+    m_client.async_did_fail_loading_worker_script();
+}
+
 PageHost::PageHost(ConnectionFromClient& client)
     : m_client(client)
     , m_page(Web::Page::create(Web::Bindings::main_thread_vm(), *this))

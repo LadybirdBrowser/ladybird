@@ -111,8 +111,10 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
     // 4. Let agent be the result of obtaining a dedicated/shared worker agent given outside settings and is shared.
     //    Run the rest of these steps in that agent.
 
+    auto event_target = worker.visit([](auto& worker) -> GC::Ref<DOM::EventTarget> { return worker; });
+
     // Note: This spawns a new process to act as the 'agent' for the worker.
-    auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings, agent_type);
+    auto agent = outside_settings.realm().create<WorkerAgentParent>(url, options, port, outside_settings, event_target, agent_type);
     worker.visit([&](auto worker) { worker->set_agent(agent); });
 }
 
