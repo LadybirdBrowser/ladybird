@@ -215,12 +215,12 @@ OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
     return AlternativesSyntaxNode::create(move(syntax_components));
 }
 
-NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
+NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Vector<ComponentValue> const& input, SyntaxNode const& syntax)
 {
-    return Parser::create(parsing_params, ""sv).parse_with_a_syntax(input, syntax, element);
+    return Parser::create(parsing_params, ""sv).parse_with_a_syntax(input, syntax);
 }
 
-RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element)
+RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node)
 {
     auto transaction = tokens.begin_transaction();
 
@@ -265,7 +265,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
         StyleValueVector values;
         tokens.discard_whitespace();
         while (tokens.has_next_token()) {
-            auto parsed_child = parse_according_to_syntax_node(tokens, multiplier_node.child(), element);
+            auto parsed_child = parse_according_to_syntax_node(tokens, multiplier_node.child());
             if (!parsed_child)
                 break;
             values.append(parsed_child.release_nonnull());
@@ -279,7 +279,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
     case SyntaxNode::NodeType::CommaSeparatedMultiplier: {
         auto const& multiplier_node = as<CommaSeparatedMultiplierSyntaxNode>(syntax_node);
         auto result = parse_comma_separated_value_list(tokens, [&](auto& tokens) {
-            return parse_according_to_syntax_node(tokens, multiplier_node.child(), element);
+            return parse_according_to_syntax_node(tokens, multiplier_node.child());
         });
         if (!result)
             return nullptr;
@@ -289,7 +289,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
     case SyntaxNode::NodeType::Alternatives: {
         auto const& alternatives_node = as<AlternativesSyntaxNode>(syntax_node);
         for (auto const& child : alternatives_node.children()) {
-            if (auto result = parse_according_to_syntax_node(tokens, *child, element)) {
+            if (auto result = parse_according_to_syntax_node(tokens, *child)) {
                 transaction.commit();
                 return result.release_nonnull();
             }
@@ -302,7 +302,7 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
 }
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
-NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element)
+NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax)
 {
     // 1. Parse a list of component values from values, and let raw parse be the result.
     // NB: Already done before this point.
@@ -316,7 +316,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Vector<ComponentValu
     //    the result.
     //    If syntax used a | combinator, let parsed result be the parse result from the first matching clause.
     TokenStream tokens { input };
-    auto parsed_result = parse_according_to_syntax_node(tokens, syntax, element);
+    auto parsed_result = parse_according_to_syntax_node(tokens, syntax);
     tokens.discard_whitespace();
 
     // 4. If parsed result is failure, return the guaranteed-invalid value.
