@@ -316,8 +316,7 @@ end
 
 # Dispatch using the instruction's m_length field (for variable-length instructions).
 macro dispatch_callbuiltin_size()
-    lea t0, [pb, pc]
-    load32 t0, [t0, m_length]
+    load32 t0, [pb, pc, m_length]
     dispatch_variable t0
 end
 
@@ -1422,8 +1421,7 @@ handler GetById
     # Load Object.m_shape
     load64 t4, [t3, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
-    lea t0, [pb, pc]
-    load64 t5, [t0, m_cache]
+    load64 t5, [pb, pc, m_cache]
     # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_cache
@@ -1484,8 +1482,7 @@ handler PutById
     # Load Object.m_shape
     load64 t4, [t3, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
-    lea t0, [pb, pc]
-    load64 t5, [t0, m_cache]
+    load64 t5, [pb, pc, m_cache]
     # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_cache
@@ -1679,8 +1676,7 @@ handler GetLength
     branch_bits_set t0, OBJECT_FLAG_HAS_MAGICAL_LENGTH, .magical_length
     # Non-magical length: IC fast path (same as GetById)
     load64 t4, [t3, OBJECT_SHAPE]
-    lea t0, [pb, pc]
-    load64 t5, [t0, m_cache]
+    load64 t5, [pb, pc, m_cache]
     # Check entry[0].shape matches (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .slow
@@ -1733,8 +1729,7 @@ handler GetGlobal
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
     load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
     # Get GlobalVariableCache* (direct pointer from instruction stream)
-    lea t0, [pb, pc]
-    load64 t3, [t0, m_cache]
+    load64 t3, [pb, pc, m_cache]
     # Check environment_serial_number matches
     load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]
@@ -1791,8 +1786,7 @@ handler SetGlobal
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
     load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
     # Get GlobalVariableCache* (direct pointer from instruction stream)
-    lea t0, [pb, pc]
-    load64 t3, [t0, m_cache]
+    load64 t3, [pb, pc, m_cache]
     # Check environment_serial_number matches
     load64 t0, [t3, GLOBAL_VARIABLE_CACHE_ENVIRONMENT_SERIAL]
     load64 t4, [t1, DECLARATIVE_ENVIRONMENT_SERIAL]
@@ -1879,8 +1873,7 @@ handler CallBuiltin
     branch_zero t3, .slow
     # Compare FunctionObject::m_builtin value with instruction's m_builtin
     load8 t3, [t2, FUNCTION_OBJECT_BUILTIN_VALUE]
-    lea t0, [pb, pc]
-    load8 t4, [t0, m_builtin]
+    load8 t4, [pb, pc, m_builtin]
     branch_ne t3, t4, .slow
     # Callee validated. Now dispatch on the builtin enum (already in t4).
     branch_eq t4, BUILTIN_MATH_ABS, .math_abs
