@@ -396,9 +396,8 @@ handler Add
     dispatch_next
 .both_int:
     # t3=lhs (sign-extended), t4=rhs (sign-extended)
-    add t3, t4
-    unbox_int32 t5, t3
-    branch_ne t3, t5, .overflow
+    # 32-bit add with hardware overflow detection
+    add32_overflow t3, t4, .overflow
     box_int32 t5, t3
     store_operand m_dst, t5
     dispatch_next
@@ -428,9 +427,7 @@ handler Sub
     dispatch_next
 .both_int:
     # t3=lhs (sign-extended), t4=rhs (sign-extended)
-    sub t3, t4
-    unbox_int32 t5, t3
-    branch_ne t3, t5, .overflow
+    sub32_overflow t3, t4, .overflow
     box_int32 t5, t3
     store_operand m_dst, t5
     dispatch_next
@@ -460,9 +457,7 @@ handler Mul
     dispatch_next
 .both_int:
     # t3=lhs (sign-extended), t4=rhs (sign-extended)
-    mul t3, t4
-    unbox_int32 t5, t3
-    branch_ne t3, t5, .overflow
+    mul32_overflow t3, t4, .overflow
     branch_nonzero t3, .store_int
     # Result is 0: check if either operand was negative -> -0.0
     unbox_int32 t5, t1
@@ -662,9 +657,7 @@ handler Increment
     extract_tag t2, t1
     branch_ne t2, INT32_TAG, .slow
     unbox_int32 t3, t1
-    add t3, 1
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .overflow
+    add32_overflow t3, 1, .overflow
     box_int32 t4, t3
     store_operand m_dst, t4
     dispatch_next
@@ -687,9 +680,7 @@ handler Decrement
     extract_tag t2, t1
     branch_ne t2, INT32_TAG, .slow
     unbox_int32 t3, t1
-    sub t3, 1
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .overflow
+    sub32_overflow t3, 1, .overflow
     box_int32 t4, t3
     store_operand m_dst, t4
     dispatch_next
@@ -890,9 +881,7 @@ handler PostfixIncrement
     store_operand m_dst, t1
     # Increment in-place: src = src + 1
     unbox_int32 t3, t1
-    add t3, 1
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .overflow_after_store
+    add32_overflow t3, 1, .overflow_after_store
     box_int32 t4, t3
     store_operand m_src, t4
     dispatch_next
@@ -1220,10 +1209,8 @@ handler UnaryMinus
     unbox_int32 t3, t1
     # -0 check: if value is 0, result is -0.0 (double)
     branch_zero t3, .negative_zero
-    neg t3
-    # Check overflow (INT32_MIN)
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .overflow
+    # 32-bit negate with overflow detection (INT32_MIN)
+    neg32_overflow t3, .overflow
     box_int32 t4, t3
     store_operand m_dst, t4
     dispatch_next
@@ -1256,9 +1243,7 @@ handler PostfixDecrement
     store_operand m_dst, t1
     # Decrement in-place: src = src - 1
     unbox_int32 t3, t1
-    sub t3, 1
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .overflow_after_store
+    sub32_overflow t3, 1, .overflow_after_store
     box_int32 t4, t3
     store_operand m_src, t4
     dispatch_next
@@ -1913,10 +1898,7 @@ handler CallBuiltin
     # abs(int32): negate if negative
     unbox_int32 t3, t1
     branch_not_negative t3, .abs_positive
-    neg t3
-    # Check if result fits in int32 (abs(INT32_MIN) = 2147483648 doesn't)
-    unbox_int32 t4, t3
-    branch_ne t3, t4, .abs_overflow
+    neg32_overflow t3, .abs_overflow
 .abs_positive:
     box_int32 t4, t3
     store_operand m_dst, t4
