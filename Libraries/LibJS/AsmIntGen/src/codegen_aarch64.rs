@@ -1440,6 +1440,9 @@ fn emit_instruction(
                 w!(out, "    sxtw x9, {wdst}");
                 w!(out, "    cmp {dst}, x9");
                 w!(out, "    b.ne {label}");
+                // Zero-extend the 32-bit result so box_int32_clean can
+                // safely set just the tag in the upper 16 bits.
+                w!(out, "    mov {wdst}, {wdst}");
             }
         }
 
