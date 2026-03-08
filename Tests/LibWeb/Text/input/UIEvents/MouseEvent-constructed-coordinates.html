@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Constructed MouseEvent should initialize pageX/pageY and offsetX/offsetY from clientX/clientY.
+        let e = new MouseEvent("click", { clientX: 10.5, clientY: 20.5, screenX: 30.5, screenY: 40.5 });
+
+        println(`screenX: ${e.screenX}`);
+        println(`screenY: ${e.screenY}`);
+        println(`clientX: ${e.clientX}`);
+        println(`clientY: ${e.clientY}`);
+        println(`pageX: ${e.pageX}`);
+        println(`pageY: ${e.pageY}`);
+        println(`offsetX: ${e.offsetX}`);
+        println(`offsetY: ${e.offsetY}`);
+
+        // PointerEvent should behave the same way.
+        let pe = new PointerEvent("pointerdown", { clientX: 5.25, clientY: 15.75 });
+
+        println(`PointerEvent pageX: ${pe.pageX}`);
+        println(`PointerEvent pageY: ${pe.pageY}`);
+        println(`PointerEvent offsetX: ${pe.offsetX}`);
+        println(`PointerEvent offsetY: ${pe.offsetY}`);
+    });
+</script>

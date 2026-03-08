@@ -19,7 +19,7 @@ GC::Ref<DragEvent> DragEvent::create(JS::Realm& realm, FlyString const& event_na
 
 WebIDL::ExceptionOr<GC::Ref<DragEvent>> DragEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, DragEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    return create(realm, event_name, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
 }
 
 DragEvent::DragEvent(JS::Realm& realm, FlyString const& event_name, DragEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)
