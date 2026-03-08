@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    * { background-color: inherit; }
+    body { background-color: rgba(0, 0, 0, 0); }
+
+    .adjacent-trigger + .adjacent-target,
+    .general-trigger ~ .general-scope .general-target,
+    .descendant-trigger .descendant-anchor + .descendant-target,
+    .universal-trigger + * + .universal-target,
+    [data-adjacent-trigger] + .attribute-target,
+    #general-id-trigger ~ .id-target,
+    .fallback-trigger + :where(*) {
+        background-color: rgb(0, 128, 0);
+    }
+</style>
+<div>
+    <div id="adjacent-trigger"></div>
+    <div id="adjacent-target" class="adjacent-target"></div>
+</div>
+
+<div>
+    <div id="general-trigger"></div>
+    <div></div>
+    <div class="general-scope">
+        <div id="general-target" class="general-target"></div>
+    </div>
+</div>
+
+<div id="descendant-trigger">
+    <div class="descendant-anchor"></div>
+    <div id="descendant-target" class="descendant-target"></div>
+</div>
+
+<div>
+    <div id="universal-trigger"></div>
+    <div></div>
+    <div id="universal-target" class="universal-target"></div>
+</div>
+
+<div>
+    <div id="attribute-trigger"></div>
+    <div id="attribute-target" class="attribute-target"></div>
+</div>
+
+<div>
+    <div id="id-trigger"></div>
+    <div></div>
+    <div id="id-target" class="id-target"></div>
+</div>
+
+<div>
+    <div id="fallback-trigger"></div>
+    <div id="fallback-target"></div>
+</div>
+
+<script>
+    test(() => {
+        const bg = (el) => getComputedStyle(el).backgroundColor;
+
+        // .a + .b
+        const adjacentTarget = document.getElementById("adjacent-target");
+        println(`.a + .b before: ${bg(adjacentTarget)}`);
+        document.getElementById("adjacent-trigger").className = "adjacent-trigger";
+        println(`.a + .b after: ${bg(adjacentTarget)}`);
+
+        // .a ~ .b .c
+        const generalTarget = document.getElementById("general-target");
+        println(`.a ~ .b .c before: ${bg(generalTarget)}`);
+        document.getElementById("general-trigger").className = "general-trigger";
+        println(`.a ~ .b .c after: ${bg(generalTarget)}`);
+
+        // .a .b + .c
+        const descendantTarget = document.getElementById("descendant-target");
+        println(`.a .b + .c before: ${bg(descendantTarget)}`);
+        document.getElementById("descendant-trigger").className = "descendant-trigger";
+        println(`.a .b + .c after: ${bg(descendantTarget)}`);
+
+        // .a + * + .c
+        const universalTarget = document.getElementById("universal-target");
+        println(`.a + * + .c before: ${bg(universalTarget)}`);
+        document.getElementById("universal-trigger").className = "universal-trigger";
+        println(`.a + * + .c after: ${bg(universalTarget)}`);
+
+        // [attr] + .b
+        const attributeTarget = document.getElementById("attribute-target");
+        println(`[attr] + .b before: ${bg(attributeTarget)}`);
+        document.getElementById("attribute-trigger").setAttribute("data-adjacent-trigger", "");
+        println(`[attr] + .b after: ${bg(attributeTarget)}`);
+
+        // #id ~ .b
+        const idTarget = document.getElementById("id-target");
+        println(`#id ~ .b before: ${bg(idTarget)}`);
+        document.getElementById("id-trigger").id = "general-id-trigger";
+        println(`#id ~ .b after: ${bg(idTarget)}`);
+
+        // .a + :where(*)
+        const fallbackTarget = document.getElementById("fallback-target");
+        println(`.a + :where(*) before: ${bg(fallbackTarget)}`);
+        document.getElementById("fallback-trigger").className = "fallback-trigger";
+        println(`.a + :where(*) after: ${bg(fallbackTarget)}`);
+    });
+</script>

@@ -196,15 +196,18 @@ RuleCache const* StyleComputer::rule_cache_for_cascade_origin(CascadeOrigin casc
     return true;
 }
 
-InvalidationSet StyleComputer::invalidation_set_for_properties(Vector<InvalidationSet::Property> const& properties, StyleScope const& style_scope) const
+NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(Vector<InvalidationSet::Property> const& properties, StyleScope const& style_scope) const
 {
+    auto result = InvalidationPlan::create();
     if (!style_scope.m_style_invalidation_data)
-        return {};
-    auto const& descendant_invalidation_sets = style_scope.m_style_invalidation_data->descendant_invalidation_sets;
-    InvalidationSet result;
+        return result;
+    auto const& invalidation_plans = style_scope.m_style_invalidation_data->invalidation_plans;
     for (auto const& property : properties) {
-        if (auto it = descendant_invalidation_sets.find(property); it != descendant_invalidation_sets.end())
-            result.include_all_from(it->value);
+        if (auto it = invalidation_plans.find(property); it != invalidation_plans.end()) {
+            result->include_all_from(*it->value);
+            if (result->invalidate_whole_subtree)
+                break;
+        }
     }
     return result;
 }
