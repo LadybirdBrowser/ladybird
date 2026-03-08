@@ -117,9 +117,6 @@ public:
 
     mutable GC::Ptr<CachedSourceRange> cached_source_range;
 
-    // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
-    GC::Ptr<GC::Cell> context_owner;
-
     // Non-standard: Inline frame linkage for the bytecode interpreter.
     // When a JS-to-JS call is inlined in the dispatch loop, these fields
     // allow the Return handler to restore the caller's frame.
