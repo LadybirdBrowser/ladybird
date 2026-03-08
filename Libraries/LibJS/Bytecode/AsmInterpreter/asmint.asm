@@ -506,9 +506,7 @@ handler JumpIf
     branch_bits_set t1, 1, .take_true
     jmp .take_false
 .is_int32:
-    # Test low 32 bits directly (the int32 payload); t1 is dead after this.
-    and t1, 0xFFFFFFFF
-    branch_nonzero t1, .take_true
+    branch_nonzero32 t1, .take_true
     jmp .take_false
 .take_true:
     load_label t0, m_true_target
@@ -530,9 +528,7 @@ handler JumpTrue
     branch_bits_set t1, 1, .take
     dispatch_next
 .is_int32:
-    # Test low 32 bits directly (the int32 payload); t1 is dead after this.
-    and t1, 0xFFFFFFFF
-    branch_nonzero t1, .take
+    branch_nonzero32 t1, .take
     dispatch_next
 .take:
     load_label t0, m_target
@@ -551,9 +547,7 @@ handler JumpFalse
     branch_bits_clear t1, 1, .take
     dispatch_next
 .is_int32:
-    # Test low 32 bits directly (the int32 payload); t1 is dead after this.
-    and t1, 0xFFFFFFFF
-    branch_zero t1, .take
+    branch_zero32 t1, .take
     dispatch_next
 .take:
     load_label t0, m_target
@@ -712,9 +706,7 @@ handler Not
     branch_bits_clear t1, 1, .store_true
     jmp .store_false
 .is_int32:
-    # Test low 32 bits directly (the int32 payload); t1 is dead after this.
-    and t1, 0xFFFFFFFF
-    branch_zero t1, .store_true
+    branch_zero32 t1, .store_true
     jmp .store_false
 .store_true:
     mov t0, BOOLEAN_TRUE

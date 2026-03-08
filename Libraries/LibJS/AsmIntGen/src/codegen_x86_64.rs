@@ -998,6 +998,22 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        // branch_zero32 / branch_nonzero32: test only the low 32 bits.
+        "branch_zero32" | "branch_nonzero32" => {
+            if insn.operands.len() == 2 {
+                let a = resolve_op(&insn.operands[0], handler, program);
+                let a32 = to_32bit_reg(&a);
+                let label = resolve_label(&insn.operands[1], handler);
+                let cc = match m.as_str() {
+                    "branch_zero32" => "jz",
+                    "branch_nonzero32" => "jnz",
+                    _ => unreachable!(),
+                };
+                w!(out, "    test {a32}, {a32}");
+                w!(out, "    {cc} {label}");
+            }
+        }
+
         "branch_bits_set" | "branch_bits_clear" => {
             // branch_bits_set a, mask, label  =>  test a, mask; jnz label
             if insn.operands.len() == 3 {

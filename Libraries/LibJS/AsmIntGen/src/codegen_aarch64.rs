@@ -1771,6 +1771,25 @@ fn emit_instruction(
             }
         }
 
+        // branch_zero32 / branch_nonzero32: test only the low 32 bits.
+        // On aarch64: cbz/cbnz with w-register form.
+        "branch_zero32" | "branch_nonzero32" => {
+            if insn.operands.len() == 2 {
+                let a = resolve_op(&insn.operands[0], handler, program);
+                let wa = to_w_reg(&a);
+                let label = resolve_label(&insn.operands[1], handler);
+                match m.as_str() {
+                    "branch_zero32" => {
+                        w!(out, "    cbz {wa}, {label}");
+                    }
+                    "branch_nonzero32" => {
+                        w!(out, "    cbnz {wa}, {label}");
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+
         "branch_bits_set" | "branch_bits_clear" => {
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);
