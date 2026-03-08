@@ -31,6 +31,8 @@ public:
             && m_denominator == other.m_denominator;
     }
 
+    virtual bool is_computationally_independent() const override { return m_numerator->is_computationally_independent() && m_denominator->is_computationally_independent(); }
+
 private:
     RatioStyleValue(ValueComparingNonnullRefPtr<StyleValue const> numerator, ValueComparingNonnullRefPtr<StyleValue const> denominator)
         : StyleValueWithDefaultOperators(Type::Ratio)

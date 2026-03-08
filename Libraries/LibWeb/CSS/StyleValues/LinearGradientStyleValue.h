@@ -50,6 +50,17 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        auto is_direction_computationally_independent = m_properties.direction.visit(
+            [](NonnullRefPtr<StyleValue const> const& value) { return value->is_computationally_independent(); },
+            [](SideOrCorner) { return true; });
+
+        return is_direction_computationally_independent
+            && all_of(m_properties.color_stop_list, [&](auto const& stop) { return stop.color_stop.color->is_computationally_independent(); })
+            && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
+    }
+
     Vector<ColorStopListElement> const& color_stop_list() const
     {
         return m_properties.color_stop_list;

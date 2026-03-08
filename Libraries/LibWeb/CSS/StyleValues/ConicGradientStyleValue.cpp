@@ -91,6 +91,14 @@ bool ConicGradientStyleValue::equals(StyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
+bool ConicGradientStyleValue::is_computationally_independent() const
+{
+    return (!m_properties.from_angle || m_properties.from_angle->is_computationally_independent())
+        && m_properties.position->is_computationally_independent()
+        && all_of(m_properties.color_stop_list, [](auto const& color_stop) { return color_stop.is_computationally_independent(); })
+        && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
+}
+
 float ConicGradientStyleValue::angle_degrees() const
 {
     if (!m_properties.from_angle)

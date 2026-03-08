@@ -21,6 +21,7 @@ struct Blur {
     ValueComparingNonnullRefPtr<StyleValue const> radius;
     float resolved_radius() const;
     bool operator==(Blur const&) const = default;
+    bool is_computationally_independent() const { return radius->is_computationally_independent(); }
 };
 
 // FIXME: It would be nice if we could use a ShadowStyleValue here
@@ -30,12 +31,20 @@ struct DropShadow {
     ValueComparingRefPtr<StyleValue const> radius;
     ValueComparingRefPtr<StyleValue const> color;
     bool operator==(DropShadow const&) const = default;
+    bool is_computationally_independent() const
+    {
+        return offset_x->is_computationally_independent()
+            && offset_y->is_computationally_independent()
+            && (!radius || radius->is_computationally_independent())
+            && (!color || color->is_computationally_independent());
+    }
 };
 
 struct HueRotate {
     ValueComparingNonnullRefPtr<StyleValue const> angle;
     float angle_degrees() const;
     bool operator==(HueRotate const&) const = default;
+    bool is_computationally_independent() const { return angle->is_computationally_independent(); }
 };
 
 struct Color {
@@ -43,6 +52,7 @@ struct Color {
     ValueComparingNonnullRefPtr<StyleValue const> amount;
     float resolved_amount() const;
     bool operator==(Color const&) const = default;
+    bool is_computationally_independent() const { return amount->is_computationally_independent(); }
 };
 
 };
@@ -66,6 +76,17 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     virtual ~FilterValueListStyleValue() override = default;
+
+    virtual bool is_computationally_independent() const override
+    {
+        return all_of(
+            m_filter_value_list,
+            [](auto const& filter_value) {
+                return filter_value.visit(
+                    [](URL const&) { return true; },
+                    [](auto const& value) { return value.is_computationally_independent(); });
+            });
+    }
 
     bool properties_equal(FilterValueListStyleValue const& other) const { return m_filter_value_list == other.m_filter_value_list; }
 

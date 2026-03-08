@@ -40,6 +40,8 @@ public:
 
     bool properties_equal(CounterStyleValue const& other) const;
 
+    virtual bool is_computationally_independent() const override { return m_properties.counter_style->is_computationally_independent(); }
+
 private:
     explicit CounterStyleValue(CounterFunction, FlyString counter_name, ValueComparingNonnullRefPtr<StyleValue const> counter_style, FlyString join_string);
 

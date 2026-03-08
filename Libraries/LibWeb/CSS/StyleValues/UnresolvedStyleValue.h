@@ -34,6 +34,8 @@ public:
 
     virtual GC::Ref<CSSStyleValue> reify(JS::Realm&, FlyString const& associated_property) const override;
 
+    virtual bool is_computationally_independent() const override { VERIFY_NOT_REACHED(); }
+
 private:
     UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text);
 

@@ -50,6 +50,8 @@ public:
     bool is_font_relative() const { return CSS::is_font_relative(m_unit); }
     bool is_viewport_relative() const { return CSS::is_viewport_relative(m_unit); }
     bool is_relative() const { return CSS::is_relative(m_unit); }
+    // FIXME: Mark container query units as not computationally independent once we support them
+    bool is_computationally_independent() const { return !is_font_relative(); }
 
     double raw_value() const { return m_value; }
     LengthUnit unit() const { return m_unit; }
@@ -176,6 +178,9 @@ public:
             return 0;
         return m_length->to_px(node);
     }
+
+    bool is_font_relative() const { return m_length.has_value() && m_length->is_font_relative(); }
+    bool is_computationally_independent() const { return !m_length.has_value() || m_length->is_computationally_independent(); }
 
     bool operator==(LengthOrAuto const&) const = default;
 

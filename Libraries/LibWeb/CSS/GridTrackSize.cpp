@@ -353,4 +353,13 @@ GridTrackSizeList GridTrackSizeList::absolutized(ComputationContext const& conte
     return result;
 }
 
+bool GridTrackSizeList::is_computationally_independent() const
+{
+    return all_of(m_list, [](auto const& item) {
+        return item.visit(
+            [](ExplicitGridTrack const& track) { return track.is_computationally_independent(); },
+            [](GridLineNames const&) { return true; });
+    });
+}
+
 }

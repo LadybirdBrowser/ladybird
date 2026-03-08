@@ -34,6 +34,8 @@ public:
         return m_value == other_number.m_value;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit NumberStyleValue(double value)
         : StyleValue(Type::Number)

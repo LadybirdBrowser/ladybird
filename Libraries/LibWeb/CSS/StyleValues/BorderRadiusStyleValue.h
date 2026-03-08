@@ -36,6 +36,8 @@ public:
 
     bool properties_equal(BorderRadiusStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override { return m_properties.horizontal_radius->is_computationally_independent() && m_properties.vertical_radius->is_computationally_independent(); }
+
 private:
     BorderRadiusStyleValue(ValueComparingNonnullRefPtr<StyleValue const> const& horizontal_radius, ValueComparingNonnullRefPtr<StyleValue const> const& vertical_radius)
         : StyleValueWithDefaultOperators(Type::BorderRadius)

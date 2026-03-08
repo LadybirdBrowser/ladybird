@@ -36,6 +36,14 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.r->is_computationally_independent()
+            && m_properties.g->is_computationally_independent()
+            && m_properties.b->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
 private:
     RGBColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> r, ValueComparingNonnullRefPtr<StyleValue const> g, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax, Optional<FlyString> name = {})
         : ColorStyleValue(ColorType::RGB, color_syntax)

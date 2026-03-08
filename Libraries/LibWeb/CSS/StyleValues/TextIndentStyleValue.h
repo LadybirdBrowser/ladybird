@@ -32,6 +32,8 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     bool properties_equal(TextIndentStyleValue const&) const;
 
+    virtual bool is_computationally_independent() const override { return m_length_percentage->is_computationally_independent(); }
+
 private:
     TextIndentStyleValue(NonnullRefPtr<StyleValue const> length_percentage, Hanging hanging, EachLine each_line);
 

@@ -36,6 +36,14 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.h->is_computationally_independent()
+            && m_properties.s->is_computationally_independent()
+            && m_properties.l->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
 private:
     HSLColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> s, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> alpha, ColorSyntax color_syntax)
         : ColorStyleValue(ColorType::HSL, color_syntax)

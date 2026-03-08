@@ -29,6 +29,11 @@ public:
         return m_function_type == other.m_function_type && m_names == other.m_names;
     }
 
+    virtual bool is_computationally_independent() const override
+    {
+        return all_of(m_names, [](auto const& name) { return name->is_computationally_independent(); });
+    }
+
 private:
     FontVariantAlternatesFunctionStyleValue(FontFeatureValueType function_type, StyleValueVector names)
         : StyleValueWithDefaultOperators(Type::FontVariantAlternatesFunction)

@@ -25,6 +25,8 @@ public:
 
     bool properties_equal(TextUnderlinePositionStyleValue const& other) const { return m_horizontal == other.m_horizontal && m_vertical == other.m_vertical; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit TextUnderlinePositionStyleValue(TextUnderlinePositionHorizontal horizontal, TextUnderlinePositionVertical vertical)
         : StyleValueWithDefaultOperators(Type::TextUnderlinePosition)

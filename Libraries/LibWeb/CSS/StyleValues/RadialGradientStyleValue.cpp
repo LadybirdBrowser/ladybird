@@ -107,6 +107,14 @@ bool RadialGradientStyleValue::equals(StyleValue const& other) const
     return m_properties == other_gradient.m_properties;
 }
 
+bool RadialGradientStyleValue::is_computationally_independent() const
+{
+    return m_properties.size->is_computationally_independent()
+        && m_properties.position->is_computationally_independent()
+        && all_of(m_properties.color_stop_list, [&](auto const& stop) { return stop.color_stop.color->is_computationally_independent(); })
+        && (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent());
+}
+
 void RadialGradientStyleValue::paint(DisplayListRecordingContext& context, DevicePixelRect const& dest_rect, CSS::ImageRendering) const
 {
     VERIFY(m_resolved.has_value());

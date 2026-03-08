@@ -24,6 +24,8 @@ public:
 
     bool properties_equal(AddFunctionStyleValue const& other) const { return m_value == other.m_value; }
 
+    virtual bool is_computationally_independent() const override { return m_value->is_computationally_independent(); }
+
 private:
     AddFunctionStyleValue(NonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::AddFunction)

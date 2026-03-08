@@ -26,6 +26,8 @@ public:
 
     bool properties_equal(GridTrackPlacementStyleValue const& other) const { return m_grid_track_placement == other.m_grid_track_placement; }
 
+    virtual bool is_computationally_independent() const override { return m_grid_track_placement.is_computationally_independent(); }
+
 private:
     explicit GridTrackPlacementStyleValue(GridTrackPlacement grid_track_placement)
         : StyleValueWithDefaultOperators(Type::GridTrackPlacement)

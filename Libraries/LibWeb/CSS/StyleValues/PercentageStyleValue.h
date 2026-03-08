@@ -36,6 +36,8 @@ public:
         return m_percentage == other_percentage.m_percentage;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     PercentageStyleValue(Percentage&& percentage)
         : DimensionStyleValue(Type::Percentage)

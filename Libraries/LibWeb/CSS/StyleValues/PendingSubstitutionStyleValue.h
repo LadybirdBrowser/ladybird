@@ -31,6 +31,9 @@ public:
     // consider them all to be unique.
     bool properties_equal(PendingSubstitutionStyleValue const&) const { return false; }
 
+    // NB: We should never be in a position where we need to check this
+    virtual bool is_computationally_independent() const override { VERIFY_NOT_REACHED(); }
+
 private:
     explicit PendingSubstitutionStyleValue(StyleValue const& original_shorthand_value)
         : StyleValueWithDefaultOperators(Type::PendingSubstitution)

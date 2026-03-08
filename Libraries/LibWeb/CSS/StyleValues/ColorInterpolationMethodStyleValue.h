@@ -34,6 +34,12 @@ public:
 
     bool properties_equal(ColorInterpolationMethodStyleValue const& other) const { return m_color_interpolation_method == other.m_color_interpolation_method; }
 
+    virtual bool is_computationally_independent() const override
+    {
+        // FIXME: Consider sub-values once we support <custom-color-space> values
+        return true;
+    }
+
 private:
     explicit ColorInterpolationMethodStyleValue(ColorInterpolationMethod color_space)
         : StyleValueWithDefaultOperators(Type::ColorInterpolationMethod)

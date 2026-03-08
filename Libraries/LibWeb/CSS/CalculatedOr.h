@@ -88,6 +88,8 @@ public:
         return builder.to_string_without_validation();
     }
 
+    bool is_computationally_independent() const { return as_style_value()->is_computationally_independent(); }
+
     bool operator==(CalculatedOr<Self, T> const& other) const
     {
         if (is_calculated() || other.is_calculated())

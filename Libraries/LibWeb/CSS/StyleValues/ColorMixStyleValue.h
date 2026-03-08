@@ -28,6 +28,15 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return (!m_properties.color_interpolation_method || m_properties.color_interpolation_method->is_computationally_independent())
+            && m_properties.first_component.color->is_computationally_independent()
+            && m_properties.second_component.color->is_computationally_independent()
+            && (!m_properties.first_component.percentage.has_value() || m_properties.first_component.percentage->is_computationally_independent())
+            && (!m_properties.second_component.percentage.has_value() || m_properties.second_component.percentage->is_computationally_independent());
+    }
+
 private:
     struct Properties {
         ValueComparingRefPtr<StyleValue const> color_interpolation_method;

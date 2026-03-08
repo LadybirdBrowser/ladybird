@@ -46,6 +46,13 @@ public:
     GridSize absolutized(ComputationContext const&) const;
     bool operator==(GridSize const& other) const = default;
 
+    bool is_computationally_independent() const
+    {
+        return m_value.visit(
+            [](Size const& size) { return size.is_computationally_independent(); },
+            [](Flex const&) { return true; });
+    }
+
 private:
     Variant<Size, Flex> m_value;
 };
@@ -61,6 +68,11 @@ public:
     String to_string(SerializationMode) const;
     GridMinMax absolutized(ComputationContext const&) const;
     bool operator==(GridMinMax const& other) const = default;
+
+    bool is_computationally_independent() const
+    {
+        return m_min_grid_size.is_computationally_independent() && m_max_grid_size.is_computationally_independent();
+    }
 
 private:
     GridSize m_min_grid_size;
@@ -125,6 +137,8 @@ public:
 
     GridTrackSizeList absolutized(ComputationContext const&) const;
 
+    bool is_computationally_independent() const;
+
 private:
     Vector<Variant<ExplicitGridTrack, GridLineNames>> m_list;
 };
@@ -161,6 +175,8 @@ public:
     GridRepeat absolutized(ComputationContext const&) const;
     bool operator==(GridRepeat const& other) const = default;
 
+    bool is_computationally_independent() const { return m_grid_track_size_list.is_computationally_independent(); }
+
 private:
     GridRepeatType m_type;
     GridTrackSizeList m_grid_track_size_list;
@@ -184,6 +200,11 @@ public:
     String to_string(SerializationMode) const;
     ExplicitGridTrack absolutized(ComputationContext const&) const;
     bool operator==(ExplicitGridTrack const& other) const = default;
+
+    bool is_computationally_independent() const
+    {
+        return m_value.visit([](auto const& value) { return value.is_computationally_independent(); });
+    }
 
 private:
     Variant<GridRepeat, GridMinMax, GridSize> m_value;

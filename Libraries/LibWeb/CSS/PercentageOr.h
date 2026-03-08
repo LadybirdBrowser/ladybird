@@ -153,6 +153,20 @@ public:
         return (m_value.template get<T>() == other.m_value.template get<T>());
     }
 
+    // FIXME: We can remove this once all StyleValue classes are migrated over to storing sub-values as StyleValues
+    bool is_computationally_independent() const
+    {
+        return m_value.visit(
+            [](T const& value) {
+                if constexpr (IsSame<T, Length>)
+                    return value.is_computationally_independent();
+
+                return true;
+            },
+            [](Percentage const&) { return true; },
+            [](NonnullRefPtr<CalculatedStyleValue const> const& calculated) { return calculated->is_computationally_independent(); });
+    }
+
 protected:
     bool is_t() const { return m_value.template has<T>(); }
     T const& get_t() const { return m_value.template get<T>(); }

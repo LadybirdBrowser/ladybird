@@ -808,14 +808,15 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     if (initial_value_maybe) {
         initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->tokenize(), *maybe_syntax);
+
         // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
         // the following conditions must be met for the @property rule to be valid:
-        //  - The initial-value descriptor must be present.
-        //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
-        //  - FIXME: The initial-value must be computationally independent.
-
-        if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid()) {
-            return {};
+        if (maybe_syntax->type() != CSS::Parser::SyntaxNode::NodeType::Universal) {
+            //  - The initial-value descriptor must be present.
+            //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
+            //  - The initial-value must be computationally independent.
+            if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid() || !initial_value_maybe->is_computationally_independent())
+                return {};
         }
     }
 

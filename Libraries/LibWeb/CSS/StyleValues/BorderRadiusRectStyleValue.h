@@ -42,6 +42,14 @@ public:
             && m_bottom_left == other.m_bottom_left;
     }
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_top_left->is_computationally_independent()
+            && m_top_right->is_computationally_independent()
+            && m_bottom_right->is_computationally_independent()
+            && m_bottom_left->is_computationally_independent();
+    }
+
 private:
     BorderRadiusRectStyleValue(NonnullRefPtr<StyleValue const> top_left, NonnullRefPtr<StyleValue const> top_right, NonnullRefPtr<StyleValue const> bottom_right, NonnullRefPtr<StyleValue const> bottom_left)
         : StyleValueWithDefaultOperators(Type::BorderRadiusRect)

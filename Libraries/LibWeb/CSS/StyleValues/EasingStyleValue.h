@@ -30,6 +30,11 @@ public:
 
         bool operator==(Linear const&) const = default;
 
+        bool is_computationally_independent() const
+        {
+            return all_of(stops, [](Stop const& stop) { return stop.output->is_computationally_independent() && (!stop.input || stop.input->is_computationally_independent()); });
+        }
+
         void serialize(StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
         {
@@ -58,6 +63,11 @@ public:
             return x1 == other.x1 && y1 == other.y1 && x2 == other.x2 && y2 == other.y2;
         }
 
+        bool is_computationally_independent() const
+        {
+            return x1->is_computationally_independent() && y1->is_computationally_independent() && x2->is_computationally_independent() && y2->is_computationally_independent();
+        }
+
         void serialize(StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
         {
@@ -72,6 +82,11 @@ public:
         StepPosition position;
 
         bool operator==(Steps const&) const = default;
+
+        bool is_computationally_independent() const
+        {
+            return number_of_intervals->is_computationally_independent();
+        }
 
         void serialize(StringBuilder&, SerializationMode) const;
         String to_string(SerializationMode mode) const
@@ -101,6 +116,11 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
     bool properties_equal(EasingStyleValue const& other) const { return m_function == other.m_function; }
+
+    virtual bool is_computationally_independent() const override
+    {
+        return m_function.visit([](auto const& function) { return function.is_computationally_independent(); });
+    }
 
 private:
     EasingStyleValue(Function const& function)

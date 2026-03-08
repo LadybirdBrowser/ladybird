@@ -31,6 +31,8 @@ public:
         return m_value == other_integer.m_value;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit IntegerStyleValue(i64 value)
         : StyleValue(Type::Integer)

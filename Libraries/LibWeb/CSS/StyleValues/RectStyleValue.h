@@ -24,6 +24,8 @@ public:
 
     bool properties_equal(RectStyleValue const& other) const { return m_rect == other.m_rect; }
 
+    virtual bool is_computationally_independent() const override { return m_rect.is_computationally_independent(); }
+
 private:
     explicit RectStyleValue(EdgeRect rect)
         : StyleValueWithDefaultOperators(Type::Rect)

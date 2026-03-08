@@ -33,6 +33,14 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.l->is_computationally_independent()
+            && m_properties.a->is_computationally_independent()
+            && m_properties.b->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
 protected:
     LabLikeColorStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> a, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(color_type, ColorSyntax::Modern)

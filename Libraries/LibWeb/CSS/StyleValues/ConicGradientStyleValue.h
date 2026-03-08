@@ -30,6 +30,7 @@ public:
 
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual bool equals(StyleValue const& other) const override;
+    virtual bool is_computationally_independent() const override;
 
     Vector<ColorStopListElement> const& color_stop_list() const
     {

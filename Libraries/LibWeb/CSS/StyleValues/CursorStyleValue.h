@@ -34,6 +34,8 @@ public:
 
     bool properties_equal(CursorStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override;
+
 private:
     CursorStyleValue(ValueComparingNonnullRefPtr<AbstractImageStyleValue const> image,
         RefPtr<StyleValue const> x,

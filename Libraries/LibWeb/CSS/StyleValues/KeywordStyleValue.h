@@ -57,6 +57,19 @@ public:
 
     bool properties_equal(KeywordStyleValue const& other) const { return m_keyword == other.m_keyword; }
 
+    virtual bool is_computationally_independent() const override
+    {
+        if (is_css_wide_keyword())
+            return false;
+
+        // FIXME: Are there any other color keywords which aren't computationally independent?
+        if (first_is_one_of(m_keyword, Keyword::Accentcolor, Keyword::Accentcolortext))
+            return false;
+
+        // FIXME: Are there any other keywords which aren't computationally independent?
+        return true;
+    }
+
 private:
     explicit KeywordStyleValue(Keyword keyword)
         : StyleValueWithDefaultOperators(Type::Keyword)

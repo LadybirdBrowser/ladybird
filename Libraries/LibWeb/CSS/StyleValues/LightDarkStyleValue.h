@@ -24,6 +24,7 @@ public:
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
+    virtual bool is_computationally_independent() const override { return false; }
 
 private:
     LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)

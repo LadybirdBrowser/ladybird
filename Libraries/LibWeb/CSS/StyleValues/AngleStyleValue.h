@@ -30,6 +30,8 @@ public:
 
     bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit AngleStyleValue(Angle angle);
 

@@ -32,6 +32,14 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.l->is_computationally_independent()
+            && m_properties.c->is_computationally_independent()
+            && m_properties.h->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
 protected:
     LCHLikeColorStyleValue(ColorType color_type, ValueComparingNonnullRefPtr<StyleValue const> l, ValueComparingNonnullRefPtr<StyleValue const> c, ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(color_type, ColorSyntax::Modern)

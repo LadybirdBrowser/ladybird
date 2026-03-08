@@ -30,6 +30,8 @@ public:
 
     bool properties_equal(StringStyleValue const& other) const { return m_string == other.m_string; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit StringStyleValue(FlyString const& string)
         : StyleValueWithDefaultOperators(Type::String)

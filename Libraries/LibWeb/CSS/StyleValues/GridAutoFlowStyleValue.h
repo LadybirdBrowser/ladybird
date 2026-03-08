@@ -30,6 +30,8 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     bool properties_equal(GridAutoFlowStyleValue const& other) const { return m_row == other.m_row && m_dense == other.m_dense; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit GridAutoFlowStyleValue(Axis axis, Dense dense)
         : StyleValueWithDefaultOperators(Type::GridAutoFlow)

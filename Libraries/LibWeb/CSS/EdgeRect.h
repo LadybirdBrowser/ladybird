@@ -22,6 +22,13 @@ struct WEB_API EdgeRect {
     LengthOrAuto left_edge;
     CSSPixelRect resolved(Layout::Node const&, CSSPixelRect) const;
     bool operator==(EdgeRect const&) const = default;
+    bool is_computationally_independent() const
+    {
+        return !top_edge.is_computationally_independent()
+            && !right_edge.is_computationally_independent()
+            && !bottom_edge.is_computationally_independent()
+            && !left_edge.is_computationally_independent();
+    }
 };
 
 }
