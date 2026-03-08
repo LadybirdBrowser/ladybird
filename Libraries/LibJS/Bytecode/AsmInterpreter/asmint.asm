@@ -1717,9 +1717,10 @@ end
 
 # Inline cache fast path for global variable access via the global object.
 handler GetGlobal
-    # Load global_declarative_environment and global_object
-    load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
-    load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
+    # Load global_declarative_environment and global_object via realm
+    load64 t0, [exec_ctx, EXECUTION_CONTEXT_REALM]
+    load64 t2, [t0, REALM_GLOBAL_OBJECT]
+    load64 t1, [t0, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     # Get GlobalVariableCache* (direct pointer from instruction stream)
     load64 t3, [pb, pc, m_cache]
     # Check environment_serial_number matches
@@ -1774,9 +1775,10 @@ end
 
 # Inline cache fast path for global variable store via the global object.
 handler SetGlobal
-    # Load global_declarative_environment and global_object
-    load64 t1, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT]
-    load64 t2, [exec_ctx, EXECUTION_CONTEXT_GLOBAL_OBJECT]
+    # Load global_declarative_environment and global_object via realm
+    load64 t0, [exec_ctx, EXECUTION_CONTEXT_REALM]
+    load64 t2, [t0, REALM_GLOBAL_OBJECT]
+    load64 t1, [t0, REALM_GLOBAL_DECLARATIVE_ENVIRONMENT]
     # Get GlobalVariableCache* (direct pointer from instruction stream)
     load64 t3, [pb, pc, m_cache]
     # Check environment_serial_number matches

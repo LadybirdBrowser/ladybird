@@ -27,8 +27,8 @@ public:
     ~Interpreter();
 
     [[nodiscard]] Realm& realm() { return *m_running_execution_context->realm; }
-    [[nodiscard]] Object& global_object() { return *m_running_execution_context->global_object; }
-    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment() { return *m_running_execution_context->global_declarative_environment; }
+    [[nodiscard]] Object& global_object() { return realm().global_object(); }
+    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment();
     static VM& vm() { return VM::the(); }
 
     ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);

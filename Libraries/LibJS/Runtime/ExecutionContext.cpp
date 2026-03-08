@@ -137,8 +137,6 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(executable);
     visitor.visit(caller_executable);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
-    visitor.visit(global_object);
-    visitor.visit(global_declarative_environment);
     visitor.visit(arguments);
     script_or_module.visit(
         [](Empty) {},

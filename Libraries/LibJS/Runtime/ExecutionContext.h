@@ -86,11 +86,6 @@ public:
     GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
     GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]
 
-    GC::Ptr<Object> global_object;
-    GC::Ptr<DeclarativeEnvironment> global_declarative_environment;
-    Utf16FlyString const* identifier_table { nullptr };
-    PropertyKey const* property_key_table { nullptr };
-
     u32 program_counter { 0 };
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#skip-when-determining-incumbent-counter
