@@ -304,7 +304,7 @@ String CalendarPattern::to_pattern() const
     if (minute.has_value()) {
         switch (*minute) {
         case CalendarPatternStyle::Numeric:
-            builder.append("m"sv);
+            builder.append(time_zone_name.has_value() ? "mm"sv : "m"sv);
             break;
         case CalendarPatternStyle::TwoDigit:
             builder.append("mm"sv);
@@ -316,7 +316,7 @@ String CalendarPattern::to_pattern() const
     if (second.has_value()) {
         switch (*second) {
         case CalendarPatternStyle::Numeric:
-            builder.append("s"sv);
+            builder.append(time_zone_name.has_value() ? "ss"sv : "s"sv);
             break;
         case CalendarPatternStyle::TwoDigit:
             builder.append("ss"sv);
