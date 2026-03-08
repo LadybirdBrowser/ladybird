@@ -5,6 +5,16 @@ describe("errors", () => {
         }).toThrowWithMessage(TypeError, "Temporal.ZonedDateTime constructor must be called with 'new'");
     });
 
+    test("invalid time zone name", () => {
+        expect(() => {
+            new Temporal.ZonedDateTime(0n, "ACT");
+        }).toThrowWithMessage(RangeError, "Invalid time zone name 'ACT'");
+
+        expect(() => {
+            new Temporal.ZonedDateTime(0n, "Etc/GMT-24");
+        }).toThrowWithMessage(RangeError, "Invalid time zone name 'Etc/GMT-24'");
+    });
+
     test("out-of-range epoch nanoseconds value", () => {
         expect(() => {
             new Temporal.ZonedDateTime(8_640_000_000_000_000_000_001n);
