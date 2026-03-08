@@ -300,7 +300,7 @@ public:
     Function<ThrowCompletionOr<void>(Realm&, NonnullOwnPtr<ExecutionContext>, ShadowRealm&)> host_initialize_shadow_realm;
     Function<Crypto::SignedBigInteger(Object const& global)> host_system_utc_epoch_nanoseconds;
 
-    [[nodiscard]] GC::ConservativeVector<StackTraceElement> stack_trace() const;
+    [[nodiscard]] Vector<StackTraceElement> stack_trace() const;
 
 private:
     using ErrorMessages = AK::Array<Utf16String, to_underlying(ErrorMessage::__Count)>;

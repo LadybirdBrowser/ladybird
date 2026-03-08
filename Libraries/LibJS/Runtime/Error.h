@@ -21,7 +21,7 @@ struct JS_API TracebackFrame {
     Utf16String function_name;
     [[nodiscard]] SourceRange const& source_range() const;
 
-    GC::Ptr<CachedSourceRange> cached_source_range;
+    Optional<SourceRange> cached_source_range;
 };
 
 enum CompactTraceback {

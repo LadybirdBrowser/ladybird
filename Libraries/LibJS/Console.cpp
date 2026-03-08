@@ -358,8 +358,8 @@ ThrowCompletionOr<Value> Console::trace()
         auto function_name = (context && context->function) ? context->function->name_for_call_stack() : ""_utf16;
         frame.function_name = function_name.is_empty() ? "<anonymous>"_string : function_name.to_utf8();
 
-        if (element.source_range) {
-            auto const& source_range = element.source_range->realize_source_range();
+        if (element.source_range.has_value()) {
+            auto const& source_range = *element.source_range;
             if (!source_range.filename().is_empty()) {
                 frame.source_file = MUST(String::from_byte_string(source_range.filename()));
                 frame.line = source_range.start.line;

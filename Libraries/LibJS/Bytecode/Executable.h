@@ -183,6 +183,8 @@ public:
 
     [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
 
+    [[nodiscard]] SourceRange const& get_source_range(u32 program_counter);
+
     void fixup_cache_pointers();
 
     void dump() const;
@@ -194,6 +196,8 @@ public:
 
 private:
     virtual void visit_edges(Visitor&) override;
+
+    HashMap<u32, SourceRange> m_source_range_cache;
 };
 
 }

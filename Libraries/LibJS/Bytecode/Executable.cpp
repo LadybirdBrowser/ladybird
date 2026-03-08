@@ -246,6 +246,17 @@ UnrealizedSourceRange Executable::source_range_at(size_t offset) const
     };
 }
 
+SourceRange const& Executable::get_source_range(u32 program_counter)
+{
+    return m_source_range_cache.ensure(program_counter, [&] {
+        auto unrealized = source_range_at(program_counter);
+        if (unrealized.source_code)
+            return unrealized.realize();
+        static SourceRange dummy { SourceCode::create({}, {}), {}, {} };
+        return dummy;
+    });
+}
+
 Operand Executable::original_operand_from_raw(u32 raw) const
 {
     // NB: Layout is [registers | locals | constants | arguments]

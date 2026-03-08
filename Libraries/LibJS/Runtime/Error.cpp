@@ -21,9 +21,9 @@ static SourceRange dummy_source_range { SourceCode::create({}, {}), {}, {} };
 
 SourceRange const& TracebackFrame::source_range() const
 {
-    if (!cached_source_range)
+    if (!cached_source_range.has_value())
         return dummy_source_range;
-    return cached_source_range->realize_source_range();
+    return *cached_source_range;
 }
 
 GC::Ref<Error> Error::create(Realm& realm)
@@ -53,8 +53,6 @@ void Error::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_cached_string);
-    for (auto& frame : m_traceback)
-        visitor.visit(frame.cached_source_range);
 }
 
 // 20.5.8.1 InstallErrorCause ( O, options ), https://tc39.es/ecma262/#sec-installerrorcause
@@ -89,12 +87,10 @@ void Error::populate_stack()
     m_traceback.ensure_capacity(stack_trace.size());
     for (auto& element : stack_trace) {
         auto* context = element.execution_context;
-        TracebackFrame frame {
+        m_traceback.append({
             .function_name = context->function ? context->function->name_for_call_stack() : ""_utf16,
-            .cached_source_range = element.source_range,
-        };
-
-        m_traceback.append(move(frame));
+            .cached_source_range = move(element.source_range),
+        });
     }
 }
 
