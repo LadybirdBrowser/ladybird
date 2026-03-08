@@ -1173,6 +1173,9 @@ public:
     {
     }
 
+    auto const& lhs() const { return m_lhs; }
+    auto const& rhs() const { return m_rhs; }
+
     virtual void dump(ASTDumpState const& state = {}) const override;
     virtual Optional<Bytecode::ScopedOperand> generate_bytecode(Bytecode::Generator&, Optional<Bytecode::ScopedOperand> preferred_dst = {}) const override;
 
