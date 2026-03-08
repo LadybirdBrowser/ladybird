@@ -193,6 +193,12 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
     if (!is_valid_month_code_string(month_code))
         return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
 
+    return parse_month_code(month_code);
+}
+
+// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
+MonthCode parse_month_code(StringView month_code)
+{
     // 4. Let isLeapMonth be false.
     auto is_leap_month = false;
 
@@ -993,7 +999,7 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, String const& calendar, 
         // h. If fields.[[MonthCode]] is not UNSET, then
         if (fields.month_code.has_value()) {
             // i. Let parsedMonthCode be ! ParseMonthCode(fields.[[MonthCode]]).
-            auto parsed_month_code = MUST(parse_month_code(vm, *fields.month_code));
+            auto parsed_month_code = parse_month_code(*fields.month_code);
 
             // ii. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
             if (parsed_month_code.is_leap_month)

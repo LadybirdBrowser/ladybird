@@ -109,6 +109,7 @@ Vector<String> const& available_calendars();
 
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, StringView month_code);
+MonthCode parse_month_code(StringView month_code);
 String create_month_code(u8 month_number, bool is_leap_month);
 
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, String const& calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
