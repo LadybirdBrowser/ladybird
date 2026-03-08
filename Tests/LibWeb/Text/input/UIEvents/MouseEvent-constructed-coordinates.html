@@ -2,24 +2,38 @@
 <script src="../include.js"></script>
 <script>
     test(() => {
-        // Constructed MouseEvent should initialize pageX/pageY and offsetX/offsetY from clientX/clientY.
+        // MouseEvent should floor all coordinates.
         let e = new MouseEvent("click", { clientX: 10.5, clientY: 20.5, screenX: 30.5, screenY: 40.5 });
 
-        println(`screenX: ${e.screenX}`);
-        println(`screenY: ${e.screenY}`);
-        println(`clientX: ${e.clientX}`);
-        println(`clientY: ${e.clientY}`);
-        println(`pageX: ${e.pageX}`);
-        println(`pageY: ${e.pageY}`);
-        println(`offsetX: ${e.offsetX}`);
-        println(`offsetY: ${e.offsetY}`);
+        println(`MouseEvent screenX: ${e.screenX}`);
+        println(`MouseEvent screenY: ${e.screenY}`);
+        println(`MouseEvent clientX: ${e.clientX}`);
+        println(`MouseEvent clientY: ${e.clientY}`);
+        println(`MouseEvent pageX: ${e.pageX}`);
+        println(`MouseEvent pageY: ${e.pageY}`);
+        println(`MouseEvent offsetX: ${e.offsetX}`);
+        println(`MouseEvent offsetY: ${e.offsetY}`);
 
-        // PointerEvent should behave the same way.
-        let pe = new PointerEvent("pointerdown", { clientX: 5.25, clientY: 15.75 });
+        // PointerEvent should preserve fractional coordinates for non-click types.
+        let pe = new PointerEvent("pointerdown", { clientX: 5.25, clientY: 15.75, screenX: 0.111, screenY: 0.222 });
 
-        println(`PointerEvent pageX: ${pe.pageX}`);
-        println(`PointerEvent pageY: ${pe.pageY}`);
-        println(`PointerEvent offsetX: ${pe.offsetX}`);
-        println(`PointerEvent offsetY: ${pe.offsetY}`);
+        println(`PointerEvent pointerdown screenX: ${pe.screenX}`);
+        println(`PointerEvent pointerdown clientX: ${pe.clientX}`);
+        println(`PointerEvent pointerdown pageX: ${pe.pageX}`);
+        println(`PointerEvent pointerdown offsetX: ${pe.offsetX}`);
+
+        // PointerEvent click/auxclick/contextmenu should floor coordinates.
+        let click = new PointerEvent("click", { clientX: 5.25, clientY: 15.75, screenX: 0.111, screenY: 0.222 });
+
+        println(`PointerEvent click screenX: ${click.screenX}`);
+        println(`PointerEvent click clientX: ${click.clientX}`);
+        println(`PointerEvent click pageX: ${click.pageX}`);
+        println(`PointerEvent click offsetX: ${click.offsetX}`);
+
+        let auxclick = new PointerEvent("auxclick", { clientX: 5.25, clientY: 15.75 });
+        println(`PointerEvent auxclick clientX: ${auxclick.clientX}`);
+
+        let ctx = new PointerEvent("contextmenu", { clientX: 5.25, clientY: 15.75 });
+        println(`PointerEvent contextmenu clientX: ${ctx.clientX}`);
     });
 </script>

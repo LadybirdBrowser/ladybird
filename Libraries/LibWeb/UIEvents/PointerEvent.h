@@ -41,6 +41,17 @@ public:
 
     virtual ~PointerEvent() override;
 
+    // https://w3c.github.io/pointerevents/#dom-pointerevent-screenx
+    // PointerEvent preserves fractional coordinates for all types except click, auxclick, and contextmenu.
+    double screen_x() const override;
+    double screen_y() const override;
+    double page_x() const override;
+    double page_y() const override;
+    double client_x() const override;
+    double client_y() const override;
+    double offset_x() const override;
+    double offset_y() const override;
+
     WebIDL::Long pointer_id() const { return m_pointer_id; }
     double width() const { return m_width; }
     double height() const { return m_height; }
@@ -70,6 +81,8 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    bool should_have_fractional_coordinates() const;
+
     virtual bool is_pointer_event() const final { return true; }
 
     // A unique identifier for the pointer causing the event.

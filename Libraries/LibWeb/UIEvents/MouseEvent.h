@@ -37,20 +37,20 @@ public:
 
     virtual ~MouseEvent() override;
 
-    double screen_x() const { return m_screen_x; }
-    double screen_y() const { return m_screen_y; }
+    virtual double screen_x() const { return is_trusted() ? m_screen_x : AK::floor(m_screen_x); }
+    virtual double screen_y() const { return is_trusted() ? m_screen_y : AK::floor(m_screen_y); }
 
-    double page_x() const { return m_page_x; }
-    double page_y() const { return m_page_y; }
+    virtual double page_x() const { return is_trusted() ? m_page_x : AK::floor(m_page_x); }
+    virtual double page_y() const { return is_trusted() ? m_page_y : AK::floor(m_page_y); }
 
-    double client_x() const { return m_client_x; }
-    double client_y() const { return m_client_y; }
+    virtual double client_x() const { return is_trusted() ? m_client_x : AK::floor(m_client_x); }
+    virtual double client_y() const { return is_trusted() ? m_client_y : AK::floor(m_client_y); }
 
     double x() const { return client_x(); }
     double y() const { return client_y(); }
 
-    double offset_x() const { return m_offset_x; }
-    double offset_y() const { return m_offset_y; }
+    virtual double offset_x() const { return is_trusted() ? m_offset_x : AK::floor(m_offset_x); }
+    virtual double offset_y() const { return is_trusted() ? m_offset_y : AK::floor(m_offset_y); }
 
     bool ctrl_key() const { return m_ctrl_key; }
     bool shift_key() const { return m_shift_key; }
@@ -91,9 +91,6 @@ protected:
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
-private:
-    virtual bool is_mouse_event() const override { return true; }
-
     double m_screen_x { 0 };
     double m_screen_y { 0 };
     double m_page_x { 0 };
@@ -102,6 +99,10 @@ private:
     double m_client_y { 0 };
     double m_offset_x { 0 };
     double m_offset_y { 0 };
+
+private:
+    virtual bool is_mouse_event() const override { return true; }
+
     bool m_ctrl_key { false };
     bool m_shift_key { false };
     bool m_alt_key { false };

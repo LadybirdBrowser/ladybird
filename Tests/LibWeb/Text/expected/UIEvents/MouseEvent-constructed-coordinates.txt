@@ -1,12 +1,18 @@
-screenX: 30.5
-screenY: 40.5
-clientX: 10.5
-clientY: 20.5
-pageX: 10.5
-pageY: 20.5
-offsetX: 10.5
-offsetY: 20.5
-PointerEvent pageX: 5.25
-PointerEvent pageY: 15.75
-PointerEvent offsetX: 5.25
-PointerEvent offsetY: 15.75
+MouseEvent screenX: 30
+MouseEvent screenY: 40
+MouseEvent clientX: 10
+MouseEvent clientY: 20
+MouseEvent pageX: 10
+MouseEvent pageY: 20
+MouseEvent offsetX: 10
+MouseEvent offsetY: 20
+PointerEvent pointerdown screenX: 0.111
+PointerEvent pointerdown clientX: 5.25
+PointerEvent pointerdown pageX: 5.25
+PointerEvent pointerdown offsetX: 5.25
+PointerEvent click screenX: 0
+PointerEvent click clientX: 5
+PointerEvent click pageX: 5
+PointerEvent click offsetX: 5
+PointerEvent auxclick clientX: 5
+PointerEvent contextmenu clientX: 5
