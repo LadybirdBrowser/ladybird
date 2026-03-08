@@ -3575,6 +3575,7 @@ fn generate_assignment_expression(
 
                 // Load LHS value first (needed for both compound and logical assignments).
                 let lhs_val = generate_identifier(ident, generator, None)?;
+                let lhs_val = generator.copy_if_needed_to_preserve_evaluation_order(&lhs_val);
 
                 let is_logical = matches!(
                     op,

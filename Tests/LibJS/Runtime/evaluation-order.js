@@ -79,3 +79,11 @@ test("object literal key is reassigned during value evaluation", () => {
     let result = foo("old", "new");
     expect(result).toBe("old");
 });
+
+test("evaluation order for compound assignment", () => {
+    function foo(value) {
+        return (value += value = 5);
+    }
+    let result = foo(2);
+    expect(result).toBe(7);
+});
