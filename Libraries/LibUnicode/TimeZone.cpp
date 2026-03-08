@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -211,10 +211,17 @@ Vector<TimeZoneOffset> disambiguated_time_zone_offsets(StringView time_zone, Uni
     auto latter = get_offset(UCAL_TZ_LOCAL_LATTER);
 
     Vector<TimeZoneOffset> offsets;
-    if (former.has_value())
+
+    if (former.has_value() && latter.has_value()) {
+        if (former->offset == latter->offset) {
+            offsets.append(*former);
+        } else if (former->offset > latter->offset) {
+            offsets.append(*former);
+            offsets.append(*latter);
+        }
+    } else if (former.has_value()) {
         offsets.append(*former);
-    if (latter.has_value() && latter->offset != former->offset)
-        offsets.append(*latter);
+    }
 
     return offsets;
 }

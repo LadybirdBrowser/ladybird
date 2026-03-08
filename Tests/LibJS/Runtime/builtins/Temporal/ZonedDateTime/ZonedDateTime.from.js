@@ -103,6 +103,41 @@ describe("correct behavior", () => {
         expect(zonedDateTime.offsetNanoseconds).toBe(0);
     });
 
+    // In America/New_York, 2024-03-10T02:30 doesn't exist (spring-forward gap: 2:00 AM to 3:00 AM).
+    test("DST gap disambiguation with property bag", () => {
+        const gapTime = {
+            year: 2024,
+            month: 3,
+            day: 10,
+            hour: 2,
+            minute: 30,
+            timeZone: "America/New_York",
+        };
+
+        // "compatible": resolve to the later side of the gap (3:30 AM EDT).
+        const compatible = Temporal.ZonedDateTime.from(gapTime, { disambiguation: "compatible" });
+        expect(compatible.hour).toBe(3);
+        expect(compatible.minute).toBe(30);
+        expect(compatible.offset).toBe("-04:00");
+
+        // "later": same as compatible for gaps.
+        const later = Temporal.ZonedDateTime.from(gapTime, { disambiguation: "later" });
+        expect(later.hour).toBe(3);
+        expect(later.minute).toBe(30);
+        expect(later.offset).toBe("-04:00");
+
+        // "earlier": resolve to the earlier side of the gap (1:30 AM EST).
+        const earlier = Temporal.ZonedDateTime.from(gapTime, { disambiguation: "earlier" });
+        expect(earlier.hour).toBe(1);
+        expect(earlier.minute).toBe(30);
+        expect(earlier.offset).toBe("-05:00");
+
+        // "reject": throw for non-existent times.
+        expect(() => {
+            Temporal.ZonedDateTime.from(gapTime, { disambiguation: "reject" });
+        }).toThrowWithMessage(RangeError, "Cannot disambiguate zero possible epoch nanoseconds");
+    });
+
     test("offsets", () => {
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(offset => {
             let timeZone = `Etc/GMT-${offset}`;

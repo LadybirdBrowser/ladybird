@@ -31,6 +31,22 @@ describe("correct behavior", () => {
         expect(startOfDayZonedDateTime.offset).toBe("+00:00");
         expect(startOfDayZonedDateTime.offsetNanoseconds).toBe(0);
     });
+
+    // In America/Santiago, 2024-09-08T00:00 doesn't exist (spring-forward gap: midnight to 1:00 AM).
+    test("start of day when midnight is in a DST gap", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from({
+            year: 2024,
+            month: 9,
+            day: 8,
+            hour: 12,
+            timeZone: "America/Santiago",
+        });
+
+        const startOfDay = zonedDateTime.startOfDay();
+        expect(startOfDay.hour).toBe(1);
+        expect(startOfDay.minute).toBe(0);
+        expect(startOfDay.offset).toBe("-03:00");
+    });
 });
 
 describe("errors", () => {

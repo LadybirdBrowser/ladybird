@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/Intl/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
 #include <LibJS/Runtime/Temporal/DateEquations.h>
+#include <LibJS/Runtime/Temporal/Duration.h>
 #include <LibJS/Runtime/Temporal/ISO8601.h>
 #include <LibJS/Runtime/Temporal/Instant.h>
 #include <LibJS/Runtime/Temporal/PlainDate.h>
@@ -311,10 +312,81 @@ ThrowCompletionOr<Crypto::SignedBigInteger> disambiguate_possible_epoch_nanoseco
     if (disambiguation == Disambiguation::Reject)
         return vm.throw_completion<RangeError>(ErrorType::TemporalDisambiguatePossibleEpochNSRejectZero);
 
-    // FIXME: GetNamedTimeZoneEpochNanoseconds currently does not produce zero instants.
-    (void)time_zone;
-    (void)iso_date_time;
-    TODO();
+    // 6. Let before be the latest possible ISO Date-Time Record for which CompareISODateTime(before, isoDateTime) = -1
+    //    and ! GetPossibleEpochNanoseconds(timeZone, before) is not empty.
+    // 7. Let after be the earliest possible ISO Date-Time Record for which CompareISODateTime(after, isoDateTime) = 1
+    //    and ! GetPossibleEpochNanoseconds(timeZone, after) is not empty.
+    // 8. Let beforePossible be ! GetPossibleEpochNanoseconds(timeZone, before).
+    // 9. Assert: The number of elements in beforePossible = 1.
+    // 10. Let afterPossible be ! GetPossibleEpochNanoseconds(timeZone, after).
+    // 11. Assert: The number of elements in afterPossible = 1.
+    // NB: We implement this by finding the UTC offsets one day before and after the gap, which is guaranteed to be
+    //     outside the transition period. We then use those offsets to determine the before/after epoch nanoseconds.
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
+    auto before_possible = epoch_nanoseconds.minus(NANOSECONDS_PER_DAY);
+    auto after_possible = epoch_nanoseconds.plus(NANOSECONDS_PER_DAY);
+
+    // 12. Let offsetBefore be GetOffsetNanosecondsFor(timeZone, the sole element of beforePossible).
+    auto offset_before = get_offset_nanoseconds_for(time_zone, before_possible);
+
+    // 13. Let offsetAfter be GetOffsetNanosecondsFor(timeZone, the sole element of afterPossible).
+    auto offset_after = get_offset_nanoseconds_for(time_zone, after_possible);
+
+    // 14. Let nanoseconds be offsetAfter - offsetBefore.
+    auto nanoseconds = offset_after - offset_before;
+
+    // 15. Assert: abs(nanoseconds) ≤ nsPerDay.
+
+    // 16. If disambiguation is EARLIER, then
+    if (disambiguation == Disambiguation::Earlier) {
+        // a. Let timeDuration be TimeDurationFromComponents(0, 0, 0, 0, 0, -nanoseconds).
+        auto time_duration = time_duration_from_components(0, 0, 0, 0, 0, -static_cast<double>(nanoseconds));
+
+        // b. Let earlierTime be AddTime(isoDateTime.[[Time]], timeDuration).
+        auto earlier_time = add_time(iso_date_time.time, time_duration);
+
+        // c. Let earlierDate be AddDaysToISODate(isoDateTime.[[ISODate]], earlierTime.[[Days]]).
+        auto earlier_date = add_days_to_iso_date(iso_date_time.iso_date, earlier_time.days);
+
+        // d. Let earlierDateTime be CombineISODateAndTimeRecord(earlierDate, earlierTime).
+        auto earlier_date_time = combine_iso_date_and_time_record(earlier_date, earlier_time);
+
+        // e. Set possibleEpochNs to ? GetPossibleEpochNanoseconds(timeZone, earlierDateTime).
+        possible_epoch_ns = TRY(get_possible_epoch_nanoseconds(vm, time_zone, earlier_date_time));
+
+        // f. Assert: possibleEpochNs is not empty.
+        VERIFY(!possible_epoch_ns.is_empty());
+
+        // g. Return possibleEpochNs[0].
+        return move(possible_epoch_ns[0]);
+    }
+
+    // 17. Assert: disambiguation is COMPATIBLE or LATER.
+    VERIFY(disambiguation == Disambiguation::Compatible || disambiguation == Disambiguation::Later);
+
+    // 18. Let timeDuration be TimeDurationFromComponents(0, 0, 0, 0, 0, nanoseconds).
+    auto time_duration = time_duration_from_components(0, 0, 0, 0, 0, static_cast<double>(nanoseconds));
+
+    // 19. Let laterTime be AddTime(isoDateTime.[[Time]], timeDuration).
+    auto later_time = add_time(iso_date_time.time, time_duration);
+
+    // 20. Let laterDate be AddDaysToISODate(isoDateTime.[[ISODate]], laterTime.[[Days]]).
+    auto later_date = add_days_to_iso_date(iso_date_time.iso_date, later_time.days);
+
+    // 21. Let laterDateTime be CombineISODateAndTimeRecord(laterDate, laterTime).
+    auto later_date_time = combine_iso_date_and_time_record(later_date, later_time);
+
+    // 22. Set possibleEpochNs to ? GetPossibleEpochNanoseconds(timeZone, laterDateTime).
+    possible_epoch_ns = TRY(get_possible_epoch_nanoseconds(vm, time_zone, later_date_time));
+
+    // 23. Set n to the number of elements in possibleEpochNs.
+    n = possible_epoch_ns.size();
+
+    // 24. Assert: n ≠ 0.
+    VERIFY(n != 0);
+
+    // 25. Return possibleEpochNs[n - 1].
+    return move(possible_epoch_ns[n - 1]);
 }
 
 // 11.1.13 GetPossibleEpochNanoseconds ( timeZone, isoDateTime ), https://tc39.es/proposal-temporal/#sec-temporal-getpossibleepochnanoseconds
@@ -378,8 +450,24 @@ ThrowCompletionOr<Crypto::SignedBigInteger> get_start_of_day(VM& vm, String cons
     if (!possible_epoch_nanoseconds.is_empty())
         return move(possible_epoch_nanoseconds[0]);
 
-    // FIXME: GetNamedTimeZoneEpochNanoseconds currently does not produce zero instants.
-    TODO();
+    // 4. Assert: IsOffsetTimeZoneIdentifier(timeZone) is false.
+    VERIFY(!is_offset_time_zone_identifier(time_zone));
+
+    // 5. Let possibleEpochNsAfter be GetNamedTimeZoneEpochNanoseconds(timeZone, isoDateTimeAfter), where isoDateTimeAfter
+    //    is the ISO Date-Time Record for which DifferenceISODateTime(isoDateTime, isoDateTimeAfter, "iso8601", hour).[[Time]]
+    //    is the smallest possible value > 0 for which possibleEpochNsAfter is not empty (i.e., isoDateTimeAfter represents
+    //    the first local time after the transition).
+    // NB: We implement this by finding the next UTC offset transition after one day before midnight, which is guaranteed
+    //     to be before the gap. The transition instant is the first valid epoch nanoseconds of the day.
+    auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
+    auto day_before = epoch_nanoseconds.minus(NANOSECONDS_PER_DAY);
+    auto possible_epoch_nanoseconds_after = get_named_time_zone_next_transition(time_zone, day_before);
+
+    // 6. Assert: The number of elements in possibleEpochNsAfter = 1.
+    VERIFY(possible_epoch_nanoseconds_after.has_value());
+
+    // 7. Return the sole element of possibleEpochNsAfter.
+    return possible_epoch_nanoseconds_after.release_value();
 }
 
 // 11.1.15 TimeZoneEquals ( one, two ), https://tc39.es/proposal-temporal/#sec-temporal-timezoneequals
