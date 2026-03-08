@@ -87,3 +87,19 @@ test("evaluation order for compound assignment", () => {
     let result = foo(2);
     expect(result).toBe(7);
 });
+
+test("evaluation order for binary operators (RHS reassigns)", () => {
+    function foo(value) {
+        return value + (value = 5);
+    }
+    let result = foo(2);
+    expect(result).toBe(7);
+});
+
+test("evaluation order for binary operators (LHS reassigns)", () => {
+    function foo(value) {
+        return (value = 5) + value;
+    }
+    let result = foo(2);
+    expect(result).toBe(10);
+});

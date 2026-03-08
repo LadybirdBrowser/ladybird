@@ -184,6 +184,24 @@ static ThrowCompletionOr<ScopedOperand> constant_fold_binary_expression(Generato
     }
 }
 
+static bool might_contain_assignment_expression(Expression const& expression)
+{
+    if (expression.is_numeric_literal() || expression.is_string_literal() || expression.is_boolean_literal() || expression.is_null_literal() || expression.is_identifier())
+        return false;
+
+    if (auto const* unary_expression = as_if<UnaryExpression>(expression))
+        return might_contain_assignment_expression(unary_expression->lhs());
+
+    if (auto const* binary_expression = as_if<BinaryExpression>(expression))
+        return might_contain_assignment_expression(binary_expression->lhs()) || might_contain_assignment_expression(binary_expression->rhs());
+
+    if (auto const* member_expression = as_if<MemberExpression>(expression))
+        return might_contain_assignment_expression(member_expression->object()) || might_contain_assignment_expression(member_expression->property());
+
+    // Conservatively consider everything else, including assignments themselves as potentially assigning.
+    return true;
+}
+
 Optional<ScopedOperand> BinaryExpression::generate_bytecode(Bytecode::Generator& generator, Optional<ScopedOperand> preferred_dst) const
 {
     Bytecode::Generator::SourceLocationScope scope(generator, *this);
@@ -247,6 +265,15 @@ Optional<ScopedOperand> BinaryExpression::generate_bytecode(Bytecode::Generator&
     };
 
     auto lhs = get_left_side(*m_lhs).value();
+    // OPTIMIZATION: We do need to make a copy of the LHS here in case evaluation of the RHS
+    // reassigns it. However, binary expressions are a pretty common thing, so doing the copy
+    // unconditionally is a noticable performance hit, especially because in practice, the copy is
+    // almost never needed. We add a small heuristic here that detects the most common cases.
+    // FIXME: This is a pretty narrow optimization. Maybe instead, it would make sense to have a
+    // more general "remove unnecessary mov-operations" as part of a bytecode optimization pass.
+    if (might_contain_assignment_expression(m_rhs))
+        lhs = generator.copy_if_needed_to_preserve_evaluation_order(lhs);
+
     auto rhs = get_right_side(*m_rhs).value();
     auto dst = choose_dst(generator, preferred_dst);
 
