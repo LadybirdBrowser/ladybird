@@ -12,7 +12,9 @@ JS bytecode executable "f"
 [  10]       GetById dst:reg5, base:arg0, property:patchFlag
 [  30]       Mov dst:a~0, src:reg5
 [  40]       ThrowIfTDZ src:a~0
-[  48]       GetById dst:reg5, base:arg1, property:patchFlag, base_identifier:e
-[  68]       BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg5
-[  78]       BitwiseOr dst:a~0, lhs:a~0, rhs:reg6
-[  88]       End value:Undefined
+[  48]       Mov dst:reg5, src:a~0
+[  58]       GetById dst:reg6, base:arg1, property:patchFlag, base_identifier:e
+[  78]       BitwiseAnd dst:reg7, lhs:Int32(16), rhs:reg6
+[  88]       BitwiseOr dst:reg6, lhs:reg5, rhs:reg7
+[  98]       Mov dst:a~0, src:reg6
+[  a8]       End value:Undefined

@@ -775,6 +775,7 @@ Optional<ScopedOperand> AssignmentExpression::generate_bytecode(Bytecode::Genera
         return {};
 
     auto lhs = reference_operands.loaded_value.value();
+    lhs = generator.copy_if_needed_to_preserve_evaluation_order(lhs);
 
     Bytecode::BasicBlock* rhs_block_ptr { nullptr };
     Bytecode::BasicBlock* lhs_block_ptr { nullptr };

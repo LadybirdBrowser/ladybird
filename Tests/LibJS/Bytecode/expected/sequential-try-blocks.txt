@@ -10,24 +10,32 @@ JS bytecode executable ""
 JS bytecode executable "sequentialTryCatch"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:result~2, src:String("")
-[  18]       Jump target:@58
+[  18]       Jump target:@78
 [  20]    1: Catch dst:reg5
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       Mov dst:e~0, src:reg5
-[  40]       Add dst:result~2, lhs:result~2, rhs:String("b")
-[  50]    2: Jump target:@a8
-[  58]    3: Add dst:result~2, lhs:result~2, rhs:String("a")
-[  68]       Throw src:Int32(1)
-[  70]    4: Catch dst:reg5
-[  78]       SetLexicalEnvironment environment:reg4
-[  80]       Mov dst:e~1, src:reg5
-[  90]       Add dst:result~2, lhs:result~2, rhs:String("d")
-[  a0]    5: Return value:result~2
-[  a8]    6: Add dst:result~2, lhs:result~2, rhs:String("c")
-[  b8]       Throw src:Int32(2)
+[  40]       Mov dst:reg6, src:result~2
+[  50]       Add dst:reg7, lhs:reg6, rhs:String("b")
+[  60]       Mov dst:result~2, src:reg7
+[  70]    2: Jump target:@108
+[  78]    3: Mov dst:reg5, src:result~2
+[  88]       Add dst:reg6, lhs:reg5, rhs:String("a")
+[  98]       Mov dst:result~2, src:reg6
+[  a8]       Throw src:Int32(1)
+[  b0]    4: Catch dst:reg5
+[  b8]       SetLexicalEnvironment environment:reg4
+[  c0]       Mov dst:e~1, src:reg5
+[  d0]       Mov dst:reg6, src:result~2
+[  e0]       Add dst:reg7, lhs:reg6, rhs:String("d")
+[  f0]       Mov dst:result~2, src:reg7
+[ 100]    5: Return value:result~2
+[ 108]    6: Mov dst:reg5, src:result~2
+[ 118]       Add dst:reg6, lhs:reg5, rhs:String("c")
+[ 128]       Mov dst:result~2, src:reg6
+[ 138]       Throw src:Int32(2)
 
 Exception handlers:
-    from   58 to   70 handler   20
-    from   a8 to   c0 handler   70
+    from   78 to   b0 handler   20
+    from  108 to  140 handler   b0
 
 "abcd"
