@@ -107,7 +107,6 @@ public:
     // When a JS-to-JS call is inlined in the dispatch loop, these fields
     // allow the Return handler to restore the caller's frame.
     ExecutionContext* caller_frame { nullptr };
-    GC::Ptr<Bytecode::Executable> caller_executable;
     u32 passed_argument_count { 0 };
     u32 caller_return_pc { 0 };
     u32 caller_dst_raw { 0 };
