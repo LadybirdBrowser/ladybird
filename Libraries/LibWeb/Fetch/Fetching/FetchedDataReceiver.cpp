@@ -37,6 +37,10 @@ void FetchedDataReceiver::set_body(GC::Ref<Fetch::Infrastructure::Body> body)
     // Flush any bytes that were buffered before the body was set
     if (!m_buffer.is_empty())
         m_body->append_sniff_bytes(m_buffer);
+    // If the stream already completed before the body was set,
+    // we missed the set_sniff_bytes_complete() call in handle_network_bytes.
+    if (m_lifecycle_state != LifecycleState::Receiving)
+        m_body->set_sniff_bytes_complete();
 }
 
 void FetchedDataReceiver::visit_edges(Visitor& visitor)
