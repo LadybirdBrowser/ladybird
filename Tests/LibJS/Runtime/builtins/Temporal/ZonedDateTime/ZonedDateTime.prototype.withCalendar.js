@@ -11,6 +11,15 @@ describe("correct behavior", () => {
         const withCalendarZonedDateTime = zonedDateTime.withCalendar("iso8601");
         expect(withCalendarZonedDateTime.calendarId).toBe("iso8601");
     });
+
+    test("switching to hebrew calendar reinterprets fields", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from("2024-06-15T12:00:00+00:00[UTC]");
+        const hebrewZonedDateTime = zonedDateTime.withCalendar("hebrew");
+        expect(hebrewZonedDateTime.calendarId).toBe("hebrew");
+        expect(hebrewZonedDateTime.year).toBe(5784);
+        // The underlying epoch nanoseconds is preserved.
+        expect(hebrewZonedDateTime.epochNanoseconds).toBe(zonedDateTime.epochNanoseconds);
+    });
 });
 
 describe("errors", () => {

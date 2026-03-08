@@ -1,4 +1,5 @@
 set(SOURCES
+    Calendar.cpp
     CharacterTypes.cpp
     Collator.cpp
     CurrencyCode.cpp

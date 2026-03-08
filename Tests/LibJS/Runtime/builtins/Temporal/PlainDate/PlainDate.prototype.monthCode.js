@@ -3,6 +3,40 @@ describe("correct behavior", () => {
         const date = new Temporal.PlainDate(2021, 7, 23);
         expect(date.monthCode).toBe("M07");
     });
+
+    test("gregory calendar month codes", () => {
+        let plainDate = new Temporal.PlainDate(2024, 1, 1, "gregory");
+        expect(plainDate.monthCode).toBe("M01");
+
+        plainDate = new Temporal.PlainDate(2024, 12, 1, "gregory");
+        expect(plainDate.monthCode).toBe("M12");
+    });
+
+    test("hebrew calendar leap month code", () => {
+        // 2024-02-11 falls in Adar I (M05L) of Hebrew year 5784 (a leap year).
+        const plainDate = Temporal.PlainDate.from("2024-02-11[u-ca=hebrew]");
+        expect(plainDate.monthCode).toBe("M05L");
+    });
+
+    test("chinese calendar regular month codes", () => {
+        // 2024-02-10 is Chinese New Year (M01 day 1).
+        const plainDate = Temporal.PlainDate.from("2024-02-10[u-ca=chinese]");
+        expect(plainDate.monthCode).toBe("M01");
+    });
+
+    test("chinese calendar leap month code", () => {
+        // 2023 has a Chinese leap month after M02.
+        // 2023-03-22 falls in leap M02.
+        const plainDate = Temporal.PlainDate.from("2023-03-22[u-ca=chinese]");
+        expect(plainDate.monthCode).toBe("M02L");
+    });
+
+    test("coptic calendar 13th month", () => {
+        // The Coptic calendar has a 13th month (Nasie).
+        // 2024-09-06 falls in month 13 of Coptic year 1740.
+        const plainDate = Temporal.PlainDate.from("2024-09-06[u-ca=coptic]");
+        expect(plainDate.monthCode).toBe("M13");
+    });
 });
 
 describe("errors", () => {

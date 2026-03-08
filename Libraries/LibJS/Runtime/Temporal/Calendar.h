@@ -90,6 +90,12 @@ struct Partial { };
 using CalendarFieldList = ReadonlySpan<CalendarField>;
 using CalendarFieldListOrPartial = Variant<Partial, CalendarFieldList>;
 
+struct BalancedDate {
+    i32 year { 0 };
+    u8 month { 0 };
+    u8 day { 0 };
+};
+
 ThrowCompletionOr<String> canonicalize_calendar(VM&, StringView id);
 Vector<String> const& available_calendars();
 
@@ -127,5 +133,19 @@ Vector<CalendarField> non_iso_field_keys_to_ignore(String const& calendar, Reado
 Vector<CalendarField> calendar_field_keys_to_ignore(String const& calendar, ReadonlySpan<CalendarField>);
 ThrowCompletionOr<void> non_iso_resolve_fields(VM&, String const& calendar, CalendarFields&, DateType);
 ThrowCompletionOr<void> calendar_resolve_fields(VM&, String const& calendar, CalendarFields&, DateType);
+
+bool calendar_supports_era(String const& calendar);
+Optional<StringView> canonicalize_era_in_calendar(String const& calendar, StringView era);
+bool calendar_has_mid_year_eras(String const& calendar);
+bool is_valid_month_code_for_calendar(String const& calendar, StringView month_code);
+bool year_contains_month_code(String const& calendar, i32 arithmetic_year, StringView month_code);
+ThrowCompletionOr<String> constrain_month_code(VM&, String const& calendar, i32 arithmetic_year, String const& month_code, Overflow overflow);
+u8 month_code_to_ordinal(String const& calendar, i32 arithmetic_year, StringView month_code);
+u8 calendar_days_in_month(String const& calendar, i32 arithmetic_year, u8 ordinal_month);
+i32 calendar_date_arithmetic_year_for_era_year(String const& calendar, StringView era, i32 era_year);
+ThrowCompletionOr<ISODate> calendar_integers_to_iso(VM&, String const& calendar, i32 arithmetic_year, u8 ordinal_month, u8 day);
+u8 calendar_months_in_year(String const& calendar, i32 arithmetic_year);
+BalancedDate balance_non_iso_date(String const& calendar, i32 arithmetic_year, i32 ordinal_month, i32 day);
+bool non_iso_date_surpasses(VM&, String const& calendar, i8 sign, CalendarDate const& from_calendar_date, CalendarDate const& to_calendar_date, double years, double months, double weeks, double days);
 
 }
