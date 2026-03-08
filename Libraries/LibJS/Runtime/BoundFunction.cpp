@@ -55,9 +55,9 @@ ThrowCompletionOr<Value> BoundFunction::internal_call(ExecutionContext& callee_c
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    auto* argument_values = callee_context.arguments.data();
+    auto* argument_values = callee_context.arguments_data();
 
-    for (ssize_t i = static_cast<ssize_t>(callee_context.arguments.size()) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
+    for (ssize_t i = static_cast<ssize_t>(callee_context.argument_count) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
         argument_values[i] = argument_values[i - bound_args.size()];
     for (size_t i = 0; i < bound_args.size(); ++i)
         argument_values[i] = bound_args[i];
@@ -81,9 +81,9 @@ ThrowCompletionOr<GC::Ref<Object>> BoundFunction::internal_construct(ExecutionCo
     auto& bound_args = m_bound_arguments;
 
     // 4. Let args be the list-concatenation of boundArgs and argumentsList.
-    auto* argument_values = callee_context.arguments.data();
+    auto* argument_values = callee_context.arguments_data();
 
-    for (ssize_t i = static_cast<ssize_t>(callee_context.arguments.size()) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
+    for (ssize_t i = static_cast<ssize_t>(callee_context.argument_count) - 1; i >= static_cast<ssize_t>(bound_args.size()); --i)
         argument_values[i] = argument_values[i - bound_args.size()];
     for (size_t i = 0; i < bound_args.size(); ++i)
         argument_values[i] = bound_args[i];

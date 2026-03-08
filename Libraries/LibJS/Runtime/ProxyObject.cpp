@@ -798,11 +798,11 @@ ThrowCompletionOr<Value> ProxyObject::internal_call(ExecutionContext& callee_con
     // 6. If trap is undefined, then
     if (!trap) {
         // a. Return ? Call(target, thisArgument, argumentsList).
-        return call(vm, m_target, this_argument, callee_context.arguments);
+        return call(vm, m_target, this_argument, callee_context.arguments_span());
     }
 
     // 7. Let argArray be CreateArrayFromList(argumentsList).
-    auto arguments_array = Array::create_from(realm, callee_context.arguments);
+    auto arguments_array = Array::create_from(realm, callee_context.arguments_span());
 
     // 8. Return ? Call(trap, handler, « target, thisArgument, argArray »).
     return call(vm, trap, m_handler, m_target, this_argument, arguments_array);
@@ -846,7 +846,7 @@ ThrowCompletionOr<GC::Ref<Object>> ProxyObject::internal_construct(ExecutionCont
     }
 
     // 8. Let argArray be CreateArrayFromList(argumentsList).
-    auto arguments_array = Array::create_from(realm, callee_context.arguments);
+    auto arguments_array = Array::create_from(realm, callee_context.arguments_span());
 
     // 9. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
     auto new_object = TRY(call(vm, trap, m_handler, m_target, arguments_array, &new_target));

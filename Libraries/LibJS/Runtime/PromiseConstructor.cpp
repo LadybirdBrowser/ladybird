@@ -467,7 +467,7 @@ JS_DEFINE_NATIVE_FUNCTION(PromiseConstructor::try_)
     auto callback = vm.argument(0);
     Span<Value> args;
     if (vm.argument_count() > 1) {
-        args = vm.running_execution_context().arguments.slice(1, vm.argument_count() - 1);
+        args = vm.running_execution_context().arguments_span().slice(1, vm.argument_count() - 1);
     }
 
     // 1. Let C be the this value.

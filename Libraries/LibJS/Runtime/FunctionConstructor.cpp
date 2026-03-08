@@ -281,7 +281,7 @@ ThrowCompletionOr<GC::Ref<Object>> FunctionConstructor::construct(FunctionObject
 {
     auto& vm = this->vm();
 
-    ReadonlySpan<Value> arguments = vm.running_execution_context().arguments;
+    ReadonlySpan<Value> arguments = vm.running_execution_context().arguments_span();
 
     ReadonlySpan<Value> parameter_args = arguments;
     if (!parameter_args.is_empty())

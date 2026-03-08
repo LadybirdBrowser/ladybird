@@ -76,7 +76,7 @@ ThrowCompletionOr<Value> call_impl(VM& vm, Value function, Value this_value, Rea
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* argument_values = callee_context->arguments.data();
+    auto* argument_values = callee_context->arguments_data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
     for (size_t i = arguments_list.size(); i < argument_count; ++i)
@@ -106,7 +106,7 @@ ThrowCompletionOr<Value> call_impl(VM& vm, FunctionObject& function, Value this_
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* argument_values = callee_context->arguments.data();
+    auto* argument_values = callee_context->arguments_data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
     for (size_t i = arguments_list.size(); i < argument_count; ++i)
@@ -138,7 +138,7 @@ ThrowCompletionOr<GC::Ref<Object>> construct_impl(VM& vm, FunctionObject& functi
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* argument_values = callee_context->arguments.data();
+    auto* argument_values = callee_context->arguments_data();
     for (size_t i = 0; i < arguments_list.size(); ++i)
         argument_values[i] = arguments_list[i];
     for (size_t i = arguments_list.size(); i < argument_count; ++i)

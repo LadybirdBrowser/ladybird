@@ -141,7 +141,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                 auto length = length_property.is_int32() ? length_property.as_i32() : 0;
                 value = JS::NativeFunction::create(
                     realm, [function](auto& vm) {
-                        return JS::call(vm, function, JS::js_undefined(), vm.running_execution_context().arguments);
+                        return JS::call(vm, function, JS::js_undefined(), vm.running_execution_context().arguments_span());
                     },
                     length, name);
             }
@@ -159,7 +159,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                 auto name = original_descriptor->get.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
                 cross_origin_get = JS::NativeFunction::create(
                     realm, [object_ptr, getter = *original_descriptor->get](auto& vm) {
-                        return JS::call(vm, getter, object_ptr, vm.running_execution_context().arguments);
+                        return JS::call(vm, getter, object_ptr, vm.running_execution_context().arguments_span());
                     },
                     0, name);
             }
@@ -172,7 +172,7 @@ Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(Variant<HT
                 auto name = original_descriptor->set.value()->get_without_side_effects(vm.names.name).to_utf16_string_without_side_effects();
                 cross_origin_set = JS::NativeFunction::create(
                     realm, [object_ptr, setter = *original_descriptor->set](auto& vm) {
-                        return JS::call(vm, setter, object_ptr, vm.running_execution_context().arguments);
+                        return JS::call(vm, setter, object_ptr, vm.running_execution_context().arguments_span());
                     },
                     1, name);
             }
