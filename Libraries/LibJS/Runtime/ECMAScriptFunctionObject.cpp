@@ -167,7 +167,9 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
         unsafe_set_shape(realm()->intrinsics().normal_function_shape());
 
     // 15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
-    m_script_or_module = vm().get_active_script_or_module();
+    vm().get_active_script_or_module().visit(
+        [](Empty) {},
+        [&](auto& ref) { m_script_or_module = ref.ptr(); });
 }
 
 void ECMAScriptFunctionObject::initialize(Realm& realm)
@@ -396,11 +398,7 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
             visitor.visit(private_element.value);
     }
 
-    m_script_or_module.visit(
-        [](Empty) {},
-        [&](auto& script_or_module) {
-            visitor.visit(script_or_module);
-        });
+    visitor.visit(m_script_or_module);
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod

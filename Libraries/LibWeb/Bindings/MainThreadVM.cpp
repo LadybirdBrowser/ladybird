@@ -142,15 +142,15 @@ void initialize_main_thread_vm(AgentType type)
         // 1. Let script be the running script.
         //    The running script is the script in the [[HostDefined]] field in the ScriptOrModule component of the running JavaScript execution context.
         HTML::Script* script { nullptr };
-        vm.running_execution_context().script_or_module.visit(
+        auto script_or_module = JS::script_or_module_from_cell(vm.running_execution_context().script_or_module);
+        script_or_module.visit(
             [&script](GC::Ref<JS::Script>& js_script) {
                 script = as<HTML::ClassicScript>(js_script->host_defined());
             },
             [&script](GC::Ref<JS::Module>& js_module) {
                 script = as<HTML::ModuleScript>(js_module->host_defined());
             },
-            [](Empty) {
-            });
+            [](Empty) {});
 
         // 2. If script is a classic script and script's muted errors is true, then return.
         // NOTE: is<T>() returns false if nullptr is passed.
@@ -277,7 +277,10 @@ void initialize_main_thread_vm(AgentType type)
         // IMPLEMENTATION DEFINED: The JS spec says we must take implementation defined steps to make the currently active script or module at the time of HostEnqueuePromiseJob being invoked
         //                         also be the active script or module of the job at the time of its invocation.
         //                         This means taking it here now and passing it through to the lambda.
-        auto script_or_module = vm.get_active_script_or_module();
+        GC::Ptr<JS::Cell> active_script_or_module_cell;
+        vm.get_active_script_or_module().visit(
+            [](Empty) {},
+            [&](auto& ref) { active_script_or_module_cell = ref.ptr(); });
 
         // 1. Queue a microtask to perform the following steps:
         // This instance of "queue a microtask" uses the "implied document". The best fit for "implied document" here is "If the task is being queued by or for a script, then return the script's settings object's responsible document."
@@ -285,7 +288,7 @@ void initialize_main_thread_vm(AgentType type)
         auto* script = active_script();
 
         auto& heap = realm ? realm->heap() : vm.heap();
-        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(heap, [&vm, realm, job = move(job), script_or_module = move(script_or_module)] {
+        HTML::queue_a_microtask(script ? script->settings_object().responsible_document().ptr() : nullptr, GC::create_function(heap, [&vm, realm, job = move(job), active_script_or_module_cell] {
             // The dummy execution context has to be kept up here to keep it alive for the duration of the function.
             OwnPtr<JS::ExecutionContext> dummy_execution_context;
 
@@ -300,13 +303,13 @@ void initialize_main_thread_vm(AgentType type)
 
                 // IMPLEMENTATION DEFINED: Per the previous "implementation defined" comment, we must now make the script or module the active script or module.
                 //                         Since the only active execution context currently is the realm execution context of job settings, lets attach it here.
-                HTML::execution_context_of_realm(*realm).script_or_module = script_or_module;
+                HTML::execution_context_of_realm(*realm).script_or_module = active_script_or_module_cell;
             } else {
                 // FIXME: We need to setup a dummy execution context in case a JS::NativeFunction is called when processing the job.
                 //        This is because JS::NativeFunction::call excepts something to be on the execution context stack to be able to get the caller context to initialize the environment.
                 //        Do note that the JS spec gives _no_ guarantee that the execution context stack has something on it if HostEnqueuePromiseJob was called with a null realm: https://tc39.es/ecma262/#job-preparedtoevaluatecode
                 dummy_execution_context = JS::ExecutionContext::create(0, 0, 0);
-                dummy_execution_context->script_or_module = script_or_module;
+                dummy_execution_context->script_or_module = active_script_or_module_cell;
                 vm.push_execution_context(*dummy_execution_context);
             }
 
@@ -316,7 +319,7 @@ void initialize_main_thread_vm(AgentType type)
             // 3. If realm is not null, then clean up after running script with job settings.
             if (realm) {
                 // IMPLEMENTATION DEFINED: Disassociate the realm execution context from the script or module.
-                HTML::execution_context_of_realm(*realm).script_or_module = Empty {};
+                HTML::execution_context_of_realm(*realm).script_or_module = nullptr;
 
                 // IMPLEMENTATION DEFINED: See comment above, we need to clean up the non-standard prepare_to_run_callback() call.
                 HTML::clean_up_after_running_callback(*realm);
@@ -352,10 +355,10 @@ void initialize_main_thread_vm(AgentType type)
             script_execution_context->function = nullptr;
             script_execution_context->realm = &script->realm();
             if (is<HTML::ClassicScript>(script)) {
-                script_execution_context->script_or_module = GC::Ref<JS::Script>(*as<HTML::ClassicScript>(script)->script_record());
+                script_execution_context->script_or_module = as<HTML::ClassicScript>(script)->script_record();
             } else if (is<HTML::ModuleScript>(script)) {
                 if (is<HTML::JavaScriptModuleScript>(script)) {
-                    script_execution_context->script_or_module = GC::Ref<JS::Module>(*as<HTML::JavaScriptModuleScript>(script)->record());
+                    script_execution_context->script_or_module = as<HTML::JavaScriptModuleScript>(script)->record();
                 } else {
                     // NOTE: Handle CSS and JSON module scripts once we have those.
                     VERIFY_NOT_REACHED();
@@ -631,7 +634,7 @@ void initialize_main_thread_vm(AgentType type)
             VERIFY(module_execution_context);
             module_execution_context->realm = realm;
             if (module)
-                module_execution_context->script_or_module = GC::Ref { *module };
+                module_execution_context->script_or_module = module;
             vm.push_execution_context(*module_execution_context);
 
             JS::finish_loading_imported_module(referrer, module_request, payload, completion);
