@@ -25,6 +25,7 @@
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/Fetch/Infrastructure/URL.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -73,6 +74,10 @@ static void parse_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS
         origin->deferred_invoke([parsed, callback]() {
             (*callback)(parsed);
             delete callback;
+            // AD-HOC: Perform a microtask checkpoint so that any microtasks queued by the callback (e.g. promise
+            //         reactions from react_to_promise during module linking) are drained. Without this, module worker
+            //         scripts would stall because their promise chains never resolve.
+            perform_a_microtask_checkpoint();
         });
     });
 }
