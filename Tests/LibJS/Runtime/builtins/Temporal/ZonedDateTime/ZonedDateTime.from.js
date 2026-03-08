@@ -102,6 +102,18 @@ describe("correct behavior", () => {
         expect(zonedDateTime.offset).toBe("+00:00");
         expect(zonedDateTime.offsetNanoseconds).toBe(0);
     });
+
+    test("offsets", () => {
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(offset => {
+            let timeZone = `Etc/GMT-${offset}`;
+            let zonedDateTime = Temporal.ZonedDateTime.from({ year: 1970, month: 1, day: 1, timeZone: timeZone });
+            expect(zonedDateTime.timeZoneId).toBe(timeZone);
+
+            timeZone = `Etc/GMT+${offset}`;
+            zonedDateTime = Temporal.ZonedDateTime.from({ year: 1970, month: 1, day: 1, timeZone: timeZone });
+            expect(zonedDateTime.timeZoneId).toBe(timeZone);
+        });
+    });
 });
 
 describe("errors", () => {
