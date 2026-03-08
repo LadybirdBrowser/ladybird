@@ -86,8 +86,12 @@ RequestList& ConnectionQueueHandler::for_key_and_name(StorageAPI::StorageKey con
 Optional<Database&> Database::for_key_and_name(StorageAPI::StorageKey const& key, String const& name)
 {
     auto database_mapping = m_databases.ensure(key, [] { return HashMap<String, GC::Weak<Database>>(); });
-    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value())
-        return *maybe_database.value();
+    if (auto maybe_database = database_mapping.get(name); maybe_database.has_value()) {
+        if (auto database = maybe_database.value().ptr())
+            return *database;
+        database_mapping.remove(name);
+        m_databases.set(key, database_mapping);
+    }
     return {};
 }
 
