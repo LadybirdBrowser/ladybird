@@ -70,3 +70,12 @@ test("callee gets reassigned while evaluating arguments", () => {
     let result = foo(x => x, 42);
     expect(result).toBe(42);
 });
+
+test("object literal key is reassigned during value evaluation", () => {
+    function foo(key, value) {
+        let object = { [key]: (key = value) };
+        return Object.keys(object)[0];
+    }
+    let result = foo("old", "new");
+    expect(result).toBe("old");
+});
