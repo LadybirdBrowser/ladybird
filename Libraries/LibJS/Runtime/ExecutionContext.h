@@ -22,35 +22,6 @@ namespace JS {
 
 using ScriptOrModule = Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>;
 
-class CachedSourceRange final : public GC::Cell {
-    GC_CELL(CachedSourceRange, GC::Cell);
-    GC_DECLARE_ALLOCATOR(CachedSourceRange);
-
-public:
-    CachedSourceRange(size_t program_counter, Variant<UnrealizedSourceRange, SourceRange> source_range)
-        : program_counter(program_counter)
-        , source_range(move(source_range))
-    {
-    }
-
-    SourceRange const& realize_source_range()
-    {
-        static SourceRange dummy_source_range { SourceCode::create({}, {}), {}, {} };
-
-        if (auto* unrealized = source_range.get_pointer<UnrealizedSourceRange>()) {
-            if (unrealized->source_code) {
-                source_range = unrealized->realize();
-            } else {
-                source_range = dummy_source_range;
-            }
-        }
-        return source_range.get<SourceRange>();
-    }
-
-    size_t program_counter { 0 };
-    Variant<UnrealizedSourceRange, SourceRange> source_range;
-};
-
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct JS_API ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count);
@@ -115,8 +86,6 @@ public:
 
     Span<Value> arguments;
 
-    mutable GC::Ptr<CachedSourceRange> cached_source_range;
-
     // Non-standard: Inline frame linkage for the bytecode interpreter.
     // When a JS-to-JS call is inlined in the dispatch loop, these fields
     // allow the Return handler to restore the caller's frame.
@@ -142,7 +111,7 @@ static_assert(IsTriviallyDestructible<ExecutionContext>);
 
 struct StackTraceElement {
     ExecutionContext* execution_context { nullptr };
-    GC::Ptr<CachedSourceRange> source_range;
+    Optional<SourceRange> source_range;
 };
 
 }

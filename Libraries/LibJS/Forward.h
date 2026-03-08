@@ -170,7 +170,6 @@ struct AsyncGeneratorRequest;
 class BigInt;
 class BoundFunction;
 class BuiltinIterator;
-class CachedSourceRange;
 class Cell;
 class ClassExpression;
 struct ClassFieldDefinition;
