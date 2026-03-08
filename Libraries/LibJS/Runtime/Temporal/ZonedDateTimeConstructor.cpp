@@ -80,7 +80,7 @@ ThrowCompletionOr<GC::Ref<Object>> ZonedDateTimeConstructor::construct(FunctionO
 
         // b. If identifierRecord is EMPTY, throw a RangeError exception.
         if (!identifier_record.has_value())
-            return vm.throw_completion<TypeError>(ErrorType::TemporalInvalidTimeZoneName, *time_zone_parse.name);
+            return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidTimeZoneName, *time_zone_parse.name);
 
         // c. Set timeZone to identifierRecord.[[Identifier]].
         time_zone = identifier_record->identifier;
