@@ -847,6 +847,8 @@ set(SOURCES
     Painting/PaintableWithLines.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ResolvedCSSFilter.cpp
+    Painting/ResizeHandle.cpp
+    Painting/Scrollbar.cpp
     Painting/ScrollFrame.cpp
     Painting/ScrollState.cpp
     Painting/ShadowPainting.cpp

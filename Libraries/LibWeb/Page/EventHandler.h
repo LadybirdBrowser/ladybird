@@ -19,6 +19,7 @@
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 
@@ -47,9 +48,6 @@ public:
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     void process_auto_scroll();
-
-    void set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable>);
-    void set_element_resize_in_progress(DOM::Element& element, CSSPixelPoint viewport_position);
 
     EventResult handle_paste(Utf16String const& text);
 
@@ -82,10 +80,11 @@ private:
 
     struct Target {
         GC::Ptr<Painting::Paintable> paintable;
+        GC::Ptr<Painting::ChromeWidget> chrome_widget;
         Optional<int> index_in_node;
-        Optional<CSS::CursorPredefined> cursor_override;
     };
     Optional<Target> target_for_mouse_position(CSSPixelPoint position);
+    void update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget>);
     void update_mouse_selection(CSSPixelPoint visual_viewport_position);
     void apply_mouse_selection(CSSPixelPoint visual_viewport_position);
 
@@ -104,10 +103,10 @@ private:
     InputEventsTarget* m_mouse_selection_target { nullptr };
     GC::Ptr<DOM::Range> m_selection_origin;
 
-    GC::Ptr<Painting::Paintable> m_mouse_event_tracking_paintable;
+    GC::Ptr<Painting::ChromeWidget> m_hovered_chrome_widget;
+    GC::Ptr<Painting::ChromeWidget> m_captured_chrome_widget;
 
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
-    OwnPtr<ElementResizeAction> m_element_resize_in_progress;
 
     GC::Weak<DOM::Node> m_mousedown_target;
 

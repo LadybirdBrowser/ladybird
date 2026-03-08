@@ -35,10 +35,10 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/AutoScrollHandler.h>
 #include <LibWeb/Page/DragAndDropEventHandler.h>
-#include <LibWeb/Page/ElementResizeAction.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
+#include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -629,6 +629,17 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     return handled_event;
 }
 
+void EventHandler::update_hovered_chrome_widget(GC::Ptr<Painting::ChromeWidget> widget)
+{
+    if (m_hovered_chrome_widget == widget)
+        return;
+    if (m_hovered_chrome_widget)
+        m_hovered_chrome_widget->mouse_leave();
+    m_hovered_chrome_widget = widget;
+    if (m_hovered_chrome_widget)
+        m_hovered_chrome_widget->mouse_enter();
+}
+
 EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     if (should_ignore_device_input_event())
@@ -652,27 +663,17 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             set_node_and_ancestors_being_activated(mousedown_target, false);
     }
 
-    if (m_element_resize_in_progress) {
-        set_mouse_event_tracking_paintable(nullptr);
-        m_element_resize_in_progress = nullptr;
-        return EventResult::Handled;
+    // Release captured chrome widget on mouseup.
+    if (m_captured_chrome_widget) {
+        auto action = m_captured_chrome_widget->mouse_up(visual_viewport_position, button);
+        m_captured_chrome_widget = nullptr;
+        if (has_flag(action, Painting::MouseAction::SwallowEvent))
+            return EventResult::Handled;
     }
 
     GC::Ptr<Painting::Paintable> paintable;
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
         paintable = result->paintable;
-
-    if (paintable && paintable->wants_mouse_events()) {
-        if (paintable->handle_mouseup({}, visual_viewport_position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
-            return EventResult::Cancelled;
-
-        // Things may have changed as a consequence of Layout::Node::handle_mouseup(). Hit test again.
-        if (!paint_root())
-            return EventResult::Handled;
-
-        if (auto result = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact); result.has_value())
-            paintable = result->paintable;
-    }
 
     auto handled_event = EventResult::Dropped;
 
@@ -829,61 +830,66 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         document->set_hovered_node(node);
     };
 
-    {
-        GC::Ptr<Painting::Paintable> paintable;
-        if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value())
-            paintable = result->paintable;
-        else
-            return EventResult::Dropped;
-
-        auto pointer_events = paintable->computed_values().pointer_events();
-        // FIXME: Handle other values for pointer-events.
-        VERIFY(pointer_events != CSS::PointerEvents::None);
-
-        node = dom_node_for_event_dispatch(*paintable);
-
-        if (paintable->wants_mouse_events()) {
-            if (paintable->handle_mousedown({}, visual_viewport_position, button, modifiers) == Painting::Paintable::DispatchEventOfSameName::No)
-                return EventResult::Cancelled;
-        }
-
-        if (!node)
-            return EventResult::Dropped;
-
-        if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-                return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers);
-            });
-            result.has_value())
-            return result.value();
-
-        m_navigable->page().set_focused_navigable({}, m_navigable);
-
-        // NB: Search for the first parent of the hit target that's an element.
-        //
-        // https://www.w3.org/TR/uievents/#event-type-click
-        // The click event type MUST be dispatched on the topmost event target indicated by the pointer.
-        //
-        // https://www.w3.org/TR/uievents/#topmost-event-target
-        // The topmost event target MUST be the element highest in the rendering order which is capable of being an
-        // event target.
-        GC::Ptr<Layout::Node> layout_node;
-        if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
-            return EventResult::Dropped;
-
-        m_mousedown_target = node.ptr();
-        if (button == UIEvents::MouseButton::Primary)
-            set_node_and_ancestors_being_activated(node.ptr(), true);
-        auto page_offset = compute_mouse_event_page_offset(viewport_position);
-        auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
-        auto scroll_offset = document->navigable()->viewport_scroll_offset();
-        auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
-        auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
-        light_dismiss_activities(pointer_event, node);
-        if (!node->dispatch_event(pointer_event))
-            return EventResult::Cancelled;
-        if (!node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors()))
-            return EventResult::Cancelled;
+    GC::Ptr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::ChromeWidget> chrome_widget;
+    if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
+        paintable = result->paintable;
+        chrome_widget = result->chrome_widget;
+    } else {
+        return EventResult::Dropped;
     }
+
+    auto pointer_events = paintable->computed_values().pointer_events();
+    // FIXME: Handle other values for pointer-events.
+    VERIFY(pointer_events != CSS::PointerEvents::None);
+
+    node = dom_node_for_event_dispatch(*paintable);
+
+    if (chrome_widget) {
+        update_hovered_chrome_widget(chrome_widget);
+        auto action = chrome_widget->mouse_down(visual_viewport_position, button);
+        if (has_flag(action, Painting::MouseAction::CaptureInput))
+            m_captured_chrome_widget = chrome_widget;
+        if (has_flag(action, Painting::MouseAction::SwallowEvent))
+            return EventResult::Handled;
+    }
+
+    if (!node)
+        return EventResult::Dropped;
+
+    if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
+            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers);
+        });
+        result.has_value())
+        return result.value();
+
+    m_navigable->page().set_focused_navigable({}, m_navigable);
+
+    // NB: Search for the first parent of the hit target that's an element.
+    //
+    // https://www.w3.org/TR/uievents/#event-type-click
+    // The click event type MUST be dispatched on the topmost event target indicated by the pointer.
+    //
+    // https://www.w3.org/TR/uievents/#topmost-event-target
+    // The topmost event target MUST be the element highest in the rendering order which is capable of being an
+    // event target.
+    GC::Ptr<Layout::Node> layout_node;
+    if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
+        return EventResult::Dropped;
+
+    m_mousedown_target = node.ptr();
+    if (button == UIEvents::MouseButton::Primary)
+        set_node_and_ancestors_being_activated(node.ptr(), true);
+    auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
+    auto scroll_offset = document->navigable()->viewport_scroll_offset();
+    auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
+    auto pointer_event = UIEvents::PointerEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::pointerdown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors();
+    light_dismiss_activities(pointer_event, node);
+    if (!node->dispatch_event(pointer_event))
+        return EventResult::Cancelled;
+    if (!node->dispatch_event(UIEvents::MouseEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::mousedown, screen_position, page_offset, viewport_position, offset, {}, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors()))
+        return EventResult::Cancelled;
 
     // NOTE: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
@@ -904,6 +910,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     else if (auto focused_area = document->focused_area())
         HTML::run_unfocusing_steps(focused_area);
+
+    if (chrome_widget)
+        return EventResult::Handled;
 
     // NOTE: Focusing may have invalidated layout.
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
@@ -975,23 +984,31 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     if (!paint_root())
         return EventResult::Dropped;
 
-    if (m_element_resize_in_progress) {
-        m_element_resize_in_progress->handle_pointer_move(visual_viewport_position);
-        return EventResult::Handled;
-    }
-
     bool hovered_node_changed = false;
     Gfx::Cursor hovered_node_cursor = Gfx::StandardCursor::None;
     GC::Ptr<HTML::HTMLAnchorElement const> hovered_link_element;
 
     GC::Ptr<Painting::Paintable> paintable;
+    GC::Ptr<Painting::ChromeWidget> chrome_widget;
     Optional<int> start_index;
 
     if (auto result = target_for_mouse_position(visual_viewport_position); result.has_value()) {
         paintable = result->paintable;
+        chrome_widget = result->chrome_widget;
         start_index = result->index_in_node;
-        if (auto override = result->cursor_override; override.has_value())
-            hovered_node_cursor = css_to_gfx_cursor(override.value());
+    }
+
+    update_hovered_chrome_widget(chrome_widget);
+
+    if (m_hovered_chrome_widget) {
+        if (auto cursor = m_hovered_chrome_widget->cursor(); cursor.has_value())
+            hovered_node_cursor = css_to_gfx_cursor(cursor.value());
+    }
+
+    if (m_captured_chrome_widget) {
+        auto action = m_captured_chrome_widget->mouse_move(visual_viewport_position);
+        if (has_flag(action, Painting::MouseAction::SwallowEvent))
+            return EventResult::Handled;
     }
 
     GC::Ptr<DOM::Node> node;
@@ -1033,13 +1050,6 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     };
 
     if (paintable) {
-        if (paintable->wants_mouse_events()) {
-            if (paintable->handle_mousemove({}, visual_viewport_position, buttons, modifiers) == Painting::Paintable::DispatchEventOfSameName::No) {
-                node = paintable->dom_node();
-                return EventResult::Cancelled;
-            }
-        }
-
         node = dom_node_for_event_dispatch(*paintable);
 
         if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
@@ -1127,10 +1137,9 @@ EventResult EventHandler::handle_mouseleave()
     auto& document = *m_navigable->active_document();
     auto& page = m_navigable->page();
 
-    if (auto* hovered_node = document.hovered_node()) {
-        if (auto* paintable = hovered_node->paintable(); paintable && paintable->wants_mouse_events())
-            paintable->handle_mouseleave({});
+    update_hovered_chrome_widget(nullptr);
 
+    if (document.hovered_node()) {
         document.set_hovered_node(nullptr);
     }
 
@@ -1177,10 +1186,6 @@ EventResult EventHandler::handle_doubleclick(CSSPixelPoint visual_viewport_posit
         return EventResult::Cancelled;
 
     auto node = dom_node_for_event_dispatch(*paintable);
-
-    if (paintable->wants_mouse_events()) {
-        // FIXME: Handle double clicks.
-    }
 
     if (!node)
         return EventResult::Dropped;
@@ -1891,16 +1896,6 @@ void EventHandler::handle_sdl_input_events()
     }
 }
 
-void EventHandler::set_mouse_event_tracking_paintable(GC::Ptr<Painting::Paintable> paintable)
-{
-    m_mouse_event_tracking_paintable = paintable;
-}
-
-void EventHandler::set_element_resize_in_progress(DOM::Element& element, CSSPixelPoint viewport_position)
-{
-    m_element_resize_in_progress = make<ElementResizeAction>(element, viewport_position);
-}
-
 CSSPixelPoint EventHandler::compute_mouse_event_page_offset(CSSPixelPoint event_client_offset) const
 {
     // https://w3c.github.io/csswg-drafts/cssom-view/#dom-mouseevent-pagex
@@ -1934,15 +1929,8 @@ CSSPixelPoint EventHandler::compute_mouse_event_movement(CSSPixelPoint screen_po
 
 Optional<EventHandler::Target> EventHandler::target_for_mouse_position(CSSPixelPoint position)
 {
-    if (m_mouse_event_tracking_paintable) {
-        if (m_mouse_event_tracking_paintable->wants_mouse_events())
-            return Target { m_mouse_event_tracking_paintable, {}, {} };
-
-        m_mouse_event_tracking_paintable = nullptr;
-    }
-
     if (auto result = paint_root()->hit_test(position, Painting::HitTestType::Exact); result.has_value())
-        return Target { result->paintable.ptr(), result->index_in_node, result->cursor_override };
+        return Target { .paintable = result->paintable.ptr(), .chrome_widget = result->chrome_widget, .index_in_node = result->index_in_node };
 
     return {};
 }
@@ -1957,9 +1945,8 @@ bool EventHandler::should_ignore_device_input_event() const
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 {
     m_drag_and_drop_event_handler->visit_edges(visitor);
-    visitor.visit(m_mouse_event_tracking_paintable);
-    if (m_element_resize_in_progress)
-        m_element_resize_in_progress->visit_edges(visitor);
+    visitor.visit(m_hovered_chrome_widget);
+    visitor.visit(m_captured_chrome_widget);
     if (m_mouse_selection_target)
         visitor.visit(m_mouse_selection_target->as_cell());
     visitor.visit(m_selection_origin);

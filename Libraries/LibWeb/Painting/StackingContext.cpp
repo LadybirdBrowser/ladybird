@@ -460,7 +460,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     auto local_position = paintable_box().transform_point_to_local(position);
 
     if (local_position.has_value() && paintable_box().absolute_border_box_rect().contains(local_position.value())) {
-        if (callback({ const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)
+        if (callback({ .paintable = const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
