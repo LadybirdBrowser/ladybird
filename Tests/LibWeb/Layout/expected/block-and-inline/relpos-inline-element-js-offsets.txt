@@ -5,10 +5,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         InlineNode <span> at [8,8] [0+0+0 136.609375 0+0+0] [0+0+0 18 0+0+0]
           frag 0 from TextNode start: 0, length: 5, rect: [8,8 36.40625x18] baseline: 13.796875
               "well "
+          frag 1 from InlineNode start: 0, length: 0, rect: [44.40625,8 0x0] baseline: 13.796875
           TextNode <#text> (not painted)
           InlineNode <b> at [44.40625,33] [0+0+0 100.203125 0+0+0] [0+0+0 18 0+0+0]
             frag 0 from TextNode start: 0, length: 6, rect: [44.40625,33 44.84375x18] baseline: 13.796875
                 "hello "
+            frag 1 from InlineNode start: 0, length: 0, rect: [89.25,33 0x0] baseline: 13.796875
             TextNode <#text> (not painted)
             InlineNode <i> at [89.25,58] [0+0+0 55.359375 0+0+0] [0+0+0 18 0+0+0]
               frag 0 from TextNode start: 0, length: 7, rect: [89.25,58 55.359375x18] baseline: 13.796875

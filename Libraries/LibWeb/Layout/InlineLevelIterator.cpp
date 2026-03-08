@@ -387,6 +387,28 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
         return generate_next_item();
     }
 
+    if (auto const* node = as_if<Layout::InlineNode>(*m_current_node)) {
+        if (!node->computed_values().contain().is_empty() || !node->computed_values().transformations().is_empty() || node->is_body() || node->is_generated_for_pseudo_element() || !node->computed_values_establish_absolute_positioning_containing_block()) {
+            skip_to_next();
+            return generate_next_item();
+        }
+
+        auto const& node_state = m_layout_state.get(*node);
+        skip_to_next();
+        Item item = Item {
+            .type = Item::Type::AbsolutePositioningInlineContainingElement,
+            .node = node,
+            .offset_in_node = 0,
+            .length_in_node = 0,
+            .margin_start = node_state.margin_left,
+            .margin_end = node_state.margin_right,
+        };
+
+        add_extra_box_model_metrics_to_item(item, true, true);
+
+        return item;
+    }
+
     if (!is<Layout::Box>(*m_current_node)) {
         skip_to_next();
         return generate_next_item();

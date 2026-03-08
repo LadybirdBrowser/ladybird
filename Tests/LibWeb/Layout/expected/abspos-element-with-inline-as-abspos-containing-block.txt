@@ -1,6 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] positioned [8+0+0 300 0+0+8] [8+0+0 300 0+0+8] [BFC] children: inline
+      frag 0 from InlineNode start: 0, length: 0, rect: [8,8 0x0] baseline: 13.796875
       InlineNode <span.span1> at [8,8] [0+0+0 74.125 16+0+0] [0+0+0 18 0+0+0]
         frag 0 from TextNode start: 0, length: 8, rect: [8,8 74.125x18] baseline: 13.796875
             "Features"
