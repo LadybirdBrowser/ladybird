@@ -17,6 +17,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/IndexedProperties.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/TypedArray.h>
 
@@ -85,12 +86,16 @@ int main()
     // ExecutionContext layout
     outln("\n# ExecutionContext layout");
     EMIT_OFFSET(EXECUTION_CONTEXT_EXECUTABLE, ExecutionContext, executable);
-    EMIT_OFFSET(EXECUTION_CONTEXT_GLOBAL_OBJECT, ExecutionContext, global_object);
-    EMIT_OFFSET(EXECUTION_CONTEXT_GLOBAL_DECLARATIVE_ENVIRONMENT, ExecutionContext, global_declarative_environment);
+    EMIT_OFFSET(EXECUTION_CONTEXT_REALM, ExecutionContext, realm);
     EMIT_OFFSET(EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, ExecutionContext, lexical_environment);
     EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame);
     EMIT_OFFSET(EXECUTION_CONTEXT_PROGRAM_COUNTER, ExecutionContext, program_counter);
     EMIT_SIZEOF(SIZEOF_EXECUTION_CONTEXT, ExecutionContext);
+
+    // Realm layout
+    outln("\n# Realm layout");
+    EMIT_OFFSET(REALM_GLOBAL_OBJECT, Realm, m_global_object);
+    EMIT_OFFSET(REALM_GLOBAL_DECLARATIVE_ENVIRONMENT, Realm, m_global_declarative_environment);
 
     // Interpreter layout
     outln("\n# Interpreter layout");

@@ -316,11 +316,6 @@ ExecutionContext* Interpreter::push_inline_frame(
     //     and global_declarative_environment, since the caller's realm may differ
     //     in cross-realm calls (e.g. iframe <-> parent).
     callee_context->executable = callee_executable;
-    auto& callee_realm = *callee_context->realm;
-    callee_context->global_object = callee_realm.global_object();
-    callee_context->global_declarative_environment = callee_realm.global_environment().declarative_record();
-    callee_context->identifier_table = callee_executable.identifier_table->identifiers().data();
-    callee_context->property_key_table = callee_executable.property_key_table->property_keys().data();
 
     // Copy constants (memcpy avoids aliasing issues with the scalar loop).
     auto* values = callee_context->registers_and_constants_and_locals_and_arguments();
@@ -808,12 +803,17 @@ void Interpreter::run_bytecode(size_t entry_point)
 
 Utf16FlyString const& Interpreter::get_identifier(IdentifierTableIndex index) const
 {
-    return m_running_execution_context->identifier_table[index.value];
+    return m_running_execution_context->executable->get_identifier(index);
 }
 
 PropertyKey const& Interpreter::get_property_key(PropertyKeyTableIndex index) const
 {
-    return m_running_execution_context->property_key_table[index.value];
+    return m_running_execution_context->executable->get_property_key(index);
+}
+
+DeclarativeEnvironment& Interpreter::global_declarative_environment()
+{
+    return realm().global_declarative_environment();
 }
 
 ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point)
@@ -824,10 +824,6 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     TemporaryChange restore_running_execution_context { m_running_execution_context, &context };
 
     context.executable = executable;
-    context.global_object = realm().global_object();
-    context.global_declarative_environment = realm().global_environment().declarative_record();
-    context.identifier_table = executable.identifier_table->identifiers().data();
-    context.property_key_table = executable.property_key_table->property_keys().data();
 
     VERIFY(executable.registers_and_locals_count + executable.constants.size() == executable.registers_and_locals_and_constants_count);
     VERIFY(executable.registers_and_locals_and_constants_count <= context.registers_and_constants_and_locals_and_arguments_span().size());
