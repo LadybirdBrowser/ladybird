@@ -10,12 +10,6 @@
         border: none;
     }
 </style>
-<iframe srcdoc="
-    <!DOCTYPE html>
-    <style>body { margin: 0; }</style>
-    <div style='width: 100px; height: 100px'
-         onclick='parent.reportClick(event.clientX, event.clientY)'></div>
-"></iframe>
 <script src="include.js"></script>
 <script>
     asyncTest((done) => {
@@ -23,9 +17,17 @@
             println(`click at (${x}, ${y})`);
             done();
         };
-        document.querySelector("iframe").onload = () => {
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
             window.scrollTo(0, 50);
             internals.click(60, 60);
         };
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>body { margin: 0; }</style>
+            <div style='width: 100px; height: 100px'
+                 onclick='parent.reportClick(event.clientX, event.clientY)'></div>
+        `;
+        document.body.appendChild(iframe);
     });
 </script>
