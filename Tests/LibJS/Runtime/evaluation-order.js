@@ -31,3 +31,33 @@ test("Base object of lhs of assignment is copied to preserve evaluation order", 
     expect(topLevel.test).not.toBeUndefined();
     expect(topLevel.test).toEqual({});
 });
+
+test("optional chain call preserves argument evaluation order", () => {
+    let a = 1;
+    let fn = x => x;
+    let result = fn?.(a, (a = 42));
+    expect(result).toBe(1);
+    expect(a).toBe(42);
+});
+
+test("optional chain call with multiple arguments preserving order", () => {
+    let x = 10;
+    let fn = (a, b) => a + b;
+    let result = fn?.(x, ((x = 20), 5));
+    expect(result).toBe(15);
+    expect(x).toBe(20);
+});
+
+test("postfix increment evaluation order", () => {
+    function bar(a, b) {
+        expect(a).toBe(0);
+        expect(b).toBe(0);
+    }
+
+    function foo() {
+        let i = 0;
+        bar(i, i++);
+        expect(i).toBe(1);
+    }
+    foo();
+});
