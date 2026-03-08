@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+asyncTest(done => {
+    setTimeout(() => {
+        spoofCurrentURL("https://example.com/");
+
+        const openReq = indexedDB.open("commit-error-event-order", 1);
+        openReq.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            db.createObjectStore("store", { keyPath: "key" });
+        };
+        openReq.onsuccess = (e) => {
+            const db = e.target.result;
+
+            // First transaction: insert key "one"
+            const txn1 = db.transaction("store", "readwrite");
+            txn1.objectStore("store").add({ key: "one", value: "first" });
+            txn1.oncomplete = () => {
+                // Second transaction: put + add(duplicate) + commit
+                const txn2 = db.transaction("store", "readwrite");
+                const store2 = txn2.objectStore("store");
+
+                const putReq = store2.put({ key: "two", value: "second" });
+                putReq.onsuccess = () => println("put:success");
+                putReq.onerror = () => println("put:error");
+
+                const addReq = store2.add({ key: "one", value: "duplicate" });
+                addReq.onsuccess = () => println("add:success");
+                addReq.onerror = (ev) => {
+                    println("add:error");
+                    ev.preventDefault();
+                };
+
+                txn2.addEventListener("error", () => println("tx:error"));
+                txn2.addEventListener("abort", () => {
+                    println("tx:abort");
+                    db.close();
+                    done();
+                });
+                txn2.addEventListener("complete", () => {
+                    println("tx:complete");
+                    db.close();
+                    done();
+                });
+
+                txn2.commit();
+            };
+        };
+    }, 0);
+});
+</script>

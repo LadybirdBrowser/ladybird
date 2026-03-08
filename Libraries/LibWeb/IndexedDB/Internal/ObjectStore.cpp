@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/QuickSort.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
+#include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 
 namespace Web::IndexedDB {
@@ -17,6 +19,19 @@ ObjectStore::~ObjectStore() = default;
 GC::Ref<ObjectStore> ObjectStore::create(JS::Realm& realm, GC::Ref<Database> database, String name, bool auto_increment, Optional<KeyPath> const& key_path)
 {
     return realm.create<ObjectStore>(database, name, auto_increment, key_path);
+}
+
+size_t ObjectStore::mutation_log_position() const
+{
+    if (!m_mutation_log)
+        return 0;
+    return m_mutation_log->position();
+}
+
+void ObjectStore::revert_mutations_from(size_t position)
+{
+    if (m_mutation_log)
+        m_mutation_log->revert_from(*this, position);
 }
 
 ObjectStore::ObjectStore(GC::Ref<Database> database, String name, bool auto_increment, Optional<KeyPath> const& key_path)
@@ -35,6 +50,7 @@ void ObjectStore::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_database);
     visitor.visit(m_indexes);
+    visitor.visit(m_mutation_log);
 
     for (auto& record : m_records) {
         visitor.visit(record.key);
@@ -43,8 +59,25 @@ void ObjectStore::visit_edges(Visitor& visitor)
 
 void ObjectStore::remove_records_in_range(GC::Ref<IDBKeyRange> range)
 {
-    m_records.remove_all_matching([&](auto const& record) {
-        return range->is_in_range(record.key);
+    Vector<ObjectStoreRecord> deleted;
+    for (size_t i = 0; i < m_records.size();) {
+        auto const& record = m_records[i];
+        if (range->is_in_range(record.key)) {
+            auto record = m_records.take(i);
+            if (m_mutation_log)
+                deleted.append(record);
+            continue;
+        }
+        i++;
+    }
+    if (!deleted.is_empty())
+        m_mutation_log->note_records_deleted(move(deleted));
+}
+
+void ObjectStore::remove_record_with_key(GC::Ref<Key> key)
+{
+    m_records.remove_first_matching([&](auto const& record) {
+        return Key::equals(record.key, key);
     });
 }
 
@@ -59,6 +92,9 @@ bool ObjectStore::has_record_with_key(GC::Ref<Key> key)
 
 void ObjectStore::store_a_record(ObjectStoreRecord const& record)
 {
+    if (m_mutation_log)
+        m_mutation_log->note_record_stored(record.key);
+
     m_records.append(record);
 
     // NOTE: The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
@@ -86,7 +122,58 @@ Optional<ObjectStoreRecord&> ObjectStore::first_in_range(GC::Ref<IDBKeyRange> ra
 
 void ObjectStore::clear_records()
 {
-    m_records.clear();
+    auto deleted_records = move(m_records);
+    if (m_mutation_log && !deleted_records.is_empty())
+        m_mutation_log->note_records_deleted(deleted_records);
+}
+
+// https://w3c.github.io/IndexedDB/#generate-a-key
+ErrorOr<u64> ObjectStore::generate_a_key()
+{
+    // 1. Let generator be store's key generator.
+    auto& generator = key_generator();
+
+    // 2. Let key be generator's current number.
+    auto key = generator.current_number();
+
+    // 3. If key is greater than 2^53 (9007199254740992), then return failure.
+    if (key > static_cast<u64>(MAX_KEY_GENERATOR_VALUE))
+        return Error::from_string_literal("Key is greater than 2^53 while trying to generate a key");
+
+    // 4. Increase generator's current number by 1.
+    if (m_mutation_log)
+        m_mutation_log->note_key_generator_changed(key);
+    generator.increment(1);
+
+    // 5. Return key.
+    return key;
+}
+
+// https://w3c.github.io/IndexedDB/#possibly-update-the-key-generator
+void ObjectStore::possibly_update_the_key_generator(GC::Ref<Key> key)
+{
+    // 1. If the type of key is not number, abort these steps.
+    if (key->type() != Key::KeyType::Number)
+        return;
+
+    // 2. Let value be the value of key.
+    auto value = key->value_as_double();
+
+    // 3. Set value to the minimum of value and 2^53 (9007199254740992).
+    value = min(value, MAX_KEY_GENERATOR_VALUE);
+
+    // 4. Set value to the largest integer not greater than value.
+    value = AK::floor(value);
+
+    // 5. Let generator be store's key generator.
+    auto& generator = key_generator();
+
+    // 6. If value is greater than or equal to generator's current number, then set generator's current number to value + 1.
+    if (value >= static_cast<double>(generator.current_number())) {
+        if (m_mutation_log)
+            m_mutation_log->note_key_generator_changed(generator.current_number());
+        generator.set(static_cast<u64>(value + 1));
+    }
 }
 
 GC::ConservativeVector<ObjectStoreRecord> ObjectStore::first_n_in_range(GC::Ref<IDBKeyRange> range, Optional<WebIDL::UnsignedLong> count)

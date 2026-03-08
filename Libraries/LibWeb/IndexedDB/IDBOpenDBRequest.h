@@ -31,6 +31,7 @@ protected:
     explicit IDBOpenDBRequest(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual EventTarget* get_parent(DOM::Event const&) override;
 };
 
 }

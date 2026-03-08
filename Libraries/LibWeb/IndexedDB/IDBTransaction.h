@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Badge.h>
+#include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/IDBDatabasePrototype.h>
@@ -13,12 +15,16 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
-#include <LibWeb/IndexedDB/IDBDatabase.h>
-#include <LibWeb/IndexedDB/IDBRequest.h>
+#include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/IndexedDB/Internal/RequestList.h>
 
 namespace Web::IndexedDB {
+
+class IDBDatabase;
+class IDBIndex;
+class IDBObjectStore;
+class IDBRequest;
 
 // https://w3c.github.io/IndexedDB/#transaction
 class IDBTransaction : public DOM::EventTarget {
@@ -66,6 +72,30 @@ public:
 
     GC::Ptr<ObjectStore> object_store_named(String const& name) const;
     void add_to_scope(GC::Ref<ObjectStore> object_store) { m_scope.append(object_store); }
+    void remove_from_scope(GC::Ref<ObjectStore> object_store)
+    {
+        m_scope.remove_first_matching([&](auto& other) { return object_store == other; });
+    }
+    void set_scope(Vector<GC::Ref<ObjectStore>> scope) { m_scope = move(scope); }
+
+    GC::Ref<IDBObjectStore> get_or_create_object_store_handle(GC::Ref<ObjectStore>);
+    GC::Ptr<IDBObjectStore> object_store_handle_for(GC::Ref<ObjectStore>);
+    void for_each_object_store_handle(CallableAs<IterationDecision, GC::Ref<IDBObjectStore>> auto callback)
+    {
+        for (auto const& [object_store, handle] : m_object_store_handles) {
+            if (callback(handle) == IterationDecision::Break)
+                break;
+        }
+    }
+
+    void register_index_handle(Badge<IDBIndex>, GC::Ref<IDBIndex>);
+    ReadonlySpan<GC::Ref<IDBIndex>> index_handles() const { return m_index_handles; }
+
+    // Mutation log management. Logs are per-store and track both data and schema mutations.
+    void set_up_mutation_logs();
+    void set_up_mutation_log_for_new_store(GC::Ref<ObjectStore>);
+    void revert_all_mutations();
+    void discard_mutation_logs();
 
     WebIDL::ExceptionOr<void> abort();
     WebIDL::ExceptionOr<void> commit();
@@ -82,6 +112,7 @@ protected:
     explicit IDBTransaction(JS::Realm&, GC::Ref<IDBDatabase>, Bindings::IDBTransactionMode, Bindings::IDBTransactionDurability, Vector<GC::Ref<ObjectStore>>);
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Visitor& visitor) override;
+    virtual EventTarget* get_parent(DOM::Event const&) override;
 
 private:
     // AD-HOC: The transaction has a connection
@@ -113,6 +144,17 @@ private:
 
     // A transaction optionally has a cleanup event loop which is an event loop.
     GC::Ptr<HTML::EventLoop> m_cleanup_event_loop;
+
+    HashMap<GC::RawPtr<ObjectStore>, GC::Ref<IDBObjectStore>> m_object_store_handles;
+    Vector<GC::Ref<IDBIndex>> m_index_handles;
+
+    // AD-HOC: Per-store mutation logs for data and schema change reversion.
+    struct StoreMutationLog {
+        GC::Ref<ObjectStore> store;
+        GC::Ref<MutationLog> log;
+    };
+    Vector<StoreMutationLog> m_store_mutation_logs;
+    u64 m_original_version { 0 };
 
     // NOTE: Used for debug purposes
     String m_uuid;

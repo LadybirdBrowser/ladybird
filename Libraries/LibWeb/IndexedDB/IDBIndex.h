@@ -42,6 +42,8 @@ public:
     GC::Ref<IDBTransaction> transaction() { return m_object_store_handle->transaction(); }
     GC::Ref<Index> index() { return m_index; }
 
+    void update_name() { m_name = m_index->name(); }
+
 protected:
     explicit IDBIndex(JS::Realm&, GC::Ref<Index>, GC::Ref<IDBObjectStore>);
     virtual void initialize(JS::Realm&) override;

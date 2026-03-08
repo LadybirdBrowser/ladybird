@@ -203,9 +203,10 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
         auto databases = Database::for_key(storage_key);
 
         // 2. Let result be a new list.
-        auto result = MUST(JS::Array::create(realm, databases.size()));
+        auto result = MUST(JS::Array::create(realm, 0));
 
         // 3. For each db of databases:
+        u32 result_index = 0;
         for (u32 i = 0; i < databases.size(); ++i) {
             auto& db = databases[i];
 
@@ -223,7 +224,7 @@ GC::Ref<WebIDL::Promise> IDBFactory::databases()
             MUST(info->create_data_property("version"_utf16_fly_string, JS::Value(db->version())));
 
             // 4. Append info to result.
-            MUST(result->create_data_property_or_throw(i, info));
+            MUST(result->create_data_property_or_throw(result_index++, info));
         }
 
         // 4. Resolve p with result.

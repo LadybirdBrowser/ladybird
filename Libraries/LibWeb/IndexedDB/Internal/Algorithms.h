@@ -46,8 +46,6 @@ bool check_that_a_key_could_be_injected_into_a_value(JS::Realm&, JS::Value, KeyP
 void fire_an_error_event(JS::Realm&, GC::Ref<IDBRequest>);
 void fire_a_success_event(JS::Realm&, GC::Ref<IDBRequest>);
 GC::Ref<IDBRequest> asynchronously_execute_a_request(JS::Realm&, IDBRequestSource, GC::Ref<GC::Function<WebIDL::ExceptionOr<JS::Value>()>>, GC::Ptr<IDBRequest> = nullptr);
-ErrorOr<u64> generate_a_key(GC::Ref<ObjectStore>);
-void possibly_update_the_key_generator(GC::Ref<ObjectStore>, GC::Ref<Key>);
 void inject_a_key_into_a_value_using_a_key_path(JS::Realm&, JS::Value, GC::Ref<Key>, KeyPath const&);
 JS::Value delete_records_from_an_object_store(GC::Ref<ObjectStore>, GC::Ref<IDBKeyRange>);
 WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&, GC::Ref<ObjectStore>, JS::Value, GC::Ptr<Key>, bool);

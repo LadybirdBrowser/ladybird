@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 12 tests
 
-10 Pass
-2 Fail
+12 Pass
 Pass	Explicitly committed data can be read back out.
 Pass	commit() on a version change transaction does not cause errors.
 Pass	A committed transaction becomes inactive immediately.
@@ -14,5 +13,5 @@ Pass	Calling commit on a committed transaction throws.
 Pass	Calling abort on a committed transaction throws and does not prevent persisting the data.
 Pass	Calling txn.commit() when txn is inactive should throw.
 Pass	Transactions with same scope should stay in program order, even if one calls commit.
-Fail	Transactions that explicitly commit and have errors should abort.
-Fail	Transactions that handle all errors properly should behave as expected when an explicit commit is called in an onerror handler.
+Pass	Transactions that explicitly commit and have errors should abort.
+Pass	Transactions that handle all errors properly should behave as expected when an explicit commit is called in an onerror handler.

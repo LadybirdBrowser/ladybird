@@ -11,6 +11,10 @@
 namespace Web::IndexedDB {
 
 // https://w3c.github.io/IndexedDB/#key-generator-construct
+
+// The current number is always a positive integer less than or equal to 2^53 (9007199254740992) + 1.
+static constexpr double MAX_KEY_GENERATOR_VALUE = 9007199254740992.0;
+
 class KeyGenerator {
 public:
     [[nodiscard]] u64 current_number() const { return m_current_number; }

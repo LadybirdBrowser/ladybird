@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>IndexedDB: request result events are delivered in order</title>
+<meta name="timeout" content="long">
+<script>
+self.GLOBAL = {
+  isWindow: function() { return true; },
+  isWorker: function() { return false; },
+  isShadowRealm: function() { return false; },
+};
+</script>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="resources/support-promises.js"></script>
+<script src="resources/support.js"></script>
+<script src="resources/request-event-ordering-common.js"></script>
+<div id=log></div>
+<script src="../IndexedDB/request-event-ordering-small-values.any.js"></script>
