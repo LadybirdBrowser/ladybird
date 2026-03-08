@@ -68,7 +68,7 @@ ThrowCompletionOr<Value> WrappedFunction::internal_call(ExecutionContext& callee
     VERIFY(&vm.running_execution_context() == &callee_context);
 
     // 4. Let result be Completion(OrdinaryWrappedFunctionCall(F, thisArgument, argumentsList)).
-    auto result = ordinary_wrapped_function_call(*this, this_argument, callee_context.arguments);
+    auto result = ordinary_wrapped_function_call(*this, this_argument, callee_context.arguments_span());
 
     // 5. Remove calleeContext from the execution context stack and restore callerContext as the running execution context.
     vm.pop_execution_context();

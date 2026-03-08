@@ -271,7 +271,7 @@ ExecutionContext* Interpreter::push_inline_frame(
         return nullptr;
 
     // Copy arguments from caller's registers into callee's argument slots.
-    auto* callee_argument_values = callee_context->arguments.data();
+    auto* callee_argument_values = callee_context->arguments_data();
     for (u32 i = 0; i < insn_argument_count; ++i)
         callee_argument_values[i] = get(arguments[i]);
     for (size_t i = insn_argument_count; i < argument_count; ++i)
@@ -2430,7 +2430,7 @@ ThrowCompletionOr<void> CreateVariable::execute_impl(Bytecode::Interpreter& inte
 
 void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto const arguments = interpreter.running_execution_context().arguments;
+    auto const arguments = interpreter.running_execution_context().arguments_span();
     auto arguments_count = interpreter.running_execution_context().passed_argument_count;
     auto array = MUST(Array::create(interpreter.realm(), 0));
     for (size_t rest_index = m_rest_index; rest_index < arguments_count; ++rest_index)
@@ -2441,7 +2441,7 @@ void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
 void CreateArguments::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto const& function = interpreter.running_execution_context().function;
-    auto const arguments = interpreter.running_execution_context().arguments;
+    auto const arguments = interpreter.running_execution_context().arguments_span();
     auto const& environment = interpreter.running_execution_context().lexical_environment;
 
     auto passed_arguments = ReadonlySpan<Value> { arguments.data(), interpreter.running_execution_context().passed_argument_count };
@@ -2769,8 +2769,8 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_call(
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* callee_context_argument_values = callee_context->arguments.data();
-    auto const callee_context_argument_count = callee_context->arguments.size();
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
     auto const insn_argument_count = arguments.size();
 
     for (size_t i = 0; i < insn_argument_count; ++i)
@@ -2781,7 +2781,7 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_call(
 
     Value retval;
     if (call_type == CallType::DirectEval && callee == interpreter.realm().intrinsics().eval_function()) {
-        retval = TRY(perform_eval(vm, !callee_context->arguments.is_empty() ? callee_context->arguments[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+        retval = TRY(perform_eval(vm, callee_context->argument_count > 0 ? callee_context->arguments_data()[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
     } else if (call_type == CallType::Construct) {
         retval = TRY(function.internal_construct(*callee_context, function));
     } else {
@@ -2848,8 +2848,8 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* callee_context_argument_values = callee_context->arguments.data();
-    auto const callee_context_argument_count = callee_context->arguments.size();
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
     auto const insn_argument_count = argument_array_length;
 
     for (size_t i = 0; i < insn_argument_count; ++i) {
@@ -2864,7 +2864,7 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
 
     Value retval;
     if (call_type == CallType::DirectEval && callee == interpreter.realm().intrinsics().eval_function()) {
-        retval = TRY(perform_eval(vm, !callee_context->arguments.is_empty() ? callee_context->arguments[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
+        retval = TRY(perform_eval(vm, callee_context->argument_count > 0 ? callee_context->arguments_data()[0] : js_undefined(), strict == Strict::Yes ? CallerMode::Strict : CallerMode::NonStrict, EvalMode::Direct));
     } else if (call_type == CallType::Construct) {
         retval = TRY(function.internal_construct(*callee_context, function));
     } else {
@@ -2933,8 +2933,8 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
 
-    auto* callee_context_argument_values = callee_context->arguments.data();
-    auto const callee_context_argument_count = callee_context->arguments.size();
+    auto* callee_context_argument_values = callee_context->arguments_data();
+    auto const callee_context_argument_count = callee_context->argument_count;
     auto const insn_argument_count = argument_array_length;
 
     if (m_is_synthetic) {
