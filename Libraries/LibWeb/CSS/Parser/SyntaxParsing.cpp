@@ -290,8 +290,12 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
     case SyntaxNode::NodeType::Alternatives: {
         auto const& alternatives_node = as<AlternativesSyntaxNode>(syntax_node);
         for (auto const& child : alternatives_node.children()) {
-            if (auto result = parse_according_to_syntax_node(tokens, *child)) {
-                transaction.commit();
+            auto alternative_transaction = transaction.create_child();
+            auto result = parse_according_to_syntax_node(tokens, *child);
+            tokens.discard_whitespace();
+
+            if (result && tokens.is_empty()) {
+                alternative_transaction.commit();
                 return result.release_nonnull();
             }
         }
