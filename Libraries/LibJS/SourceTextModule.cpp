@@ -548,7 +548,7 @@ ThrowCompletionOr<void> SourceTextModule::initialize_environment(VM& vm)
     m_execution_context->realm = &this->realm();
 
     // 12. Set the ScriptOrModule of moduleContext to module.
-    m_execution_context->script_or_module = GC::Ref<Module>(*this);
+    m_execution_context->script_or_module = this;
 
     // 13. Set the VariableEnvironment of moduleContext to module.[[Environment]].
     m_execution_context->variable_environment = environment;
@@ -801,7 +801,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     module_context->realm = &realm();
 
     // 4. Set the ScriptOrModule of moduleContext to module.
-    module_context->script_or_module = GC::Ref<Module>(*this);
+    module_context->script_or_module = this;
 
     // 5. Assert: module has been linked and declarations in its module environment have been instantiated.
     VERIFY(m_status != ModuleStatus::New);

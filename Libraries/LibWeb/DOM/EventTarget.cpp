@@ -518,7 +518,7 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
         vm.pop_execution_context();
 
         // 11. Set function.[[ScriptOrModule]] to null.
-        function->set_script_or_module({});
+        function->set_script_or_module(nullptr);
 
         // 12. Set eventHandler's value to the result of creating a Web IDL EventHandler callback function object whose object reference is function and whose callback context is settings object.
         // FIXME: Update this comment once the ShadowRealm proposal is merged to pass realm.

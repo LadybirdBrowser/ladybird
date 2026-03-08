@@ -128,7 +128,7 @@ JS::Promise* JavaScriptModuleScript::run(PreventErrorReporting)
         auto* module_execution_context = stack.allocate(0, 0, 0);
         VERIFY(module_execution_context);
         module_execution_context->realm = &realm;
-        module_execution_context->script_or_module = GC::Ref<JS::Module> { *record };
+        module_execution_context->script_or_module = record;
         vm().push_execution_context(*module_execution_context);
 
         // 2. Set evaluationPromise to record.Evaluate().

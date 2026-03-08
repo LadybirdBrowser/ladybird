@@ -22,6 +22,8 @@ namespace JS {
 
 using ScriptOrModule = Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>;
 
+[[nodiscard]] JS_API ScriptOrModule script_or_module_from_cell(GC::Ptr<Cell>);
+
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct JS_API ExecutionContext {
     static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count);
@@ -51,7 +53,7 @@ public:
 
     GC::Ptr<FunctionObject> function;                // [[Function]]
     GC::Ptr<Realm> realm;                            // [[Realm]]
-    ScriptOrModule script_or_module;                 // [[ScriptOrModule]]
+    GC::Ptr<Cell> script_or_module;                  // [[ScriptOrModule]] — points to Script or Module
     GC::Ptr<Environment> lexical_environment;        // [[LexicalEnvironment]]
     GC::Ptr<Environment> variable_environment;       // [[VariableEnvironment]]
     GC::Ptr<PrivateEnvironment> private_environment; // [[PrivateEnvironment]]

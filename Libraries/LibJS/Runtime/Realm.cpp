@@ -47,7 +47,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     new_context->realm = realm;
 
     // 10. Set the ScriptOrModule of newContext to null.
-    new_context->script_or_module = {};
+    new_context->script_or_module = nullptr;
 
     // 11. Push newContext onto the execution context stack; newContext is now the running execution context.
     vm.push_execution_context(*new_context);

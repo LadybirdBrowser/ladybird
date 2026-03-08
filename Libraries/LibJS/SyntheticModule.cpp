@@ -159,7 +159,7 @@ ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
     module_context->realm = &realm;
 
     // 4. Set the ScriptOrModule of moduleContext to module.
-    module_context->script_or_module = GC::Ref<Module>(*this);
+    module_context->script_or_module = this;
 
     // 5. Set the VariableEnvironment of moduleContext to module.[[Environment]].
     module_context->variable_environment = environment();
