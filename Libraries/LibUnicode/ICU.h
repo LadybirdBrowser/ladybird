@@ -113,6 +113,20 @@ inline void verify_icu_success(UErrorCode code, SourceLocation location = Source
     }
 }
 
+#define ICU_MUST(expression)                                                     \
+    ({                                                                           \
+        /* Ignore -Wshadow to allow nesting the macro. */                        \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow", auto _temporary_result = (expression)); \
+        verify_icu_success(status);                                              \
+        _temporary_result;                                                       \
+    })
+
+#define ICU_MUST_VOID(expression)   \
+    ({                              \
+        expression;                 \
+        verify_icu_success(status); \
+    })
+
 ALWAYS_INLINE icu::StringPiece icu_string_piece(StringView string)
 {
     return { string.characters_without_null_termination(), static_cast<i32>(string.length()) };

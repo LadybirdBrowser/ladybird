@@ -55,7 +55,7 @@ describe("correct behavior", () => {
     test("ZonedDateTime-like argument", () => {
         const timeZone = "UTC";
         const calendar = "gregory";
-        const zdtLike = {
+        const zonedDateTimeLike = {
             timeZone,
             calendar,
             year: 2021,
@@ -68,7 +68,7 @@ describe("correct behavior", () => {
             microsecond: 200,
             nanosecond: 300,
         };
-        const createdZoneDateTime = Temporal.ZonedDateTime.from(zdtLike);
+        const createdZoneDateTime = Temporal.ZonedDateTime.from(zonedDateTimeLike);
 
         expect(createdZoneDateTime).toBeInstanceOf(Temporal.ZonedDateTime);
         expect(createdZoneDateTime.timeZoneId).toBe(timeZone);
@@ -138,6 +138,47 @@ describe("correct behavior", () => {
         }).toThrowWithMessage(RangeError, "Cannot disambiguate zero possible epoch nanoseconds");
     });
 
+    test("non-ISO calendar from property bag", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from({
+            year: 2024,
+            month: 6,
+            day: 15,
+            timeZone: "UTC",
+            calendar: "gregory",
+        });
+        expect(zonedDateTime.calendarId).toBe("gregory");
+        expect(zonedDateTime.year).toBe(2024);
+        expect(zonedDateTime.month).toBe(6);
+        expect(zonedDateTime.day).toBe(15);
+        expect(zonedDateTime.era).toBe("ce");
+        expect(zonedDateTime.eraYear).toBe(2024);
+    });
+
+    test("non-ISO calendar from string with annotation", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from("2024-06-15T12:00:00+00:00[UTC][u-ca=hebrew]");
+        expect(zonedDateTime.calendarId).toBe("hebrew");
+        expect(zonedDateTime.year).toBe(5784);
+        expect(zonedDateTime.monthCode).toBe("M09");
+    });
+
+    test("japanese calendar with era", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from({
+            year: 2024,
+            month: 6,
+            day: 15,
+            timeZone: "Asia/Tokyo",
+            calendar: "japanese",
+        });
+        expect(zonedDateTime.era).toBe("reiwa");
+        expect(zonedDateTime.eraYear).toBe(6);
+    });
+
+    test("buddhist calendar year offset", () => {
+        const zonedDateTime = Temporal.ZonedDateTime.from("2024-01-01T00:00:00+07:00[Asia/Bangkok][u-ca=buddhist]");
+        expect(zonedDateTime.calendarId).toBe("buddhist");
+        expect(zonedDateTime.year).toBe(2567);
+    });
+
     test("offsets", () => {
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].forEach(offset => {
             let timeZone = `Etc/GMT-${offset}`;
@@ -162,5 +203,23 @@ describe("errors", () => {
         expect(() => {
             Temporal.ZonedDateTime.from("foo");
         }).toThrowWithMessage(RangeError, "Invalid ISO date time");
+    });
+
+    test("invalid calendar identifier", () => {
+        expect(() => {
+            Temporal.ZonedDateTime.from({
+                year: 2024,
+                month: 1,
+                day: 1,
+                timeZone: "UTC",
+                calendar: "invalid",
+            });
+        }).toThrowWithMessage(RangeError, "Invalid calendar identifier 'invalid'");
+    });
+
+    test("invalid calendar annotation in string", () => {
+        expect(() => {
+            Temporal.ZonedDateTime.from("2024-01-01T00:00:00+00:00[UTC][u-ca=invalid]");
+        }).toThrowWithMessage(RangeError, "Invalid calendar identifier 'invalid'");
     });
 });

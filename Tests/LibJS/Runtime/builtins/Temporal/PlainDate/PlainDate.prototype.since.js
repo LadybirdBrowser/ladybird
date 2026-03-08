@@ -97,6 +97,22 @@ describe("correct behavior", () => {
         }
     });
 
+    test("since with gregory calendar in months", () => {
+        const dateOne = Temporal.PlainDate.from({ year: 2024, month: 1, day: 15, calendar: "gregory" });
+        const dateTwo = Temporal.PlainDate.from({ year: 2024, month: 7, day: 15, calendar: "gregory" });
+        const duration = dateTwo.since(dateOne, { largestUnit: "months" });
+        expect(duration.months).toBe(6);
+        expect(duration.days).toBe(0);
+    });
+
+    test("since with hebrew calendar in years", () => {
+        // Hebrew years 5780 to 5784 (4 Hebrew years span these ISO dates).
+        const dateOne = Temporal.PlainDate.from("2020-01-01[u-ca=hebrew]");
+        const dateTwo = Temporal.PlainDate.from("2024-01-01[u-ca=hebrew]");
+        const duration = dateTwo.since(dateOne, { largestUnit: "years" });
+        expect(duration.years).toBe(4);
+    });
+
     test("PlainDate string argument", () => {
         const dateTwo = new Temporal.PlainDate(2022, 12, 25);
         const sinceDuration = dateTwo.since("2021-11-14");
