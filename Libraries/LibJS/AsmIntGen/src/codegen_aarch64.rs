@@ -135,8 +135,9 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     w!(out, "CSYM(asm_interpreter_entry):");
 
     // Save callee-saved registers and link register.
-    // Pinned: x19(dispatch), x20(interp), x25(pc), x26(pb), x27(values), x28(exec_ctx)
-    // x21 = ip (instruction pointer = pb + pc), set at each handler entry, survives calls.
+    // Pinned: x19(dispatch), x20(interp), x21(ip), x26(pb), x27(values), x28(exec_ctx)
+    // x21 = ip (instruction pointer = pb + pc), the primary dispatch register.
+    // x25 is only used when DSL code writes to pc directly (rare).
     // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = NAN_BASE_TAG (pinned constants).
     // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
     w!(out, "    stp x29, x30, [sp, #-112]!");
@@ -161,7 +162,6 @@ fn generate_entry_point(out: &mut String, program: &Program) {
         .copied()
         .unwrap_or(0);
     w!(out, "    mov x26, x0              // pb = bytecode base");
-    w!(out, "    mov w25, w1              // pc = entry_point");
     w!(out, "    mov x27, x2              // values = values array");
     // Store Interpreter* in x20 (callee-saved) for C++ calls, pin exec_ctx in x28
     w!(out, "    mov x20, x3              // interp = Interpreter*");
@@ -184,8 +184,8 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     emit_mov_imm(out, "x24", nan_base_tag);
     w!(out, "    // x24 = NAN_BASE_TAG");
 
-    // Dispatch to first instruction (sets x21 = pb + pc for the handler)
-    w!(out, "    add x21, x26, x25        // x21 = pb + pc");
+    // Dispatch to first instruction (x21 = pb + entry_point)
+    w!(out, "    add x21, x26, w1, uxtw   // x21 = pb + entry_point");
     w!(out, "    ldrb w9, [x21]           // w9 = opcode byte");
     w!(out, "    ldr x10, [x19, x9, lsl #3]");
     w!(out, "    br x10");
@@ -195,17 +195,17 @@ fn generate_entry_point(out: &mut String, program: &Program) {
 fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &PinnedConstants) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
-    // Set up args: x0=interp (x20), w1=pc (w25)
+    // Set up args: x0=interp (x20), w1=pc (ip - pb)
     w!(out, "    mov x0, x20");
-    w!(out, "    mov w1, w25");
+    w!(out, "    sub w1, w21, w26");
     w!(out, "    bl CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
     w!(out, "    tbnz x0, #63, .Lexit");
     // Reload exec_ctx, pb, and values
     emit_state_reload(out, program);
-    // New pc from return value
-    w!(out, "    mov w25, w0");
-    emit_dispatch(out);
+    // w0 = new pc (32-bit), x26 = new pb; compute x21 = pb + pc
+    w!(out, "    add x21, x26, w0, uxtw");
+    emit_dispatch_from_ip(out);
     w!(out);
 
     // Exit path: restore callee-saved registers and return
@@ -250,10 +250,15 @@ fn emit_state_reload(out: &mut String, program: &Program) {
     emit_add_imm(out, "x27", "x28", sizeof_execctx);
 }
 
-/// Emit a dispatch sequence: load opcode from [pb + pc], look up in table, branch.
-/// Also updates x21 (cached instruction pointer) for the next handler.
+/// Emit a dispatch sequence: recompute x21 from w25 + x26, then dispatch.
+/// Used only by dispatch_current (where DSL code has written to x25 directly).
 fn emit_dispatch(out: &mut String) {
-    w!(out, "    add x21, x26, x25"); // x21 = pb + pc
+    w!(out, "    add x21, x26, w25, uxtw"); // x21 = pb + pc
+    emit_dispatch_from_ip(out);
+}
+
+/// Emit a dispatch sequence from x21 (already pointing at the next instruction).
+fn emit_dispatch_from_ip(out: &mut String) {
     w!(out, "    ldrb w9, [x21]"); // w9 = opcode
     emit_dispatch_tail(out);
 }
@@ -266,10 +271,9 @@ fn emit_dispatch_tail(out: &mut String) {
 
 fn emit_dispatch_with_size(out: &mut String, size: u32) {
     // x21 = pb + old_pc (set during dispatch, callee-saved).
-    // Next opcode is at x21 + size; load it before advancing x21/pc.
+    // Next opcode is at x21 + size; load it before advancing x21.
     w!(out, "    ldrb w9, [x21, #{size}]");
     w!(out, "    add x21, x21, #{size}");
-    emit_add_imm32(out, "w25", "w25", size as i64);
     emit_dispatch_tail(out);
 }
 
@@ -622,6 +626,7 @@ fn emit_mov_imm(out: &mut String, dst: &str, val: i64) {
 }
 
 /// Emit a mov of a 32-bit immediate into a w register.
+#[allow(dead_code)]
 fn emit_mov_imm32(out: &mut String, dst: &str, val: i64) {
     let uval = (val as u64) & 0xFFFFFFFF;
 
@@ -763,6 +768,7 @@ fn emit_add_imm(out: &mut String, dst: &str, src: &str, imm: i64) {
 }
 
 /// Emit add immediate for 32-bit registers.
+#[allow(dead_code)]
 fn emit_add_imm32(out: &mut String, dst: &str, src: &str, imm: i64) {
     let imm = imm & 0xFFFFFFFF;
     if imm == 0 {
@@ -840,13 +846,14 @@ fn emit_instruction(
             emit_ldr64(out, "x28", "x20", interp_ctx);
         }
 
-        // dispatch_variable: advance pc by value in register and dispatch
+        // dispatch_variable: advance ip by value in register and dispatch
         "dispatch_variable" => {
             if let Some(op) = insn.operands.first() {
                 let reg = resolve_op(op, handler, program);
                 let wreg = to_w_reg(&reg);
-                w!(out, "    add w25, w25, {wreg}");
-                emit_dispatch(out);
+                // Advance x21 directly (zero-extend 32-bit offset to 64-bit)
+                w!(out, "    add x21, x21, {wreg}, uxtw");
+                emit_dispatch_from_ip(out);
             }
         }
 
@@ -860,12 +867,13 @@ fn emit_instruction(
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20"); // interp
-                w!(out, "    mov w1, w25"); // pc
+                w!(out, "    sub w1, w21, w26"); // pc = ip - pb
                 w!(out, "    bl CSYM({func_name})");
                 w!(out, "    tbnz x0, #63, .Lexit");
                 emit_state_reload(out, program);
-                w!(out, "    mov w25, w0");
-                emit_dispatch(out);
+                // w0 = new pc (32-bit), x26 = new pb; compute x21 = pb + pc
+                w!(out, "    add x21, x26, w0, uxtw");
+                emit_dispatch_from_ip(out);
             }
         }
 
@@ -884,7 +892,7 @@ fn emit_instruction(
         "call_interp" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20");
-                w!(out, "    mov w1, w25");
+                w!(out, "    sub w1, w21, w26"); // pc = ip - pb
                 w!(out, "    bl CSYM({func_name})");
                 // Result in x0 (= t0)
             }
@@ -1182,13 +1190,14 @@ fn emit_instruction(
             }
         }
 
-        // goto_handler reg - set pc and dispatch
+        // goto_handler reg - set ip from label and dispatch
         "goto_handler" => {
             if let Some(op) = insn.operands.first() {
                 let reg = resolve_op(op, handler, program);
                 let wreg = to_w_reg(&reg);
-                w!(out, "    mov w25, {wreg}");
-                emit_dispatch(out);
+                // Compute x21 = pb + target (zero-extend 32-bit target to 64-bit)
+                w!(out, "    add x21, x26, {wreg}, uxtw");
+                emit_dispatch_from_ip(out);
             }
         }
 
