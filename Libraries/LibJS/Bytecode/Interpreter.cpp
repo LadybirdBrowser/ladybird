@@ -280,7 +280,6 @@ ExecutionContext* Interpreter::push_inline_frame(
 
     // Set up caller linkage so Return can restore the caller frame.
     callee_context->caller_frame = m_running_execution_context;
-    callee_context->caller_executable = m_running_execution_context->executable;
     callee_context->caller_dst_raw = dst_raw;
     callee_context->caller_return_pc = return_pc;
     callee_context->caller_is_construct = is_construct;
