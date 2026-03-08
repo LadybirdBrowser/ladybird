@@ -53,7 +53,9 @@ public:
     void set_global_object(GC::Ref<Object> global) { m_global_object = global; }
 
     [[nodiscard]] GlobalEnvironment& global_environment() const { return *m_global_environment; }
-    void set_global_environment(GC::Ref<GlobalEnvironment> environment) { m_global_environment = environment; }
+    void set_global_environment(GC::Ref<GlobalEnvironment> environment);
+
+    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment() const { return *m_global_declarative_environment; }
 
     [[nodiscard]] Intrinsics const& intrinsics() const { return *m_intrinsics; }
     [[nodiscard]] Intrinsics& intrinsics() { return *m_intrinsics; }
@@ -73,10 +75,11 @@ private:
 
     virtual void visit_edges(Visitor&) override;
 
-    GC::Ptr<Intrinsics> m_intrinsics;                // [[Intrinsics]]
-    GC::Ptr<Object> m_global_object;                 // [[GlobalObject]]
-    GC::Ptr<GlobalEnvironment> m_global_environment; // [[GlobalEnv]]
-    OwnPtr<HostDefined> m_host_defined;              // [[HostDefined]]
+    GC::Ptr<Intrinsics> m_intrinsics;                                 // [[Intrinsics]]
+    GC::Ptr<Object> m_global_object;                                  // [[GlobalObject]]
+    GC::Ptr<GlobalEnvironment> m_global_environment;                  // [[GlobalEnv]]
+    GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment; // Cached from GlobalEnv
+    OwnPtr<HostDefined> m_host_defined;                               // [[HostDefined]]
 };
 
 }

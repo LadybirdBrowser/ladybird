@@ -7,6 +7,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibGC/DeferGC.h>
+#include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -81,7 +82,7 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     realm->m_global_object = global;
 
     // 17. Set realm.[[GlobalEnv]] to NewGlobalEnvironment(global, thisValue).
-    realm->m_global_environment = vm.heap().allocate<GlobalEnvironment>(*global, *this_value);
+    realm->set_global_environment(vm.heap().allocate<GlobalEnvironment>(*global, *this_value));
 
     // 18. Perform ? SetDefaultGlobalBindings(realm).
     set_default_global_bindings(*realm);
@@ -93,12 +94,19 @@ ThrowCompletionOr<NonnullOwnPtr<ExecutionContext>> Realm::initialize_host_define
     return new_context;
 }
 
+void Realm::set_global_environment(GC::Ref<GlobalEnvironment> environment)
+{
+    m_global_environment = environment;
+    m_global_declarative_environment = &environment->declarative_record();
+}
+
 void Realm::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_intrinsics);
     visitor.visit(m_global_object);
     visitor.visit(m_global_environment);
+    visitor.visit(m_global_declarative_environment);
     if (m_host_defined)
         m_host_defined->visit_edges(visitor);
 }
