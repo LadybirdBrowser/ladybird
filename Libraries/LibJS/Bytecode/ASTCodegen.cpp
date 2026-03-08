@@ -1339,6 +1339,7 @@ Optional<ScopedOperand> ObjectExpression::generate_bytecode(Bytecode::Generator&
             }
         } else {
             auto property_name = property->key().generate_bytecode(generator).value();
+            property_name = generator.copy_if_needed_to_preserve_evaluation_order(property_name);
 
             // ComputedPropertyName evaluation calls ToPropertyKey, which includes ToPrimitive(hint: string).
             // This must happen before the value expression is evaluated per the spec for

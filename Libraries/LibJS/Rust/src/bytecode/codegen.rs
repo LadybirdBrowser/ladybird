@@ -5312,6 +5312,7 @@ fn generate_object_expression(
         let effectively_computed = property.is_computed && !is_string_literal_key;
         let computed_key = if effectively_computed || !is_string_key {
             let key = generate_expression_or_undefined(&property.key, generator, None);
+            let key = generator.copy_if_needed_to_preserve_evaluation_order(&key);
             generator.emit(Instruction::ToPrimitiveWithStringHint {
                 dst: key.operand(),
                 value: key.operand(),
