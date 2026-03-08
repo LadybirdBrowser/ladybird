@@ -5,6 +5,8 @@
  */
 
 #include <LibWeb/Bindings/PointerEventPrototype.h>
+#include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
@@ -12,6 +14,28 @@
 namespace Web::UIEvents {
 
 GC_DEFINE_ALLOCATOR(PointerEvent);
+
+// https://w3c.github.io/pointerevents/#dom-pointerevent-screenx
+// For untrusted PointerEvents, coordinates are floored for click, auxclick, and
+// contextmenu events (via the MouseEvent base class). For all other pointer
+// event types, fractional coordinates are preserved.
+bool PointerEvent::should_have_fractional_coordinates() const
+{
+    if (is_trusted())
+        return true;
+    return type() != HTML::EventNames::click
+        && type() != UIEvents::EventNames::auxclick
+        && type() != HTML::EventNames::contextmenu;
+}
+
+double PointerEvent::screen_x() const { return should_have_fractional_coordinates() ? m_screen_x : MouseEvent::screen_x(); }
+double PointerEvent::screen_y() const { return should_have_fractional_coordinates() ? m_screen_y : MouseEvent::screen_y(); }
+double PointerEvent::page_x() const { return should_have_fractional_coordinates() ? m_page_x : MouseEvent::page_x(); }
+double PointerEvent::page_y() const { return should_have_fractional_coordinates() ? m_page_y : MouseEvent::page_y(); }
+double PointerEvent::client_x() const { return should_have_fractional_coordinates() ? m_client_x : MouseEvent::client_x(); }
+double PointerEvent::client_y() const { return should_have_fractional_coordinates() ? m_client_y : MouseEvent::client_y(); }
+double PointerEvent::offset_x() const { return should_have_fractional_coordinates() ? m_offset_x : MouseEvent::offset_x(); }
+double PointerEvent::offset_y() const { return should_have_fractional_coordinates() ? m_offset_y : MouseEvent::offset_y(); }
 
 WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::create_from_platform_event(JS::Realm& realm, GC::Ptr<HTML::WindowProxy> window_proxy, FlyString const& event_name, CSSPixelPoint screen, CSSPixelPoint page, CSSPixelPoint client, CSSPixelPoint offset, Optional<CSSPixelPoint> movement, unsigned button, unsigned buttons, unsigned modifiers)
 {
