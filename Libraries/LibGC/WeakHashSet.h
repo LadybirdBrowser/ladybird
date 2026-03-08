@@ -27,13 +27,13 @@ public:
 
     void set(T& value)
     {
-        prune_dead_entries();
+        maybe_prune();
         m_table.set(Weak<T>(value));
     }
 
     bool remove(T& value)
     {
-        prune_dead_entries();
+        maybe_prune();
         auto it = m_table.find(Traits<T*>::hash(&value), [&](auto& entry) { return entry.ptr() == &value; });
         if (it == m_table.end())
             return false;
@@ -139,14 +139,18 @@ public:
     ConstIterator end() const { return ConstIterator(m_table.end(), m_table.end()); }
 
 private:
-    void prune_dead_entries()
+    void maybe_prune()
     {
+        if (++m_mutations_since_last_prune < max(m_table.size(), static_cast<size_t>(64)))
+            return;
         m_table.remove_all_matching([](Weak<T> const& entry) {
             return !entry.ptr();
         });
+        m_mutations_since_last_prune = 0;
     }
 
     TableType m_table;
+    size_t m_mutations_since_last_prune { 0 };
 };
 
 }
