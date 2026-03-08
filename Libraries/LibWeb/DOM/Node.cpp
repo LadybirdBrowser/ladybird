@@ -554,28 +554,18 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
             shadow_style_scope->schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
     }
 
-    auto invalidate_for_style_scope = [this, reason, &properties, &options](CSS::StyleScope& style_scope) {
-        auto invalidation_set = document().style_computer().invalidation_set_for_properties(properties, style_scope);
+    if (options.invalidate_self)
+        set_needs_style_update(true);
 
-        if (invalidation_set.needs_invalidate_whole_subtree()) {
-            invalidate_style(reason);
-            return;
-        }
-
-        if (options.invalidate_self || invalidation_set.needs_invalidate_self()) {
-            set_needs_style_update(true);
-        }
-
-        if (!invalidation_set.has_properties()) {
-            return;
-        }
-
-        document().style_invalidator().add_pending_invalidation(*this, move(invalidation_set));
+    auto invalidate_for_style_scope = [this, reason, &properties](CSS::StyleScope& style_scope) {
+        auto plan = document().style_computer().invalidation_plan_for_properties(properties, style_scope);
+        return document().style_invalidator().enqueue_invalidation_plan(*this, reason, *plan);
     };
 
-    invalidate_for_style_scope(style_scope);
+    if (invalidate_for_style_scope(style_scope))
+        return;
     if (shadow_style_scope)
-        invalidate_for_style_scope(*shadow_style_scope);
+        (void)invalidate_for_style_scope(*shadow_style_scope);
 }
 
 Utf16String Node::child_text_content() const
