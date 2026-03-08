@@ -281,7 +281,7 @@ Optional<float> SVGGraphicsElement::stroke_opacity() const
     return unsafe_layout_node()->computed_values().stroke_opacity();
 }
 
-float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
+CSSPixelSize SVGGraphicsElement::get_viewport_size() const
 {
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"
     //        https://svgwg.org/svg2-draft/coords.html#TermUserUnits
@@ -295,7 +295,13 @@ float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentag
             viewport_height = svg_svg_layout_node->computed_values().height().to_px(*svg_svg_layout_node, 0);
         }
     }
-    auto scaled_viewport_size = (viewport_width + viewport_height) * CSSPixels(0.5);
+    return { viewport_width, viewport_height };
+}
+
+float SVGGraphicsElement::resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const
+{
+    auto viewport_size = get_viewport_size();
+    auto scaled_viewport_size = (viewport_size.width() + viewport_size.height()) * CSSPixels(0.5);
     return length_percentage.to_px(*unsafe_layout_node(), scaled_viewport_size).to_double();
 }
 

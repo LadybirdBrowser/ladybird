@@ -30,6 +30,7 @@ public:
     virtual void text(Utf16View const&, Font const&) override;
     virtual void glyph_run(GlyphRun const&) override;
     virtual void offset(Gfx::FloatPoint const&) override;
+    virtual float length() const override;
 
     virtual void append_path(Gfx::Path const&) override;
     virtual void intersect(Gfx::Path const&) override;
