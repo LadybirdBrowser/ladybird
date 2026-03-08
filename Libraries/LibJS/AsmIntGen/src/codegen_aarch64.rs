@@ -155,12 +155,12 @@ fn generate_entry_point(out: &mut String, program: &Program) {
         .constants
         .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .unwrap_or(0);
+        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
     let canon_nan = program
         .constants
         .get("CANON_NAN_BITS")
         .copied()
-        .unwrap_or(0);
+        .expect("CANON_NAN_BITS constant required");
     w!(out, "    mov x26, x0              // pb = bytecode base");
     w!(out, "    mov x27, x2              // values = values array");
     // Store Interpreter* in x20 (callee-saved) for C++ calls, pin exec_ctx in x28
@@ -174,9 +174,9 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     emit_mov_imm(out, "x9", canon_nan);
     w!(out, "    fmov d8, x9              // d8 = CANON_NAN_BITS");
     // Pin frequently-compared tag constants in callee-saved registers.
-    let int32_tag = program.constants.get("INT32_TAG").copied().unwrap_or(0);
-    let boolean_tag = program.constants.get("BOOLEAN_TAG").copied().unwrap_or(0);
-    let nan_base_tag = program.constants.get("NAN_BASE_TAG").copied().unwrap_or(0);
+    let int32_tag = program.constants.get("INT32_TAG").copied().expect("INT32_TAG constant required");
+    let boolean_tag = program.constants.get("BOOLEAN_TAG").copied().expect("BOOLEAN_TAG constant required");
+    let nan_base_tag = program.constants.get("NAN_BASE_TAG").copied().expect("NAN_BASE_TAG constant required");
     emit_mov_imm(out, "x22", int32_tag);
     w!(out, "    // x22 = INT32_TAG");
     emit_mov_imm(out, "x23", boolean_tag);
@@ -228,22 +228,22 @@ fn emit_state_reload(out: &mut String, program: &Program) {
         .constants
         .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .unwrap_or(0);
+        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
     let exec_executable = program
         .constants
         .get("EXECUTION_CONTEXT_EXECUTABLE")
         .copied()
-        .unwrap_or(0);
+        .expect("EXECUTION_CONTEXT_EXECUTABLE constant required");
     let exec_bytecode = program
         .constants
         .get("EXECUTABLE_BYTECODE_DATA")
         .copied()
-        .unwrap_or(0);
+        .expect("EXECUTABLE_BYTECODE_DATA constant required");
     let sizeof_execctx = program
         .constants
         .get("SIZEOF_EXECUTION_CONTEXT")
         .copied()
-        .unwrap_or(0);
+        .expect("SIZEOF_EXECUTION_CONTEXT constant required");
     emit_ldr64(out, "x28", "x20", interp_ctx);
     emit_ldr64(out, "x9", "x28", exec_executable);
     emit_ldr64(out, "x26", "x9", exec_bytecode);
@@ -347,7 +347,7 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
                             .constants
                             .get(sc.as_str())
                             .copied()
-                            .unwrap_or_else(|| sc.parse().unwrap_or(1));
+                            .unwrap_or_else(|| sc.parse().expect("invalid scale value"));
                         format!("MEM:{base_r}:{idx_r}:{sc_val}")
                     }
                 }
@@ -411,7 +411,7 @@ fn parse_mem(s: &str) -> Option<MemOp> {
             if let Some(imm) = parts[1].strip_prefix('#') {
                 Some(MemOp {
                     base,
-                    index: MemIndex::Imm(imm.parse().unwrap_or(0)),
+                    index: MemIndex::Imm(imm.parse().expect("invalid immediate in memory operand")),
                 })
             } else {
                 Some(MemOp {
@@ -422,13 +422,13 @@ fn parse_mem(s: &str) -> Option<MemOp> {
         }
         3 => {
             if let Some(offset) = parts[2].strip_prefix('+') {
-                let imm: i64 = offset.parse().unwrap_or(0);
+                let imm: i64 = offset.parse().expect("invalid offset in memory operand");
                 Some(MemOp {
                     base,
                     index: MemIndex::RegImm(parts[1].to_string(), imm),
                 })
             } else {
-                let scale: i64 = parts[2].parse().unwrap_or(1);
+                let scale: i64 = parts[2].parse().expect("invalid scale in memory operand");
                 Some(MemOp {
                     base,
                     index: MemIndex::RegScale(parts[1].to_string(), scale),
@@ -842,7 +842,7 @@ fn emit_instruction(
                 .constants
                 .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
                 .copied()
-                .unwrap_or(0);
+                .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
             emit_ldr64(out, "x28", "x20", interp_ctx);
         }
 
@@ -1157,7 +1157,7 @@ fn emit_instruction(
             if insn.operands.len() >= 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let offset = resolve_op(&insn.operands[1], handler, program);
-                let offset_val: i64 = offset.parse().unwrap_or(0);
+                let offset_val: i64 = offset.parse().expect("invalid offset in load_operand");
                 // x21 = pb + pc (pinned at handler entry); load operand index
                 emit_ldr32(out, "w9", "x21", offset_val);
                 // dst = values[w9] (scaled by 8)
@@ -1170,7 +1170,7 @@ fn emit_instruction(
             if insn.operands.len() >= 2 {
                 let offset = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
-                let offset_val: i64 = offset.parse().unwrap_or(0);
+                let offset_val: i64 = offset.parse().expect("invalid offset in store_operand");
                 // x21 = pb + pc (pinned at handler entry); load operand index
                 emit_ldr32(out, "w9", "x21", offset_val);
                 // values[w9] = src
@@ -1183,7 +1183,7 @@ fn emit_instruction(
             if insn.operands.len() >= 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let offset = resolve_op(&insn.operands[1], handler, program);
-                let offset_val: i64 = offset.parse().unwrap_or(0);
+                let offset_val: i64 = offset.parse().expect("invalid offset in load_label");
                 let wdst = to_w_reg(&dst);
                 // x21 = pb + pc (pinned at handler entry)
                 emit_ldr32(out, &wdst, "x21", offset_val);
