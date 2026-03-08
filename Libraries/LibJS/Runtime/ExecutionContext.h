@@ -120,14 +120,13 @@ public:
     // Non-standard: This points at something that owns this ExecutionContext, in case it needs to be protected from GC.
     GC::Ptr<GC::Cell> context_owner;
 
-    u32 passed_argument_count { 0 };
-
     // Non-standard: Inline frame linkage for the bytecode interpreter.
     // When a JS-to-JS call is inlined in the dispatch loop, these fields
     // allow the Return handler to restore the caller's frame.
     ExecutionContext* caller_frame { nullptr };
-    u32 caller_return_pc { 0 };
     GC::Ptr<Bytecode::Executable> caller_executable;
+    u32 passed_argument_count { 0 };
+    u32 caller_return_pc { 0 };
     u32 caller_dst_raw { 0 };
     bool caller_is_construct { false };
 
