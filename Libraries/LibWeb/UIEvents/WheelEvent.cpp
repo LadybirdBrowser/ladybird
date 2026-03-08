@@ -35,7 +35,7 @@ void WheelEvent::initialize(JS::Realm& realm)
 
 GC::Ref<WheelEvent> WheelEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& wheel_event_init)
 {
-    return create(realm, event_name, wheel_event_init);
+    return create(realm, event_name, wheel_event_init, wheel_event_init.client_x, wheel_event_init.client_y, wheel_event_init.client_x, wheel_event_init.client_y);
 }
 
 GC::Ref<WheelEvent> WheelEvent::create(JS::Realm& realm, FlyString const& event_name, WheelEventInit const& event_init, double page_x, double page_y, double offset_x, double offset_y)

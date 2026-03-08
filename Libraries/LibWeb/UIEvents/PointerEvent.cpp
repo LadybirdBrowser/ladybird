@@ -120,7 +120,7 @@ GC::Ref<PointerEvent> PointerEvent::create(JS::Realm& realm, FlyString const& ty
 
 WebIDL::ExceptionOr<GC::Ref<PointerEvent>> PointerEvent::construct_impl(JS::Realm& realm, FlyString const& type, PointerEventInit const& event_init)
 {
-    return create(realm, type, event_init);
+    return create(realm, type, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
 }
 
 }

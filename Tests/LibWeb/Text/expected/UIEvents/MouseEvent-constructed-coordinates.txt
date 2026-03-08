@@ -1,0 +1,12 @@
+screenX: 30.5
+screenY: 40.5
+clientX: 10.5
+clientY: 20.5
+pageX: 10.5
+pageY: 20.5
+offsetX: 10.5
+offsetY: 20.5
+PointerEvent pageX: 5.25
+PointerEvent pageY: 15.75
+PointerEvent offsetX: 5.25
+PointerEvent offsetY: 15.75

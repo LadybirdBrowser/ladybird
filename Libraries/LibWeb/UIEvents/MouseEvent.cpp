@@ -130,7 +130,11 @@ GC::Ref<MouseEvent> MouseEvent::create(JS::Realm& realm, FlyString const& event_
 
 WebIDL::ExceptionOr<GC::Ref<MouseEvent>> MouseEvent::construct_impl(JS::Realm& realm, FlyString const& event_name, MouseEventInit const& event_init)
 {
-    return create(realm, event_name, event_init);
+    // https://drafts.csswg.org/cssom-view/#dom-mouseevent-pagex
+    // For a newly constructed event, pageX/pageY default to clientX/clientY (scrollX/scrollY are 0).
+    // https://drafts.csswg.org/cssom-view/#dom-mouseevent-offsetx
+    // For a newly constructed event with no target, offsetX/offsetY default to clientX/clientY.
+    return create(realm, event_name, event_init, event_init.client_x, event_init.client_y, event_init.client_x, event_init.client_y);
 }
 
 GC::Ref<MouseEvent> MouseEvent::clone() const
