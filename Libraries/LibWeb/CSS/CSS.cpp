@@ -125,7 +125,9 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
         // Otherwise, let parsed initial value be the parsed result.
         // NB: Already done
 
-        // FIXME: If parsed initial value is not computationally independent, throw a SyntaxError and exit this algorithm.
+        // If parsed initial value is not computationally independent, throw a SyntaxError and exit this algorithm.
+        if (!initial_value_maybe->is_computationally_independent())
+            return WebIDL::SyntaxError::create(realm, "Initial value must be computationally independent"_utf16);
     }
 
     // 5. Set inherit flag to the value of inherits.

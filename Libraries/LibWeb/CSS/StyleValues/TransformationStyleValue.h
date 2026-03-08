@@ -37,6 +37,11 @@ public:
 
     bool properties_equal(TransformationStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override
+    {
+        return all_of(m_properties.values, [](auto& value) { return value->is_computationally_independent(); });
+    }
+
 private:
     TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
         : StyleValueWithDefaultOperators(Type::Transformation)

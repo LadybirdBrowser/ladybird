@@ -23,6 +23,8 @@ public:
 
     bool properties_equal(DisplayStyleValue const& other) const { return m_display == other.m_display; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit DisplayStyleValue(Display const& display)
         : StyleValueWithDefaultOperators(Type::Display)

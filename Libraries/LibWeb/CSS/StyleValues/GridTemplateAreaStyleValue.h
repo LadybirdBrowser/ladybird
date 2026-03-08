@@ -33,6 +33,8 @@ public:
             && m_grid_areas == other.m_grid_areas;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit GridTemplateAreaStyleValue(HashMap<String, GridArea> grid_areas, size_t row_count, size_t column_count)
         : StyleValueWithDefaultOperators(Type::GridTemplateArea)

@@ -25,6 +25,8 @@ public:
 
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override { m_resolution.serialize(builder, mode); }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
     bool equals(StyleValue const& other) const override
     {
         if (type() != other.type())

@@ -41,6 +41,8 @@ public:
         return m_length_percentage == other.as_fit_content().m_length_percentage;
     }
 
+    virtual bool is_computationally_independent() const override { return !m_length_percentage.has_value() || m_length_percentage->is_computationally_independent(); }
+
     [[nodiscard]] Optional<LengthPercentage> const& length_percentage() const { return m_length_percentage; }
 
 private:

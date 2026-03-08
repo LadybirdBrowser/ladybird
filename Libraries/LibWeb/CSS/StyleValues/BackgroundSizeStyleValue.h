@@ -32,6 +32,8 @@ public:
 
     bool properties_equal(BackgroundSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override { return m_properties.size_x->is_computationally_independent() && m_properties.size_y->is_computationally_independent(); }
+
 private:
     BackgroundSizeStyleValue(ValueComparingNonnullRefPtr<StyleValue const> size_x, ValueComparingNonnullRefPtr<StyleValue const> size_y);
 

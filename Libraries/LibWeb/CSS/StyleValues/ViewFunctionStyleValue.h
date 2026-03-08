@@ -25,6 +25,8 @@ public:
     Axis axis() const { return m_axis; }
     NonnullRefPtr<StyleValue const> inset() const { return m_inset; }
 
+    virtual bool is_computationally_independent() const override { return m_inset->is_computationally_independent(); }
+
 private:
     explicit ViewFunctionStyleValue(Axis axis, NonnullRefPtr<StyleValue const> inset)
         : StyleValueWithDefaultOperators(Type::ViewFunction)

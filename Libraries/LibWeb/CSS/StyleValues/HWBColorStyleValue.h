@@ -36,6 +36,14 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.h->is_computationally_independent()
+            && m_properties.w->is_computationally_independent()
+            && m_properties.b->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
 private:
     HWBColorStyleValue(ValueComparingNonnullRefPtr<StyleValue const> h, ValueComparingNonnullRefPtr<StyleValue const> w, ValueComparingNonnullRefPtr<StyleValue const> b, ValueComparingNonnullRefPtr<StyleValue const> alpha)
         : ColorStyleValue(ColorType::HWB, ColorSyntax::Modern)

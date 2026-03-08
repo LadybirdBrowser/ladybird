@@ -21,6 +21,8 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     bool properties_equal(ScrollFunctionStyleValue const& other) const { return m_scroller == other.m_scroller && m_axis == other.m_axis; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
     Scroller scroller() const { return m_scroller; }
     Axis axis() const { return m_axis; }
 

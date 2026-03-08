@@ -29,6 +29,8 @@ public:
 
     bool properties_equal(CustomIdentStyleValue const& other) const { return m_custom_ident == other.m_custom_ident; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit CustomIdentStyleValue(FlyString custom_ident)
         : StyleValueWithDefaultOperators(Type::CustomIdent)

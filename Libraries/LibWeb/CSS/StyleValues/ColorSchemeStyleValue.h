@@ -28,6 +28,8 @@ public:
 
     bool properties_equal(ColorSchemeStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     ColorSchemeStyleValue(Vector<String> schemes, bool only)
         : StyleValueWithDefaultOperators(Type::ColorScheme)

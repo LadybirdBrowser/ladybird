@@ -36,6 +36,8 @@ public:
 
     bool properties_equal(RatioStyleValue const& other) const { return m_ratio == other.m_ratio; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     RatioStyleValue(Ratio&& ratio)
         : StyleValueWithDefaultOperators(Type::Ratio)

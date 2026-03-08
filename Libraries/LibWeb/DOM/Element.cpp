@@ -984,7 +984,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
             // A property needs updating if:
             // - It uses relative units as it might have been affected by a change in ancestor element style.
             //   FIXME: Consider other style values that rely on relative lengths (e.g. CalculatedStyleValue,
-            //          StyleValues which contain lengths (e.g. StyleValueList))
+            //          StyleValues which contain lengths (e.g. StyleValueList)) - maybe we can use
+            //          `is_computationally_independent()`
             // - font-weight is `bolder` or `lighter`
             // - font-size is `larger` or `smaller`
             // FIXME: Consider any other properties that rely on inherited values for computation.

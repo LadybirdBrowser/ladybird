@@ -37,6 +37,8 @@ public:
 
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override { return false; }
+
 private:
     TreeCountingFunctionStyleValue(TreeCountingFunction function, ComputedType computed_type)
         : AbstractNonMathCalcFunctionStyleValue(Type::TreeCountingFunction)

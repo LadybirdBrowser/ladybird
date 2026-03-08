@@ -33,6 +33,8 @@ public:
 
     bool properties_equal(CounterStyleStyleValue const& other) const { return m_value == other.m_value; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit CounterStyleStyleValue(Variant<FlyString, SymbolsFunction> value)
         : StyleValueWithDefaultOperators(Type::CounterStyle)
