@@ -21,8 +21,9 @@ JS bytecode executable "get_string_prop"
 
 JS bytecode executable "set_string_prop"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       PutById base:arg0, property:hello, src:Int32(42), kind:Normal, base_identifier:o
-[  30]       End value:Undefined
+[   8]       Mov dst:reg5, src:arg0
+[  18]       PutById base:reg5, property:hello, src:Int32(42), kind:Normal, base_identifier:o
+[  40]       End value:Undefined
 
 JS bytecode executable "get_index_prop"
 [   0]    0: GetLexicalEnvironment dst:reg4

@@ -15,5 +15,6 @@ JS bytecode executable "matchDigits"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       NewRegExp dst:reg6, \d+, g
 [  20]       GetById dst:reg7, base:reg6, property:test
-[  40]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[arg0]
-[  68]       Return value:reg5
+[  40]       Mov dst:reg8, src:arg0
+[  50]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
+[  78]       Return value:reg5

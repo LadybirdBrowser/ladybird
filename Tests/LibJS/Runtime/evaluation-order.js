@@ -61,3 +61,12 @@ test("postfix increment evaluation order", () => {
     }
     foo();
 });
+
+test("callee gets reassigned while evaluating arguments", () => {
+    function foo(func, value) {
+        return func((func = value));
+    }
+
+    let result = foo(x => x, 42);
+    expect(result).toBe(42);
+});

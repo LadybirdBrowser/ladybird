@@ -1635,9 +1635,9 @@ ScopedOperand Generator::copy_if_needed_to_preserve_evaluation_order(ScopedOpera
         switch (operand.operand().type()) {
         case Operand::Type::Register:
         case Operand::Type::Constant:
-        case Operand::Type::Argument:
             return false;
         case Operand::Type::Local:
+        case Operand::Type::Argument:
             return true;
         }
         VERIFY_NOT_REACHED();
