@@ -12,8 +12,9 @@ JS bytecode executable "test"
 [  30]       PostfixIncrement dst:reg7, src:reg5
 [  40]       PutByValue base:arg0, property:reg6, src:reg5, kind:Normal
 [  58]       GetGlobal dst:reg6, identifier:foo
-[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[arg0]
-[  98]       End value:Undefined
+[  70]       Mov dst:reg7, src:arg0
+[  80]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+[  a8]       End value:Undefined
 
 JS bytecode executable "foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

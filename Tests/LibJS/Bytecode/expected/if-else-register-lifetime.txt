@@ -21,19 +21,21 @@ JS bytecode executable "test"
 [  b8]       Mov dst:reg7, src:a~0
 [  c8]       Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg7]
 [  f0]       Return value:reg5
-[  f8]    5: JumpLessThan lhs:j~2, rhs:Int32(5), true_target:@140, false_target:@198
+[  f8]    5: JumpLessThan lhs:j~2, rhs:Int32(5), true_target:@140, false_target:@1a8
 [ 110]    6: PostfixIncrement dst:reg5, src:j~2
 [ 120]    7: JumpLessThan lhs:j~2, rhs:Int32(10), true_target:@f8, false_target:@138
 [ 138]    8: Jump target:@78
-[ 140]    9: Mov dst:reg6, src:j~2
-[ 150]       Add dst:reg7, lhs:i~1, rhs:j~2
-[ 160]       GetByValue dst:reg8, base:arg0, property:reg7, base_identifier:x
-[ 178]       PutByValue base:arg0, property:reg6, src:reg8, kind:Normal, base_identifier:x
-[ 190]       Jump target:@228
-[ 198]   10: Mov dst:reg6, src:j~2
-[ 1a8]       GetGlobal dst:reg8, identifier:parseInt
-[ 1c0]       Sub dst:reg9, lhs:j~2, rhs:Int32(3)
-[ 1d0]       GetByValue dst:reg10, base:arg0, property:reg9, base_identifier:x
-[ 1e8]       Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg10, Int32(1)]
-[ 210]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal, base_identifier:x
-[ 228]   11: Jump target:@110
+[ 140]    9: Mov dst:reg6, src:arg0
+[ 150]       Mov dst:reg7, src:j~2
+[ 160]       Add dst:reg8, lhs:i~1, rhs:j~2
+[ 170]       GetByValue dst:reg9, base:arg0, property:reg8, base_identifier:x
+[ 188]       PutByValue base:reg6, property:reg7, src:reg9, kind:Normal, base_identifier:x
+[ 1a0]       Jump target:@248
+[ 1a8]   10: Mov dst:reg6, src:arg0
+[ 1b8]       Mov dst:reg7, src:j~2
+[ 1c8]       GetGlobal dst:reg9, identifier:parseInt
+[ 1e0]       Sub dst:reg10, lhs:j~2, rhs:Int32(3)
+[ 1f0]       GetByValue dst:reg11, base:arg0, property:reg10, base_identifier:x
+[ 208]       Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg11, Int32(1)]
+[ 230]       PutByValue base:reg6, property:reg7, src:reg8, kind:Normal, base_identifier:x
+[ 248]   11: Jump target:@110

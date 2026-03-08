@@ -24,5 +24,7 @@ JS bytecode executable "compound_then_assign"
 [  20]       Mov dst:reg6, src:arg1
 [  30]       Add dst:reg7, lhs:reg5, rhs:Int32(0)
 [  40]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-[  58]       PutByValue base:arg0, property:arg1, src:arg1, kind:Normal, base_identifier:imag
-[  70]       End value:Undefined
+[  58]       Mov dst:reg5, src:arg0
+[  68]       Mov dst:reg6, src:arg1
+[  78]       PutByValue base:reg5, property:reg6, src:arg1, kind:Normal, base_identifier:imag
+[  90]       End value:Undefined

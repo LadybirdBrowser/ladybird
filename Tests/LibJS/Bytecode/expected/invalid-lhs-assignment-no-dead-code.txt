@@ -19,9 +19,10 @@ Exception handlers:
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Call dst:reg5, callee:arg0, this_value:Undefined, x
-[  28]       NewReferenceError dst:reg5, Invalid left-hand side in assignment
-[  38]       Throw src:reg5
+[   8]       Mov dst:reg6, src:arg0
+[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, x
+[  38]       NewReferenceError dst:reg5, Invalid left-hand side in assignment
+[  48]       Throw src:reg5
 
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
