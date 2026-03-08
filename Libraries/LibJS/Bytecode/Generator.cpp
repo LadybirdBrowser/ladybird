@@ -1631,8 +1631,21 @@ void Generator::emit_jump_if(ScopedOperand const& condition, Label true_target, 
 
 ScopedOperand Generator::copy_if_needed_to_preserve_evaluation_order(ScopedOperand const& operand)
 {
-    if (!operand.operand().is_local())
+    auto might_be_clobbered = [operand]() {
+        switch (operand.operand().type()) {
+        case Operand::Type::Register:
+        case Operand::Type::Constant:
+        case Operand::Type::Argument:
+            return false;
+        case Operand::Type::Local:
+            return true;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    if (!might_be_clobbered)
         return operand;
+
     auto new_register = allocate_register();
     emit<Bytecode::Op::Mov>(new_register, operand);
     return new_register;
