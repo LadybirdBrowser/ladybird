@@ -99,6 +99,8 @@ protected:
         return as_if<T>(resolve_url_to_element(url).ptr());
     }
 
+    CSSPixelSize get_viewport_size() const;
+
 private:
     virtual bool is_svg_graphics_element() const final { return true; }
     float resolve_relative_to_viewport_size(CSS::LengthPercentage const& length_percentage) const;

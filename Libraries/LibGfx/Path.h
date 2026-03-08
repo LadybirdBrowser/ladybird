@@ -35,6 +35,7 @@ public:
     virtual void text(Utf16View const&, Font const&) = 0;
     virtual void glyph_run(GlyphRun const&) = 0;
     virtual void offset(Gfx::FloatPoint const&) = 0;
+    virtual float length() const = 0;
 
     virtual void append_path(Gfx::Path const&) = 0;
     virtual void intersect(Gfx::Path const&) = 0;
@@ -97,6 +98,7 @@ public:
     void text(Utf16View const& text, Font const& font) { impl().text(text, font); }
     void glyph_run(GlyphRun const& glyph_run) { impl().glyph_run(glyph_run); }
     void offset(Gfx::FloatPoint const& offset) { impl().offset(offset); }
+    float length() const { return impl().length(); }
 
     void horizontal_line_to(float x) { line_to({ x, last_point().y() }); }
     void vertical_line_to(float y) { line_to({ last_point().x(), y }); }

@@ -129,6 +129,12 @@ void PathImplSkia::offset(Gfx::FloatPoint const& offset)
     m_path->offset(offset.x(), offset.y());
 }
 
+float PathImplSkia::length() const
+{
+    SkPathMeasure path_measure(*m_path, false);
+    return path_measure.getLength();
+}
+
 template<typename TextToGlyphs>
 static NonnullOwnPtr<PathImpl> place_text_along_impl(SkPath const& path, Font const& font, size_t length_in_code_points, TextToGlyphs&& text_to_glyphs)
 {
