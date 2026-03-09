@@ -340,6 +340,14 @@ static bool is_valid_test_name(StringView test_name)
     return AK::any_of(valid_test_file_suffixes, [&](auto suffix) { return test_name.ends_with(suffix); });
 }
 
+static ErrorOr<ByteString> real_path_for_test_input(ByteString const& path)
+{
+    auto maybe_real_path = FileSystem::real_path(path);
+    if (maybe_real_path.is_error())
+        warnln("Unable to get real path for TestConfig.ini entry '{}': {}", path, maybe_real_path.error());
+    return maybe_real_path;
+}
+
 static ErrorOr<void> enumerate_test_files_recursively(StringView directory, Vector<ByteString>& output)
 {
     Core::DirIterator it(directory, Core::DirIterator::Flags::SkipDots);
@@ -351,7 +359,7 @@ static ErrorOr<void> enumerate_test_files_recursively(StringView directory, Vect
         }
         if (!is_valid_test_name(full_path))
             continue;
-        output.append(TRY(FileSystem::real_path(full_path)));
+        output.append(TRY(real_path_for_test_input(full_path)));
     }
     return {};
 }
@@ -363,7 +371,7 @@ static ErrorOr<void> add_config_paths(StringView test_root_path, Vector<ByteStri
         if (key.ends_with('/')) {
             TRY(enumerate_test_files_recursively(path, output));
         } else {
-            output.append(TRY(FileSystem::real_path(path)));
+            output.append(TRY(real_path_for_test_input(path)));
         }
     }
     return {};
