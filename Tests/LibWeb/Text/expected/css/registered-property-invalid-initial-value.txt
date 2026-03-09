@@ -1,0 +1,1 @@
+@property --foo { syntax: "*"; inherits: true; }

@@ -293,10 +293,15 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 case DescriptorMetadata::ValueType::Length:
                     return parse_length_value(tokens);
                 case DescriptorMetadata::ValueType::OptionalDeclarationValue: {
-                    // `component_values` already has what we want. Just skip through its tokens so code below knows we consumed them.
-                    while (tokens.has_next_token())
-                        tokens.discard_a_token();
-                    return UnresolvedStyleValue::create(move(component_values));
+                    tokens.discard_whitespace();
+
+                    if (tokens.is_empty())
+                        return UnresolvedStyleValue::create({});
+
+                    if (auto parsed_declaration_value = parse_declaration_value(tokens); parsed_declaration_value.has_value() && tokens.is_empty())
+                        return UnresolvedStyleValue::create(parsed_declaration_value.release_value());
+
+                    return nullptr;
                 }
                 case DescriptorMetadata::ValueType::PageSize: {
                     // https://drafts.csswg.org/css-page-3/#page-size-prop
