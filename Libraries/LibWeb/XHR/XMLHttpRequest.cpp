@@ -509,16 +509,18 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     // 11. Set variables associated with the object as follows:
     // Unset this’s send() flag.
     m_send = false;
-    // Unset this’s upload listener flag.
-    m_upload_listener = false;
     // Set this’s request method to method.
     m_request_method = move(normalized_method);
     // Set this’s request URL to parsedURL.
     m_request_url = parsed_url.release_value();
-    // Set this’s synchronous flag if async is false; otherwise unset this’s synchronous flag.
-    m_synchronous = !async;
     // Empty this’s author request headers.
     m_author_request_headers->clear();
+    // Set this’s request body to null.
+    m_request_body = nullptr;
+    // Set this’s synchronous flag if async is false; otherwise unset this’s synchronous flag.
+    m_synchronous = !async;
+    // Unset this’s upload listener flag.
+    m_upload_listener = false;
     // Set this’s response to a network error.
     m_response = Fetch::Infrastructure::Response::network_error(realm().vm(), "Not yet sent"_string);
     // Set this’s received bytes to the empty byte sequence.
@@ -526,10 +528,6 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     // Set this’s response object to null.
     m_response_object = {};
     // Spec Note: Override MIME type is not overridden here as the overrideMimeType() method can be invoked before the open() method.
-
-    // AD-HOC: Reset the request body so a previous body doesn't leak into this request.
-    // https://github.com/whatwg/xhr/pull/404
-    m_request_body = nullptr;
 
     // 12. If this’s state is not opened, then:
     if (m_state != State::Opened) {
