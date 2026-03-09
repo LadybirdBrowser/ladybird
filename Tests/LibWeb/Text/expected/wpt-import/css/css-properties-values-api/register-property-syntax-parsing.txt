@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-226 Pass
-13 Fail
+230 Pass
+9 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -196,12 +196,12 @@ Pass	syntax:'<custom-ident>+', initialValue:'foo unset bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo revert bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo revert-layer bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo default bar' is invalid
-Fail	syntax:'*', initialValue:')' is invalid
+Pass	syntax:'*', initialValue:')' is invalid
 Fail	syntax:'*', initialValue:'([)]' is invalid
-Fail	syntax:'*', initialValue:'whee!' is invalid
-Fail	syntax:'*', initialValue:'"
+Pass	syntax:'*', initialValue:'whee!' is invalid
+Pass	syntax:'*', initialValue:'"
 ' is invalid
-Fail	syntax:'*', initialValue:'url(moo '')' is invalid
+Pass	syntax:'*', initialValue:'url(moo '')' is invalid
 Pass	syntax:'*', initialValue:'semi;colon' is invalid
 Fail	syntax:'*', initialValue:'var(invalid var ref)' is invalid
 Fail	syntax:'*', initialValue:'var(--foo)' is invalid

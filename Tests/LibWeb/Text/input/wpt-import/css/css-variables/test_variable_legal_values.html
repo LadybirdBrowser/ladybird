@@ -1,0 +1,93 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>CSS Variables Allowed Syntax</title>
+  <link rel="author" title="L. David Baron" href="https://dbaron.org/">
+  <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+  <link rel="help" href="http://www.w3.org/TR/css-variables-1/#defining-variables">
+  <meta name="assert" content='The <value> type used in the syntax above is defined as anything matching the "value" production in CSS 2.1 Chapter 4.1 [CSS21].'>
+  <script src="../../resources/testharness.js"></script>
+  <script src="../../resources/testharnessreport.js"></script>
+<style id="style"></style>
+</head>
+<body onload="run()">
+<div id=log></div>
+<div id="test"></div>
+<script>
+setup({ "explicit_done": true });
+
+function run() {
+  // Setup the iframe
+  var style = document.getElementById("style");
+  var styleText = document.createTextNode("");
+  style.appendChild(styleText);
+  var test_cs = window.getComputedStyle(document.getElementById("test"), "");
+
+  var initial_cs = test_cs.backgroundColor;
+  styleText.data = "#test { background-color: green }";
+  var green_cs = test_cs.backgroundColor;
+  styleText.data = "#test { background-color: red }";
+  var red_cs = test_cs.backgroundColor;
+
+  function description_to_name(description) {
+    return description.replace(/\W+/g, "_").replace(/^_/, "").replace(/_$/, "");
+  }
+
+  function assert_allowed_variable_value(value, description) {
+    test(function() {
+           styleText.data = "#test { \n" +
+                            "  --test: red;\n" +
+                            "  --test: " + value + ";\n" +
+                            "  background-color: red;\n" +
+                            "  background-color: var(--test);\n" +
+                            "}";
+           assert_not_equals(initial_cs, red_cs);
+           assert_equals(initial_cs, test_cs.backgroundColor);
+         },
+         description_to_name(description));
+  }
+
+  function assert_disallowed_balanced_variable_value(value, description) {
+    test(function() {
+           styleText.data = "#test { \n" +
+                            "  --test: green;\n" +
+                            "  --test: " + value + ";\n" +
+                            "  background-color: red;\n" +
+                            "  background-color: var(--test);\n" +
+                            "}";
+           assert_not_equals(green_cs, red_cs);
+           assert_equals(green_cs, test_cs.backgroundColor);
+         },
+         description_to_name(description));
+  }
+
+  assert_allowed_variable_value("25%", "percentage");
+  assert_allowed_variable_value("37", "number");
+  assert_allowed_variable_value("12em", "length");
+  assert_allowed_variable_value("75ms", "time");
+  assert_allowed_variable_value("foo()", "function");
+  assert_allowed_variable_value("foo(bar())", "nested function");
+  assert_allowed_variable_value("( )", "parentheses");
+  assert_allowed_variable_value("{ }", "braces");
+  assert_allowed_variable_value("[ ]", "brackets");
+  assert_allowed_variable_value("@foobar", "at-keyword (unknown)");
+  assert_allowed_variable_value("@media", "at-keyword (known)");
+  assert_allowed_variable_value("@foobar {}", "at-keyword (unknown) and block");
+  assert_allowed_variable_value("@media {}", "at-keyword (known) and block");
+  assert_disallowed_balanced_variable_value("]", "unbalanced close bracket at toplevel");
+  assert_disallowed_balanced_variable_value(")", "unbalanced close paren at toplevel");
+  assert_disallowed_balanced_variable_value("(])", "unbalanced close bracket in something balanced");
+  assert_disallowed_balanced_variable_value("[)]", "unbalanced close paren in something balanced");
+  assert_disallowed_balanced_variable_value("(})", "unbalanced close brace in something balanced");
+  assert_allowed_variable_value("<!--", "CDO at top level");
+  assert_allowed_variable_value("-->", "CDC at top level");
+  assert_allowed_variable_value("(;)", "semicolon not at top level (value -> unused)");
+  assert_allowed_variable_value("(<!--)", "CDO not at top level (value -> unused)");
+  assert_allowed_variable_value("(-->)", "CDC not at top level (value -> unused)");
+
+  done();
+}
+
+</script>
+</body>
+</html>
