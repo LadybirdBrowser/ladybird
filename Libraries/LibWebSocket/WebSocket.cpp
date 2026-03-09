@@ -35,6 +35,17 @@ void WebSocket::start()
         m_impl = adopt_ref(*new WebSocketImplSerenity);
 
     m_impl->on_connection_error = [this] {
+        if (m_state == InternalState::Closing) {
+            // If the connection drops while we are waiting for the server's close frame, check if we actually received
+            // one in the last read. If we did, we can consider this a clean close.
+            bool was_clean = m_last_close_code != to_underlying(CloseStatusCode::NoStatusReceived);
+            set_state(was_clean ? InternalState::Closed : InternalState::Errored);
+            if (!was_clean)
+                notify_error(Error::ServerClosedSocket);
+            notify_close(m_last_close_code, m_last_close_message, was_clean);
+            discard_connection();
+            return;
+        }
         dbgln("WebSocket: Connection error (underlying socket)");
         fatal_error(WebSocket::Error::CouldNotEstablishConnection);
     };
