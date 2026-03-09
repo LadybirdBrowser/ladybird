@@ -658,5 +658,6 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, Stri
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
 GC::Ref<JS::Realm> internal_css_realm();
 ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string);
+bool is_valid_custom_ident(FlyString const&, ReadonlySpan<StringView> const& blacklist);
 
 }

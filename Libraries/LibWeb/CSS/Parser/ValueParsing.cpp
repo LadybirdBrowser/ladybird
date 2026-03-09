@@ -464,7 +464,7 @@ RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentVa
     if (parts.size() == 1) {
         // <generic-family> is a separate type from <family-name>, and so isn't allowed here.
         auto maybe_keyword = keyword_from_string(parts.first());
-        if (is_css_wide_keyword(parts.first()) || parts.first().equals_ignoring_ascii_case("default"sv))
+        if (!is_valid_custom_ident(parts.first(), {}))
             return nullptr;
         if (maybe_keyword.has_value() && keyword_to_generic_font_family(maybe_keyword.value()).has_value())
             return nullptr;
@@ -4444,21 +4444,8 @@ Optional<FlyString> Parser::parse_custom_ident(TokenStream<ComponentValue>& toke
         return {};
     auto custom_ident = token.token().ident();
 
-    // The CSS-wide keywords are not valid <custom-ident>s.
-    if (is_css_wide_keyword(custom_ident))
+    if (!is_valid_custom_ident(custom_ident, blacklist))
         return {};
-
-    // The default keyword is reserved and is also not a valid <custom-ident>.
-    if (custom_ident.equals_ignoring_ascii_case("default"sv))
-        return {};
-
-    // Specifications using <custom-ident> must specify clearly what other keywords are excluded from <custom-ident>,
-    // if any—for example by saying that any pre-defined keywords in that property’s value definition are excluded.
-    // Excluded keywords are excluded in all ASCII case permutations.
-    for (auto& value : blacklist) {
-        if (custom_ident.equals_ignoring_ascii_case(value))
-            return {};
-    }
 
     transaction.commit();
     return custom_ident;

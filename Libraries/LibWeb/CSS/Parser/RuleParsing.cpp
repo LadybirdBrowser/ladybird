@@ -483,7 +483,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         return {};
     }
 
-    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().is_one_of_ignoring_ascii_case("none"sv, "default"sv))) {
+    if (name_token.is(Token::Type::Ident) && !is_valid_custom_ident(name_token.ident(), { { "none"sv } })) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@keyframes"_fly_string,
             .prelude = prelude_stream.dump_string(),

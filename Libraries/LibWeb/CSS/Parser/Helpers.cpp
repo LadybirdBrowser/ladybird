@@ -15,6 +15,7 @@
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/HTML/Window.h>
 
@@ -217,6 +218,28 @@ ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encodin
     }
     // 2. Decode stylesheet’s stream of bytes with fallback encoding fallback, and return the result.
     return TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, encoded_string);
+}
+
+// https://drafts.csswg.org/css-values-4/#identifier-value
+bool is_valid_custom_ident(FlyString const& ident, ReadonlySpan<StringView> const& blacklist)
+{
+    // The CSS-wide keywords are not valid <custom-ident>s.
+    if (CSS::is_css_wide_keyword(ident))
+        return false;
+
+    // The default keyword is reserved and is also not a valid <custom-ident>.
+    if (ident.equals_ignoring_ascii_case("default"sv))
+        return false;
+
+    // Specifications using <custom-ident> must specify clearly what other keywords are excluded from <custom-ident>,
+    // if any—for example by saying that any pre-defined keywords in that property’s value definition are excluded.
+    // Excluded keywords are excluded in all ASCII case permutations.
+    for (auto& value : blacklist) {
+        if (ident.equals_ignoring_ascii_case(value))
+            return false;
+    }
+
+    return true;
 }
 
 }
