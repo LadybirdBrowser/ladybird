@@ -2568,7 +2568,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // 2. If the current node is not an li element, then this is a parse error.
         if (current_node()->local_name() != HTML::TagNames::li) {
             log_parse_error();
-            dbgln("Expected <li> current node, but had <{}>", current_node()->local_name());
+            dbgln_if(HTML_PARSER_DEBUG, "Expected <li> current node, but had <{}>", current_node()->local_name());
         }
 
         // 3. Pop elements from the stack of open elements until an li element has been popped from the stack.
