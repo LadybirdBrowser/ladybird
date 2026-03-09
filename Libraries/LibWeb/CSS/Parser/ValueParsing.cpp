@@ -125,50 +125,90 @@ Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<Com
     // contain <bad-string-token>, <bad-url-token>, unmatched <)-token>, <]-token>, or <}-token>, or top-level
     // <semicolon-token> tokens or <delim-token> tokens with a value of "!". It represents the entirety of what a valid
     // declaration can have as its value.
-    auto transaction = tokens.begin_transaction();
-    Vector<ComponentValue> declaration_value;
-    while (tokens.has_next_token()) {
-        auto const& peek = tokens.next_token();
-        if (!peek.is_token()) {
-            declaration_value.append(tokens.consume_a_token());
-            continue;
+    Vector<ComponentValue> top_level_declaration_value;
+
+    AK::Function<void(TokenStream<ComponentValue>&, Nested)> const parse_declaration_value_impl = [&](TokenStream<ComponentValue>& current_tokens, Nested nested) {
+        auto consume_a_token = [&]() {
+            if (nested == Nested::No)
+                top_level_declaration_value.append(current_tokens.consume_a_token());
+            else
+                current_tokens.discard_a_token();
+        };
+
+        auto transaction = current_tokens.begin_transaction();
+        while (current_tokens.has_next_token()) {
+            auto const& peek = current_tokens.next_token();
+
+            if (peek.is_block()) {
+                TokenStream block_stream { peek.block().value };
+                parse_declaration_value_impl(block_stream, Nested::Yes);
+                if (block_stream.is_empty()) {
+                    consume_a_token();
+                    continue;
+                }
+
+                break;
+            }
+
+            if (peek.is_function()) {
+                TokenStream function_stream { peek.function().value };
+                parse_declaration_value_impl(function_stream, Nested::Yes);
+                if (function_stream.is_empty()) {
+                    consume_a_token();
+                    continue;
+                }
+
+                break;
+            }
+
+            if (!peek.is_token()) {
+                consume_a_token();
+                continue;
+            }
+
+            bool valid = true;
+            switch (peek.token().type()) {
+            case Token::Type::Invalid:
+            case Token::Type::EndOfFile:
+            case Token::Type::BadString:
+            case Token::Type::BadUrl:
+                // NB: We're dealing with ComponentValues, so all valid function and block-related tokens will already be
+                //     converted to Function or SimpleBlock ComponentValues. Any remaining ones are invalid.
+            case Token::Type::Function:
+            case Token::Type::OpenCurly:
+            case Token::Type::OpenParen:
+            case Token::Type::OpenSquare:
+            case Token::Type::CloseCurly:
+            case Token::Type::CloseParen:
+            case Token::Type::CloseSquare:
+                valid = false;
+                break;
+            case Token::Type::Semicolon:
+                valid = nested == Nested::Yes;
+                break;
+            case Token::Type::Delim:
+                valid = nested == Nested::Yes || peek.token().delim() != '!';
+                break;
+            default:
+                valid = nested == Nested::Yes || !end_token_type.has_value() || !peek.is(end_token_type.value());
+                break;
+            }
+
+            if (!valid)
+                break;
+
+            consume_a_token();
         }
 
-        bool valid = true;
-        switch (peek.token().type()) {
-        case Token::Type::Invalid:
-        case Token::Type::EndOfFile:
-        case Token::Type::BadString:
-        case Token::Type::BadUrl:
-        case Token::Type::Semicolon:
-            // NB: We're dealing with ComponentValues, so all valid function and block-related tokens will already be
-            //     converted to Function or SimpleBlock ComponentValues. Any remaining ones are invalid.
-        case Token::Type::Function:
-        case Token::Type::OpenCurly:
-        case Token::Type::OpenParen:
-        case Token::Type::OpenSquare:
-        case Token::Type::CloseCurly:
-        case Token::Type::CloseParen:
-        case Token::Type::CloseSquare:
-            valid = false;
-            break;
-        case Token::Type::Delim:
-            valid = peek.token().delim() != '!';
-            break;
-        default:
-            valid = !end_token_type.has_value() || !peek.is(end_token_type.value());
-            break;
-        }
+        transaction.commit();
+    };
 
-        if (!valid)
-            break;
-        declaration_value.append(tokens.consume_a_token());
-    }
+    parse_declaration_value_impl(tokens, Nested::No);
 
-    if (declaration_value.is_empty())
+    if (top_level_declaration_value.is_empty())
         return OptionalNone {};
-    transaction.commit();
-    return declaration_value;
+
+    return top_level_declaration_value;
 }
 
 Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_value)
