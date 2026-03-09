@@ -326,16 +326,27 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     // Left is the default - no translation needed
 
     // Apply text baseline
-    // FIXME: Implement CanvasTextBaseline::Hanging, Bindings::CanvasTextAlign::Alphabetic and Bindings::CanvasTextAlign::Ideographic for real
-    //        right now they are just handled as textBaseline = top or bottom.
-    //        https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textbaseline-hanging
-    // Default baseline of draw_text is top so do nothing by CanvasTextBaseline::Top and CanvasTextBaseline::Hanging
-    if (drawing_state.text_baseline == Bindings::CanvasTextBaseline::Middle) {
-        transform = Gfx::AffineTransform {}.set_translation({ 0, font.pixel_size() / 2 }).multiply(transform);
-    }
-    if (drawing_state.text_baseline == Bindings::CanvasTextBaseline::Top || drawing_state.text_baseline == Bindings::CanvasTextBaseline::Hanging) {
-        transform = Gfx::AffineTransform {}.set_translation({ 0, font.pixel_size() }).multiply(transform);
-    }
+    // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-textbaseline
+    auto const& font_pixel_metrics = font.pixel_metrics();
+    auto baseline_y_offset = [&] {
+        switch (drawing_state.text_baseline) {
+        case Bindings::CanvasTextBaseline::Top:
+            return font_pixel_metrics.ascent;
+        case Bindings::CanvasTextBaseline::Hanging:
+            return font_pixel_metrics.ascent * 0.8f;
+        case Bindings::CanvasTextBaseline::Middle:
+            return (font_pixel_metrics.ascent - font_pixel_metrics.descent) / 2.0f;
+        case Bindings::CanvasTextBaseline::Alphabetic:
+            return 0.0f;
+        case Bindings::CanvasTextBaseline::Ideographic:
+        case Bindings::CanvasTextBaseline::Bottom:
+            return -font_pixel_metrics.descent;
+        }
+        VERIFY_NOT_REACHED();
+    }();
+
+    if (baseline_y_offset != 0.f)
+        transform = Gfx::AffineTransform {}.set_translation({ 0, baseline_y_offset }).multiply(transform);
 
     return path.copy_transformed(transform);
 }
