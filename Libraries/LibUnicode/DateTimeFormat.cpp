@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -358,7 +358,7 @@ String CalendarPattern::to_pattern() const
 }
 
 // https://unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table
-CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
+CalendarPattern CalendarPattern::create_from_pattern(String pattern)
 {
     GenericLexer lexer { pattern };
     CalendarPattern format {};
@@ -494,6 +494,7 @@ CalendarPattern CalendarPattern::create_from_pattern(StringView pattern)
         }
     }
 
+    format.pattern = move(pattern);
     return format;
 }
 
@@ -919,9 +920,15 @@ NonnullOwnPtr<DateTimeFormat> DateTimeFormat::create_for_pattern_options(
     auto locale_data = LocaleData::for_locale(locale);
     VERIFY(locale_data.has_value());
 
-    auto skeleton = icu_string(options.to_pattern());
-    auto pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
-    verify_icu_success(status);
+    icu::UnicodeString pattern;
+
+    if (options.pattern.has_value()) {
+        pattern = icu_string(*options.pattern);
+    } else {
+        auto skeleton = icu_string(options.to_pattern());
+        pattern = locale_data->date_time_pattern_generator().getBestPattern(skeleton, UDATPG_MATCH_ALL_FIELDS_LENGTH, status);
+        verify_icu_success(status);
+    }
 
     apply_hour_cycle_to_skeleton(pattern, options.hour_cycle, {});
 

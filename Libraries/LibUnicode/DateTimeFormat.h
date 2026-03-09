@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,6 +8,7 @@
 
 #include <AK/IterationDecision.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Time.h>
 #include <AK/Types.h>
@@ -75,7 +76,7 @@ struct CalendarPattern {
         TimeZoneName,
     };
 
-    static CalendarPattern create_from_pattern(StringView);
+    static CalendarPattern create_from_pattern(String);
     String to_pattern() const;
 
     template<typename Callback>
@@ -130,6 +131,8 @@ struct CalendarPattern {
     Optional<CalendarPatternStyle> second;
     Optional<u8> fractional_second_digits;
     Optional<CalendarPatternStyle> time_zone_name;
+
+    Optional<String> pattern;
 };
 
 class DateTimeFormat {
