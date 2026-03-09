@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

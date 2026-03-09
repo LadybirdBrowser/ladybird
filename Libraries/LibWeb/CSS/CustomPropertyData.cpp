@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/CSS/CustomPropertyData.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/DOM/Document.h>
 

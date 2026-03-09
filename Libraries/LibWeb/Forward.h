@@ -487,6 +487,7 @@ struct CalculationContext;
 struct CalculationResolutionContext;
 struct ComputationContext;
 struct FunctionParameterInternal;
+struct CustomPropertyRegistration;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
 struct NormalGap;

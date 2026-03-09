@@ -30,7 +30,6 @@
 #include <LibURL/URL.h>
 #include <LibUnicode/Forward.h>
 #include <LibWeb/Bindings/NavigationType.h>
-#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleScope.h>

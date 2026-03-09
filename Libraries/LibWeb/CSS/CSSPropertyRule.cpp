@@ -8,6 +8,7 @@
 #include <LibWeb/Bindings/CSSPropertyRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
+#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 
@@ -29,6 +30,8 @@ CSSPropertyRule::CSSPropertyRule(JS::Realm& realm, Utf16FlyString name, Utf16Fly
     , m_initial_value(move(initial_value))
 {
 }
+
+CSSPropertyRule::~CSSPropertyRule() = default;
 
 Optional<Utf16String> CSSPropertyRule::initial_value() const
 {

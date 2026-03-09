@@ -11,7 +11,6 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -24,7 +23,7 @@ class CSSPropertyRule final : public CSSRule {
 public:
     static GC::Ref<CSSPropertyRule> create(JS::Realm&, Utf16FlyString name, Utf16FlyString syntax, NonnullRefPtr<Parser::SyntaxNode> parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
 
-    virtual ~CSSPropertyRule() = default;
+    virtual ~CSSPropertyRule();
 
     Utf16FlyString const& name() const { return m_name; }
     Utf16FlyString const& syntax() const { return m_syntax; }
