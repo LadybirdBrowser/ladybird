@@ -72,6 +72,8 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         case PseudoClass::Defined:
         case PseudoClass::PlaceholderShown:
         case PseudoClass::Checked:
+        case PseudoClass::Required:
+        case PseudoClass::Optional:
         case PseudoClass::Link:
         case PseudoClass::AnyLink:
         case PseudoClass::LocalLink:
