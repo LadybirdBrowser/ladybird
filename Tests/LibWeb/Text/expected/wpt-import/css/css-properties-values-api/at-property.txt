@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 106 tests
 
-100 Pass
-6 Fail
+102 Pass
+4 Fail
 Pass	Attribute 'syntax' returns expected value for ["<color>"]
 Pass	Attribute 'syntax' returns expected value for ["<color> | none"]
 Pass	Attribute 'syntax' returns expected value for ["<color># | <image> | none"]
@@ -18,8 +18,8 @@ Pass	Attribute 'syntax' returns expected value for ["red"]
 Pass	Attribute 'syntax' makes the @property rule invalid for ["rgb(255, 0, 0)"]
 Pass	Attribute 'syntax' makes the @property rule invalid for [<color>]
 Pass	Attribute 'syntax' makes the @property rule invalid for [foo | bar]
-Fail	Attribute 'syntax' makes the @property rule invalid for ["default"]
-Fail	Attribute 'syntax' makes the @property rule invalid for ["Default"]
+Pass	Attribute 'syntax' makes the @property rule invalid for ["default"]
+Pass	Attribute 'syntax' makes the @property rule invalid for ["Default"]
 Pass	Attribute 'syntax' makes the @property rule invalid for ["initial"]
 Pass	Attribute 'syntax' makes the @property rule invalid for ["Initial"]
 Pass	Attribute 'syntax' makes the @property rule invalid for ["inherit"]

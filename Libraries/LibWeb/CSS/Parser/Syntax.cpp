@@ -59,9 +59,10 @@ void TypeSyntaxNode::dump(StringBuilder& builder, int indent) const
     builder.appendff("{: >{}}Type: {}\n", "", indent, m_type_name);
 }
 
-IdentSyntaxNode::IdentSyntaxNode(FlyString ident)
+IdentSyntaxNode::IdentSyntaxNode(FlyString ident, CaseSensitivity case_sensitivity)
     : SyntaxNode(NodeType::Ident)
     , m_ident(move(ident))
+    , m_case_sensitivity(case_sensitivity)
 {
 }
 

@@ -62,20 +62,22 @@ private:
 // 'foo'
 class IdentSyntaxNode final : public SyntaxNode {
 public:
-    static NonnullOwnPtr<IdentSyntaxNode> create(FlyString ident)
+    static NonnullOwnPtr<IdentSyntaxNode> create(FlyString ident, CaseSensitivity case_sensitivity)
     {
-        return adopt_own(*new IdentSyntaxNode(move(ident)));
+        return adopt_own(*new IdentSyntaxNode(move(ident), case_sensitivity));
     }
 
     virtual ~IdentSyntaxNode() override;
     FlyString const& ident() const { return m_ident; }
+    CaseSensitivity case_sensitivity() const { return m_case_sensitivity; }
 
     virtual String to_string() const override;
     virtual void dump(StringBuilder&, int indent) const override;
 
 private:
-    IdentSyntaxNode(FlyString);
+    IdentSyntaxNode(FlyString, CaseSensitivity);
     FlyString m_ident;
+    CaseSensitivity m_case_sensitivity;
 };
 
 // '<foo>'
