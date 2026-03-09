@@ -2463,8 +2463,22 @@ GC::Ref<WebIDL::Promise> Element::request_fullscreen(FullscreenRequester fullscr
 
         // 8. If error is false, then resize pendingDoc’s node navigable’s top-level traversable’s active document’s
         //    viewport’s dimensions FIXME: optionally taking into account options["navigationUI"]:
-        if (error == RequestFullscreenError::False)
-            pending_doc->page().client().page_did_request_fullscreen_window();
+        if (error == RequestFullscreenError::False) {
+            auto& page = pending_doc->page();
+            page.client().page_did_request_fullscreen_window();
+
+            // NB: We resize the viewport to screen dimensions so that the later async IPC from the
+            //     UI process is a no-op. This prevents a spurious resize event from firing before fullscreenchange.
+            if (auto navigable = pending_doc->navigable(); navigable && navigable->top_level_traversable()) {
+                auto traversable = navigable->top_level_traversable();
+                auto screen_size = page.client().screen_rect().size();
+                page.set_pre_fullscreen_window_size(page.window_size());
+                traversable->set_viewport_size(page.device_to_css_size(screen_size));
+
+                if (auto doc = traversable->active_document())
+                    doc->record_current_viewport_size();
+            }
+        }
 
         // 9. If any of the following conditions are false, then set error to true:
         //    * This’s node document is pendingDoc.

@@ -144,6 +144,10 @@ public:
     DevicePixelSize window_size() const { return m_window_size; }
     void set_window_size(DevicePixelSize size) { m_window_size = size; }
 
+    void set_pre_fullscreen_window_size(DevicePixelSize size) { m_pre_fullscreen_window_size = size; }
+    Optional<DevicePixelSize> pre_fullscreen_window_size() const { return m_pre_fullscreen_window_size; }
+    void clear_pre_fullscreen_window_size() { m_pre_fullscreen_window_size.clear(); }
+
     void did_update_window_rect();
     void set_window_rect_observer(GC::Ptr<GC::Function<void(DevicePixelRect)>> window_rect_observer) { m_window_rect_observer = window_rect_observer; }
 
@@ -289,6 +293,7 @@ private:
 
     DevicePixelPoint m_window_position {};
     DevicePixelSize m_window_size {};
+    Optional<DevicePixelSize> m_pre_fullscreen_window_size;
     GC::Ptr<GC::Function<void(DevicePixelRect)>> m_window_rect_observer;
 
     PendingDialog m_pending_dialog { PendingDialog::None };

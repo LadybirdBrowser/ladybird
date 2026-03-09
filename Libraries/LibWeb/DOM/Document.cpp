@@ -3711,6 +3711,14 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     dispatch_event(event);
 }
 
+void Document::record_current_viewport_size()
+{
+    // Update last viewport state so that run_the_resize_steps() sees no change and does not fire a resize event.
+    m_last_viewport_size = viewport_rect().size().to_type<int>();
+    auto& viewport = *visual_viewport();
+    m_last_visual_viewport_state = { viewport.scale(), { viewport.width(), viewport.height() } };
+}
+
 // https://drafts.csswg.org/cssom-view/#run-the-resize-steps
 void Document::run_the_resize_steps()
 {
@@ -7017,8 +7025,24 @@ GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
 
         // 10. If resize is true, resize doc’s viewport to its "normal" dimensions.
         // NB: Fullscreen API is affected by site-isolation and will require additional work once site-isolation is implemented.
-        if (resize)
-            document_to_unfullscreen->page().client().page_did_request_exit_fullscreen();
+        if (resize) {
+            auto& page = document_to_unfullscreen->page();
+            page.client().page_did_request_exit_fullscreen();
+
+            // NB: We synchronously restore the viewport to its pre-fullscreen dimensions so that the later async IPC
+            //     from the UI process is a no-op. This prevents a spurious resize event from firing before fullscreenchange.
+            if (auto saved_size = page.pre_fullscreen_window_size(); saved_size.has_value()) {
+                auto navigable = document_to_unfullscreen->navigable();
+                if (navigable && navigable->top_level_traversable()) {
+                    auto traversable = navigable->top_level_traversable();
+                    traversable->set_viewport_size(page.device_to_css_size(saved_size.value()));
+                    page.clear_pre_fullscreen_window_size();
+
+                    if (auto doc = traversable->active_document())
+                        doc->record_current_viewport_size();
+                }
+            }
+        }
 
         // 11. If doc’s fullscreen element is null, then resolve promise with undefined and terminate these steps.
         if (!document_to_unfullscreen->fullscreen_element()) {
