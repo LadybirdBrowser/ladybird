@@ -512,11 +512,15 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     }
 
     if (property_id == PropertyID::Custom || substitution_presence.has_any()) {
-        Vector<ComponentValue> component_values;
-        while (tokens.has_next_token()) {
-            component_values.append(tokens.consume_a_token());
-        }
-        return UnresolvedStyleValue::create(move(component_values), substitution_presence, original_source_text);
+        return parse_all_as(tokens, [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
+            if (tokens.is_empty())
+                return UnresolvedStyleValue::create({}, substitution_presence, move(original_source_text));
+
+            if (auto component_values = parse_declaration_value(tokens); component_values.has_value())
+                return UnresolvedStyleValue::create(component_values.release_value(), substitution_presence, move(original_source_text));
+
+            return nullptr;
+        });
     }
 
     tokens.discard_whitespace();
