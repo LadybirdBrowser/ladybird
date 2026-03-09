@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 23 tests
 
-20 Pass
-3 Fail
+23 Pass
 Pass	percentage
 Pass	number
 Pass	length
@@ -19,9 +18,9 @@ Pass	at_keyword_unknown_and_block
 Pass	at_keyword_known_and_block
 Pass	unbalanced_close_bracket_at_toplevel
 Pass	unbalanced_close_paren_at_toplevel
-Fail	unbalanced_close_bracket_in_something_balanced
-Fail	unbalanced_close_paren_in_something_balanced
-Fail	unbalanced_close_brace_in_something_balanced
+Pass	unbalanced_close_bracket_in_something_balanced
+Pass	unbalanced_close_paren_in_something_balanced
+Pass	unbalanced_close_brace_in_something_balanced
 Pass	CDO_at_top_level
 Pass	CDC_at_top_level
 Pass	semicolon_not_at_top_level_value_unused
