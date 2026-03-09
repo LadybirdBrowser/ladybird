@@ -20,7 +20,7 @@
 
 namespace Web::CSS::Parser {
 
-static OwnPtr<SyntaxNode> parse_syntax_single_component(TokenStream<ComponentValue>& tokens)
+static OwnPtr<SyntaxNode> parse_syntax_single_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax-single-component> = '<' <syntax-type-name> '>' | <ident>
     // <syntax-type-name> = angle | color | custom-ident | image | integer
@@ -34,8 +34,14 @@ static OwnPtr<SyntaxNode> parse_syntax_single_component(TokenStream<ComponentVal
     // <ident>
     if (tokens.next_token().is(Token::Type::Ident)) {
         auto ident = tokens.consume_a_token().token().ident();
+
+        // AD-HOC: Some users (i.e. the @property syntax descriptor) only allow custom idents here,
+        //         https://github.com/w3c/csswg-drafts/issues/13614
+        if (limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes && !is_valid_custom_ident(ident, {}))
+            return {};
+
         transaction.commit();
-        return IdentSyntaxNode::create(move(ident));
+        return IdentSyntaxNode::create(ident, limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes ? CaseSensitivity::CaseSensitive : CaseSensitivity::CaseInsensitive);
     }
 
     // '<' <syntax-type-name> '>'
@@ -82,7 +88,7 @@ static Optional<char> parse_syntax_multiplier(TokenStream<ComponentValue>& token
     return {};
 }
 
-static OwnPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens)
+static OwnPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& tokens, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax-component> = <syntax-single-component> <syntax-multiplier>?
     //                    | '<' transform-list '>'
@@ -105,7 +111,7 @@ static OwnPtr<SyntaxNode> parse_syntax_component(TokenStream<ComponentValue>& to
     }
 
     // <syntax-single-component> <syntax-multiplier>?
-    auto syntax_single_component = parse_syntax_single_component(tokens);
+    auto syntax_single_component = parse_syntax_single_component(tokens, limit_single_component_ident_to_custom_ident);
     if (!syntax_single_component)
         return nullptr;
 
@@ -143,7 +149,7 @@ static Optional<char> parse_syntax_combinator(TokenStream<ComponentValue>& token
 }
 
 // https://drafts.csswg.org/css-values-5/#typedef-syntax
-OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_values)
+OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_values, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     // <syntax> = '*' | <syntax-component> [ <syntax-combinator> <syntax-component> ]* | <syntax-string>
     // <syntax-component> = <syntax-single-component> <syntax-multiplier>?
@@ -182,11 +188,11 @@ OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
             return nullptr;
 
         auto child_component_values = Parser::create(ParsingParams {}, string).parse_as_list_of_component_values();
-        return parse_as_syntax(child_component_values);
+        return parse_as_syntax(child_component_values, limit_single_component_ident_to_custom_ident);
     }
 
     // <syntax-component> [ <syntax-combinator> <syntax-component> ]*
-    auto first = parse_syntax_component(tokens);
+    auto first = parse_syntax_component(tokens, limit_single_component_ident_to_custom_ident);
     if (!first)
         return nullptr;
     Vector<NonnullOwnPtr<SyntaxNode>> syntax_components;
@@ -196,7 +202,7 @@ OwnPtr<SyntaxNode> parse_as_syntax(Vector<ComponentValue> const& component_value
     while (tokens.has_next_token()) {
         auto combinator = parse_syntax_combinator(tokens);
         tokens.discard_whitespace();
-        auto component = parse_syntax_component(tokens);
+        auto component = parse_syntax_component(tokens, limit_single_component_ident_to_custom_ident);
         tokens.discard_whitespace();
         if (!combinator.has_value() || !component) {
             dbgln("Failed parsing syntax portion, combinator = `{}`, component = `{}`", combinator, component);
@@ -234,7 +240,14 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
     case SyntaxNode::NodeType::Ident: {
         auto const& ident_node = as<IdentSyntaxNode>(syntax_node);
         tokens.discard_whitespace();
-        if (tokens.consume_a_token().is_ident(ident_node.ident())) {
+        auto token = tokens.consume_a_token();
+
+        if (!token.is(Token::Type::Ident))
+            return nullptr;
+
+        auto ident = token.token().ident();
+
+        if (ident_node.case_sensitivity() == CaseSensitivity::CaseSensitive ? ident == ident_node.ident() : ident.equals_ignoring_ascii_case(ident_node.ident())) {
             transaction.commit();
             if (auto keyword = keyword_from_string(ident_node.ident()); keyword.has_value())
                 return KeywordStyleValue::create(keyword.release_value());

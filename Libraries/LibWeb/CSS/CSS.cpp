@@ -83,7 +83,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
     // 3. Attempt to consume a syntax definition from syntax. If it returns failure, throw a SyntaxError.
     //    Otherwise, let syntax definition be the returned syntax definition.
     auto syntax_component_values = parse_component_values_list(parsing_params, definition.syntax);
-    auto maybe_syntax = parse_as_syntax(syntax_component_values);
+    auto maybe_syntax = parse_as_syntax(syntax_component_values, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
     if (!maybe_syntax) {
         return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_utf16);
     }

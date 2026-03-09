@@ -793,7 +793,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         parsing_params = CSS::Parser::ParsingParams { realm() };
 
     auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
-    auto maybe_syntax = parse_as_syntax(syntax_component_values);
+    auto maybe_syntax = parse_as_syntax(syntax_component_values, LimitSingleComponentIdentToCustomIdent::Yes);
 
     // If the provided string is not a valid syntax string (if it returns failure when consume
     // a syntax definition is called on it), the descriptor is invalid and must be ignored.
