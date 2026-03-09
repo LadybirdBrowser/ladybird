@@ -18,6 +18,15 @@ describe("correct behavior", () => {
         expect(result1).toBe(result2);
         expect(result1).toBe(result3);
     });
+
+    test("same result as Date.toLocaleString", () => {
+        const date = new Date(0);
+        const plainDateTime = new Temporal.PlainDateTime(1970, 1, 1);
+
+        const result1 = date.toLocaleString("ja", { dateStyle: "full", timeZone: "UTC" });
+        const result2 = plainDateTime.toLocaleString("ja", { dateStyle: "full", timeZone: "UTC" });
+        expect(result1).toBe(result2);
+    });
 });
 
 describe("errors", () => {
