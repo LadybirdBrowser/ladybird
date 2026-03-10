@@ -60,6 +60,7 @@
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/XMLSerializer.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/Node.h>
@@ -3401,6 +3402,17 @@ bool Node::has_inclusive_ancestor_with_display_none()
             return true;
         }
     }
+    return false;
+}
+
+bool Node::has_inclusive_ancestor_with_event_listener(FlyString const& type) const
+{
+    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->has_event_listener(type))
+            return true;
+    }
+    if (auto window = document().window())
+        return window->has_event_listener(type);
     return false;
 }
 
