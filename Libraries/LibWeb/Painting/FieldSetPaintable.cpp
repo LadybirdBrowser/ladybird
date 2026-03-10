@@ -50,6 +50,30 @@ CSSPixels FieldSetPaintable::effective_border_top() const
     return css_border_top;
 }
 
+CSSPixelRect FieldSetPaintable::visual_border_box_rect() const
+{
+    auto css_border_top = computed_values().border_top().width;
+    auto allocated_border_top = effective_border_top();
+
+    // The CSS border is painted centered within the effective border area (which may be larger than the CSS border when
+    // the legend is taller).
+    auto visual_border_box_rect = absolute_border_box_rect();
+    if (allocated_border_top <= css_border_top)
+        return visual_border_box_rect;
+
+    visual_border_box_rect.take_from_top((allocated_border_top - css_border_top) / 2);
+    return visual_border_box_rect;
+}
+
+void FieldSetPaintable::paint_background(DisplayListRecordingContext& context) const
+{
+    auto& recorder = context.display_list_recorder();
+    recorder.save();
+    recorder.add_clip_rect(context.rounded_device_rect(visual_border_box_rect()).to_type<int>());
+    PaintableBox::paint_background(context);
+    recorder.restore();
+}
+
 void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -69,20 +93,11 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     auto const* legend_paintable = legend->paintable_box();
 
     auto legend_border_rect = context.rounded_device_rect(legend_paintable->absolute_border_box_rect());
-    auto fieldset_border_rect = context.rounded_device_rect(absolute_border_box_rect());
 
     auto top_border_data = computed_values().border_top();
     auto top_border = context.enclosing_device_pixels(top_border_data.width).value();
 
-    // The CSS border is painted centered within the effective border area (which may be larger than the CSS border
-    // when the legend is taller).
-    auto allocated_border_top = context.enclosing_device_pixels(effective_border_top()).value();
-    auto device_border_rect = fieldset_border_rect;
-    if (allocated_border_top > top_border) {
-        auto border_y_offset = (allocated_border_top - top_border) / 2;
-        device_border_rect.set_y(fieldset_border_rect.y() + border_y_offset);
-        device_border_rect.set_height(fieldset_border_rect.height() - border_y_offset);
-    }
+    auto device_border_rect = context.rounded_device_rect(visual_border_box_rect());
 
     auto& display_list_recorder = context.display_list_recorder();
     auto paint_borders_with_optional_clip = [&](BordersDataDevicePixels borders, Optional<Gfx::IntRect> clip) {
