@@ -1,0 +1,4 @@
+with legend: clientTop=2 clientHeight=44
+no legend: clientTop=2 clientHeight=28
+with legend: paddingTop=5px
+no legend: paddingTop=5px

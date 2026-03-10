@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 811 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 787 0+0+16] children: not-inline
-      FieldSetBox <fieldset> at [10,26] [0+2+0 780 0+2+0] [0+18+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,10] [0+2+0 780 0+2+0] [0+2+0 34 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,8] [0+0+0 56.5 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [10,8 56.5x18] baseline: 13.796875
               "Default"
@@ -20,7 +20,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [8,80] [0+0+0 784 0+0+0] [0+18+0 18 0+0+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [8,62] [0+0+0 784 0+0+0] [0+0+0 36 0+0+16] [BFC] children: not-inline
         LegendBox <legend> at [8,62] [0+0+0 82.703125 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 9, rect: [8,62 82.703125x18] baseline: 13.796875
               "No border"
@@ -39,7 +39,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,114] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [13,132] [0+5+0 774 0+5+0] [0+18+0 18 0+5+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [13,119] [0+5+0 774 0+5+0] [0+5+0 31 0+5+16] [BFC] children: not-inline
         LegendBox <legend> at [13,114] [0+0+0 104.828125 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 12, rect: [13,114 104.828125x18] baseline: 13.796875
               "Thick border"
@@ -58,7 +58,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,171] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,209] [0+2+0 780 0+2+0] [0+38+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,173] [0+2+0 780 0+2+0] [0+2+0 54 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [20,181] [0+0+10 84.8125 10+0+0] [0+0+10 18 10+0+0] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [20,181 84.8125x18] baseline: 13.796875
               "Tall legend"
@@ -96,7 +96,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,319] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,353] [0+2+0 780 0+2+0] [0+34+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,321] [0+2+0 780 0+2+0] [0+2+0 50 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [18,327] [8+0+0 61.015625 0+0+8] [8+0+0 18 0+0+8] children: inline
           frag 0 from TextNode start: 0, length: 7, rect: [18,327 61.015625x18] baseline: 13.796875
               "Margins"
@@ -115,7 +115,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,389] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,461] [0+2+0 50 0+2+730] [0+72+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,391] [0+2+0 50 0+2+730] [0+2+0 88 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,389] [0+0+0 50 0+0+0] [0+0+0 72 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [10,389 38.390625x18] baseline: 13.796875
               "Long"
@@ -140,7 +140,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,497] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,515] [0+2+0 780 0+2+0] [0+18+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,499] [0+2+0 780 0+2+0] [0+2+0 34 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,497] [0+0+0 200 0+0+580] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 11, rect: [10,497 91.1875x18] baseline: 13.796875
               "Fixed width"
@@ -159,7 +159,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,551] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [30,589] [0+2+20 740 20+2+0] [0+18+20 18 20+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [30,573] [0+2+20 740 20+2+0] [0+2+20 34 20+2+16] [BFC] children: not-inline
         LegendBox <legend> at [30,551] [0+0+0 117.90625 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 15, rect: [30,551 117.90625x18] baseline: 13.796875
               "Padded fieldset"
@@ -212,7 +212,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,721] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,739] [0+2+0 780 0+2+0] [0+18+0 18 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,723] [0+2+0 780 0+2+0] [0+2+0 34 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,721] [0+0+0 134.5 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 15, rect: [10,721 134.5x18] baseline: 13.796875
               "After paragraph"
@@ -231,7 +231,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [8,775] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      FieldSetBox <fieldset> at [10,793] [0+2+0 780 0+2+0] [0+18+0 0 0+2+16] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [10,777] [0+2+0 780 0+2+0] [0+2+0 16 0+2+16] [BFC] children: not-inline
         LegendBox <legend> at [10,775] [0+0+0 113.8125 0+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 13, rect: [10,775 113.8125x18] baseline: 13.796875
               "Overflow auto"

@@ -1,7 +1,7 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 51.59375 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 35.59375 0+0+8] children: not-inline
-      FieldSetBox <fieldset> at [24,31.59375] [2+2+12 752 12+2+2] [0+18+5.59375 0 10+2+0] [BFC] children: not-inline
+      FieldSetBox <fieldset> at [24,15.59375] [2+2+12 752 12+2+2] [0+2+5.59375 16 10+2+0] [BFC] children: not-inline
         LegendBox <legend> at [26,8] [0+0+2 36.328125 2+0+0] [0+0+0 18 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [26,8 36.328125x18] baseline: 13.796875
               "login"

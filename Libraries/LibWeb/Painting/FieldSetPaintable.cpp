@@ -33,6 +33,23 @@ Layout::FieldSetBox const& FieldSetPaintable::layout_box() const
     return static_cast<Layout::FieldSetBox const&>(layout_node());
 }
 
+// https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+CSSPixels FieldSetPaintable::effective_border_top() const
+{
+    // The space allocated for the element's border on the block-start side is expected to be the element's
+    // 'border-block-start-width' or the rendered legend's margin box size in the fieldset's block-flow direction,
+    // whichever is greater.
+    auto css_border_top = computed_values().border_top().width;
+    if (auto legend = layout_box().rendered_legend()) {
+        auto const* legend_paintable = legend->paintable_box();
+        auto legend_margin_box_height = legend_paintable->box_model().margin.top
+            + legend_paintable->absolute_border_box_rect().height()
+            + legend_paintable->box_model().margin.bottom;
+        return max(css_border_top, legend_margin_box_height);
+    }
+    return css_border_top;
+}
+
 void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
     if (!is_visible())
@@ -57,12 +74,12 @@ void FieldSetPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     auto top_border_data = computed_values().border_top();
     auto top_border = context.enclosing_device_pixels(top_border_data.width).value();
 
-    // The layout border-top reflects the effective border area (which may be larger than the CSS border when the legend
-    // is taller). Compute where the actual CSS border should be painted within the effective border area.
-    auto effective_border_top = context.enclosing_device_pixels(box_model().border.top).value();
+    // The CSS border is painted centered within the effective border area (which may be larger than the CSS border
+    // when the legend is taller).
+    auto allocated_border_top = context.enclosing_device_pixels(effective_border_top()).value();
     auto device_border_rect = fieldset_border_rect;
-    if (effective_border_top > top_border) {
-        auto border_y_offset = (effective_border_top - top_border) / 2;
+    if (allocated_border_top > top_border) {
+        auto border_y_offset = (allocated_border_top - top_border) / 2;
         device_border_rect.set_y(fieldset_border_rect.y() + border_y_offset);
         device_border_rect.set_height(fieldset_border_rect.height() - border_y_offset);
     }
