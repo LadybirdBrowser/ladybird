@@ -55,6 +55,8 @@ struct CornerRadii {
         return top_left || top_right || bottom_right || bottom_left;
     }
 
+    void adjust_corners_for_spread_distance(int spread_distance);
+
     bool contains(Gfx::IntPoint point, Gfx::IntRect const& rect) const
     {
         if (!rect.contains(point))

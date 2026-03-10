@@ -27,7 +27,6 @@
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ScrollState.h>
 #include <LibWeb/Painting/ShouldAntiAlias.h>
@@ -153,7 +152,12 @@ struct PaintLinearGradient {
 struct PaintOuterBoxShadow {
     static constexpr StringView command_name = "PaintOuterBoxShadow"sv;
 
-    PaintBoxShadowParams box_shadow_params;
+    Gfx::Color color;
+    int blur_radius;
+    Gfx::IntRect device_content_rect;
+    CornerRadii content_corner_radii;
+    Gfx::IntRect shadow_rect;
+    CornerRadii shadow_corner_radii;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void dump(StringBuilder&) const;
@@ -162,7 +166,13 @@ struct PaintOuterBoxShadow {
 struct PaintInnerBoxShadow {
     static constexpr StringView command_name = "PaintInnerBoxShadow"sv;
 
-    PaintBoxShadowParams box_shadow_params;
+    Gfx::Color color;
+    int blur_radius;
+    Gfx::IntRect device_content_rect;
+    CornerRadii content_corner_radii;
+    Gfx::IntRect outer_shadow_rect;
+    Gfx::IntRect inner_shadow_rect;
+    CornerRadii inner_shadow_corner_radii;
 
     [[nodiscard]] Gfx::IntRect bounding_rect() const;
     void dump(StringBuilder&) const;

@@ -32,7 +32,6 @@
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintStyle.h>
-#include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
@@ -325,98 +324,26 @@ void DisplayListPlayerSkia::paint_linear_gradient(PaintLinearGradient const& com
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-static void add_spread_distance_to_border_radius(int& border_radius, int spread_distance)
-{
-    if (border_radius == 0 || spread_distance == 0)
-        return;
-
-    // https://drafts.csswg.org/css-backgrounds/#shadow-shape
-    // To preserve the box’s shape when spread is applied, the corner radii of the shadow are also increased (decreased,
-    // for inner shadows) from the border-box (padding-box) radii by adding (subtracting) the spread distance (and flooring
-    // at zero). However, in order to create a sharper corner when the border radius is small (and thus ensure continuity
-    // between round and sharp corners), when the border radius is less than the spread distance (or in the case of an inner
-    // shadow, less than the absolute value of a negative spread distance), the spread distance is first multiplied by the
-    // proportion 1 + (r-1)^3, where r is the ratio of the border radius to the spread distance, in calculating the corner
-    // radii of the spread shadow shape.
-    if (border_radius > AK::abs(spread_distance)) {
-        border_radius += spread_distance;
-    } else {
-        auto r = (float)border_radius / AK::abs(spread_distance);
-        border_radius += spread_distance * (1 + AK::pow(r - 1, 3.0f));
-    }
-}
-
 void DisplayListPlayerSkia::paint_outer_box_shadow(PaintOuterBoxShadow const& command)
 {
-    auto const& outer_box_shadow_params = command.box_shadow_params;
-    auto const& color = outer_box_shadow_params.color;
-    auto const& spread_distance = outer_box_shadow_params.spread_distance;
-    auto const& blur_radius = outer_box_shadow_params.blur_radius;
-
-    auto content_rrect = to_skia_rrect(outer_box_shadow_params.device_content_rect, outer_box_shadow_params.corner_radii);
-
-    auto shadow_rect = outer_box_shadow_params.device_content_rect;
-    shadow_rect.inflate(spread_distance, spread_distance, spread_distance, spread_distance);
-    auto offset_x = outer_box_shadow_params.offset_x;
-    auto offset_y = outer_box_shadow_params.offset_y;
-    shadow_rect.translate_by(offset_x, offset_y);
-
-    auto add_spread_distance_to_corner_radius = [&](auto& corner_radius) {
-        add_spread_distance_to_border_radius(corner_radius.horizontal_radius, spread_distance);
-        add_spread_distance_to_border_radius(corner_radius.vertical_radius, spread_distance);
-    };
-
-    auto corner_radii = outer_box_shadow_params.corner_radii;
-    add_spread_distance_to_corner_radius(corner_radii.top_left);
-    add_spread_distance_to_corner_radius(corner_radii.top_right);
-    add_spread_distance_to_corner_radius(corner_radii.bottom_right);
-    add_spread_distance_to_corner_radius(corner_radii.bottom_left);
+    auto content_rrect = to_skia_rrect(command.device_content_rect, command.content_corner_radii);
 
     auto& canvas = surface().canvas();
     canvas.save();
     canvas.clipRRect(content_rrect, SkClipOp::kDifference, true);
     SkPaint paint;
     paint.setAntiAlias(true);
-    paint.setColor(to_skia_color(color));
-    paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
-    auto shadow_rounded_rect = to_skia_rrect(shadow_rect, corner_radii);
+    paint.setColor(to_skia_color(command.color));
+    paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
+    auto shadow_rounded_rect = to_skia_rrect(command.shadow_rect, command.shadow_corner_radii);
     canvas.drawRRect(shadow_rounded_rect, paint);
     canvas.restore();
 }
 
 void DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow const& command)
 {
-    auto const& outer_box_shadow_params = command.box_shadow_params;
-    auto color = outer_box_shadow_params.color;
-    auto device_content_rect = outer_box_shadow_params.device_content_rect;
-    auto offset_x = outer_box_shadow_params.offset_x;
-    auto offset_y = outer_box_shadow_params.offset_y;
-    auto blur_radius = outer_box_shadow_params.blur_radius;
-    auto spread_distance = outer_box_shadow_params.spread_distance;
-    auto const& corner_radii = outer_box_shadow_params.corner_radii;
-
-    auto outer_shadow_rect = device_content_rect.translated({ offset_x, offset_y });
-    auto inner_shadow_rect = outer_shadow_rect.inflated(-spread_distance, -spread_distance, -spread_distance, -spread_distance);
-    outer_shadow_rect.inflate(
-        blur_radius + offset_y,
-        blur_radius + abs(offset_x),
-        blur_radius + abs(offset_y),
-        blur_radius + offset_x);
-
-    auto inner_rect_corner_radii = corner_radii;
-
-    auto add_spread_distance_to_corner_radius = [&](auto& corner_radius) {
-        add_spread_distance_to_border_radius(corner_radius.horizontal_radius, -spread_distance);
-        add_spread_distance_to_border_radius(corner_radius.vertical_radius, -spread_distance);
-    };
-
-    add_spread_distance_to_corner_radius(inner_rect_corner_radii.top_left);
-    add_spread_distance_to_corner_radius(inner_rect_corner_radii.top_right);
-    add_spread_distance_to_corner_radius(inner_rect_corner_radii.bottom_right);
-    add_spread_distance_to_corner_radius(inner_rect_corner_radii.bottom_left);
-
-    auto outer_rect = to_skia_rrect(outer_shadow_rect, corner_radii);
-    auto inner_rect = to_skia_rrect(inner_shadow_rect, inner_rect_corner_radii);
+    auto outer_rect = to_skia_rrect(command.outer_shadow_rect, command.content_corner_radii);
+    auto inner_rect = to_skia_rrect(command.inner_shadow_rect, command.inner_shadow_corner_radii);
 
     SkPath outer_path;
     outer_path.addRRect(outer_rect);
@@ -431,10 +358,10 @@ void DisplayListPlayerSkia::paint_inner_box_shadow(PaintInnerBoxShadow const& co
     auto& canvas = surface().canvas();
     SkPaint path_paint;
     path_paint.setAntiAlias(true);
-    path_paint.setColor(to_skia_color(color));
-    path_paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, blur_radius / 2));
+    path_paint.setColor(to_skia_color(command.color));
+    path_paint.setMaskFilter(SkMaskFilter::MakeBlur(kNormal_SkBlurStyle, command.blur_radius / 2));
     canvas.save();
-    canvas.clipRRect(to_skia_rrect(device_content_rect, corner_radii), true);
+    canvas.clipRRect(to_skia_rrect(command.device_content_rect, command.content_corner_radii), true);
     canvas.drawPath(result_path, path_paint);
     canvas.restore();
 }

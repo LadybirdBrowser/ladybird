@@ -25,7 +25,6 @@
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/GradientData.h>
-#include <LibWeb/Painting/PaintBoxShadowParams.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ShouldAntiAlias.h>
 
@@ -130,8 +129,8 @@ public:
 
     void apply_backdrop_filter(Gfx::IntRect const& backdrop_region, CornerRadii const& corner_radii, Gfx::Filter const& backdrop_filter);
 
-    void paint_outer_box_shadow(PaintBoxShadowParams params);
-    void paint_inner_box_shadow(PaintBoxShadowParams params);
+    void paint_outer_box_shadow(PaintOuterBoxShadow);
+    void paint_inner_box_shadow(PaintInnerBoxShadow);
     void paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const&, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location);
 
     void fill_rect_with_rounded_corners(Gfx::IntRect const& rect, Color color, CornerRadii const&);
