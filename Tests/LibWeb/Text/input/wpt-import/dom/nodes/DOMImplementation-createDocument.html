@@ -116,7 +116,7 @@ test(function() {
           var names = []
           var firstColonIndex = qualified.indexOf(":")
           if (firstColonIndex >= 0) {
-            names = qualifiedName.split(":", 2);
+            names = [qualified.substring(0, firstColonIndex), qualified.substring(firstColonIndex + 1)];
           } else {
             names = [null, qualified]
           }
