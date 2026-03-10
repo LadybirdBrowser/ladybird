@@ -1230,8 +1230,16 @@ TraversalDecision PaintableBox::hit_test_children(CSSPixelPoint position, HitTes
 
 void PaintableBox::set_needs_repaint(InvalidateDisplayList should_invalidate_display_list)
 {
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes)
+    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
         invalidate_paint_cache();
+
+        // Recurse into anonymous child nodes so we properly invalidate nested contents of e.g. <button>s.
+        for_each_child_of_type<PaintableBox>([&](auto& child) {
+            if (child.layout_node().is_anonymous())
+                child.set_needs_repaint(should_invalidate_display_list);
+            return IterationDecision::Continue;
+        });
+    }
     Paintable::set_needs_repaint(should_invalidate_display_list);
 }
 
