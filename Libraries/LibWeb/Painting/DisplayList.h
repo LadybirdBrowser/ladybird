@@ -73,24 +73,30 @@ private:
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
-    static NonnullRefPtr<DisplayList> create()
+    static NonnullRefPtr<DisplayList> create(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
     {
-        return adopt_ref(*new DisplayList());
+        return adopt_ref(*new DisplayList(move(visual_context_tree)));
     }
 
-    bool append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context);
+    bool append(DisplayListCommand&& command, VisualContextIndex context_index);
 
     struct CommandListItem {
-        RefPtr<AccumulatedVisualContext const> context;
+        VisualContextIndex context_index {};
         DisplayListCommand command;
     };
+
+    AccumulatedVisualContextTree const& visual_context_tree() const { return *m_visual_context_tree; }
 
     auto& commands(Badge<DisplayListRecorder>) { return m_commands; }
     auto const& commands() const { return m_commands; }
 
 private:
-    DisplayList() = default;
+    explicit DisplayList(NonnullRefPtr<AccumulatedVisualContextTree const> visual_context_tree)
+        : m_visual_context_tree(move(visual_context_tree))
+    {
+    }
 
+    NonnullRefPtr<AccumulatedVisualContextTree const> const m_visual_context_tree;
     AK::SegmentedVector<CommandListItem, 512> m_commands;
 };
 

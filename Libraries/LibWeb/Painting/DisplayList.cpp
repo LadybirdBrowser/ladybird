@@ -10,11 +10,11 @@
 
 namespace Web::Painting {
 
-bool DisplayList::append(DisplayListCommand&& command, RefPtr<AccumulatedVisualContext const> context)
+bool DisplayList::append(DisplayListCommand&& command, VisualContextIndex context_index)
 {
-    if (context && context->has_empty_effective_clip())
+    if (context_index.value() && m_visual_context_tree->has_empty_effective_clip(context_index))
         return false;
-    m_commands.append({ move(context), move(command) });
+    m_commands.append({ context_index, move(command) });
     return true;
 }
 
@@ -64,38 +64,22 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList& display_l
     execute_impl(display_list, scroll_state_snapshot);
 }
 
-static RefPtr<AccumulatedVisualContext const> find_common_ancestor(RefPtr<AccumulatedVisualContext const> a, RefPtr<AccumulatedVisualContext const> b)
-{
-    if (!a || !b)
-        return {};
-
-    while (a->depth() > b->depth())
-        a = a->parent();
-    while (b->depth() > a->depth())
-        b = b->parent();
-
-    while (a != b) {
-        a = a->parent();
-        b = b->parent();
-    }
-    return a;
-}
-
 void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnapshot const& scroll_state)
 {
     auto const& commands = display_list.commands();
+    auto const& visual_context_tree = display_list.visual_context_tree();
 
     VERIFY(m_surface);
 
-    auto for_each_node_from_common_ancestor_to_target = [](this auto const& self, RefPtr<AccumulatedVisualContext const> common_ancestor, RefPtr<AccumulatedVisualContext const> node, auto&& callback) -> void {
-        if (!node || node == common_ancestor)
+    auto for_each_node_from_common_ancestor_to_target = [&](this auto const& self, VisualContextIndex common_ancestor_index, VisualContextIndex target_index, auto&& callback) -> void {
+        if (!target_index.value() || target_index == common_ancestor_index)
             return;
-        self(common_ancestor, node->parent(), callback);
-        callback(*node);
+        self(common_ancestor_index, visual_context_tree.node_at(target_index).parent_index, callback);
+        callback(visual_context_tree.node_at(target_index));
     };
 
-    auto apply_accumulated_visual_context = [&](AccumulatedVisualContext const& node) {
-        node.data().visit(
+    auto apply_accumulated_visual_context = [&](AccumulatedVisualContextNode const& node) {
+        node.data.visit(
             [&](EffectsData const& effects) {
                 apply_effects({ .opacity = effects.opacity, .compositing_and_blending_operator = effects.blend_mode, .filter = effects.gfx_filter });
             },
@@ -126,31 +110,31 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             });
     };
 
-    RefPtr<AccumulatedVisualContext const> applied_context;
+    VisualContextIndex applied_context_index;
     size_t applied_depth = 0;
 
-    auto switch_to_context = [&](RefPtr<AccumulatedVisualContext const> const& target_context) {
-        if (applied_context == target_context)
+    auto switch_to_context = [&](VisualContextIndex target_index) {
+        if (applied_context_index == target_index)
             return;
 
-        auto common_ancestor = find_common_ancestor(applied_context, target_context);
-        auto common_ancestor_depth = common_ancestor ? common_ancestor->depth() : 0;
+        auto common_ancestor_index = visual_context_tree.find_common_ancestor(applied_context_index, target_index);
+        size_t common_ancestor_depth = common_ancestor_index.value() ? visual_context_tree.node_at(common_ancestor_index).depth : 0;
 
         while (applied_depth > common_ancestor_depth) {
             restore({});
             applied_depth--;
         }
 
-        for_each_node_from_common_ancestor_to_target(common_ancestor, target_context, [&](AccumulatedVisualContext const& node) {
+        for_each_node_from_common_ancestor_to_target(common_ancestor_index, target_index, [&](AccumulatedVisualContextNode const& node) {
             apply_accumulated_visual_context(node);
             applied_depth++;
         });
 
-        applied_context = target_context;
+        applied_context_index = target_index;
     };
 
     for (size_t command_index = 0; command_index < commands.size(); command_index++) {
-        auto const& [context, command] = commands[command_index];
+        auto const& [context_index, command] = commands[command_index];
 
         auto bounding_rect = command_bounding_rectangle(command);
 
@@ -161,13 +145,13 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         //               This avoids expensive saveLayer/restore cycles for off-screen elements with effects like blur.
         // NOTE: We must not do this for consecutive commands with the same context, as that would incorrectly restore
         //       and re-apply the effect layer, breaking blend mode compositing.
-        if (context && applied_context != context && context->is_effect() && bounding_rect.has_value()) {
-            switch_to_context(context->parent());
+        if (context_index.value() && applied_context_index != context_index && visual_context_tree.is_effect(context_index) && bounding_rect.has_value()) {
+            switch_to_context(visual_context_tree.node_at(context_index).parent_index);
             if (bounding_rect->is_empty() || would_be_fully_clipped_by_painter(*bounding_rect))
                 continue;
         }
 
-        switch_to_context(context);
+        switch_to_context(context_index);
 
         if (command.has<PaintScrollBar>()) {
             auto translated_command = command;

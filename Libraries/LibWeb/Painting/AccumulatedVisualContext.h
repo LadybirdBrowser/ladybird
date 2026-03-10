@@ -7,7 +7,9 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/DistinctNumeric.h>
 #include <AK/Variant.h>
+#include <AK/Vector.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
 #include <LibGfx/Matrix4x4.h>
@@ -21,6 +23,8 @@
 namespace Web::Painting {
 
 class ScrollStateSnapshot;
+
+AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
 
 struct ScrollData {
     size_t scroll_frame_id;
@@ -70,46 +74,36 @@ struct EffectsData {
 
 using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData>;
 
-class AccumulatedVisualContext : public AtomicRefCounted<AccumulatedVisualContext> {
+struct AccumulatedVisualContextNode {
+    VisualContextData data;
+    VisualContextIndex parent_index {};
+    size_t depth { 0 };
+    bool has_empty_effective_clip { false };
+};
+
+class AccumulatedVisualContextTree : public AtomicRefCounted<AccumulatedVisualContextTree> {
 public:
-    static NonnullRefPtr<AccumulatedVisualContext> create(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent);
+    static NonnullRefPtr<AccumulatedVisualContextTree> create();
 
-    VisualContextData const& data() const { return m_data; }
-    RefPtr<AccumulatedVisualContext const> parent() const { return m_parent; }
+    VisualContextIndex append(VisualContextData data, VisualContextIndex parent_index);
 
-    bool is_effect() const { return m_data.has<EffectsData>(); }
-    bool has_empty_effective_clip() const { return m_has_empty_effective_clip; }
+    AccumulatedVisualContextNode const& node_at(VisualContextIndex index) const { return m_nodes[index.value()]; }
 
-    size_t depth() const { return m_depth; }
-    size_t id() const { return m_id; }
+    VisualContextIndex find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const;
+    Optional<Gfx::FloatPoint> transform_point_for_hit_test(VisualContextIndex, Gfx::FloatPoint, ScrollStateSnapshot const&) const;
+    Gfx::FloatPoint inverse_transform_point(VisualContextIndex, Gfx::FloatPoint) const;
+    Gfx::FloatRect transform_rect_to_viewport(VisualContextIndex, Gfx::FloatRect const&, ScrollStateSnapshot const&) const;
+    void dump(VisualContextIndex, StringBuilder&) const;
 
-    void dump(StringBuilder&) const;
-
-    Optional<Gfx::FloatPoint> transform_point_for_hit_test(Gfx::FloatPoint, ScrollStateSnapshot const&) const;
-    Gfx::FloatPoint inverse_transform_point(Gfx::FloatPoint) const;
-    Gfx::FloatRect transform_rect_to_viewport(Gfx::FloatRect const&, ScrollStateSnapshot const&) const;
+    bool is_effect(VisualContextIndex i) const { return m_nodes[i.value()].data.has<EffectsData>(); }
+    bool has_empty_effective_clip(VisualContextIndex i) const { return m_nodes[i.value()].has_empty_effective_clip; }
 
 private:
-    AccumulatedVisualContext(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent)
-        : m_data(move(data))
-        , m_parent(move(parent))
-        , m_depth(m_parent ? m_parent->depth() + 1 : 1)
-        , m_id(id)
-    {
-        if (m_parent && m_parent->has_empty_effective_clip()) {
-            m_has_empty_effective_clip = true;
-        } else if (m_data.has<ClipData>()) {
-            m_has_empty_effective_clip = m_data.get<ClipData>().rect.is_empty();
-        } else if (m_data.has<ClipPathData>()) {
-            m_has_empty_effective_clip = m_data.get<ClipPathData>().path.bounding_box().is_empty();
-        }
-    }
+    AccumulatedVisualContextTree() = default;
 
-    VisualContextData m_data;
-    RefPtr<AccumulatedVisualContext const> m_parent;
-    size_t m_depth;
-    size_t m_id;
-    bool m_has_empty_effective_clip { false };
+    Vector<size_t, 8> build_ancestor_chain(VisualContextIndex index) const;
+
+    Vector<AccumulatedVisualContextNode> m_nodes;
 };
 
 }

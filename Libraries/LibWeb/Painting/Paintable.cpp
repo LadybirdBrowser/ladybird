@@ -19,6 +19,7 @@
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/StackingContext.h>
+#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
 
@@ -169,27 +170,30 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
         paintable_box = first_ancestor_of_type<PaintableBox>();
 
     if (paintable_box) {
-        Vector<RefPtr<AccumulatedVisualContext const>> relevant_contexts;
-        for (auto visual_context = paintable_box->accumulated_visual_context(); visual_context != nullptr; visual_context = visual_context->parent()) {
-            auto should_keep_entry = visual_context->data().visit(
-                [](ScrollData const&) -> bool { return true; },
-                [](ClipData const&) -> bool { return false; },
-                [](TransformData const&) -> bool { return true; },
-                [](PerspectiveData const&) -> bool { return true; },
-                [](ClipPathData const&) -> bool { return false; },
-                [](EffectsData const&) -> bool { return false; });
+        auto* visual_context_tree = const_cast<ViewportPaintable*>(document().paintable())->visual_context_tree();
+        auto visual_context_index = paintable_box->accumulated_visual_context_index();
 
-            if (should_keep_entry)
-                relevant_contexts.append(visual_context);
+        if (visual_context_tree && visual_context_index.value()) {
+            Vector<VisualContextIndex> relevant_indices;
+            for (auto i = visual_context_index; i.value(); i = visual_context_tree->node_at(i).parent_index) {
+                auto should_keep = visual_context_tree->node_at(i).data.visit(
+                    [](ScrollData const&) { return true; },
+                    [](ClipData const&) { return false; },
+                    [](TransformData const&) { return true; },
+                    [](PerspectiveData const&) { return true; },
+                    [](ClipPathData const&) { return false; },
+                    [](EffectsData const&) { return false; });
+                if (should_keep)
+                    relevant_indices.append(i);
+            }
+
+            VisualContextIndex overlay_visual_context_index {};
+            for (auto const& source_visual_context_index : relevant_indices.in_reverse())
+                overlay_visual_context_index = visual_context_tree->append(visual_context_tree->node_at(source_visual_context_index).data, overlay_visual_context_index);
+
+            if (overlay_visual_context_index.value())
+                display_list_recorder.set_accumulated_visual_context(overlay_visual_context_index);
         }
-
-        auto visual_context_id = 1;
-        RefPtr<AccumulatedVisualContext> copied_visual_context;
-        for (auto const& original_visual_context : relevant_contexts.in_reverse())
-            copied_visual_context = AccumulatedVisualContext::create(visual_context_id++, original_visual_context->data(), copied_visual_context);
-
-        if (copied_visual_context)
-            display_list_recorder.set_accumulated_visual_context(copied_visual_context);
     }
 
     paint_inspector_overlay_internal(context);
