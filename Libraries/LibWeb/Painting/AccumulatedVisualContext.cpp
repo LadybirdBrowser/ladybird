@@ -12,28 +12,76 @@
 
 namespace Web::Painting {
 
-NonnullRefPtr<AccumulatedVisualContext> AccumulatedVisualContext::create(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent)
-{
-    return adopt_ref(*new AccumulatedVisualContext(id, move(data), move(parent)));
-}
-
 bool ClipData::contains(DevicePixelPoint point) const
 {
     return corner_radii.contains(point.to_type<int>(), rect.to_type<int>());
 }
 
-Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test(Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
+NonnullRefPtr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::create()
 {
-    Vector<AccumulatedVisualContext const*, 8> chain;
-    chain.ensure_capacity(m_depth);
-    for (auto const* node = this; node; node = node->parent().ptr())
-        chain.append(node);
+    auto visual_context_tree = adopt_ref(*new AccumulatedVisualContextTree());
+    // Sentinel at index 0 (null context). Data type doesn't matter; it's never accessed.
+    visual_context_tree->m_nodes.append({ ScrollData { 0, false }, {}, 0, false });
+    return visual_context_tree;
+}
+
+VisualContextIndex AccumulatedVisualContextTree::append(VisualContextData data, VisualContextIndex parent_index)
+{
+    size_t depth = parent_index.value() ? m_nodes[parent_index.value()].depth + 1 : 1;
+
+    bool empty_clip = false;
+    if (parent_index.value() && m_nodes[parent_index.value()].has_empty_effective_clip) {
+        empty_clip = true;
+    } else if (data.has<ClipData>()) {
+        empty_clip = data.get<ClipData>().rect.is_empty();
+    } else if (data.has<ClipPathData>()) {
+        empty_clip = data.get<ClipPathData>().path.bounding_box().is_empty();
+    }
+
+    auto index = VisualContextIndex(m_nodes.size());
+    m_nodes.append({ move(data), parent_index, depth, empty_clip });
+    return index;
+}
+
+VisualContextIndex AccumulatedVisualContextTree::find_common_ancestor(VisualContextIndex a, VisualContextIndex b) const
+{
+    if (!a.value() || !b.value())
+        return {};
+    size_t a_index = a.value();
+    size_t b_index = b.value();
+    while (m_nodes[a_index].depth > m_nodes[b_index].depth)
+        a_index = m_nodes[a_index].parent_index.value();
+    while (m_nodes[b_index].depth > m_nodes[a_index].depth)
+        b_index = m_nodes[b_index].parent_index.value();
+    while (a_index != b_index) {
+        a_index = m_nodes[a_index].parent_index.value();
+        b_index = m_nodes[b_index].parent_index.value();
+    }
+    return VisualContextIndex(a_index);
+}
+
+Vector<size_t, 8> AccumulatedVisualContextTree::build_ancestor_chain(VisualContextIndex index) const
+{
+    auto const& node = m_nodes[index.value()];
+    Vector<size_t, 8> chain;
+    chain.ensure_capacity(node.depth);
+    for (size_t i = index.value(); i; i = m_nodes[i].parent_index.value())
+        chain.append(i);
+    return chain;
+}
+
+Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(VisualContextIndex index, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
+{
+    if (!index.value())
+        return screen_point;
+
+    auto chain = build_ancestor_chain(index);
 
     auto point = screen_point;
     for (size_t i = chain.size(); i > 0; --i) {
-        auto const* node = chain[i - 1];
+        auto const& node = m_nodes[chain[i - 1]];
 
-        auto result = node->data().visit(
+        auto result = node.data.visit(
             [&](PerspectiveData const& perspective) -> Optional<Gfx::FloatPoint> {
                 auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
                 auto inverse = affine.inverse();
@@ -85,18 +133,18 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContext::transform_point_for_hit_test
     return point;
 }
 
-Gfx::FloatPoint AccumulatedVisualContext::inverse_transform_point(Gfx::FloatPoint screen_point) const
+Gfx::FloatPoint AccumulatedVisualContextTree::inverse_transform_point(VisualContextIndex index, Gfx::FloatPoint screen_point) const
 {
-    Vector<AccumulatedVisualContext const*, 8> chain;
-    chain.ensure_capacity(m_depth);
-    for (auto const* node = this; node; node = node->parent().ptr())
-        chain.append(node);
+    if (!index.value())
+        return screen_point;
+
+    auto chain = build_ancestor_chain(index);
 
     auto point = screen_point;
     for (size_t i = chain.size(); i > 0; --i) {
-        auto const* node = chain[i - 1];
+        auto const& node = m_nodes[chain[i - 1]];
 
-        node->data().visit(
+        node.data.visit(
             [&](PerspectiveData const& perspective) {
                 auto affine = Gfx::extract_2d_affine_transform(perspective.matrix);
                 auto inverse = affine.inverse();
@@ -118,11 +166,15 @@ Gfx::FloatPoint AccumulatedVisualContext::inverse_transform_point(Gfx::FloatPoin
     return point;
 }
 
-Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
+Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualContextIndex index, Gfx::FloatRect const& source_rect, ScrollStateSnapshot const& scroll_state) const
 {
+    if (!index.value())
+        return source_rect;
+
     auto rect = source_rect;
-    for (auto const* node = this; node; node = node->parent().ptr()) {
-        node->data().visit(
+    for (size_t i = index.value(); i; i = m_nodes[i].parent_index.value()) {
+        auto const& node = m_nodes[i];
+        node.data.visit(
             [&](TransformData const& transform) {
                 auto affine = Gfx::extract_2d_affine_transform(transform.matrix);
                 rect.translate_by(-transform.origin);
@@ -144,9 +196,13 @@ Gfx::FloatRect AccumulatedVisualContext::transform_rect_to_viewport(Gfx::FloatRe
     return rect;
 }
 
-void AccumulatedVisualContext::dump(StringBuilder& builder) const
+void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder& builder) const
 {
-    m_data.visit(
+    if (!index.value())
+        return;
+
+    auto const& node = m_nodes[index.value()];
+    node.data.visit(
         [&](PerspectiveData const&) {
             builder.append("perspective"sv);
         },

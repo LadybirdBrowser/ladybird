@@ -87,8 +87,8 @@ public:
 
     void translate(Gfx::IntPoint delta);
 
-    void set_accumulated_visual_context(RefPtr<AccumulatedVisualContext const> state) { m_accumulated_visual_context = move(state); }
-    RefPtr<AccumulatedVisualContext const> accumulated_visual_context() const { return m_accumulated_visual_context; }
+    void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
+    VisualContextIndex accumulated_visual_context() const { return m_accumulated_visual_context_index; }
 
     void replay_cached_commands(ReadonlySpan<DisplayListCommand> commands);
 
@@ -149,7 +149,7 @@ public:
 private:
     void end_capture();
 
-    RefPtr<AccumulatedVisualContext const> m_accumulated_visual_context;
+    VisualContextIndex m_accumulated_visual_context_index {};
     Vector<size_t> m_push_sc_index_stack;
     DisplayList& m_display_list;
     bool m_is_capturing { false };

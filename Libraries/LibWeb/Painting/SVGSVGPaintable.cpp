@@ -25,7 +25,7 @@ SVGSVGPaintable::SVGSVGPaintable(Layout::SVGSVGBox const& layout_box)
 
 void SVGSVGPaintable::paint_svg_box(DisplayListRecordingContext& context, PaintableBox const& svg_box, PaintPhase phase)
 {
-    context.display_list_recorder().set_accumulated_visual_context(svg_box.accumulated_visual_context());
+    context.display_list_recorder().set_accumulated_visual_context(svg_box.accumulated_visual_context_index());
 
     // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
     // This ensures content-generating filters (feFlood, feImage) work even with empty source.

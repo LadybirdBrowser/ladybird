@@ -45,7 +45,8 @@ void ViewportPaintable::reset_for_relayout()
     m_scroll_state_snapshot = {};
     m_needs_to_refresh_scroll_state = true;
     m_paintable_boxes_with_auto_content_visibility.clear();
-    m_next_accumulated_visual_context_id = 1;
+    m_visual_context_tree = nullptr;
+    m_visual_viewport_context_index = {};
 }
 
 void ViewportPaintable::build_stacking_context_tree_if_needed()
@@ -303,14 +304,14 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
 
 void ViewportPaintable::assign_accumulated_visual_contexts()
 {
-    m_next_accumulated_visual_context_id = 1;
+    m_visual_context_tree = AccumulatedVisualContextTree::create();
 
     auto pixel_ratio = document().page().client().device_pixels_per_css_pixel();
     DevicePixelConverter converter { pixel_ratio };
     auto scale = static_cast<float>(pixel_ratio);
 
-    auto append_node = [&](RefPtr<AccumulatedVisualContext const> parent, VisualContextData data) {
-        return AccumulatedVisualContext::create(allocate_accumulated_visual_context_id(), move(data), parent);
+    auto append_node = [&](VisualContextIndex parent_index, VisualContextData data) -> VisualContextIndex {
+        return m_visual_context_tree->append(move(data), parent_index);
     };
 
     auto make_effects_data = [&](PaintableBox const& box) -> Optional<EffectsData> {
@@ -327,17 +328,17 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
     };
 
     // Create visual viewport transform as root (if not identity)
-    m_visual_viewport_context = nullptr;
+    m_visual_viewport_context_index = {};
     auto transform = document().visual_viewport()->transform();
     if (!transform.is_identity()) {
         auto matrix = scale_matrix_for_device_pixels(transform.to_matrix(), scale);
-        m_visual_viewport_context = append_node(nullptr, TransformData { matrix, { 0.f, 0.f } });
+        m_visual_viewport_context_index = append_node({}, TransformData { matrix, { 0.f, 0.f } });
     }
 
-    RefPtr<AccumulatedVisualContext const> viewport_state_for_descendants = m_visual_viewport_context;
+    VisualContextIndex viewport_state_for_descendants = m_visual_viewport_context_index;
     if (own_scroll_frame())
-        viewport_state_for_descendants = append_node(m_visual_viewport_context, ScrollData { own_scroll_frame()->id(), false });
-    set_accumulated_visual_context(nullptr);
+        viewport_state_for_descendants = append_node(m_visual_viewport_context_index, ScrollData { own_scroll_frame()->id(), false });
+    set_accumulated_visual_context({});
     set_accumulated_visual_context_for_descendants(viewport_state_for_descendants);
 
     for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
@@ -352,14 +353,14 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         else
             paintable_box.set_filter({});
 
-        RefPtr<AccumulatedVisualContext const> inherited_state;
+        VisualContextIndex inherited_state;
 
         if (paintable_box.is_fixed_position()) {
-            inherited_state = m_visual_viewport_context;
+            inherited_state = m_visual_viewport_context_index;
         } else if (paintable_box.is_absolutely_positioned()) {
             // For position: absolute, use containing block's state to correctly escape scroll containers.
             auto* containing = paintable_box.containing_block();
-            inherited_state = containing->accumulated_visual_context_for_descendants();
+            inherited_state = containing->accumulated_visual_context_for_descendants_index();
 
             // Abspos elements escape scroll containers and overflow clips of non-positioned
             // ancestors, but cannot escape stacking contexts created by intermediate effects
@@ -381,11 +382,11 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
             // For position: relative/static, use visual parent's state directly.
             // This avoids duplicate transform/perspective allocations that would occur with
             // the containing block + intermediate walk approach.
-            inherited_state = visual_parent->accumulated_visual_context_for_descendants();
+            inherited_state = visual_parent->accumulated_visual_context_for_descendants_index();
         }
 
         // Build this element's own state from inherited state.
-        RefPtr<AccumulatedVisualContext const> own_state = inherited_state;
+        VisualContextIndex own_state = inherited_state;
 
         if (paintable_box.is_sticky_position()) {
             // For sticky elements, use enclosing_scroll_frame which holds the sticky frame.
@@ -430,7 +431,7 @@ void ViewportPaintable::assign_accumulated_visual_contexts()
         paintable_box.set_accumulated_visual_context(own_state);
 
         // Build state for descendants: own state + perspective + clip + scroll.
-        RefPtr<AccumulatedVisualContext const> state_for_descendants = own_state;
+        VisualContextIndex state_for_descendants = own_state;
 
         if (auto perspective_matrix = compute_perspective_matrix(paintable_box, computed_values); perspective_matrix.has_value()) {
             auto scaled_matrix = scale_matrix_for_device_pixels(*perspective_matrix, scale);

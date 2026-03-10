@@ -7344,7 +7344,10 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
     if (m_cached_display_list && m_cached_display_list_paint_config == config)
         return m_cached_display_list;
 
-    auto display_list = Painting::DisplayList::create();
+    update_paint_and_hit_testing_properties_if_needed();
+    VERIFY(paintable());
+
+    auto display_list = Painting::DisplayList::create(*paintable()->visual_context_tree());
     Painting::DisplayListRecorder display_list_recorder(display_list);
 
     // https://drafts.csswg.org/css-color-adjust-1/#color-scheme-effect
@@ -7380,16 +7383,11 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         display_list_recorder.fill_rect(bitmap_rect, CSS::SystemColor::canvas(color_scheme));
 
     display_list_recorder.fill_rect(bitmap_rect, background_color());
-    if (!paintable()) {
-        VERIFY_NOT_REACHED();
-    }
 
     Web::DisplayListRecordingContext context(display_list_recorder, page().palette(), page().client().device_pixels_per_css_pixel(), page().chrome_metrics());
     context.set_device_viewport_rect(viewport_rect);
     context.set_should_show_line_box_borders(config.should_show_line_box_borders);
     context.set_should_paint_overlay(config.paint_overlay);
-
-    update_paint_and_hit_testing_properties_if_needed();
 
     auto& viewport_paintable = *paintable();
 
@@ -7642,41 +7640,45 @@ String Document::dump_display_list()
 
     HashMap<size_t, Painting::PaintableBox const*> context_id_to_paintable;
     viewport_paintable->for_each_in_inclusive_subtree_of_type<Painting::PaintableBox>([&](auto const& paintable_box) {
-        if (auto context = paintable_box.accumulated_visual_context())
-            (void)context_id_to_paintable.try_set(context->id(), &paintable_box);
+        auto visual_context_index = paintable_box.accumulated_visual_context_index();
+        if (visual_context_index.value())
+            (void)context_id_to_paintable.try_set(visual_context_index.value(), &paintable_box);
         return TraversalDecision::Continue;
     });
 
-    HashTable<Painting::AccumulatedVisualContext const*> visited;
-    HashMap<Painting::AccumulatedVisualContext const*, Vector<Painting::AccumulatedVisualContext const*>> children;
-    Vector<Painting::AccumulatedVisualContext const*> root_contexts;
+    StringBuilder builder;
+    builder.append("AccumulatedVisualContext Tree:\n"sv);
+
+    auto const& visual_context_tree = display_list->visual_context_tree();
+    HashTable<size_t> visited;
+    HashMap<size_t, Vector<size_t>> children;
+    Vector<size_t> root_contexts;
 
     for (auto const& item : display_list->commands()) {
-        if (!item.context)
+        if (!item.context_index.value())
             continue;
-        for (auto const* node = item.context.ptr(); node && !visited.contains(node); node = node->parent().ptr()) {
-            visited.set(node);
-            if (auto const* parent = node->parent().ptr())
-                children.ensure(parent).append(node);
-            else if (!root_contexts.contains_slow(node))
-                root_contexts.append(node);
+        for (size_t node_index = item.context_index.value(); node_index && !visited.contains(node_index); node_index = visual_context_tree.node_at(Painting::VisualContextIndex(node_index)).parent_index.value()) {
+            visited.set(node_index);
+            auto parent = visual_context_tree.node_at(Painting::VisualContextIndex(node_index)).parent_index.value();
+            if (parent)
+                children.ensure(parent).append(node_index);
+            else if (!root_contexts.contains_slow(node_index))
+                root_contexts.append(node_index);
         }
     }
 
-    StringBuilder builder;
-    builder.append("AccumulatedVisualContext Tree:\n"sv);
-    Function<void(Painting::AccumulatedVisualContext const*, size_t)> dump_context = [&](auto const* node, size_t indent) {
+    Function<void(size_t, size_t)> dump_context = [&](size_t node_index, size_t indent) {
         builder.append_repeated(' ', indent * 2);
-        builder.appendff("[{}] ", node->id());
-        node->dump(builder);
-        if (auto it = context_id_to_paintable.find(node->id()); it != context_id_to_paintable.end())
+        builder.appendff("[{}] ", node_index);
+        visual_context_tree.dump(Painting::VisualContextIndex(node_index), builder);
+        if (auto it = context_id_to_paintable.find(node_index); it != context_id_to_paintable.end())
             builder.appendff(" ({})", it->value->debug_description());
         builder.append('\n');
-        for (auto const* child : children.get(node).value_or({}))
-            dump_context(child, indent + 1);
+        for (auto child_node_index : children.get(node_index).value_or({}))
+            dump_context(child_node_index, indent + 1);
     };
 
-    for (auto const* root : root_contexts)
+    for (auto root : root_contexts)
         dump_context(root, 1);
 
     builder.append("\nDisplayList:\n"sv);
@@ -7696,7 +7698,7 @@ String Document::dump_display_list()
 
                 builder.append_repeated(' ', indent * 2);
                 item.command.visit([&](auto const& command) {
-                    builder.appendff("{}@{}", command.command_name, item.context ? item.context->id() : 0);
+                    builder.appendff("{}@{}", command.command_name, item.context_index.value());
                     command.dump(builder);
                 });
                 builder.append('\n');
