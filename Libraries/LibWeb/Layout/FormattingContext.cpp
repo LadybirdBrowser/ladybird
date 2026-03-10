@@ -772,11 +772,21 @@ void FormattingContext::compute_width_for_absolutely_positioned_non_replaced_ele
         if (!computed_left.is_auto() && !width.is_auto() && !computed_right.is_auto()) {
             // If both margin-left and margin-right are auto,
             // solve the equation under the extra constraint that the two margins get equal values
-            // FIXME: unless this would make them negative, in which case when direction of the containing block is ltr (rtl), set margin-left (margin-right) to 0 and solve for margin-right (margin-left).
+            // unless this would make them negative, in which case when direction of the containing block is ltr (rtl), set margin-left (margin-right) to 0 and solve for margin-right (margin-left).
             auto size_available_for_margins = width_of_containing_block - border_left - padding_left - width.to_px_or_zero(box) - padding_right - border_right - left - right;
             if (margin_left.is_auto() && margin_right.is_auto()) {
-                margin_left = CSS::Length::make_px(size_available_for_margins / 2);
-                margin_right = CSS::Length::make_px(size_available_for_margins / 2);
+                if (size_available_for_margins >= 0) {
+                    margin_left = CSS::Length::make_px(size_available_for_margins / 2);
+                    margin_right = CSS::Length::make_px(size_available_for_margins / 2);
+                }
+                else if (computed_values.direction() == CSS::Direction::Ltr) {
+                    margin_left = CSS::Length::make_px(0);
+                    margin_right = CSS::Length::make_px(solve_for_right());
+                } 
+                else {
+                    margin_left = CSS::Length::make_px(solve_for_left());
+                    margin_right = CSS::Length::make_px(0);
+                }
                 return width;
             }
 
