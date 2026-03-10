@@ -243,12 +243,9 @@ JS::ThrowCompletionOr<GC::Ptr<Node>> TreeWalker::next_node()
 }
 
 // https://dom.spec.whatwg.org/#concept-traversal-filter
-JS::Object* TreeWalker::filter() const
+GC::Ptr<NodeFilter> TreeWalker::filter() const
 {
-    if (!m_filter)
-        return nullptr;
-
-    return m_filter->callback().callback;
+    return m_filter;
 }
 
 // https://dom.spec.whatwg.org/#concept-node-filter

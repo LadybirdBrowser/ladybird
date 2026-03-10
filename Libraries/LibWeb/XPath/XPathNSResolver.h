@@ -23,6 +23,7 @@ public:
 
     virtual ~XPathNSResolver() = default;
     virtual void visit_edges(Cell::Visitor&) override;
+    WebIDL::CallbackType& callback() { return *m_callback; }
 
 private:
     GC::Ref<WebIDL::CallbackType> m_callback;

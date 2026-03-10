@@ -69,6 +69,13 @@ static Optional<LegacyConstructor> const& lookup_legacy_constructor(IDL::Interfa
     return s_legacy_constructors.get(interface.name).value();
 }
 
+static bool should_have_interface_object(IDL::Interface const& interface)
+{
+    if (interface.is_callback_interface)
+        return !interface.constants.is_empty();
+    return true;
+}
+
 static ErrorOr<void> generate_intrinsic_definitions_header(StringView output_path, InterfaceSets const& interface_sets)
 {
     StringBuilder builder;
@@ -437,6 +444,9 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
 )~~~");
 
     auto add_interface = [class_name](SourceGenerator& gen, IDL::Interface const& interface) {
+        if (!should_have_interface_object(interface))
+            return;
+
         auto legacy_constructor = lookup_legacy_constructor(interface);
         Optional<ByteString const&> legacy_alias_name;
         if (class_name == "Window"sv)

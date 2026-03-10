@@ -316,7 +316,6 @@ NavigationHistoryEntry
 NavigationTransition
 Navigator
 Node
-NodeFilter
 NodeIterator
 NodeList
 Notification
