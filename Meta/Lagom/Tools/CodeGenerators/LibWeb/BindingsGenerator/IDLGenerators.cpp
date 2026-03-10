@@ -404,20 +404,21 @@ static void generate_include_for_iterator(auto& generator, auto& iterator_path)
 )~~~");
 }
 
-static void generate_include_for(auto& generator, auto& path)
+static void generate_include_for_interface(auto& generator, Interface const& interface)
 {
     auto forked_generator = generator.fork();
-    auto path_string = path;
+    auto path_string = interface.module_own_path;
     for (auto& search_path : g_header_search_paths) {
-        if (!path.starts_with(search_path))
+        if (!interface.module_own_path.starts_with(search_path))
             continue;
-        auto relative_path = *LexicalPath::relative_path(path, search_path);
+        auto relative_path = *LexicalPath::relative_path(interface.module_own_path, search_path);
         if (relative_path.length() < path_string.length())
             path_string = relative_path;
     }
 
     LexicalPath include_path { path_string };
-    forked_generator.set("include.path", ByteString::formatted("{}/{}.h", include_path.dirname(), include_path.title()));
+    ByteString include_title = interface.implemented_name.is_empty() ? include_path.title().to_byte_string() : interface.implemented_name;
+    forked_generator.set("include.path", ByteString::formatted("{}/{}.h", include_path.dirname(), include_title));
     forked_generator.append(R"~~~(
 #include <@include.path@>
 )~~~");
@@ -444,7 +445,7 @@ static void emit_includes_for_all_imports(auto& interface, auto& generator, bool
         if (!interface->will_generate_code())
             continue;
 
-        generate_include_for(generator, interface->module_own_path);
+        generate_include_for_interface(generator, *interface);
     }
 
     if (is_iterator) {
