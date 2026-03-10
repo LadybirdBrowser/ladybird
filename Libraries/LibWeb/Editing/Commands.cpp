@@ -1507,10 +1507,11 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
 
         // 2. While outer container is not a dd or dt or li, and outer container's parent is editable, set outer
         //    container to its parent.
-        auto is_li_dt_or_dd = [](DOM::Element const& node) {
-            return node.local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd);
+        auto is_li_dt_or_dd = [](DOM::Node const& node) {
+            auto* element = as_if<DOM::Element>(node);
+            return element && element->local_name().is_one_of(HTML::TagNames::li, HTML::TagNames::dt, HTML::TagNames::dd);
         };
-        while (!is<DOM::Element>(*outer_container) || !is_li_dt_or_dd(as<DOM::Element>(*outer_container))) {
+        while (!is_li_dt_or_dd(*outer_container)) {
             auto outer_container_parent = outer_container->parent();
             if (!outer_container_parent->is_editable())
                 break;
@@ -1518,7 +1519,7 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16String const&
         }
 
         // 3. If outer container is a dd or dt or li, set container to outer container.
-        if (is<DOM::Element>(*outer_container) && is_li_dt_or_dd(as<DOM::Element>(*outer_container)))
+        if (is_li_dt_or_dd(*outer_container))
             container = outer_container;
     }
 

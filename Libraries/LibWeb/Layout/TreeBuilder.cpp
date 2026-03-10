@@ -715,7 +715,8 @@ void TreeBuilder::update_layout_tree(DOM::Node& dom_node, TreeBuilder::Context& 
         }
     }
 
-    auto shadow_root = is<DOM::Element>(dom_node) ? as<DOM::Element>(dom_node).shadow_root() : nullptr;
+    auto* dom_element = as_if<DOM::Element>(dom_node);
+    auto shadow_root = dom_element ? dom_element->shadow_root() : nullptr;
 
     auto element_has_content_visibility_hidden = [&dom_node]() {
         if (is<DOM::Element>(dom_node)) {

@@ -164,7 +164,9 @@ StackingContext* Paintable::enclosing_stacking_context()
 void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) const
 {
     auto& display_list_recorder = context.display_list_recorder();
-    auto const* paintable_box = is<PaintableBox>(this) ? as<PaintableBox>(this) : this->first_ancestor_of_type<PaintableBox>();
+    auto const* paintable_box = as_if<PaintableBox>(this);
+    if (!paintable_box)
+        paintable_box = first_ancestor_of_type<PaintableBox>();
 
     if (paintable_box) {
         Vector<RefPtr<AccumulatedVisualContext const>> relevant_contexts;
@@ -286,7 +288,9 @@ Paintable::SelectionStyle Paintable::selection_style() const
     if (!node)
         return default_style;
 
-    auto element = is<DOM::Element>(*node) ? as<DOM::Element>(*node) : node->parent_element();
+    DOM::Element const* element = as_if<DOM::Element>(*node);
+    if (!element)
+        element = node->parent_element();
     if (!element)
         return default_style;
 
