@@ -314,6 +314,7 @@ public:
     HashMap<ByteString, Typedef> typedefs;
     HashMap<ByteString, Interface*> mixins;
     HashMap<ByteString, CallbackFunction> callback_functions;
+    HashMap<ByteString, Interface*> referenced_interfaces;
 
     // Added for convenience after parsing
     ByteString fully_qualified_name;
@@ -342,6 +343,15 @@ public:
 
     // https://webidl.spec.whatwg.org/#dfn-legacy-platform-object
     bool is_legacy_platform_object() const { return !extended_attributes.contains("Global") && (supports_indexed_properties() || supports_named_properties()); }
+
+    Interface const* referenced_interface(ByteString const& interface_name) const
+    {
+        if (name == interface_name)
+            return this;
+        if (auto it = referenced_interfaces.find(interface_name); it != referenced_interfaces.end())
+            return it->value;
+        return nullptr;
+    }
 
     bool will_generate_code() const
     {
