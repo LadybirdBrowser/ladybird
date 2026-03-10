@@ -206,6 +206,14 @@ static bool is_javascript_builtin(Type const& type)
     return types.span().contains_slow(type.name());
 }
 
+static Interface const* callback_interface_for_type(Interface const& interface, Type const& type)
+{
+    auto const* referenced_interface = interface.referenced_interface(type.name());
+    if (referenced_interface && referenced_interface->is_callback_interface)
+        return referenced_interface;
+    return nullptr;
+}
+
 static StringView sequence_storage_type_to_cpp_storage_type_name(SequenceStorageType sequence_storage_type)
 {
     switch (sequence_storage_type) {
@@ -260,6 +268,9 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
 
     if (is_javascript_builtin(type))
         return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
+
+    if (auto const* callback_interface = callback_interface_for_type(interface, type))
+        return { .name = ByteString::formatted("GC::Root<{}>", callback_interface->implemented_name), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (interface.callback_functions.contains(type.name()))
         return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
@@ -699,13 +710,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_to_string(scoped_generator, parameter, variadic, optional, optional_default_value);
     } else if (parameter.type->is_boolean() || parameter.type->is_integer()) {
         generate_to_integral(scoped_generator, parameter, optional, optional_default_value);
-    } else if (parameter.type->name().is_one_of("EventListener", "NodeFilter", "XPathNSResolver")) {
-        // FIXME: Replace this with support for callback interfaces. https://webidl.spec.whatwg.org/#idl-callback-interface
-
-        if (parameter.type->name() == "EventListener")
-            scoped_generator.set("cpp_type", "IDLEventListener");
-        else
-            scoped_generator.set("cpp_type", parameter.type->name());
+    } else if (auto const* callback_interface = callback_interface_for_type(interface, parameter.type)) {
+        scoped_generator.set("cpp_type", callback_interface->implemented_name);
 
         if (parameter.type->is_nullable()) {
             scoped_generator.append(R"~~~(
@@ -715,7 +721,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
 
         auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm());
-        @cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return @cpp_type@::create(realm, *callback_type); }));
+        @cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return @cpp_type@::create(realm, callback_type); }));
     }
 )~~~");
         } else {
@@ -724,7 +730,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
 
     auto callback_type = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm());
-    auto @cpp_name@ = adopt_ref(*new @cpp_type@(callback_type));
+    auto @cpp_name@ = TRY(throw_dom_exception_if_needed(vm, [&] { return @cpp_type@::create(realm, callback_type); }));
 )~~~");
         }
     } else if (IDL::is_platform_object(*parameter.type)) {
@@ -1563,7 +1569,19 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
 
-        // FIXME: 5. If types includes a callback interface type, then return the result of converting V to that callback interface type.
+        // 5. If types includes a callback interface type, then return the result of converting V to that callback interface type.
+        for (auto& type : types) {
+            if (!callback_interface_for_type(interface, type))
+                continue;
+
+            IDL::Parameter callback_interface_parameter { .type = *type, .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+            generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+
+            union_generator.append(R"~~~(
+        return callback_interface_union_type;
+)~~~");
+            break;
+        }
 
         // 6. If types includes object, then return the IDL value that is a reference to the object V.
         if (includes_object) {
@@ -2216,6 +2234,10 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
   @result_expression@ @value_non_optional@->callback;
 )~~~");
         }
+    } else if (callback_interface_for_type(interface, type)) {
+        scoped_generator.append(R"~~~(
+  @result_expression@ @value@->callback().callback;
+)~~~");
     } else if (interface.dictionaries.contains(type.name())) {
         // https://webidl.spec.whatwg.org/#es-dictionary
         auto dictionary_generator = scoped_generator.fork();
@@ -3090,7 +3112,6 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> @constructor_class@::construct([[mayb
 {
     WebIDL::log_trace(vm(), "@constructor_class@::construct");
 )~~~");
-        generator.set("constructor.length", "0");
         generator.append(R"~~~(
     return vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAConstructor, "@namespaced_name@");
 }
@@ -4107,6 +4128,9 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
     if (interface.pair_iterator_types.has_value()) {
         generator.set("iterator_name", ByteString::formatted("{}Iterator", interface.name));
     }
+
+    if (interface.is_callback_interface)
+        return;
 
     if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value() || interface.map_key_type.has_value()) {
         generator.append(R"~~~(
@@ -5580,11 +5604,16 @@ public:
     virtual ~@constructor_class@() override;
 
     virtual JS::ThrowCompletionOr<JS::Value> call() override;
+)~~~");
+
+    if (!interface.is_callback_interface) {
+        generator.append(R"~~~(
     virtual JS::ThrowCompletionOr<GC::Ref<JS::Object>> construct(JS::FunctionObject& new_target) override;
 
 private:
     virtual bool has_constructor() const override { return true; }
 )~~~");
+    }
 
     for (auto& attribute : interface.static_attributes) {
         auto attribute_generator = generator.fork();
@@ -5646,6 +5675,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
     generator.set("fully_qualified_name", interface.fully_qualified_name);
     generator.set("parent_name", interface.parent_name);
     generator.set("prototype_base_class", interface.prototype_base_class);
+    generator.set("constructor.length", "0");
 
     generator.append(R"~~~(
 #include <LibIDL/Types.h>
@@ -5715,7 +5745,8 @@ JS::ThrowCompletionOr<JS::Value> @constructor_class@::call()
 
 )~~~");
 
-    generate_constructors(generator, interface);
+    if (!interface.is_callback_interface)
+        generate_constructors(generator, interface);
 
     generator.append(R"~~~(
 
@@ -5727,7 +5758,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
     Base::initialize(realm);
 )~~~");
 
-    if (interface.prototype_base_class != "ObjectPrototype") {
+    if (!interface.is_callback_interface && interface.prototype_base_class != "ObjectPrototype") {
         generator.append(R"~~~(
     set_prototype(&ensure_web_constructor<@prototype_base_class@>(realm, "@parent_name@"_fly_string));
 )~~~");
@@ -5736,9 +5767,13 @@ void @constructor_class@::initialize(JS::Realm& realm)
     generator.append(R"~~~(
     define_direct_property(vm.names.length, JS::Value(@constructor.length@), JS::Attribute::Configurable);
     define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@name@"_string), JS::Attribute::Configurable);
-    define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
-
 )~~~");
+
+    if (!interface.is_callback_interface) {
+        generator.append(R"~~~(
+    define_direct_property(vm.names.prototype, &ensure_web_prototype<@prototype_class@>(realm, "@namespaced_name@"_fly_string), 0);
+)~~~");
+    }
 
     for (auto& constant : interface.constants) {
         auto constant_generator = generator.fork();
@@ -6008,6 +6043,14 @@ void @prototype_class@::initialize(JS::Realm& realm)
 )~~~");
         if (interface.supports_named_properties())
             generate_named_properties_object_definitions(interface, builder);
+    } else if (interface.is_callback_interface) {
+        generator.append(R"~~~(
+void @prototype_class@::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+    set_prototype(realm.intrinsics().object_prototype());
+}
+)~~~");
     } else {
         generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No);
         generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);

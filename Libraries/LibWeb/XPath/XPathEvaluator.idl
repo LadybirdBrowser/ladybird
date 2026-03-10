@@ -1,9 +1,5 @@
 #import <DOM/Node.idl>
-
-// FIXME: callback interfaces are not currently supported
-// callback interface XPathNSResolver {
-//   DOMString? lookupNamespaceURI(DOMString? prefix);
-// };
+#import <XPath/XPathNSResolver.idl>
 
 // https://dom.spec.whatwg.org/#mixin-xpathevaluatorbase
 interface mixin XPathEvaluatorBase {
@@ -21,4 +17,3 @@ interface XPathEvaluator {
 };
 
 XPathEvaluator includes XPathEvaluatorBase;
-

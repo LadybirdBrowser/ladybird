@@ -2,10 +2,7 @@
 
 // https://dom.spec.whatwg.org/#callbackdef-nodefilter
 [Exposed=Window]
-interface NodeFilter {
-
-    // FIXME: This should be a callback interface.
-
+callback interface NodeFilter {
     // Constants for acceptNode()
     const unsigned short FILTER_ACCEPT = 1;
     const unsigned short FILTER_REJECT = 2;
@@ -26,7 +23,5 @@ interface NodeFilter {
     const unsigned long SHOW_DOCUMENT_FRAGMENT = 0x400;
     const unsigned long SHOW_NOTATION = 0x800; // legacy
 
-    // FIXME: Uncomment this once NodeFilter is a callback interface.
-    // unsigned short acceptNode(Node node);
-
+    unsigned short acceptNode(Node node);
 };

@@ -1,0 +1,7 @@
+#import <DOM/Event.idl>
+
+// https://dom.spec.whatwg.org/#callbackdef-eventlistener
+[Exposed=*, ImplementedAs=IDLEventListener]
+callback interface EventListener {
+    undefined handleEvent(Event event);
+};

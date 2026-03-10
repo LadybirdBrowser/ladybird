@@ -31,6 +31,7 @@
 #import <ViewTransition/ViewTransition.idl>
 #import <XPath/XPathResult.idl>
 #import <XPath/XPathExpression.idl>
+#import <XPath/XPathNSResolver.idl>
 
 // https://dom.spec.whatwg.org/#document
 // https://html.spec.whatwg.org/multipage/dom.html#the-document-object
