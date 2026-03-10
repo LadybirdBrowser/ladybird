@@ -883,13 +883,7 @@ bool EventTarget::dispatch_event(Event& event)
 
 bool EventTarget::has_event_listener(FlyString const& type) const
 {
-    if (!m_data)
-        return false;
-    for (auto& listener : m_data->event_listener_list) {
-        if (listener->type == type)
-            return true;
-    }
-    return false;
+    return m_data && m_data->event_listener_list.contains([&type](auto listener) { return listener->type == type; });
 }
 
 bool EventTarget::has_event_listeners() const
