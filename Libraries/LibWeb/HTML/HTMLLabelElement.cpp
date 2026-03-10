@@ -61,10 +61,14 @@ void HTMLLabelElement::activation_behavior(DOM::Event const& event)
     if (!control_element)
         return;
 
-    // NB: If the click resulted in a selection being made on the label element, do not propagate the click event to the
-    //     input element. This allows the user to e.g. copy the label's text.
-    if (auto selection = document().get_selection(); selection && !selection->is_collapsed())
-        return;
+    // NB: If a click was fired after a drag selection was made on the label element, do not propagate the click event
+    //     to the input element. This allows the user to e.g. copy the label's text.
+    if (event.type() == EventNames::click) {
+        auto const& mouse_event = as<UIEvents::MouseEvent>(event);
+        auto selection = document().get_selection();
+        if (mouse_event.detail() == 1 && selection && !selection->is_collapsed())
+            return;
+    }
 
     if (auto* form_control = as_if<FormAssociatedElement>(*control_element)) {
         if (!form_control->enabled())
