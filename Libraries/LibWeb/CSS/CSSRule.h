@@ -55,7 +55,7 @@ public:
     void set_parent_rule(CSSRule*);
 
     CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
-    virtual void set_parent_style_sheet(CSSStyleSheet*);
+    MUST_UPCALL virtual void set_parent_style_sheet(CSSStyleSheet*);
 
     template<typename T>
     bool fast_is() const = delete;
