@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    #border-box {
+        box-sizing: border-box;
+        width: 120px;
+        height: 80px;
+        border: 10px solid black;
+    }
+
+    #content-box {
+        width: 120px;
+        height: 80px;
+        border: 10px solid black;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="border-box"></div>
+<div id="content-box"><div style="height: 90px;"></div></div>
+<script>
+    function dump_used_values(label, style, properties) {
+        for (let property of properties)
+            println(`${label} ${property}: ${style.getPropertyValue(property)}`);
+    }
+
+    test(() => {
+        const borderBox = document.getElementById("border-box");
+        const contentBox = document.getElementById("content-box");
+        dump_used_values("border-box", getComputedStyle(borderBox), ["width", "height"]);
+        dump_used_values("content-box", getComputedStyle(contentBox), ["width", "height"]);
+    });
+</script>

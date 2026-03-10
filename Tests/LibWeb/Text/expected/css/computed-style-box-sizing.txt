@@ -1,0 +1,4 @@
+border-box width: 120px
+border-box height: 80px
+content-box width: 120px
+content-box height: 80px

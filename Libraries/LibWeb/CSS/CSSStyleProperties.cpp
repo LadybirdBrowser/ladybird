@@ -645,6 +645,14 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return {};
     };
 
+    auto used_size_for_property = [&layout_node, &used_value_for_property]<typename ContentBoxGetter, typename BorderBoxGetter>(ContentBoxGetter content_box_getter, BorderBoxGetter border_box_getter) -> Optional<CSSPixels> {
+        return used_value_for_property([&layout_node, content_box_getter, border_box_getter](Painting::PaintableBox const& paintable_box) {
+            if (layout_node.computed_values().box_sizing() == BoxSizing::BorderBox)
+                return border_box_getter(paintable_box);
+            return content_box_getter(paintable_box);
+        });
+    };
+
     auto& element = owner_node()->element();
     auto pseudo_element = owner_node()->pseudo_element();
 
@@ -753,7 +761,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // display property is not none or contents, then the resolved value is the used value.
         // Otherwise the resolved value is the computed value.
     case PropertyID::Height: {
-        auto maybe_used_height = used_value_for_property([](auto const& paintable_box) { return paintable_box.content_height(); });
+        auto maybe_used_height = used_size_for_property(
+            [](auto const& paintable_box) { return paintable_box.content_height(); },
+            [](auto const& paintable_box) { return paintable_box.absolute_border_box_rect().height(); });
         if (maybe_used_height.has_value())
             return style_value_for_size(Size::make_px(maybe_used_height.release_value()));
         return style_value_for_size(layout_node.computed_values().height());
@@ -791,7 +801,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         return style_value_for_length_percentage_or_auto(layout_node.computed_values().padding().top());
     case PropertyID::Width: {
-        auto maybe_used_width = used_value_for_property([](auto const& paintable_box) { return paintable_box.content_width(); });
+        auto maybe_used_width = used_size_for_property(
+            [](auto const& paintable_box) { return paintable_box.content_width(); },
+            [](auto const& paintable_box) { return paintable_box.absolute_border_box_rect().width(); });
         if (maybe_used_width.has_value())
             return style_value_for_size(Size::make_px(maybe_used_width.release_value()));
         return style_value_for_size(layout_node.computed_values().width());
