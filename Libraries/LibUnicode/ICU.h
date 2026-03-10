@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -25,7 +25,6 @@
 #include <unicode/uversion.h>
 
 U_NAMESPACE_BEGIN
-class Calendar;
 class DateTimePatternGenerator;
 class LocaleDisplayNames;
 class NumberingSystem;
@@ -69,20 +68,6 @@ private:
     Optional<DigitalFormat> m_digital_format;
 };
 
-class CalendarData {
-public:
-    static Optional<CalendarData&> for_calendar(String const& calendar);
-
-    static void adjust_time_range_for_proleptic_calendar(icu::Calendar&);
-
-    ALWAYS_INLINE icu::Calendar& calendar() { return *m_calendar; }
-
-private:
-    explicit CalendarData(NonnullOwnPtr<icu::Calendar>);
-
-    NonnullOwnPtr<icu::Calendar> m_calendar;
-};
-
 class TimeZoneData {
 public:
     static Optional<TimeZoneData&> for_time_zone(StringView time_zone);
@@ -112,20 +97,6 @@ inline void verify_icu_success(UErrorCode code, SourceLocation location = Source
         VERIFY_NOT_REACHED();
     }
 }
-
-#define ICU_MUST(expression)                                                     \
-    ({                                                                           \
-        /* Ignore -Wshadow to allow nesting the macro. */                        \
-        AK_IGNORE_DIAGNOSTIC("-Wshadow", auto _temporary_result = (expression)); \
-        verify_icu_success(status);                                              \
-        _temporary_result;                                                       \
-    })
-
-#define ICU_MUST_VOID(expression)   \
-    ({                              \
-        expression;                 \
-        verify_icu_success(status); \
-    })
 
 ALWAYS_INLINE icu::StringPiece icu_string_piece(StringView string)
 {

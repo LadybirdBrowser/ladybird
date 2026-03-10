@@ -116,6 +116,45 @@ describe("correct behavior", () => {
         }).toThrowWithMessage(RangeError, "day");
     });
 
+    test("chinese calendar extreme dates", () => {
+        const farPast = Temporal.PlainDate.from({ calendar: "chinese", year: -250000, month: 1, day: 1 });
+        expect(farPast.year).toBe(-250000);
+
+        const farFuture = Temporal.PlainDate.from({ calendar: "chinese", year: 250000, month: 1, day: 1 });
+        expect(farFuture.year).toBe(250000);
+    });
+
+    test("dangi calendar extreme dates", () => {
+        const farPast = Temporal.PlainDate.from({ calendar: "dangi", year: -250000, month: 1, day: 1 });
+        expect(farPast.year).toBe(-250000);
+
+        const farFuture = Temporal.PlainDate.from({ calendar: "dangi", year: 250000, month: 1, day: 1 });
+        expect(farFuture.year).toBe(250000);
+    });
+
+    test("hebrew calendar epoch year (Rosh Hashanah postponement)", () => {
+        const expectedCheshvan = [29, 30, 30, 29, 29, 30, 30, 29, 29, 30, 29];
+        const expectedKislev = [30, 30, 30, 29, 30, 30, 30, 30, 29, 30, 30];
+
+        for (let year = 0; year < expectedCheshvan.length; ++year) {
+            const cheshvan = Temporal.PlainDate.from({
+                calendar: "hebrew",
+                year,
+                monthCode: "M02",
+                day: 30,
+            });
+            expect(cheshvan.day).toBe(expectedCheshvan[year]);
+
+            const kislev = Temporal.PlainDate.from({
+                calendar: "hebrew",
+                year,
+                monthCode: "M03",
+                day: 30,
+            });
+            expect(kislev.day).toBe(expectedKislev[year]);
+        }
+    });
+
     test("japanese era boundary: Heisei to Reiwa", () => {
         // April 30, 2019 is the last day of Heisei.
         const lastHeisei = Temporal.PlainDate.from("2019-04-30[u-ca=japanese]");
