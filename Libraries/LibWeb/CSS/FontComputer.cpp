@@ -596,6 +596,9 @@ void FontComputer::did_load_font(FlyString const& family_name)
         return false;
     };
 
+    if (document().needs_full_style_update())
+        return;
+
     // Walk the DOM tree (including shadow trees) and invalidate elements that use this font family.
     document().for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
         auto* element = as_if<DOM::Element>(node);
@@ -611,9 +614,8 @@ void FontComputer::did_load_font(FlyString const& family_name)
             return TraversalDecision::Continue;
 
         if (element_uses_font_family(*element)) {
-            element->invalidate_style(DOM::StyleInvalidationReason::CSSFontLoaded);
-            // invalidate_style() marks the entire subtree, so skip descendants.
-            return TraversalDecision::SkipChildrenAndContinue;
+            element->set_needs_style_update(true);
+            return TraversalDecision::Continue;
         }
 
         return TraversalDecision::Continue;
