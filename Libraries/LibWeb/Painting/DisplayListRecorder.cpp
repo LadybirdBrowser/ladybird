@@ -8,7 +8,6 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListCommand.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
-#include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
@@ -349,14 +348,14 @@ void DisplayListRecorder::apply_backdrop_filter(Gfx::IntRect const& backdrop_reg
     });
 }
 
-void DisplayListRecorder::paint_outer_box_shadow(PaintBoxShadowParams params)
+void DisplayListRecorder::paint_outer_box_shadow(PaintOuterBoxShadow outer_box_shadow)
 {
-    APPEND(PaintOuterBoxShadow { .box_shadow_params = params });
+    APPEND(move(outer_box_shadow));
 }
 
-void DisplayListRecorder::paint_inner_box_shadow(PaintBoxShadowParams params)
+void DisplayListRecorder::paint_inner_box_shadow(PaintInnerBoxShadow inner_box_shadow)
 {
-    APPEND(PaintInnerBoxShadow { .box_shadow_params = params });
+    APPEND(move(inner_box_shadow));
 }
 
 void DisplayListRecorder::paint_text_shadow(int blur_radius, Gfx::IntRect bounding_rect, Gfx::IntRect text_rect, Gfx::GlyphRun const& glyph_run, double glyph_run_scale, Color color, Gfx::FloatPoint draw_location)

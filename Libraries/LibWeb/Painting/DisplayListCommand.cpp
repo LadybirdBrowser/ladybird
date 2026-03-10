@@ -5,24 +5,19 @@
  */
 
 #include <LibWeb/Painting/DisplayListCommand.h>
-#include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
 
 Gfx::IntRect PaintOuterBoxShadow::bounding_rect() const
 {
-    auto shadow_rect = box_shadow_params.device_content_rect;
-    auto spread = box_shadow_params.blur_radius * 2 + box_shadow_params.spread_distance;
-    shadow_rect.inflate(spread, spread, spread, spread);
-    auto offset_x = box_shadow_params.offset_x;
-    auto offset_y = box_shadow_params.offset_y;
-    shadow_rect.translate_by(offset_x, offset_y);
-    return shadow_rect;
+    auto rect = shadow_rect;
+    rect.inflate(blur_radius * 2, blur_radius * 2, blur_radius * 2, blur_radius * 2);
+    return rect;
 }
 
 Gfx::IntRect PaintInnerBoxShadow::bounding_rect() const
 {
-    return box_shadow_params.device_content_rect;
+    return device_content_rect;
 }
 
 Gfx::IntRect DrawGlyphRun::bounding_rect() const
@@ -94,12 +89,12 @@ void PaintConicGradient::dump(StringBuilder& builder) const
 
 void PaintOuterBoxShadow::dump(StringBuilder& builder) const
 {
-    builder.appendff(" content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
+    builder.appendff(" content_rect={} shadow_rect={} blur_radius={} color={}", device_content_rect, shadow_rect, blur_radius, color);
 }
 
 void PaintInnerBoxShadow::dump(StringBuilder& builder) const
 {
-    builder.appendff(" content_rect={} offset=({},{}) blur_radius={} spread_distance={} color={}", box_shadow_params.device_content_rect, box_shadow_params.offset_x, box_shadow_params.offset_y, box_shadow_params.blur_radius, box_shadow_params.spread_distance, box_shadow_params.color);
+    builder.appendff(" content_rect={} outer_shadow_rect={} inner_shadow_rect={} blur_radius={} color={}", device_content_rect, outer_shadow_rect, inner_shadow_rect, blur_radius, color);
 }
 
 void PaintTextShadow::dump(StringBuilder& builder) const
