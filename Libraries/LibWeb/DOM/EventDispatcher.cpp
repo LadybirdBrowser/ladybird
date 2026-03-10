@@ -214,8 +214,18 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
     // 5. Let clearTargets be false.
     bool clear_targets = false;
 
+    // OPTIMIZATION: Only dispatch events if there is at least one listener on the node or its ancestors. Activation
+    //               events are always dispatched. This saves us from going through the path building and dispatch
+    //               phases for events that will be dropped on the floor anyway.
+    bool is_activation_event = is<UIEvents::MouseEvent>(event) && event.type() == HTML::EventNames::click;
+    bool should_dispatch = is_activation_event;
+    if (!should_dispatch) {
+        auto const* node = as_if<Node>(*target);
+        should_dispatch = !node || node->has_inclusive_ancestor_with_event_listener(event.type());
+    }
+
     // 6. If target is not relatedTarget or target is event’s relatedTarget, then:
-    if (related_target != target || event.related_target() == target) {
+    if (should_dispatch && (related_target != target || event.related_target() == target)) {
         // 1. Let touchTargets be a new list.
         Event::TouchTargetList touch_targets;
 
@@ -227,8 +237,9 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         // 3. Append to an event path with event, target, targetOverride, relatedTarget, touchTargets, and false.
         event.append_to_path(*target, target_override, related_target, touch_targets, false);
 
-        // 4. Let isActivationEvent be true, if event is a MouseEvent object and event’s type attribute is "click"; otherwise false.
-        bool is_activation_event = is<UIEvents::MouseEvent>(event) && event.type() == HTML::EventNames::click;
+        // 4. Let isActivationEvent be true, if event is a MouseEvent object and event’s type attribute is "click";
+        //    otherwise false.
+        // NB: Step 4 is executed above as part of an optimization.
 
         // 5. If isActivationEvent is true and target has activation behavior, then set activationTarget to target.
         if (is_activation_event && target->has_activation_behavior())
