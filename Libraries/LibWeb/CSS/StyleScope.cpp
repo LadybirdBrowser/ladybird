@@ -492,12 +492,17 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
         return;
     }
 
+    HashTable<DOM::Element*> elements_already_invalidated_for_has;
     auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
     for (auto& node : nodes) {
         for (auto* ancestor = &node; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (!ancestor->is_element())
                 continue;
             auto& element = static_cast<DOM::Element&>(*ancestor);
+
+            if (elements_already_invalidated_for_has.set(&element) != AK::HashSetResult::InsertedNewEntry)
+                break;
+
             element.invalidate_style_if_affected_by_has();
 
             auto* parent = ancestor->parent_or_shadow_host();
@@ -507,8 +512,12 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
             // If any ancestor's sibling was tested against selectors like ".a:has(+ .b)" or ".a:has(~ .b)"
             // its style might be affected by the change in descendant node.
             parent->for_each_child_of_type<DOM::Element>([&](auto& ancestor_sibling_element) {
-                if (ancestor_sibling_element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator())
+                if (ancestor_sibling_element.affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator()) {
+                    if (elements_already_invalidated_for_has.set(&ancestor_sibling_element) != AK::HashSetResult::InsertedNewEntry)
+                        return IterationDecision::Continue;
+
                     ancestor_sibling_element.invalidate_style_if_affected_by_has();
+                }
                 return IterationDecision::Continue;
             });
         }
