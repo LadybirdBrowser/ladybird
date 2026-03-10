@@ -247,6 +247,24 @@ void build_invalidation_sets_for_simple_selector(Selector::SimpleSelector const&
         for (auto const& nested_selector : pseudo_class.argument_selector_list) {
             auto rightmost_invalidation_set_for_selector = build_invalidation_sets_for_selector_impl(style_invalidation_data, *nested_selector, inside_nth_child_pseudo_class_for_nested);
             invalidation_set.include_all_from(rightmost_invalidation_set_for_selector);
+
+            // Propagate :has() from inner selectors where it appears in non-rightmost compounds.
+            // The rightmost set only carries properties from the rightmost compound, so :has() in
+            // non-rightmost positions (e.g., :is(:has(.x) .y)) is not propagated. We need it in the
+            // outer invalidation set so outer compounds register plans for pseudo_class:Has that
+            // account for the full selector context.
+            // Additionally, when :has() is inside a complex :is()/:where() argument (multiple
+            // compounds), the outer invalidation plan can't correctly capture the nested combinator
+            // structure — e.g., sibling combinators at the outer level would be applied at the wrong
+            // DOM level. Fall back to whole-subtree invalidation for :has() in these cases.
+            if (nested_selector->contains_pseudo_class(PseudoClass::Has)) {
+                invalidation_set.set_needs_invalidate_pseudo_class(PseudoClass::Has);
+                if (nested_selector->compound_selectors().size() > 1) {
+                    InvalidationSet has_only;
+                    has_only.set_needs_invalidate_pseudo_class(PseudoClass::Has);
+                    add_invalidation_plan_for_properties(style_invalidation_data, has_only, *make_invalidate_whole_subtree_invalidation());
+                }
+            }
         }
         break;
     }
@@ -341,19 +359,6 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
 
             auto plan = build_invalidation_for_combinator(previous_compound_combinator, *selector_righthand);
             add_invalidation_plan_for_properties(style_invalidation_data, invalidation_properties, *plan);
-
-            // TODO: Fine-grained :has() invalidation is not yet implemented.
-            bool has_pseudo_class_has = false;
-            invalidation_properties.for_each_property([&](auto const& property) {
-                if (property.type == InvalidationSet::Property::Type::PseudoClass && property.value.template get<PseudoClass>() == PseudoClass::Has)
-                    has_pseudo_class_has = true;
-                return IterationDecision::Continue;
-            });
-            if (has_pseudo_class_has) {
-                InvalidationSet has_only;
-                has_only.set_needs_invalidate_pseudo_class(PseudoClass::Has);
-                add_invalidation_plan_for_properties(style_invalidation_data, has_only, *make_invalidate_whole_subtree_invalidation());
-            }
 
             selector_righthand = SelectorRighthand {
                 .subject_match_set = move(subject_match_set),
