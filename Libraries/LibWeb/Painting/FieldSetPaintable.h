@@ -19,6 +19,7 @@ public:
     static GC::Ref<FieldSetPaintable> create(Layout::FieldSetBox const&);
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
+    virtual void paint_background(DisplayListRecordingContext&) const override;
 
 private:
     explicit FieldSetPaintable(Layout::FieldSetBox const&);
@@ -27,6 +28,7 @@ private:
     Layout::FieldSetBox const& layout_box() const;
 
     CSSPixels effective_border_top() const;
+    CSSPixelRect visual_border_box_rect() const;
 };
 
 }

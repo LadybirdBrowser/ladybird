@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    fieldset {
+        background: blue;
+    }
+</style>
+<fieldset><legend>Legend</legend>Content</fieldset>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>
