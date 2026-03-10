@@ -415,16 +415,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
         // Hit test the stacking context root's own fragments if it's a PaintableWithLines.
         if (is<PaintableWithLines>(paintable_box())) {
             auto const& paintable_with_lines = as<PaintableWithLines>(paintable_box());
-            auto pixel_ratio = static_cast<float>(paintable_box().document().page().client().device_pixels_per_css_pixel());
-            auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
-            Optional<CSSPixelPoint> local_position;
-            if (auto state = paintable_box().accumulated_visual_context()) {
-                auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
-                if (result.has_value())
-                    local_position = (*result / pixel_ratio).to_type<CSSPixels>();
-            } else {
-                local_position = position;
-            }
+            auto local_position = paintable_box().transform_point_to_local(position);
 
             if (local_position.has_value()) {
                 if (paintable_with_lines.hit_test_fragments(position, local_position.value(), type, callback) == TraversalDecision::Break)
@@ -466,16 +457,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     if (!is_visible || !paintable_box().visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto pixel_ratio = static_cast<float>(paintable_box().document().page().client().device_pixels_per_css_pixel());
-    auto const& scroll_state = paintable_box().document().paintable()->scroll_state_snapshot();
-    Optional<CSSPixelPoint> local_position;
-    if (auto state = paintable_box().accumulated_visual_context()) {
-        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
-        if (result.has_value())
-            local_position = (*result / pixel_ratio).to_type<CSSPixels>();
-    } else {
-        local_position = position;
-    }
+    auto local_position = paintable_box().transform_point_to_local(position);
 
     if (local_position.has_value() && paintable_box().absolute_border_box_rect().contains(local_position.value())) {
         if (callback({ const_cast<PaintableBox&>(paintable_box()) }) == TraversalDecision::Break)

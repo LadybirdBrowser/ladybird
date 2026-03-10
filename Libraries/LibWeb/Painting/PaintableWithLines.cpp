@@ -86,14 +86,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
     auto ensure_local_position = [&]() {
         if (exchange(acquired_local_position, true))
             return;
-
-        if (auto state = accumulated_visual_context()) {
-            auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
-            if (result.has_value())
-                local_position = (*result / pixel_ratio).to_type<CSSPixels>();
-        } else {
-            local_position = position;
-        }
+        local_position = transform_point_to_local(position);
     };
 
     // TextCursor hit testing mode should be able to place cursor in contenteditable elements even if they are empty.

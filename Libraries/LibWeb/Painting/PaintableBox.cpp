@@ -888,17 +888,21 @@ Optional<int> PaintableBox::scroll_frame_id() const
     return {};
 }
 
-CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
+Optional<CSSPixelPoint> PaintableBox::transform_point_to_local(CSSPixelPoint screen_position) const
 {
     if (!accumulated_visual_context())
         return screen_position;
-
     auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = document().paintable()->scroll_state_snapshot();
     auto result = accumulated_visual_context()->transform_point_for_hit_test(screen_position.to_type<float>() * pixel_ratio, scroll_state);
     if (!result.has_value())
-        return screen_position;
+        return {};
     return (*result / pixel_ratio).to_type<CSSPixels>();
+}
+
+CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
+{
+    return transform_point_to_local(screen_position).value_or(screen_position);
 }
 
 bool PaintableBox::has_resizer() const
@@ -1151,16 +1155,7 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     if (!is_visible || !visible_for_hit_testing())
         return TraversalDecision::Continue;
 
-    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
-    Optional<CSSPixelPoint> local_position;
-    if (auto state = accumulated_visual_context()) {
-        auto result = state->transform_point_for_hit_test(position.to_type<float>() * pixel_ratio, scroll_state);
-        if (result.has_value())
-            local_position = (*result / pixel_ratio).to_type<CSSPixels>();
-    } else {
-        local_position = position;
-    }
+    Optional<CSSPixelPoint> local_position = transform_point_to_local(position);
 
     if (!local_position.has_value())
         return TraversalDecision::Continue;

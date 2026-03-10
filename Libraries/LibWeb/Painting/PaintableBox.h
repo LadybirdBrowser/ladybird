@@ -235,6 +235,8 @@ public:
     void set_accumulated_visual_context_for_descendants(auto state) { m_accumulated_visual_context_for_descendants = move(state); }
     [[nodiscard]] auto accumulated_visual_context_for_descendants() const { return m_accumulated_visual_context_for_descendants; }
 
+    Optional<CSSPixelPoint> transform_point_to_local(CSSPixelPoint screen_position) const;
+
     static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
 
     void invalidate_paint_cache() const { m_cached_phase_commands = {}; }
