@@ -31,6 +31,43 @@ describe("correct behavior", () => {
         expect(plainDate.monthCode).toBe("M02L");
     });
 
+    test("chinese calendar leap month codes across decades", () => {
+        const leapMonthCases = [
+            { year: 2001, month: 5, monthCode: "M04L" },
+            { year: 2004, month: 3, monthCode: "M02L" },
+            { year: 2006, month: 8, monthCode: "M07L" },
+            { year: 2009, month: 6, monthCode: "M05L" },
+            { year: 2012, month: 5, monthCode: "M04L" },
+            { year: 2017, month: 7, monthCode: "M06L" },
+            { year: 2020, month: 5, monthCode: "M04L" },
+            { year: 2023, month: 3, monthCode: "M02L" },
+            { year: 2025, month: 7, monthCode: "M06L" },
+            { year: 2028, month: 6, monthCode: "M05L" },
+        ];
+
+        for (const { year, month, monthCode } of leapMonthCases) {
+            const fromMonth = Temporal.PlainDate.from({
+                year,
+                month,
+                day: 1,
+                calendar: "chinese",
+            });
+            expect(fromMonth.monthCode).toBe(monthCode);
+            expect(fromMonth.month).toBe(month);
+
+            const fromCode = Temporal.PlainDate.from({
+                year,
+                monthCode,
+                day: 1,
+                calendar: "chinese",
+            });
+            expect(fromCode.monthCode).toBe(monthCode);
+            expect(fromCode.month).toBe(month);
+
+            expect(fromMonth.equals(fromCode)).toBeTrue();
+        }
+    });
+
     test("coptic calendar 13th month", () => {
         // The Coptic calendar has a 13th month (Nasie).
         // 2024-09-06 falls in month 13 of Coptic year 1740.

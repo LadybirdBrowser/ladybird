@@ -28,6 +28,12 @@ ladybird_lib(LibUnicode unicode)
 find_package(ICU 78.2 EXACT REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
+corrosion_import_crate(MANIFEST_PATH Rust/Cargo.toml CRATES libunicode_rust)
+target_link_libraries(LibUnicode PRIVATE libunicode_rust)
+install(TARGETS libunicode_rust EXPORT LagomTargets
+    ARCHIVE COMPONENT Lagom_Development
+)
+
 # FIXME: Add support for building LibGfx in sanitize
 #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':
 #   >>> lagom-unicode.lib(TimeZone.cpp.obj) has value 1

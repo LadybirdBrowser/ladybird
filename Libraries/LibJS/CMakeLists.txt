@@ -307,7 +307,7 @@ endif()
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
 if (ENABLE_RUST)
-    corrosion_import_crate(MANIFEST_PATH Rust/Cargo.toml)
+    corrosion_import_crate(MANIFEST_PATH Rust/Cargo.toml CRATES libjs_rust)
     target_link_libraries(LibJS PRIVATE libjs_rust)
     target_compile_definitions(LibJS PRIVATE ENABLE_RUST)
     install(TARGETS libjs_rust EXPORT LagomTargets

@@ -1790,36 +1790,12 @@ bool year_contains_month_code(String const& calendar, i32 arithmetic_year, Strin
     VERIFY(is_valid_month_code_for_calendar(calendar, month_code));
 
     // 2. If ! ParseMonthCode(monthCode).[[IsLeap]] is false, return true.
-    auto [month_number, is_leap_month] = parse_month_code(month_code);
-    if (!is_leap_month)
+    if (!parse_month_code(month_code).is_leap_month)
         return true;
 
     // 3. Return whether the leap month indicated by monthCode exists in the year arithmeticYear in calendar, using
     //    calendar-dependent behaviour.
-    if (calendar.is_one_of("chinese"sv, "dangi"sv)) {
-        auto months_in_year = calendar_months_in_year(calendar, arithmetic_year);
-        if (months_in_year <= 12)
-            return false;
-
-        // Check each ordinal month to see if it matches the leap month code.
-        for (u8 month = 1; month <= months_in_year; ++month) {
-            auto info = Unicode::chinese_ordinal_month_code(calendar, arithmetic_year, month);
-            if (info.has_value() && info->is_leap_month && info->month_number == month_number)
-                return true;
-        }
-
-        return false;
-    }
-
-    if (calendar == "hebrew"sv) {
-        if (month_number != Unicode::HEBREW_ADAR_I_MONTH_NUMBER)
-            return false;
-
-        auto months_in_year = calendar_months_in_year(calendar, arithmetic_year);
-        return months_in_year == 13;
-    }
-
-    return false;
+    return Unicode::calendar_year_contains_month_code(calendar, arithmetic_year, month_code);
 }
 
 // 4.1.6 ConstrainMonthCode ( calendar, arithmeticYear, monthCode, overflow ), https://tc39.es/proposal-intl-era-monthcode/#sec-temporal-constrainmonthcode

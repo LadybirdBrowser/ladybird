@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -10,7 +10,6 @@
 #include <LibUnicode/ICU.h>
 
 #include <unicode/dtptngen.h>
-#include <unicode/gregocal.h>
 #include <unicode/locdspnm.h>
 #include <unicode/numsys.h>
 #include <unicode/tznames.h>
@@ -18,7 +17,6 @@
 namespace Unicode {
 
 static HashMap<String, OwnPtr<LocaleData>> s_locale_cache;
-static HashMap<String, OwnPtr<CalendarData>> s_calendar_cache;
 static HashMap<String, OwnPtr<TimeZoneData>> s_time_zone_cache;
 
 Optional<LocaleData&> LocaleData::for_locale(StringView locale)
@@ -114,53 +112,6 @@ icu::TimeZoneNames& LocaleData::time_zone_names()
     }
 
     return *m_time_zone_names;
-}
-
-Optional<CalendarData&> CalendarData::for_calendar(String const& calendar)
-{
-    auto& calendar_data = s_calendar_cache.ensure(calendar, [&]() -> OwnPtr<CalendarData> {
-        UErrorCode status = U_ZERO_ERROR;
-
-        auto const* legacy_calendar = uloc_toLegacyType("calendar", ByteString(calendar).characters());
-        if (!legacy_calendar)
-            return nullptr;
-
-        auto locale_data = LocaleData::for_locale("und"sv);
-        VERIFY(locale_data.has_value());
-
-        locale_data->locale().setKeywordValue("calendar", legacy_calendar, status);
-        if (icu_failure(status))
-            return nullptr;
-
-        auto icu_calendar = adopt_own_if_nonnull(icu::Calendar::createInstance(locale_data->locale(), status));
-        if (icu_failure(status))
-            return nullptr;
-
-        return adopt_own(*new CalendarData { icu_calendar.release_nonnull() });
-    });
-
-    if (calendar_data)
-        return *calendar_data;
-    return {};
-}
-
-void CalendarData::adjust_time_range_for_proleptic_calendar(icu::Calendar& icu_calendar)
-{
-    // https://tc39.es/ecma262/#sec-time-values-and-time-range
-    // A time value supports a slightly smaller range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds.
-    static constexpr UDate ECMA_262_MINIMUM_TIME = -8.64E15;
-    UErrorCode status = U_ZERO_ERROR;
-
-    if (auto* gregorian_calendar = as_if<icu::GregorianCalendar>(icu_calendar)) {
-        gregorian_calendar->setGregorianChange(ECMA_262_MINIMUM_TIME, status);
-        verify_icu_success(status);
-    }
-}
-
-CalendarData::CalendarData(NonnullOwnPtr<icu::Calendar> calendar)
-    : m_calendar(move(calendar))
-{
-    adjust_time_range_for_proleptic_calendar(*m_calendar);
 }
 
 Optional<TimeZoneData&> TimeZoneData::for_time_zone(StringView time_zone)

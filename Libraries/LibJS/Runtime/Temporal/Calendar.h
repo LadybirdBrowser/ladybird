@@ -22,7 +22,10 @@ namespace JS::Temporal {
 extern String ISO8601_CALENDAR;
 
 // 12.2 Month Codes, https://tc39.es/proposal-temporal/#sec-temporal-month-codes
-using MonthCode = Unicode::MonthCode;
+struct MonthCode {
+    u8 month_number { 0 };
+    bool is_leap_month { false };
+};
 
 // 12.3.1 Calendar Date Records, https://tc39.es/proposal-temporal/#sec-temporal-calendar-date-records
 using CalendarDate = Unicode::CalendarDate;

@@ -1,0 +1,13 @@
+[package]
+name = "libunicode_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+calendrical_calculations = "0.2"
+icu_calendar = { version = "2.1.1", features = ["compiled_data"] }
