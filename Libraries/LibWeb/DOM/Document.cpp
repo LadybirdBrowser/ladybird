@@ -2730,7 +2730,7 @@ WebIDL::ExceptionOr<GC::Ref<Node>> Document::adopt_node_binding(GC::Ref<Node> no
     if (is<ShadowRoot>(*node))
         return WebIDL::HierarchyRequestError::create(realm(), "Cannot adopt a shadow root into a document"_utf16);
 
-    if (is<DocumentFragment>(*node) && as<DocumentFragment>(*node).host())
+    if (auto* fragment = as_if<DocumentFragment>(*node); fragment && fragment->host())
         return node;
 
     adopt_node(*node);

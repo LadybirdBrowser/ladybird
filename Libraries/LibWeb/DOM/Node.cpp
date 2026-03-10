@@ -1680,7 +1680,8 @@ bool Node::is_editing_host() const
     }
 
     // or a child HTML element of a Document whose design mode enabled is true.
-    return is<Document>(parent()) && as<Document>(*parent()).design_mode_enabled_state();
+    auto* doc = as_if<Document>(parent());
+    return doc && doc->design_mode_enabled_state();
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editing-host-of
