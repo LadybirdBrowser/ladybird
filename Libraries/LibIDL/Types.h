@@ -270,6 +270,7 @@ public:
 
     bool is_namespace { false };
     bool is_mixin { false };
+    bool is_callback_interface { false };
 
     HashMap<ByteString, ByteString> extended_attributes;
 
