@@ -1026,18 +1026,12 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     auto effective_border = max(fieldset_state.border_top, legend_state.margin_box_height());
     auto extra_top = effective_border - fieldset_state.border_top;
 
-    // NB: Replace the fieldset's border-top with the effective border area. This grows the border-box to include the
-    //     space needed for the legend. Shift the content area down by the same amount so the border-box top stays at
-    //     the same position (it was already set by the parent formatting context).
-    fieldset_state.border_top = effective_border;
-    fieldset_state.set_content_y(fieldset_state.offset.y() + extra_top);
-
-    // Lay out non-legend children.
+    // Lay out non-legend children below the legend accommodation.
     m_margin_state.reset();
 
     CSSPixels bottom_of_lowest_margin_box = 0;
     {
-        TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
+        TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, extra_top };
         fieldset_box.for_each_child_of_type<Box>([&](Box& child) {
             if (&child == legend)
                 return IterationDecision::Continue;
@@ -1066,7 +1060,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     // The element is expected to be positioned in the block-flow direction such that its border box is centered over
     // the border on the block-start side of the fieldset element.
     // FIXME: Take writing modes into consideration.
-    auto legend_border_box_centering_offset = (fieldset_state.border_top - legend_state.border_box_height()) / 2;
+    auto legend_border_box_centering_offset = (effective_border - legend_state.border_box_height()) / 2;
     auto fieldset_border_box_top_in_content = -(fieldset_state.border_top + fieldset_state.padding_top);
     auto legend_content_y = fieldset_border_box_top_in_content + legend_border_box_centering_offset + legend_state.border_box_top();
     legend_state.set_content_y(legend_content_y);

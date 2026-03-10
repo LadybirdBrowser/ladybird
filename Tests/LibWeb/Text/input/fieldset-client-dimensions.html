@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    fieldset {
+        padding: 5px;
+        border: 2px solid black;
+    }
+</style>
+<fieldset id="with-legend"><legend>Legend</legend>Content</fieldset>
+<fieldset id="no-legend">Content</fieldset>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        let f1 = document.getElementById("with-legend");
+        let f2 = document.getElementById("no-legend");
+
+        println(`with legend: clientTop=${f1.clientTop} clientHeight=${f1.clientHeight}`);
+        println(`no legend: clientTop=${f2.clientTop} clientHeight=${f2.clientHeight}`);
+        println(`with legend: paddingTop=${getComputedStyle(f1).paddingTop}`);
+        println(`no legend: paddingTop=${getComputedStyle(f2).paddingTop}`);
+    });
+</script>

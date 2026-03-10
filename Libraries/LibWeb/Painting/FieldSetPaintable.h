@@ -21,10 +21,12 @@ public:
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
 private:
+    explicit FieldSetPaintable(Layout::FieldSetBox const&);
+
     Layout::FieldSetBox& layout_box();
     Layout::FieldSetBox const& layout_box() const;
 
-    explicit FieldSetPaintable(Layout::FieldSetBox const&);
+    CSSPixels effective_border_top() const;
 };
 
 }
