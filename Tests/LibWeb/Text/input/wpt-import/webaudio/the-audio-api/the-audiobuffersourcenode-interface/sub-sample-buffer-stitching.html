@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      Test Sub-Sample Accurate Stitching of ABSNs
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+
+      promise_test(async t => {
+        // Sub‑sample stitching with identical context/buffer rates.
+        const sampleRate = 44100;
+        const bufferRate = 44100;
+        const bufferLength = 30;
+
+        // Experimentally determined thresholds. DO NOT relax these values
+        // too far from these values to make the tests pass.
+        const errorThreshold = 9.0957e-5;
+        const snrThreshold = 85.580;
+
+        assert_equals(sampleRate, 44100, 'Test 1: context.sampleRate');
+        const resultBuffer =
+            await testBufferStitching(sampleRate, bufferRate, bufferLength);
+
+        const actual = resultBuffer.getChannelData(0);
+        const expected = resultBuffer.getChannelData(1);
+
+        assert_array_equal_within_eps(
+            actual,
+            expected,
+            errorThreshold,
+            `Stitched sine‑wave buffers at sample rate ${bufferRate}`);
+
+        const SNR = 10 * Math.log10(computeSNR(actual, expected));
+
+        assert_greater_than_equal(
+            SNR,
+            snrThreshold,
+            `SNR (${SNR.toFixed(3)} dB) should be ≥ ${snrThreshold} dB`);
+      }, 'buffer-stitching-1');
+
+      promise_test(async t => {
+        // Sub‑sample stitching with differing context/buffer rates.
+        const sampleRate = 44100;
+        const bufferRate = 43800;
+        const bufferLength = 30;
+
+        // Experimentally determined thresholds. DO NOT relax these values
+        // too far from these values to make the tests pass.
+        const errorThreshold = 3.8986e-3;
+        const snrThreshold = 65.737;
+
+        assert_equals(sampleRate, 44100, 'Test 2: context.sampleRate');
+
+        const resultBuffer = await testBufferStitching(
+            sampleRate,
+            bufferRate,
+            bufferLength);
+
+        const actual = resultBuffer.getChannelData(0);
+        const expected = resultBuffer.getChannelData(1);
+
+        assert_array_equal_within_eps(
+            actual,
+            expected,
+            errorThreshold,
+            `Stitched sine‑wave buffers at sample rate ${bufferRate}`);
+
+        const SNR = 10 * Math.log10(computeSNR(actual, expected));
+
+        assert_greater_than_equal(
+            SNR,
+            snrThreshold,
+            `SNR (${SNR.toFixed(3)} dB) should be ≥ ${snrThreshold} dB`);
+      }, 'buffer-stitching-2');
+
+      // Create graph to test stitching of consecutive ABSNs.  The context rate
+      // is |sampleRate|, and the buffers have a fixed length of |bufferLength|
+      // and rate of |bufferRate|.  The |bufferRate| should not be too different
+      // from |sampleRate| because of interpolation of the buffer to the context
+      // rate.
+      function testBufferStitching(sampleRate, bufferRate, bufferLength) {
+        // The OfflineAudioContext used for rendering.
+        // Channel 0 captures the stitched output.
+        // Channel 1 records the expected reference signal.
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          length: sampleRate,
+          sampleRate: sampleRate,
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Reference signal (channel 1): pure 440 Hz sine wave
+        const ref = new OscillatorNode(context, {frequency: 440, type: 'sine'});
+        ref.connect(merger, 0, 1);
+        ref.start();
+
+        // The test signal is a bunch of short AudioBufferSources containing
+        // bits of a sine wave.
+        const waveSignal = new Float32Array(context.length);
+        const omega = 2 * Math.PI / bufferRate * ref.frequency.value;
+        for (let k = 0; k < context.length; ++k) {
+          waveSignal[k] = Math.sin(omega * k);
+        }
+
+        // Slice the sine wave into many little buffers to be assigned to ABSNs
+        // that are started at the appropriate times to produce a final sine
+        // wave.
+        for (let k = 0; k < context.length; k += bufferLength) {
+          const buffer =
+              new AudioBuffer({length: bufferLength, sampleRate: bufferRate});
+
+          // Copy the slice into the AudioBuffer’s first (and only) channel.
+          buffer.copyToChannel(waveSignal.slice(k, k + bufferLength), 0);
+
+          const src = new AudioBufferSourceNode(context, {buffer: buffer});
+          src.connect(merger, 0, 0);
+          src.start(k / bufferRate);
+        }
+
+        return context.startRendering();
+      }
+    </script>
+  </body>
+</html>

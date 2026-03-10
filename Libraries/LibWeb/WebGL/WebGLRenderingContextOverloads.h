@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/WebGLRenderingContextImpl.h>
@@ -24,7 +25,7 @@ public:
     WebGLRenderingContextOverloads(JS::Realm&, NonnullOwnPtr<OpenGLContext>);
 
     void buffer_data(WebIDL::UnsignedLong target, WebIDL::LongLong size, WebIDL::UnsignedLong usage);
-    void buffer_data(WebIDL::UnsignedLong target, GC::Root<WebIDL::BufferSource> data, WebIDL::UnsignedLong usage);
+    void buffer_data(WebIDL::UnsignedLong target, Optional<GC::Root<WebIDL::BufferSource>> data, WebIDL::UnsignedLong usage);
     void buffer_sub_data(WebIDL::UnsignedLong target, WebIDL::LongLong offset, GC::Root<WebIDL::BufferSource> data);
     void compressed_tex_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> data);
     void compressed_tex_sub_image2d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> data);

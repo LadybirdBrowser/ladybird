@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Testing AudioContext.playbackStats attribute</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+
+  <body>
+    <script>
+      function should_be_in_range(value, min, max) {
+        assert_greater_than_equal(value, min);
+        assert_less_than_equal(value, max);
+      }
+
+      promise_test(async (t) => {
+        let context = new AudioContext();
+        assert_not_equals(context.playbackStats, null);
+
+        // Initially, the stats should all be 0.
+        let stats = context.playbackStats;
+        assert_equals(stats.totalDuration, 0);
+        assert_equals(stats.underrunDuration, 0);
+        assert_equals(stats.underrunEvents, 0);
+        assert_equals(stats.minimumLatency, 0);
+        assert_equals(stats.maximumLatency, 0);
+        assert_equals(stats.averageLatency, 0);
+
+        // Asynchronously wait for 1.5 seconds. We will then check that the
+        // stats reflect that the context has been playing for at least 0.9
+        // seconds. The 0.1 second margin is needed because the stats are
+        // updated once per second, and the context is not guaranteed to have
+        // been playing for exactly 1 second by the time they are updated.
+        // The extra 0.5 seconds of margin after the 1 second mark is to avoid
+        // flakiness.
+        // Note that awaiting moves us to a new task in the execution cycle,
+        // which allows the stats to change.
+        await new Promise((r) => step_timeout(r, 1500));
+        assert_greater_than(stats.totalDuration, 0.9);
+        should_be_in_range(
+          stats.underrunDuration,
+          0,
+          stats.totalDuration
+        );
+        assert_greater_than_equal(stats.underrunEvents, 0);
+        assert_greater_than_equal(stats.minimumLatency, 0);
+        assert_greater_than_equal(stats.maximumLatency, 0);
+        should_be_in_range(
+          stats.averageLatency,
+          stats.minimumLatency,
+          stats.maximumLatency
+        );
+      }, "Test that the stats increase during playback");
+
+      promise_test(async (t) => {
+        let context = new AudioContext();
+
+        // Wait a while so that we get stats that aren't all zeroes.
+        await new Promise((r) => step_timeout(r, 1500));
+        let stats = context.playbackStats;
+        assert_greater_than(stats.totalDuration, 1.0);
+
+        // Check that the stats from the toJSON object match the PlaybackStats
+        // object.
+        let json = stats.toJSON();
+        assert_equals(json.totalDuration, stats.totalDuration);
+        assert_equals(
+          json.underrunDuration,
+          stats.underrunDuration
+        );
+        assert_equals(json.underrunEvents, stats.underrunEvents);
+        assert_equals(json.minimumLatency, stats.minimumLatency);
+        assert_equals(json.maximumLatency, stats.maximumLatency);
+        assert_equals(json.averageLatency, stats.averageLatency);
+      }, "Test that toJSON reflects the current stats");
+
+      promise_test(async (t) => {
+        let context = new AudioContext();
+
+        // Wait a while so that we get stats that aren't all zeroes.
+        await new Promise((r) => step_timeout(r, 1500));
+        let stats = context.playbackStats;
+        assert_greater_than(stats.totalDuration, 1.0);
+
+        // Average latency should be between minimum and maximum.
+        let beforeReset = stats.toJSON();
+        should_be_in_range(
+          beforeReset.averageLatency,
+          beforeReset.minimumLatency,
+          beforeReset.maximumLatency
+        );
+
+        // After a reset, the minimum, maximum and average latencies should be
+        // the same.
+        stats.resetLatency();
+        let afterReset = stats.toJSON();
+        assert_equals(afterReset.minimumLatency, afterReset.averageLatency);
+        assert_equals(afterReset.maximumLatency, afterReset.averageLatency);
+      }, "Test PlaybackStats.resetLatency()");
+
+      promise_test(async (t) => {
+        // Tests that the API adheres to run to completion semantics, as
+        // defined here: https://w3ctag.github.io/design-principles/#js-rtc
+        let context = new AudioContext();
+
+        // Wait a while so that we get stats that aren't all zeroes.
+        await new Promise((r) => step_timeout(r, 1500));
+        let stats = context.playbackStats;
+        assert_greater_than(stats.totalDuration, 1.0);
+        let beforeWait = stats.toJSON();
+
+        // Synchronously wait 1500 ms.
+        const start = performance.now();
+        while (performance.now() - start < 1500);
+
+        // We are still in the same execution cycle, so the stats shouldn't
+        // have changed.
+        assert_equals(
+          stats.totalDuration,
+          beforeWait.totalDuration
+        );
+        assert_equals(
+          stats.underrunDuration,
+          beforeWait.underrunDuration
+        );
+        assert_equals(
+          stats.underrunEvents,
+          beforeWait.underrunEvents
+        );
+        assert_equals(stats.minimumLatency, beforeWait.minimumLatency);
+        assert_equals(stats.maximumLatency, beforeWait.maximumLatency);
+        assert_equals(stats.averageLatency, beforeWait.averageLatency);
+
+        // Move to the next execution cycle. Since it was 500 ms since the
+        // stats were last updated, they have now increased.
+        await Promise.resolve();
+        assert_greater_than(
+          stats.totalDuration,
+          beforeWait.totalDuration
+        );
+      }, "Test that stats are unchanged within the same execution cycle.");
+    </script>
+  </body>
+</html>

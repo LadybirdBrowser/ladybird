@@ -36,11 +36,11 @@ default coneOuterAngle: 360
 default coneOuterGain: 0
 Did throw RangeError: refDistance cannot be negative
 Did throw RangeError: rolloffFactor cannot be negative
-Did throw RangeError: maxDistance cannot be negative
+Did throw RangeError: maxDistance must be positive
 Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
 Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
 Did throw RangeError: refDistance cannot be negative
 Did throw RangeError: rolloffFactor cannot be negative
-Did throw RangeError: maxDistance cannot be negative
+Did throw RangeError: maxDistance must be positive
 Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]
 Did throw InvalidStateError: coneOuterGain must be in the range of [0, 1]

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {
@@ -21,8 +22,17 @@ public:
     GC::Ptr<WebIDL::CallbackType> onended();
     void set_onended(GC::Ptr<WebIDL::CallbackType>);
 
-    WebIDL::ExceptionOr<void> start(double when = 0);
-    WebIDL::ExceptionOr<void> stop(double when = 0);
+    WebIDL::ExceptionOr<void> start(f64 when = 0);
+    WebIDL::ExceptionOr<void> stop(f64 when = 0);
+
+    // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-source-started-slot
+    // Exposed as an internal helper for the rendering implementation.
+    bool source_started_for_rendering() const { return m_source_started; }
+
+    // Exposed as internal helpers for the rendering implementation.
+    // These are the scheduled times captured from start()/stop() calls.
+    Optional<f64> start_when_for_rendering() const { return m_start_when; }
+    Optional<f64> stop_when_for_rendering() const { return m_stop_when; }
 
 protected:
     AudioScheduledSourceNode(JS::Realm&, GC::Ref<BaseAudioContext>);
@@ -32,6 +42,10 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
+
+    // Control-thread owned scheduling state.
+    Optional<f64> m_start_when;
+    Optional<f64> m_stop_when;
 
 private:
     // https://webaudio.github.io/web-audio-api/#dom-audioscheduledsourcenode-source-started-slot

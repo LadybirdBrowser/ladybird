@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	AudioWorkletNode channel count: dynamic propagation and honoring outputChannelCount (single serialized test).

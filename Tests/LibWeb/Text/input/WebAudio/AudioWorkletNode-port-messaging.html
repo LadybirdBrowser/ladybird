@@ -1,0 +1,43 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        await context.audioWorklet.addModule("../../data/AudioWorklet-port-roundtrip-processor.js");
+
+        let processorOptions = {
+            description: "foo",
+            payload: [0, 1, 2, 3],
+        };
+
+        let node = new AudioWorkletNode(context, "port-roundtrip-processor", {
+            processorOptions,
+        });
+
+        let phase = 0;
+        node.port.onmessage = event => {
+            if (phase === 0) {
+                println("options.description: " + event.data.processorOptions.description);
+                println("options.payload: " + event.data.processorOptions.payload.join(","));
+                phase = 1;
+                node.port.postMessage("ping");
+                return;
+            }
+
+            if (phase === 1) {
+                println("reply: " + event.data);
+                phase = 2;
+
+                let defaultNode = new AudioWorkletNode(context, "port-roundtrip-processor");
+                defaultNode.port.onmessage = defaultEvent => {
+                    println("default.keys.length: " + Object.keys(defaultEvent.data).length);
+                    println("default.numberOfInputs: " + defaultEvent.data.numberOfInputs);
+                    println("default.numberOfOutputs: " + defaultEvent.data.numberOfOutputs);
+                    done();
+                };
+                return;
+            }
+        };
+    });
+</script>

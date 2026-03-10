@@ -1,0 +1,3 @@
+channels: 2
+sampleRate: 44100
+length: 468992

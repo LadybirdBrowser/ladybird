@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      waveshaper-limits.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      let context;
+      let bufferData;
+      let outputData;
+      let reference;
+
+      const sampleRate = 48000;
+      // Must be odd so we have an exact middle point.
+      const testFrames = 23;
+      const scale = 1 / ((testFrames - 1) / 2 - 1);
+      // Number of decimal digits to print
+      const decimals = 6;
+      // Required accuracy
+      const diffThreshold = Math.pow(10, -decimals);
+
+      // Generate reference data
+      const generateReference = () => {
+        // The curve data is 0, 1, 0, and the input data is a ramp from -1+eps
+        // to 1+eps.  Then the output is a ramp from 0 to 1 back to 0.
+        const ref = new Float32Array(testFrames);
+        const midPoint = (testFrames - 1) / 2;
+        // First sample is below -1 at -1-scale.
+        ref[0] = 0;
+        // Generate ramp up to the mid-point
+        for (let k = 0; k < midPoint; ++k) {
+          ref[k + 1] = k * scale;
+        }
+        // The value at the mid-point must be 1, from the curve
+        ref[midPoint] = 1;
+        // Generate a ramp from 1 down to 0
+        for (let k = midPoint; k < testFrames - 1; ++k) {
+          ref[k + 1] = 2 - k * scale;
+        }
+        // The last sample is out of range at 1+scale
+        ref[testFrames - 1] = 0;
+        return ref;
+      };
+
+      const checkResult = renderedBuffer => {
+        outputData = renderedBuffer.getChannelData(0);
+        reference = generateReference();
+        for (let k = 0; k < outputData.length; ++k) {
+          const diff = outputData[k] - reference[k];
+          assert_less_than_equal(
+              Math.abs(diff),
+              diffThreshold,
+              `Max error mapping ${bufferData[k].toFixed(decimals)} to ` +
+                  `${outputData[k].toFixed(decimals)}`);
+        }
+      };
+
+      promise_test(async t => {
+        context = new OfflineAudioContext(1, testFrames, sampleRate);
+        // Create input values between -1.1 and 1.1
+        const buffer = new AudioBuffer({ length: testFrames,
+            numberOfChannels: 1, sampleRate: context.sampleRate });
+        bufferData = new Float32Array(testFrames);
+        const start = -1 - scale;
+        for (let k = 0; k < testFrames; ++k) {
+          bufferData[k] = k * scale + start;
+        }
+        buffer.copyToChannel(bufferData, 0);
+
+        const source = new AudioBufferSourceNode(context, { buffer });
+
+        // Create simple waveshaper. It should map -1 to 0, 0 to 1, and +1
+        // to 0 and interpolate all points in between using a simple linear
+        // interpolator.
+        const curve = new Float32Array(3);
+        curve[0] = 0;
+        curve[1] = 1;
+        curve[2] = 0;
+
+        const shaper = new WaveShaperNode(context, { curve });
+        source.connect(shaper);
+        shaper.connect(context.destination);
+
+        source.start();
+        const renderedBuffer = await context.startRendering();
+        checkResult(renderedBuffer);
+      }, 'WaveShaperNode maps input values outside [-1,1] according to curve' +
+          ' and clamps output correctly');
+    </script>
+  </body>
+</html>

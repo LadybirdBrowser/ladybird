@@ -2,6 +2,8 @@
 #import <HTML/HTMLElement.idl>
 #import <Internals/InternalAnimationTimeline.idl>
 #import <Internals/InternalGamepad.idl>
+#import <WebAudio/BaseAudioContext.idl>
+#import <WebAudio/OhNoesNode.idl>
 
 [Exposed=Nobody]
 interface Internals {
@@ -82,6 +84,8 @@ interface Internals {
     undefined setEnvironmentsTopLevelURL(USVString url);
 
     InternalGamepad connectVirtualGamepad();
+
+    OhNoesNode createOhNoesNode(BaseAudioContext context, DOMString path);
 
     undefined setHighlightedNode(Node? node);
 

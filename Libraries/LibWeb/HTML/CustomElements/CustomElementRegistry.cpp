@@ -53,7 +53,7 @@ static JS::ThrowCompletionOr<GC::Ref<WebIDL::CallbackType>> convert_value_to_cal
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, value);
 
     // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
-    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm());
+    return vm.heap().allocate<WebIDL::CallbackType>(value.as_object(), HTML::incumbent_realm(vm));
 }
 
 // https://webidl.spec.whatwg.org/#es-sequence

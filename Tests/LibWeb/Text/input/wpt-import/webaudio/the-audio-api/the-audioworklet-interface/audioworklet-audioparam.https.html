@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test AudioWorkletNode's basic AudioParam features
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+      const renderLength = 48000 * 0.6;
+      const filePath = 'processors/gain-processor.js';
+
+      promise_test(async t => {
+        const context = new OfflineAudioContext(1, renderLength, sampleRate);
+        await context.audioWorklet.addModule(filePath);
+        const constantSourceNode = new ConstantSourceNode(context);
+        const gainNode = new GainNode(context);
+        const inverterNode = new GainNode(context, {gain: -1});
+        const gainWorkletNode = new AudioWorkletNode(context, 'gain');
+        const gainWorkletParam = gainWorkletNode.parameters.get('gain');
+
+        assert_equals(
+            gainWorkletParam.value,
+            Math.fround(0.707),
+            'Default gain value of gainWorkletNode');
+        gainWorkletParam.value = 0.1;
+        assert_equals(
+            gainWorkletParam.value,
+            Math.fround(0.1),
+            'Value of gainWorkletParam after setter = 0.1');
+
+        constantSourceNode.connect(gainNode)
+            .connect(inverterNode)
+            .connect(context.destination);
+        constantSourceNode.connect(gainWorkletNode)
+            .connect(context.destination);
+
+        [gainNode.gain, gainWorkletParam].forEach(param => {
+          param.setValueAtTime(0, 0);
+          param.linearRampToValueAtTime(1, 0.1);
+          param.exponentialRampToValueAtTime(0.5, 0.2);
+          param.setValueCurveAtTime([0, 2, 0.3], 0.2, 0.1);
+          param.setTargetAtTime(0.01, 0.4, 0.5);
+        });
+
+        context.suspend(0.5).then(() => {
+          gainNode.gain.value = 1.5;
+          gainWorkletParam.value = 1.5;
+          context.resume();
+        });
+
+        constantSourceNode.start();
+        const renderedBuffer = await context.startRendering();
+        const actual = renderedBuffer.getChannelData(0);
+        assert_array_equals(
+            actual,
+            new Float32Array(actual.length),
+            'The rendered buffer should be constant 0');
+      }, 'Verifying AudioParam in AudioWorkletNode');
+    </script>
+  </body>
+</html>

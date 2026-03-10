@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Setup graph with AudioWorklet and AudioBufferSourceNode
+Pass	Verify input channel count change after AudioBufferSourceNode stops

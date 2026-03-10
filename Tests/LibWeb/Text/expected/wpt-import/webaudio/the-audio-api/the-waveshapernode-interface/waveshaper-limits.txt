@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	WaveShaperNode maps input values outside [-1,1] according to curve and clamps output correctly

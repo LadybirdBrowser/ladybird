@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	AudioWorklet module should load successfully
+Pass	ConvolverNode should stop active processing after source stops

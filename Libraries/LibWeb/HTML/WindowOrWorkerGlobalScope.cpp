@@ -7,10 +7,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/QuickSort.h>
 #include <AK/String.h>
 #include <AK/Utf8View.h>
 #include <AK/Vector.h>
+#include <LibCore/Environment.h>
 #include <LibGC/Function.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
@@ -54,6 +56,7 @@
 #include <LibWeb/TrustedTypes/TrustedTypePolicyFactory.h>
 #include <LibWeb/UserTiming/PerformanceMark.h>
 #include <LibWeb/UserTiming/PerformanceMeasure.h>
+#include <LibWeb/WebAudio/AudioContext.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -1061,6 +1064,34 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 {
     for (auto event_source : m_registered_event_sources)
         event_source->forcibly_close();
+}
+
+void WindowOrWorkerGlobalScopeMixin::register_audio_context(Badge<WebAudio::AudioContext>, GC::Ref<WebAudio::AudioContext> audio_context)
+{
+    m_registered_audio_contexts.set(*audio_context);
+    if (Core::Environment::has("WEBAUDIO_LOG"sv))
+        dbgln("WebAudio: register AudioContext {:p} (global {:p})", audio_context.ptr(), &this_impl());
+}
+
+void WindowOrWorkerGlobalScopeMixin::unregister_audio_context(Badge<WebAudio::AudioContext>, GC::Ref<WebAudio::AudioContext> audio_context)
+{
+    m_registered_audio_contexts.remove(*audio_context);
+    if (Core::Environment::has("WEBAUDIO_LOG"sv))
+        dbgln("WebAudio: unregister AudioContext {:p} (global {:p})", audio_context.ptr(), &this_impl());
+}
+
+void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_audio_contexts()
+{
+    // Close and unregister all contexts whose relevant global object is this.
+    // This avoids leaking EngineController clients across document navigations.
+
+    Vector<GC::Ref<WebAudio::AudioContext>> contexts;
+    for (auto& audio_context : m_registered_audio_contexts)
+        contexts.append(audio_context);
+
+    m_registered_audio_contexts.clear();
+    for (auto audio_context : contexts)
+        audio_context->forcibly_close();
 }
 
 void WindowOrWorkerGlobalScopeMixin::register_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket> web_socket)

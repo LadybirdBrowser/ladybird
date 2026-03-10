@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        async function expectAddModuleReject(url, label) {
+            try {
+                await context.audioWorklet.addModule(url);
+                println(label + ": FAIL (expected rejection)");
+            } catch (e) {
+                println(label + ": " + e.name);
+            }
+        }
+
+        await expectAddModuleReject(
+            "../../data/AudioWorklet-processor-duplicate-descriptors.js",
+            "duplicate names"
+        );
+
+        await expectAddModuleReject(
+            "../../data/AudioWorklet-processor-bad-defaultValue.js",
+            "defaultValue outside range"
+        );
+
+        println("PASS");
+        done();
+    });
+</script>

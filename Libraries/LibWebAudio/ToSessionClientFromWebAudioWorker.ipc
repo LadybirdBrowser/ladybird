@@ -1,0 +1,13 @@
+#include <AK/ByteString.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/File.h>
+#include <LibWeb/WebAudio/AudioParamDescriptor.h>
+
+endpoint ToSessionClientFromWebAudioWorker
+{
+	session_created(u64 request_id, u64 session_id, u32 sample_rate, u32 channel_count, Core::AnonymousBuffer timing_buffer, IPC::File timing_notify_fd) => ()
+	session_failed(u64 request_id, ByteString error_message) => ()
+	worklet_processor_error(u64 session_id, u64 node_id) => ()
+	worklet_processor_registered(u64 session_id, String name, Vector<Web::WebAudio::AudioParamDescriptor> descriptors, u64 generation) => ()
+	worklet_module_evaluated(u64 session_id, u64 module_id, u64 required_generation, bool success, String error_name, String error_message, Vector<String> failed_processor_registrations) => ()
+}

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Testing AudioContext.getOutputTimestamp() method
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define('getoutputtimestamp-initial-values', function(task, should) {
+        let context = new AudioContext;
+        let timestamp = context.getOutputTimestamp();
+
+        should(timestamp.contextTime, 'timestamp.contextTime').exist();
+        should(timestamp.performanceTime, 'timestamp.performanceTime').exist();
+
+        should(timestamp.contextTime, 'timestamp.contextTime')
+            .beGreaterThanOrEqualTo(0);
+        should(timestamp.performanceTime, 'timestamp.performanceTime')
+            .beGreaterThanOrEqualTo(0);
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

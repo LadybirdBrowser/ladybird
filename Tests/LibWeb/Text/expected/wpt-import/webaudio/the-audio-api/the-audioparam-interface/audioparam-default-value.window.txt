@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	AudioParam: defaultValue attribute value
+Pass	AudioParam: defaultValue is a read-only attribute
+Pass	AudioParam: value attribute is initialized correctly

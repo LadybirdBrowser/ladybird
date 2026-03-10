@@ -161,6 +161,10 @@ public:
                         break;
                 }
 
+                if (!m_cached_display_list || !m_backing_stores.is_valid()) {
+                    continue;
+                }
+
                 if (m_cached_display_list && m_backing_stores.is_valid()) {
                     m_skia_player->execute(*m_cached_display_list, Painting::ScrollStateSnapshotByDisplayList(m_cached_scroll_state_snapshot), *m_backing_stores.back_store);
                     i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;

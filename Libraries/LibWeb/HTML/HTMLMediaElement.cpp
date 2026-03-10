@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
+#include <LibMedia/Sinks/AudioMixingSink.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibWeb/Bindings/HTMLMediaElementPrototype.h>
@@ -47,6 +48,8 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/WebAudio/Debug.h>
+#include <LibWeb/WebAudio/MediaElementAudioSourceProvider.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::HTML {
@@ -545,20 +548,17 @@ void HTMLMediaElement::page_mute_state_changed(Badge<Page>)
 // https://html.spec.whatwg.org/multipage/media.html#effective-media-volume
 double HTMLMediaElement::effective_media_volume() const
 {
-    // 1. If the user has indicated that the user agent is to override the volume of the element, then return the
-    //    volume desired by the user.
-    if (document().page().page_mute_state() == MuteState::Muted)
-        return 0.0;
+    // NOTE: Page/tab muting is handled at the AudioServer connection level.
 
-    // 2. If the element's audio output is muted, then return zero.
+    // 1. If the element's audio output is muted, then return zero.
     if (m_muted)
         return 0.0;
 
-    // 3. Let volume be the playback volume of the audio portions of the media element, in range 0.0 (silent) to
+    // 2. Let volume be the playback volume of the audio portions of the media element, in range 0.0 (silent) to
     //    1.0 (loudest).
     auto volume = clamp(m_volume, 0.0, 1.0);
 
-    // 4. Return volume, interpreted relative to the range 0.0 to 1.0, with 0.0 being silent, and 1.0 being the loudest
+    // 3. Return volume, interpreted relative to the range 0.0 to 1.0, with 0.0 being silent, and 1.0 being the loudest
     //    setting, values in between increasing in loudness. The range need not be linear. The loudest setting may be
     //    lower than the system's loudest possible setting; for example the user could have set a maximum volume.
     return volume;
@@ -566,8 +566,78 @@ double HTMLMediaElement::effective_media_volume() const
 
 void HTMLMediaElement::update_volume()
 {
-    if (m_playback_manager)
-        m_playback_manager->set_volume(effective_media_volume());
+    if (!m_playback_manager)
+        return;
+
+    // Route audio into WebAudio by installing the tap. The sink suppresses direct output
+    // while tapped, so we keep the element volume here for the tap path.
+    m_playback_manager->set_volume(effective_media_volume());
+}
+
+void HTMLMediaElement::set_webaudio_audio_tap(NonnullRefPtr<WebAudio::MediaElementAudioSourceProvider> provider)
+{
+    m_webaudio_audio_source_provider = move(provider);
+    ensure_webaudio_audio_tap_installed();
+    update_volume();
+}
+
+void HTMLMediaElement::clear_webaudio_audio_tap()
+{
+    if (m_webaudio_audio_source_provider) {
+        m_webaudio_audio_source_provider->declare_end_of_stream();
+    }
+
+    if (m_playback_manager) {
+        m_playback_manager->clear_audio_tap();
+    }
+    m_webaudio_audio_source_provider = nullptr;
+    update_volume();
+}
+
+void HTMLMediaElement::ensure_webaudio_audio_tap_installed()
+{
+    if (!m_webaudio_audio_source_provider)
+        return;
+    if (!m_playback_manager)
+        return;
+    auto* audio_sink = m_playback_manager->audio_sink();
+    if (!audio_sink)
+        return;
+
+    Audio::SampleSpecification device_spec = audio_sink->device_sample_specification();
+    Optional<u32> target_sample_rate = m_webaudio_audio_source_provider->target_sample_rate();
+    Audio::SampleSpecification tap_spec = device_spec;
+    if (target_sample_rate.has_value() && target_sample_rate.value() > 0) {
+        if (target_sample_rate.value() != device_spec.sample_rate()) {
+            if (Web::WebAudio::should_log_media_element_bridge()) {
+                static Atomic<i64> s_last_mismatch_log_ms { 0 };
+                i64 now_ms = AK::MonotonicTime::now().milliseconds();
+                i64 last_ms = s_last_mismatch_log_ms.load(AK::MemoryOrder::memory_order_relaxed);
+                if ((now_ms - last_ms) >= 1000 && s_last_mismatch_log_ms.compare_exchange_strong(last_ms, now_ms, AK::MemoryOrder::memory_order_relaxed)) {
+                    WA_MEDIA_DBGLN("[WebAudio] media-tap device sample rate mismatch: target_sr={} device_sr={} channels={}",
+                        target_sample_rate.value(),
+                        device_spec.sample_rate(),
+                        device_spec.channel_count());
+                }
+            }
+        } else {
+            tap_spec = Audio::SampleSpecification(target_sample_rate.value(), device_spec.channel_map());
+        }
+    }
+
+    m_playback_manager->set_audio_tap(
+        [weak_self = GC::Weak(*this), provider = NonnullRefPtr { *m_webaudio_audio_source_provider }](ReadonlySpan<float> interleaved, Audio::SampleSpecification const& sample_specification, AK::Duration start_time) {
+            if (!weak_self)
+                return;
+
+            if (interleaved.is_empty())
+                return;
+
+            provider->push_interleaved(interleaved, sample_specification.sample_rate(), sample_specification.channel_count(), start_time);
+
+            (void)start_time;
+        },
+        tap_spec);
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-addtexttrack
@@ -621,6 +691,10 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
     [[maybe_unused]] auto pending_tasks = HTML::main_thread_event_loop().task_queue().take_tasks_matching([&](auto& task) {
         return task.source() == media_element_event_task_source();
     });
+
+    // AD-HOC: Flush WebAudio tap state so a new resource does not leak old buffered audio.
+    if (m_webaudio_audio_source_provider)
+        m_webaudio_audio_source_provider->declare_discontinuity();
 
     // FIXME: 3. For each task in pending tasks that would resolve pending play promises or reject pending play promises, immediately resolve or
     //           reject those promises in the order the corresponding tasks were queued.
@@ -1397,6 +1471,8 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
 
     auto event = TrackEvent::create(realm, EventNames::addtrack, move(event_init));
     m_audio_tracks->dispatch_event(event);
+
+    ensure_webaudio_audio_tap_installed();
 }
 
 void HTMLMediaElement::on_video_track_added(Media::Track const& track)
@@ -1587,6 +1663,9 @@ void HTMLMediaElement::set_up_playback_manager()
 
     m_playback_manager->add_media_source(*m_fetch_data->stream);
 
+    ensure_webaudio_audio_tap_installed();
+    update_volume();
+
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
     });
@@ -1675,7 +1754,7 @@ void HTMLMediaElement::handle_media_source_failure(Span<GC::Ref<WebIDL::Promise>
         return;
 
     // 6. Reject pending play promises with promises and a "NotSupportedError" DOMException.
-    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, "Media is not supported"_utf16);
+    reject_pending_play_promises<WebIDL::NotSupportedError>(promises, Utf16String::from_utf8(m_error->message()));
 
     // 7. Set the element's delaying-the-load-event flag to false. This stops delaying the load event.
     m_delaying_the_load_event.clear();
@@ -1898,6 +1977,12 @@ void HTMLMediaElement::pause_element()
         // 1. Change the value of paused to true.
         set_paused(true);
 
+        // AD-HOC: If this element is tapped by WebAudio, pause/resume must not replay
+        // buffered pre-pause audio. Declare a discontinuity so the next pushed chunk
+        // establishes a fresh timeline anchor at the resumed media position.
+        if (m_webaudio_audio_source_provider)
+            m_webaudio_audio_source_provider->declare_discontinuity();
+
         // 2. Take pending play promises and let promises be the result.
         auto promises = take_pending_play_promises();
 
@@ -1941,6 +2026,10 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
 
     // 4. Set the seeking IDL attribute to true.
     set_seeking(true);
+
+    if (m_webaudio_audio_source_provider) {
+        m_webaudio_audio_source_provider->declare_discontinuity();
+    }
 
     // 5. If the seek was in response to a DOM method call or setting of an IDL attribute, then continue the script. The
     //    remainder of these steps must be run in parallel. With the exception of the steps marked with ⌛, they could be
@@ -2293,6 +2382,10 @@ void HTMLMediaElement::reached_end_of_media_playback()
         // FIXME: Tell PlaybackManager that we're looping to allow data providers to decode frames ahead when looping
         //        and remove any delay in displaying the first frame again.
         return;
+    }
+
+    if (m_webaudio_audio_source_provider) {
+        m_webaudio_audio_source_provider->declare_end_of_stream();
     }
 
     // 2. As defined above, the ended IDL attribute starts returning true once the event loop returns to step 1.

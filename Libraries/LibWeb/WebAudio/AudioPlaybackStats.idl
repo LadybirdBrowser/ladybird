@@ -1,0 +1,12 @@
+// https://webaudio.github.io/web-audio-api/#AudioPlaybackStats
+[Exposed=Window, SecureContext]
+interface AudioPlaybackStats {
+    readonly attribute double underrunDuration;
+    readonly attribute unsigned long underrunEvents;
+    readonly attribute double totalDuration;
+    readonly attribute double averageLatency;
+    readonly attribute double minimumLatency;
+    readonly attribute double maximumLatency;
+    undefined resetLatency();
+    [Default] object toJSON();
+};

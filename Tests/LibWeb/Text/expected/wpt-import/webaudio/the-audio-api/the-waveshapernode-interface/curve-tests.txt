@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	WaveShaperNode - Testing that -1, 0 and +1 map correctly to curve (with 1:1 correlation)
+Pass	WaveShaperNode - Testing interpolation (where inputs don't correlate directly to curve elements)
+Pass	WaveShaperNode - Testing out-of-range inputs (should be mapped to the first/last elements of the curve)
+Pass	WaveShaperNode - Testing a 2-element curve (does not have a middle element)
+Pass	WaveShaperNode - Testing a 4-element curve (does not have a middle element)
+Pass	WaveShaperNode - Testing a huge curve
+Pass	WaveShaperNode - Testing null curve (should return input values)

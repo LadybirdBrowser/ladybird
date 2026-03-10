@@ -1,0 +1,6 @@
+// https://webaudio.github.io/web-audio-api/#audioworklet
+[Exposed=Window]
+interface AudioWorklet {
+    Promise<undefined> addModule(USVString moduleURL);
+    readonly attribute MessagePort port;
+};

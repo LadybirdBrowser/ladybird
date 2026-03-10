@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/AudioParamPrototype.h>
 #include <LibWeb/Bindings/BiquadFilterNodePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -12,6 +13,8 @@
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/BiquadFilterNode.h>
+#include <LibWeb/WebAudio/RenderNodes/BiquadFilterRenderNode.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::WebAudio {
 
@@ -68,10 +71,70 @@ GC::Ref<AudioParam> BiquadFilterNode::gain() const
 // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-getfrequencyresponse
 WebIDL::ExceptionOr<void> BiquadFilterNode::get_frequency_response(GC::Root<WebIDL::BufferSource> const& frequency_hz, GC::Root<WebIDL::BufferSource> const& mag_response, GC::Root<WebIDL::BufferSource> const& phase_response)
 {
-    (void)frequency_hz;
-    (void)mag_response;
-    (void)phase_response;
-    dbgln("FIXME: Implement BiquadFilterNode::get_frequency_response(Float32Array, Float32Array, Float32Array)");
+    // https://webaudio.github.io/web-audio-api/#dom-biquadfilternode-getfrequencyresponse
+
+    if (!is<JS::Float32Array>(*frequency_hz->raw_object())
+        || !is<JS::Float32Array>(*mag_response->raw_object())
+        || !is<JS::Float32Array>(*phase_response->raw_object())) {
+        return WebIDL::InvalidAccessError::create(realm(), "Arguments must be Float32Array"_utf16);
+    }
+
+    auto const& frequency_data = static_cast<JS::Float32Array const&>(*frequency_hz->raw_object()).data();
+    auto mag_data = static_cast<JS::Float32Array&>(*mag_response->raw_object()).data();
+    auto phase_data = static_cast<JS::Float32Array&>(*phase_response->raw_object()).data();
+
+    if (mag_data.size() != frequency_data.size() || phase_data.size() != frequency_data.size())
+        return WebIDL::InvalidAccessError::create(realm(), "All arrays must have the same length"_utf16);
+
+    size_t const length = frequency_data.size();
+    if (length == 0)
+        return {};
+
+    double const sample_rate = context()->sample_rate();
+    double const nyquist = sample_rate * 0.5;
+
+    Render::BiquadFilterType const render_type = static_cast<Render::BiquadFilterType>(to_underlying(m_type));
+    float const computed_frequency = Render::compute_biquad_computed_frequency(sample_rate, m_frequency->value(), m_detune->value());
+    Render::BiquadCoefficients const c = Render::compute_biquad_normalized_coefficients(render_type, sample_rate, computed_frequency, m_q->value(), m_gain->value());
+
+    for (size_t i = 0; i < length; ++i) {
+        float const f = frequency_data[i];
+
+        if (!__builtin_isfinite(f) || __builtin_isnan(f) || f < 0.0f || static_cast<double>(f) > nyquist) {
+            mag_data[i] = AK::NaN<float>;
+            phase_data[i] = AK::NaN<float>;
+            continue;
+        }
+
+        double const omega = 2.0 * AK::Pi<double> * (static_cast<double>(f) / sample_rate);
+        double const cos_omega = AK::cos(omega);
+        double const sin_omega = AK::sin(omega);
+        double const cos_2omega = AK::cos(2.0 * omega);
+        double const sin_2omega = AK::sin(2.0 * omega);
+
+        double const num_re = static_cast<double>(c.b0) + (static_cast<double>(c.b1) * cos_omega) + (static_cast<double>(c.b2) * cos_2omega);
+        double const num_im = -((static_cast<double>(c.b1) * sin_omega) + (static_cast<double>(c.b2) * sin_2omega));
+
+        double const den_re = 1.0 + (static_cast<double>(c.a1) * cos_omega) + (static_cast<double>(c.a2) * cos_2omega);
+        double const den_im = -((static_cast<double>(c.a1) * sin_omega) + (static_cast<double>(c.a2) * sin_2omega));
+
+        double const den_mag2 = (den_re * den_re) + (den_im * den_im);
+        if (den_mag2 == 0.0 || !__builtin_isfinite(den_mag2) || __builtin_isnan(den_mag2)) {
+            mag_data[i] = AK::NaN<float>;
+            phase_data[i] = AK::NaN<float>;
+            continue;
+        }
+
+        double const h_re = (num_re * den_re + num_im * den_im) / den_mag2;
+        double const h_im = (num_im * den_re - num_re * den_im) / den_mag2;
+
+        double const mag = AK::sqrt((h_re * h_re) + (h_im * h_im));
+        double const phase = AK::atan2(h_im, h_re);
+
+        mag_data[i] = static_cast<float>(mag);
+        phase_data[i] = static_cast<float>(phase);
+    }
+
     return {};
 }
 

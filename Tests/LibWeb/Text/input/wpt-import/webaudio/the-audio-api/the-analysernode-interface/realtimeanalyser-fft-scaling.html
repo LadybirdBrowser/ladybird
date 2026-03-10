@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      realtimeanalyser-fft-scaling.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="description"></div>
+    <div id="console"></div>
+    <script>
+      // The number of analysers. We have analysers from size for each of the
+      // possible sizes of 2^5 to 2^15 for a total of 11.
+      const numberOfAnalysers = 11;
+      const sampleRate = 44100;
+      const nyquistFrequency = sampleRate / 2;
+
+      // Frequency of the sine wave test signal.  Should be high enough so that
+      // we get at least one full cycle for the 32-point FFT.  This should also
+      // be such that the frequency should be exactly in one of the FFT bins for
+      // each of the possible FFT sizes.
+      const oscFrequency = nyquistFrequency / 16;
+
+      // The actual peak values from each analyser.  Useful for examining the
+      // actual peak values.
+      const peakValue = new Array(numberOfAnalysers);
+
+      // For a 0dBFS sine wave, we would expect the FFT magnitude to be 0dB as
+      // well, but the analyzer node applies a Blackman window (to smooth the
+      // estimate).  This reduces the energy of the signal so the FFT peak is
+      // less than 0dB.  The threshold value given here was determined
+      // experimentally.
+      //
+      // See https://code.google.com/p/chromium/issues/detail?id=341596.
+      const peakThreshold = [
+        -14.43, -13.56, -13.56, -13.56, -13.56, -13.56, -13.56, -13.56, -13.56,
+        -13.56, -13.56,
+      ];
+
+      function checkResult(order, analyser) {
+        const index = order - 5;
+        const fftSize = 1 << order;
+
+        // We only need frequencyBinCount bins.
+        const fftData = new Float32Array(fftSize);
+        analyser.getFloatFrequencyData(fftData);
+
+        // Compute the frequency bin that should contain the peak.
+        const expectedBin =
+            analyser.frequencyBinCount * (oscFrequency / nyquistFrequency);
+
+        // Find the actual bin by finding the bin containing the peak.
+        let actualBin = 0;
+        peakValue[index] = -1000;
+        for (let k = 0; k < analyser.frequencyBinCount; ++k) {
+          if (fftData[k] > peakValue[index]) {
+            actualBin = k;
+            peakValue[index] = fftData[k];
+          }
+        }
+
+        assert_equals(
+            actualBin, expectedBin,
+            `${(fftSize)}-point FFT peak position`);
+        assert_greater_than_equal(
+            peakValue[index], peakThreshold[index],
+            `${fftSize}-point FFT peak value in dBFS`);
+      }
+
+      // Run the tests for FFT sizes 2^5 through 2^15.
+      function runTest(order) {
+        const context = new OfflineAudioContext(1, 1 << order, sampleRate);
+        const fftSize = 1 << order;
+
+        // Use a sine wave oscillator as the reference source signal.
+        const osc = new OscillatorNode(
+            context, {type: 'sine', frequency: oscFrequency});
+
+        // No smoothing to simplify the analysis of the result.
+        const analyser = new AnalyserNode(context, {
+          fftSize: fftSize,
+          smoothingTimeConstant: 0,
+        });
+
+        osc.connect(context.destination);
+
+        osc.connect(analyser);
+
+        osc.start();
+
+        return context.startRendering().then(() => {
+          checkResult(order, analyser);
+        });
+      }
+
+      promise_test(async t => {
+        for (let k = 5; k <= 15; ++k) {
+          await runTest(k);
+        }
+      }, 'FFT scaling tests — Test Scaling of FFT in AnalyserNode');
+    </script>
+  </body>
+</html>

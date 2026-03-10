@@ -1,0 +1,64 @@
+Harness status: OK
+
+Found 59 tests
+
+59 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Pass	Executing "1-channel input"
+Pass	Executing "2-channel input"
+Pass	Executing "3-channel input"
+Pass	Executing "4-channel input"
+Pass	Executing "5.1-channel input"
+Pass	Executing "3-channel input, explicit"
+Pass	Executing "4-channel input, explicit"
+Pass	Executing "5.1-channel input, explicit"
+Pass	Executing "mono-upmix-explicit"
+Pass	Executing "mono-upmix-clamped-max"
+Pass	Audit report
+Pass	> [initialize] Convolver response with one channel
+Pass	  new AudioBuffer({numberOfChannels: 1, length: 2, sampleRate: 8192}) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [1-channel input] produces 1-channel output
+Pass	  1: Channel 1 contains only the constant 0.
+Pass	  Convolver output equals [0,0,0.3311063051223755,0.6248595118522644,0.8481203317642212,0.9757021069526672,0.9932119250297546,0.898674488067627,0.7027547359466553,0.4275550842285156,0.104121632874012,-0.23105810582637787,-0.5401714444160461,-0.7883464097976685,-0.9475855827331543,-0.9999247193336487...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [1-channel input] All assertions passed. (total 2 assertions)
+Pass	> [2-channel input] produces 2-channel output
+Pass	  2: Channel 0 equals [0,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  2: Channel 1 equals [0,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1,1,1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [2-channel input] All assertions passed. (total 2 assertions)
+Pass	> [3-channel input] 3->2 downmix producing 2-channel output
+Pass	  3: Channel 0 equals [0,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  3: Channel 1 equals [0,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1,1,1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [3-channel input] All assertions passed. (total 2 assertions)
+Pass	> [4-channel input] 4->2 downmix producing 2-channel output
+Pass	  4: Channel 0 equals [0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,-1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  4: Channel 1 equals [0,1,1,1,1,0,0,0,-1,0,0,0,0,-1,0,0...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [4-channel input] All assertions passed. (total 2 assertions)
+Pass	> [5.1-channel input] 5.1->2 downmix producing 2-channel output
+Pass	  5.1: Channel 0 equals [0,2.4142136573791504,2.4142136573791504,2.4142136573791504,2.4142136573791504,1,-0.41421353816986084,-0.41421353816986084,1,1,1,-1,-1,-1,0.41421353816986084,-1...] with an element-wise tolerance of {"absoluteThreshold":0.0000011511867343774294,"relativeThreshold":0}.
+Pass	  5.1: Channel 1 equals [0,2.4142136573791504,2.4142136573791504,2.4142136573791504,1,1,-0.41421353816986084,1,-1,-2.4142136573791504,-2.4142136573791504,-1,0.41421353816986084,0.41421353816986084,2.4142136573791504,-0.41421353816986084...] with an element-wise tolerance of {"absoluteThreshold":0.0000011511867343774294,"relativeThreshold":0}.
+Pass	< [5.1-channel input] All assertions passed. (total 2 assertions)
+Pass	> [3-channel input, explicit] 3->2 explicit downmix producing 2-channel output
+Pass	  3 chan downmix explicit: Channel 0 equals [0,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,-1,-1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  3 chan downmix explicit: Channel 1 equals [0,1,1,1,1,1,1,1,-1,-1,-1,-1,-1,-1,1,1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [3-channel input, explicit] All assertions passed. (total 2 assertions)
+Pass	> [4-channel input, explicit] 4->2 explicit downmix producing 2-channel output
+Pass	  4 chan downmix explicit: Channel 0 equals [0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,-1...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  4 chan downmix explicit: Channel 1 equals [0,1,1,1,1,0,0,0,-1,0,0,0,0,-1,0,0...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [4-channel input, explicit] All assertions passed. (total 2 assertions)
+Pass	> [5.1-channel input, explicit] 5.1->2 explicit downmix producing 2-channel output
+Pass	  5.1 chan downmix explicit: Channel 0 equals [0,2.4142136573791504,2.4142136573791504,2.4142136573791504,2.4142136573791504,1,-0.41421353816986084,-0.41421353816986084,1,1,1,-1,-1,-1,0.41421353816986084,-1...] with an element-wise tolerance of {"absoluteThreshold":0.0000011511867343774294,"relativeThreshold":0}.
+Pass	  5.1 chan downmix explicit: Channel 1 equals [0,2.4142136573791504,2.4142136573791504,2.4142136573791504,1,1,-0.41421353816986084,1,-1,-2.4142136573791504,-2.4142136573791504,-1,0.41421353816986084,0.41421353816986084,2.4142136573791504,-0.41421353816986084...] with an element-wise tolerance of {"absoluteThreshold":0.0000011511867343774294,"relativeThreshold":0}.
+Pass	< [5.1-channel input, explicit] All assertions passed. (total 2 assertions)
+Pass	> [mono-upmix-explicit] 1->2 upmix, count mode explicit
+Pass	  new ConvolverNode({channelCountMode: 'explicit'}) did not throw an exception.
+Pass	  1->2 explicit upmix: channel 0 equals [0,0.3311063051223755,0.6248595118522644,0.8481203317642212,0.9757021069526672,0.9932119250297546,0.898674488067627,0.7027547359466553,0.4275550842285156,0.104121632874012,-0.23105810582637787,-0.5401714444160461,-0.7883464097976685,-0.9475855827331543,-0.9999247193336487,-0.9394592046737671...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  1->2 explicit upmix: channel 1 equals [0,0.3311063051223755,0.6248595118522644,0.8481203317642212,0.9757021069526672,0.9932119250297546,0.898674488067627,0.7027547359466553,0.4275550842285156,0.104121632874012,-0.23105810582637787,-0.5401714444160461,-0.7883464097976685,-0.9475855827331543,-0.9999247193336487,-0.9394592046737671...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	< [mono-upmix-explicit] All assertions passed. (total 3 assertions)
+Pass	> [mono-upmix-clamped-max] 1->2 upmix, count mode clamped-max
+Pass	  new ConvolverNode({channelCountMode: 'clamped-max'}) did not throw an exception.
+Pass	  1->2 clamped-max upmix: channel 0 equals [0,0.3311063051223755,0.6248595118522644,0.8481203317642212,0.9757021069526672,0.9932119250297546,0.898674488067627,0.7027547359466553,0.4275550842285156,0.104121632874012,-0.23105810582637787,-0.5401714444160461,-0.7883464097976685,-0.9475855827331543,-0.9999247193336487,-0.9394592046737671...] with an element-wise tolerance of {"absoluteThreshold":4.76837158203125e-7,"relativeThreshold":0}.
+Pass	  1->2 clamped-max upmix: channel 1 contains only the constant 0.
+Pass	< [mono-upmix-clamped-max] All assertions passed. (total 3 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 11 tasks ran successfully.

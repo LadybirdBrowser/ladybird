@@ -23,6 +23,12 @@ struct PeriodicWaveOptions : PeriodicWaveConstraints {
     Optional<Vector<float>> imag;
 };
 
+struct PeriodicWaveCoefficients {
+    bool normalize { true };
+    Vector<float> real;
+    Vector<float> imag;
+};
+
 // https://webaudio.github.io/web-audio-api/#PeriodicWave
 class PeriodicWave : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(PeriodicWave, Bindings::PlatformObject);
@@ -33,6 +39,8 @@ public:
 
     explicit PeriodicWave(JS::Realm&);
     virtual ~PeriodicWave() override;
+
+    ErrorOr<PeriodicWaveCoefficients> coefficients() const;
 
 protected:
     virtual void initialize(JS::Realm&) override;

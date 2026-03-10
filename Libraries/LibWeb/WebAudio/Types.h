@@ -7,10 +7,11 @@
 #pragma once
 
 #include <AK/DistinctNumeric.h>
+#include <AK/Vector.h>
 
 namespace Web::WebAudio {
 
 // Stable identifier for AudioNode instances within a BaseAudioContext.
-AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, NodeID, CastToUnderlying);
+AK_TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, NodeID, CastToUnderlying, Comparison, Increment);
 
 }

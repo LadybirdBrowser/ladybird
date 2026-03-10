@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Oscillator with large detune produces 0 output at Nyquist or above
+Pass	Oscillator with detune automation becomes silent above Nyquist

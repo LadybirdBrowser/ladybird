@@ -1,0 +1,13 @@
+#include <AK/ByteString.h>
+#include <AK/Vector.h>
+#include <LibAudioServer/LibAudioServer.h>
+
+endpoint ToAudioServerFromBroker
+{
+	init_transport(int peer_pid) => (int peer_pid)
+
+	revoke_grant(ByteString grant_id) =|
+
+	connect_new_clients(Vector<AudioServer::CreateClientRequest> requests) => (Vector<AudioServer::CreateClientResponse> responses)
+	connect_new_clients_async(u64 request_token, Vector<AudioServer::CreateClientRequest> requests) =|
+}

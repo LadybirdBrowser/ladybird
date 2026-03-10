@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      delaynode-scheduling.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="../../../webaudio/resources/delay-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {
+            label: 'test',
+            description:
+                'DelayNode delayTime parameter can be scheduled at a given time'
+          },
+          function(task, should) {
+
+            // Create offline audio context.
+            let context = new OfflineAudioContext(
+                1, sampleRate * renderLengthSeconds, sampleRate);
+            let toneBuffer = createToneBuffer(
+                context, 20, 20 * toneLengthSeconds, sampleRate);  // 20Hz tone
+
+            let bufferSource = context.createBufferSource();
+            bufferSource.buffer = toneBuffer;
+
+            let delay = context.createDelay();
+
+            // Schedule delay time at time zero.
+            delay.delayTime.setValueAtTime(delayTimeSeconds, 0);
+
+            bufferSource.connect(delay);
+            delay.connect(context.destination);
+            bufferSource.start(0);
+
+            context.startRendering()
+                .then(buffer => checkDelayedResult(buffer, toneBuffer, should))
+                .then(() => task.done());
+          });
+
+      audit.run();
+    </script>
+  </body>
+</html>

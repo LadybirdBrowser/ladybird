@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test k-rate AudioParam of GainNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+    <script src="automation-rate-testing.js"></script>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define('Test k-rate GainNode', (task, should) => {
+        // Arbitrary sample rate and duration.
+        let sampleRate = 8000;
+        let testDuration = 1;
+        let context = new OfflineAudioContext({
+          numberOfChannels: 3,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+
+        doTest(context, should, {
+          nodeName: 'GainNode',
+          nodeOptions: null,
+          prefix: 'GainNode',
+          // Set AudioParam to k-rate
+          rateSettings: [{name: 'gain', value: 'k-rate'}],
+          // Automate
+          automations: [{
+            name: 'gain',
+            methods: [
+              {name: 'setValueAtTime', options: [1, 0]},
+              {name: 'linearRampToValueAtTime', options: [0, testDuration]}
+            ]
+          }]
+        }).then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

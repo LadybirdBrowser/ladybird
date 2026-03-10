@@ -1,0 +1,17 @@
+#include <AK/ByteString.h>
+#include <LibAudioServer/LibAudioServer.h>
+
+endpoint ToAudioServerFromSessionClient
+{
+	init_transport(int peer_pid) => (int peer_pid)
+
+	get_devices(u64 request_token) =|
+	create_input_stream(u64 request_token, ByteString grant_id, AudioServer::DeviceHandle device_handle, u64 capacity_frames) =|
+	start_input_stream(u64 request_token, u64 stream_id) =|
+	stop_input_stream(u64 request_token, u64 stream_id) =|
+	destroy_input_stream(u64 request_token, u64 stream_id) =|
+
+	create_session(u64 request_token, ByteString grant_id, u32 target_latency_ms, AudioServer::DeviceHandle device_handle) =|
+	set_output_sink_volume(u64 request_token, u64 session_id, double gain) =|
+	destroy_session(u64 request_token, u64 session_id) =|
+}

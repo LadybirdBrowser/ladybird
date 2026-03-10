@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+  <head>
+    <title>DelayNode delayTime with k-rate input should match automation</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+
+  <body>
+    <script>
+      // Power-of-two sample rate to eliminate round-off errors.
+      const sampleRate = 8192;
+
+      // Arbitrary test duration (must be ≥ 1s).
+      const testDurationSeconds = 1.5;
+
+      // Total number of frames based on sample rate and duration.
+      const totalFrames = sampleRate * testDurationSeconds;
+
+      promise_test(async t => {
+        // Two channels:  0 = test result, 1 = expected result.
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: totalFrames
+        });
+
+        const merger = new ChannelMergerNode(context, {
+          numberOfInputs: context.destination.channelCount
+        });
+        merger.connect(context.destination);
+
+        // Test the DelayNode by having a reference node (refNode) that uses
+        // k-rate automations of delayTime. The test node (testNode) sets
+        // delayTime to k-rate with a connected input that has the same
+        // automation vlaues as the reference node.  The test passes if the
+        // output from each node is identical to each other.
+
+        const oscillator = new OscillatorNode(context);
+
+        // The end value and time for the linear ramp.  These values are
+        // chosen so that the delay advances faster than real time.
+        const rampEndValue = 1.125;
+        const rampEndTime = 1;
+
+        const refNode = new DelayNode(context);
+        refNode.delayTime.automationRate = 'k-rate';
+        refNode.delayTime.setValueAtTime(0, 0);
+        refNode.delayTime.linearRampToValueAtTime(rampEndValue, rampEndTime);
+
+        const testNode = new DelayNode(context);
+        testNode.delayTime.automationRate = 'k-rate';
+
+        const modulator = new ConstantSourceNode(context);
+        modulator.offset.setValueAtTime(0, 0);
+        modulator.offset.linearRampToValueAtTime(rampEndValue, rampEndTime);
+        modulator.connect(testNode.delayTime);
+
+        oscillator.connect(testNode).connect(merger, 0, 0);
+        oscillator.connect(refNode).connect(merger, 0, 1);
+
+        oscillator.start();
+        modulator.start();
+
+        const renderedBuffer = await context.startRendering();
+        const actual = renderedBuffer.getChannelData(0);
+        const expected = renderedBuffer.getChannelData(1);
+
+        // Quick sanity check that output isn't zero.  This means we messed
+        // up the connections or automations or the buffer source.
+        assert_not_constant_value(
+            expected, 0, 'Expected output should not be constant zero');
+        assert_not_constant_value(
+            actual, 0, 'Actual output should not be constant zero');
+
+        // Quick sanity check.  The amount of delay after one render is
+        // endValue * 128 / sampleRate.  But after 1 render, time has
+        // advanced 128/sampleRate.  Hence, the delay exceeds the time by
+        // (endValue - 1)*128/sampleRate sec or (endValue - 1)*128 frames.
+        // This means the output must be EXACTLY zero for this many frames
+        // in the second render.
+        const silentFrames = (rampEndValue - 1) * RENDER_QUANTUM_FRAMES;
+
+        assert_strict_constant_value(
+            actual.slice(
+                RENDER_QUANTUM_FRAMES, RENDER_QUANTUM_FRAMES + silentFrames),
+            0,
+            `output[${RENDER_QUANTUM_FRAMES}` +
+                `..${RENDER_QUANTUM_FRAMES + silentFrames - 1}] must be silent`
+        );
+
+        // Next quantum should NOT be silent
+        assert_not_constant_value(
+            actual.slice(
+                RENDER_QUANTUM_FRAMES + silentFrames,
+                2 * RENDER_QUANTUM_FRAMES),
+            0,
+            `output[${RENDER_QUANTUM_FRAMES + silentFrames}` +
+                `..${2 * RENDER_QUANTUM_FRAMES - 1}] must have signal`
+        );
+
+        // Compare actual vs expected output
+        assert_array_equals_exact(
+            actual,
+            expected,
+            'Output from testNode should exactly match reference');
+      }, 'k-rate DelayNode.delayTime with input matches automation behavior');
+    </script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>
+    Test Active Processing for AudioBufferSourceNode
+  </title>
+  <script src="../../../resources/testharness.js"></script>
+  <script src="../../../resources/testharnessreport.js"></script>
+  <script src="../../../webaudio/resources/audit-util.js"></script>
+</head>
+<body>
+  <script>
+    // Arbitrary sample rate. And we only new a few blocks for rendering to
+    // see if things are working.
+    const sampleRate = 8000;
+    const renderLength = 10 * RENDER_QUANTUM_FRAMES;
+
+    // Offline context used for the tests.
+    let context;
+
+    // Number of channels for the AudioBufferSource. Fairly arbitrary, but
+    // should be more than 2.
+    const numberOfChannels = 7;
+
+    // Number of frames in the AudioBuffer.  Fairly arbitrary, but should
+    // probably be more than one render quantum and significantly less than
+    // |renderLength|.
+    const bufferFrames = 131;
+
+    const filePath =
+        '../the-audioworklet-interface/processors/input-count-processor.js';
+
+    promise_test(async (t) => {
+      context = new OfflineAudioContext(
+          numberOfChannels, renderLength, sampleRate);
+
+      await context.audioWorklet.addModule(filePath);
+      const buffer = new AudioBuffer({
+        numberOfChannels: numberOfChannels,
+        length: bufferFrames,
+        sampleRate: context.sampleRate
+      });
+
+      const src = new AudioBufferSourceNode(context, {buffer});
+      const counter = new AudioWorkletNode(context, 'counter');
+
+      src.connect(counter).connect(context.destination);
+      src.start();
+    }, 'Setup graph with AudioWorklet and AudioBufferSourceNode');
+
+    promise_test(async () => {
+      const renderedBuffer = await context.startRendering();
+      const output = renderedBuffer.getChannelData(0);
+
+      // Find the first time the number of channels changes to 0.
+      const countChangeIndex = output.findIndex(x => x == 0);
+
+      // Verify that the count did change.  If it didn't there's a bug
+      // in the implementation, or it takes longer than the render
+      // length to change.  For the latter case, increase the render
+      // length, but it can't be arbitrarily large.  The change needs to
+      // happen at some reasonable time after the source stops.
+      assert_greater_than_equal(countChangeIndex, 0,
+          'Number of channels changed');
+      assert_less_than_equal(countChangeIndex, renderLength,
+          'Index where input channel count changed');
+
+      // Verify the number of channels at the beginning matches the
+      // number of channels in the AudioBuffer.
+      assert_array_equals(
+          output.slice(0, countChangeIndex),
+          new Float32Array(countChangeIndex).fill(numberOfChannels),
+          `Number of channels in input[0:${countChangeIndex - 1}]`);
+
+      // Verify that after the source has stopped, the number of
+      // channels is 0.
+      assert_array_equals(
+          output.slice(countChangeIndex),
+          new Float32Array(renderLength - countChangeIndex),
+          `Number of channels in input[${countChangeIndex}:]`);
+    }, 'Verify input channel count change after AudioBufferSourceNode stops');
+  </script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+Harness status: OK
+
+Found 106 tests
+
+106 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "cancelTime"
+Pass	Executing "linear"
+Pass	Executing "exponential"
+Pass	Executing "setTarget"
+Pass	Executing "setValueCurve"
+Pass	Executing "setValueCurve after end"
+Pass	Executing "initial setTarget"
+Pass	Executing "post cancel: Linear"
+Pass	Executing "post cancel: Exponential"
+Pass	Executing "post cancel: ValueCurve"
+Pass	Executing "post cancel: setTarget"
+Pass	Executing "post cancel: setValue"
+Pass	Executing "cancel future setTarget"
+Pass	Executing "cancel setTarget now"
+Pass	Executing "cancel future setValueCurve"
+Pass	Executing "cancel setValueCurve now"
+Pass	Executing "linear, cancel, linear, cancel, linear"
+Pass	Audit report
+Pass	> [cancelTime] Test Invalid Values
+Pass	  cancelAndHoldAtTime(-1) threw RangeError: "cancelTime must not be negative".
+Pass	  cancelAndHoldAtTime(NaN) threw TypeError: "Expected cancelTime to be a finite floating-point number".
+Pass	  cancelAndHoldAtTime(Infinity) threw TypeError: "Expected cancelTime to be a finite floating-point number".
+Pass	< [cancelTime] All assertions passed. (total 3 assertions)
+Pass	> [linear] Cancel linearRampToValueAtTime
+Pass	  linearRampToValueAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":0.000059605,"relativeThreshold":0}.
+Pass	  Cancelling linearRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling linearRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	< [linear] All assertions passed. (total 3 assertions)
+Pass	> [exponential] Cancel exponentialRampAtTime
+Pass	  exponentialRampToValue(0.001, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling exponentialRampToValue(0.001, 0.5) at time 0.25 contains only the constant 0.033932220190763474.
+Pass	  Expected value for cancelling exponentialRampToValue(0.001, 0.5) at time 0.25 is 0.033932216465473175 within an error of 0.0000018664.
+Pass	< [exponential] All assertions passed. (total 3 assertions)
+Pass	> [setTarget] Cancel setTargetAtTime
+Pass	  setTargetAtTime(0, 0.01, 0.05) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Cancelling setTargetAtTime(0, 0.01, 0.05) at time 0.25 contains only the constant 0.008229747414588928.
+Pass	  Expected value for cancelling setTargetAtTime(0, 0.01, 0.05) at time 0.25 is 0.008229747414588928 within an error of 4.5267e-7.
+Pass	< [setTarget] All assertions passed. (total 3 assertions)
+Pass	> [setValueCurve] Cancel setValueCurveAtTime
+Pass	  setValueCurveAtTime([1,0], 0.01, 0.49) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Cancelling setValueCurveAtTime([1,0], 0.01, 0.49) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling setValueCurveAtTime([1,0], 0.01, 0.49) at time 0.25 is 0.510204081632653 within an error of 9.5368e-9.
+Pass	< [setValueCurve] All assertions passed. (total 3 assertions)
+Pass	> [setValueCurve after end] Cancel setValueCurveAtTime after the end
+Pass	  setValueCurveAtTime([1,0], 0.01, 0.11499999999999999) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Cancelling setValueCurveAtTime([1,0], 0.01, 0.11499999999999999) at time 0.25 contains only the constant 0.
+Pass	  Expected value for cancelling setValueCurveAtTime([1,0], 0.01, 0.11499999999999999) at time 0.25 is 0 within an error of 0.
+Pass	< [setValueCurve after end] All assertions passed. (total 3 assertions)
+Pass	> [initial setTarget] Cancel with initial setTargetAtTime
+Pass	  setTargetAtTime(0, 0.01, 0.1) up to time 0.25 equals [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Cancelling setTargetAtTime(0, 0.01, 0.1) at time 0.25 contains only the constant 0.09071795642375946.
+Pass	  Expected value for cancelling setTargetAtTime(0, 0.01, 0.1) at time 0.25 is 0.09071795642375946 within an error of 0.000003121.
+Pass	< [initial setTarget] All assertions passed. (total 3 assertions)
+Pass	> [post cancel: Linear] LinearRamp after cancelling
+Pass	  Post cancellation linearRampToValueAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling Post cancellation linearRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling Post cancellation linearRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	  Post linearRamp(2, 0.375) equals [0.5102040767669678,0.510452389717102,0.5107007026672363,0.5109489560127258,0.5111972689628601,0.5114455819129944,0.5116938948631287,0.5119421482086182,0.5121904611587524,0.5124387741088867,0.512687087059021,0.5129353404045105,0.5131836533546448,0.513431966304779,0.5136802792549133,0.5139285922050476...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	< [post cancel: Linear] All assertions passed. (total 4 assertions)
+Pass	> [post cancel: Exponential] ExponentialRamp after cancelling
+Pass	  Post cancel exponentialRampToValueAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling Post cancel exponentialRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling Post cancel exponentialRampToValueAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	  Post exponentialRamp(2, 0.375) equals [0.5102040767669678,0.510320246219635,0.510436475276947,0.510552704334259,0.510668933391571,0.5107852220535278,0.5109015107154846,0.5110178589820862,0.5111342668533325,0.5112506151199341,0.5113670229911804,0.5114834904670715,0.5115999579429626,0.5117164254188538,0.5118329524993896,0.5119495391845703...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	< [post cancel: Exponential] All assertions passed. (total 4 assertions)
+Pass	> [post cancel: ValueCurve] 
+Pass	  Post cancel setValueCurveAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling Post cancel setValueCurveAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling Post cancel setValueCurveAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	  Post setValueCurve([0.125,2], 0.375, 0.125) equals [0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678,0.5102040767669678...] with an element-wise tolerance of {"absoluteThreshold":0.000083998,"relativeThreshold":0}.
+Pass	< [post cancel: ValueCurve] All assertions passed. (total 4 assertions)
+Pass	> [post cancel: setTarget] 
+Pass	  Post cancel setTargetAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling Post cancel setTargetAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling Post cancel setTargetAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	  Post setTargetAtTime(0.125, 0.375, 0.1) equals [0.5102040767669678,0.5101238489151001,0.5100436210632324,0.5099633932113647,0.5098832249641418,0.509803056716919,0.509722888469696,0.5096427202224731,0.509562611579895,0.5094825029373169,0.5094023942947388,0.5093223452568054,0.5092422962188721,0.5091622471809387,0.5090821981430054,0.5090022087097168...] with an element-wise tolerance of {"absoluteThreshold":0.000084037,"relativeThreshold":0}.
+Pass	< [post cancel: setTarget] All assertions passed. (total 4 assertions)
+Pass	> [post cancel: setValue] 
+Pass	  Post cancel setValueAtTime: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling Post cancel setValueAtTime: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling Post cancel setValueAtTime: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.000083998.
+Pass	  Post setValueAtTime(0.125, 0.375) equals [0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125,0.125...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	< [post cancel: setValue] All assertions passed. (total 4 assertions)
+Pass	> [cancel future setTarget] 
+Pass	  After cancelling future setTarget event, output contains only the constant 0.5.
+Pass	< [cancel future setTarget] All assertions passed. (total 1 assertions)
+Pass	> [cancel setTarget now] 
+Pass	  After cancelling setTarget event starting now, output contains only the constant 0.5.
+Pass	< [cancel setTarget now] All assertions passed. (total 1 assertions)
+Pass	> [cancel future setValueCurve] 
+Pass	  After cancelling future setValueCurve event, output contains only the constant 0.5.
+Pass	< [cancel future setValueCurve] All assertions passed. (total 1 assertions)
+Pass	> [cancel setValueCurve now] 
+Pass	  After cancelling current setValueCurve event starting now, output contains only the constant 0.5.
+Pass	< [cancel setValueCurve now] All assertions passed. (total 1 assertions)
+Pass	> [linear, cancel, linear, cancel, linear] Schedules 3 linear ramps, cancelling 2 of them, so that we end up with 2 cancel events next to each other
+Pass	  1st linearRamp: linearRampToValue(0, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
+Pass	  Cancelling 1st linearRamp: linearRampToValue(0, 0.5) at time 0.25 contains only the constant 0.5102040767669678.
+Pass	  Expected value for cancelling 1st linearRamp: linearRampToValue(0, 0.5) at time 0.25 is 0.5102040767669678 within an error of 0.
+Pass	  2nd linearRamp(2, 0.5) equals [0.5102040767669678,0.5103282332420349,0.510452389717102,0.5105765461921692,0.5107007026672363,0.5108247995376587,0.5109489560127258,0.511073112487793,0.5111972689628601,0.5113214254379272,0.5114455819129944,0.5115697383880615,0.5116938948631287,0.5118180513381958,0.5119421482086182,0.5120663046836853...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  Cancelling 2nd linearRamp(2, 0.5) at time 0.375 contains only the constant 1.2551020383834839.
+Pass	  Expected value for cancelling 2nd linearRamp(2, 0.5) at time 0.375 is 1.2551020383834839 within an error of 0.
+Pass	  3rd linearRamp(0, 0.5) equals [1.2551020383834839,1.2548928260803223,1.2546836137771606,1.2544745206832886,1.254265308380127,1.2540560960769653,1.2538468837738037,1.2536377906799316,1.25342857837677,1.2532193660736084,1.2530101537704468,1.2528010606765747,1.252591848373413,1.2523826360702515,1.2521734237670898,1.2519643306732178...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	< [linear, cancel, linear, cancel, linear] All assertions passed. (total 7 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 17 tasks ran successfully.

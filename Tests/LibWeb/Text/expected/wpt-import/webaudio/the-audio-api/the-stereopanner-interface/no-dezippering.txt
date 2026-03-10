@@ -1,0 +1,43 @@
+Harness status: OK
+
+Found 38 tests
+
+38 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test mono input"
+Pass	Executing "test stereo input"
+Pass	Executing "test mono input setValue"
+Pass	Executing "test stereo input setValue"
+Pass	Executing "test mono input automation"
+Pass	Audit report
+Pass	> [test mono input] Test StereoPanner with mono input has no dezippering
+Pass	  Mono: Left channel, pan = -1:  contains only the constant 1.
+Pass	  Mono: Right channel, pan = -1: contains only the constant 0.
+Pass	  Mono: Left channel, pan = 1:  equals [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0...] with an element-wise tolerance of {"absoluteThreshold":6.1233e-17,"relativeThreshold":0}.
+Pass	  Mono: Right channel, pan = 1: contains only the constant 1.
+Pass	< [test mono input] All assertions passed. (total 4 assertions)
+Pass	> [test stereo input] Test StereoPanner with stereo input has no dezippering
+Pass	  Stereo: Left channel, pan = -1:  contains only the constant 3.
+Pass	  Stereo: Right channel, pan = -1: contains only the constant 0.
+Pass	  Stereo: Left channel, pan = 1:  equals [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0...] with an element-wise tolerance of {"absoluteThreshold":6.1233e-17,"relativeThreshold":0}.
+Pass	  Stereo: Right channel, pan = 1: contains only the constant 3.
+Pass	< [test stereo input] All assertions passed. (total 4 assertions)
+Pass	> [test mono input setValue] Test StereoPanner with mono input value setter vs setValueAtTime
+Pass	  Mono Left .value setter output equals [0,0.14319093525409698,0.2823145389556885,0.4134189784526825,0.5327802896499634,0.6370079517364502,0.7231414318084717,0.7887341380119324,0.8319227695465088,0.8514807820320129,0.8468523621559143,0.8181692361831665,0.76624596118927,0.6925575137138367,0.5991969108581543,0.48881617188453674...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Mono Left .value setter output matches setValueAtTime output is true.
+Pass	  Mono Right .value setter output equals [0,0.08774751424789429,0.17300257086753845,0.25334346294403076,0.326488196849823,0.39035898447036743,0.4431416392326355,0.4833368957042694,0.5098029375076294,0.5217880606651306,0.5189517736434937,0.5013747215270996,0.46955612301826477,0.4243997633457184,0.36718833446502686,0.2995469272136688...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Mono Right .value setter output matches setValueAtTime output is true.
+Pass	< [test mono input setValue] All assertions passed. (total 4 assertions)
+Pass	> [test stereo input setValue] Test StereoPanner with mono input value setter  vs setValueAtTime
+Pass	  Stereo Left .value setter output equals [0,0.3454650938510895,0.6623272895812988,0.9246213436126709,1.1114109754562378,1.2087116241455078,1.2107644081115723,1.1205435991287231,0.9494497776031494,0.7162175178527832,0.44514086842536926,0.16378138959407806,-0.0996265709400177,-0.31883037090301514,-0.4720262289047241,-0.5439071655273438...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Stereo Left .value setter output matches setValueAtTime output is true.
+Pass	  Stereo Right .value setter output equals [0,0.08529337495565414,0.16980335116386414,0.25275370478630066,0.33338263630867004,0.4109494984149933,0.4847418963909149,0.5540820360183716,0.618333101272583,0.6769049167633057,0.7292595505714417,0.7749161124229431,0.8134552836418152,0.8445230722427368,0.8678340911865234,0.8831743001937866...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Stereo Right .value setter output matches setValueAtTime output is true.
+Pass	< [test stereo input setValue] All assertions passed. (total 4 assertions)
+Pass	> [test mono input automation] Test StereoPanner with mono input and automation
+Pass	  Modulated Stereo Left .value setter output equals [0,0.3402526378631592,0.6413130760192871,0.8772035241127014,1.0272915363311768,1.0782091617584229,1.0251131057739258,0.8721678256988525,0.634390115737915,0.3706442415714264,0.07306594401597977,-0.22765208780765533,-0.5009848475456238,-0.7199962139129639,-0.864234983921051,-0.9217717051506042...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Modulated Stereo Left .value setter output matches setValueAtTime output is true.
+Pass	  Modulated Stereo Right .value setter output equals [0,0.08775445818901062,0.17896324396133423,0.27175238728523254,0.3642061650753021,0.4544229209423065,0.5405697822570801,0.6209337711334229,0.695970356464386,0.7820533514022827,0.8270177841186523,0.8301817774772644,0.7975678443908691,0.740922749042511,0.6758697032928467,0.6194732189178467...] with an element-wise tolerance of {"absoluteThreshold":1.192094e-7,"relativeThreshold":0}.
+Pass	  Modulated Stereo Right .value setter output matches setValueAtTime output is true.
+Pass	< [test mono input automation] All assertions passed. (total 4 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 5 tasks ran successfully.

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Basic BiquadFilterNode Properties
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+      const testFrames = 100;
+
+      // Global context that can be used by the individual tests.
+      const context = new OfflineAudioContext(1, testFrames, sampleRate);
+
+      test(t => {
+        // If construction threw, the test would fail automatically.
+        assert_true(context instanceof OfflineAudioContext,
+                    'context should be an OfflineAudioContext');
+      }, 'initialize');
+
+      test(t => {
+        assert_true('createBiquadFilter' in context,
+                    'context.createBiquadFilter should exist');
+      }, 'existence');
+
+      test(t => {
+        // Create a really simple IIR filter. Doesn't much matter what.
+        const coef = Float32Array.from([1]);
+
+        const f = context.createBiquadFilter(coef, coef);
+
+        assert_equals(f.numberOfInputs, 1, 'numberOfInputs');
+        assert_equals(f.numberOfOutputs, 1, 'numberOfOutputs');
+        assert_equals(f.channelCountMode, 'max', 'channelCountMode');
+        assert_equals(f.channelInterpretation, 'speakers',
+                      'channelInterpretation');
+      }, 'parameters');
+
+      test(t => {
+        // Two args are required.  Should _not_ throw.
+        context.createBiquadFilter();
+      }, 'exceptions-createBiquadFilter');
+
+      test(t => {
+        // Create a really simple IIR filter. Doesn't much matter what.
+        const coef = Float32Array.from([1]);
+        const f = context.createBiquadFilter(coef, coef);
+
+        // frequencyHz can't be null.
+        assert_throws_js(TypeError, () => {
+          f.getFrequencyResponse(
+              null, new Float32Array(1), new Float32Array(1));
+        }, 'frequencyHz is null');
+
+        // magResponse can't be null.
+        assert_throws_js(TypeError, () => {
+          f.getFrequencyResponse(
+              new Float32Array(1), null, new Float32Array(1));
+        }, 'magResponse is null');
+
+        // phaseResponse can't be null.
+        assert_throws_js(TypeError, () => {
+          f.getFrequencyResponse(
+              new Float32Array(1), new Float32Array(1), null);
+        }, 'phaseResponse is null');
+
+        // magResponse array must be the same length as frequencyHz
+        assert_throws_dom('InvalidAccessError', () => {
+          f.getFrequencyResponse(
+              new Float32Array(10), new Float32Array(1),
+              new Float32Array(20));
+        }, 'magResponse length mismatch');
+
+        // phaseResponse array must be the same length as frequencyHz
+        assert_throws_dom('InvalidAccessError', () => {
+          f.getFrequencyResponse(
+              new Float32Array(10), new Float32Array(20),
+              new Float32Array(1));
+        }, 'phaseResponse length mismatch');
+      }, 'exceptions-getFrequencyData');
+    </script>
+  </body>
+</html>

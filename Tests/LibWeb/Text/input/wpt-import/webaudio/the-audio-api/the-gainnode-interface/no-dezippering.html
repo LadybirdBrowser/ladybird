@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Gain Dezippering Test: Dezippering Removed
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      promise_test(
+          () => testWithAutomation({prefix: ''}),
+          'Compare value setter and setValueAtTime');
+
+      promise_test(
+          () => testWithAutomation({
+            prefix: 'With modulation: ',
+            modulator: true
+          }),
+          'Automation effects');
+
+      promise_test(async () => {
+        // Only need a few frames to verify that dezippering has been
+        // removed from the GainNode.  Sample rate is pretty arbitrary.
+        const context = new OfflineAudioContext(1, 1024, 16000);
+
+        // Send a unit source to the gain node so we can measure the effect
+        // of the gain node.
+        const src = new ConstantSourceNode(context, {offset: 1});
+        const g = new GainNode(context, {gain: 1});
+        src.connect(g).connect(context.destination);
+
+        // Schedule the suspend but DON’T await it here
+        context
+            .suspend(RENDER_QUANTUM_FRAMES / context.sampleRate)
+            .then(() => {
+              g.gain.value = 0.5;
+              return context.resume();
+            });
+
+        src.start();
+
+        // Now start rendering and wait for it to finish
+        const audio = await context.startRendering();
+        const c = audio.getChannelData(0);
+
+        // If dezippering has been removed, the gain output should
+        // instantly jump at frame 128 to 0.5.
+        assert_constant_value(c.slice(0, 128), 1, 'output[0:127]');
+        assert_constant_value(c.slice(128), 0.5, 'output[128:]');
+      }, 'Dezippering of GainNode removed');
+
+      async function testWithAutomation(options) {
+        // Sample rate must be a power of two to eliminate round-off in
+        // computing the time at render quantum boundaries.
+        const context = new OfflineAudioContext(2, 1024, 16384);
+        const merger = new ChannelMergerNode(context, {numberOfChannels: 2});
+        merger.connect(context.destination);
+
+        const src = new OscillatorNode(context);
+        const gainTest = new GainNode(context);
+        const gainRef = new GainNode(context);
+
+        src.connect(gainTest).connect(merger, 0, 0);
+        src.connect(gainRef).connect(merger, 0, 1);
+
+        if (options.modulator) {
+          const mod = new OscillatorNode(context, {frequency: 1000});
+          const modGain = new GainNode(context);
+          mod.connect(modGain);
+          modGain.connect(gainTest.gain);
+          modGain.connect(gainRef.gain);
+          mod.start();
+        }
+
+        // Change the gains. Must do the change on a render boundary!
+        const changeTime = 3 * RENDER_QUANTUM_FRAMES / context.sampleRate;
+        const newGain = 0.3;
+
+        gainRef.gain.setValueAtTime(newGain, changeTime);
+        context
+            .suspend(changeTime)
+            .then(() => {
+              gainTest.gain.value = newGain;
+              return context.resume();
+            });
+
+        src.start();
+
+        const audio = await context.startRendering();
+        const actual = audio.getChannelData(0);
+        const expected = audio.getChannelData(1);
+
+        // The values using the .value setter must be identical to the
+        // values using setValueAtTime.
+        assert_array_equals(
+            actual, expected,
+            options.prefix + '.value setter output matches setValueAtTime');
+      }
+
+    </script>
+  </body>
+</html>

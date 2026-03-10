@@ -96,8 +96,14 @@ bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventLi
         // If this throws an exception, then:
         if (result.is_error()) {
             // 1. Report exception for listener’s callback’s corresponding JavaScript object’s associated realm’s global object.
-            auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(global);
-            window_or_worker.report_an_exception(result.release_error().value());
+            auto completion = result.release_error();
+            if (auto* window_or_worker = as_if<HTML::WindowOrWorkerGlobalScopeMixin>(&global)) {
+                window_or_worker->report_an_exception(completion.value());
+            } else {
+                // FIXME: WorkletGlobalScope does not implement WindowOrWorkerGlobalScopeMixin.
+                // FIXME: Best-effort: report to console using the callback's realm.
+                HTML::report_exception_to_console(completion.value(), realm, HTML::ErrorInPromise::No);
+            }
 
             // 2. Set legacyOutputDidListenersThrowFlag if given. (Only used by IndexedDB currently)
             legacy_output_did_listeners_throw = true;

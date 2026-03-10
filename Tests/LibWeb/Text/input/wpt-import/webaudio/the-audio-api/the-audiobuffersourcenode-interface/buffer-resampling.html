@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Test Extrapolation at end of AudibBuffer in an AudioBufferSourceNode</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      const sampleRate = 48000;
+
+      // For testing we only need a few render quanta.
+      const renderSamples = 512;
+
+      // Sample rate for our buffers. This is the lowest sample rate that is
+      // required to be supported.
+      const bufferRate = 8000;
+
+      // Number of samples in each AudioBuffer; this is fairly arbitrary but
+      // should be less than a render quantum.
+      const bufferLength = 30;
+
+      // Frequency of the sine wave for testing.
+      const frequency = 440;
+
+      promise_test(async t => {
+        // The first channel is for the interpolated signal, and the second
+        // channel is for the reference signal from an oscillator.
+        const context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          length: renderSamples,
+          sampleRate: sampleRate
+        });
+
+        const merger = new ChannelMergerNode(
+            context, {numberOfChannels: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Create a set of AudioBuffers which are samples from a pure sine
+        // wave with frequency |frequency|.
+        const nBuffers = Math.floor(context.length / bufferLength);
+        const omega = 2 * Math.PI * frequency / bufferRate;
+
+        let frameNumber = 0;
+        let startTime = 0;
+
+        for (let k = 0; k < nBuffers; ++k) {
+          const buffer = new AudioBuffer(
+              {length: bufferLength, sampleRate: bufferRate});
+          const data = buffer.getChannelData(0);
+
+          for (let n = 0; n < bufferLength; ++n) {
+            data[n] = Math.sin(omega * frameNumber);
+            ++frameNumber;
+          }
+
+          // Create a source using this buffer and start it at the end of
+          // the previous buffer.
+          const src = new AudioBufferSourceNode(context, {buffer: buffer});
+          src.connect(merger, 0, 0);
+          src.start(startTime);
+          startTime += buffer.duration;
+        }
+
+        // Create the reference sine signal using an oscillator.
+        const osc = new OscillatorNode(
+            context, {type: 'sine', frequency: frequency});
+        osc.connect(merger, 0, 1);
+        osc.start();
+
+        const audioBuffer = await context.startRendering();
+
+        const actual = audioBuffer.getChannelData(0);
+        const expected = audioBuffer.getChannelData(1);
+
+        // Verify that the interpolated sine wave closely matches the reference.
+        assert_array_approx_equals(
+            actual, expected, 9.0348e-2,
+            'Interpolated sine wave should match reference oscillator');
+
+        // Compute SNR between them.
+        const snr = 10 * Math.log10(computeSNR(actual, expected));
+        assert_greater_than_equal(
+            snr, 37.17,
+            `SNR (${snr.toPrecision(4)} dB) should be >= 37.17 dB`);
+      }, 'Interpolation of AudioBuffers to context sample rate');
+    </script>
+  </body>
+</html>

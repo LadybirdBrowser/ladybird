@@ -1,0 +1,11 @@
+#import <WebAudio/AudioNode.idl>
+
+// Debug-only helper node created via Internals.createOhNoesNode().
+// Not exposed to normal JavaScript.
+[Exposed=Nobody]
+interface OhNoesNode : AudioNode {
+    undefined start();
+    undefined stop();
+    undefined setPath(DOMString path);
+    undefined setStripZeroBuffers(boolean enabled);
+};

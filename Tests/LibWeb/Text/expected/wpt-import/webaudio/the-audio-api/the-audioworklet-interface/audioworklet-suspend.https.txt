@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "load-worklet-and-suspend"
+Pass	Audit report
+Pass	> [load-worklet-and-suspend] 
+Pass	  context.currentTime did not change after worklet started is true.
+Pass	  context.state is equal to suspended.
+Pass	< [load-worklet-and-suspend] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

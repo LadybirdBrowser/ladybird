@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 10 tests
+
+7 Pass
+3 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test"
+Pass	Audit report
+Pass	> [test] 
+Fail	X Deviation (in dB) of triangular portion of convolution is not less than or equal to -124.41. Got Infinity.
+Pass	  Deviation in first part of tail of convolutions is less than or equal to -129.7.
+Pass	  Rendered signal after tail of convolution is silent is true.
+Pass	  Test signal convolved correctly
+Fail	< [test] 1 out of 4 assertions were failed.
+Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 1 tasks were failed.

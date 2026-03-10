@@ -1,0 +1,238 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      k-rate AudioParams with inputs for PannerNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    </title>
+  </head>
+
+  <body>
+    <script>
+      let audit = Audit.createTaskRunner();
+
+      audit.define(
+          {label: 'Panner x', description: 'k-rate input'},
+          async (task, should) => {
+            await testPannerParams(should, {param: 'positionX'});
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Panner y', description: 'k-rate input'},
+          async (task, should) => {
+            await testPannerParams(should, {param: 'positionY'});
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Panner z', description: 'k-rate input'},
+          async (task, should) => {
+            await testPannerParams(should, {param: 'positionZ'});
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Listener x', description: 'k-rate input'},
+          async (task, should) => {
+            await testListenerParams(should, {param: 'positionX'});
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Listener y', description: 'k-rate input'},
+          async (task, should) => {
+            await testListenerParams(should, {param: 'positionY'});
+            task.done();
+          });
+
+      audit.define(
+          {label: 'Listener z', description: 'k-rate input'},
+          async (task, should) => {
+            await testListenerParams(should, {param: 'positionZ'});
+            task.done();
+          });
+
+      audit.run();
+
+      async function testPannerParams(should, options) {
+        // Arbitrary sample rate and duration.
+        const sampleRate = 8000;
+        const testFrames = 5 * RENDER_QUANTUM_FRAMES;
+        let testDuration = testFrames / sampleRate;
+        // Four channels needed because the first two are for the output of
+        // the reference panner, and the next two are for the test panner.
+        let context = new OfflineAudioContext({
+          numberOfChannels: 4,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+        merger.connect(context.destination);
+
+        // Create a stereo source out of two mono sources
+        let src0 = new ConstantSourceNode(context, {offset: 1});
+        let src1 = new ConstantSourceNode(context, {offset: 2});
+        let src = new ChannelMergerNode(context, {numberOfInputs: 2});
+        src0.connect(src, 0, 0);
+        src1.connect(src, 0, 1);
+
+        let finalPosition = 100;
+
+        // Reference panner node with k-rate AudioParam automations.  The
+        // output of this panner is the reference output.
+        let refNode = new PannerNode(context);
+        // Initialize the panner location to somewhat arbitrary values.
+        refNode.positionX.value = 1;
+        refNode.positionY.value = 50;
+        refNode.positionZ.value = -25;
+
+        // Set the AudioParam under test with the appropriate automations.
+        refNode[options.param].automationRate = 'k-rate';
+        refNode[options.param].setValueAtTime(1, 0);
+        refNode[options.param].linearRampToValueAtTime(
+            finalPosition, testDuration);
+        let refSplit = new ChannelSplitterNode(context, {numberOfOutputs: 2});
+
+        // Test panner node with k-rate AudioParam with inputs.
+        let tstNode = new PannerNode(context);
+        tstNode.positionX.value = 1;
+        tstNode.positionY.value = 50;
+        tstNode.positionZ.value = -25;
+        tstNode[options.param].value = 0;
+        tstNode[options.param].automationRate = 'k-rate';
+        let tstSplit = new ChannelSplitterNode(context, {numberOfOutputs: 2});
+
+        // The input to the AudioParam.  It must have the same automation
+        // sequence as used by refNode.  And must be a-rate to demonstrate
+        // the k-rate effect of the AudioParam.
+        let mod = new ConstantSourceNode(context, {offset: 0});
+        mod.offset.setValueAtTime(1, 0);
+        mod.offset.linearRampToValueAtTime(finalPosition, testDuration);
+
+        mod.connect(tstNode[options.param]);
+
+        src.connect(refNode).connect(refSplit);
+        src.connect(tstNode).connect(tstSplit);
+
+        refSplit.connect(merger, 0, 0);
+        refSplit.connect(merger, 1, 1);
+        tstSplit.connect(merger, 0, 2);
+        tstSplit.connect(merger, 1, 3);
+
+        mod.start();
+        src0.start();
+        src1.start();
+
+        const buffer = await context.startRendering();
+        let expected0 = buffer.getChannelData(0);
+        let expected1 = buffer.getChannelData(1);
+        let actual0 = buffer.getChannelData(2);
+        let actual1 = buffer.getChannelData(3);
+
+        should(expected0, `Panner: ${options.param}: Expected output channel 0`)
+            .notBeConstantValueOf(expected0[0]);
+        should(expected1, `${options.param}: Expected output channel 1`)
+            .notBeConstantValueOf(expected1[0]);
+
+        // Verify output is a stair step because positionX is k-rate,
+        // and no other AudioParam is changing.
+
+        for (let k = 0; k < testFrames; k += RENDER_QUANTUM_FRAMES) {
+          should(
+              actual0.slice(k, k + RENDER_QUANTUM_FRAMES),
+              `Panner: ${options.param}: Channel 0 output[${k}, ${
+                  k + RENDER_QUANTUM_FRAMES - 1}]`)
+              .beConstantValueOf(actual0[k]);
+        }
+
+        for (let k = 0; k < testFrames; k += RENDER_QUANTUM_FRAMES) {
+          should(
+              actual1.slice(k, k + RENDER_QUANTUM_FRAMES),
+              `Panner: ${options.param}: Channel 1 output[${k}, ${
+                  k + RENDER_QUANTUM_FRAMES - 1}]`)
+              .beConstantValueOf(actual1[k]);
+        }
+
+        should(actual0, `Panner: ${options.param}: Actual output channel 0`)
+            .beCloseToArray(expected0, {absoluteThreshold: 0});
+        should(actual1, `Panner: ${options.param}: Actual output channel 1`)
+            .beCloseToArray(expected1, {absoluteThreshold: 0});
+      }
+
+      async function testListenerParams(should, options) {
+        // Arbitrary sample rate and duration.
+        const sampleRate = 8000;
+        const testFrames = 5 * RENDER_QUANTUM_FRAMES;
+        let testDuration = testFrames / sampleRate;
+        // Four channels needed because the first two are for the output of
+        // the reference panner, and the next two are for the test panner.
+        let context = new OfflineAudioContext({
+          numberOfChannels: 2,
+          sampleRate: sampleRate,
+          length: testDuration * sampleRate
+        });
+
+        // Create a stereo source out of two mono sources
+        let src0 = new ConstantSourceNode(context, {offset: 1});
+        let src1 = new ConstantSourceNode(context, {offset: 2});
+        let src = new ChannelMergerNode(context, {numberOfInputs: 2});
+        src0.connect(src, 0, 0);
+        src1.connect(src, 0, 1);
+
+        let finalPosition = 100;
+
+        // Reference panner node with k-rate AudioParam automations.  The
+        // output of this panner is the reference output.
+        let panner = new PannerNode(context);
+        panner.positionX.value = 10;
+        panner.positionY.value = 50;
+        panner.positionZ.value = -25;
+
+        src.connect(panner);
+
+        let mod = new ConstantSourceNode(context, {offset: 0});
+        mod.offset.setValueAtTime(1, 0);
+        mod.offset.linearRampToValueAtTime(finalPosition, testDuration);
+
+        context.listener[options.param].automationRate = 'k-rate';
+        mod.connect(context.listener[options.param]);
+
+        panner.connect(context.destination);
+
+        src0.start();
+        src1.start();
+        mod.start();
+
+        const buffer = await context.startRendering();
+        let c0 = buffer.getChannelData(0);
+        let c1 = buffer.getChannelData(1);
+
+        // Verify output is a stair step because positionX is k-rate,
+        // and no other AudioParam is changing.
+
+        for (let k = 0; k < testFrames; k += RENDER_QUANTUM_FRAMES) {
+          should(
+              c0.slice(k, k + RENDER_QUANTUM_FRAMES),
+              `Listener: ${options.param}: Channel 0 output[${k}, ${
+                  k + RENDER_QUANTUM_FRAMES - 1}]`)
+              .beConstantValueOf(c0[k]);
+        }
+
+        for (let k = 0; k < testFrames; k += RENDER_QUANTUM_FRAMES) {
+          should(
+              c1.slice(k, k + RENDER_QUANTUM_FRAMES),
+              `Listener: ${options.param}: Channel 1 output[${k}, ${
+                  k + RENDER_QUANTUM_FRAMES - 1}]`)
+              .beConstantValueOf(c1[k]);
+        }
+      }
+    </script>
+  </body>
+</html>

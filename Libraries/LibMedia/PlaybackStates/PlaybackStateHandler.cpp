@@ -22,8 +22,14 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
         auto& track_data = manager().get_video_data_for_track(track);
         VERIFY(track_data.display != nullptr);
         track_data.display->pause_updates();
-        track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [display = NonnullRefPtr(*track_data.display)](AK::Duration) {
-            display->resume_updates();
+        auto weak_manager = manager().weak();
+        track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [weak_manager, track](AK::Duration) {
+            if (!weak_manager)
+                return;
+            auto& current_track_data = weak_manager->get_video_data_for_track(track);
+            if (!current_track_data.display)
+                return;
+            current_track_data.display->resume_updates();
         });
         return;
     }
@@ -31,8 +37,10 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
     VERIFY(track.type() == TrackType::Audio);
     auto& track_data = manager().get_audio_data_for_track(track);
     VERIFY(manager().m_audio_sink != nullptr);
-    track_data.provider->seek(manager().current_time(), [track, sink = NonnullRefPtr(*manager().m_audio_sink)] {
-        sink->clear_track_data(track);
+    auto weak_manager = manager().weak();
+    track_data.provider->seek(manager().current_time(), [track, weak_manager] {
+        if (weak_manager && weak_manager->m_audio_sink)
+            weak_manager->m_audio_sink->clear_track_data(track);
     });
 }
 

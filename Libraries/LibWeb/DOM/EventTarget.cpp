@@ -36,6 +36,7 @@
 #include <LibWeb/HTML/HTMLBodyElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLFrameSetElement.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/UIEvents/EventNames.h>
@@ -229,6 +230,13 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     });
     if (it == event_listener_list.end())
         event_listener_list.append(listener);
+
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-start
+    // Adding a 'message' event listener is treated as if start() was called.
+    if (listener.type == HTML::EventNames::message && is<HTML::MessagePort>(*this)) {
+        auto& port = static_cast<HTML::MessagePort&>(*this);
+        port.start();
+    }
 
     // 6. If listener’s signal is not null, then add the following abort steps to it:
     if (listener.signal) {

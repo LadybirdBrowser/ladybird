@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Try.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
@@ -36,8 +37,8 @@ WebIDL::ExceptionOr<GC::Ref<PannerNode>> PannerNode::construct_impl(JS::Realm& r
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-maxdistance
     // A RangeError exception MUST be thrown if this is set to a non-positive value.
-    if (options.max_distance < 0.0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "maxDistance cannot be negative"sv };
+    if (options.max_distance <= 0.0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "maxDistance must be positive"sv };
 
     // https://webaudio.github.io/web-audio-api/#dom-pannernode-coneoutergain
     // It is a linear value (not dB) in the range [0, 1]. An InvalidStateError MUST be thrown if the parameter is outside this range.
@@ -110,8 +111,8 @@ WebIDL::ExceptionOr<void> PannerNode::set_ref_distance(double value)
 WebIDL::ExceptionOr<void> PannerNode::set_max_distance(double value)
 {
     // A RangeError exception MUST be thrown if this is set to a non-positive value.
-    if (value < 0.0)
-        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "maxDistance cannot be negative"sv };
+    if (value <= 0.0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "maxDistance must be positive"sv };
 
     m_max_distance = value;
     return {};
@@ -146,9 +147,9 @@ WebIDL::ExceptionOr<void> PannerNode::set_position(float x, float y, float z)
     // attribute directly with the x, y and z parameters, respectively.
     // FIXME: Consequently, if any of the positionX, positionY, and positionZ AudioParams have an automation curve
     //        set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
-    m_position_x->set_value(x);
-    m_position_y->set_value(y);
-    m_position_z->set_value(z);
+    TRY(m_position_x->set_value(x));
+    TRY(m_position_y->set_value(y));
+    TRY(m_position_z->set_value(z));
     return {};
 }
 
@@ -159,9 +160,9 @@ WebIDL::ExceptionOr<void> PannerNode::set_orientation(float x, float y, float z)
     // orientationZ.value attribute directly, with the x, y and z parameters, respectively.
     // FIXME: Consequently, if any of the orientationX, orientationY, and orientationZ AudioParams have an automation
     //        curve set using setValueCurveAtTime() at the time this method is called, a NotSupportedError MUST be thrown.
-    m_orientation_x->set_value(x);
-    m_orientation_y->set_value(y);
-    m_orientation_z->set_value(z);
+    TRY(m_orientation_x->set_value(x));
+    TRY(m_orientation_y->set_value(y));
+    TRY(m_orientation_z->set_value(z));
     return {};
 }
 

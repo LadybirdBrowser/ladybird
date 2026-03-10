@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test WaveShaper Copies Curve Data
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Sample rate and number of frames are fairly arbitrary.  We need to
+      // render, however, at least 384 frames.  1024 is a nice small value.
+      const sampleRate = 16000;
+      const renderFrames = 1024;
+
+      promise_test(async () => {
+        // Two-channel context; channel 0 contains the test data and channel
+        // 1 contains the expected result.  Channel 1 has the normal
+        // WaveShaper output and channel 0 has the WaveShaper output with a
+        // modified curve.
+        const context = new OfflineAudioContext(2, renderFrames, sampleRate);
+
+        // Wave shaper curves.  Doesn't really matter what we use as long as
+        // it modifies the input in some way.  Thus, keep it simple and just
+        // invert the input.
+        const desiredCurve = [1, 0, -1];
+        const curve0 = Float32Array.from(desiredCurve);
+        const curve1 = Float32Array.from(desiredCurve);
+
+        // Just use a default oscillator as the source.  Doesn't really
+        // matter what we use.
+        const src = new OscillatorNode(context, {type: 'sawtooth'});
+
+        // Create the wave shapers: ws0 is the test shaper, and ws1 is the
+        // reference wave shaper.
+        const ws0 = new WaveShaperNode(context, {curve: curve0});
+        const ws1 = new WaveShaperNode(context, {curve: curve1});
+
+        // Channel merger for comparing outputs (ch 0: modified-curve shaper,
+        // ch 1: reference shaper).
+        const merger = new ChannelMergerNode(context, {numberOfInputs: 2});
+
+        src.connect(ws0).connect(merger, 0, 0);
+        src.connect(ws1).connect(merger, 0, 1);
+
+        merger.connect(context.destination);
+
+        // Let the context run for a bit and then modify the curve for ws0.
+        // Doesn't really matter what we modify the curve to as long as it's
+        // different.
+        const suspendTime = 256 / context.sampleRate;
+        context.suspend(suspendTime).then(() => {
+          // Mutate the original array we passed to ws0;
+          // node should have copied it.
+          curve0[0] = -0.5;
+          curve0[1] = 0.125;
+          curve0[2] = 0.75;
+          return context.resume();
+        });
+
+        src.start();
+
+        const renderedBuffer = await context.startRendering();
+        const actual = renderedBuffer.getChannelData(0);
+        const expected = renderedBuffer.getChannelData(1);
+
+        // Modifying the wave shaper curve should not modify the
+        // output so the outputs from the two wave shaper nodes should
+        // be exactly identical.
+        assert_array_equals(
+            actual,
+            expected,
+            'Output of WaveShaper with modified curve ' +
+                'should equal reference output');
+      }, `test copying: Modifying curve should not modify WaveShaper`);
+    </script>
+  </body>
+</html>

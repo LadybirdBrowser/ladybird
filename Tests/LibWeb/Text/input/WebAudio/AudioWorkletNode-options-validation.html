@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        try {
+            await context.audioWorklet.addModule("../../data/AudioWorklet-processor.js");
+
+            try {
+                new AudioWorkletNode(context, "dummy", { numberOfInputs: 0, numberOfOutputs: 0 });
+                println("FAIL: did not throw");
+            } catch (e) {
+                println("PASS: threw " + e.name);
+            }
+        } catch (e) {
+            println("FAIL: " + e);
+        }
+
+        done();
+    });
+</script>

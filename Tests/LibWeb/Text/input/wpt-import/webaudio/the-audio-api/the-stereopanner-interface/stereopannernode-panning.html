@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      stereopannernode-panning.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../resources/audit-util.js"></script>
+    <script src="../../resources/audit.js"></script>
+    <script src="../../resources/stereopanner-testing.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define('mono-test', (task, should) => {
+        StereoPannerTest
+            .create(should, {numberOfInputChannels: 1, prefix: 'Mono: '})
+            .run()
+            .then(() => task.done());
+      });
+
+      audit.define('stereo-test', (task, should) => {
+        StereoPannerTest
+            .create(should, {numberOfInputChannels: 2, prefix: 'Stereo: '})
+            .run()
+            .then(() => task.done());
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

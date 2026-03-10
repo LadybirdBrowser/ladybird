@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      convolver-setBuffer-already-has-value.html
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define('test', (task, should) => {
+        let context = new AudioContext();
+        let audioBuffer = new AudioBuffer(
+          {numberOfChannels: 1, length: 1, sampleRate: context.sampleRate});
+        let convolver = context.createConvolver();
+        should(() => {
+          convolver.buffer = null;
+        }, 'Set buffer to null before set non-null').notThrow();
+
+        should(() => {
+          convolver.buffer = audioBuffer;
+        }, 'Set buffer first normally').notThrow();
+
+        should(() => {
+          convolver.buffer = audioBuffer;
+        }, 'Set buffer a second time').notThrow();
+
+        should(() => {
+          convolver.buffer = null;
+        }, 'Set buffer to null').notThrow();
+
+        should(() => {
+          convolver.buffer = null;
+        }, 'Set buffer to null again, to make sure').notThrow();
+
+        should(() => {
+          convolver.buffer = audioBuffer;
+        }, 'Set buffer to non-null to verify it is set')
+        .notThrow();
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>

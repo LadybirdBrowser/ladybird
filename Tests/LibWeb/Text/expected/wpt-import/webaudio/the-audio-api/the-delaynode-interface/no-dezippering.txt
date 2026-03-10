@@ -1,0 +1,24 @@
+Harness status: OK
+
+Found 19 tests
+
+19 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "test0"
+Pass	Executing "test1"
+Pass	Executing "test2"
+Pass	Audit report
+Pass	> [test0] Test DelayNode has no dezippering
+Pass	  output[0:63] contains only the constant 0.
+Pass	  output[64:127] is identical to the array [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16...].
+Pass	  output[128:] is identical to the array [113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128...].
+Pass	< [test0] All assertions passed. (total 3 assertions)
+Pass	> [test1] Test value setter and setValueAtTime
+Pass	  .value setter output equals [0,0,0,0,0.15114447474479675,0.3147895336151123,0.46949297189712524,0.6108604669570923,0.7348765134811401,0.8380183577537537,0.9173563718795776,0.9706368446350098,0.9963464140892029,0.9937547445297241,0.9629355669021606,0.9047641754150391...] with an element-wise tolerance of {"absoluteThreshold":0.000065819,"relativeThreshold":0}.
+Pass	  .value setter output matches setValueAtTime output is true.
+Pass	< [test1] All assertions passed. (total 2 assertions)
+Pass	> [test2] Test value setter and modulation
+Pass	  With modulation: .value setter output equals [0,0,0,0,0,0,0,0,0,0.998640239238739,0.9932119250297546,0.9595715403556824,0.898674488067627,0.8122506141662598,0.7027547359466553,0.5732971429824829...] with an element-wise tolerance of {"absoluteThreshold":0,"relativeThreshold":0}.
+Pass	  With modulation: .value setter output matches setValueAtTime output is true.
+Pass	< [test2] All assertions passed. (total 2 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 3 tasks ran successfully.

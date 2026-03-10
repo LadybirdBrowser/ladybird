@@ -1,0 +1,25 @@
+#include <AK/ByteBuffer.h>
+#include <AK/ByteString.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/File.h>
+#include <LibWebAudio/LibWebAudio.h>
+#include <LibWebAudio/SharedAudioBuffer.h>
+#include <LibWeb/WebAudio/Worklet/WorkletNodeDefinition.h>
+
+endpoint ToWebAudioWorkerFromSessionClient
+{
+    create_session(u64 request_id, u32 target_latency_ms) => ()
+    destroy_session(u64 session_id) => ()
+
+    add_worklet_module(u64 session_id, u64 module_id, ByteString url, ByteString source_text) => ()
+    set_render_graph(u64 session_id, ByteBuffer encoded_graph, Vector<Web::WebAudio::Render::SharedAudioBufferBinding> shared_audio_buffers) => ()
+    set_suspended(u64 session_id, bool suspended, u64 generation) => ()
+    set_media_element_audio_source_streams(u64 session_id, Vector<Web::WebAudio::Render::MediaElementAudioSourceStreamDescriptor> streams) => ()
+    set_media_stream_audio_source_streams(u64 session_id, Vector<Web::WebAudio::Render::MediaStreamAudioSourceStreamDescriptor> streams) => ()
+    set_script_processor_streams(u64 session_id, Vector<Web::WebAudio::Render::ScriptProcessorStreamDescriptor> streams) => ()
+    set_worklet_node_ports(u64 session_id, Vector<Web::WebAudio::Render::WorkletNodePortDescriptor> ports) => ()
+    set_worklet_node_definitions(u64 session_id, Vector<Web::WebAudio::Render::WorkletNodeDefinition> definitions) => ()
+    create_analyser_stream(u64 session_id, u64 analyser_node_id, u32 fft_size, u32 block_count) => (Core::AnonymousBuffer pool_buffer, Core::AnonymousBuffer ready_ring_buffer, Core::AnonymousBuffer free_ring_buffer)
+    create_dynamics_compressor_stream(u64 session_id, u64 compressor_node_id, u32 block_count) => (Core::AnonymousBuffer pool_buffer, Core::AnonymousBuffer ready_ring_buffer, Core::AnonymousBuffer free_ring_buffer)
+
+}

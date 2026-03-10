@@ -41,6 +41,12 @@
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
+namespace Web::WebAudio {
+
+class BackgroundAudioDecoder;
+
+}
+
 namespace Web::DOM {
 
 enum class QuirksMode {
@@ -164,10 +170,12 @@ struct ElementCreationOptions {
 
 enum class PolicyControlledFeature : u8 {
     Autoplay,
+    Camera,
     EncryptedMedia,
     FocusWithoutUserActivation,
     Fullscreen,
     Gamepad,
+    Microphone,
     WindowManagement,
 };
 
@@ -768,6 +776,8 @@ public:
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
 
+    WebAudio::BackgroundAudioDecoder& background_audio_decoder();
+
     void restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry);
 
     GC::Ref<Animations::DocumentTimeline> timeline();
@@ -1325,6 +1335,8 @@ private:
     GC::Ptr<HTML::SessionHistoryEntry> m_latest_entry;
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
+
+    OwnPtr<WebAudio::BackgroundAudioDecoder> m_background_audio_decoder;
 
     // https://www.w3.org/TR/web-animations-1/#timeline-associated-with-a-document
     HashTable<GC::Ref<Animations::AnimationTimeline>> m_associated_animation_timelines;

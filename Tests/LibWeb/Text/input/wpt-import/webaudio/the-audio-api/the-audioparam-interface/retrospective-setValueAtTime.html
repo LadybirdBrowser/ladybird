@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test setValueAtTime with startTime in the past</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="retrospective-test.js"></script>
+  </head>
+  <body>
+    <script>
+      // Test setValueAtTime with startTime in the past
+      promise_test(async () => {
+        const {context, source, test, reference} = setupRetrospectiveGraph();
+        // Suspend the context at this frame so we can synchronously set up
+        // automations.
+        const suspendFrame = 128;
+
+        // Use a ramp of slope 1 per frame to measure time.
+        // The end value is the extent of exact precision in single
+        // precision float.
+        const rampEnd = context.length - suspendFrame;
+        const rampEndSeconds = context.length / context.sampleRate;
+
+        context.suspend(suspendFrame / context.sampleRate)
+            .then(() => {
+              // Call setValueAtTime with a time in the past
+              test.gain.setValueAtTime(0.0, 0.5 * context.currentTime);
+              test.gain.linearRampToValueAtTime(rampEnd, rampEndSeconds);
+              reference.gain.setValueAtTime(0.0, context.currentTime);
+              reference.gain.linearRampToValueAtTime(
+                  rampEnd, rampEndSeconds);
+              context.resume();
+            });
+
+        source.start();
+
+        const resultBuffer = await context.startRendering();
+        const actualChannelData = resultBuffer.getChannelData(0);
+        const expectedChannelData = resultBuffer.getChannelData(1);
+
+        // Until the suspendFrame, both should be exactly equal to 1.
+        assert_constant_value(
+            actualChannelData.slice(0, suspendFrame),
+            1,
+            `Test[0:${suspendFrame - 1}]`);
+        assert_constant_value(
+            expectedChannelData.slice(0, suspendFrame),
+            1,
+            `Reference[0:${suspendFrame - 1}]`);
+
+        // After the suspendFrame, both should be equal (and not constant)
+        assert_array_equals_exact(
+            actualChannelData.slice(suspendFrame),
+            expectedChannelData.slice(suspendFrame),
+            `Test[${suspendFrame}:]`);
+      }, 'Test setValueAtTime with startTime in the past');
+    </script>
+  </body>
+</html>

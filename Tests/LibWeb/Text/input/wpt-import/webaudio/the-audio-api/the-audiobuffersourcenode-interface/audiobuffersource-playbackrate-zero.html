@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>audiobuffersource-playbackrate-zero.html</title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+  </head>
+  <body>
+    <script>
+      // Sample rate should be power of 128 to observe the change of AudioParam
+      // at the beginning of rendering quantum. (playbackRate is k-rate) This is
+      // the minimum sample rate in the valid sample rate range.
+      const sampleRate = 8192;
+
+      // The render duration in seconds, and the length in samples.
+      const renderDuration = 1.0;
+      const renderLength = renderDuration * sampleRate;
+
+      const context = new OfflineAudioContext(1, renderLength, sampleRate);
+
+      promise_test(async t => {
+        const ramp = new AudioBufferSourceNode(context);
+        const rampBuffer = createLinearRampBuffer(context, renderLength);
+        ramp.buffer = rampBuffer;
+
+        ramp.connect(context.destination);
+        ramp.start();
+
+        // Leave the playbackRate as 1 for the first half, then change it
+        // to zero at the exact half. The zero playback rate should hold the
+        // sample value of the buffer index at the moment. (sample-and-hold)
+        ramp.playbackRate.setValueAtTime(1.0, 0.0);
+        ramp.playbackRate.setValueAtTime(0.0, renderDuration / 2);
+
+        const renderedBuffer = await context.startRendering();
+
+        const data = renderedBuffer.getChannelData(0);
+        const rampData = rampBuffer.getChannelData(0);
+        const half = rampData.length / 2;
+
+        let passed = true;
+        let i;
+
+        for (i = 1; i < rampData.length; i++) {
+          if (i < half) {
+            if (data[i] !== rampData[i]) {
+              passed = false;
+              break;
+            }
+          } else {
+            if (data[i] !== rampData[half]) {
+              passed = false;
+              break;
+            }
+          }
+        }
+
+        assert_true(
+            passed,
+            `The zero playbackRate should hold the sample value. Expected` +
+                `${rampData[half]} but got ${data[i]} at index ${i}`);
+      }, 'Synthesize and verify sample-and-hold behavior when playbackRate ' +
+          'is set to zero halfway');
+
+      promise_test(async t => {
+        const context = new OfflineAudioContext(1, renderLength, sampleRate);
+        const rampBuffer = new AudioBuffer({
+          length: renderLength,
+          sampleRate: context.sampleRate
+        });
+
+        const data = new Float32Array(renderLength);
+        const startValue = 5;
+
+        for (let k = 0; k < data.length; ++k) {
+          data[k] = k + startValue;
+        }
+
+        rampBuffer.copyToChannel(data, 0);
+
+        const src = new AudioBufferSourceNode(context, {
+          buffer: rampBuffer,
+          playbackRate: 0
+        });
+
+        src.connect(context.destination);
+
+        // Purposely start the source between frame boundaries
+        const startFrame = 27.3;
+        src.start(startFrame / context.sampleRate);
+
+        const audioBuffer = await context.startRendering();
+        const actualStartFrame = Math.ceil(startFrame);
+        const audio = audioBuffer.getChannelData(0);
+
+        assert_constant_value(
+            audio.slice(0, actualStartFrame),
+            0,
+            'output before startFrame should be silence: ');
+        assert_constant_value(
+            audio.slice(actualStartFrame),
+            startValue,
+            `output after startFrame (starting at index ${actualStartFrame}) ` +
+                `should match start value: `);
+      }, 'Subsample start with playbackRate 0 should produce sample-and-hold ' +
+          'from exact start frame');
+    </script>
+  </body>
+</html>

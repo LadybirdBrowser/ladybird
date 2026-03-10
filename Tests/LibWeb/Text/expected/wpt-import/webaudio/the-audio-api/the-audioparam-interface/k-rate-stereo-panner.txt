@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 14 tests
+
+14 Pass
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "Test k-rate StereoPannerNode"
+Pass	Audit report
+Pass	> [Test k-rate StereoPannerNode] 
+Pass	  StereoPannerNode: Setting pan.automationRate to "k-rate" is equal to k-rate.
+Pass	  StereoPannerNode: k-rate node: pan.setValueAtTime(0,0) did not throw an exception.
+Pass	  StereoPannerNode: k-rate node: pan.linearRampToValueAtTime(0.5,1) did not throw an exception.
+Pass	  StereoPannerNode: a-rate node:pan.setValueAtTime(0,0) did not throw an exception.
+Pass	  StereoPannerNode: a-rate node:pan.linearRampToValueAtTime(0.5,1) did not throw an exception.
+Pass	  StereoPannerNode: Output of k-rate StereoPannerNode is identical to the array [0,0.23952388763427734,0.45072680711746216,0.6086364984512329,0.694581925868988,0.698401153087616,0.6196423768997192,0.46761810779571533,0.2603033483028412,0.022210760042071342,-0.2185080200433731,-0.433390736579895,-0.597029983997345,-0.6900773644447327,-0.7015310525894165,-0.6300367712974548...].
+Pass	  StereoPannerNode: Output of a-rate StereoPannerNode is identical to the array [0,0.23952388763427734,0.45072680711746216,0.6086364984512329,0.6945819854736328,0.6984010934829712,0.6196423768997192,0.46761807799339294,0.2603033483028412,0.022210758179426193,-0.21850799024105072,-0.43339067697525024,-0.5970299243927002,-0.6900771856307983,-0.7015308737754822,-0.6300365924835205...].
+Pass	  StereoPannerNode: Difference between a-rate and k-rate StereoPannerNode is not constantly 0 (contains 7932 different values).
+Pass	< [Test k-rate StereoPannerNode] All assertions passed. (total 8 assertions)
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

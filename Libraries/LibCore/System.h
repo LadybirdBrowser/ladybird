@@ -94,7 +94,7 @@ CORE_API ErrorOr<void> ioctl(int fd, unsigned request, ...);
 ErrorOr<struct termios> tcgetattr(int fd);
 ErrorOr<void> tcsetattr(int fd, int optional_actions, struct termios const&);
 CORE_API ErrorOr<void> chmod(StringView pathname, mode_t mode);
-ErrorOr<off_t> lseek(int fd, off_t, int whence);
+CORE_API ErrorOr<off_t> lseek(int fd, off_t, int whence);
 
 CORE_API ErrorOr<bool> isatty(int fd);
 CORE_API ErrorOr<void> link(StringView old_path, StringView new_path);

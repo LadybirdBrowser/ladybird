@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PeriodicWavePrototype.h>
@@ -104,6 +105,34 @@ PeriodicWave::PeriodicWave(JS::Realm& realm)
 }
 
 PeriodicWave::~PeriodicWave() = default;
+
+ErrorOr<PeriodicWaveCoefficients> PeriodicWave::coefficients() const
+{
+    VERIFY(m_real);
+    VERIFY(m_imag);
+
+    auto const real_length = m_real->array_length();
+    auto const imag_length = m_imag->array_length();
+    VERIFY(!real_length.is_auto() && !imag_length.is_auto());
+    VERIFY(real_length.length() == imag_length.length());
+
+    PeriodicWaveCoefficients coefficients;
+    coefficients.normalize = m_normalize;
+
+    u32 const length = real_length.length();
+    TRY(coefficients.real.try_resize(length));
+    TRY(coefficients.imag.try_resize(length));
+
+    auto const* real_pointer = reinterpret_cast<float const*>(m_real->viewed_array_buffer()->buffer().data() + m_real->byte_offset());
+    auto const* imag_pointer = reinterpret_cast<float const*>(m_imag->viewed_array_buffer()->buffer().data() + m_imag->byte_offset());
+
+    for (u32 i = 0; i < length; ++i) {
+        coefficients.real[i] = real_pointer[i];
+        coefficients.imag[i] = imag_pointer[i];
+    }
+
+    return coefficients;
+}
 
 void PeriodicWave::initialize(JS::Realm& realm)
 {

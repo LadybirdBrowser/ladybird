@@ -131,6 +131,43 @@ public:
         return true;
     }
 
+    static ChannelMap guess_by_channel_count(u32 channel_count)
+    {
+        if (channel_count == 1)
+            return mono();
+        if (channel_count == 2)
+            return stereo();
+        if (channel_count == 4)
+            return quadrophonic();
+        if (channel_count == 6)
+            return surround_5_1();
+        if (channel_count == 8)
+            return surround_7_1();
+
+        Vector<Channel, 8> channels;
+        channels.resize(channel_count);
+        for (auto& ch : channels)
+            ch = Channel::Unknown;
+        return ChannelMap(channels);
+    }
+
+    static ChannelMap from_layout(Vector<u8> const& channel_layout, u32 channel_count)
+    {
+        if (channel_layout.size() != channel_count)
+            return guess_by_channel_count(channel_count);
+
+        Vector<Channel, 8> channels;
+        channels.resize(channel_count);
+        for (size_t i = 0; i < channel_layout.size(); ++i) {
+            u8 encoded_channel = channel_layout[i];
+            if (encoded_channel >= to_underlying(Channel::Count))
+                channels[i] = Channel::Unknown;
+            else
+                channels[i] = static_cast<Channel>(encoded_channel);
+        }
+        return ChannelMap(channels);
+    }
+
 private:
     u8 m_channel_count { 0 };
     Channel m_channels[to_underlying(Channel::Count)];
@@ -140,7 +177,7 @@ constexpr StringView audio_channel_to_string(Channel channel)
 {
     switch (channel) {
     case Audio::Channel::Unknown:
-        return "None"sv;
+        return "Unknown"sv;
     case Audio::Channel::FrontLeft:
         return "FrontLeft"sv;
     case Audio::Channel::FrontRight:
