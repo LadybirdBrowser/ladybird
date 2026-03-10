@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/paint-invalidation-in-anonymous-wrapper-ref.html" />
+<style>
+.white { color: white; }
+</style>
+<button id="btn" style="background: blue">Button</button>
+<fieldset id="fs" style="background: blue"><legend>Legend</legend>Content</fieldset>
+<script>
+requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+        document.getElementById("btn").classList.add("white");
+        document.getElementById("fs").classList.add("white");
+    });
+});
+</script>
