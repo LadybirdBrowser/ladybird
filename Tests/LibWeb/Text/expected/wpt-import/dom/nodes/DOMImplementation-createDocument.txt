@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 430 tests
+Found 434 tests
 
-430 Pass
+434 Pass
 Pass	DOMImplementation.createDocument(namespace, qualifiedName, doctype)
 Pass	createDocument test: null,null,null,null
 Pass	createDocument test: metadata for null,null,null
@@ -93,7 +93,7 @@ Pass	createDocument test: characterSet aliases for undefined,"foo1",null
 Pass	createDocument test: undefined,":foo",null,"INVALID_CHARACTER_ERR"
 Pass	createDocument test: undefined,"f:oo",null,"NAMESPACE_ERR"
 Pass	createDocument test: undefined,"foo:",null,"INVALID_CHARACTER_ERR"
-Pass	createDocument test: undefined,"f::oo",null,"INVALID_CHARACTER_ERR"
+Pass	createDocument test: undefined,"f::oo",null,"NAMESPACE_ERR"
 Pass	createDocument test: undefined,"xml",null,null
 Pass	createDocument test: metadata for undefined,"xml",null
 Pass	createDocument test: characterSet aliases for undefined,"xml",null
@@ -128,7 +128,9 @@ Pass	createDocument test: "http://example.com/","f:o:o",null,null
 Pass	createDocument test: metadata for "http://example.com/","f:o:o",null
 Pass	createDocument test: characterSet aliases for "http://example.com/","f:o:o",null
 Pass	createDocument test: "http://example.com/","foo:",null,"INVALID_CHARACTER_ERR"
-Pass	createDocument test: "http://example.com/","f::oo",null,"INVALID_CHARACTER_ERR"
+Pass	createDocument test: "http://example.com/","f::oo",null,null
+Pass	createDocument test: metadata for "http://example.com/","f::oo",null
+Pass	createDocument test: characterSet aliases for "http://example.com/","f::oo",null
 Pass	createDocument test: "http://example.com/","a:0",null,"INVALID_CHARACTER_ERR"
 Pass	createDocument test: "http://example.com/","0:a",null,null
 Pass	createDocument test: metadata for "http://example.com/","0:a",null
@@ -213,7 +215,9 @@ Pass	createDocument test: characterSet aliases for "http://example.com/","XMLNS:
 Pass	createDocument test: "http://example.com/","xmlfoo:bar",null,null
 Pass	createDocument test: metadata for "http://example.com/","xmlfoo:bar",null
 Pass	createDocument test: characterSet aliases for "http://example.com/","xmlfoo:bar",null
-Pass	createDocument test: "http://example.com/","prefix::local",null,"INVALID_CHARACTER_ERR"
+Pass	createDocument test: "http://example.com/","prefix::local",null,null
+Pass	createDocument test: metadata for "http://example.com/","prefix::local",null
+Pass	createDocument test: characterSet aliases for "http://example.com/","prefix::local",null
 Pass	createDocument test: "http://example.com/","namespaceURI:{",null,"INVALID_CHARACTER_ERR"
 Pass	createDocument test: "http://example.com/","namespaceURI:}",null,"INVALID_CHARACTER_ERR"
 Pass	createDocument test: "http://example.com/","namespaceURI:~",null,"INVALID_CHARACTER_ERR"

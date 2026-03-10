@@ -463,16 +463,16 @@ WebIDL::ExceptionOr<QualifiedName> validate_and_extract(JS::Realm& realm, Option
     auto local_name = qualified_name;
 
     // 4. If qualifiedName contains a U+003A (:):
-    auto split_result = qualified_name.bytes_as_string_view().split_view(':', SplitBehavior::KeepEmpty);
-    if (split_result.size() > 1) {
-        // 1. Let splitResult be the result of running strictly split given qualifiedName and U+003A (:).
-        // 2. Set prefix to splitResult[0].
-        prefix = MUST(FlyString::from_utf8(split_result[0]));
+    auto qualified_name_view = qualified_name.bytes_as_string_view();
+    auto colon_position = qualified_name_view.find(':');
+    if (colon_position.has_value()) {
+        // 1. Set prefix to the part of qualifiedName before the first U+003A (:).
+        prefix = MUST(FlyString::from_utf8(qualified_name_view.substring_view(0, *colon_position)));
 
-        // 3. Set localName to splitResult[1].
-        local_name = MUST(FlyString::from_utf8(split_result[1]));
+        // 2. Set localName to the part of qualifiedName after the first U+003A (:).
+        local_name = MUST(FlyString::from_utf8(qualified_name_view.substring_view(*colon_position + 1)));
 
-        // 4. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
+        // 3. If prefix is not a valid namespace prefix, then throw an "InvalidCharacterError" DOMException.
         if (!is_valid_namespace_prefix(*prefix))
             return WebIDL::InvalidCharacterError::create(realm, "Prefix not a valid namespace prefix."_utf16);
     }
