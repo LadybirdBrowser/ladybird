@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 8 tests
+
+6 Pass
+2 Fail
+Pass	Must be a function according to typeof
+Pass	Must have the correct [[Prototype]]
+Pass	Must have the correct property descriptor
+Pass	Must throw a TypeError when called or constructed
+Fail	Must not have a .prototype property
+Pass	Must have an own name property equal to the interface name and with the correct descriptors
+Pass	Must have an own length property with value zero and the correct descriptors
+Fail	instanceof must throw but only when we don't bail out early
