@@ -897,6 +897,11 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
             return;
     }
 
+    // AD-HOC: The context menu will consume our mouseup on macOS, and it seems that Chromium allows the mouseup to be
+    //         eaten by the context menu. Doing this prevents us from ignoring the cursor leaving the window when the
+    //         context menu is open.
+    clear_mousedown_tracking();
+
     // NB: Event dispatches above may have run JS that invalidated layout.
     m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerShowContextMenu);
 
@@ -1041,11 +1046,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
     dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerUp, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
-
-    // FIXME: The spec allows this to be fired following mousedown or mouseup. The native behavior on macOS is to
-    //        do so in mousedown, so we should make this configurable by the UI.
-    if (button == UIEvents::MouseButton::Secondary)
-        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     // FIXME: Per spec, the click target should be the nearest common inclusive ancestor of the pointerdown
     //        and pointerup targets. Currently we require an exact match.
@@ -1280,6 +1280,11 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
     if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count))
         return EventResult::Cancelled;
+
+    // FIXME: The spec allows this to be fired following mousedown or mouseup. The native behavior on Windows is to
+    //        do so in mouseup, so we should make this configurable by the UI.
+    if (button == UIEvents::MouseButton::Secondary)
+        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)

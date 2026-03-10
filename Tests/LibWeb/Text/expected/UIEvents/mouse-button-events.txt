@@ -20,14 +20,11 @@ click target=#target button=0 detail=3
 > single right click
 pointerdown target=#target button=2 detail=0
 mousedown target=#target button=2 detail=1
-pointerup target=#target button=2 detail=0
-mouseup target=#target button=2 detail=1
 contextmenu target=#target button=2 detail=0
-auxclick target=#target button=2 detail=1
 > single right click with contextmenu default behavior prevented
 pointerdown target=#target button=2 detail=0
 mousedown target=#target button=2 detail=1
+contextmenu target=#target button=2 detail=0
 pointerup target=#target button=2 detail=0
 mouseup target=#target button=2 detail=1
-contextmenu target=#target button=2 detail=0
 auxclick target=#target button=2 detail=1
