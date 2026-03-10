@@ -1001,6 +1001,15 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
 
     if (!paintable) {
         VERIFY(!chrome_widget);
+
+        // NB: Always fire a mouseup event if we've fired a mousedown event. Otherwise, web pages will not have a
+        //     chance to end a drag that went outside the window.
+        if (m_mousedown_target) {
+            auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *document->paintable(), *document->layout_node());
+            dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerUp, document->html_element(), nullptr, coordinates, screen_position, {}, button, buttons, modifiers, click_count);
+            return EventResult::Handled;
+        }
+
         return EventResult::Dropped;
     }
 
@@ -1356,6 +1365,16 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
             if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, *node, chrome_widget, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers))
                 return EventResult::Cancelled;
         }
+    } else if (m_mousedown_target) {
+        // NOTE: In some implementation environments, such as a browser, mousemove events can continue to fire if the
+        //       user began a drag operation (e.g., a mouse button is pressed) and the pointing device has left the
+        //       boundary of the user agent.
+        auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *document->paintable(), *document->layout_node());
+        auto movement = compute_mouse_event_movement(screen_position);
+        m_mousemove_previous_screen_position = screen_position;
+
+        if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerMove, document->html_element(), nullptr, coordinates, screen_position, movement, UIEvents::MouseButton::Primary, buttons, modifiers))
+            return EventResult::Cancelled;
     }
 
     // NB: Dispatching an event may have disturbed the world.
@@ -1387,9 +1406,8 @@ EventResult EventHandler::handle_mouseleave()
     update_hovered_chrome_widget(nullptr);
     update_cursor(nullptr, nullptr, nullptr);
 
-    track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
-    set_node_and_ancestors_being_activated(m_mousedown_target, false);
-    m_mousedown_target = nullptr;
+    if (!m_mousedown_target)
+        track_the_effective_position_of_the_legacy_mouse_pointer(nullptr);
     return EventResult::Handled;
 }
 
