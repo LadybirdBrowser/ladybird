@@ -307,18 +307,16 @@ endif()
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
 if (ENABLE_RUST)
-    corrosion_import_crate(MANIFEST_PATH Rust/Cargo.toml CRATES libjs_rust)
+    import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust)
     target_link_libraries(LibJS PRIVATE libjs_rust)
     target_compile_definitions(LibJS PRIVATE ENABLE_RUST)
-    install(TARGETS libjs_rust EXPORT LagomTargets
-        ARCHIVE COMPONENT Lagom_Development
-    )
+
     # The Rust library and LibJS have a circular dependency (C++ calls Rust
     # entry points, Rust calls C++ callbacks). For static builds, merge the
     # Rust archive into the LibJS archive so all symbols are in one place.
     if(NOT BUILD_SHARED_LIBS)
         add_custom_command(TARGET LibJS POST_BUILD
-            COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libjs_rust-static>
+            COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libjs_rust>
             COMMAND ${CMAKE_AR} -qS $<TARGET_FILE:LibJS> *.o
             COMMAND ${CMAKE_RANLIB} $<TARGET_FILE:LibJS>
             COMMAND ${CMAKE_COMMAND} -E remove -f *.o
