@@ -1,0 +1,4 @@
+highway provides CMake targets:
+
+    find_package(hwy CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE hwy::hwy)
