@@ -1285,6 +1285,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     //        do so in mouseup, so we should make this configurable by the UI.
     if (button == UIEvents::MouseButton::Secondary)
         maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
+#if defined(AK_OS_MACOS)
+    if (button == UIEvents::MouseButton::Primary && (modifiers & UIEvents::KeyModifier::Mod_Ctrl) != 0)
+        maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
+#endif
 
     // NB: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
