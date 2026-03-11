@@ -19,8 +19,6 @@ namespace Web::DOM {
     X(CSSStylePropertiesTextChange)                 \
     X(CustomElementStateChange)                     \
     X(CustomStateSetChange)                         \
-    X(DidLoseFocus)                                 \
-    X(DidReceiveFocus)                              \
     X(EditingInsertion)                             \
     X(EditingDeletion)                              \
     X(ElementAttributeChange)                       \
