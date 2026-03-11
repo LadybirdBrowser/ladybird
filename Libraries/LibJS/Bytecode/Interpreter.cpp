@@ -492,6 +492,21 @@ void Interpreter::run_bytecode(size_t entry_point)
             DISPATCH_NEXT(Mov);
         }
 
+        handle_Mov2: {
+            auto& instruction = *reinterpret_cast<Op::Mov2 const*>(&bytecode[program_counter]);
+            set(instruction.dst1(), get(instruction.src1()));
+            set(instruction.dst2(), get(instruction.src2()));
+            DISPATCH_NEXT(Mov2);
+        }
+
+        handle_Mov3: {
+            auto& instruction = *reinterpret_cast<Op::Mov3 const*>(&bytecode[program_counter]);
+            set(instruction.dst1(), get(instruction.src1()));
+            set(instruction.dst2(), get(instruction.src2()));
+            set(instruction.dst3(), get(instruction.src3()));
+            DISPATCH_NEXT(Mov3);
+        }
+
         handle_End: {
             auto& instruction = *reinterpret_cast<Op::End const*>(&bytecode[program_counter]);
             auto value = get(instruction.value());

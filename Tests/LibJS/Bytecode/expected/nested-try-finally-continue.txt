@@ -19,7 +19,7 @@ JS bytecode executable "nestedTryFinallyContinue"
 [  90]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
 [  b0]       Mov dst:reg10, src:i~0
 [  c0]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer"), reg10]
-[  e8]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@288, false_target:@290
+[  e8]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@280, false_target:@288
 [ 100]    7: Jump target:@1b0
 [ 108]    8: Catch dst:reg8
 [ 110]       SetLexicalEnvironment environment:reg4
@@ -39,21 +39,20 @@ JS bytecode executable "nestedTryFinallyContinue"
 [ 210]   14: Mov dst:reg5, src:Int32(0)
 [ 220]       Jump target:@78
 [ 228]   15: JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:@1f8, false_target:@240
-[ 240]   16: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@258, false_target:@280
-[ 258]   17: Mov dst:reg5, src:reg7
-[ 268]       Mov dst:reg6, src:reg8
-[ 278]       Jump target:@78
-[ 280]   18: Throw src:reg8
-[ 288]   19: Jump target:@28
-[ 290]   20: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@28, false_target:@2a8
-[ 2a8]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@2c0, false_target:@2c8
-[ 2c0]   22: Return value:reg6
-[ 2c8]   23: Throw src:reg6
+[ 240]   16: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@258, false_target:@278
+[ 258]   17: Mov2 dst1:reg5, src1:reg7, dst2:reg6, src2:reg8
+[ 270]       Jump target:@78
+[ 278]   18: Throw src:reg8
+[ 280]   19: Jump target:@28
+[ 288]   20: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@28, false_target:@2a0
+[ 2a0]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@2b8, false_target:@2c0
+[ 2b8]   22: Return value:reg6
+[ 2c0]   23: Throw src:reg6
 
 Exception handlers:
     from  100 to  1b0 handler   58
     from  1b0 to  210 handler  108
-    from  210 to  288 handler   58
+    from  210 to  280 handler   58
 
 "inner" 0
 "outer" 0

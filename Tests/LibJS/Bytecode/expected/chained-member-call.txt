@@ -1,32 +1,28 @@
 JS bytecode executable ""
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@48
+[   8]       Jump target:@40
 [  10]    1: Catch dst:reg5
 [  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov dst:reg6, src:Undefined
-[  30]       Mov dst:reg7, src:reg6
-[  40]    2: Jump target:@100
-[  48]    3: Mov dst:reg5, src:Undefined
-[  58]       GetGlobal dst:reg8, identifier:chained_computed_call
-[  70]       Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
-[  a0]       Mov dst:reg5, src:reg6
-[  b0]       Mov dst:reg6, src:reg5
-[  c0]       Jump target:@40
-[  c8]    4: Catch dst:reg5
-[  d0]       SetLexicalEnvironment environment:reg4
-[  d8]       Mov dst:reg7, src:Undefined
-[  e8]       Mov dst:reg8, src:reg7
-[  f8]    5: End value:reg7
-[ 100]    6: Mov dst:reg5, src:Undefined
-[ 110]       GetGlobal dst:reg9, identifier:chained_dot_call
-[ 128]       Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
-[ 150]       Mov dst:reg5, src:reg7
-[ 160]       Mov dst:reg7, src:reg5
-[ 170]       End value:reg7
+[  20]       Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
+[  38]    2: Jump target:@e8
+[  40]    3: Mov dst:reg5, src:Undefined
+[  50]       GetGlobal dst:reg8, identifier:chained_computed_call
+[  68]       Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
+[  98]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+[  b0]       Jump target:@38
+[  b8]    4: Catch dst:reg5
+[  c0]       SetLexicalEnvironment environment:reg4
+[  c8]       Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
+[  e0]    5: End value:reg7
+[  e8]    6: Mov dst:reg5, src:Undefined
+[  f8]       GetGlobal dst:reg9, identifier:chained_dot_call
+[ 110]       Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
+[ 138]       Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+[ 150]       End value:reg7
 
 Exception handlers:
-    from   48 to   c8 handler   10
-    from  100 to  178 handler   c8
+    from   40 to   b8 handler   10
+    from   e8 to  158 handler   b8
 
 JS bytecode executable "chained_computed_call"
 [   0]    0: GetLexicalEnvironment dst:reg4

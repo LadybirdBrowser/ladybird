@@ -3,7 +3,7 @@ JS bytecode executable ""
 [   8]       SetGlobal identifier:i, src:Int32(0)
 [  20]       Mov dst:reg5, src:Undefined
 [  30]       Jump target:@80
-[  38]    1: Jump target:@198
+[  38]    1: Jump target:@188
 [  40]    2: GetGlobal dst:reg6, identifier:i
 [  58]       PostfixIncrement dst:reg7, src:reg6
 [  68]       SetGlobal identifier:i, src:reg6
@@ -12,33 +12,28 @@ JS bytecode executable ""
 [  b0]    4: GetGlobal dst:reg6, identifier:i
 [  c8]       StrictlyInequals dst:reg7, lhs:reg6, rhs:Int32(5)
 [  d8]       Mov dst:reg6, src:Undefined
-[  e8]       JumpIf condition:reg7, true_target:@238, false_target:@240
+[  e8]       JumpIf condition:reg7, true_target:@208, false_target:@210
 [  f8]    5: Catch dst:reg7
 [ 100]       SetLexicalEnvironment environment:reg4
 [ 108]       Mov dst:reg6, src:Int32(1)
 [ 118]    6: Mov dst:reg9, src:Undefined
-[ 128]       JumpStrictlyEquals lhs:reg6, rhs:Int32(0), true_target:@1d0, false_target:@1f8
+[ 128]       JumpStrictlyEquals lhs:reg6, rhs:Int32(0), true_target:@1b0, false_target:@1c8
 [ 140]    7: Catch dst:reg8
 [ 148]       SetLexicalEnvironment environment:reg4
-[ 150]       Mov dst:e~0, src:reg8
-[ 160]       Mov dst:reg9, src:Undefined
-[ 170]       Mov dst:reg10, src:reg9
-[ 180]       Mov dst:reg6, src:Int32(0)
-[ 190]       Jump target:@118
-[ 198]    8: Mov dst:reg8, src:Undefined
-[ 1a8]       Mov dst:reg5, src:reg8
-[ 1b8]       Mov dst:reg6, src:Int32(3)
-[ 1c8]       Jump target:@118
-[ 1d0]    9: Mov dst:reg5, src:reg10
-[ 1e0]       Mov dst:reg5, src:reg10
-[ 1f0]       Jump target:@40
-[ 1f8]   10: JumpStrictlyEquals lhs:reg6, rhs:Int32(3), true_target:@40, false_target:@210
-[ 210]   11: JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:@228, false_target:@230
-[ 228]   12: Return value:reg7
-[ 230]   13: Throw src:reg7
-[ 238]   14: Throw src:String("bad")
-[ 240]   15: End value:reg6
+[ 150]       Mov3 dst1:e~0, src1:reg8, dst2:reg9, src2:Undefined, dst3:reg10, src3:reg9
+[ 170]       Mov dst:reg6, src:Int32(0)
+[ 180]       Jump target:@118
+[ 188]    8: Mov3 dst1:reg8, src1:Undefined, dst2:reg5, src2:reg8, dst3:reg6, src3:Int32(3)
+[ 1a8]       Jump target:@118
+[ 1b0]    9: Mov dst:reg5, src:reg10
+[ 1c0]       Jump target:@40
+[ 1c8]   10: JumpStrictlyEquals lhs:reg6, rhs:Int32(3), true_target:@40, false_target:@1e0
+[ 1e0]   11: JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:@1f8, false_target:@200
+[ 1f8]   12: Return value:reg7
+[ 200]   13: Throw src:reg7
+[ 208]   14: Throw src:String("bad")
+[ 210]   15: End value:reg6
 
 Exception handlers:
-    from  140 to  198 handler   f8
-    from  198 to  1d0 handler  140
+    from  140 to  188 handler   f8
+    from  188 to  1b0 handler  140

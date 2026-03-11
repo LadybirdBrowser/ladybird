@@ -8,8 +8,7 @@ JS bytecode executable "postfixInLogicalAnd"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
 [  18]       Mov dst:reg6, src:reg5
-[  28]       JumpFalse condition:reg5, target:@68
+[  28]       JumpFalse condition:reg5, target:@60
 [  38]    1: PostfixDecrement dst:reg7, src:arg0
-[  48]       Mov dst:arg0, src:arg0
-[  58]       Mov dst:reg6, src:reg7
-[  68]    2: Return value:reg6
+[  48]       Mov2 dst1:arg0, src1:arg0, dst2:reg6, src2:reg7
+[  60]    2: Return value:reg6

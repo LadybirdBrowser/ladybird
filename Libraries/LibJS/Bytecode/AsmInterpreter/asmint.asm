@@ -372,6 +372,24 @@ handler Mov
     dispatch_next
 end
 
+handler Mov2
+    load_operand t1, m_src1
+    store_operand m_dst1, t1
+    load_operand t2, m_src2
+    store_operand m_dst2, t2
+    dispatch_next
+end
+
+handler Mov3
+    load_operand t1, m_src1
+    store_operand m_dst1, t1
+    load_operand t2, m_src2
+    store_operand m_dst2, t2
+    load_operand t3, m_src3
+    store_operand m_dst3, t3
+    dispatch_next
+end
+
 # ============================================================================
 # Arithmetic
 # ============================================================================

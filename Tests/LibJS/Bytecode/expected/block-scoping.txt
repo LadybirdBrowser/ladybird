@@ -52,25 +52,24 @@ JS bytecode executable ""
 
 JS bytecode executable "breakThroughBlockScopes"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:result~2, src:Undefined
-[  18]       Mov dst:i~1, src:Int32(0)
-[  28]       Jump target:@c0
-[  30]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  40]       CreateMutableBinding environment:reg5, identifier:x, can_be_deleted:false
-[  50]       InitializeLexicalBinding identifier:x, src:i~1
-[  68]       NewFunction dst:f~0, shared_function_data_index:0, lhs_name:f
-[  80]       GetBinding dst:reg6, identifier:x
-[  98]       JumpGreaterThan lhs:reg6, rhs:Int32(1), true_target:@110, false_target:@130
-[  b0]    2: PostfixIncrement dst:reg5, src:i~1
-[  c0]    3: JumpLessThan lhs:i~1, rhs:Int32(3), true_target:@30, false_target:@d8
-[  d8]    4: Mov dst:reg6, src:result~2
-[  e8]       Call dst:reg5, callee:reg6, this_value:Undefined, result
-[ 108]       Return value:reg5
-[ 110]    5: Mov dst:result~2, src:f~0
-[ 120]       SetLexicalEnvironment environment:reg4
-[ 128]       Jump target:@d8
-[ 130]    6: SetLexicalEnvironment environment:reg4
-[ 138]       Jump target:@b0
+[   8]       Mov2 dst1:result~2, src1:Undefined, dst2:i~1, src2:Int32(0)
+[  20]       Jump target:@b8
+[  28]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+[  38]       CreateMutableBinding environment:reg5, identifier:x, can_be_deleted:false
+[  48]       InitializeLexicalBinding identifier:x, src:i~1
+[  60]       NewFunction dst:f~0, shared_function_data_index:0, lhs_name:f
+[  78]       GetBinding dst:reg6, identifier:x
+[  90]       JumpGreaterThan lhs:reg6, rhs:Int32(1), true_target:@108, false_target:@128
+[  a8]    2: PostfixIncrement dst:reg5, src:i~1
+[  b8]    3: JumpLessThan lhs:i~1, rhs:Int32(3), true_target:@28, false_target:@d0
+[  d0]    4: Mov dst:reg6, src:result~2
+[  e0]       Call dst:reg5, callee:reg6, this_value:Undefined, result
+[ 100]       Return value:reg5
+[ 108]    5: Mov dst:result~2, src:f~0
+[ 118]       SetLexicalEnvironment environment:reg4
+[ 120]       Jump target:@d0
+[ 128]    6: SetLexicalEnvironment environment:reg4
+[ 130]       Jump target:@a8
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4

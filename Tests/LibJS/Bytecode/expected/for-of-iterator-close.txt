@@ -49,21 +49,20 @@ JS bytecode executable "forOfReturn"
 [  80]    3: Catch dst:reg9
 [  88]       SetLexicalEnvironment environment:reg4
 [  90]       Mov dst:reg5, src:Int32(1)
-[  a0]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@f8, false_target:@118
+[  a0]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@f0, false_target:@110
 [  b8]    5: Mov dst:x~0, src:reg10
 [  c8]       ThrowIfTDZ src:x~0
-[  d0]       Mov dst:reg9, src:x~0
-[  e0]       Mov dst:reg5, src:Int32(2)
-[  f0]       Jump target:@a0
-[  f8]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-[ 110]       Throw src:reg9
-[ 118]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-[ 130]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@148, false_target:@150
-[ 148]    8: Return value:reg9
-[ 150]    9: Throw src:reg9
+[  d0]       Mov2 dst1:reg9, src1:x~0, dst2:reg5, src2:Int32(2)
+[  e8]       Jump target:@a0
+[  f0]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+[ 108]       Throw src:reg9
+[ 110]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+[ 128]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@140, false_target:@148
+[ 140]    8: Return value:reg9
+[ 148]    9: Throw src:reg9
 
 Exception handlers:
-    from   b8 to   f8 handler   80
+    from   b8 to   f0 handler   80
 
 JS bytecode executable "forAwaitOfBreak"
 [   0]    0: Yield continuation_label:@10, value:Undefined

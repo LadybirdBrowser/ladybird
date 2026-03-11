@@ -9,22 +9,21 @@ JS bytecode executable ""
 JS bytecode executable "tryCatchWithBlocks"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:x~3, src:Int32(1)
-[  18]       Jump target:@d8
+[  18]       Jump target:@d0
 [  20]    1: Catch dst:reg5
 [  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:e~2, src:reg5
-[  40]       Mov dst:z~1, src:Int32(3)
-[  50]       GetGlobal dst:reg7, identifier:console
-[  68]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  88]       Add dst:reg9, lhs:x~3, rhs:e~2
-[  98]       Add dst:reg10, lhs:reg9, rhs:z~1
-[  a8]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
-[  d0]    2: End value:Undefined
-[  d8]    3: Mov dst:y~0, src:Int32(2)
-[  e8]       Throw src:y~0
+[  30]       Mov2 dst1:e~2, src1:reg5, dst2:z~1, src2:Int32(3)
+[  48]       GetGlobal dst:reg7, identifier:console
+[  60]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
+[  80]       Add dst:reg9, lhs:x~3, rhs:e~2
+[  90]       Add dst:reg10, lhs:reg9, rhs:z~1
+[  a0]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
+[  c8]    2: End value:Undefined
+[  d0]    3: Mov dst:y~0, src:Int32(2)
+[  e0]       Throw src:y~0
 
 Exception handlers:
-    from   d8 to   f0 handler   20
+    from   d0 to   e8 handler   20
 
 JS bytecode executable "tryCatchFinallyWithBlocks"
 [   0]    0: GetLexicalEnvironment dst:reg4

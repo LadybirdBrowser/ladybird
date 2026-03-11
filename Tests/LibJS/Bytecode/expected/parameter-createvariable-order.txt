@@ -14,10 +14,9 @@ JS bytecode executable "f"
 [  68]       InitializeLexicalBinding identifier:c, src:arg2
 [  80]       Mov dst:inner~0, src:Undefined
 [  90]       NewFunction dst:reg5, shared_function_data_index:0, lhs_name:inner
-[  a8]       Mov dst:inner~0, src:reg5
-[  b8]       Mov dst:reg6, src:inner~0
-[  c8]       Call dst:reg5, callee:reg6, this_value:Undefined, inner
-[  e8]       Return value:reg5
+[  a8]       Mov2 dst1:inner~0, src1:reg5, dst2:reg6, src2:inner~0
+[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, inner
+[  e0]       Return value:reg5
 
 JS bytecode executable "inner"
 [   0]    0: GetLexicalEnvironment dst:reg4

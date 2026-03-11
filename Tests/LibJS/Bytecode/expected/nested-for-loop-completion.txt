@@ -18,5 +18,4 @@ JS bytecode executable ""
 [ 120]    6: GetGlobal dst:reg7, identifier:depth
 [ 138]       JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:@e0, false_target:@150
 [ 150]    7: Mov dst:reg5, src:reg6
-[ 160]       Mov dst:reg5, src:reg6
-[ 170]       Jump target:@68
+[ 160]       Jump target:@68

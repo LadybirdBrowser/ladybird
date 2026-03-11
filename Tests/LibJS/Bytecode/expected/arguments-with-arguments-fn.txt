@@ -8,7 +8,6 @@ JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@28
 [  18]    1: Mov dst:arg0, src:Int32(1)
-[  28]    2: Mov dst:reg5, src:Undefined
-[  38]       Mov dst:arguments~0, src:reg5
-[  48]       NewFunction dst:arguments~0, shared_function_data_index:0
-[  60]       End value:Undefined
+[  28]    2: Mov2 dst1:reg5, src1:Undefined, dst2:arguments~0, src2:reg5
+[  40]       NewFunction dst:arguments~0, shared_function_data_index:0
+[  58]       End value:Undefined

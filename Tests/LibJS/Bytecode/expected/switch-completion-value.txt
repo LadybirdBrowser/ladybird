@@ -22,18 +22,16 @@ JS bytecode executable "eval"
 [   8]       Mov dst:reg5, src:Undefined
 [  18]    1: JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:@38, false_target:@30
 [  30]    2: End value:reg5
-[  38]    3: Mov dst:reg5, src:String("hello")
-[  48]       Mov dst:x~0, src:Int32(1)
-[  58]    4: End value:reg5
+[  38]    3: Mov2 dst1:reg5, src1:String("hello"), dst2:x~0, src2:Int32(1)
+[  50]    4: End value:reg5
 
 JS bytecode executable "eval"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:reg5, src:Undefined
 [  18]    1: JumpStrictlyEquals lhs:Int32(1), rhs:Int32(1), true_target:@38, false_target:@30
 [  30]    2: End value:reg5
-[  38]    3: Mov dst:reg5, src:String("first")
-[  48]       Mov dst:reg5, src:String("second")
-[  58]    4: End value:reg5
+[  38]    3: Mov2 dst1:reg5, src1:String("first"), dst2:reg5, src2:String("second")
+[  50]    4: End value:reg5
 
 JS bytecode executable "eval"
 [   0]    0: GetLexicalEnvironment dst:reg4

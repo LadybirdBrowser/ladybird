@@ -17,17 +17,16 @@ JS bytecode executable "basicTryFinally"
 [  30]    2: GetGlobal dst:reg8, identifier:console
 [  48]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
 [  68]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("finally")]
-[  90]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@d0, false_target:@d8
-[  a8]    3: Mov dst:reg6, src:Int32(1)
-[  b8]       Mov dst:reg5, src:Int32(2)
-[  c8]       Jump target:@30
-[  d0]    4: End value:Undefined
-[  d8]    5: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@f0, false_target:@f8
-[  f0]    6: Return value:reg6
-[  f8]    7: Throw src:reg6
+[  90]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@c8, false_target:@d0
+[  a8]    3: Mov2 dst1:reg6, src1:Int32(1), dst2:reg5, src2:Int32(2)
+[  c0]       Jump target:@30
+[  c8]    4: End value:Undefined
+[  d0]    5: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@e8, false_target:@f0
+[  e8]    6: Return value:reg6
+[  f0]    7: Throw src:reg6
 
 Exception handlers:
-    from   a8 to   d0 handler   10
+    from   a8 to   c8 handler   10
 
 JS bytecode executable "breakThroughFinally"
 [   0]    0: GetLexicalEnvironment dst:reg4
@@ -72,7 +71,7 @@ JS bytecode executable "nestedTryFinallyWithBreak"
 [  60]    5: GetGlobal dst:reg8, identifier:console
 [  78]       GetById dst:reg9, base:reg8, property:log, base_identifier:console
 [  98]       Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer")]
-[  c0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@220, false_target:@228
+[  c0]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@218, false_target:@220
 [  d8]    6: Jump target:@178
 [  e0]    7: Catch dst:reg8
 [  e8]       SetLexicalEnvironment environment:reg4
@@ -88,21 +87,20 @@ JS bytecode executable "nestedTryFinallyWithBreak"
 [ 1a8]   11: Mov dst:reg5, src:Int32(0)
 [ 1b8]       Jump target:@60
 [ 1c0]   12: JumpStrictlyEquals lhs:reg7, rhs:Int32(3), true_target:@190, false_target:@1d8
-[ 1d8]   13: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@1f0, false_target:@218
-[ 1f0]   14: Mov dst:reg5, src:reg7
-[ 200]       Mov dst:reg6, src:reg8
-[ 210]       Jump target:@60
-[ 218]   15: Throw src:reg8
-[ 220]   16: Jump target:@20
-[ 228]   17: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@38, false_target:@240
-[ 240]   18: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@258, false_target:@260
-[ 258]   19: Return value:reg6
-[ 260]   20: Throw src:reg6
+[ 1d8]   13: JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:@1f0, false_target:@210
+[ 1f0]   14: Mov2 dst1:reg5, src1:reg7, dst2:reg6, src2:reg8
+[ 208]       Jump target:@60
+[ 210]   15: Throw src:reg8
+[ 218]   16: Jump target:@20
+[ 220]   17: JumpStrictlyEquals lhs:reg5, rhs:Int32(3), true_target:@38, false_target:@238
+[ 238]   18: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@250, false_target:@258
+[ 250]   19: Return value:reg6
+[ 258]   20: Throw src:reg6
 
 Exception handlers:
     from   d8 to  178 handler   40
     from  178 to  1a8 handler   e0
-    from  1a8 to  220 handler   40
+    from  1a8 to  218 handler   40
 
 "finally"
 0

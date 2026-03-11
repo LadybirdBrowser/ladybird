@@ -6,29 +6,26 @@ JS bytecode executable ""
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:a~0, src:Undefined
-[  18]       Mov dst:b~1, src:Undefined
-[  28]       Mov dst:reg5, src:arg0
-[  38]       JumpFalse condition:arg0, target:@e0
-[  48]    1: Mov dst:reg7, src:arg0
-[  58]       Mov dst:reg8, src:arg1
-[  68]       Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
-[  90]       Mov dst:reg7, src:Bool(false)
-[  a0]       GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
-[  b8]       IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-[  d0]       JumpIf condition:reg7, true_target:@e8, false_target:@100
-[  e0]    2: End value:Undefined
-[  e8]    3: Mov dst:reg11, src:Undefined
-[  f8]       Jump target:@100
-[ 100]    4: Mov dst:a~0, src:reg11
-[ 110]       JumpFalse condition:reg7, target:@138
-[ 120]    5: Mov dst:reg11, src:Undefined
-[ 130]       Jump target:@160
-[ 138]    6: IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-[ 150]       JumpTrue condition:reg7, target:@120
-[ 160]    7: Mov dst:b~1, src:reg11
-[ 170]       JumpFalse condition:reg7, target:@198
-[ 180]    8: Mov dst:reg5, src:reg6
-[ 190]       Jump target:@e0
-[ 198]    9: IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-[ 1b0]       Jump target:@180
+[   8]       Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
+[  28]       JumpFalse condition:arg0, target:@c8
+[  38]    1: Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
+[  50]       Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
+[  78]       Mov dst:reg7, src:Bool(false)
+[  88]       GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
+[  a0]       IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+[  b8]       JumpIf condition:reg7, true_target:@d0, false_target:@e8
+[  c8]    2: End value:Undefined
+[  d0]    3: Mov dst:reg11, src:Undefined
+[  e0]       Jump target:@e8
+[  e8]    4: Mov dst:a~0, src:reg11
+[  f8]       JumpFalse condition:reg7, target:@120
+[ 108]    5: Mov dst:reg11, src:Undefined
+[ 118]       Jump target:@148
+[ 120]    6: IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+[ 138]       JumpTrue condition:reg7, target:@108
+[ 148]    7: Mov dst:b~1, src:reg11
+[ 158]       JumpFalse condition:reg7, target:@180
+[ 168]    8: Mov dst:reg5, src:reg6
+[ 178]       Jump target:@c8
+[ 180]    9: IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+[ 198]       Jump target:@168

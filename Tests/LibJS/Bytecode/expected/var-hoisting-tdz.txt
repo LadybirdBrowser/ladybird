@@ -6,13 +6,12 @@ JS bytecode executable ""
 
 JS bytecode executable "isect"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:i~0, src:Undefined
-[  18]       Mov dst:i~0, src:Int32(0)
-[  28]       Jump target:@40
-[  30]    1: PostfixIncrement dst:reg5, src:i~0
-[  40]    2: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@30, false_target:@58
-[  58]    3: Mov dst:i~0, src:Int32(0)
-[  68]       Jump target:@80
-[  70]    4: PostfixIncrement dst:reg5, src:i~0
-[  80]    5: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@70, false_target:@98
-[  98]    6: End value:Undefined
+[   8]       Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+[  20]       Jump target:@38
+[  28]    1: PostfixIncrement dst:reg5, src:i~0
+[  38]    2: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@28, false_target:@50
+[  50]    3: Mov dst:i~0, src:Int32(0)
+[  60]       Jump target:@78
+[  68]    4: PostfixIncrement dst:reg5, src:i~0
+[  78]    5: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@68, false_target:@90
+[  90]    6: End value:Undefined

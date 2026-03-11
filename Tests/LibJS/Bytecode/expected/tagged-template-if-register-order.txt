@@ -9,11 +9,10 @@ JS bytecode executable ""
 [  b8]       GetGlobal dst:reg5, identifier:x
 [  d0]       StrictlyEquals dst:reg6, lhs:reg5, rhs:String("hello")
 [  e0]       Mov dst:reg5, src:Undefined
-[  f0]       JumpFalse condition:reg6, target:@190
+[  f0]       JumpFalse condition:reg6, target:@180
 [ 100]    1: GetGlobal dst:reg8, identifier:x
 [ 118]       GetById dst:reg9, base:reg8, property:toUpperCase, base_identifier:x
 [ 138]       Call dst:reg7, callee:reg9, this_value:reg8, x.toUpperCase
 [ 158]       SetGlobal identifier:y, src:reg7
 [ 170]       Mov dst:reg5, src:reg7
-[ 180]       Mov dst:reg5, src:reg7
-[ 190]    2: End value:reg5
+[ 180]    2: End value:reg5

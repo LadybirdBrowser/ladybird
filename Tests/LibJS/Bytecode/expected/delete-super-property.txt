@@ -5,39 +5,33 @@ JS bytecode executable ""
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("foo"), element_keys:String("baz")]
 [  58]       InitializeLexicalBinding identifier:A, src:reg6
-[  70]       Jump target:@c0
+[  70]       Jump target:@b0
 [  78]    1: Catch dst:reg5
 [  80]       SetLexicalEnvironment environment:reg4
-[  88]       Mov dst:e~0, src:reg5
-[  98]       Mov dst:reg6, src:Undefined
-[  a8]       Mov dst:reg7, src:reg6
-[  b8]    2: Jump target:@1b0
-[  c0]    3: Mov dst:reg5, src:Undefined
-[  d0]       GetGlobal dst:reg9, identifier:A
-[  e8]       CallConstruct dst:reg8, callee:reg9, A
-[ 100]       GetById dst:reg9, base:reg8, property:foo
-[ 120]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
-[ 140]       Mov dst:reg5, src:reg6
-[ 150]       Mov dst:reg6, src:reg5
-[ 160]       Jump target:@b8
-[ 168]    4: Catch dst:reg5
-[ 170]       SetLexicalEnvironment environment:reg4
-[ 178]       Mov dst:e~1, src:reg5
-[ 188]       Mov dst:reg7, src:Undefined
-[ 198]       Mov dst:reg8, src:reg7
-[ 1a8]    5: End value:reg7
-[ 1b0]    6: Mov dst:reg5, src:Undefined
-[ 1c0]       GetGlobal dst:reg10, identifier:A
-[ 1d8]       CallConstruct dst:reg9, callee:reg10, A
-[ 1f0]       GetById dst:reg10, base:reg9, property:baz
-[ 210]       Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
-[ 230]       Mov dst:reg5, src:reg7
-[ 240]       Mov dst:reg7, src:reg5
-[ 250]       End value:reg7
+[  88]       Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
+[  a8]    2: Jump target:@188
+[  b0]    3: Mov dst:reg5, src:Undefined
+[  c0]       GetGlobal dst:reg9, identifier:A
+[  d8]       CallConstruct dst:reg8, callee:reg9, A
+[  f0]       GetById dst:reg9, base:reg8, property:foo
+[ 110]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
+[ 130]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+[ 148]       Jump target:@a8
+[ 150]    4: Catch dst:reg5
+[ 158]       SetLexicalEnvironment environment:reg4
+[ 160]       Mov3 dst1:e~1, src1:reg5, dst2:reg7, src2:Undefined, dst3:reg8, src3:reg7
+[ 180]    5: End value:reg7
+[ 188]    6: Mov dst:reg5, src:Undefined
+[ 198]       GetGlobal dst:reg10, identifier:A
+[ 1b0]       CallConstruct dst:reg9, callee:reg10, A
+[ 1c8]       GetById dst:reg10, base:reg9, property:baz
+[ 1e8]       Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
+[ 208]       Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+[ 220]       End value:reg7
 
 Exception handlers:
-    from   c0 to  168 handler   78
-    from  1b0 to  258 handler  168
+    from   b0 to  150 handler   78
+    from  188 to  228 handler  150
 
 JS bytecode executable "A"
 [   0]    0: GetLexicalEnvironment dst:reg4

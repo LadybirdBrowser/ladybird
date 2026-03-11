@@ -637,6 +637,24 @@ op Mov < Instruction
     m_src: Operand
 endop
 
+op Mov2 < Instruction
+    @nothrow
+    m_dst1: Operand
+    m_src1: Operand
+    m_dst2: Operand
+    m_src2: Operand
+endop
+
+op Mov3 < Instruction
+    @nothrow
+    m_dst1: Operand
+    m_src1: Operand
+    m_dst2: Operand
+    m_src2: Operand
+    m_dst3: Operand
+    m_src3: Operand
+endop
+
 op Mul < Instruction
     m_dst: Operand
     m_lhs: Operand

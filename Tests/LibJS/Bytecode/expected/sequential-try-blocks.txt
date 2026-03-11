@@ -10,32 +10,30 @@ JS bytecode executable ""
 JS bytecode executable "sequentialTryCatch"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:result~2, src:String("")
-[  18]       Jump target:@78
+[  18]       Jump target:@70
 [  20]    1: Catch dst:reg5
 [  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:e~0, src:reg5
-[  40]       Mov dst:reg6, src:result~2
-[  50]       Add dst:reg7, lhs:reg6, rhs:String("b")
-[  60]       Mov dst:result~2, src:reg7
-[  70]    2: Jump target:@108
-[  78]    3: Mov dst:reg5, src:result~2
-[  88]       Add dst:reg6, lhs:reg5, rhs:String("a")
-[  98]       Mov dst:result~2, src:reg6
-[  a8]       Throw src:Int32(1)
-[  b0]    4: Catch dst:reg5
-[  b8]       SetLexicalEnvironment environment:reg4
-[  c0]       Mov dst:e~1, src:reg5
-[  d0]       Mov dst:reg6, src:result~2
-[  e0]       Add dst:reg7, lhs:reg6, rhs:String("d")
-[  f0]       Mov dst:result~2, src:reg7
-[ 100]    5: Return value:result~2
-[ 108]    6: Mov dst:reg5, src:result~2
-[ 118]       Add dst:reg6, lhs:reg5, rhs:String("c")
-[ 128]       Mov dst:result~2, src:reg6
-[ 138]       Throw src:Int32(2)
+[  30]       Mov2 dst1:e~0, src1:reg5, dst2:reg6, src2:result~2
+[  48]       Add dst:reg7, lhs:reg6, rhs:String("b")
+[  58]       Mov dst:result~2, src:reg7
+[  68]    2: Jump target:@f8
+[  70]    3: Mov dst:reg5, src:result~2
+[  80]       Add dst:reg6, lhs:reg5, rhs:String("a")
+[  90]       Mov dst:result~2, src:reg6
+[  a0]       Throw src:Int32(1)
+[  a8]    4: Catch dst:reg5
+[  b0]       SetLexicalEnvironment environment:reg4
+[  b8]       Mov2 dst1:e~1, src1:reg5, dst2:reg6, src2:result~2
+[  d0]       Add dst:reg7, lhs:reg6, rhs:String("d")
+[  e0]       Mov dst:result~2, src:reg7
+[  f0]    5: Return value:result~2
+[  f8]    6: Mov dst:reg5, src:result~2
+[ 108]       Add dst:reg6, lhs:reg5, rhs:String("c")
+[ 118]       Mov dst:result~2, src:reg6
+[ 128]       Throw src:Int32(2)
 
 Exception handlers:
-    from   78 to   b0 handler   20
-    from  108 to  140 handler   b0
+    from   70 to   a8 handler   20
+    from   f8 to  130 handler   a8
 
 "abcd"

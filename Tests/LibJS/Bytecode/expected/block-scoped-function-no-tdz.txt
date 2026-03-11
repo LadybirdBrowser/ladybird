@@ -9,12 +9,11 @@ JS bytecode executable "test"
 [   8]       Mov dst:result~1, src:Undefined
 [  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
 [  28]       NewFunction dst:reg6, shared_function_data_index:0
-[  40]       Mov dst:foo~0, src:reg6
-[  50]       Mov dst:reg7, src:foo~0
-[  60]       Call dst:reg6, callee:reg7, this_value:Undefined, foo
-[  80]       Mov dst:result~1, src:reg6
-[  90]       SetLexicalEnvironment environment:reg4
-[  98]       Return value:result~1
+[  40]       Mov2 dst1:foo~0, src1:reg6, dst2:reg7, src2:foo~0
+[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, foo
+[  78]       Mov dst:result~1, src:reg6
+[  88]       SetLexicalEnvironment environment:reg4
+[  90]       Return value:result~1
 
 JS bytecode executable "foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

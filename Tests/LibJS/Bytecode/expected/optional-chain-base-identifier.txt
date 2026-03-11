@@ -10,11 +10,10 @@ JS bytecode executable ""
 [  90]       Mov dst:reg5, src:Undefined
 [  a0]       GetGlobal dst:reg7, identifier:obj
 [  b8]       GetById dst:reg8, base:reg7, property:a, base_identifier:obj
-[  d8]       Mov dst:reg5, src:reg7
-[  e8]       Mov dst:reg6, src:reg8
-[  f8]       JumpNullish condition:reg6, true_target:@108, false_target:@120
-[ 108]    1: Mov dst:reg6, src:Undefined
-[ 118]    2: End value:reg6
-[ 120]    3: Mov dst:reg5, src:reg6
-[ 130]       GetById dst:reg6, base:reg6, property:b
-[ 150]       End value:reg6
+[  d8]       Mov2 dst1:reg5, src1:reg7, dst2:reg6, src2:reg8
+[  f0]       JumpNullish condition:reg6, true_target:@100, false_target:@118
+[ 100]    1: Mov dst:reg6, src:Undefined
+[ 110]    2: End value:reg6
+[ 118]    3: Mov dst:reg5, src:reg6
+[ 128]       GetById dst:reg6, base:reg6, property:b
+[ 148]       End value:reg6

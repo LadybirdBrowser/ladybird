@@ -16,16 +16,15 @@ JS bytecode executable "f"
 [  48]       Typeof dst:reg5, src:a~0
 [  58]       LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
 [  68]       Mov dst:reg5, src:reg6
-[  78]       JumpFalse condition:reg6, target:@108
+[  78]       JumpFalse condition:reg6, target:@100
 [  88]    1: GetGlobal dst:reg8, identifier:g
 [  a0]       ThrowIfTDZ src:a~0
 [  a8]       Mov dst:reg9, src:a~0
 [  b8]       Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
 [  e0]       ThrowIfTDZ src:a~0
-[  e8]       Mov dst:a~0, src:reg7
-[  f8]       Mov dst:reg5, src:reg7
-[ 108]    2: ThrowIfTDZ src:a~0
-[ 110]       Return value:a~0
+[  e8]       Mov2 dst1:a~0, src1:reg7, dst2:reg5, src2:reg7
+[ 100]    2: ThrowIfTDZ src:a~0
+[ 108]       Return value:a~0
 
 JS bytecode executable "g"
 [   0]    0: GetLexicalEnvironment dst:reg4
