@@ -6,6 +6,7 @@ vcpkg_from_github(
     HEAD_REF master
     PATCHES
         2695.patch
+        vcpkg-50397.diff # https://github.com/microsoft/vcpkg/issues/50397
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
