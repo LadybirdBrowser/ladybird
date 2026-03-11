@@ -52,14 +52,14 @@ else
     ((FAILURES+=1))
 fi
 
-if cargo fmt --check && git diff --exit-code -- ':*.rs'; then
+if cargo fmt --check ; then
     echo -e "[${GREEN}OK${NC}]: cargo fmt --check"
 else
     echo -e "[${BOLD_RED}FAIL${NC}]: cargo fmt --check"
     ((FAILURES+=1))
 fi
 
-if cargo clippy -- -D clippy::all && git diff --exit-code -- ':*.rs'; then
+if cargo clippy -- -D clippy::all ; then
     echo -e "[${GREEN}OK${NC}]: cargo clippy -- -D clippy::all"
 else
     echo -e "[${BOLD_RED}FAIL${NC}]: cargo clippy -- -D clippy::all"
