@@ -52,6 +52,48 @@
 
 #include <SDL3/SDL_init.h>
 
+#if !defined(AK_OS_WINDOWS)
+#    include <signal.h>
+static void crash_signal_handler(int signo)
+{
+    char const* name = "unknown";
+    switch (signo) {
+    case SIGSEGV:
+        name = "SIGSEGV";
+        break;
+    case SIGBUS:
+        name = "SIGBUS";
+        break;
+    case SIGFPE:
+        name = "SIGFPE";
+        break;
+    case SIGABRT:
+        name = "SIGABRT";
+        break;
+    case SIGILL:
+        name = "SIGILL";
+        break;
+    }
+    warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
+    dump_backtrace(2, 100);
+    signal(signo, SIG_DFL);
+    raise(signo);
+}
+
+static void install_crash_signal_handlers()
+{
+    struct sigaction sa;
+    sa.sa_handler = crash_signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESETHAND;
+    sigaction(SIGSEGV, &sa, nullptr);
+    sigaction(SIGBUS, &sa, nullptr);
+    sigaction(SIGFPE, &sa, nullptr);
+    sigaction(SIGABRT, &sa, nullptr);
+    sigaction(SIGILL, &sa, nullptr);
+}
+#endif
+
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
@@ -63,6 +105,10 @@ static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_s
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
+
+#if !defined(AK_OS_WINDOWS)
+    install_crash_signal_handlers();
+#endif
 
 #if defined(AK_OS_WINDOWS)
     // NOTE: We need this here otherwise SDL inits COM in the APARTMENTTHREADED model which we don't want as we need to
