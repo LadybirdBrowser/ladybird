@@ -192,7 +192,7 @@ static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm
     // Here, the topmost script-having execution context is the topmost entry of the JavaScript execution context stack that has a non-null ScriptOrModule component,
     // or null if there is no such entry in the JavaScript execution context stack.
     auto execution_context = vm.execution_context_stack().last_matching([&](JS::ExecutionContext* context) {
-        return context->script_or_module != nullptr;
+        return !context->script_or_module.has<Empty>();
     });
 
     if (!execution_context.has_value())

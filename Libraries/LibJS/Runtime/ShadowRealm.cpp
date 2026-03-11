@@ -346,7 +346,7 @@ NonnullOwnPtr<ExecutionContext> get_shadow_realm_context(Realm& shadow_realm, bo
     context->realm = &shadow_realm;
 
     // 7. Set context's ScriptOrModule to null.
-    context->script_or_module = nullptr;
+    context->script_or_module = {};
 
     // 8. Set context's VariableEnvironment to varEnv.
     context->variable_environment = variable_environment;

@@ -641,10 +641,10 @@ i64 asm_try_get_global_env_binding(Interpreter* interp, u32 pc)
     auto& vm = Interpreter::vm();
     ThrowCompletionOr<Value> result = js_undefined();
     if (cache.in_module_environment) {
-        auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr());
+        auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
         if (!module) [[unlikely]]
             return 1;
-        result = module->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
+        result = (*module)->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
     } else {
         result = interp->global_declarative_environment().get_binding_value_direct(vm, cache.environment_binding_index);
     }
@@ -672,10 +672,10 @@ i64 asm_try_set_global_env_binding(Interpreter* interp, u32 pc)
     auto src = interp->get(insn.src());
     ThrowCompletionOr<void> result;
     if (cache.in_module_environment) {
-        auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr());
+        auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
         if (!module) [[unlikely]]
             return 1;
-        result = module->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
+        result = (*module)->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
     } else {
         result = interp->global_declarative_environment().set_mutable_binding_direct(vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
     }

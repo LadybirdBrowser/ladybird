@@ -561,14 +561,14 @@ ScriptOrModule VM::get_active_script_or_module() const
 
     // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
     for (auto i = m_execution_context_stack.size() - 1; i > 0; i--) {
-        if (m_execution_context_stack[i]->script_or_module)
-            return script_or_module_from_cell(m_execution_context_stack[i]->script_or_module);
+        if (!m_execution_context_stack[i]->script_or_module.has<Empty>())
+            return m_execution_context_stack[i]->script_or_module;
     }
 
     // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
     // Note: Since it is not empty we have 0 and since we got here all the
     //       above contexts don't have a non-null ScriptOrModule
-    return script_or_module_from_cell(m_execution_context_stack[0]->script_or_module);
+    return m_execution_context_stack[0]->script_or_module;
 }
 
 VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, Utf16String const&)
