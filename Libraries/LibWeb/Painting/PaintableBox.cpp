@@ -164,8 +164,8 @@ void PaintableBox::reset_for_relayout()
     m_absolute_padding_box_rect.clear();
     m_absolute_border_box_rect.clear();
 
-    m_enclosing_scroll_frame = nullptr;
-    m_own_scroll_frame = nullptr;
+    m_enclosing_scroll_frame_index = {};
+    m_own_scroll_frame_index = {};
     m_accumulated_visual_context_index = {};
     m_accumulated_visual_context_for_descendants_index = {};
 
@@ -451,7 +451,7 @@ Optional<CSSPixelRect> PaintableBox::get_clip_rect() const
 
 bool PaintableBox::wants_mouse_events() const
 {
-    return (m_own_scroll_frame && could_be_scrolled_by_wheel_event()) || has_resizer();
+    return (m_own_scroll_frame_index.value() && could_be_scrolled_by_wheel_event()) || has_resizer();
 }
 
 bool PaintableBox::could_be_scrolled_by_wheel_event(ScrollDirection direction) const
@@ -561,7 +561,7 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
     if (overflow != CSS::Overflow::Scroll && !could_be_scrolled_by_wheel_event(direction))
         return {};
 
-    if (!own_scroll_frame_id().has_value())
+    if (!m_own_scroll_frame_index.value())
         return {};
 
     CSSPixelRect scrollable_overflow_rect = this->scrollable_overflow_rect().value();
@@ -599,7 +599,7 @@ Optional<PaintableBox::ScrollbarData> PaintableBox::compute_scrollbar_data(Scrol
         scrollbar_data.thumb_travel_to_scroll_ratio = (usable_scrollbar_length - thumb_length) / (scrollable_overflow_length - scrollport_size);
 
     if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_frame_with_id(own_scroll_frame_id().value());
+        auto own_offset = scroll_state_snapshot->device_offset_for_index(m_own_scroll_frame_index);
         auto device_scroll_offset = is_horizontal ? -own_offset.x() : -own_offset.y();
         auto device_pixels_per_css_pixel = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
         CSSPixels thumb_offset = CSSPixels::nearest_value_for(device_scroll_offset / device_pixels_per_css_pixel) * scrollbar_data.thumb_travel_to_scroll_ratio;
@@ -672,7 +672,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                 if (!scrollbar_data.has_value())
                     continue;
                 context.display_list_recorder().paint_scrollbar(
-                    own_scroll_frame_id().value(),
+                    m_own_scroll_frame_index,
                     context.rounded_device_rect(scrollbar_data->gutter_rect).to_type<int>(),
                     context.rounded_device_rect(scrollbar_data->thumb_rect).to_type<int>(),
                     scrollbar_data->thumb_travel_to_scroll_ratio.to_double(),
@@ -872,20 +872,6 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
     if (shrink == ShrinkRadiiForBorders::Yes)
         border_radii_data.shrink(computed_values().border_top().width, computed_values().border_right().width, computed_values().border_bottom().width, computed_values().border_left().width);
     return border_radii_data;
-}
-
-Optional<int> PaintableBox::own_scroll_frame_id() const
-{
-    if (m_own_scroll_frame)
-        return m_own_scroll_frame->id();
-    return {};
-}
-
-Optional<int> PaintableBox::scroll_frame_id() const
-{
-    if (m_enclosing_scroll_frame)
-        return m_enclosing_scroll_frame->id();
-    return {};
 }
 
 Optional<CSSPixelPoint> PaintableBox::transform_point_to_local(CSSPixelPoint screen_position) const
@@ -1361,21 +1347,21 @@ CSSPixels PaintableBox::outline_offset() const
     return computed_values().outline_offset().to_px(layout_node());
 }
 
-RefPtr<ScrollFrame const> PaintableBox::nearest_scroll_frame() const
+ScrollFrameIndex PaintableBox::nearest_scroll_frame_index() const
 {
     if (is_fixed_position())
-        return nullptr;
+        return {};
     auto const* paintable = this->containing_block();
     while (paintable) {
-        if (paintable->own_scroll_frame())
-            return paintable->own_scroll_frame();
+        if (paintable->own_scroll_frame_index().value())
+            return paintable->own_scroll_frame_index();
         // Sticky elements need to find a scroll container even through fixed-position ancestors,
         // because they must reference a scrollport for their sticky offset computation.
         if (paintable->is_fixed_position() && !is_sticky_position())
-            return nullptr;
+            return {};
         paintable = paintable->containing_block();
     }
-    return nullptr;
+    return {};
 }
 
 PaintableBox const* PaintableBox::nearest_scrollable_ancestor() const

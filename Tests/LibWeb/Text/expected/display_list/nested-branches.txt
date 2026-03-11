@@ -1,5 +1,5 @@
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=0 (PaintableWithLines(BlockContainer<PRE>#out))
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
     [2] clip=[10,10 320x270] (PaintableWithLines(BlockContainer<DIV>.level2))
       [3] clip=[21,21 143x248] (PaintableWithLines(BlockContainer(anonymous)))
         [4] transform=[0.9986295,-0.05233596,0.05233596,0.9986295,0,0] origin=(92.5,46) (PaintableWithLines(BlockContainer<DIV>.level3.t1))

@@ -18,6 +18,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/WindingRule.h>
 #include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/ScrollFrame.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
@@ -27,7 +28,7 @@ class ScrollStateSnapshot;
 AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, VisualContextIndex);
 
 struct ScrollData {
-    size_t scroll_frame_id;
+    ScrollFrameIndex scroll_frame_index;
     bool is_sticky;
 };
 

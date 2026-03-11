@@ -21,7 +21,7 @@ NonnullRefPtr<AccumulatedVisualContextTree> AccumulatedVisualContextTree::create
 {
     auto visual_context_tree = adopt_ref(*new AccumulatedVisualContextTree());
     // Sentinel at index 0 (null context). Data type doesn't matter; it's never accessed.
-    visual_context_tree->m_nodes.append({ ScrollData { 0, false }, {}, 0, false });
+    visual_context_tree->m_nodes.append({ ScrollData { {}, false }, {}, 0, false });
     return visual_context_tree;
 }
 
@@ -91,7 +91,7 @@ Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_
                 return point;
             },
             [&](ScrollData const& scroll) -> Optional<Gfx::FloatPoint> {
-                point.translate_by(-scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id));
+                point.translate_by(-scroll_state.device_offset_for_index(scroll.scroll_frame_index));
                 return point;
             },
             [&](TransformData const& transform) -> Optional<Gfx::FloatPoint> {
@@ -186,7 +186,7 @@ Gfx::FloatRect AccumulatedVisualContextTree::transform_rect_to_viewport(VisualCo
                 rect = affine.map(rect);
             },
             [&](ScrollData const& scroll) {
-                rect.translate_by(scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id));
+                rect.translate_by(scroll_state.device_offset_for_index(scroll.scroll_frame_index));
             },
             [&](ClipData const&) { /* clips don't affect rect coordinates */ },
             [&](ClipPathData const&) { /* clip paths don't affect rect coordinates */ },
@@ -207,7 +207,7 @@ void AccumulatedVisualContextTree::dump(VisualContextIndex index, StringBuilder&
             builder.append("perspective"sv);
         },
         [&](ScrollData const& scroll) {
-            builder.appendff("scroll_frame_id={}", scroll.scroll_frame_id);
+            builder.appendff("scroll_frame_id={}", scroll.scroll_frame_index);
             if (scroll.is_sticky)
                 builder.append(" (sticky)"sv);
         },

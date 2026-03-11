@@ -1,5 +1,5 @@
 AccumulatedVisualContext Tree:
-  [1] scroll_frame_id=0 (ImagePaintable(ImageBox<IMG>))
+  [1] scroll_frame_id=1 (ImagePaintable(ImageBox<IMG>))
 
 DisplayList:
 SaveLayer@0

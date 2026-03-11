@@ -1,10 +1,10 @@
 AccumulatedVisualContext Tree:
   [2] clip=[23,23 91x150]
-    [3] scroll_frame_id=1 (PaintableWithLines(BlockContainer(anonymous)))
+    [3] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
   [4] clip=[126,23 92x150]
-    [5] scroll_frame_id=2 (PaintableWithLines(BlockContainer(anonymous)))
+    [5] scroll_frame_id=3 (PaintableWithLines(BlockContainer(anonymous)))
   [6] clip=[230,23 91x150]
-    [7] scroll_frame_id=3 (PaintableWithLines(BlockContainer(anonymous)))
+    [7] scroll_frame_id=4 (PaintableWithLines(BlockContainer(anonymous)))
 
 DisplayList:
 SaveLayer@0
