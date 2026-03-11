@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    padding: 5px;
+    width: 200px;
+    height: 200px;
+}
+
+#host {
+    width: 100px;
+    height: 100px;
+    background-color: yellowgreen;
+}
+</style>
+<body id="body"><div id="host"></div></body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `
+            <style>
+                #inner {
+                    width: 50px;
+                    height: 50px;
+                    background-color: magenta;
+                }
+            </style>
+            <div id="inner"></div>
+        `;
+        const inner = shadow.getElementById("inner");
+
+        function logEvent(e) {
+            println(`${e.type} target.id="${e.target.id}" relatedTarget.id="${e.relatedTarget?.id ?? 'null'}"`);
+        }
+
+        internals.mouseMove(0, 0);
+
+        const events = [
+            'pointerover',
+            'pointerout',
+            'pointerenter',
+            'pointerleave',
+            'pointermove',
+        ];
+
+        events.forEach(eventType => {
+            host.addEventListener(eventType, logEvent);
+        });
+
+        println("> move pointer over shadow content");
+        internals.mouseMove(10, 10);
+
+        println("> move pointer outside");
+        internals.mouseMove(0, 0);
+    });
+</script>
