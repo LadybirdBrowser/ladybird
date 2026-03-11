@@ -631,18 +631,7 @@ void ViewTransition::call_the_update_callback()
 
     // 5. Otherwise, set callbackPromise to the result of invoking transition’s update callback.
     else {
-        auto promise = MUST(WebIDL::invoke_callback(*m_update_callback, {}, {}));
-        // FIXME: since WebIDL::invoke_callback does not yet convert the value for us,
-        // We need to do it here manually.
-        // https://webidl.spec.whatwg.org/#js-promise
-
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
-        auto promise_capability = WebIDL::create_promise(realm);
-        // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
-        MUST(JS::call(realm.vm(), *promise_capability->resolve(), JS::js_undefined(), promise));
-        // 3. Return promiseCapability.
-        callback_promise = GC::make_root(promise_capability);
+        callback_promise = GC::make_root(WebIDL::invoke_promise_callback(*m_update_callback, {}, {}));
     }
 
     // 6. Let fulfillSteps be to following steps:
