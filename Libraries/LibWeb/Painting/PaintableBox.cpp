@@ -900,6 +900,18 @@ Optional<CSSPixelPoint> PaintableBox::transform_point_to_local(CSSPixelPoint scr
     return (*result / pixel_ratio).to_type<CSSPixels>();
 }
 
+Optional<CSSPixelPoint> PaintableBox::transform_point_to_local_for_descendants(CSSPixelPoint screen_position) const
+{
+    if (!accumulated_visual_context_for_descendants())
+        return screen_position;
+    auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
+    auto const& scroll_state = document().paintable()->scroll_state_snapshot();
+    auto result = accumulated_visual_context_for_descendants()->transform_point_for_hit_test(screen_position.to_type<float>() * pixel_ratio, scroll_state);
+    if (!result.has_value())
+        return {};
+    return (*result / pixel_ratio).to_type<CSSPixels>();
+}
+
 CSSPixelPoint PaintableBox::transform_to_local_coordinates(CSSPixelPoint screen_position) const
 {
     return transform_point_to_local(screen_position).value_or(screen_position);
