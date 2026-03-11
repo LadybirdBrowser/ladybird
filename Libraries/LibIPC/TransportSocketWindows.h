@@ -18,6 +18,12 @@ class TransportSocketWindows {
     AK_MAKE_DEFAULT_MOVABLE(TransportSocketWindows);
 
 public:
+    struct Paired {
+        NonnullOwnPtr<TransportSocketWindows> local;
+        NonnullOwnPtr<TransportSocketWindows> remote;
+    };
+    static ErrorOr<Paired> create_paired();
+
     explicit TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket);
 
     void set_peer_pid(int pid);

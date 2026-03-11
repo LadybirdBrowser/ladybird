@@ -56,22 +56,13 @@ Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_t
 
 ErrorOr<IPC::File> ConnectionFromClient::connect_new_client()
 {
-    int socket_fds[2] {};
-    if (auto err = Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds); err.is_error())
-        return err.release_error();
+    auto paired = TRY(IPC::Transport::create_paired());
+    auto peer_fd = TRY(paired.remote->release_underlying_transport_for_transfer());
 
-    auto client_socket_or_error = Core::LocalSocket::adopt_fd(socket_fds[0]);
-    if (client_socket_or_error.is_error()) {
-        (void)Core::System::close(socket_fds[0]);
-        (void)Core::System::close(socket_fds[1]);
-        return client_socket_or_error.release_error();
-    }
-
-    auto client_socket = client_socket_or_error.release_value();
     // Note: A ref is stored in the static s_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(move(client_socket))));
+    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local)));
 
-    return IPC::File::adopt_fd(socket_fds[1]);
+    return IPC::File::adopt_fd(peer_fd);
 }
 
 Messages::ImageDecoderServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)

@@ -139,22 +139,13 @@ Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect
 
 ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
 {
-    // TODO: Mach IPC
-
-    int socket_fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
-
-    auto client_socket = Core::LocalSocket::adopt_fd(socket_fds[0]);
-    if (client_socket.is_error()) {
-        close(socket_fds[0]);
-        close(socket_fds[1]);
-        return client_socket.release_error();
-    }
+    auto paired = TRY(IPC::Transport::create_paired());
+    auto peer_fd = TRY(paired.remote->release_underlying_transport_for_transfer());
 
     // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(make<IPC::Transport>(client_socket.release_value()), IsPrimaryConnection::No, m_connections, m_disk_cache));
+    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, m_connections, m_disk_cache));
 
-    return IPC::File::adopt_fd(socket_fds[1]);
+    return IPC::File::adopt_fd(peer_fd);
 }
 
 void ConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
