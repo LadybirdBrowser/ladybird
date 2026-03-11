@@ -9,22 +9,11 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Module.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Script.h>
 
 namespace JS {
-
-ScriptOrModule script_or_module_from_cell(GC::Ptr<Cell> cell)
-{
-    if (!cell)
-        return Empty {};
-    if (auto* script = as_if<Script>(*cell))
-        return GC::Ref<Script> { *script };
-    return GC::Ref<Module> { as<Module>(*cell) };
-}
 
 class ExecutionContextAllocator {
 public:
@@ -141,9 +130,13 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(lexical_environment);
     visitor.visit(private_environment);
     visitor.visit(this_value);
-    visitor.visit(script_or_module);
     visitor.visit(executable);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
+    script_or_module.visit(
+        [](Empty) {},
+        [&](auto& script_or_module) {
+            visitor.visit(script_or_module);
+        });
 }
 
 }

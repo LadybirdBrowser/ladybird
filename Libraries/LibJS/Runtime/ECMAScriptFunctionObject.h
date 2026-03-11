@@ -114,7 +114,7 @@ public:
 
     // This is used by LibWeb to disassociate event handler attribute callback functions from the nearest script on the call stack.
     // https://html.spec.whatwg.org/multipage/webappapis.html#getting-the-current-value-of-the-event-handler Step 3.11
-    void set_script_or_module(GC::Ptr<Cell> script_or_module) { m_script_or_module = script_or_module; }
+    void set_script_or_module(ScriptOrModule script_or_module) { m_script_or_module = move(script_or_module); }
 
     Variant<PropertyKey, PrivateName, Empty> const& class_field_initializer_name() const { return shared_data().m_class_field_initializer_name; }
 
@@ -151,7 +151,7 @@ private:
     // Internal Slots of ECMAScript Function Objects, https://tc39.es/ecma262/#table-internal-slots-of-ecmascript-function-objects
     GC::Ptr<Environment> m_environment;                // [[Environment]]
     GC::Ptr<PrivateEnvironment> m_private_environment; // [[PrivateEnvironment]]
-    GC::Ptr<Cell> m_script_or_module;                  // [[ScriptOrModule]]
+    ScriptOrModule m_script_or_module;                 // [[ScriptOrModule]]
     GC::Ptr<Object> m_home_object;                     // [[HomeObject]]
     struct ClassData {
         Vector<ClassFieldDefinition> fields;    // [[Fields]]

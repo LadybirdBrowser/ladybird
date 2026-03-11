@@ -149,7 +149,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     script_context->realm = &script_record.realm();
 
     // 5. Set the ScriptOrModule of scriptContext to scriptRecord.
-    script_context->script_or_module = &script_record;
+    script_context->script_or_module = GC::Ref<Script>(script_record);
 
     // 6. Set the VariableEnvironment of scriptContext to globalEnv.
     script_context->variable_environment = &global_environment;
@@ -1086,8 +1086,8 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
         //               we can use the cached environment binding index.
         if (cache.has_environment_binding_index) {
             if (cache.in_module_environment) {
-                auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr());
-                return module->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
+                auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                return (*module)->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
             }
             return declarative_record.get_binding_value_direct(vm, cache.environment_binding_index);
         }
@@ -1097,10 +1097,10 @@ inline ThrowCompletionOr<Value> get_global(Interpreter& interpreter, IdentifierT
 
     auto& identifier = interpreter.get_identifier(identifier_index);
 
-    if (auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr())) {
+    if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
-        auto& module_environment = *module->environment();
+        auto& module_environment = *(*module)->environment();
         Optional<size_t> index;
         if (TRY(module_environment.has_binding(identifier, &index))) {
             if (index.has_value()) {
@@ -2317,8 +2317,8 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
         //               we can use the cached environment binding index.
         if (cache.has_environment_binding_index) {
             if (cache.in_module_environment) {
-                auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr());
-                TRY(module->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, strict() == Strict::Yes));
+                auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+                TRY((*module)->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, strict() == Strict::Yes));
             } else {
                 TRY(declarative_record.set_mutable_binding_direct(vm, cache.environment_binding_index, src, strict() == Strict::Yes));
             }
@@ -2330,10 +2330,10 @@ ThrowCompletionOr<void> SetGlobal::execute_impl(Bytecode::Interpreter& interpret
 
     auto& identifier = interpreter.get_identifier(m_identifier);
 
-    if (auto* module = as_if<Module>(vm.running_execution_context().script_or_module.ptr())) {
+    if (auto* module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>()) {
         // NOTE: GetGlobal is used to access variables stored in the module environment and global environment.
         //       The module environment is checked first since it precedes the global environment in the environment chain.
-        auto& module_environment = *module->environment();
+        auto& module_environment = *(*module)->environment();
         Optional<size_t> index;
         if (TRY(module_environment.has_binding(identifier, &index))) {
             if (index.has_value()) {

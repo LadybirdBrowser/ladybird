@@ -159,7 +159,7 @@ void prepare_for_wrapped_function_call(WrappedFunction& function, ExecutionConte
     callee_context.realm = callee_realm;
 
     // 6. Set the ScriptOrModule of calleeContext to null.
-    callee_context.script_or_module = nullptr;
+    callee_context.script_or_module = {};
 
     // 7. If callerContext is not already suspended, suspend callerContext.
     // NOTE: We don't support this concept yet.
