@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="foo" value="foo">
+<input id="bar" value="bar">
+<script>
+asyncTest(done => {
+    foo.select();
+    foo.focus();
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            bar.focus();
+            println(internals.dumpDisplayList());
+            done();
+        });
+    });
+});
+</script>

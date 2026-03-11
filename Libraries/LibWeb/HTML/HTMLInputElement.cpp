@@ -1472,10 +1472,10 @@ void HTMLInputElement::did_receive_focus()
 {
     if (!m_text_node)
         return;
-    m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
+    m_text_node->set_needs_repaint();
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidReceiveFocus);
+        m_placeholder_text_node->set_needs_repaint();
 
     if (has_selectable_text()) {
         if (document().last_focus_trigger() == FocusTrigger::Key)
@@ -1487,12 +1487,11 @@ void HTMLInputElement::did_receive_focus()
 
 void HTMLInputElement::did_lose_focus()
 {
-    if (m_text_node) {
-        m_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
-    }
+    if (m_text_node)
+        m_text_node->set_needs_repaint();
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->invalidate_style(DOM::StyleInvalidationReason::DidLoseFocus);
+        m_placeholder_text_node->set_needs_repaint();
 
     commit_pending_changes();
 }
