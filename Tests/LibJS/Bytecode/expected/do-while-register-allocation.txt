@@ -6,17 +6,16 @@ JS bytecode executable ""
 
 JS bytecode executable "test"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:i~0, src:Undefined
-[  18]       Mov dst:i~0, src:Int32(0)
-[  28]       GetGlobal dst:reg6, identifier:foo
-[  40]       NewArray dst:reg7
-[  50]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-[  78]    1: GetGlobal dst:reg7, identifier:bar
-[  90]       Mov dst:reg8, src:i~0
-[  a0]       Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
-[  c8]       PostfixIncrement dst:reg6, src:i~0
-[  d8]    2: JumpLessThan lhs:i~0, rhs:Int32(7), true_target:@78, false_target:@f0
-[  f0]    3: End value:Undefined
+[   8]       Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+[  20]       GetGlobal dst:reg6, identifier:foo
+[  38]       NewArray dst:reg7
+[  48]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+[  70]    1: GetGlobal dst:reg7, identifier:bar
+[  88]       Mov dst:reg8, src:i~0
+[  98]       Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
+[  c0]       PostfixIncrement dst:reg6, src:i~0
+[  d0]    2: JumpLessThan lhs:i~0, rhs:Int32(7), true_target:@70, false_target:@e8
+[  e8]    3: End value:Undefined
 
 JS bytecode executable "foo"
 [   0]    0: GetLexicalEnvironment dst:reg4

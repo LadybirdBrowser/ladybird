@@ -56,9 +56,8 @@ JS bytecode executable "withTeardown"
 
 JS bytecode executable "blockTeardown"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:outer~1, src:Int32(2)
-[  18]       Mov dst:inner~0, src:Int32(3)
-[  28]       Return value:outer~1
+[   8]       Mov2 dst1:outer~1, src1:Int32(2), dst2:inner~0, src2:Int32(3)
+[  20]       Return value:outer~1
 
 JS bytecode executable "forInTeardown"
 [   0]    0: GetLexicalEnvironment dst:reg4

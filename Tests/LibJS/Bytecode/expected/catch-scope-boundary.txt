@@ -15,23 +15,22 @@ JS bytecode executable ""
 JS bytecode executable "throwInCatch"
 [   0]    0: GetLexicalEnvironment dst:reg4
 [   8]       Mov dst:result~2, src:String("bad")
-[  18]       Jump target:@90
+[  18]       Jump target:@88
 [  20]    1: Catch dst:reg5
 [  28]       SetLexicalEnvironment environment:reg4
 [  30]       Mov dst:e~1, src:reg5
-[  40]       Jump target:@80
+[  40]       Jump target:@78
 [  48]    2: Catch dst:reg6
 [  50]       SetLexicalEnvironment environment:reg4
-[  58]       Mov dst:e2~0, src:reg6
-[  68]       Mov dst:result~2, src:String("good")
-[  78]    3: Return value:result~2
-[  80]    4: Throw src:Int32(2)
-[  88]    5: Return value:result~2
-[  90]    6: Throw src:Int32(1)
+[  58]       Mov2 dst1:e2~0, src1:reg6, dst2:result~2, src2:String("good")
+[  70]    3: Return value:result~2
+[  78]    4: Throw src:Int32(2)
+[  80]    5: Return value:result~2
+[  88]    6: Throw src:Int32(1)
 
 Exception handlers:
-    from   80 to   88 handler   48
-    from   90 to   98 handler   20
+    from   78 to   80 handler   48
+    from   88 to   90 handler   20
 
 JS bytecode executable "throwInCatchWithLocals"
 [   0]    0: GetLexicalEnvironment dst:reg4

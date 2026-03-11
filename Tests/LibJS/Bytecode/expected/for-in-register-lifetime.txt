@@ -26,5 +26,4 @@ JS bytecode executable ""
 [ 1d0]       Add dst:reg12, lhs:reg11, rhs:reg13
 [ 1e0]       SetGlobal identifier:result, src:reg12
 [ 1f8]       Mov dst:reg5, src:reg12
-[ 208]       Mov dst:reg5, src:reg12
-[ 218]       Jump target:@d0
+[ 208]       Jump target:@d0

@@ -462,6 +462,64 @@ GC::Ref<Executable> Generator::compile(VM& vm, ASTNode const& node, FunctionKind
                 }
             }
 
+            // OPTIMIZATION: Merge consecutive Mov instructions into Mov2 or Mov3.
+            if (instruction.type() == Instruction::Type::Mov) {
+                auto& mov1 = static_cast<Op::Mov const&>(instruction);
+                auto it2 = it;
+                ++it2;
+                if (!it2.at_end() && (*it2).type() == Instruction::Type::Mov) {
+                    auto& mov2 = static_cast<Op::Mov const&>(*it2);
+                    // If the two Movs are identical, just emit a single Mov.
+                    if (mov1.dst() == mov2.dst() && mov1.src() == mov2.src()) {
+                        emit_source_map_entry(it.offset());
+                        bytecode.append(reinterpret_cast<u8 const*>(&mov1), mov1.length());
+                        ++it;
+                        ++it;
+                        continue;
+                    }
+                    auto it3 = it2;
+                    ++it3;
+                    if (!it3.at_end() && (*it3).type() == Instruction::Type::Mov) {
+                        auto& mov3 = static_cast<Op::Mov const&>(*it3);
+                        // Check for duplicates among the three Movs and reduce accordingly.
+                        bool mov2_is_dup = (mov2.dst() == mov1.dst() && mov2.src() == mov1.src());
+                        bool mov3_is_dup = (mov3.dst() == mov1.dst() && mov3.src() == mov1.src())
+                            || (mov3.dst() == mov2.dst() && mov3.src() == mov2.src());
+                        if (mov2_is_dup && mov3_is_dup) {
+                            // All three identical: emit single Mov.
+                            emit_source_map_entry(it.offset());
+                            bytecode.append(reinterpret_cast<u8 const*>(&mov1), mov1.length());
+                        } else if (mov2_is_dup) {
+                            // mov1 == mov2, mov3 is different: emit Mov2(mov1, mov3).
+                            Op::Mov2 merged(mov1.dst(), mov1.src(), mov3.dst(), mov3.src());
+                            emit_source_map_entry(it.offset());
+                            bytecode.append(reinterpret_cast<u8 const*>(&merged), merged.length());
+                        } else if (mov3_is_dup) {
+                            // mov3 is duplicate of mov1 or mov2: emit Mov2(mov1, mov2).
+                            Op::Mov2 merged(mov1.dst(), mov1.src(), mov2.dst(), mov2.src());
+                            emit_source_map_entry(it.offset());
+                            bytecode.append(reinterpret_cast<u8 const*>(&merged), merged.length());
+                        } else {
+                            // All three are unique: emit Mov3.
+                            Op::Mov3 merged(mov1.dst(), mov1.src(), mov2.dst(), mov2.src(), mov3.dst(), mov3.src());
+                            emit_source_map_entry(it.offset());
+                            bytecode.append(reinterpret_cast<u8 const*>(&merged), merged.length());
+                        }
+                        ++it;
+                        ++it;
+                        ++it;
+                        continue;
+                    }
+                    // Only two Movs: emit Mov2.
+                    Op::Mov2 merged(mov1.dst(), mov1.src(), mov2.dst(), mov2.src());
+                    emit_source_map_entry(it.offset());
+                    bytecode.append(reinterpret_cast<u8 const*>(&merged), merged.length());
+                    ++it;
+                    ++it;
+                    continue;
+                }
+            }
+
             instruction.visit_labels([&](Label& label) {
                 size_t label_offset = bytecode.size() + (bit_cast<FlatPtr>(&label) - bit_cast<FlatPtr>(&instruction));
                 label_offsets.append(label_offset);

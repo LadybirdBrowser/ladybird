@@ -1318,6 +1318,96 @@ impl Generator {
             }
         }
 
+        // Phase 1b: Peephole optimization - merge consecutive Mov instructions into Mov2/Mov3.
+        for block in &mut self.basic_blocks {
+            let mut i = 0;
+            while i < block.instructions.len() {
+                if !matches!(block.instructions[i].0, Instruction::Mov { .. }) {
+                    i += 1;
+                    continue;
+                }
+                let (dst1, src1) = match &block.instructions[i].0 {
+                    Instruction::Mov { dst, src } => (*dst, *src),
+                    _ => unreachable!(),
+                };
+                // Check for a second consecutive Mov.
+                if i + 1 < block.instructions.len()
+                    && let Instruction::Mov { dst, src } = &block.instructions[i + 1].0
+                {
+                    let (dst2, src2) = (*dst, *src);
+                    // Identical Movs: deduplicate to a single Mov.
+                    if dst1 == dst2 && src1 == src2 {
+                        block.instructions.remove(i + 1);
+                        continue; // Re-check from same position.
+                    }
+                    // Check for a third consecutive Mov.
+                    if i + 2 < block.instructions.len()
+                        && let Instruction::Mov { dst, src } = &block.instructions[i + 2].0
+                    {
+                        let (dst3, src3) = (*dst, *src);
+                        let mov2_is_dup = dst2 == dst1 && src2 == src1;
+                        let mov3_is_dup =
+                            (dst3 == dst1 && src3 == src1) || (dst3 == dst2 && src3 == src2);
+                        if mov2_is_dup && mov3_is_dup {
+                            // All three identical: keep single Mov.
+                            block.instructions.remove(i + 2);
+                            block.instructions.remove(i + 1);
+                            continue;
+                        } else if mov2_is_dup {
+                            // mov1 == mov2, mov3 different: Mov2(mov1, mov3).
+                            block.instructions[i].0 = Instruction::Mov2 {
+                                dst1,
+                                src1,
+                                dst2: dst3,
+                                src2: src3,
+                            };
+                            block.instructions.remove(i + 2);
+                            block.instructions.remove(i + 1);
+                            i += 1;
+                            continue;
+                        } else if mov3_is_dup {
+                            // mov3 is dup: Mov2(mov1, mov2).
+                            block.instructions[i].0 = Instruction::Mov2 {
+                                dst1,
+                                src1,
+                                dst2,
+                                src2,
+                            };
+                            block.instructions.remove(i + 2);
+                            block.instructions.remove(i + 1);
+                            i += 1;
+                            continue;
+                        } else {
+                            // All three unique: Mov3.
+                            block.instructions[i].0 = Instruction::Mov3 {
+                                dst1,
+                                src1,
+                                dst2,
+                                src2,
+                                dst3,
+                                src3,
+                            };
+                            block.instructions.remove(i + 2);
+                            block.instructions.remove(i + 1);
+                            i += 1;
+                            continue;
+                        }
+                    }
+                    // Only two unique Movs: Mov2.
+                    block.instructions[i].0 = Instruction::Mov2 {
+                        dst1,
+                        src1,
+                        dst2,
+                        src2,
+                    };
+                    block.instructions.remove(i + 1);
+                    i += 1;
+                    continue;
+                }
+                i += 1;
+            }
+        }
+
         // Phase 2: Compute block byte offsets, applying assembly-time optimizations.
         // These match the C++ Generator.cpp:compile() optimizations:
         //   - Skip Jump-to-next-block

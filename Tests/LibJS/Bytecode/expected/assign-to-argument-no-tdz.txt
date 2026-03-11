@@ -6,6 +6,5 @@ JS bytecode executable ""
 
 JS bytecode executable "f"
 [   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:y~0, src:Int32(1)
-[  18]       Mov dst:arg0, src:y~0
-[  28]       Return value:arg0
+[   8]       Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
+[  20]       Return value:arg0
