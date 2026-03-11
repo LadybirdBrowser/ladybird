@@ -8,6 +8,7 @@
 
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
@@ -30,9 +31,9 @@ public:
     Function<void()> on_worker_close;
     Function<void()> on_worker_script_load_failure;
     Function<HTTP::Cookie::VersionedCookie(URL::URL const&, HTTP::Cookie::Source)> on_request_cookie;
-    Function<IPC::File(Web::Bindings::AgentType)> on_request_worker_agent;
+    Function<IPC::TransportHandle(Web::Bindings::AgentType)> on_request_worker_agent;
 
-    IPC::File clone_transport();
+    IPC::TransportHandle clone_transport();
 
 private:
     virtual void die() override;

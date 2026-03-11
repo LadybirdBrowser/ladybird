@@ -62,7 +62,7 @@ private:
     virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
     virtual Messages::ImageDecoderServer::InitTransportResponse init_transport(int peer_pid) override;
 
-    ErrorOr<IPC::File> connect_new_client();
+    ErrorOr<IPC::TransportHandle> connect_new_client();
 
     NonnullRefPtr<Job> make_decode_image_job(i64 request_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
 

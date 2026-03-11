@@ -13,6 +13,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -730,7 +731,7 @@ void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::Shar
     client().async_did_allocate_backing_stores(m_id, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-IPC::File PageClient::request_worker_agent(Web::Bindings::AgentType type)
+IPC::TransportHandle PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
     if (!response) {
@@ -738,7 +739,7 @@ IPC::File PageClient::request_worker_agent(Web::Bindings::AgentType type)
         exit(0);
     }
 
-    return response->take_socket();
+    return response->take_handle();
 }
 
 void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)
@@ -797,14 +798,14 @@ ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_p
     return {};
 }
 
-ErrorOr<void> PageClient::connect_to_web_ui(IPC::File web_ui_socket)
+ErrorOr<void> PageClient::connect_to_web_ui(IPC::TransportHandle handle)
 {
     auto* active_document = page().top_level_browsing_context().active_document();
     if (!active_document || !active_document->window())
         return {};
 
     VERIFY(!m_web_ui);
-    m_web_ui = TRY(WebUIConnection::connect(move(web_ui_socket), *active_document));
+    m_web_ui = TRY(WebUIConnection::connect(move(handle), *active_document));
 
     return {};
 }

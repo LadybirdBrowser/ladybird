@@ -13,6 +13,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibRequests/WebSocket.h>
 #include <LibWebSocket/ConnectionInfo.h>
 #include <LibWebSocket/Message.h>
@@ -113,7 +114,7 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
     auto client_socket = create_client_socket();
     if (client_socket.is_error()) {
         dbgln("Failed to create client socket: {}", client_socket.error());
-        return IPC::File {};
+        return IPC::TransportHandle {};
     }
 
     return client_socket.release_value();
@@ -121,31 +122,31 @@ Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_
 
 Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count)
 {
-    Vector<IPC::File> files;
-    files.ensure_capacity(count);
+    Vector<IPC::TransportHandle> handles;
+    handles.ensure_capacity(count);
 
     for (size_t i = 0; i < count; ++i) {
         auto client_socket = create_client_socket();
         if (client_socket.is_error()) {
             dbgln("Failed to create client socket: {}", client_socket.error());
-            return Vector<IPC::File> {};
+            return Vector<IPC::TransportHandle> {};
         }
 
-        files.unchecked_append(client_socket.release_value());
+        handles.unchecked_append(client_socket.release_value());
     }
 
-    return files;
+    return handles;
 }
 
-ErrorOr<IPC::File> ConnectionFromClient::create_client_socket()
+ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket()
 {
     auto paired = TRY(IPC::Transport::create_paired());
-    auto peer_fd = TRY(paired.remote->release_underlying_transport_for_transfer());
+    auto handle = TRY(IPC::TransportHandle::from_transport(*paired.remote));
 
     // Note: A ref is stored in the m_connections map
     auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, m_connections, m_disk_cache));
 
-    return IPC::File::adopt_fd(peer_fd);
+    return handle;
 }
 
 void ConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)

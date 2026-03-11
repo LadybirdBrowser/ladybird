@@ -1,4 +1,5 @@
 #include <LibCore/AnonymousBuffer.h>
+#include <LibIPC/TransportHandle.h>
 
 endpoint ImageDecoderServer
 {
@@ -9,5 +10,5 @@ endpoint ImageDecoderServer
     request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) =|
     stop_animation_decode(i64 session_id) =|
 
-    connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+    connect_new_clients(size_t count) => (Vector<IPC::TransportHandle> handles)
 }

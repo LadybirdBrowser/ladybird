@@ -3,14 +3,15 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/Header.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
 
 endpoint RequestServer
 {
     init_transport(int peer_pid) => (int peer_pid)
-    connect_new_client() => (IPC::File client_socket)
-    connect_new_clients(size_t count) => (Vector<IPC::File> sockets)
+    connect_new_client() => (IPC::TransportHandle handle)
+    connect_new_clients(size_t count) => (Vector<IPC::TransportHandle> handles)
 
     set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings) =|
 

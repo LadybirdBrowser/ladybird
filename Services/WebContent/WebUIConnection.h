@@ -11,6 +11,7 @@
 #include <LibGC/Ptr.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/Transport.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
 #include <WebContent/WebUIClientEndpoint.h>
@@ -20,7 +21,7 @@ namespace WebContent {
 
 class WebUIConnection final : public IPC::ConnectionFromClient<WebUIClientEndpoint, WebUIServerEndpoint> {
 public:
-    static ErrorOr<NonnullRefPtr<WebUIConnection>> connect(IPC::File, Web::DOM::Document&);
+    static ErrorOr<NonnullRefPtr<WebUIConnection>> connect(IPC::TransportHandle, Web::DOM::Document&);
     virtual ~WebUIConnection() override;
 
     void visit_edges(JS::Cell::Visitor&);

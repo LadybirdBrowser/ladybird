@@ -1,4 +1,5 @@
 #include <LibHTTP/Cookie/Cookie.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
 
@@ -6,5 +7,5 @@ endpoint WebWorkerClient {
     did_close_worker() =|
     did_fail_loading_worker_script() =|
     did_request_cookie(URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
-    request_worker_agent(Web::Bindings::AgentType worker_type) => (IPC::File socket)
+    request_worker_agent(Web::Bindings::AgentType worker_type) => (IPC::TransportHandle handle)
 }

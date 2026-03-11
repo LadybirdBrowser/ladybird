@@ -3,6 +3,7 @@ set(SOURCES
     Connection.cpp
     Decoder.cpp
     Encoder.cpp
+    TransportHandle.cpp
 )
 
 if (UNIX)

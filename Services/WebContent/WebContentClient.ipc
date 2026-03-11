@@ -1,5 +1,6 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Color.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -134,5 +135,5 @@ endpoint WebContentClient
 
     did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) =|
 
-    request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) => (IPC::File socket) // FIXME: Add required attributes to select a SharedWorker Agent
+    request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) => (IPC::TransportHandle handle) // FIXME: Add required attributes to select a SharedWorker Agent
 }

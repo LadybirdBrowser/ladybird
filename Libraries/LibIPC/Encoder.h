@@ -128,6 +128,9 @@ template<>
 ErrorOr<void> encode(Encoder&, File const&);
 
 template<>
+ErrorOr<void> encode(Encoder&, TransportHandle const&);
+
+template<>
 ErrorOr<void> encode(Encoder&, Empty const&);
 
 template<>

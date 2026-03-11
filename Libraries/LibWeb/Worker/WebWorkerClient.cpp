@@ -37,7 +37,7 @@ Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_w
 {
     if (on_request_worker_agent)
         return on_request_worker_agent(worker_type);
-    return IPC::File {};
+    return IPC::TransportHandle {};
 }
 
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
@@ -45,9 +45,9 @@ WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
 {
 }
 
-IPC::File WebWorkerClient::clone_transport()
+IPC::TransportHandle WebWorkerClient::clone_transport()
 {
-    return MUST(m_transport->clone_for_transfer());
+    return MUST(IPC::TransportHandle::clone_from_transport(*m_transport));
 }
 
 }
