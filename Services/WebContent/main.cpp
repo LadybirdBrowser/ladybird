@@ -16,6 +16,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
@@ -55,10 +56,10 @@
 static ErrorOr<void> load_content_filters(StringView config_path);
 
 static ErrorOr<void> initialize_resource_loader(GC::Heap&, int request_server_socket);
-static ErrorOr<void> reinitialize_resource_loader(IPC::File const& image_decoder_socket);
+static ErrorOr<void> reinitialize_resource_loader(IPC::TransportHandle const& handle);
 
 static ErrorOr<void> initialize_image_decoder(int image_decoder_socket);
-static ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket);
+static ErrorOr<void> reinitialize_image_decoder(IPC::TransportHandle const& handle);
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -216,12 +217,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     auto webcontent_socket = TRY(Core::take_over_socket_from_system_server("WebContent"sv));
     auto webcontent_client = WebContent::ConnectionFromClient::construct(make<IPC::Transport>(move(webcontent_socket)));
 
-    webcontent_client->on_request_server_connection = [&](auto const& socket_file) {
-        if (auto result = reinitialize_resource_loader(socket_file); result.is_error())
+    webcontent_client->on_request_server_connection = [&](auto const& handle) {
+        if (auto result = reinitialize_resource_loader(handle); result.is_error())
             dbgln("Failed to reinitialize resource loader: {}", result.error());
     };
-    webcontent_client->on_image_decoder_connection = [&](auto const& socket_file) {
-        if (auto result = reinitialize_image_decoder(socket_file); result.is_error())
+    webcontent_client->on_image_decoder_connection = [&](auto const& handle) {
+        if (auto result = reinitialize_image_decoder(handle); result.is_error())
             dbgln("Failed to reinitialize image decoder: {}", result.error());
     };
 
@@ -268,13 +269,10 @@ ErrorOr<void> initialize_resource_loader(GC::Heap& heap, int request_server_sock
     return {};
 }
 
-ErrorOr<void> reinitialize_resource_loader(IPC::File const& request_server_socket)
+ErrorOr<void> reinitialize_resource_loader(IPC::TransportHandle const& handle)
 {
-    // TODO: Mach IPC
-    auto socket = TRY(Core::LocalSocket::adopt_fd(request_server_socket.take_fd()));
-    TRY(socket->set_blocking(true));
-
-    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(make<IPC::Transport>(move(socket))));
+    auto transport = TRY(handle.create_transport());
+    auto request_client = TRY(try_make_ref_counted<Requests::RequestClient>(move(transport)));
     Web::ResourceLoader::the().set_client(move(request_client));
 
     return {};
@@ -296,13 +294,10 @@ ErrorOr<void> initialize_image_decoder(int image_decoder_socket)
     return {};
 }
 
-ErrorOr<void> reinitialize_image_decoder(IPC::File const& image_decoder_socket)
+ErrorOr<void> reinitialize_image_decoder(IPC::TransportHandle const& handle)
 {
-    // TODO: Mach IPC
-    auto socket = TRY(Core::LocalSocket::adopt_fd(image_decoder_socket.take_fd()));
-    TRY(socket->set_blocking(true));
-
-    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(make<IPC::Transport>(move(socket))));
+    auto transport = TRY(handle.create_transport());
+    auto new_client = TRY(try_make_ref_counted<ImageDecoderClient::Client>(move(transport)));
     static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
 
     return {};

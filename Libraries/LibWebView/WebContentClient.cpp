@@ -5,6 +5,7 @@
  */
 
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
@@ -791,7 +792,7 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
         return worker_client->clone_transport();
     }
 
-    return IPC::File {};
+    return IPC::TransportHandle {};
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)

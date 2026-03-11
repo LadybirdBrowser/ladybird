@@ -49,14 +49,9 @@ void WorkerAgentParent::initialize(JS::Realm& realm)
 
     // NOTE: This blocking IPC call may launch another process.
     //    If spinning the event loop for this can cause other javascript to execute, we're in trouble.
-    auto worker_socket_file = Bindings::principal_host_defined_page(realm).client().request_worker_agent(m_agent_type);
+    auto handle = Bindings::principal_host_defined_page(realm).client().request_worker_agent(m_agent_type);
 
-    auto worker_socket = MUST(Core::LocalSocket::adopt_fd(worker_socket_file.take_fd()));
-    MUST(worker_socket->set_blocking(true));
-
-    // TODO: Mach IPC
-    auto transport = make<IPC::Transport>(move(worker_socket));
-
+    auto transport = MUST(handle.create_transport());
     m_worker_ipc = make_ref_counted<WebWorkerClient>(move(transport));
     setup_worker_ipc_callbacks(realm);
 

@@ -17,6 +17,7 @@ class Message;
 class MessageBuffer;
 class File;
 class Stub;
+class TransportHandle;
 
 template<typename T>
 ErrorOr<void> encode(Encoder&, T const&);

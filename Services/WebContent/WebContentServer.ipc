@@ -2,6 +2,7 @@
 #include <LibGfx/Rect.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/File.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
@@ -27,9 +28,9 @@ endpoint WebContentServer
     set_window_handle(u64 page_id, String handle) =|
 
     connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) =|
-    connect_to_web_ui(u64 page_id, IPC::File socket_fd) =|
-    connect_to_request_server(IPC::File request_server_socket) =|
-    connect_to_image_decoder(IPC::File socket_fd) =|
+    connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) =|
+    connect_to_request_server(IPC::TransportHandle handle) =|
+    connect_to_image_decoder(IPC::TransportHandle handle) =|
 
     update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer) =|
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|

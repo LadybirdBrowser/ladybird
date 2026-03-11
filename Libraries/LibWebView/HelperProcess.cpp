@@ -83,8 +83,8 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 
 template<typename... ClientArguments>
 static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(
-    IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket,
+    IPC::TransportHandle image_decoder_handle,
+    Optional<IPC::TransportHandle> request_server_handle,
     ClientArguments&&... client_arguments)
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -145,30 +145,30 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
     }
-    if (request_server_socket.has_value()) {
+    if (request_server_handle.has_value()) {
         arguments.append("--request-server-socket"sv);
-        arguments.append(ByteString::number(request_server_socket->fd()));
+        arguments.append(ByteString::number(request_server_handle->fd()));
     }
 
     arguments.append("--image-decoder-socket"sv);
-    arguments.append(ByteString::number(image_decoder_socket.fd()));
+    arguments.append(ByteString::number(image_decoder_handle.fd()));
 
     return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
     WebView::ViewImplementation& view,
-    IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    IPC::TransportHandle image_decoder_handle,
+    Optional<IPC::TransportHandle> request_server_handle)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket), view);
+    return launch_web_content_process_impl(move(image_decoder_handle), move(request_server_handle), view);
 }
 
 ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
-    IPC::File image_decoder_socket,
-    Optional<IPC::File> request_server_socket)
+    IPC::TransportHandle image_decoder_handle,
+    Optional<IPC::TransportHandle> request_server_handle)
 {
-    return launch_web_content_process_impl(move(image_decoder_socket), move(request_server_socket));
+    return launch_web_content_process_impl(move(image_decoder_handle), move(request_server_handle));
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()
@@ -193,13 +193,13 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
 
-    auto request_server_socket = TRY(connect_new_request_server_client());
+    auto request_server_handle = TRY(connect_new_request_server_client());
     arguments.append("--request-server-socket"sv);
-    arguments.append(ByteString::number(request_server_socket.fd()));
+    arguments.append(ByteString::number(request_server_handle.fd()));
 
-    auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+    auto image_decoder_handle = TRY(connect_new_image_decoder_client());
     arguments.append("--image-decoder-socket"sv);
-    arguments.append(ByteString::number(image_decoder_socket.fd()));
+    arguments.append(ByteString::number(image_decoder_handle.fd()));
 
     arguments.append("--type"sv);
     switch (type) {
@@ -276,32 +276,32 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     return client;
 }
 
-ErrorOr<IPC::File> connect_new_request_server_client()
+ErrorOr<IPC::TransportHandle> connect_new_request_server_client()
 {
-    auto new_socket = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
-    if (!new_socket)
+    auto response = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
+    if (!response)
         return Error::from_string_literal("Failed to connect to RequestServer");
 
-    auto socket = new_socket->take_client_socket();
-    TRY(socket.clear_close_on_exec());
+    auto handle = response->take_handle();
+    TRY(handle.clear_close_on_exec());
 
-    return socket;
+    return handle;
 }
 
-ErrorOr<IPC::File> connect_new_image_decoder_client()
+ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
 {
-    auto new_socket = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
-    if (!new_socket)
+    auto response = Application::image_decoder_client().send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(1);
+    if (!response)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
 
-    auto sockets = new_socket->take_sockets();
-    if (sockets.size() != 1)
+    auto handles = response->take_handles();
+    if (handles.size() != 1)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
 
-    auto socket = sockets.take_last();
-    TRY(socket.clear_close_on_exec());
+    auto handle = handles.take_last();
+    TRY(handle.clear_close_on_exec());
 
-    return socket;
+    return handle;
 }
 
 }

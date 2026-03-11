@@ -131,25 +131,25 @@ void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdrive
     }
 }
 
-void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::File web_ui_socket)
+void ConnectionFromClient::connect_to_web_ui(u64 page_id, IPC::TransportHandle handle)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         // FIXME: Propagate this error back to the browser.
-        if (auto result = page->connect_to_web_ui(move(web_ui_socket)); result.is_error())
+        if (auto result = page->connect_to_web_ui(move(handle)); result.is_error())
             dbgln("Unable to connect to the WebUI host: {}", result.error());
     }
 }
 
-void ConnectionFromClient::connect_to_image_decoder(IPC::File image_decoder_socket)
+void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
 {
     if (on_image_decoder_connection)
-        on_image_decoder_connection(image_decoder_socket);
+        on_image_decoder_connection(handle);
 }
 
-void ConnectionFromClient::connect_to_request_server(IPC::File request_server_socket)
+void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
 {
     if (on_request_server_connection)
-        on_request_server_connection(request_server_socket);
+        on_request_server_connection(handle);
 }
 
 void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer)

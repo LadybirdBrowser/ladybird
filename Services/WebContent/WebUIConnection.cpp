@@ -21,12 +21,10 @@ static auto LADYBIRD_PROPERTY = JS::PropertyKey { "ladybird"_utf16_fly_string };
 static auto WEB_UI_LOADED_EVENT = "WebUILoaded"_fly_string;
 static auto WEB_UI_MESSAGE_EVENT = "WebUIMessage"_fly_string;
 
-ErrorOr<NonnullRefPtr<WebUIConnection>> WebUIConnection::connect(IPC::File web_ui_socket, Web::DOM::Document& document)
+ErrorOr<NonnullRefPtr<WebUIConnection>> WebUIConnection::connect(IPC::TransportHandle handle, Web::DOM::Document& document)
 {
-    auto socket = TRY(Core::LocalSocket::adopt_fd(web_ui_socket.take_fd()));
-    TRY(socket->set_blocking(true));
-
-    return adopt_ref(*new WebUIConnection(make<IPC::Transport>(move(socket)), document));
+    auto transport = TRY(handle.create_transport());
+    return adopt_ref(*new WebUIConnection(move(transport), document));
 }
 
 WebUIConnection::WebUIConnection(NonnullOwnPtr<IPC::Transport> transport, Web::DOM::Document& document)

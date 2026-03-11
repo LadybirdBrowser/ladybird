@@ -97,7 +97,7 @@ void PageHost::request_file(Web::FileRequest request)
     m_client.request_file(move(request));
 }
 
-IPC::File PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
+IPC::TransportHandle PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
 {
     return m_client.request_worker_agent(worker_type);
 }

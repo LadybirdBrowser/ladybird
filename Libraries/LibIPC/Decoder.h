@@ -124,6 +124,9 @@ template<>
 ErrorOr<File> decode(Decoder&);
 
 template<>
+ErrorOr<TransportHandle> decode(Decoder&);
+
+template<>
 ErrorOr<Empty> decode(Decoder&);
 
 template<>

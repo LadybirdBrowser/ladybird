@@ -326,12 +326,12 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
 
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
-    auto request_server_socket = TRY(connect_new_request_server_client());
-    auto image_decoder_socket = TRY(connect_new_image_decoder_client());
+    auto request_server_handle = TRY(connect_new_request_server_client());
+    auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
     if (view.has_value())
-        return WebView::launch_web_content_process(*view, move(image_decoder_socket), move(request_server_socket));
-    return WebView::launch_spare_web_content_process(move(image_decoder_socket), move(request_server_socket));
+        return WebView::launch_web_content_process(*view, move(image_decoder_handle), move(request_server_handle));
+    return WebView::launch_spare_web_content_process(move(image_decoder_handle), move(request_server_handle));
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)
@@ -443,14 +443,14 @@ ErrorOr<void> Application::launch_request_server()
         }
 
         auto client_count = WebContentClient::client_count();
-        auto request_server_sockets = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count);
-        if (!request_server_sockets || request_server_sockets->sockets().is_empty()) {
+        auto request_server_response = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count);
+        if (!request_server_response || request_server_response->handles().is_empty()) {
             warnln("\033Failed to connect {} new clients to ImageDecoder\033[0m", client_count);
             VERIFY_NOT_REACHED();
         }
 
-        WebContentClient::for_each_client([sockets = request_server_sockets->take_sockets()](WebContentClient& client) mutable {
-            client.async_connect_to_request_server(sockets.take_last());
+        WebContentClient::for_each_client([handles = request_server_response->take_handles()](WebContentClient& client) mutable {
+            client.async_connect_to_request_server(handles.take_last());
             return IterationDecision::Continue;
         });
     };
@@ -477,14 +477,14 @@ ErrorOr<void> Application::launch_image_decoder_server()
         }
 
         auto client_count = WebContentClient::client_count();
-        auto new_sockets = m_image_decoder_client->send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(client_count);
-        if (!new_sockets || new_sockets->sockets().is_empty()) {
+        auto image_decoder_response = m_image_decoder_client->send_sync_but_allow_failure<Messages::ImageDecoderServer::ConnectNewClients>(client_count);
+        if (!image_decoder_response || image_decoder_response->handles().is_empty()) {
             dbgln("Failed to connect {} new clients to ImageDecoder", client_count);
             VERIFY_NOT_REACHED();
         }
 
-        WebContentClient::for_each_client([sockets = new_sockets->take_sockets()](WebContentClient& client) mutable {
-            client.async_connect_to_image_decoder(sockets.take_last());
+        WebContentClient::for_each_client([handles = image_decoder_response->take_handles()](WebContentClient& client) mutable {
+            client.async_connect_to_image_decoder(handles.take_last());
             return IterationDecision::Continue;
         });
     };
