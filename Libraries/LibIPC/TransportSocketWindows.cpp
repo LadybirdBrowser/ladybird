@@ -7,7 +7,9 @@
 
 #include <AK/ByteReader.h>
 #include <AK/Checked.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Types.h>
+#include <LibCore/System.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportSocketWindows.h>
@@ -15,6 +17,30 @@
 #include <AK/Windows.h>
 
 namespace IPC {
+
+ErrorOr<TransportSocketWindows::Paired> TransportSocketWindows::create_paired()
+{
+    int fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+
+    ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(fds[0])); } };
+    ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(fds[1])); } };
+
+    auto socket0 = TRY(Core::LocalSocket::adopt_fd(fds[0]));
+    guard_fd_0.disarm();
+    TRY(socket0->set_close_on_exec(true));
+    TRY(socket0->set_blocking(false));
+
+    auto socket1 = TRY(Core::LocalSocket::adopt_fd(fds[1]));
+    guard_fd_1.disarm();
+    TRY(socket1->set_close_on_exec(true));
+    TRY(socket1->set_blocking(false));
+
+    return Paired {
+        make<TransportSocketWindows>(move(socket0)),
+        make<TransportSocketWindows>(move(socket1)),
+    };
+}
 
 TransportSocketWindows::TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket)
     : m_socket(move(socket))

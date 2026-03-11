@@ -183,23 +183,9 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     remote_port.m_remote_port = this;
     m_remote_port = &remote_port;
 
-    // FIXME: Abstract such that we can entangle different transport types
-    auto create_paired_sockets = []() -> Array<NonnullOwnPtr<Core::LocalSocket>, 2> {
-        int fds[2] = {};
-        MUST(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
-        auto socket0 = MUST(Core::LocalSocket::adopt_fd(fds[0]));
-        MUST(socket0->set_blocking(false));
-        MUST(socket0->set_close_on_exec(true));
-        auto socket1 = MUST(Core::LocalSocket::adopt_fd(fds[1]));
-        MUST(socket1->set_blocking(false));
-        MUST(socket1->set_close_on_exec(true));
-
-        return Array { move(socket0), move(socket1) };
-    };
-
-    auto sockets = create_paired_sockets();
-    m_transport = make<IPC::Transport>(move(sockets[0]));
-    m_remote_port->m_transport = make<IPC::Transport>(move(sockets[1]));
+    auto paired = MUST(IPC::Transport::create_paired());
+    m_transport = move(paired.local);
+    m_remote_port->m_transport = move(paired.remote);
 
     m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
         if (strong_this->m_enabled)

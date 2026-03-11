@@ -40,6 +40,12 @@ class TransportSocket {
 public:
     static constexpr socklen_t SOCKET_BUFFER_SIZE = 128 * KiB;
 
+    struct Paired {
+        NonnullOwnPtr<TransportSocket> local;
+        NonnullOwnPtr<TransportSocket> remote;
+    };
+    static ErrorOr<Paired> create_paired();
+
     explicit TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket);
     ~TransportSocket();
 

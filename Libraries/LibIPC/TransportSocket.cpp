@@ -7,6 +7,7 @@
 
 #include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/ScopeGuard.h>
 #include <AK/Types.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
@@ -15,6 +16,30 @@
 #include <LibThreading/Thread.h>
 
 namespace IPC {
+
+ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
+{
+    int fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+
+    ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(fds[0])); } };
+    ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(fds[1])); } };
+
+    auto socket0 = TRY(Core::LocalSocket::adopt_fd(fds[0]));
+    guard_fd_0.disarm();
+    TRY(socket0->set_close_on_exec(true));
+    TRY(socket0->set_blocking(false));
+
+    auto socket1 = TRY(Core::LocalSocket::adopt_fd(fds[1]));
+    guard_fd_1.disarm();
+    TRY(socket1->set_close_on_exec(true));
+    TRY(socket1->set_blocking(false));
+
+    return Paired {
+        make<TransportSocket>(move(socket0)),
+        make<TransportSocket>(move(socket1)),
+    };
+}
 
 void SendQueue::enqueue_message(ReadonlyBytes header, ReadonlyBytes payload, Vector<int>&& fds)
 {
