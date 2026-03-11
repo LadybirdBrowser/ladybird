@@ -1,0 +1,6 @@
+> move pointer over shadow content
+pointerover target.id="host" relatedTarget.id="body"
+pointerenter target.id="host" relatedTarget.id="body"
+pointermove target.id="host" relatedTarget.id="null"
+> move pointer outside
+pointerout target.id="host" relatedTarget.id="body"

@@ -3409,7 +3409,7 @@ bool Node::has_inclusive_ancestor_with_display_none()
 
 bool Node::has_inclusive_ancestor_with_event_listener(FlyString const& type) const
 {
-    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent()) {
+    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
         if (ancestor->has_event_listener(type))
             return true;
     }
