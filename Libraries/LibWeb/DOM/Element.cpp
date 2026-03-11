@@ -1435,15 +1435,7 @@ Vector<CSSPixelRect> Element::get_client_rects() const
     Vector<CSSPixelRect> rects;
     if (auto const* paintable_box = this->paintable_box()) {
         auto absolute_rect = paintable_box->absolute_border_box_rect();
-
-        if (auto const& accumulated_visual_context = paintable_box->accumulated_visual_context()) {
-            auto pixel_ratio = static_cast<float>(document().page().client().device_pixels_per_css_pixel());
-            auto const& scroll_state = document().paintable()->scroll_state_snapshot();
-            auto result = accumulated_visual_context->transform_rect_to_viewport(absolute_rect.to_type<float>() * pixel_ratio, scroll_state);
-            rects.append((result * (1.f / pixel_ratio)).to_type<CSSPixels>());
-        } else {
-            rects.append(absolute_rect);
-        }
+        rects.append(paintable_box->transform_rect_to_viewport(absolute_rect));
     } else if (paintable()) {
         dbgln("FIXME: Failed to get client rects for element ({})", debug_description());
     }
