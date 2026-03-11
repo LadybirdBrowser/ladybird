@@ -1185,6 +1185,10 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     auto promise = Core::Promise<Empty>::construct();
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
+        auto current_index = s_current_test_index_by_view.get(&view);
+        if (!current_index.has_value() || *current_index != test_index)
+            return;
+
         auto& test = context.tests[test_index];
         auto real_path = MUST(FileSystem::real_path(test.input_path));
         auto headers_path = ByteString::formatted("{}.headers", real_path);
@@ -1223,20 +1227,28 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         VERIFY_NOT_REACHED();
     });
 
-    // Clear the current document.
-    // FIXME: Implement a debug-request to do this more thoroughly.
-    view.on_load_finish = [promise](auto const& url) {
-        if (!url.equals(URL::about_blank()))
-            return;
+    auto begin_reset = [&view, test_index, promise]() {
+        view.on_load_finish = [&view, test_index, promise](auto const& url) {
+            if (!url.equals(URL::about_blank()))
+                return;
 
-        Core::deferred_invoke([promise]() {
-            promise->resolve({});
-        });
+            auto current_index = s_current_test_index_by_view.get(&view);
+            if (!current_index.has_value() || *current_index != test_index)
+                return;
+
+            Core::deferred_invoke([promise]() {
+                promise->resolve({});
+            });
+        };
+
+        view.on_test_finish = {};
+
+        view.load(URL::about_blank());
     };
 
-    view.on_test_finish = {};
-
-    view.load(URL::about_blank());
+    // Drain late IPC from the previous run before reusing this view.
+    view.sync_with_web_content();
+    begin_reset();
 }
 
 static void set_ui_callbacks_for_tests(TestWebView& view)
