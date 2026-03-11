@@ -1740,7 +1740,7 @@ void TableFormattingContext::run(AvailableSpace const& available_space)
 
     auto const& table_state = m_state.get(table_box());
     auto caption_available_space = AvailableSpace(
-        AvailableSize::make_definite(table_state.border_box_width()),
+        AvailableSize::make_definite(clamp_to_max_dimension_value(table_state.border_box_width())),
         available_space.height);
 
     auto total_captions_height = run_caption_layout(CSS::CaptionSide::Top, caption_available_space);

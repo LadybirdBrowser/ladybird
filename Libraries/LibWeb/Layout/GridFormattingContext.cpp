@@ -1716,8 +1716,8 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
         };
 
         AvailableSpace available_space {
-            AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Column)),
-            AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Row))
+            AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Column))),
+            AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Row)))
         };
 
         auto calculate_inner_size = [this, &item, dimension, available_space](CSS::Size const& size) {
@@ -2455,9 +2455,9 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
     }
 
     auto resolve_size = [&] {
-        auto available_width = AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Column));
+        auto available_width = AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Column)));
         if (dimension == GridDimension::Row) {
-            auto available_height = AvailableSize::make_definite(containing_block_size_for_item(item, GridDimension::Row));
+            auto available_height = AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_size_for_item(item, GridDimension::Row)));
             AvailableSpace item_available_space { available_width, available_height };
             return calculate_inner_height(item.box, item_available_space, preferred_size);
         }

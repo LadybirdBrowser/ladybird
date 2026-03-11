@@ -1374,7 +1374,7 @@ void FormattingContext::layout_absolutely_positioned_element(Box const& box, Abs
         VERIFY_NOT_REACHED();
     }
 
-    auto const available_space = AvailableSpace(AvailableSize::make_definite(containing_block_info.rect.width()), AvailableSize::make_definite(containing_block_info.rect.height()));
+    auto const available_space = AvailableSpace(AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.width())), AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.height())));
 
     auto& containing_block_state = m_state.get_mutable(*box.containing_block());
 

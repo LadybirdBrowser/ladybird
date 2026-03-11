@@ -26,7 +26,7 @@ CSSPixels FlexFormattingContext::get_pixel_height(FlexItem const& item, CSS::Siz
     if (is_row_layout() && size.is_intrinsic_sizing_constraint()) {
         // NOTE: In a row layout, after we've determined the main size, we use that as the available width for any
         //       intrinsic sizing layout needed to resolve the height.
-        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
+        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(clamp_to_max_dimension_value(item.main_size.value())) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
         auto available_space = AvailableSpace { available_width, available_height };
         return calculate_inner_height(item.box, available_space, size);
@@ -1203,7 +1203,7 @@ void FlexFormattingContext::determine_hypothetical_cross_size_of_item(FlexItem& 
     // "... treating auto as fit-content"
     CSSPixels fit_content_cross_size;
     if (is_row_layout()) {
-        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(item.main_size.value()) : AvailableSize::make_indefinite();
+        auto available_width = item.main_size.has_value() ? AvailableSize::make_definite(clamp_to_max_dimension_value(item.main_size.value())) : AvailableSize::make_indefinite();
         auto available_height = AvailableSize::make_indefinite();
         fit_content_cross_size = calculate_fit_content_height(item.box, AvailableSpace(available_width, available_height));
     } else {
