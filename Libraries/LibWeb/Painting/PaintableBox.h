@@ -238,6 +238,7 @@ public:
     Optional<CSSPixelPoint> transform_point_to_local(CSSPixelPoint screen_position) const;
     Optional<CSSPixelPoint> transform_point_to_local_for_descendants(CSSPixelPoint screen_position) const;
     CSSPixelRect transform_rect_to_viewport(CSSPixelRect const& rect) const;
+    CSSPixelPoint inverse_transform_point(CSSPixelPoint screen_position) const;
 
     static constexpr size_t paint_phase_count = to_underlying(PaintPhase::Overlay) + 1;
 

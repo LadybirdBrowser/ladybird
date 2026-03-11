@@ -193,31 +193,17 @@ static CSSPixelPoint compute_mouse_event_offset(CSSPixelPoint position, Painting
     // FIXME: Is this guaranteed to be dispatched?
 
     // return the x-coordinate of the position where the event occurred,
-    Gfx::Point<float> precision_offset = {
-        position.x().to_double(),
-        position.y().to_double()
-    };
-
     // ignoring the transforms that apply to the element and its ancestors,
-    RefPtr<Painting::AccumulatedVisualContext const> visual_context;
+    CSSPixelPoint offset_position = position;
     if (is<Painting::PaintableBox>(paintable)) {
-        visual_context = static_cast<Painting::PaintableBox const&>(paintable).accumulated_visual_context();
+        offset_position = static_cast<Painting::PaintableBox const&>(paintable).inverse_transform_point(position);
     } else if (auto* containing_block = paintable.containing_block()) {
-        visual_context = containing_block->accumulated_visual_context();
-    }
-    if (visual_context) {
-        auto pixel_ratio = static_cast<float>(paintable.document().page().client().device_pixels_per_css_pixel());
-        auto result = visual_context->inverse_transform_point(position.to_type<float>() * pixel_ratio);
-        precision_offset = result / pixel_ratio;
+        offset_position = containing_block->inverse_transform_point(position);
     }
 
     // relative to the origin of the padding edge of the target node
     auto const top_left_of_layout_node = paintable.box_type_agnostic_position();
-    CSSPixelPoint offset = {
-        CSSPixels(precision_offset.x()),
-        CSSPixels(precision_offset.y())
-    };
-    offset -= top_left_of_layout_node;
+    auto offset = offset_position - top_left_of_layout_node;
 
     // and terminate these steps.
     return offset;
