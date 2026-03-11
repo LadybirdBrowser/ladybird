@@ -13,13 +13,13 @@ namespace Web::Painting {
 
 class ScrollStateSnapshot {
 public:
-    static ScrollStateSnapshot create(Vector<NonnullRefPtr<ScrollFrame>> const& scroll_frames, double device_pixels_per_css_pixel);
+    static ScrollStateSnapshot create(Vector<ScrollFrame> const& scroll_frames, double device_pixels_per_css_pixel);
 
-    Gfx::FloatPoint device_offset_for_frame_with_id(size_t id) const
+    Gfx::FloatPoint device_offset_for_index(ScrollFrameIndex index) const
     {
-        if (id >= m_device_offsets.size())
+        if (index.value() >= m_device_offsets.size())
             return {};
-        return m_device_offsets[id];
+        return m_device_offsets[index.value()];
     }
 
 private:
@@ -28,43 +28,75 @@ private:
 
 class ScrollState {
 public:
-    NonnullRefPtr<ScrollFrame> create_scroll_frame_for(PaintableBox const& paintable_box, RefPtr<ScrollFrame const> parent)
+    // ScrollFrameIndex is 1-based: value 0 means "no frame".
+    // Index 0 in m_scroll_frames is a sentinel (never accessed by callers).
+    // Value N maps directly to m_scroll_frames[N].
+    ScrollState()
     {
-        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable_box, m_scroll_frames.size(), false, move(parent)));
-        m_scroll_frames.append(scroll_frame);
-        return scroll_frame;
+        m_scroll_frames.empend(); // Sentinel at index 0
     }
 
-    NonnullRefPtr<ScrollFrame> create_sticky_frame_for(PaintableBox const& paintable_box, RefPtr<ScrollFrame const> parent)
+    ScrollFrameIndex create_scroll_frame_for(PaintableBox const& paintable_box, ScrollFrameIndex parent)
     {
-        auto scroll_frame = adopt_ref(*new ScrollFrame(paintable_box, m_scroll_frames.size(), true, move(parent)));
-        m_scroll_frames.append(scroll_frame);
-        return scroll_frame;
+        auto index = ScrollFrameIndex { m_scroll_frames.size() };
+        m_scroll_frames.empend(paintable_box, false, parent);
+        return index;
+    }
+
+    ScrollFrameIndex create_sticky_frame_for(PaintableBox const& paintable_box, ScrollFrameIndex parent)
+    {
+        auto index = ScrollFrameIndex { m_scroll_frames.size() };
+        m_scroll_frames.empend(paintable_box, true, parent);
+        return index;
+    }
+
+    ScrollFrame const& frame_at(ScrollFrameIndex index) const { return m_scroll_frames[index.value()]; }
+    ScrollFrame& frame_at(ScrollFrameIndex index) { return m_scroll_frames[index.value()]; }
+
+    CSSPixelPoint cumulative_offset(ScrollFrameIndex index) const
+    {
+        CSSPixelPoint offset;
+        while (index.value()) {
+            offset += frame_at(index).own_offset();
+            index = frame_at(index).parent_index();
+        }
+        return offset;
+    }
+
+    ScrollFrameIndex nearest_scrolling_ancestor(ScrollFrameIndex index) const
+    {
+        auto ancestor = frame_at(index).parent_index();
+        while (ancestor.value()) {
+            if (!frame_at(ancestor).is_sticky())
+                return ancestor;
+            ancestor = frame_at(ancestor).parent_index();
+        }
+        return {};
     }
 
     template<typename Callback>
-    void for_each_scroll_frame(Callback callback) const
+    void for_each_scroll_frame(Callback callback)
     {
-        for (auto const& scroll_frame : m_scroll_frames) {
-            if (scroll_frame->is_sticky())
+        for (size_t i = 1; i < m_scroll_frames.size(); ++i) {
+            if (m_scroll_frames[i].is_sticky())
                 continue;
-            callback(scroll_frame);
+            callback(ScrollFrameIndex { i }, m_scroll_frames[i]);
         }
     }
 
     template<typename Callback>
-    void for_each_sticky_frame(Callback callback) const
+    void for_each_sticky_frame(Callback callback)
     {
-        for (auto const& scroll_frame : m_scroll_frames) {
-            if (!scroll_frame->is_sticky())
+        for (size_t i = 1; i < m_scroll_frames.size(); ++i) {
+            if (!m_scroll_frames[i].is_sticky())
                 continue;
-            callback(scroll_frame);
+            callback(ScrollFrameIndex { i }, m_scroll_frames[i]);
         }
     }
 
     void clear()
     {
-        m_scroll_frames.clear();
+        m_scroll_frames.resize_and_keep_capacity(1); // Keep sentinel at index 0
     }
 
 private:
@@ -75,7 +107,7 @@ private:
         return ScrollStateSnapshot::create(m_scroll_frames, device_pixels_per_css_pixel);
     }
 
-    Vector<NonnullRefPtr<ScrollFrame>> m_scroll_frames;
+    Vector<ScrollFrame> m_scroll_frames;
 };
 
 }

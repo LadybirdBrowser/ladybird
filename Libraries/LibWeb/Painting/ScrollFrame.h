@@ -6,12 +6,14 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
+#include <AK/DistinctNumeric.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Painting {
+
+AK_TYPEDEF_DISTINCT_ORDERED_ID(size_t, ScrollFrameIndex);
 
 struct StickyInsets {
     Optional<CSSPixels> top;
@@ -29,52 +31,37 @@ struct StickyConstraints {
     StickyInsets insets;
 };
 
-class ScrollFrame : public RefCounted<ScrollFrame> {
+class ScrollFrame {
 public:
-    ScrollFrame(PaintableBox const& paintable_box, size_t id, bool sticky, RefPtr<ScrollFrame const> parent);
+    ScrollFrame() = default;
+    ScrollFrame(PaintableBox const& paintable_box, bool sticky, ScrollFrameIndex parent_index);
 
     PaintableBox const& paintable_box() const { return *m_paintable_box; }
 
-    size_t id() const { return m_id; }
-
     bool is_sticky() const { return m_sticky; }
 
-    CSSPixelPoint cumulative_offset() const
-    {
-        return m_cached_cumulative_offset.ensure([&] {
-            auto offset = m_own_offset;
-            if (m_parent)
-                offset += m_parent->cumulative_offset();
-            return offset;
-        });
-    }
+    CSSPixelPoint own_offset() const { return m_own_offset; }
 
     void set_own_offset(CSSPixelPoint offset)
     {
-        m_cached_cumulative_offset.clear();
         m_own_offset = offset;
     }
 
-    RefPtr<ScrollFrame const> parent() const { return m_parent; }
-    RefPtr<ScrollFrame const> nearest_scrolling_ancestor() const;
+    ScrollFrameIndex parent_index() const { return m_parent_index; }
 
     void set_sticky_constraints(StickyConstraints constraints) { m_sticky_constraints = constraints; }
     bool has_sticky_constraints() const { return m_sticky_constraints.has_value(); }
     StickyConstraints const& sticky_constraints() const { return m_sticky_constraints.value(); }
 
 private:
+    friend class ScrollState;
     friend class ScrollStateSnapshot;
 
     GC::Weak<PaintableBox> m_paintable_box;
-    size_t m_id { 0 };
     bool m_sticky { false };
-    RefPtr<ScrollFrame const> m_parent;
+    ScrollFrameIndex m_parent_index;
     CSSPixelPoint m_own_offset;
     Optional<StickyConstraints> m_sticky_constraints;
-
-    // Caching here relies on the fact that offsets of all scroll frames are invalidated when any of them changes,
-    // so we don't need to worry about invalidating the cache when the parent's offset changes.
-    mutable Optional<CSSPixelPoint> m_cached_cumulative_offset;
 };
 
 }

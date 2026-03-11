@@ -211,7 +211,7 @@ public:
 
     CSSPixelRect transform_reference_box() const;
 
-    RefPtr<ScrollFrame const> nearest_scroll_frame() const;
+    ScrollFrameIndex nearest_scroll_frame_index() const;
 
     PaintableBox const* nearest_scrollable_ancestor() const;
 
@@ -227,8 +227,8 @@ public:
     void set_used_values_for_grid_template_rows(RefPtr<CSS::GridTrackSizeListStyleValue const> style_value) { m_used_values_for_grid_template_rows = move(style_value); }
     RefPtr<CSS::GridTrackSizeListStyleValue const> const& used_values_for_grid_template_rows() const { return m_used_values_for_grid_template_rows; }
 
-    void set_enclosing_scroll_frame(RefPtr<ScrollFrame const> const& scroll_frame) { m_enclosing_scroll_frame = scroll_frame; }
-    void set_own_scroll_frame(RefPtr<ScrollFrame> const& scroll_frame) { m_own_scroll_frame = scroll_frame; }
+    void set_enclosing_scroll_frame_index(ScrollFrameIndex index) { m_enclosing_scroll_frame_index = index; }
+    void set_own_scroll_frame_index(ScrollFrameIndex index) { m_own_scroll_frame_index = index; }
 
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return m_accumulated_visual_context_index; }
@@ -259,11 +259,9 @@ public:
         m_cached_phase_commands[to_underlying(phase)] = move(commands);
     }
 
-    [[nodiscard]] RefPtr<ScrollFrame const> enclosing_scroll_frame() const { return m_enclosing_scroll_frame; }
-    [[nodiscard]] Optional<int> scroll_frame_id() const;
+    [[nodiscard]] ScrollFrameIndex enclosing_scroll_frame_index() const { return m_enclosing_scroll_frame_index; }
 
-    [[nodiscard]] RefPtr<ScrollFrame const> own_scroll_frame() const { return m_own_scroll_frame; }
-    [[nodiscard]] Optional<int> own_scroll_frame_id() const;
+    [[nodiscard]] ScrollFrameIndex own_scroll_frame_index() const { return m_own_scroll_frame_index; }
 
 protected:
     explicit PaintableBox(Layout::Box const&);
@@ -327,8 +325,8 @@ private:
     Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
     Optional<CSSPixelRect> mutable m_absolute_border_box_rect;
 
-    RefPtr<ScrollFrame const> m_enclosing_scroll_frame;
-    RefPtr<ScrollFrame const> m_own_scroll_frame;
+    ScrollFrameIndex m_enclosing_scroll_frame_index {};
+    ScrollFrameIndex m_own_scroll_frame_index {};
     VisualContextIndex m_accumulated_visual_context_index {};
     VisualContextIndex m_accumulated_visual_context_for_descendants_index {};
 

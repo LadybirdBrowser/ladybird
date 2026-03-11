@@ -351,7 +351,7 @@ struct PaintNestedDisplayList {
 struct PaintScrollBar {
     static constexpr StringView command_name = "PaintScrollBar"sv;
 
-    int scroll_frame_id { 0 };
+    ScrollFrameIndex scroll_frame_index;
     Gfx::IntRect gutter_rect;
     Gfx::IntRect thumb_rect;
     double scroll_size;

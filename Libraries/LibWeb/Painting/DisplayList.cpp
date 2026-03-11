@@ -89,7 +89,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
             },
             [&](ScrollData const& scroll) {
                 save({});
-                auto offset = scroll_state.device_offset_for_frame_with_id(scroll.scroll_frame_id);
+                auto offset = scroll_state.device_offset_for_index(scroll.scroll_frame_index);
                 if (!offset.is_zero())
                     translate({ .delta = offset.to_type<int>() });
             },
@@ -156,7 +156,7 @@ void DisplayListPlayer::execute_impl(DisplayList& display_list, ScrollStateSnaps
         if (command.has<PaintScrollBar>()) {
             auto translated_command = command;
             auto& paint_scroll_bar = translated_command.get<PaintScrollBar>();
-            auto device_offset = scroll_state.device_offset_for_frame_with_id(paint_scroll_bar.scroll_frame_id);
+            auto device_offset = scroll_state.device_offset_for_index(paint_scroll_bar.scroll_frame_index);
             if (paint_scroll_bar.vertical)
                 paint_scroll_bar.thumb_rect.translate_by(0, static_cast<int>(-device_offset.y() * paint_scroll_bar.scroll_size));
             else
