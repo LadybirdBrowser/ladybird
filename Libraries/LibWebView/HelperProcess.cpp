@@ -257,11 +257,7 @@ ErrorOr<IPC::TransportHandle> connect_new_request_server_client()
     auto response = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>();
     if (!response)
         return Error::from_string_literal("Failed to connect to RequestServer");
-
-    auto handle = response->take_handle();
-    TRY(handle.clear_close_on_exec());
-
-    return handle;
+    return response->take_handle();
 }
 
 ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
@@ -273,11 +269,7 @@ ErrorOr<IPC::TransportHandle> connect_new_image_decoder_client()
     auto handles = response->take_handles();
     if (handles.size() != 1)
         return Error::from_string_literal("Failed to connect to ImageDecoder");
-
-    auto handle = handles.take_last();
-    TRY(handle.clear_close_on_exec());
-
-    return handle;
+    return handles.take_last();
 }
 
 }

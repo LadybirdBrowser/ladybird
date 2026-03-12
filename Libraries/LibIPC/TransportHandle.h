@@ -36,9 +36,6 @@ public:
 
     ErrorOr<NonnullOwnPtr<Transport>> create_transport() const;
 
-    int fd() const;
-    ErrorOr<void> clear_close_on_exec();
-
 private:
     explicit TransportHandle(File);
 
