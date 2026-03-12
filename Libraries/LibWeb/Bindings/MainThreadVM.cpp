@@ -455,7 +455,11 @@ void initialize_main_thread_vm(AgentType type)
             // FIXME: 3. Set originalFetchOptions to referencingScript's fetch options.
 
             // 4. Set moduleMapRealm to referencingScript's realm.
-            module_map_realm = &referencing_script->realm();
+
+            // AD-HOC: ShadowRealm imports must stay associated with the synthetic eval realm's module map.
+            //         If the current module-map realm is synthetic, do not replace it with the referencing script's realm here.
+            if (!is<Bindings::SyntheticHostDefined>(*module_map_realm->host_defined()))
+                module_map_realm = &referencing_script->realm();
         }
 
         // 7. If referrer is a Cyclic Module Record and moduleRequest is equal to the first element of referrer.[[RequestedModules]], then:
