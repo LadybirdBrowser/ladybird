@@ -36,7 +36,7 @@ extern "C" {
 
 FfiCalendarDate icu_iso_date_to_calendar_date(u8 const* calendar, size_t calendar_length, i32 iso_year, u8 iso_month, u8 iso_day);
 FfiOptionalISODate icu_calendar_date_to_iso_date(u8 const* calendar, size_t calendar_length, i32 arithmetic_year, u8 ordinal_month, u8 day);
-FfiOptionalISODate icu_calendar_month_code_to_iso_date(u8 const* calendar, size_t calendar_length, i32 iso_year, u8 const* month_code, size_t month_code_length, u8 day);
+FfiOptionalISODate icu_iso_year_and_month_code_to_iso_date(u8 const* calendar, size_t calendar_length, i32 iso_year, u8 const* month_code, size_t month_code_length, u8 day);
 
 u8 icu_calendar_months_in_year(u8 const* calendar, size_t calendar_length, i32 arithmetic_year);
 u8 icu_calendar_days_in_month(u8 const* calendar, size_t calendar_length, i32 arithmetic_year, u8 ordinal_month);
@@ -153,9 +153,9 @@ Optional<ISODate> calendar_date_to_iso_date(String const& calendar, i32 year, u8
     return ISODate { result.iso_date.year, result.iso_date.month, result.iso_date.day };
 }
 
-Optional<ISODate> calendar_month_code_to_iso_date(String const& calendar, i32 year, StringView month_code, u8 day)
+Optional<ISODate> iso_year_and_month_code_to_iso_date(String const& calendar, i32 year, StringView month_code, u8 day)
 {
-    auto result = icu_calendar_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), year, month_code.bytes().data(), month_code.length(), day);
+    auto result = icu_iso_year_and_month_code_to_iso_date(calendar.bytes().data(), calendar.bytes().size(), year, month_code.bytes().data(), month_code.length(), day);
     if (!result.has_value)
         return {};
 
