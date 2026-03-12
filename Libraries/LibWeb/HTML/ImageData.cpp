@@ -151,6 +151,9 @@ void ImageData::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(ImageData);
     Base::initialize(realm);
+
+    if (m_data)
+        define_direct_property("data"_utf16_fly_string, m_data, JS::Attribute::Enumerable);
 }
 
 void ImageData::visit_edges(Cell::Visitor& visitor)
@@ -225,6 +228,8 @@ WebIDL::ExceptionOr<void> ImageData::deserialization_steps(HTML::TransferDataDec
 
     // AD-HOC: Create the bitmap backed by the Uint8ClampedArray.
     m_bitmap = TRY_OR_THROW_OOM(vm, create_bitmap_backed_by_uint8_clamped_array(width, height, *m_data));
+
+    define_direct_property("data"_utf16_fly_string, m_data, JS::Attribute::Enumerable);
 
     return {};
 }
