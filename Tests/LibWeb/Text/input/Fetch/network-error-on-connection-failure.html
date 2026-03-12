@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        try {
+            await fetch("http://127.0.0.1:2/", { mode: "no-cors" });
+            println("FAIL: fetch resolved instead of rejecting");
+        } catch (e) {
+            println(e);
+        }
+        done();
+    });
+</script>

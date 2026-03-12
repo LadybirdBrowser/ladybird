@@ -620,9 +620,6 @@ void Request::handle_complete_state()
     if (m_type == Type::Fetch) {
         VERIFY(m_curl_result_code.has_value());
 
-        auto timing_info = acquire_timing_info();
-        transfer_headers_to_client_if_needed();
-
         // HTTPS servers might terminate their connection without proper notice of shutdown - i.e. they do not send
         // a "close notify" alert. OpenSSL version 3.2 began treating this as an error, which curl translates to
         // CURLE_RECV_ERROR in the absence of a Content-Length response header. The Python server used by WPT is one
@@ -641,6 +638,9 @@ void Request::handle_complete_state()
             transition_to_state(State::Error);
             return;
         }
+
+        auto timing_info = acquire_timing_info();
+        transfer_headers_to_client_if_needed();
 
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, timing_info, m_network_error);
     }
