@@ -81,6 +81,7 @@ public:
 
         NonnullRefPtr<Expression const> result;
         bool should_continue_parsing_as_expression { true };
+        bool was_parenthesized { false };
         Optional<Position> invalid_object_property_range;
     };
 
@@ -175,7 +176,7 @@ public:
 
     NonnullRefPtr<StringLiteral const> parse_string_literal(Token const& token, StringLiteralType string_literal_type = StringLiteralType::Normal, bool* contains_invalid_escape = nullptr);
     NonnullRefPtr<TemplateLiteral const> parse_template_literal(bool is_tagged);
-    ExpressionResult parse_secondary_expression(NonnullRefPtr<Expression const>, int min_precedence, Associativity associate = Associativity::Right, ForbiddenTokens forbidden = {});
+    ExpressionResult parse_secondary_expression(NonnullRefPtr<Expression const>, int min_precedence, Associativity associate = Associativity::Right, ForbiddenTokens forbidden = {}, bool lhs_is_parenthesized = false);
     NonnullRefPtr<Expression const> parse_call_expression(NonnullRefPtr<Expression const>);
     NonnullRefPtr<NewExpression const> parse_new_expression();
     NonnullRefPtr<ClassDeclaration const> parse_class_declaration();
@@ -183,7 +184,7 @@ public:
     NonnullRefPtr<YieldExpression const> parse_yield_expression();
     NonnullRefPtr<AwaitExpression const> parse_await_expression();
     NonnullRefPtr<Expression const> parse_property_key();
-    NonnullRefPtr<AssignmentExpression const> parse_assignment_expression(AssignmentOp, NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity, ForbiddenTokens forbidden = {});
+    NonnullRefPtr<AssignmentExpression const> parse_assignment_expression(AssignmentOp, NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity, ForbiddenTokens forbidden = {}, bool lhs_is_parenthesized = false);
     NonnullRefPtr<Identifier const> parse_identifier();
     NonnullRefPtr<ImportStatement const> parse_import_statement(Program& program);
     NonnullRefPtr<ExportStatement const> parse_export_statement(Program& program);

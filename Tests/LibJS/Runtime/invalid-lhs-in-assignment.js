@@ -12,8 +12,8 @@ test("Postfix operator after function call", () => {
     }).toThrow(ReferenceError);
 });
 
-test("assignment to function call in strict mode", () => {
-    expect("'use strict'; foo() = 'foo'").toEval();
+test("assignment to function call in strict mode is a SyntaxError", () => {
+    expect("'use strict'; foo() = 'foo'").not.toEval();
 });
 
 test("assignment to inline function call", () => {

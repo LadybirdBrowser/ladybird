@@ -911,14 +911,25 @@ impl<'a> Parser<'a> {
 
     /// Validate that an expression-form LHS is valid for for-in/for-of.
     fn validate_for_in_of_lhs(&mut self, init: &LocalForInit) {
-        if let LocalForInit::Expression(ref expression) = *init
-            && !Self::is_identifier(expression)
-            && !Self::is_member_expression(expression)
-            && !Self::is_call_expression(expression)
-            && !Self::is_object_expression(expression)
-            && !Self::is_array_expression(expression)
-        {
-            self.syntax_error("Invalid left-hand side in for-loop");
+        if let LocalForInit::Expression(ref expression) = *init {
+            match &expression.inner {
+                // NewExpression is never a valid assignment target.
+                ExpressionKind::New(_) => {
+                    self.syntax_error("Invalid left-hand side in for-loop");
+                }
+                // CallExpression is a valid assignment target only in non-strict mode (web compat).
+                ExpressionKind::Call(_) if self.flags.strict_mode => {
+                    self.syntax_error("Invalid left-hand side in for-loop");
+                }
+                ExpressionKind::Identifier(_)
+                | ExpressionKind::Member { .. }
+                | ExpressionKind::Call(_)
+                | ExpressionKind::Object(_)
+                | ExpressionKind::Array(_) => {}
+                _ => {
+                    self.syntax_error("Invalid left-hand side in for-loop");
+                }
+            }
         }
     }
 
