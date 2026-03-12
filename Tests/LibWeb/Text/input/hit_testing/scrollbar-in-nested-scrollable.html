@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 300px;
+    height: 300px;
+}
+
+#outer {
+    width: 200px;
+    height: 150px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+#spacer {
+    height: 300px;
+}
+
+#inner {
+    width: 150px;
+    height: 100px;
+    overflow-y: scroll;
+    overflow-x: hidden;
+}
+
+#content {
+    height: 1000px;
+}
+
+#extra {
+    height: 200px;
+}
+</style>
+<div id="outer">
+    <div id="spacer"></div>
+    <div id="inner">
+        <div id="content"></div>
+    </div>
+    <div id="extra"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    outer.scrollTop = 300;
+
+    asyncTest(done => {
+        // Move the cursor above the inner scrollbar gutter and click to scroll down.
+        internals.mouseMove(147, 50);
+        internals.mouseDown(147, 80);
+        internals.mouseUp(147, 80);
+
+        requestAnimationFrame(() => {
+            println(`inner scrolled: ${inner.scrollTop > 0}`);
+            done();
+        });
+    });
+</script>

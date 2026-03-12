@@ -1152,9 +1152,11 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
 {
     auto const is_visible = computed_values().visibility() == CSS::Visibility::Visible;
 
+    Optional<CSSPixelPoint> local_position = transform_point_to_local(position);
+
     // Only hit test chrome (scrollbars, etc.) for visible elements.
     if (is_visible) {
-        if (hit_test_chrome(position, callback) == TraversalDecision::Break)
+        if (hit_test_chrome(local_position.value_or(position), callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
@@ -1175,8 +1177,6 @@ TraversalDecision PaintableBox::hit_test(CSSPixelPoint position, HitTestType typ
     // Hidden elements and elements with pointer-events: none shouldn't be hit.
     if (!is_visible || !visible_for_hit_testing())
         return TraversalDecision::Continue;
-
-    Optional<CSSPixelPoint> local_position = transform_point_to_local(position);
 
     if (!local_position.has_value())
         return TraversalDecision::Continue;
