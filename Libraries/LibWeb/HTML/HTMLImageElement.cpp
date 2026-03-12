@@ -185,8 +185,8 @@ void HTMLImageElement::form_associated_element_attribute_changed(FlyString const
     }
 
     if (name == HTML::AttributeNames::decoding) {
-        if (value.has_value() && (value->equals_ignoring_ascii_case("sync"sv) || value->equals_ignoring_ascii_case("async"sv)))
-            dbgln("FIXME: HTMLImageElement.decoding = '{}' is not implemented yet", value->to_ascii_lowercase());
+        if (value.has_value() && value->equals_ignoring_ascii_case("sync"sv))
+            dbgln("FIXME: HTMLImageElement.decoding = 'sync' is not implemented yet");
     }
 }
 
