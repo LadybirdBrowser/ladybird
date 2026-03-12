@@ -10,6 +10,7 @@
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
 #include <LibGfx/AffineTransform.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Orientation.h>
 #include <LibIPC/Forward.h>
@@ -305,14 +306,14 @@ struct Formatter<Gfx::Point<T>> : Formatter<FormatString> {
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::IntPoint const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::IntPoint const&);
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::FloatPoint const&);
+GFX_API ErrorOr<void> encode(Encoder&, Gfx::FloatPoint const&);
 
 template<>
-ErrorOr<Gfx::IntPoint> decode(Decoder&);
+GFX_API ErrorOr<Gfx::IntPoint> decode(Decoder&);
 template<>
-ErrorOr<Gfx::FloatPoint> decode(Decoder&);
+GFX_API ErrorOr<Gfx::FloatPoint> decode(Decoder&);
 
 }
 

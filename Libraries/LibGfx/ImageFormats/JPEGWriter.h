@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Forward.h>
 
 namespace Gfx {
@@ -16,7 +17,7 @@ struct JPEGEncoderOptions {
     u8 quality { 75 };
 };
 
-class JPEGWriter {
+class GFX_API JPEGWriter {
 public:
     using Options = JPEGEncoderOptions;
 

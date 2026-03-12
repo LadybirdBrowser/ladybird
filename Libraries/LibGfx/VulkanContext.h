@@ -11,6 +11,7 @@
 #    include <AK/Assertions.h>
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
+#    include <LibGfx/Export.h>
 #    include <vulkan/vulkan.h>
 #    if defined(USE_VULKAN_IMAGES)
 #        include <libdrm/drm_fourcc.h>
@@ -36,10 +37,10 @@ struct VulkanContext {
 #    endif
 };
 
-ErrorOr<VulkanContext> create_vulkan_context();
+GFX_API ErrorOr<VulkanContext> create_vulkan_context();
 
 #    ifdef USE_VULKAN_IMAGES
-struct VulkanImage : public RefCounted<VulkanImage> {
+struct GFX_API VulkanImage : public RefCounted<VulkanImage> {
     VkImage image { VK_NULL_HANDLE };
     VkDeviceMemory memory { VK_NULL_HANDLE };
     struct {
@@ -75,7 +76,7 @@ static inline uint32_t vk_format_to_drm_format(VkFormat format)
     }
 }
 
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
+GFX_API ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
 #    endif
 
 }

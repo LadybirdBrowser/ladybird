@@ -10,6 +10,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/QuickSort.h>
 #include <AK/RefCounted.h>
+#include <LibGfx/Export.h>
 #include <LibGfx/Font/FontData.h>
 #include <LibGfx/Font/FontVariationSettings.h>
 #include <LibGfx/Forward.h>
@@ -58,7 +59,7 @@ struct FontCacheKey {
     }
 };
 
-class Typeface : public RefCounted<Typeface> {
+class GFX_API Typeface : public RefCounted<Typeface> {
 public:
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, int ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, int ttc_index = 0);
