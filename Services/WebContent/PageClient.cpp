@@ -731,7 +731,7 @@ void PageClient::page_did_allocate_backing_stores(i32 front_bitmap_id, Gfx::Shar
     client().async_did_allocate_backing_stores(m_id, front_bitmap_id, front_bitmap, back_bitmap_id, back_bitmap);
 }
 
-IPC::TransportHandle PageClient::request_worker_agent(Web::Bindings::AgentType type)
+Web::PageClient::WorkerAgentResponse PageClient::request_worker_agent(Web::Bindings::AgentType type)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::RequestWorkerAgent>(m_id, type);
     if (!response) {
@@ -739,7 +739,7 @@ IPC::TransportHandle PageClient::request_worker_agent(Web::Bindings::AgentType t
         exit(0);
     }
 
-    return response->take_handle();
+    return { response->take_handle(), response->take_request_server_handle(), response->take_image_decoder_handle() };
 }
 
 void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const& target, Web::DOM::NodeList& added_nodes, Web::DOM::NodeList& removed_nodes, GC::Ptr<Web::DOM::Node>, GC::Ptr<Web::DOM::Node>, Optional<String> const& attribute_name)

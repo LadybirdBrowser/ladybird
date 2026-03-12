@@ -177,14 +177,6 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
     if (web_content_options.enable_http_memory_cache == WebView::EnableMemoryHTTPCache::Yes)
         arguments.append("--enable-http-memory-cache"sv);
 
-    auto request_server_handle = TRY(connect_new_request_server_client());
-    arguments.append("--request-server-socket"sv);
-    arguments.append(ByteString::number(request_server_handle.fd()));
-
-    auto image_decoder_handle = TRY(connect_new_image_decoder_client());
-    arguments.append("--image-decoder-socket"sv);
-    arguments.append(ByteString::number(image_decoder_handle.fd()));
-
     arguments.append("--type"sv);
     switch (type) {
     case Web::Bindings::AgentType::DedicatedWorker:

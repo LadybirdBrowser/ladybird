@@ -11,6 +11,18 @@
 
 namespace WebWorker {
 
+void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
+{
+    if (on_request_server_connection)
+        on_request_server_connection(handle);
+}
+
+void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
+{
+    if (on_image_decoder_connection)
+        on_image_decoder_connection(handle);
+}
+
 void ConnectionFromClient::close_worker()
 {
     async_did_close_worker();

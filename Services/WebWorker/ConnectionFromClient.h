@@ -35,12 +35,17 @@ public:
     PageHost& page_host() { return *m_page_host; }
     PageHost const& page_host() const { return *m_page_host; }
 
+    Function<void(IPC::TransportHandle const&)> on_request_server_connection;
+    Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
+
 private:
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
     Web::Page& page();
     Web::Page const& page() const;
 
+    virtual void connect_to_request_server(IPC::TransportHandle handle) override;
+    virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;
 

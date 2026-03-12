@@ -97,9 +97,10 @@ void PageHost::request_file(Web::FileRequest request)
     m_client.request_file(move(request));
 }
 
-IPC::TransportHandle PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
+Web::PageClient::WorkerAgentResponse PageHost::request_worker_agent(Web::Bindings::AgentType worker_type)
 {
-    return m_client.request_worker_agent(worker_type);
+    auto response = m_client.request_worker_agent(worker_type);
+    return { response.take_handle(), response.take_request_server_handle(), response.take_image_decoder_handle() };
 }
 
 void PageHost::did_fail_loading_worker_script()

@@ -37,7 +37,7 @@ Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_w
 {
     if (on_request_worker_agent)
         return on_request_worker_agent(worker_type);
-    return IPC::TransportHandle {};
+    return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
 }
 
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
