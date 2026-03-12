@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/canvas-letter-spacing-ref.html" />
+<meta name="fuzzy" content="maxDifference=0-7;totalPixels=0-500" />
+<canvas id="c" width="400" height="200"></canvas>
+<script>
+    const ctx = c.getContext("2d");
+    ctx.font = "20px SerenitySans";
+
+    ctx.letterSpacing = "0px";
+    ctx.fillText("Hello", 10, 30);
+
+    ctx.letterSpacing = "5px";
+    ctx.fillText("Hello", 10, 70);
+
+    ctx.letterSpacing = "10px";
+    ctx.fillText("Hello", 10, 110);
+
+    ctx.letterSpacing = "-2px";
+    ctx.fillText("Hello", 10, 150);
+</script>

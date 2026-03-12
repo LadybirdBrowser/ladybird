@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        println(`default: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "5px";
+        println(`after set 5px: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "2em";
+        println(`after set 2em: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "invalid";
+        println(`after set invalid: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "";
+        println(`after set empty: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "10px";
+        println(`after set 10px: ${ctx.letterSpacing}`);
+
+        ctx.save();
+        ctx.letterSpacing = "20px";
+        println(`after save+set 20px: ${ctx.letterSpacing}`);
+        ctx.restore();
+        println(`after restore: ${ctx.letterSpacing}`);
+
+        ctx.letterSpacing = "3px";
+        const width_with_spacing = ctx.measureText("hello").width;
+        ctx.letterSpacing = "0px";
+        const width_without_spacing = ctx.measureText("hello").width;
+        println(`spacing affects measureText: ${width_with_spacing > width_without_spacing}`);
+    });
+</script>

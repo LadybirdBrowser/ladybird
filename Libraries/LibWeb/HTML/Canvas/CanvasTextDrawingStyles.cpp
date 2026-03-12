@@ -158,6 +158,31 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     my_drawing_state().current_font_cascade_list = font_list;
 }
 
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
+template<typename IncludingClass, typename CanvasType>
+String CanvasTextDrawingStyles<IncludingClass, CanvasType>::letter_spacing() const
+{
+    // The letterSpacing getter steps are to return the serialized form of this's letter spacing.
+    StringBuilder builder;
+    my_drawing_state().letter_spacing.serialize(builder);
+    return MUST(builder.to_string());
+}
+
+// https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-letterspacing
+template<typename IncludingClass, typename CanvasType>
+void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_letter_spacing(StringView letter_spacing)
+{
+    // 1. Let parsed be the result of parsing the given value as a CSS <length>.
+    auto parsed = parse_css_type(CSS::Parser::ParsingParams {}, letter_spacing, CSS::ValueType::Length);
+
+    // 2. If parsed is failure, then return.
+    if (!parsed || !parsed->is_length())
+        return;
+
+    // 3. Set this's letter spacing to parsed.
+    my_drawing_state().letter_spacing = parsed->as_length().length();
+}
+
 template class CanvasTextDrawingStyles<CanvasRenderingContext2D, HTMLCanvasElement>;
 template class CanvasTextDrawingStyles<OffscreenCanvasRenderingContext2D, HTML::OffscreenCanvas>;
 

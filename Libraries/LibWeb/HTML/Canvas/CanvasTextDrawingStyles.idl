@@ -17,7 +17,7 @@ interface mixin CanvasTextDrawingStyles {
     attribute CanvasTextAlign textAlign; // (default: "start")
     attribute CanvasTextBaseline textBaseline; // (default: "alphabetic")
     attribute CanvasDirection direction; // (default: "inherit")
-    [FIXME] attribute DOMString letterSpacing; // (default: "0px")
+    attribute DOMString letterSpacing; // (default: "0px")
     [FIXME] attribute CanvasFontKerning fontKerning; // (default: "auto")
     [FIXME] attribute CanvasFontStretch fontStretch; // (default: "normal")
     [FIXME] attribute CanvasFontVariantCaps fontVariantCaps; // (default: "normal")

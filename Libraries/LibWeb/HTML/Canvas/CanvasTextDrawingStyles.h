@@ -30,6 +30,9 @@ public:
     Bindings::CanvasDirection direction() const { return my_drawing_state().direction; }
     void set_direction(Bindings::CanvasDirection direction) { my_drawing_state().direction = direction; }
 
+    String letter_spacing() const;
+    void set_letter_spacing(StringView);
+
 protected:
     CanvasTextDrawingStyles() = default;
 
