@@ -22,10 +22,7 @@ namespace JS::Temporal {
 extern String ISO8601_CALENDAR;
 
 // 12.2 Month Codes, https://tc39.es/proposal-temporal/#sec-temporal-month-codes
-struct MonthCode {
-    u8 month_number { 0 };
-    bool is_leap_month { false };
-};
+using MonthCode = Unicode::MonthCode;
 
 // 12.3.1 Calendar Date Records, https://tc39.es/proposal-temporal/#sec-temporal-calendar-date-records
 using CalendarDate = Unicode::CalendarDate;
@@ -104,8 +101,6 @@ Vector<String> const& available_calendars();
 
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, Value argument);
 ThrowCompletionOr<MonthCode> parse_month_code(VM&, StringView month_code);
-MonthCode parse_month_code(StringView month_code);
-String create_month_code(u8 month_number, bool is_leap_month);
 
 ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM&, String const& calendar, Object const& fields, CalendarFieldList calendar_field_names, CalendarFieldList non_calendar_field_names, CalendarFieldListOrPartial required_field_names);
 ThrowCompletionOr<ISODate> calendar_date_from_fields(VM&, String const& calendar, CalendarFields&, Overflow);
