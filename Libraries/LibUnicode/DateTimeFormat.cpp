@@ -7,8 +7,10 @@
 #include <AK/AllOf.h>
 #include <AK/Array.h>
 #include <AK/GenericLexer.h>
+#include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
+#include <LibUnicode/ChineseDangiCalendar.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>
@@ -628,7 +630,10 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
     auto* calendar = icu::Calendar::createInstance(time_zone_data->time_zone(), locale, status);
     verify_icu_success(status);
 
-    if (auto* gregorian_calendar = as_if<icu::GregorianCalendar>(*calendar)) {
+    if (auto const* calendar_type = calendar->getType(); first_is_one_of(calendar_type, "chinese"sv, "dangi"sv)) {
+        calendar = new ChineseDangiCalendar(adopt_own(*calendar), locale, status);
+        verify_icu_success(status);
+    } else if (auto* gregorian_calendar = as_if<icu::GregorianCalendar>(*calendar)) {
         // https://tc39.es/ecma262/#sec-time-values-and-time-range
         // A time value supports a slightly smaller range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds.
         static constexpr double ECMA_262_MINIMUM_TIME = -8.64E15;

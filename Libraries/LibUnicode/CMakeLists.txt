@@ -1,6 +1,7 @@
 set(SOURCES
     Calendar.cpp
     CharacterTypes.cpp
+    ChineseDangiCalendar.cpp
     Collator.cpp
     CurrencyCode.cpp
     DateTimeFormat.cpp

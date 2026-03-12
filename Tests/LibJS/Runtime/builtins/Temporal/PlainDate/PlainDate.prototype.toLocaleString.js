@@ -20,6 +20,58 @@ describe("correct behavior", () => {
         expect(result1).toBe(result2);
         expect(result1).toBe(result3);
     });
+
+    test("DateTimeFormat and Temporal agree on lunisolar calendar dates", () => {
+        function verifyDateTimeFormatAgreesWithTemporal(calendar) {
+            const dtf = new Intl.DateTimeFormat("en", {
+                calendar,
+                timeZone: "UTC",
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+            });
+
+            // Test a range of years that covers leap month variations.
+            for (let isoYear = 2020; isoYear <= 2030; ++isoYear) {
+                const { year, monthsInYear } = new Temporal.PlainDate(isoYear, 1, 1, calendar);
+
+                for (let month = 1; month <= monthsInYear; ++month) {
+                    const date = Temporal.PlainDate.from({
+                        calendar,
+                        year,
+                        month,
+                        day: 1,
+                    });
+
+                    const { epochMilliseconds } = date.withCalendar("iso8601").toZonedDateTime("UTC");
+                    const parts = dtf.formatToParts(epochMilliseconds);
+
+                    const yearPart = parts.find(({ type }) => type === "year" || type === "relatedYear");
+                    const monthPart = parts.find(({ type }) => type === "month");
+                    const dayPart = parts.find(({ type }) => type === "day");
+
+                    const formattedYear = +yearPart.value;
+                    const formattedDay = +dayPart.value;
+                    const formattedMonth = +monthPart.value;
+
+                    let formattedMonthCode;
+                    if (Number.isInteger(formattedMonth)) {
+                        formattedMonthCode = `M${String(formattedMonth).padStart(2, "0")}`;
+                    } else {
+                        const monthNumber = Number.parseInt(monthPart.value);
+                        formattedMonthCode = `M${String(monthNumber).padStart(2, "0")}L`;
+                    }
+
+                    expect(formattedYear).toBe(date.year);
+                    expect(formattedMonthCode).toBe(date.monthCode);
+                    expect(formattedDay).toBe(date.day);
+                }
+            }
+        }
+
+        verifyDateTimeFormatAgreesWithTemporal("chinese");
+        verifyDateTimeFormatAgreesWithTemporal("dangi");
+    });
 });
 
 describe("errors", () => {
