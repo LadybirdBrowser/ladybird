@@ -37,16 +37,6 @@ ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
     return make<Transport>(move(socket));
 }
 
-int TransportHandle::fd() const
-{
-    return m_file.fd();
-}
-
-ErrorOr<void> TransportHandle::clear_close_on_exec()
-{
-    return m_file.clear_close_on_exec();
-}
-
 template<>
 ErrorOr<void> encode(Encoder& encoder, TransportHandle const& handle)
 {
