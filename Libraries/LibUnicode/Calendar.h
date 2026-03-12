@@ -19,6 +19,12 @@ struct ISODate {
     u8 day { 0 };
 };
 
+// 12.2 Month Codes, https://tc39.es/proposal-temporal/#sec-temporal-month-codes
+struct MonthCode {
+    u8 month_number { 0 };
+    bool is_leap_month { false };
+};
+
 // 14.3 The Year-Week Record Specification Type, https://tc39.es/proposal-temporal/#sec-year-week-record-specification-type
 struct YearWeek {
     Optional<u8> week;
@@ -42,6 +48,9 @@ struct CalendarDate {
     u8 months_in_year { 0 };
     bool in_leap_year { false };
 };
+
+Optional<MonthCode> parse_month_code(StringView month_code);
+String create_month_code(u8 month_number, bool is_leap_month);
 
 CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate);
 Optional<ISODate> calendar_date_to_iso_date(String const& calendar, i32 year, u8 month, u8 day);

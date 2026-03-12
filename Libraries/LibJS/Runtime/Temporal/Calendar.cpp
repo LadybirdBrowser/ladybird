@@ -319,32 +319,6 @@ Vector<String> const& available_calendars()
     return calendars;
 }
 
-// https://tc39.es/proposal-temporal/#prod-MonthCode
-static constexpr bool is_valid_month_code_string(StringView month_code)
-{
-    // MonthCode :::
-    //     M00L
-    //     M0 NonZeroDigit L[opt]
-    //     M NonZeroDigit DecimalDigit L[opt]
-    auto length = month_code.length();
-
-    if (length != 3 && length != 4)
-        return false;
-
-    if (month_code[0] != 'M')
-        return false;
-
-    if (!is_ascii_digit(month_code[1]) || !is_ascii_digit(month_code[2]))
-        return false;
-
-    if (length == 3 && month_code[1] == '0' && month_code[2] == '0')
-        return false;
-    if (length == 4 && month_code[3] != 'L')
-        return false;
-
-    return true;
-}
-
 // 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
 ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
 {
@@ -362,55 +336,9 @@ ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, Value argument)
 ThrowCompletionOr<MonthCode> parse_month_code(VM& vm, StringView month_code)
 {
     // 3. If ParseText(StringToCodePoints(monthCode), MonthCode) is a List of errors, throw a RangeError exception.
-    if (!is_valid_month_code_string(month_code))
-        return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
-
-    return parse_month_code(month_code);
-}
-
-// 12.2.1 ParseMonthCode ( argument ), https://tc39.es/proposal-temporal/#sec-temporal-parsemonthcode
-MonthCode parse_month_code(StringView month_code)
-{
-    // 4. Let isLeapMonth be false.
-    auto is_leap_month = false;
-
-    // 5. If the length of monthCode = 4, then
-    if (month_code.length() == 4) {
-        // a. Assert: The fourth code unit of monthCode is 0x004C (LATIN CAPITAL LETTER L).
-        VERIFY(month_code[3] == 'L');
-
-        // b. Set isLeapMonth to true.
-        is_leap_month = true;
-    }
-
-    // 6. Let monthCodeDigits be the substring of monthCode from 1 to 3.
-    auto month_code_digits = month_code.substring_view(1, 2);
-
-    // 7. Let monthNumber be ℝ(StringToNumber(monthCodeDigits)).
-    auto month_number = month_code_digits.to_number<u8>().value();
-
-    // 8. Return the Record { [[MonthNumber]]: monthNumber, [[IsLeapMonth]]: isLeapMonth }.
-    return MonthCode { month_number, is_leap_month };
-}
-
-// 12.2.2 CreateMonthCode ( monthNumber, isLeapMonth ), https://tc39.es/proposal-temporal/#sec-temporal-createmonthcode
-String create_month_code(u8 month_number, bool is_leap_month)
-{
-    // 1. Assert: If isLeapMonth is false, monthNumber > 0.
-    if (!is_leap_month)
-        VERIFY(month_number > 0);
-
-    // 2. Let numberPart be ToZeroPaddedDecimalString(monthNumber, 2).
-
-    // 3. If isLeapMonth is true, then
-    if (is_leap_month) {
-        // a. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M), numberPart, and the
-        //    code unit 0x004C (LATIN CAPITAL LETTER L).
-        return MUST(String::formatted("M{:02}L", month_number));
-    }
-
-    // 4. Return the string-concatenation of the code unit 0x004D (LATIN CAPITAL LETTER M) and numberPart.
-    return MUST(String::formatted("M{:02}", month_number));
+    if (auto result = Unicode::parse_month_code(month_code); result.has_value())
+        return result.release_value();
+    return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidMonthCode);
 }
 
 // 12.3.3 PrepareCalendarFields ( calendar, fields, calendarFieldNames, nonCalendarFieldNames, requiredFieldNames ), https://tc39.es/proposal-temporal/#sec-temporal-preparecalendarfields
@@ -484,7 +412,7 @@ ThrowCompletionOr<CalendarFields> prepare_calendar_fields(VM& vm, String const& 
                 auto parsed = TRY(parse_month_code(vm, value));
 
                 // 2. Set value to CreateMonthCode(parsed.[[MonthNumber]], parsed.[[IsLeapMonth]]).
-                set_field_value(key, result, create_month_code(parsed.month_number, parsed.is_leap_month));
+                set_field_value(key, result, Unicode::create_month_code(parsed.month_number, parsed.is_leap_month));
 
                 break;
             }
@@ -1419,7 +1347,7 @@ CalendarDate calendar_iso_to_date(String const& calendar, ISODate iso_date)
             .era_year = {},
             .year = iso_date.year,
             .month = iso_date.month,
-            .month_code = create_month_code(iso_date.month, false),
+            .month_code = Unicode::create_month_code(iso_date.month, false),
             .day = iso_date.day,
             .day_of_week = iso_day_of_week(iso_date),
             .day_of_year = iso_day_of_year(iso_date),
@@ -1685,7 +1613,7 @@ ThrowCompletionOr<void> calendar_resolve_fields(VM& vm, String const& calendar, 
         // h. If fields.[[MonthCode]] is not UNSET, then
         if (fields.month_code.has_value()) {
             // i. Let parsedMonthCode be ! ParseMonthCode(fields.[[MonthCode]]).
-            auto parsed_month_code = parse_month_code(*fields.month_code);
+            auto parsed_month_code = Unicode::parse_month_code(*fields.month_code).release_value();
 
             // ii. If parsedMonthCode.[[IsLeapMonth]] is true, throw a RangeError exception.
             if (parsed_month_code.is_leap_month)
@@ -1790,7 +1718,7 @@ bool year_contains_month_code(String const& calendar, i32 arithmetic_year, Strin
     VERIFY(is_valid_month_code_for_calendar(calendar, month_code));
 
     // 2. If ! ParseMonthCode(monthCode).[[IsLeap]] is false, return true.
-    if (!parse_month_code(month_code).is_leap_month)
+    if (!Unicode::parse_month_code(month_code)->is_leap_month)
         return true;
 
     // 3. Return whether the leap month indicated by monthCode exists in the year arithmeticYear in calendar, using
@@ -1853,7 +1781,7 @@ u8 month_code_to_ordinal(String const& calendar, i32 arithmetic_year, StringView
     // 6. If the "Leap to Common Month Transformation" column of r is empty, then
     if (!row.has_value() || !row->leap_to_common_month_transformation.has_value()) {
         // a. Return ! ParseMonthCode(monthCode).[[MonthNumber]].
-        return parse_month_code(month_code).month_number;
+        return Unicode::parse_month_code(month_code)->month_number;
     }
 
     // 7. Assert: The "Additional Month Codes" column of r does not contain "M00L" or "M13".
@@ -1865,7 +1793,7 @@ u8 month_code_to_ordinal(String const& calendar, i32 arithmetic_year, StringView
     // 9. Repeat, while number ≤ 12,
     while (number <= 12) {
         // a. Let currentMonthCode be CreateMonthCode(number, isLeap).
-        auto current_month_code = create_month_code(number, is_leap);
+        auto current_month_code = Unicode::create_month_code(number, is_leap);
 
         // b. If IsValidMonthCodeForCalendar(calendar, currentMonthCode) is true and YearContainsMonthCode(calendar, arithmeticYear, currentMonthCode) is true, then
         if (is_valid_month_code_for_calendar(calendar, current_month_code) && year_contains_month_code(calendar, arithmetic_year, current_month_code)) {
