@@ -404,8 +404,7 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnitValue::create_an_int
             }
 
             if (property_accepts_type(property.id(), ValueType::Integer)) {
-                // NB: Same rounding as CalculatedStyleValue::resolve_integer(). Maybe this should go somewhere central?
-                auto integer = llround(number.value());
+                auto integer = round_to_nearest_integer(number.value());
                 if (property_accepts_integer(property.id(), integer))
                     return IntegerStyleValue::create(integer);
                 return wrap_in_math_sum(number);

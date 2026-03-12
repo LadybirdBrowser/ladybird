@@ -3024,7 +3024,7 @@ Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
     auto result = resolve_value(context);
 
     if (result.has_value() && result->type.has_value() && result->type->matches_number(m_context.percentages_resolve_as))
-        return llround(result->value);
+        return round_to_nearest_integer(result->value);
 
     return {};
 }

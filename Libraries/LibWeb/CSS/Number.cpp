@@ -10,6 +10,24 @@
 
 namespace Web::CSS {
 
+i64 round_to_nearest_integer(double value)
+{
+    // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
+    // Unless otherwise specified, in the CSS specifications rounding to the nearest integer requires rounding in
+    // the direction of +∞ when the fractional portion is exactly 0.5.
+    if (isnan(value))
+        return 0;
+
+    if (isinf(value)) {
+        if (value > 0)
+            return AK::NumericLimits<i64>::max();
+
+        return AK::NumericLimits<i64>::min();
+    }
+
+    return AK::clamp_to<i64>(floor(value + 0.5));
+}
+
 void Number::serialize(StringBuilder& builder, SerializationMode) const
 {
     if (m_type == Type::IntegerWithExplicitSign) {

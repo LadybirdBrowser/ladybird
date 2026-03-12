@@ -14,6 +14,8 @@
 
 namespace Web::CSS {
 
+i64 round_to_nearest_integer(double);
+
 class Number {
 public:
     enum class Type {
@@ -41,7 +43,8 @@ public:
         // When a value cannot be explicitly supported due to range/precision limitations, it must be converted
         // to the closest value supported by the implementation, but how the implementation defines "closest"
         // is explicitly undefined as well.
-        return llround(m_value);
+
+        return round_to_nearest_integer(m_value);
     }
     bool is_integer() const { return m_type == Type::Integer || m_type == Type::IntegerWithExplicitSign; }
     bool is_integer_with_explicit_sign() const { return m_type == Type::IntegerWithExplicitSign; }
