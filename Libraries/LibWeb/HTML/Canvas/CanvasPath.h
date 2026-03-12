@@ -8,6 +8,7 @@
 
 #include <LibGfx/Path.h>
 #include <LibWeb/Geometry/DOMPointReadOnly.h>
+#include <LibWeb/HTML/Canvas/AbstractCanvasRenderingContext2DBase.h>
 #include <LibWeb/HTML/Canvas/CanvasState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

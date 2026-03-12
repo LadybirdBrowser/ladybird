@@ -7,28 +7,27 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <LibWeb/HTML/Canvas/AbstractCanvasRenderingContext2DBase.h>
 #include <LibWeb/HTML/Path2D.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/canvas.html#canvasdrawpath
-class CanvasDrawPath {
+class CanvasDrawPath : virtual public AbstractCanvasRenderingContext2DBase {
 public:
-    virtual ~CanvasDrawPath() = default;
+    void begin_path();
 
-    virtual void begin_path() = 0;
+    void fill(StringView fill_rule);
+    void fill(Path2D& path, StringView fill_rule);
 
-    virtual void fill(StringView fill_rule) = 0;
-    virtual void fill(Path2D& path, StringView fill_rule) = 0;
+    void stroke();
+    void stroke(Path2D const& path);
 
-    virtual void stroke() = 0;
-    virtual void stroke(Path2D const& path) = 0;
+    void clip(StringView fill_rule);
+    void clip(Path2D& path, StringView fill_rule);
 
-    virtual void clip(StringView fill_rule) = 0;
-    virtual void clip(Path2D& path, StringView fill_rule) = 0;
-
-    virtual bool is_point_in_path(double x, double y, StringView fill_rule) = 0;
-    virtual bool is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule) = 0;
+    bool is_point_in_path(double x, double y, StringView fill_rule);
+    bool is_point_in_path(Path2D const& path, double x, double y, StringView fill_rule);
 
 protected:
     CanvasDrawPath() = default;
