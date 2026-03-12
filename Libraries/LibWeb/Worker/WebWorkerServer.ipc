@@ -1,11 +1,15 @@
 #include <LibURL/URL.h>
 #include <LibIPC/File.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 
 endpoint WebWorkerServer {
+
+    connect_to_request_server(IPC::TransportHandle handle) =|
+    connect_to_image_decoder(IPC::TransportHandle handle) =|
 
     start_worker(URL::URL url,
                  Web::Bindings::WorkerType type,

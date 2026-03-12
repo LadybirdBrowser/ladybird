@@ -788,11 +788,13 @@ void WebContentClient::did_allocate_backing_stores(u64 page_id, i32 front_bitmap
 Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        auto request_server_handle = MUST(connect_new_request_server_client());
+        auto image_decoder_handle = MUST(connect_new_image_decoder_client());
         auto worker_client = MUST(WebView::launch_web_worker_process(worker_type));
-        return worker_client->clone_transport();
+        return { worker_client->clone_transport(), move(request_server_handle), move(image_decoder_handle) };
     }
 
-    return IPC::TransportHandle {};
+    return { IPC::TransportHandle {}, IPC::TransportHandle {}, IPC::TransportHandle {} };
 }
 
 Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, SourceLocation location)
