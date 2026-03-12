@@ -194,6 +194,7 @@ impl<'a> Parser<'a> {
         }
 
         let lhs_start = self.position();
+        self.last_primary_was_parenthesized = false;
         let (expression, should_continue) = self.parse_primary_expression(min_precedence);
 
         // C++ checks for freestanding `arguments` references here (after
@@ -237,6 +238,8 @@ impl<'a> Parser<'a> {
         mut forbidden: ForbiddenTokens,
     ) -> Expression {
         let original_forbidden = forbidden;
+        let mut lhs_is_parenthesized = self.last_primary_was_parenthesized;
+        self.last_primary_was_parenthesized = false;
         while self.match_secondary_expression(&forbidden) {
             let new_precedence = Self::operator_precedence(self.current_token_type());
             if new_precedence < min_precedence {
@@ -251,7 +254,9 @@ impl<'a> Parser<'a> {
                 expression,
                 new_precedence,
                 original_forbidden,
+                lhs_is_parenthesized,
             );
+            lhs_is_parenthesized = false;
             expression = result.0;
             forbidden = forbidden.merge(result.1);
 
@@ -310,6 +315,7 @@ impl<'a> Parser<'a> {
                 }
                 let expression = self.parse_expression_any();
                 self.consume_token(TokenType::ParenClose);
+                self.last_primary_was_parenthesized = true;
                 (expression, true)
             }
 
@@ -674,6 +680,7 @@ impl<'a> Parser<'a> {
         lhs: Expression,
         min_precedence: i32,
         forbidden: ForbiddenTokens,
+        lhs_is_parenthesized: bool,
     ) -> (Expression, ForbiddenTokens) {
         let start = self.position();
         let tt = self.current_token_type();
@@ -796,6 +803,7 @@ impl<'a> Parser<'a> {
             | TokenType::DoubleQuestionMarkEquals => {
                 let op = token_to_assignment_op(tt);
                 if op == AssignmentOp::Assignment
+                    && !lhs_is_parenthesized
                     && (Self::is_object_expression(&lhs) || Self::is_array_expression(&lhs))
                 {
                     // Save pattern_bound_names so that an outer binding
@@ -842,7 +850,7 @@ impl<'a> Parser<'a> {
                         | TokenType::DoublePipeEquals
                         | TokenType::DoubleQuestionMarkEquals
                 );
-                if !Self::is_simple_assignment_target(&lhs, allow_call) {
+                if !Self::is_simple_assignment_target(&lhs, allow_call, self.flags.strict_mode) {
                     self.syntax_error("Invalid left-hand side in assignment");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
@@ -963,7 +971,7 @@ impl<'a> Parser<'a> {
             // NB: The [no LineTerminator here] is enforced by match_secondary_expression
             // which checks trivia_has_line_terminator for PlusPlus/MinusMinus.
             TokenType::PlusPlus => {
-                if !Self::is_simple_assignment_target(&lhs, true) {
+                if !Self::is_simple_assignment_target(&lhs, true, self.flags.strict_mode) {
                     self.syntax_error("Invalid left-hand side in postfix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
@@ -983,7 +991,7 @@ impl<'a> Parser<'a> {
                 )
             }
             TokenType::MinusMinus => {
-                if !Self::is_simple_assignment_target(&lhs, true) {
+                if !Self::is_simple_assignment_target(&lhs, true, self.flags.strict_mode) {
                     self.syntax_error("Invalid left-hand side in postfix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = lhs.inner {
@@ -1022,7 +1030,7 @@ impl<'a> Parser<'a> {
                     Associativity::Right,
                     ForbiddenTokens::none(),
                 );
-                if !Self::is_simple_assignment_target(&expression, true) {
+                if !Self::is_simple_assignment_target(&expression, true, self.flags.strict_mode) {
                     self.syntax_error("Invalid left-hand side in prefix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = expression.inner {
@@ -1044,7 +1052,7 @@ impl<'a> Parser<'a> {
                     Associativity::Right,
                     ForbiddenTokens::none(),
                 );
-                if !Self::is_simple_assignment_target(&expression, true) {
+                if !Self::is_simple_assignment_target(&expression, true, self.flags.strict_mode) {
                     self.syntax_error("Invalid left-hand side in prefix operation");
                 }
                 if let ExpressionKind::Identifier(ref id) = expression.inner {

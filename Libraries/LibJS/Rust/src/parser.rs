@@ -250,6 +250,10 @@ pub struct Parser<'a> {
     /// through nested labels (e.g., `a: b: for(...)`).
     last_inner_label_is_iteration: bool,
 
+    /// Set by parse_primary_expression when it parses a parenthesized expression.
+    /// Consumed by parse_secondary_expression to prevent treating (obj) as destructuring.
+    pub(crate) last_primary_was_parenthesized: bool,
+
     last_function_name: Utf16String,
     last_function_kind: FunctionKind,
     last_class_name: Utf16String,
@@ -333,6 +337,7 @@ impl<'a> Parser<'a> {
             in_eval_function_context: false,
             labels_in_scope: HashMap::new(),
             last_inner_label_is_iteration: false,
+            last_primary_was_parenthesized: false,
             last_function_name: Utf16String::default(),
             last_function_kind: FunctionKind::Normal,
             last_class_name: Utf16String::default(),
@@ -955,14 +960,20 @@ impl<'a> Parser<'a> {
         Some(pattern)
     }
 
+    // https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype
     pub(crate) fn is_simple_assignment_target(
         expression: &Expression,
         allow_call_expression: bool,
+        strict_mode: bool,
     ) -> bool {
-        matches!(
-            &expression.inner,
-            ExpressionKind::Identifier(_) | ExpressionKind::Member { .. }
-        ) || (allow_call_expression && matches!(&expression.inner, ExpressionKind::Call(_)))
+        match &expression.inner {
+            ExpressionKind::Identifier(_) | ExpressionKind::Member { .. } => true,
+            // CallExpression: In strict mode, call expressions are always ~invalid~ as
+            // assignment targets. In non-strict mode, they are ~web-compat~ (runtime error).
+            // NewExpression is always ~invalid~.
+            ExpressionKind::Call(_) if allow_call_expression && !strict_mode => true,
+            _ => false,
+        }
     }
 
     fn is_object_expression(expression: &Expression) -> bool {
@@ -979,10 +990,6 @@ impl<'a> Parser<'a> {
 
     fn is_member_expression(expression: &Expression) -> bool {
         matches!(&expression.inner, ExpressionKind::Member { .. })
-    }
-
-    fn is_call_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Call(_))
     }
 
     fn is_update_expression(expression: &Expression) -> bool {

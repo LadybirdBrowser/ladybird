@@ -1222,7 +1222,9 @@ Parser::PrimaryExpressionParseResult Parser::parse_primary_expression()
             if (function.kind() == FunctionKind::Async && function.name() == "await"sv)
                 syntax_error("function is not allowed to be called 'await' in this context"_string, function.source_range().start);
         }
-        return { move(expression) };
+        auto result = PrimaryExpressionParseResult { move(expression) };
+        result.was_parenthesized = true;
+        return result;
     }
     case TokenType::This: {
         if (scope_collector().has_current_scope())
@@ -1372,9 +1374,20 @@ NonnullRefPtr<RegExpLiteral const> Parser::parse_regexp_literal()
     return literal;
 }
 
-static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true)
+static bool is_simple_assignment_target(Expression const& expression, bool allow_web_reality_call_expression = true, bool strict_mode = false)
 {
-    return is<Identifier>(expression) || is<MemberExpression>(expression) || (allow_web_reality_call_expression && is<CallExpression>(expression));
+    if (is<Identifier>(expression) || is<MemberExpression>(expression))
+        return true;
+    // https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype
+    // CallExpression : CoverCallExpressionAndAsyncArrowHead | CallExpression Arguments
+    //   1. If the host supports Runtime Errors for Function Call Assignment Targets, then
+    //      a. If IsStrict(this CallExpression) is false, return ~web-compat~.
+    //   2. Return ~invalid~.
+    // NB: NewExpression inherits from CallExpression in our AST, but `new` expressions
+    //     are always ~invalid~ as assignment targets, so we explicitly exclude them.
+    if (allow_web_reality_call_expression && !strict_mode && is<CallExpression>(expression) && !is<NewExpression>(expression))
+        return true;
+    return false;
 }
 
 NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
@@ -1394,7 +1407,7 @@ NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
         consume();
         auto rhs_start = position();
         auto rhs = parse_expression(precedence, associativity);
-        if (!is_simple_assignment_target(*rhs))
+        if (!is_simple_assignment_target(*rhs, true, m_state.strict_mode))
             syntax_error(MUST(String::formatted("Right-hand side of prefix increment operator must be identifier or member expression, got {}", rhs->class_name())), rhs_start);
 
         if (m_state.strict_mode && is<Identifier>(*rhs)) {
@@ -1409,7 +1422,7 @@ NonnullRefPtr<Expression const> Parser::parse_unary_prefixed_expression()
         consume();
         auto rhs_start = position();
         auto rhs = parse_expression(precedence, associativity);
-        if (!is_simple_assignment_target(*rhs))
+        if (!is_simple_assignment_target(*rhs, true, m_state.strict_mode))
             syntax_error(MUST(String::formatted("Right-hand side of prefix decrement operator must be identifier or member expression, got {}", rhs->class_name())), rhs_start);
 
         if (m_state.strict_mode && is<Identifier>(*rhs)) {
@@ -1815,6 +1828,7 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
     }
     if (should_continue_parsing) {
         auto original_forbidden = forbidden;
+        auto lhs_is_parenthesized = primary.was_parenthesized;
         while (match_secondary_expression(forbidden)) {
             int new_precedence = g_operator_precedence.get(m_state.current_token().type());
             if (new_precedence < min_precedence)
@@ -1824,7 +1838,8 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
             check_for_invalid_object_property(expression);
 
             Associativity new_associativity = operator_associativity(m_state.current_token().type());
-            auto result = parse_secondary_expression(move(expression), new_precedence, new_associativity, original_forbidden);
+            auto result = parse_secondary_expression(move(expression), new_precedence, new_associativity, original_forbidden, lhs_is_parenthesized);
+            lhs_is_parenthesized = false;
             expression = result.expression;
             forbidden = forbidden.merge(result.forbidden);
             while (match(TokenType::TemplateLiteralStart) && !is<UpdateExpression>(*expression)) {
@@ -1852,7 +1867,7 @@ NonnullRefPtr<Expression const> Parser::parse_expression(int min_precedence, Ass
     return expression;
 }
 
-Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity associativity, ForbiddenTokens forbidden)
+Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity associativity, ForbiddenTokens forbidden, bool lhs_is_parenthesized)
 {
     auto rule_start = push_start();
     switch (m_state.current_token().type()) {
@@ -1949,7 +1964,7 @@ Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expres
     case TokenType::ParenOpen:
         return parse_call_expression(move(lhs));
     case TokenType::Equals:
-        return parse_assignment_expression(AssignmentOp::Assignment, move(lhs), min_precedence, associativity, forbidden);
+        return parse_assignment_expression(AssignmentOp::Assignment, move(lhs), min_precedence, associativity, forbidden, lhs_is_parenthesized);
     case TokenType::Period:
         consume();
         if (match(TokenType::PrivateIdentifier)) {
@@ -1971,7 +1986,7 @@ Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expres
         return expression;
     }
     case TokenType::PlusPlus:
-        if (!is_simple_assignment_target(*lhs))
+        if (!is_simple_assignment_target(*lhs, true, m_state.strict_mode))
             syntax_error(MUST(String::formatted("Left-hand side of postfix increment operator must be identifier or member expression, got {}", lhs->class_name())));
 
         if (m_state.strict_mode && is<Identifier>(*lhs)) {
@@ -1983,7 +1998,7 @@ Parser::ExpressionResult Parser::parse_secondary_expression(NonnullRefPtr<Expres
         consume();
         return create_ast_node<UpdateExpression>({ m_source_code, rule_start.position(), position() }, UpdateOp::Increment, move(lhs));
     case TokenType::MinusMinus:
-        if (!is_simple_assignment_target(*lhs))
+        if (!is_simple_assignment_target(*lhs, true, m_state.strict_mode))
             syntax_error(MUST(String::formatted("Left-hand side of postfix increment operator must be identifier or member expression, got {}", lhs->class_name())));
 
         if (m_state.strict_mode && is<Identifier>(*lhs)) {
@@ -2086,7 +2101,7 @@ RefPtr<BindingPattern const> Parser::synthesize_binding_pattern(Expression const
     return result;
 }
 
-NonnullRefPtr<AssignmentExpression const> Parser::parse_assignment_expression(AssignmentOp assignment_op, NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity associativity, ForbiddenTokens forbidden)
+NonnullRefPtr<AssignmentExpression const> Parser::parse_assignment_expression(AssignmentOp assignment_op, NonnullRefPtr<Expression const> lhs, int min_precedence, Associativity associativity, ForbiddenTokens forbidden, bool lhs_is_parenthesized)
 {
     auto rule_start = push_start();
     VERIFY(match(TokenType::Equals)
@@ -2108,7 +2123,9 @@ NonnullRefPtr<AssignmentExpression const> Parser::parse_assignment_expression(As
     consume();
 
     if (assignment_op == AssignmentOp::Assignment) {
-        if (is<ArrayExpression>(*lhs) || is<ObjectExpression>(*lhs)) {
+        // https://tc39.es/ecma262/#sec-assignment-operators-static-semantics-early-errors
+        // A parenthesized ObjectLiteral or ArrayLiteral is NOT an AssignmentPattern.
+        if (!lhs_is_parenthesized && (is<ArrayExpression>(*lhs) || is<ObjectExpression>(*lhs))) {
             auto binding_pattern = synthesize_binding_pattern(*lhs);
             if (binding_pattern) {
                 auto rhs = parse_expression(min_precedence, associativity);
@@ -2127,7 +2144,7 @@ NonnullRefPtr<AssignmentExpression const> Parser::parse_assignment_expression(As
         && assignment_op != AssignmentOp::OrAssignment
         && assignment_op != AssignmentOp::NullishAssignment;
 
-    if (!is_simple_assignment_target(*lhs, has_web_reality_assignment_target_exceptions)) {
+    if (!is_simple_assignment_target(*lhs, has_web_reality_assignment_target_exceptions, m_state.strict_mode)) {
         syntax_error("Invalid left-hand side in assignment"_string);
     } else if (m_state.strict_mode && is<Identifier>(*lhs)) {
         auto const& name = static_cast<Identifier const&>(*lhs).string();
@@ -3554,7 +3571,8 @@ NonnullRefPtr<Statement const> Parser::parse_for_in_of_statement(NonnullRefPtr<A
                     has_annexB_for_in_init_extension = true;
             }
         }
-    } else if (!lhs->is_identifier() && !is<MemberExpression>(*lhs) && !is<CallExpression>(*lhs) && !is<UsingDeclaration>(*lhs)) {
+    } else if (!lhs->is_identifier() && !is<MemberExpression>(*lhs) && !is<UsingDeclaration>(*lhs)
+        && !(is<CallExpression>(*lhs) && !is<NewExpression>(*lhs) && !m_state.strict_mode)) {
         bool valid = false;
         if (is<ObjectExpression>(*lhs) || is<ArrayExpression>(*lhs)) {
             auto synthesized_binding_pattern = synthesize_binding_pattern(static_cast<Expression const&>(*lhs));
