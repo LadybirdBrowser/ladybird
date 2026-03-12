@@ -82,10 +82,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
 }
 
 template<typename... ClientArguments>
-static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(
-    IPC::TransportHandle image_decoder_handle,
-    Optional<IPC::TransportHandle> request_server_handle,
-    ClientArguments&&... client_arguments)
+static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process_impl(ClientArguments&&... client_arguments)
 {
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
@@ -145,30 +142,17 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--mach-server-name"sv);
         arguments.append(server.value());
     }
-    if (request_server_handle.has_value()) {
-        arguments.append("--request-server-socket"sv);
-        arguments.append(ByteString::number(request_server_handle->fd()));
-    }
-
-    arguments.append("--image-decoder-socket"sv);
-    arguments.append(ByteString::number(image_decoder_handle.fd()));
-
     return launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), forward<ClientArguments>(client_arguments)...);
 }
 
-ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(
-    WebView::ViewImplementation& view,
-    IPC::TransportHandle image_decoder_handle,
-    Optional<IPC::TransportHandle> request_server_handle)
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(WebView::ViewImplementation& view)
 {
-    return launch_web_content_process_impl(move(image_decoder_handle), move(request_server_handle), view);
+    return launch_web_content_process_impl(view);
 }
 
-ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process(
-    IPC::TransportHandle image_decoder_handle,
-    Optional<IPC::TransportHandle> request_server_handle)
+ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_spare_web_content_process()
 {
-    return launch_web_content_process_impl(move(image_decoder_handle), move(request_server_handle));
+    return launch_web_content_process_impl();
 }
 
 ErrorOr<NonnullRefPtr<ImageDecoderClient::Client>> launch_image_decoder_process()

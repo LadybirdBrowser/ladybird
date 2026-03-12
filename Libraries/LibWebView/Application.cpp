@@ -329,9 +329,14 @@ static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Option
     auto request_server_handle = TRY(connect_new_request_server_client());
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
 
-    if (view.has_value())
-        return WebView::launch_web_content_process(*view, move(image_decoder_handle), move(request_server_handle));
-    return WebView::launch_spare_web_content_process(move(image_decoder_handle), move(request_server_handle));
+    NonnullRefPtr<WebContentClient> client = view.has_value()
+        ? TRY(WebView::launch_web_content_process(*view))
+        : TRY(WebView::launch_spare_web_content_process());
+
+    client->async_connect_to_request_server(move(request_server_handle));
+    client->async_connect_to_image_decoder(move(image_decoder_handle));
+
+    return client;
 }
 
 ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process(ViewImplementation& view)

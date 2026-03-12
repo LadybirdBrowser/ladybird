@@ -26,6 +26,7 @@ class WEB_API ResourceLoader : public Core::EventReceiver {
 
 public:
     static void initialize(GC::Heap&, NonnullRefPtr<Requests::RequestClient>);
+    static bool is_initialized();
     static ResourceLoader& the();
 
     void set_client(NonnullRefPtr<Requests::RequestClient>);

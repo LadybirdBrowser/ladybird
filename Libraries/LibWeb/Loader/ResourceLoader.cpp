@@ -37,6 +37,11 @@ void ResourceLoader::initialize(GC::Heap& heap, NonnullRefPtr<Requests::RequestC
     s_resource_loader = adopt_ref(*new ResourceLoader(heap, move(request_client)));
 }
 
+bool ResourceLoader::is_initialized()
+{
+    return s_resource_loader != nullptr;
+}
+
 ResourceLoader& ResourceLoader::the()
 {
     if (!s_resource_loader) {
