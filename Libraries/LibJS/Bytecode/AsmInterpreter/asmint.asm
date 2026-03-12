@@ -291,21 +291,37 @@ macro jump_binary_epilogue(slow_path_func)
     goto_handler t0
 end
 
-# Fast path for bitwise binary operations on int32/boolean operands.
+# Coerce two operands (already in t1/t2) to int32 for bitwise operations.
+# On success: t3 = lhs as int32, t4 = rhs as int32. Falls through.
+# If either operand is not a number (int32, boolean, or double): jumps to fail.
+# Clobbers t1 (on x86_64, js_to_int32 clobbers rcx=t1), t3, t4.
+macro coerce_to_int32s(fail)
+    extract_tag t3, t1
+    branch_any_eq t3, INT32_TAG, BOOLEAN_TAG, .lhs_is_int
+    check_tag_is_double t3, fail
+    fp_mov ft0, t1
+    js_to_int32 t3, ft0, fail
+    jmp .lhs_done
+.lhs_is_int:
+    unbox_int32 t3, t1
+.lhs_done:
+    extract_tag t4, t2
+    branch_any_eq t4, INT32_TAG, BOOLEAN_TAG, .rhs_is_int
+    check_tag_is_double t4, fail
+    fp_mov ft0, t2
+    js_to_int32 t4, ft0, fail
+    jmp .rhs_done
+.rhs_is_int:
+    unbox_int32 t4, t2
+.rhs_done:
+end
+
+# Fast path for bitwise binary operations on int32/boolean/double operands.
 # op_insn: the bitwise instruction to apply (xor, and, or).
 macro bitwise_op(op_insn, slow_path_func)
     load_operand t1, m_lhs
     load_operand t2, m_rhs
-    extract_tag t3, t1
-    branch_any_eq t3, INT32_TAG, BOOLEAN_TAG, .lhs_ok
-    jmp .slow
-.lhs_ok:
-    extract_tag t4, t2
-    branch_any_eq t4, INT32_TAG, BOOLEAN_TAG, .rhs_ok
-    jmp .slow
-.rhs_ok:
-    unbox_int32 t3, t1
-    unbox_int32 t4, t2
+    coerce_to_int32s .slow
     op_insn t3, t4
     box_int32 t4, t3
     store_operand m_dst, t4
