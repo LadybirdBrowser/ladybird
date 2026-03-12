@@ -435,32 +435,7 @@ Optional<int> ComputedProperties::z_index() const
     if (value.has_auto())
         return {};
 
-    // Clamp z-index to the range of a signed 32-bit integer for consistency with other engines.
-    if (value.is_integer()) {
-        auto number = value.as_integer().integer();
-
-        if (number >= NumericLimits<int>::max())
-            return NumericLimits<int>::max();
-        if (number <= NumericLimits<int>::min())
-            return NumericLimits<int>::min();
-
-        return value.as_integer().integer();
-    }
-
-    if (value.is_calculated()) {
-        auto maybe_double = value.as_calculated().resolve_number({});
-        if (maybe_double.has_value()) {
-            if (*maybe_double >= NumericLimits<int>::max())
-                return NumericLimits<int>::max();
-
-            if (*maybe_double <= NumericLimits<int>::min())
-                return NumericLimits<int>::min();
-
-            // Round up on half
-            return floor(maybe_double.value() + 0.5f);
-        }
-    }
-    return {};
+    return int_from_style_value(value);
 }
 
 float ComputedProperties::opacity() const
