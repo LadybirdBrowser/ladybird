@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<canvas id="c" width="400" height="200"></canvas>
+<script>
+    const ctx = c.getContext("2d");
+    ctx.font = "20px SerenitySans";
+
+    function fillTextWithSpacing(text, x, y, spacing) {
+        for (const char of text) {
+            ctx.fillText(char, x, y);
+            x += ctx.measureText(char).width + spacing;
+        }
+    }
+
+    fillTextWithSpacing("Hello", 10, 30, 0);
+    fillTextWithSpacing("Hello", 10, 70, 5);
+    fillTextWithSpacing("Hello", 10, 110, 10);
+    fillTextWithSpacing("Hello", 10, 150, -2);
+</script>
