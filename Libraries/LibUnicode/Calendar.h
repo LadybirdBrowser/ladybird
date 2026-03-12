@@ -54,7 +54,7 @@ String create_month_code(u8 month_number, bool is_leap_month);
 
 CalendarDate iso_date_to_calendar_date(String const& calendar, ISODate);
 Optional<ISODate> calendar_date_to_iso_date(String const& calendar, i32 year, u8 month, u8 day);
-Optional<ISODate> calendar_month_code_to_iso_date(String const& calendar, i32 year, StringView month_code, u8 day);
+Optional<ISODate> iso_year_and_month_code_to_iso_date(String const& calendar, i32 year, StringView month_code, u8 day);
 
 u8 calendar_months_in_year(String const& calendar, i32 arithmetic_year);
 u8 calendar_days_in_month(String const& calendar, i32 arithmetic_year, u8 ordinal_month);

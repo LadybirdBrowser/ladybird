@@ -1246,15 +1246,15 @@ ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM& vm, Strin
     auto result = [&]() -> Optional<ISODate> {
         if (is_chinese_or_dangi) {
             auto reference_year = chinese_or_dangi_reference_year(calendar, month_code, day);
-            return Unicode::calendar_month_code_to_iso_date(calendar, *reference_year, month_code, day);
+            return Unicode::iso_year_and_month_code_to_iso_date(calendar, *reference_year, month_code, day);
         }
 
         for (i32 iso_year = 1972; iso_year >= 1900; --iso_year) {
-            if (auto result = Unicode::calendar_month_code_to_iso_date(calendar, iso_year, month_code, day); result.has_value())
+            if (auto result = Unicode::iso_year_and_month_code_to_iso_date(calendar, iso_year, month_code, day); result.has_value())
                 return result;
         }
         for (i32 iso_year = 1973; iso_year <= 2035; ++iso_year) {
-            if (auto result = Unicode::calendar_month_code_to_iso_date(calendar, iso_year, month_code, day); result.has_value())
+            if (auto result = Unicode::iso_year_and_month_code_to_iso_date(calendar, iso_year, month_code, day); result.has_value())
                 return result;
         }
 

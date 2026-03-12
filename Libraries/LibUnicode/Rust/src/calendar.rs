@@ -367,7 +367,7 @@ pub unsafe extern "C" fn icu_calendar_date_to_iso_date(
     })
 }
 
-fn calendar_month_code_to_iso_date_impl(
+fn iso_year_and_month_code_to_iso_date_impl(
     calendar_name: &str,
     month_code_string: &str,
     iso_year: i32,
@@ -422,7 +422,7 @@ fn calendar_month_code_to_iso_date_impl(
 /// `calendar` must point to a valid UTF-8 string of `calendar_length` bytes.
 /// `month_code` must point to a valid UTF-8 string of `month_code_length` bytes.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn icu_calendar_month_code_to_iso_date(
+pub unsafe extern "C" fn icu_iso_year_and_month_code_to_iso_date(
     calendar: *const u8,
     calendar_length: usize,
     iso_year: i32,
@@ -434,7 +434,7 @@ pub unsafe extern "C" fn icu_calendar_month_code_to_iso_date(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code_string = ascii_string_from_ffi(month_code, month_code_length);
 
-        iso_date_to_ffi(calendar_month_code_to_iso_date_impl(
+        iso_date_to_ffi(iso_year_and_month_code_to_iso_date_impl(
             calendar_name,
             month_code_string,
             iso_year,
