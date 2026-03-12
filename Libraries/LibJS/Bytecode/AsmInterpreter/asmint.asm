@@ -129,6 +129,27 @@ end
 # If src_fpr is NaN, writes CANON_NAN_BITS to dst_gpr.
 # Otherwise bitwise-copies src_fpr to dst_gpr.
 
+# Box a double result as a JS::Value, preferring Int32 when the double is a
+# whole number in [INT32_MIN, INT32_MAX] and not -0.0. This mirrors the
+# JS::Value(double) constructor so that downstream int32 fast paths fire.
+# dst: destination GPR for the boxed value.
+# src_fpr: source FPR containing the double result.
+# Clobbers: t1 (x86-64), t3, ft3 (x86-64).
+macro box_double_or_int32(dst, src_fpr)
+    double_to_int32 t3, src_fpr, .bdi_not_int
+    branch_zero t3, .bdi_check_neg_zero
+    box_int32 dst, t3
+    jmp .bdi_done
+.bdi_check_neg_zero:
+    fp_mov dst, src_fpr
+    branch_negative dst, .bdi_not_int
+    box_int32 dst, t3
+    jmp .bdi_done
+.bdi_not_int:
+    canonicalize_nan dst, src_fpr
+.bdi_done:
+end
+
 # Shared same-tag equality dispatch.
 # Expects t3=lhs_tag (known equal to rhs_tag), t1=lhs, t2=rhs.
 # For int32, boolean, object, symbol, undefined, null: bitwise compare.
@@ -413,14 +434,15 @@ end
 # Arithmetic fast path: try int32, check overflow, fall back to double, then slow path.
 # The coerce_to_doubles macro handles mixed int32+double coercion.
 # On int32 overflow, we convert both operands to double and retry.
-# canonicalize_nan ensures NaN results don't collide with the tag space.
+# box_double_or_int32 re-boxes double results as Int32 when possible,
+# mirroring JS::Value(double), so downstream int32 fast paths can fire.
 handler Add
     load_operand t1, m_lhs
     load_operand t2, m_rhs
     coerce_to_doubles .both_int, .slow
     # One or both doubles: ft0=lhs, ft1=rhs
     fp_add ft0, ft1
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_next
 .both_int:
@@ -451,7 +473,7 @@ handler Sub
     coerce_to_doubles .both_int, .slow
     # One or both doubles: ft0=lhs, ft1=rhs
     fp_sub ft0, ft1
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_next
 .both_int:
@@ -481,7 +503,7 @@ handler Mul
     coerce_to_doubles .both_int, .slow
     # One or both doubles: ft0=lhs, ft1=rhs
     fp_mul ft0, ft1
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_next
 .both_int:
@@ -1947,7 +1969,7 @@ handler CallBuiltin
     check_is_double t1, .slow
     fp_mov ft0, t1
     fp_floor ft0, ft0
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_callbuiltin_size
 .math_ceil:
@@ -1955,7 +1977,7 @@ handler CallBuiltin
     check_is_double t1, .slow
     fp_mov ft0, t1
     fp_ceil ft0, ft0
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_callbuiltin_size
 .math_sqrt:
@@ -1963,7 +1985,7 @@ handler CallBuiltin
     check_is_double t1, .slow
     fp_mov ft0, t1
     fp_sqrt ft0, ft0
-    canonicalize_nan t5, ft0
+    box_double_or_int32 t5, ft0
     store_operand m_dst, t5
     dispatch_callbuiltin_size
 .math_exp:

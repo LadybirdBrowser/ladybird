@@ -6,7 +6,7 @@
 
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{resolve_register, Arch};
-use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w, HandlerState};
+use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w, HandlerState};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -910,7 +910,12 @@ fn emit_instruction(
                     param_map.insert(param.clone(), resolve_op(op, handler, program));
                 }
             }
-            for body_insn in &mac.body {
+            // Uniquify local labels so the same macro can be used multiple
+            // times in one handler without label collisions.
+            let id = state.unique_counter;
+            state.unique_counter += 1;
+            let body = uniquify_macro_labels(&mac.body, id);
+            for body_insn in &body {
                 let expanded = substitute_macro(body_insn, &param_map);
                 emit_instruction(out, &expanded, handler, program, state, pinned);
             }

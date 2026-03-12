@@ -61,6 +61,68 @@ pub fn substitute_macro(
     AsmInstruction { mnemonic, operands }
 }
 
+/// Uniquify local labels within a macro body so the same macro can be expanded
+/// multiple times in one handler without label conflicts. Only labels that are
+/// both *defined* and *referenced* within the body are renamed -- labels that
+/// cross macro boundaries (defined here but referenced elsewhere, or vice
+/// versa) are left alone.
+pub fn uniquify_macro_labels(body: &[AsmInstruction], suffix: u32) -> Vec<AsmInstruction> {
+    use std::collections::HashSet;
+
+    // Collect label definitions and references separately.
+    let mut definitions: HashSet<String> = HashSet::new();
+    let mut references: HashSet<String> = HashSet::new();
+    for insn in body {
+        if insn.mnemonic == "label" {
+            if let Some(Operand::Label(name)) = insn.operands.first() {
+                if name.starts_with('.') {
+                    definitions.insert(name.clone());
+                }
+            }
+        } else {
+            for op in &insn.operands {
+                if let Operand::Label(name) = op {
+                    if name.starts_with('.') {
+                        references.insert(name.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    // Only uniquify labels that are self-contained: both defined and referenced
+    // within this macro body.
+    let rename_map: HashMap<String, String> = definitions
+        .intersection(&references)
+        .map(|name| (name.clone(), format!("{name}_m{suffix}")))
+        .collect();
+
+    if rename_map.is_empty() {
+        return body.to_vec();
+    }
+
+    body.iter()
+        .map(|insn| {
+            let operands = insn
+                .operands
+                .iter()
+                .map(|op| {
+                    if let Operand::Label(name) = op {
+                        if let Some(new_name) = rename_map.get(name) {
+                            return Operand::Label(new_name.clone());
+                        }
+                    }
+                    op.clone()
+                })
+                .collect();
+            AsmInstruction {
+                mnemonic: insn.mnemonic.clone(),
+                operands,
+            }
+        })
+        .collect()
+}
+
 /// Resolve a label operand to its full name (with handler prefix for local labels).
 pub fn resolve_label(op: &Operand, handler: &Handler) -> String {
     match op {
