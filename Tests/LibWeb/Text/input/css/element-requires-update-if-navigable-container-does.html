@@ -19,21 +19,22 @@
 
 <script src="../include.js"></script>
 <script>
-    asyncTest(done => {
-        iframe.addEventListener("load", () => {
+    asyncTest(async done => {
+        if (iframe.contentDocument?.readyState !== "complete")
+            await new Promise(resolve => iframe.addEventListener("load", resolve));
+
+        requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const target = iframe.contentDocument.querySelector("#target");
+                const target = iframe.contentDocument.querySelector("#target");
 
+                println(getComputedStyle(target).order);
+
+                for (let height of [1, 2, 3]) {
+                    iframe.style.height = `${height}px`;
                     println(getComputedStyle(target).order);
+                }
 
-                    for (let height of [1, 2, 3]) {
-                        iframe.style.height = `${height}px`;
-                        println(getComputedStyle(target).order);
-                    }
-
-                    done();
-                });
+                done();
             });
         });
     });
