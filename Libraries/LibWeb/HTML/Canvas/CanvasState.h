@@ -13,7 +13,6 @@
 #include <LibGfx/Color.h>
 #include <LibGfx/CompositingAndBlendingOperator.h>
 #include <LibGfx/Filter.h>
-#include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/PaintStyle.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
