@@ -101,7 +101,11 @@ public:
 
     [[nodiscard]] GC::Ref<ComputedProperties> create_document_style() const;
 
-    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}) const;
+    enum class DisableAncestorFilter : u8 {
+        Yes,
+        No
+    };
+    [[nodiscard]] GC::Ref<ComputedProperties> compute_style(DOM::AbstractElement, Optional<bool&> did_change_custom_properties = {}, DisableAncestorFilter = DisableAncestorFilter::No) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_pseudo_element_style_if_needed(DOM::AbstractElement, Optional<bool&> did_change_custom_properties) const;
 
     [[nodiscard]] Vector<MatchingRule const*> collect_matching_rules(DOM::AbstractElement, CascadeOrigin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name = {}) const;
@@ -211,11 +215,15 @@ private:
     CSSPixelRect m_viewport_rect;
 
     OwnPtr<CountingBloomFilter<u8, 14>> m_ancestor_filter;
+    mutable bool m_disable_ancestor_filter_counter { false };
     OwnPtr<SelectorEngine::HasResultCache> m_has_result_cache;
 };
 
 inline bool StyleComputer::should_reject_with_ancestor_filter(Selector const& selector) const
 {
+    if (m_disable_ancestor_filter_counter)
+        return false;
+
     for (u32 hash : selector.ancestor_hashes()) {
         if (hash == 0)
             break;

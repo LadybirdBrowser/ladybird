@@ -589,7 +589,8 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         }
 
         if (!layout_node) {
-            auto style = abstract_element.document().style_computer().compute_style(abstract_element);
+            // NB: We don't have a populated ancestor filter so if it were enabled it could lead to false negatives
+            auto style = abstract_element.document().style_computer().compute_style(abstract_element, {}, StyleComputer::DisableAncestorFilter::Yes);
             return StyleProperty {
                 .property_id = property_id,
                 .value = style->property(property_id),
