@@ -295,18 +295,6 @@ Vector<String> const& available_calendars()
     static auto calendars = []() {
         auto calendars = Unicode::available_calendars();
 
-        // NB: It is up in the air whether ECMA-402 and Temporal will support "islamic" and "islamic-rgsa". See:
-        //     https://github.com/tc39/ecma402/issues/971
-        //     https://github.com/tc39/ecma402/issues/1042
-        //     https://github.com/tc39/proposal-intl-era-monthcode/issues/29
-        //
-        //     In the meantime, we don't include them here as they do not appear in the list of supported calendars
-        //     which test262 relies on. See:
-        //     https://tc39.es/proposal-intl-era-monthcode/#sec-ecma402-calendar-types
-        calendars.remove_all_matching([](auto calendar) {
-            return calendar.is_one_of("islamic"sv, "islamic-rgsa"sv);
-        });
-
         for (auto calendar : CLDR_CALENDAR_TYPES) {
             if (!calendars.contains_slow(calendar))
                 calendars.append(String::from_utf8_without_validation(calendar.bytes()));
