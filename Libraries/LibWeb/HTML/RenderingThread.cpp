@@ -6,6 +6,8 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibSync/ConditionVariable.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -66,7 +68,7 @@ public:
 
     void exit()
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         m_exit = true;
         m_command_ready.signal();
         m_ready_to_paint.signal();
@@ -74,14 +76,14 @@ public:
 
     void enqueue_command(CompositorCommand&& command)
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         m_command_queue.enqueue(move(command));
         m_command_ready.signal();
     }
 
     void set_needs_present(Gfx::IntRect viewport_rect)
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         m_needs_present = true;
         m_pending_viewport_rect = viewport_rect;
         m_command_ready.signal();
@@ -91,7 +93,7 @@ public:
     {
         while (true) {
             {
-                Threading::MutexLocker const locker { m_mutex };
+                Sync::MutexLocker const locker { m_mutex };
                 while (m_command_queue.is_empty() && !m_needs_present && !m_exit) {
                     m_command_ready.wait();
                 }
@@ -101,7 +103,7 @@ public:
 
             while (true) {
                 auto command = [this]() -> Optional<CompositorCommand> {
-                    Threading::MutexLocker const locker { m_mutex };
+                    Sync::MutexLocker const locker { m_mutex };
                     if (m_command_queue.is_empty())
                         return {};
                     return m_command_queue.dequeue();
@@ -142,7 +144,7 @@ public:
             bool should_present = false;
             Gfx::IntRect viewport_rect;
             {
-                Threading::MutexLocker const locker { m_mutex };
+                Sync::MutexLocker const locker { m_mutex };
                 if (m_needs_present) {
                     should_present = true;
                     viewport_rect = m_pending_viewport_rect;
@@ -153,7 +155,7 @@ public:
             if (should_present) {
                 // Block if we already have a frame queued (back pressure)
                 {
-                    Threading::MutexLocker const locker { m_mutex };
+                    Sync::MutexLocker const locker { m_mutex };
                     while (m_queued_rasterization_tasks > 1 && !m_exit) {
                         m_ready_to_paint.wait();
                     }
@@ -193,8 +195,8 @@ private:
     NonnullRefPtr<Core::WeakEventLoopReference> m_main_thread_event_loop;
     RenderingThread::PresentationCallback m_presentation_callback;
 
-    mutable Threading::Mutex m_mutex;
-    mutable Threading::ConditionVariable m_command_ready { m_mutex };
+    mutable Sync::Mutex m_mutex;
+    mutable Sync::ConditionVariable m_command_ready { m_mutex };
     Atomic<bool> m_exit { false };
 
     Queue<CompositorCommand> m_command_queue;
@@ -205,7 +207,7 @@ private:
     BackingStoreState m_backing_stores;
 
     Atomic<i32> m_queued_rasterization_tasks { 0 };
-    mutable Threading::ConditionVariable m_ready_to_paint { m_mutex };
+    mutable Sync::ConditionVariable m_ready_to_paint { m_mutex };
 
     bool m_needs_present { false };
     Gfx::IntRect m_pending_viewport_rect;
@@ -213,7 +215,7 @@ private:
 public:
     void decrement_queued_tasks()
     {
-        Threading::MutexLocker const locker { m_mutex };
+        Sync::MutexLocker const locker { m_mutex };
         VERIFY(m_queued_rasterization_tasks >= 1 && m_queued_rasterization_tasks <= 2);
         m_queued_rasterization_tasks--;
         m_ready_to_paint.signal();

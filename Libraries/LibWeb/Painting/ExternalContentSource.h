@@ -9,7 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Forward.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Web::Painting {
 
@@ -24,7 +24,7 @@ public:
 private:
     ExternalContentSource() = default;
 
-    mutable Threading::Mutex m_mutex;
+    mutable Sync::Mutex m_mutex;
     RefPtr<Gfx::ImmutableBitmap> m_bitmap;
 };
 

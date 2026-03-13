@@ -8,9 +8,8 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/Queue.h>
-#include <LibThreading/ConditionVariable.h>
+#include <LibSync/ConditionVariable.h>
 #include <LibThreading/Forward.h>
-#include <LibThreading/Mutex.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Page/Page.h>
 

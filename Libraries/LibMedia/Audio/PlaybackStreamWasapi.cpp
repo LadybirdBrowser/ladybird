@@ -25,7 +25,7 @@
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Audio/PlaybackStreamWasapi.h>
 #include <LibMedia/Audio/SampleSpecification.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include <AK/Windows.h>
@@ -107,7 +107,7 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
     PlaybackStreamWASAPI::AudioDataRequestCallback data_request_callback;
     Function<void()> underrun_callback;
 
-    Threading::Mutex task_queue_mutex;
+    Sync::Mutex task_queue_mutex;
     Queue<Variant<TaskPlay, TaskDrainAndSuspend, TaskDiscardAndSuspend>> task_queue;
     // FIXME: Create a owning handle type to be shared in the codebase
     HANDLE task_event = 0;

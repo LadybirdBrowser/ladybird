@@ -7,16 +7,16 @@
 #include "PulseAudioWrappers.h"
 
 #include <LibMedia/Audio/SampleSpecification.h>
-#include <LibThreading/Mutex.h>
+#include <LibSync/Mutex.h>
 
 namespace Audio {
 
 static PulseAudioContext* s_pulse_audio_context;
-static Threading::Mutex s_pulse_audio_context_mutex;
+static Sync::RecursiveMutex s_pulse_audio_context_mutex;
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
-    auto instantiation_locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    auto instantiation_locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
 
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
@@ -112,7 +112,7 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 
 bool PulseAudioContext::is_connected()
 {
-    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    auto locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
     return s_pulse_audio_context != nullptr;
 }
 
@@ -125,7 +125,7 @@ PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloo
 
 PulseAudioContext::~PulseAudioContext()
 {
-    auto locker = Threading::MutexLocker(s_pulse_audio_context_mutex);
+    auto locker = Sync::MutexLocker(s_pulse_audio_context_mutex);
 
     {
         auto loop_locker = main_loop_locker();

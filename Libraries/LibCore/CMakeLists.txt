@@ -90,7 +90,7 @@ if (APPLE)
 endif()
 
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
-target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads LibTextCodec)
+target_link_libraries(LibCore PRIVATE LibUnicode LibURL Threads::Threads LibTextCodec LibSync)
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
