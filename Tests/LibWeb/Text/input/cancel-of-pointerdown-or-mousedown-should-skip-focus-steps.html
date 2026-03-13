@@ -18,9 +18,10 @@
             "focusout",
         ];
 
+        let eventToPrevent;
         eventsToLog.forEach(type => {
             button.addEventListener(type, event => {
-                if (type === "pointerdown" || type === "mousedown") event.preventDefault();
+                if (type === eventToPrevent) event.preventDefault();
                 println(`${type}`, {
                     key: event.key,
                     code: event.code,
@@ -29,10 +30,17 @@
                     eventPhase: event.eventPhase,
                     timeStamp: event.timeStamp,
                 });
-                if (type === "click") done();
             });
         });
 
+        println("> preventing pointerdown");
+        eventToPrevent = "pointerdown";
         internals.click(50, 50);
+
+        println("> preventing mousedown");
+        eventToPrevent = "mousedown";
+        internals.click(50, 50);
+
+        requestIdleCallback(() => done());
     });
 </script>
