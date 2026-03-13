@@ -1287,9 +1287,9 @@ void TraversableNavigable::destroy_top_level_traversable()
         // 1. Let document be historyEntry's document.
         auto document = history_entry->document();
 
-        // 2. If document is not null, then destroy document.
+        // 2. If document is not null, then destroy a document and its descendants given document.
         if (document)
-            document->destroy();
+            document->destroy_a_document_and_its_descendants();
     }
 
     // 3. Remove browsingContext.
