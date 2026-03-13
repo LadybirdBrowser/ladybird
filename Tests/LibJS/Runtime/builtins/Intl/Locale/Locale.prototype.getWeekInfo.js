@@ -20,10 +20,6 @@ describe("normal behavior", () => {
         expect(weekInfo.weekend).toBeDefined();
         expect(Array.isArray(weekInfo.weekend)).toBeTrue();
         expect(weekInfo.weekend).toEqual([6, 7]);
-
-        expect(weekInfo.minimalDays).toBeDefined();
-        expect(Object.getPrototypeOf(weekInfo.minimalDays)).toBe(Number.prototype);
-        expect(weekInfo.minimalDays).toBe(1);
     });
 
     test("regions with CLDR-specified firstDay", () => {
@@ -44,15 +40,6 @@ describe("normal behavior", () => {
 
     test("weekend falls back to default region 001", () => {
         expect(new Intl.Locale("en-AC").getWeekInfo().weekend).toEqual([6, 7]);
-    });
-
-    test("regions with CLDR-specified minimalDays", () => {
-        expect(new Intl.Locale("en-AD").getWeekInfo().minimalDays).toBe(4);
-        expect(new Intl.Locale("en-CZ").getWeekInfo().minimalDays).toBe(4);
-    });
-
-    test("minimalDays falls back to default region 001", () => {
-        expect(new Intl.Locale("en-AC").getWeekInfo().minimalDays).toBe(1);
     });
 
     test("likely regional subtags are added to locales without a region", () => {

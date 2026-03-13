@@ -78,9 +78,9 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
 // 15.3.3 get Intl.Locale.prototype.calendar, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.calendar
 // 15.3.4 get Intl.Locale.prototype.caseFirst, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.caseFirst
 // 15.3.5 get Intl.Locale.prototype.collation, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.collation
-// 1.4.1 get Intl.Locale.prototype.firstDayOfWeek, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.firstDayOfWeek
-// 15.3.6 get Intl.Locale.prototype.hourCycle, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
-// 15.3.10 get Intl.Locale.prototype.numberingSystem, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
+// 15.3.6 get Intl.Locale.prototype.firstDayOfWeek, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.firstDayOfWeek
+// 15.3.7 get Intl.Locale.prototype.hourCycle, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.hourCycle
+// 15.3.11 get Intl.Locale.prototype.numberingSystem, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numberingSystem
 #define __JS_ENUMERATE(keyword)                                       \
     JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::keyword)               \
     {                                                                 \
@@ -92,7 +92,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::base_name)
 JS_ENUMERATE_LOCALE_KEYWORD_PROPERTIES
 #undef __JS_ENUMERATE
 
-// 15.3.7 get Intl.Locale.prototype.language, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.language
+// 15.3.8 get Intl.Locale.prototype.language, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.language
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::language)
 {
     // 1. Let loc be the this value.
@@ -103,7 +103,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::language)
     return PrimitiveString::create(vm, *locale_object->locale_id().language_id.language);
 }
 
-// 15.3.8 Intl.Locale.prototype.maximize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
+// 15.3.9 Intl.Locale.prototype.maximize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.maximize
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
 {
     auto& realm = *vm.current_realm();
@@ -119,7 +119,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::maximize)
     return Locale::create(realm, locale_object, move(maximal));
 }
 
-// 15.3.9 Intl.Locale.prototype.minimize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
+// 15.3.10 Intl.Locale.prototype.minimize ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.minimize
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
 {
     auto& realm = *vm.current_realm();
@@ -135,7 +135,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::minimize)
     return Locale::create(realm, locale_object, move(minimal));
 }
 
-// 15.3.11 get Intl.Locale.prototype.numeric, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
+// 15.3.12 get Intl.Locale.prototype.numeric, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.numeric
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::numeric)
 {
     // 1. Let loc be the this value.
@@ -146,7 +146,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::numeric)
     return Value { locale_object->numeric() };
 }
 
-// 15.3.12 get Intl.Locale.prototype.region, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.region
+// 15.3.13 get Intl.Locale.prototype.region, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.region
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::region)
 {
     // 1. Let loc be the this value.
@@ -159,7 +159,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::region)
     return js_undefined();
 }
 
-// 15.3.13 get Intl.Locale.prototype.script, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.script
+// 15.3.14 get Intl.Locale.prototype.script, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.script
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::script)
 {
     // 1. Let loc be the this value.
@@ -172,7 +172,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::script)
     return js_undefined();
 }
 
-// 15.3.14 Intl.Locale.prototype.toString ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString
+// 15.3.15 Intl.Locale.prototype.toString ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.toString
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::to_string)
 {
     // 1. Let loc be the this value.
@@ -183,29 +183,18 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::to_string)
     return PrimitiveString::create(vm, locale_object->locale());
 }
 
-// 15.3.15 get Intl.Locale.prototype.variants, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.variants
-JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::variants)
-{
-    // 1. Let loc be the this value.
-    // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-    auto locale_object = TRY(typed_this_object(vm));
-
-    // 3. Return GetLocaleVariants(loc.[[Locale]]).
-    if (auto variants = get_locale_variants(locale_object->locale_id()); variants.has_value())
-        return PrimitiveString::create(vm, variants.release_value());
-    return js_undefined();
-}
-
 #define JS_ENUMERATE_LOCALE_INFO_PROPERTIES \
     __JS_ENUMERATE(calendars)               \
     __JS_ENUMERATE(collations)              \
     __JS_ENUMERATE(hour_cycles)             \
-    __JS_ENUMERATE(numbering_systems)
+    __JS_ENUMERATE(numbering_systems)       \
+    __JS_ENUMERATE(time_zones)
 
-// 1.4.2 Intl.Locale.prototype.getCalendars, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getCalendars
-// 1.4.3 Intl.Locale.prototype.getCollations, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getCollations
-// 1.4.4 Intl.Locale.prototype.getHourCycles, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getHourCycles
-// 1.4.5 Intl.Locale.prototype.getNumberingSystems, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getNumberingSystems
+// 15.3.16 Intl.Locale.prototype.getCalendars ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getCalendars
+// 15.3.17 Intl.Locale.prototype.getCollations ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getCollations
+// 15.3.18 Intl.Locale.prototype.getHourCycles ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getHourCycles
+// 15.3.19 Intl.Locale.prototype.getNumberingSystems ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getNumberingSystems
+// 15.3.20 Intl.Locale.prototype.getTimeZones ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getTimeZones
 #define __JS_ENUMERATE(keyword)                               \
     JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_##keyword) \
     {                                                         \
@@ -215,25 +204,7 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::variants)
 JS_ENUMERATE_LOCALE_INFO_PROPERTIES
 #undef __JS_ENUMERATE
 
-// 1.4.6 Intl.Locale.prototype.getTimeZones, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getTimeZones
-JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_time_zones)
-{
-    // 1. Let loc be the this value.
-    // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
-    auto locale_object = TRY(typed_this_object(vm));
-
-    // 3. Let region be GetLocaleRegion(loc.[[Locale]]).
-    auto const& region = locale_object->locale_id().language_id.region;
-
-    // 4. If region is undefined, return undefined.
-    if (!region.has_value())
-        return js_undefined();
-
-    // 5. Return TimeZonesOfLocale(loc).
-    return time_zones_of_locale(vm, locale_object);
-}
-
-// 1.4.7 Intl.Locale.prototype.getTextInfo, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getTextInfo
+// 15.3.21 Intl.Locale.prototype.getTextInfo ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getTextInfo
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_text_info)
 {
     auto& realm = *vm.current_realm();
@@ -245,23 +216,17 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_text_info)
     // 3. Let info be OrdinaryObjectCreate(%Object.prototype%).
     auto info = Object::create(realm, realm.intrinsics().object_prototype());
 
-    // 4. Let dir be "ltr".
-    auto direction = "ltr"sv;
+    // 4. Let dir be TextDirectionOfLocale(loc).
+    auto direction = text_direction_of_locale(locale_object);
 
-    // 5. If LocaleIsRightToLeft(loc) is true, then
-    if (Unicode::is_locale_character_ordering_right_to_left(locale_object->locale())) {
-        // a. Set dir to "rtl".
-        direction = "rtl"sv;
-    }
-
-    // 6. Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
+    // 5. Perform ! CreateDataPropertyOrThrow(info, "direction", dir).
     MUST(info->create_data_property_or_throw(vm.names.direction, PrimitiveString::create(vm, direction)));
 
-    // 7. Return info.
+    // 6. Return info.
     return info;
 }
 
-// 1.4.8 Intl.Locale.prototype.getWeekInfo, https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale.prototype.getWeekInfo
+// 15.3.22 Intl.Locale.prototype.getWeekInfo ( ), https://tc39.es/ecma402/#sec-Intl.Locale.prototype.getWeekInfo
 JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_week_info)
 {
     auto& realm = *vm.current_realm();
@@ -276,20 +241,28 @@ JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::get_week_info)
     // 4. Let wi be WeekInfoOfLocale(loc).
     auto week_info = week_info_of_locale(locale_object);
 
-    // 5. Let we be CreateArrayFromList(wi.[[Weekend]]).
-    auto weekend = Array::create_from<u8>(realm, week_info.weekend, [](auto day) { return Value { day }; });
-
-    // 6. Perform ! CreateDataPropertyOrThrow(info, "firstDay", wi.[[FirstDay]]).
+    // 5. Perform ! CreateDataPropertyOrThrow(info, "firstDay", wi.[[FirstDay]]).
     MUST(info->create_data_property_or_throw(vm.names.firstDay, Value { week_info.first_day }));
 
-    // 7. Perform ! CreateDataPropertyOrThrow(info, "weekend", we).
+    // 6. Perform ! CreateDataPropertyOrThrow(info, "weekend", CreateArrayFromList(wi.[[Weekend]])).
+    auto weekend = Array::create_from<u8>(realm, week_info.weekend, [](auto day) { return Value { day }; });
     MUST(info->create_data_property_or_throw(vm.names.weekend, weekend));
 
-    // 8. Perform ! CreateDataPropertyOrThrow(info, "minimalDays", wi.[[MinimalDays]]).
-    MUST(info->create_data_property_or_throw(vm.names.minimalDays, Value { week_info.minimal_days }));
-
-    // 9. Return info.
+    // 7. Return info.
     return info;
+}
+
+// 15.3.23 get Intl.Locale.prototype.variants, https://tc39.es/ecma402/#sec-Intl.Locale.prototype.variants
+JS_DEFINE_NATIVE_FUNCTION(LocalePrototype::variants)
+{
+    // 1. Let loc be the this value.
+    // 2. Perform ? RequireInternalSlot(loc, [[InitializedLocale]]).
+    auto locale_object = TRY(typed_this_object(vm));
+
+    // 3. Return GetLocaleVariants(loc.[[Locale]]).
+    if (auto variants = get_locale_variants(locale_object->locale_id()); variants.has_value())
+        return PrimitiveString::create(vm, variants.release_value());
+    return js_undefined();
 }
 
 }
