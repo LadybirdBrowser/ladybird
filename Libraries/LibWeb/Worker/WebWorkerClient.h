@@ -33,8 +33,6 @@ public:
     Function<HTTP::Cookie::VersionedCookie(URL::URL const&, HTTP::Cookie::Source)> on_request_cookie;
     Function<Messages::WebWorkerClient::RequestWorkerAgentResponse(Web::Bindings::AgentType)> on_request_worker_agent;
 
-    IPC::TransportHandle clone_transport();
-
 private:
     virtual void die() override;
 };

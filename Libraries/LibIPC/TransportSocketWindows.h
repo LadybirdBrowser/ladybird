@@ -49,8 +49,6 @@ public:
     // Obnoxious name to make it clear that this is a dangerous operation.
     ErrorOr<int> release_underlying_transport_for_transfer();
 
-    ErrorOr<IPC::File> clone_for_transfer();
-
 private:
     ErrorOr<void> duplicate_handles(Bytes, Vector<size_t> const& handle_offsets);
     ErrorOr<void> transfer(ReadonlyBytes);
