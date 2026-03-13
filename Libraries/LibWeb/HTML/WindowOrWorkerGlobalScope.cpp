@@ -686,7 +686,7 @@ i32 WindowOrWorkerGlobalScopeMixin::run_timer_initialization_steps(TimerHandler 
     // 13. Set uniqueHandle to the result of running steps after a timeout given global, "setTimeout/setInterval",
     //     timeout, and completionStep.
     //     FIXME: run_steps_after_a_timeout() needs to be updated to return a unique internal value that can be used here.
-    run_steps_after_a_timeout_impl(timeout, move(completion_step), id);
+    run_steps_after_a_timeout_impl(timeout, move(completion_step), id, repeat);
 
     // FIXME: 14. Set global's map of setTimeout and setInterval IDs[id] to uniqueHandle.
 
@@ -1091,7 +1091,7 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout(i32 timeout, Func
     run_steps_after_a_timeout_impl(timeout, move(completion_step), {});
 }
 
-void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key)
+void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout, Function<void()> completion_step, Optional<i32> timer_key, Repeat repeat)
 {
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
@@ -1112,10 +1112,12 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
 
     // FIXME: 3. Let startTime be the current high resolution time given global.
 
-    // NB: We always use single-shot timers. For repeating timers, the task callback will call
-    // run_timer_initialization_steps again to re-arm the timer. This ensures the timer only fires after the previous
-    // task has been processed, which is necessary for the timer nesting level throttling.
-    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(this_impl(), timeout, move(completion_step), timer_key.value(), Timer::Repeating::No);
+    // NB: For repeating timers (setInterval), we use a repeating Core::Timer to reduce drift.
+    // The next firing is based on when the timer was supposed to fire, not when the callback
+    // completed. The task callback still calls run_timer_initialization_steps to update nesting
+    // levels and potentially clamp the interval.
+    auto repeating = repeat == Repeat::Yes ? Timer::Repeating::Yes : Timer::Repeating::No;
+    auto timer = existing_timer ? GC::Ref { *existing_timer } : Timer::create(this_impl(), timeout, move(completion_step), timer_key.value(), repeating);
 
     // FIXME: 4. Set global's map of active timers[timerKey] to startTime plus milliseconds.
     m_timers.set(timer_key.value(), timer);
@@ -1128,7 +1130,10 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // FIXME:    4. Perform completionSteps.
     // FIXME:    5. If timerKey is a non-numeric value, remove global's map of active timers[timerKey].
 
-    timer->start();
+    // NB: Don't restart an already-active repeating timer. It's already firing on schedule and
+    // restarting it would cause drift (next fire = now + interval instead of previous fire + interval).
+    if (!existing_timer)
+        timer->start();
 }
 
 // https://w3c.github.io/hr-time/#dom-windoworworkerglobalscope-performance
