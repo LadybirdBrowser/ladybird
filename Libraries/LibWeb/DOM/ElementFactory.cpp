@@ -759,19 +759,19 @@ GC::Ref<Element> create_element_internal(Document& document, FlyString local_nam
     // 1. Let element be a new element that implements interface, with namespace set to namespace, namespace prefix set
     //    to prefix, local name set to localName, custom element registry set to registry, custom element state set to
     //    state, custom element definition set to null, is value set to is, and node document set to document.
-    GC::Ptr<Element> element;
-    auto qualified_name = QualifiedName { local_name, prefix, namespace_ };
-    if (namespace_ == Namespace::HTML) {
-        element = create_html_element(realm, document, move(qualified_name));
-    } else if (namespace_ == Namespace::SVG) {
-        element = create_svg_element(realm, document, move(qualified_name));
-    } else if (namespace_ == Namespace::MathML) {
-        element = create_mathml_element(realm, document, move(qualified_name));
-    } else {
+    auto element = [&] -> GC::Ref<Element> {
+        auto qualified_name = QualifiedName { local_name, prefix, namespace_ };
+        if (namespace_ == Namespace::HTML)
+            return create_html_element(realm, document, move(qualified_name));
+        if (namespace_ == Namespace::SVG)
+            return create_svg_element(realm, document, move(qualified_name));
+        if (namespace_ == Namespace::MathML)
+            return create_mathml_element(realm, document, move(qualified_name));
+
         // https://dom.spec.whatwg.org/#concept-element-interface
         // The element interface for any name and namespace is Element, unless stated otherwise.
-        element = realm.create<DOM::Element>(document, move(qualified_name));
-    }
+        return realm.create<Element>(document, move(qualified_name));
+    }();
     element->set_custom_element_state(state);
     element->set_is_value(is_value);
 
@@ -779,7 +779,7 @@ GC::Ref<Element> create_element_internal(Document& document, FlyString local_nam
     VERIFY(!element->has_attributes());
 
     // 3. Return element.
-    return GC::Ref { *element };
+    return element;
 }
 
 }
