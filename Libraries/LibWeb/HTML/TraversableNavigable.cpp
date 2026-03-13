@@ -1282,7 +1282,7 @@ void TraversableNavigable::destroy_top_level_traversable()
     // 1. Let browsingContext be traversable's active browsing context.
     auto browsing_context = active_browsing_context();
 
-    // 2. For each historyEntry in traversable's session history entries:
+    // 2. For each historyEntry in traversable's session history entries [[ in what order? ]]:
     for (auto& history_entry : m_session_history_entries) {
         // 1. Let document be historyEntry's document.
         auto document = history_entry->document();
@@ -1304,6 +1304,8 @@ void TraversableNavigable::destroy_top_level_traversable()
 
     // 5. Remove traversable from the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().remove(this);
+
+    // FIXME: 6. Invoke WebDriver BiDi navigable destroyed with traversable.
 
     // FIXME: Figure out why we need to do this... we shouldn't be leaking Navigables for all time.
     //        However, without this, we can keep stale destroyed traversables around.
