@@ -8,6 +8,7 @@
 
 #include <LibCore/File.h>
 #include <LibCore/System.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
 
@@ -63,9 +64,12 @@ ErrorOr<void> File::clear_close_on_exec()
 template<>
 ErrorOr<File> decode(Decoder& decoder)
 {
-    auto file = TRY(decoder.files().try_dequeue());
-    TRY(Core::System::set_close_on_exec(file.fd(), true));
-    return file;
+    auto attachment = TRY(decoder.attachments().try_dequeue());
+    int fd = attachment.to_fd();
+    if (fd < 0)
+        return Error::from_string_literal("Failed to obtain fd from attachment");
+    TRY(Core::System::set_close_on_exec(fd, true));
+    return File::adopt_fd(fd);
 }
 
 }

@@ -10,6 +10,7 @@
 
 namespace IPC {
 
+class Attachment;
 class AutoCloseFileDescriptor;
 class Decoder;
 class Encoder;
@@ -26,6 +27,5 @@ template<typename T>
 ErrorOr<T> decode(Decoder&);
 
 using MessageDataType = Vector<u8, 1024>;
-using MessageFileType = Vector<NonnullRefPtr<AutoCloseFileDescriptor>, 1>;
 
 }

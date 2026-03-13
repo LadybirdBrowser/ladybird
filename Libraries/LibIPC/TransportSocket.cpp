@@ -11,6 +11,7 @@
 #include <AK/Types.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportSocket.h>
 #include <LibThreading/Thread.h>
@@ -249,9 +250,9 @@ struct MessageHeader {
     u32 fd_count { 0 };
 };
 
-void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const& fds)
+void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Attachment>& attachments)
 {
-    auto num_fds_to_transfer = fds.size();
+    auto num_fds_to_transfer = attachments.size();
 
     MessageHeader header {
         .type = MessageHeader::Type::Payload,
@@ -259,17 +260,15 @@ void TransportSocket::post_message(Vector<u8> const& bytes_to_write, Vector<Nonn
         .fd_count = static_cast<u32>(num_fds_to_transfer),
     };
 
-    {
-        Threading::MutexLocker locker(m_fds_retained_until_received_by_peer_mutex);
-        for (auto const& fd : fds)
-            m_fds_retained_until_received_by_peer.enqueue(fd);
-    }
-
     auto raw_fds = Vector<int, 1> {};
     if (num_fds_to_transfer > 0) {
         raw_fds.ensure_capacity(num_fds_to_transfer);
-        for (auto const& owned_fd : fds) {
-            raw_fds.unchecked_append(owned_fd->value());
+        Threading::MutexLocker locker(m_fds_retained_until_received_by_peer_mutex);
+        for (auto& attachment : attachments) {
+            int fd = attachment.to_fd();
+            auto auto_fd = adopt_ref(*new AutoCloseFileDescriptor(fd));
+            raw_fds.unchecked_append(auto_fd->value());
+            m_fds_retained_until_received_by_peer.enqueue(move(auto_fd));
         }
     }
 
@@ -366,13 +365,13 @@ void TransportSocket::read_incoming_messages()
             m_peer_eof = true;
             break;
         }
-        if (m_unprocessed_fds.size() + received_fds.size() > MAX_UNPROCESSED_FDS) {
+        if (m_unprocessed_attachments.size() + received_fds.size() > MAX_UNPROCESSED_FDS) {
             dbgln("TransportSocket: Unprocessed FDs would exceed {}, disconnecting peer", MAX_UNPROCESSED_FDS);
             m_peer_eof = true;
             break;
         }
         for (auto const& fd : received_fds) {
-            m_unprocessed_fds.enqueue(File::adopt_fd(fd));
+            m_unprocessed_attachments.enqueue(Attachment::from_fd(fd));
         }
     }
 
@@ -397,7 +396,7 @@ void TransportSocket::read_incoming_messages()
             message_size += sizeof(MessageHeader);
             if (message_size.has_overflow() || message_size.value() > m_unprocessed_bytes.size() - index)
                 break;
-            if (header.fd_count > m_unprocessed_fds.size())
+            if (header.fd_count > m_unprocessed_attachments.size())
                 break;
             auto message = make<Message>();
             received_fd_count += header.fd_count;
@@ -407,7 +406,7 @@ void TransportSocket::read_incoming_messages()
                 break;
             }
             for (size_t i = 0; i < header.fd_count; ++i)
-                message->fds.enqueue(m_unprocessed_fds.dequeue());
+                message->attachments.enqueue(m_unprocessed_attachments.dequeue());
             if (message->bytes.try_append(m_unprocessed_bytes.data() + index + sizeof(MessageHeader), header.payload_size).is_error()) {
                 dbgln("TransportSocket: Failed to allocate message buffer for payload_size {}", header.payload_size);
                 m_peer_eof = true;

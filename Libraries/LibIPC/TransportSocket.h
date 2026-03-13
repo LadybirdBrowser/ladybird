@@ -10,8 +10,9 @@
 #include <AK/MemoryStream.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
-#include <LibIPC/File.h>
+#include <LibIPC/Forward.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 
@@ -57,7 +58,7 @@ public:
 
     void wait_until_readable();
 
-    void post_message(Vector<u8> const&, Vector<NonnullRefPtr<AutoCloseFileDescriptor>> const&);
+    void post_message(Vector<u8> const&, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
         No,
@@ -65,7 +66,7 @@ public:
     };
     struct Message {
         Vector<u8> bytes;
-        Queue<File> fds;
+        Queue<Attachment> attachments;
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
@@ -104,7 +105,7 @@ private:
     Atomic<IOThreadState> m_io_thread_state { IOThreadState::Running };
     Atomic<bool> m_peer_eof { false };
     ByteBuffer m_unprocessed_bytes;
-    Queue<File> m_unprocessed_fds;
+    Queue<Attachment> m_unprocessed_attachments;
     Threading::Mutex m_incoming_mutex;
     Threading::ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;

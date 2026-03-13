@@ -1305,19 +1305,17 @@ void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)
 
 TransferDataDecoder::TransferDataDecoder(SerializationRecord const& record)
     : m_stream(record.span())
-    , m_decoder(m_stream, m_files)
+    , m_decoder(m_stream, m_attachments)
 {
 }
 
 TransferDataDecoder::TransferDataDecoder(TransferDataEncoder&& data_holder)
     : m_buffer(data_holder.take_buffer())
     , m_stream(m_buffer.data().span())
-    , m_decoder(m_stream, m_files)
+    , m_decoder(m_stream, m_attachments)
 {
-    // FIXME: The churn between IPC::File and IPC::AutoCloseFileDescriptor is pretty awkward, we should find a way to
-    //        consolidate the way we use these type.
-    for (auto& auto_fd : m_buffer.take_fds())
-        m_files.enqueue(IPC::File::adopt_fd(auto_fd->take_fd()));
+    for (auto& attachment : m_buffer.take_attachments())
+        m_attachments.enqueue(move(attachment));
 }
 
 WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer(JS::Realm& realm)
@@ -1339,13 +1337,11 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::TransferDataEncoder const& data_holder)
 {
-    // FIXME: The churn between IPC::File and IPC::AutoCloseFileDescriptor is pretty awkward, we should find a way to
-    //        consolidate the way we use these type.
     Vector<IPC::File> files;
-    files.ensure_capacity(data_holder.buffer().fds().size());
+    files.ensure_capacity(data_holder.buffer().attachments().size());
 
-    for (auto const& auto_fd : data_holder.buffer().fds()) {
-        auto fd = const_cast<AutoCloseFileDescriptor&>(*auto_fd).take_fd();
+    for (auto& attachment : data_holder.buffer().attachments()) {
+        int fd = const_cast<Attachment&>(attachment).to_fd();
         files.unchecked_append(IPC::File::adopt_fd(fd));
     }
 
@@ -1360,17 +1356,13 @@ ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
     auto data = TRY(decoder.decode<Web::HTML::SerializationRecord>());
     auto files = TRY(decoder.decode<Vector<IPC::File>>());
 
-    // FIXME: The churn between IPC::File and IPC::AutoCloseFileDescriptor is pretty awkward, we should find a way to
-    //        consolidate the way we use these type.
-    MessageFileType auto_files;
-    auto_files.ensure_capacity(files.size());
+    Vector<Attachment> attachments;
+    attachments.ensure_capacity(files.size());
 
-    for (auto& fd : files) {
-        auto auto_fd = adopt_ref(*new AutoCloseFileDescriptor(fd.take_fd()));
-        auto_files.unchecked_append(move(auto_fd));
-    }
+    for (auto& file : files)
+        attachments.unchecked_append(Attachment::from_fd(file.take_fd()));
 
-    IPC::MessageBuffer buffer { move(data), move(auto_files) };
+    IPC::MessageBuffer buffer { move(data), move(attachments) };
     return Web::HTML::TransferDataEncoder { move(buffer) };
 }
 

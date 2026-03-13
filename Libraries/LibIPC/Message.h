@@ -9,7 +9,7 @@
 
 #include <AK/Error.h>
 #include <AK/Vector.h>
-#include <LibIPC/AutoCloseFileDescriptor.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Transport.h>
 
@@ -19,9 +19,9 @@ class MessageBuffer {
 public:
     MessageBuffer();
 
-    MessageBuffer(MessageDataType data, MessageFileType fds)
+    MessageBuffer(MessageDataType data, Vector<Attachment> attachments)
         : m_data(move(data))
-        , m_fds(move(fds))
+        , m_attachments(move(attachments))
     {
     }
 
@@ -29,6 +29,7 @@ public:
     ErrorOr<void> append_data(u8 const* values, size_t count);
 
     ErrorOr<void> append_file_descriptor(int fd);
+    ErrorOr<void> append_attachment(Attachment);
 
     ErrorOr<void> extend(MessageBuffer&& buffer);
 
@@ -37,12 +38,12 @@ public:
     MessageDataType const& data() const { return m_data; }
     MessageDataType take_data() { return move(m_data); }
 
-    MessageFileType const& fds() const { return m_fds; }
-    MessageFileType take_fds() { return move(m_fds); }
+    Vector<Attachment> const& attachments() const { return m_attachments; }
+    Vector<Attachment> take_attachments() { return move(m_attachments); }
 
 private:
     MessageDataType m_data;
-    MessageFileType m_fds;
+    Vector<Attachment> m_attachments;
 #ifdef AK_OS_WINDOWS
     Vector<size_t> m_handle_offsets;
 #endif

@@ -18,6 +18,7 @@
 #include <AK/Utf16View.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/Proxy.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
 #include <LibURL/Origin.h>
@@ -173,7 +174,7 @@ ErrorOr<void> encode(Encoder& encoder, File const& file)
     int fd = file.take_fd();
     VERIFY(fd >= 0);
 
-    TRY(encoder.append_file_descriptor(fd));
+    TRY(encoder.append_attachment(Attachment::from_fd(fd)));
     return {};
 }
 
