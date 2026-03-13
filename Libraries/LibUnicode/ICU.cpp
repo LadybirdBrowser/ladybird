@@ -8,6 +8,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Utf16View.h>
 #include <LibUnicode/ICU.h>
+#include <LibUnicode/Locale.h>
 
 #include <unicode/dtptngen.h>
 #include <unicode/locdspnm.h>
@@ -45,18 +46,65 @@ LocaleData::LocaleData(icu::Locale locale)
 {
 }
 
-String LocaleData::to_string()
+String LocaleData::canonicalize(StringView locale)
 {
-    if (!m_locale_string.has_value()) {
-        UErrorCode status = U_ZERO_ERROR;
+    auto locale_data = LocaleData::for_locale(locale);
+    VERIFY(locale_data.has_value());
 
-        auto result = locale().toLanguageTag<StringBuilder>(status);
-        verify_icu_success(status);
+    if (locale_data->m_canonical_locale_string.has_value())
+        return *locale_data->m_canonical_locale_string;
 
-        m_locale_string = MUST(result.to_string());
+    UErrorCode status = U_ZERO_ERROR;
+
+    // FIXME: ICU's canonicalize() and toLanguageTag() incorrectly convert the Unicode extension value "yes" to "true"
+    //        for all keywords (and then remove "true" per UTS 35). Per CLDR BCP47 data, only specific keys define "yes"
+    //        as an alias for "true" (kb, kc, kh, kk, kn). For other keys, "yes" must be preserved. See:
+    //        https://unicode-org.atlassian.net/browse/ICU-21367
+    HashTable<ByteString> keywords_with_yes;
+
+    if (auto parsed = parse_unicode_locale_id(locale); parsed.has_value()) {
+        parsed->for_each_extension_of_type<LocaleExtension>([&](auto const& extension) {
+            for (auto const& keyword : extension.keywords) {
+                if (!keyword.value.equals_ignoring_ascii_case("yes"sv))
+                    continue;
+
+                auto key = keyword.key.to_ascii_lowercase().to_byte_string();
+
+                if (auto const* legacy_key = uloc_toLegacyKey(key.characters())) {
+                    if (auto const* value = uloc_toUnicodeLocaleType(legacy_key, "yes"); !value || value != "true"sv)
+                        keywords_with_yes.set(move(key));
+                }
+            }
+
+            return IterationDecision::Continue;
+        });
     }
 
-    return *m_locale_string;
+    locale_data->locale().canonicalize(status);
+    verify_icu_success(status);
+
+    auto result = locale_data->locale().toLanguageTag<StringBuilder>(status);
+    verify_icu_success(status);
+
+    if (keywords_with_yes.is_empty()) {
+        locale_data->m_canonical_locale_string = MUST(result.to_string());
+    } else {
+        auto parsed = parse_unicode_locale_id(result.string_view());
+        VERIFY(parsed.has_value());
+
+        parsed->for_each_extension_of_type<LocaleExtension>([&](auto& extension) {
+            for (auto& keyword : extension.keywords) {
+                if (keyword.value.is_empty() && keywords_with_yes.contains(keyword.key.bytes_as_string_view()))
+                    keyword.value = "yes"_string;
+            }
+
+            return IterationDecision::Continue;
+        });
+
+        locale_data->m_canonical_locale_string = parsed->to_string();
+    }
+
+    return *locale_data->m_canonical_locale_string;
 }
 
 icu::LocaleDisplayNames& LocaleData::standard_display_names()
