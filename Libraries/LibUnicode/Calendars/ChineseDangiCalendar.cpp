@@ -7,18 +7,10 @@
 #include <AK/Time.h>
 #include <LibUnicode/Calendar.h>
 #include <LibUnicode/Calendars/ChineseDangiCalendar.h>
+#include <LibUnicode/Calendars/Constants.h>
 #include <LibUnicode/ICU.h>
 
 namespace Unicode {
-
-// https://github.com/unicode-org/icu/blob/main/icu4c/source/i18n/gregoimp.h#L127
-static constexpr i64 EPOCH_START_AS_JULIAN_DAY = 2440588;
-
-// https://en.wikipedia.org/wiki/Chinese_calendar_correspondence_table
-static constexpr i32 CHINESE_CALENDAR_FIRST_YEAR = -2637;
-
-// https://en.wikipedia.org/wiki/Dangun_calendar
-static constexpr i32 DANGI_CALENDAR_FIRST_YEAR = -2333;
 
 // This is a bit weird, but lets us delegate otherwise protected methods to the original icu4c calendar. The static_cast
 // is safe here because these are virtual methods dispatched through the vtable.

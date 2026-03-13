@@ -339,6 +339,84 @@ describe("special cases", () => {
     });
 });
 
+describe("era formatting", () => {
+    function makeDate(year, month, day) {
+        let date = new Date(0);
+        date.setFullYear(year, month, day);
+        date.setHours(0, 0, 0, 0);
+        return date;
+    }
+
+    test("islamic calendars produce era parts", () => {
+        for (const calendar of ["islamic-civil", "islamic-tbla", "islamic-umalqura"]) {
+            const formatter = new Intl.DateTimeFormat("en", {
+                calendar,
+                era: "long",
+                year: "numeric",
+                timeZone: "UTC",
+            });
+
+            const date = makeDate(2025, 5, 15);
+            const parts = formatter.formatToParts(date);
+            const eraPart = parts.find(({ type }) => type === "era");
+            expect(eraPart).not.toBeUndefined();
+            expect(eraPart.value.length).toBeGreaterThan(0);
+        }
+    });
+
+    test("islamic calendars produce distinct eras for pre and post Hijra dates", () => {
+        for (const calendar of ["islamic-civil", "islamic-tbla", "islamic-umalqura"]) {
+            const formatter = new Intl.DateTimeFormat("en", {
+                calendar,
+                era: "long",
+                year: "numeric",
+                timeZone: "UTC",
+            });
+
+            const postHijra = formatter.formatToParts(makeDate(2025, 5, 15));
+            const preHijra = formatter.formatToParts(makeDate(600, 5, 15));
+
+            const postEra = postHijra.find(({ type }) => type === "era");
+            const preEra = preHijra.find(({ type }) => type === "era");
+
+            expect(postEra).not.toBeUndefined();
+            expect(preEra).not.toBeUndefined();
+            expect(postEra.value).not.toBe(preEra.value);
+        }
+    });
+
+    test("coptic calendar produces era parts", () => {
+        const formatter = new Intl.DateTimeFormat("en", {
+            calendar: "coptic",
+            era: "long",
+            year: "numeric",
+            timeZone: "UTC",
+        });
+
+        for (const isoYear of [250, 2025]) {
+            const parts = formatter.formatToParts(makeDate(isoYear, 5, 15));
+            const eraPart = parts.find(({ type }) => type === "era");
+            expect(eraPart).not.toBeUndefined();
+            expect(eraPart.value.length).toBeGreaterThan(0);
+        }
+    });
+
+    test("chinese and dangi calendars do not produce era parts", () => {
+        for (const calendar of ["chinese", "dangi"]) {
+            const formatter = new Intl.DateTimeFormat("en", {
+                calendar,
+                era: "long",
+                year: "numeric",
+                timeZone: "UTC",
+            });
+
+            const parts = formatter.formatToParts(makeDate(2025, 5, 15));
+            const eraPart = parts.find(({ type }) => type === "era");
+            expect(eraPart).toBeUndefined();
+        }
+    });
+});
+
 describe("Temporal objects", () => {
     const formatter = new Intl.DateTimeFormat("en", {
         calendar: "iso8601",

@@ -10,6 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
+#include <LibUnicode/Calendars/AdjustedEraCalendar.h>
 #include <LibUnicode/Calendars/ChineseDangiCalendar.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/ICU.h>
@@ -632,6 +633,12 @@ static void apply_time_zone_to_formatter(icu::SimpleDateFormat& formatter, icu::
 
     if (auto const* calendar_type = calendar->getType(); first_is_one_of(calendar_type, "chinese"sv, "dangi"sv)) {
         calendar = new ChineseDangiCalendar(adopt_own(*calendar), locale, status);
+        verify_icu_success(status);
+    } else if (calendar_type == "coptic"sv) {
+        calendar = new AdjustedEraCalendar(adopt_own(*calendar), locale, status, AdjustedEraCalendar::EraMode::SingleEra);
+        verify_icu_success(status);
+    } else if (first_is_one_of(calendar_type, "islamic"sv, "islamic-civil"sv, "islamic-tbla"sv, "islamic-umalqura"sv)) {
+        calendar = new AdjustedEraCalendar(adopt_own(*calendar), locale, status, AdjustedEraCalendar::EraMode::DualEra);
         verify_icu_success(status);
     } else if (auto* gregorian_calendar = as_if<icu::GregorianCalendar>(*calendar)) {
         // https://tc39.es/ecma262/#sec-time-values-and-time-range
