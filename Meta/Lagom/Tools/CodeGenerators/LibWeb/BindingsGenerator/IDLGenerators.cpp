@@ -4134,32 +4134,30 @@ static void generate_prototype_or_global_mixin_definitions(IDL::Interface const&
 
     if (!interface.attributes.is_empty() || !interface.functions.is_empty() || interface.has_stringifier || interface.set_entry_type.has_value() || interface.map_key_type.has_value()) {
         generator.append(R"~~~(
-[[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
+[[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm, JS::Value js_value)
 {
-    auto this_value = vm.this_value();
-    JS::Object* this_object = nullptr;
-    if (this_value.is_nullish())
-        this_object = &vm.current_realm()->global_object();
-    else
-        this_object = TRY(this_value.to_object(vm));
 )~~~");
-
         if (interface.name.is_one_of("EventTarget", "Window")) {
             generator.append(R"~~~(
-    if (is<HTML::Window>(this_object)) {
-        return static_cast<HTML::Window*>(this_object);
-    }
-    if (is<HTML::WindowProxy>(this_object)) {
-        return static_cast<HTML::WindowProxy*>(this_object)->window().ptr();
-    }
+    if (auto window_proxy = js_value.as_if<HTML::WindowProxy>())
+        return window_proxy->window().ptr();
 )~~~");
         }
 
         generator.append(R"~~~(
-    if (!is<@fully_qualified_name@>(this_object))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
-    return static_cast<@fully_qualified_name@*>(this_object);
+    if (auto impl = js_value.as_if<@fully_qualified_name@>())
+        return impl.ptr();
+    return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@namespaced_name@");
 }
+
+[[maybe_unused]] static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
+{
+    auto this_value = vm.this_value();
+    if (this_value.is_nullish())
+        this_value = &vm.current_realm()->global_object();
+    return impl_from(vm, this_value);
+}
+
 )~~~");
     }
 
