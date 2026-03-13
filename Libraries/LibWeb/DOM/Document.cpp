@@ -4771,10 +4771,11 @@ void Document::unload(GC::Ptr<Document>)
 
     // FIXME: 3. If newDocument is not given, then set unloadTimingInfo to null.
 
-    // FIXME: 4. Otherwise, if newDocument's event loop is not oldDocument's event loop, then the user agent may be unloading oldDocument in parallel. In that case, the user agent should
-    //           set unloadTimingInfo to null.
+    // FIXME: 4. Otherwise, if newDocument's event loop is not oldDocument's event loop, then the user agent may be unloading
+    //    oldDocument in parallel. In that case, the user agent should set unloadTimingInfo to null.
 
-    // 5. Let intendToStoreInBfcache be true if the user agent intends to keep oldDocument alive in a session history entry, such that it can later be used for history traversal.
+    // 5. Let intendToStoreInBfcache be true if the user agent intends to keep oldDocument alive in a session history
+    //    entry, such that it can later be used for history traversal.
     auto intend_to_store_in_bfcache = false;
 
     // 6. Let eventLoop be oldDocument's relevant agent's event loop.
@@ -4787,26 +4788,28 @@ void Document::unload(GC::Ptr<Document>)
     m_unload_counter += 1;
 
     // 9. If intendToKeepInBfcache is false, then set oldDocument's salvageable state to false.
-    if (!intend_to_store_in_bfcache) {
+    if (!intend_to_store_in_bfcache)
         m_salvageable = false;
-    }
 
     // 10. If oldDocument's page showing is true:
     if (m_page_showing) {
         // 1. Set oldDocument's page showing to false.
         m_page_showing = false;
 
-        // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's salvageable state.
+        // 2. Fire a page transition event named pagehide at oldDocument's relevant global object with oldDocument's
+        //    salvageable state.
         as<HTML::Window>(relevant_global_object(*this)).fire_a_page_transition_event(HTML::EventNames::pagehide, m_salvageable);
 
         // 3. Update the visibility state of oldDocument to "hidden".
         update_the_visibility_state(HTML::VisibilityState::Hidden);
     }
 
-    // FIXME: 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high resolution time given newDocument's relevant global object, coarsened
-    //            given oldDocument's relevant settings object's cross-origin isolated capability.
+    // FIXME: 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
+    //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
+    //     object's cross-origin isolated capability.
 
-    // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global object, with legacy target override flag set.
+    // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global
+    //     object, with legacy target override flag set.
     if (!m_salvageable) {
         // then fire an event named unload at document's relevant global object, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
@@ -4815,8 +4818,9 @@ void Document::unload(GC::Ptr<Document>)
         as<HTML::Window>(relevant_global_object(*this)).dispatch_event(event);
     }
 
-    // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high resolution time given newDocument's relevant global object, coarsened
-    //            given oldDocument's relevant settings object's cross-origin isolated capability.
+    // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
+    //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
+    //     object's cross-origin isolated capability.
 
     // 14. Decrease eventLoop's termination nesting level by 1.
     event_loop.decrement_termination_nesting_level();
@@ -4827,7 +4831,8 @@ void Document::unload(GC::Ptr<Document>)
 
     // FIXME: 17. Set oldDocument's has been scrolled by the user to false.
 
-    // FIXME: 18. Run any unloading document cleanup steps for oldDocument that are defined by this specification and other applicable specifications.
+    // FIXME: 18. Run any unloading document cleanup steps for oldDocument that are defined by this specification and other
+    //     applicable specifications.
 
     // 19. If oldDocument's salvageable state is false, then destroy oldDocument.
     if (!m_salvageable) {
@@ -4837,8 +4842,9 @@ void Document::unload(GC::Ptr<Document>)
     // 20. Decrease oldDocument's unload counter by 1.
     m_unload_counter -= 1;
 
-    // FIXME: 21. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's origin is the same as oldDocument's origin, then set
-    //            newDocument's previous document unload timing to unloadTimingInfo.
+    // FIXME: 21. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's
+    //     origin is the same as oldDocument's origin, then set newDocument's previous document unload timing to
+    //     unloadTimingInfo.
 
     did_stop_being_active_document_in_navigable();
 }
