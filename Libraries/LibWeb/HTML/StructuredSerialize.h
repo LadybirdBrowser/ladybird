@@ -61,7 +61,7 @@ private:
     IPC::MessageBuffer m_buffer;
 
     FixedMemoryStream m_stream;
-    Queue<IPC::File> m_files;
+    Queue<IPC::Attachment> m_attachments;
 
     IPC::Decoder m_decoder;
 };

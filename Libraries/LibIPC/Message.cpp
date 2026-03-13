@@ -27,26 +27,29 @@ ErrorOr<void> MessageBuffer::append_data(u8 const* values, size_t count)
 
 ErrorOr<void> MessageBuffer::append_file_descriptor(int fd)
 {
-    auto auto_fd = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) AutoCloseFileDescriptor(fd)));
-    TRY(m_fds.try_append(move(auto_fd)));
+    TRY(m_attachments.try_append(Attachment::from_fd(fd)));
+    return {};
+}
+
+ErrorOr<void> MessageBuffer::append_attachment(Attachment attachment)
+{
+    TRY(m_attachments.try_append(move(attachment)));
     return {};
 }
 
 ErrorOr<void> MessageBuffer::extend(MessageBuffer&& buffer)
 {
     TRY(m_data.try_extend(move(buffer.m_data)));
-    TRY(m_fds.try_extend(move(buffer.m_fds)));
+    TRY(m_attachments.try_extend(move(buffer.m_attachments)));
     return {};
 }
 
 ErrorOr<void> MessageBuffer::transfer_message(Transport& transport)
 {
-    // These VERIFYs catch bugs where we try to send messages that exceed IPC limits.
-    // If we hit these, we have a bug in our encoding code.
     VERIFY(m_data.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
-    VERIFY(m_fds.size() <= MAX_MESSAGE_FD_COUNT);
+    VERIFY(m_attachments.size() <= MAX_MESSAGE_FD_COUNT);
 
-    transport.post_message(m_data, m_fds);
+    transport.post_message(m_data, m_attachments);
     return {};
 }
 

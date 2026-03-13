@@ -11,7 +11,7 @@
 #include <AK/Forward.h>
 #include <AK/Queue.h>
 #include <LibCore/EventReceiver.h>
-#include <LibIPC/File.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Transport.h>
@@ -37,7 +37,7 @@ protected:
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 
     virtual void shutdown_with_error(Error const&);
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<File>&) = 0;
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes, Queue<Attachment>&) = 0;
 
     OwnPtr<IPC::Message> wait_for_specific_endpoint_message_impl(u32 endpoint_magic, int message_id);
     void wait_for_transport_to_become_readable();
@@ -92,13 +92,13 @@ protected:
         return {};
     }
 
-    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<File>& fds) override
+    virtual OwnPtr<Message> try_parse_message(ReadonlyBytes bytes, Queue<Attachment>& attachments) override
     {
-        auto local_message = LocalEndpoint::decode_message(bytes, fds);
+        auto local_message = LocalEndpoint::decode_message(bytes, attachments);
         if (!local_message.is_error())
             return local_message.release_value();
 
-        auto peer_message = PeerEndpoint::decode_message(bytes, fds);
+        auto peer_message = PeerEndpoint::decode_message(bytes, attachments);
         if (!peer_message.is_error())
             return peer_message.release_value();
 

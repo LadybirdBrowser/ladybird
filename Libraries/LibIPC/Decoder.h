@@ -20,6 +20,7 @@
 #include <AK/Variant.h>
 #include <LibCore/Forward.h>
 #include <LibCore/SharedCircularQueue.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Concepts.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
@@ -37,9 +38,9 @@ inline ErrorOr<T> decode(Decoder&)
 
 class Decoder {
 public:
-    Decoder(Stream& stream, Queue<File>& files)
+    Decoder(Stream& stream, Queue<Attachment>& attachments)
         : m_stream(stream)
-        , m_files(files)
+        , m_attachments(attachments)
     {
     }
 
@@ -62,11 +63,11 @@ public:
     ErrorOr<size_t> decode_size();
 
     Stream& stream() { return m_stream; }
-    Queue<File>& files() { return m_files; }
+    Queue<Attachment>& attachments() { return m_attachments; }
 
 private:
     Stream& m_stream;
-    Queue<File>& m_files;
+    Queue<Attachment>& m_attachments;
 };
 
 template<Arithmetic T>

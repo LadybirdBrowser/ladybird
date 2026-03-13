@@ -34,7 +34,6 @@ ErrorOr<void> MessageBuffer::append_data(u8 const* values, size_t count)
 
 ErrorOr<void> MessageBuffer::append_file_descriptor(int handle)
 {
-    TRY(m_fds.try_append(adopt_ref(*new AutoCloseFileDescriptor(handle))));
     TRY(m_handle_offsets.try_append(m_data.size()));
 
     if (Core::System::is_socket(handle)) {
@@ -56,10 +55,15 @@ ErrorOr<void> MessageBuffer::append_file_descriptor(int handle)
     return {};
 }
 
+ErrorOr<void> MessageBuffer::append_attachment(Attachment attachment)
+{
+    return append_file_descriptor(attachment.to_fd());
+}
+
 ErrorOr<void> MessageBuffer::extend(MessageBuffer&& buffer)
 {
     TRY(m_data.try_extend(move(buffer.m_data)));
-    TRY(m_fds.try_extend(move(buffer.m_fds)));
+    TRY(m_attachments.try_extend(move(buffer.m_attachments)));
     TRY(m_handle_offsets.try_extend(move(buffer.m_handle_offsets)));
     return {};
 }

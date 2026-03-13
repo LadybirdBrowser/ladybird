@@ -405,9 +405,9 @@ public:)~~~");
     static i32 static_message_id() { return (int)MessageID::@message.pascal_name@; }
     virtual const char* message_name() const override { return "@endpoint.name@::@message.pascal_name@"; }
 
-    static ErrorOr<NonnullOwnPtr<@message.pascal_name@>> decode(Stream& stream, Queue<IPC::File>& files)
+    static ErrorOr<NonnullOwnPtr<@message.pascal_name@>> decode(Stream& stream, Queue<IPC::Attachment>& attachments)
     {
-        IPC::Decoder decoder { stream, files };)~~~");
+        IPC::Decoder decoder { stream, attachments };)~~~");
 
     for (auto const& parameter : parameters) {
         auto parameter_generator = message_generator.fork();
@@ -729,7 +729,7 @@ public:
 
     static u32 static_magic() { return @endpoint.magic@; }
 
-    static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] Queue<IPC::File>& files)
+    static ErrorOr<NonnullOwnPtr<IPC::Message>> decode_message(ReadonlyBytes buffer, [[maybe_unused]] Queue<IPC::Attachment>& attachments)
     {
         FixedMemoryStream stream { buffer };
         auto message_endpoint_magic = TRY(stream.read_value<u32>());)~~~");
@@ -758,7 +758,7 @@ public:
 
             message_generator.append(R"~~~(
         case (int)Messages::@endpoint.name@::MessageID::@message.pascal_name@:
-            return TRY(Messages::@endpoint.name@::@message.pascal_name@::decode(stream, files));)~~~");
+            return TRY(Messages::@endpoint.name@::@message.pascal_name@::decode(stream, attachments));)~~~");
         };
 
         do_decode_message(message.name);
@@ -911,6 +911,7 @@ void build(StringBuilder& builder, Vector<Endpoint> const& endpoints)
 #include <AK/Platform.h>
 #include <AK/Result.h>
 #include <AK/Utf8View.h>
+#include <LibIPC/Attachment.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
