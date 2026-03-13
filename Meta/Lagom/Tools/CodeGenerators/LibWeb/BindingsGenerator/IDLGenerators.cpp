@@ -4157,18 +4157,22 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     return JS::js_undefined();
 }
 )~~~");
+        return;
     }
+
     // FIXME: 6. If validThis is false, then return undefined.
     // 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
-    else if (auto legacy_lenient_setter_identifier = attribute.extended_attributes.get("LegacyLenientSetter"sv); legacy_lenient_setter_identifier.has_value()) {
+    if (auto legacy_lenient_setter_identifier = attribute.extended_attributes.get("LegacyLenientSetter"sv); legacy_lenient_setter_identifier.has_value()) {
         attribute_generator.append(R"~~~(
     (void)impl;
     return JS::js_undefined();
 }
 )~~~");
+        return;
     }
+
     // 8. If attribute is declared with a [PutForwards] extended attribute, then:
-    else if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
+    if (auto put_forwards_identifier = attribute.extended_attributes.get("PutForwards"sv); put_forwards_identifier.has_value()) {
         attribute_generator.set("put_forwards_identifier"sv, *put_forwards_identifier);
         VERIFY(!put_forwards_identifier->is_empty() && !is_ascii_digit(put_forwards_identifier->byte_at(0))); // Ensure `PropertyKey`s are not Numbers.
 
@@ -4191,47 +4195,49 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     return JS::js_undefined();
 }
 )~~~");
-    } else {
-        generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface, attribute.extended_attributes.contains("LegacyNullToEmptyString"));
-        if (attribute.extended_attributes.contains("Reflect")) {
-            if (attribute.type->name() == "boolean") {
-                attribute_generator.append(R"~~~(
+        return;
+    }
+
+    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface, attribute.extended_attributes.contains("LegacyNullToEmptyString"));
+    if (attribute.extended_attributes.contains("Reflect")) {
+        if (attribute.type->name() == "boolean") {
+            attribute_generator.append(R"~~~(
     if (!cpp_value)
         impl->remove_attribute("@attribute.reflect_name@"_fly_string);
     else
         impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String {});
 )~~~");
-            } else if (attribute.type->name() == "unsigned long") {
-                // The setter steps are:
-                // FIXME: 1. If the reflected IDL attribute is limited to only positive numbers and the given value is 0, then throw an "IndexSizeError" DOMException.
-                // 2. Let minimum be 0.
-                // FIXME: 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
-                // 4. Let newValue be minimum.
-                // FIXME: 5. If the reflected IDL attribute has a default value, then set newValue to defaultValue.
-                // 6. If the given value is in the range minimum to 2147483647, inclusive, then set newValue to it.
-                // 7. Run this's set the content attribute with newValue converted to the shortest possible string representing the number as a valid non-negative integer.
-                attribute_generator.append(R"~~~(
+        } else if (attribute.type->name() == "unsigned long") {
+            // The setter steps are:
+            // FIXME: 1. If the reflected IDL attribute is limited to only positive numbers and the given value is 0, then throw an "IndexSizeError" DOMException.
+            // 2. Let minimum be 0.
+            // FIXME: 3. If the reflected IDL attribute is limited to only positive numbers or limited to only positive numbers with fallback, then set minimum to 1.
+            // 4. Let newValue be minimum.
+            // FIXME: 5. If the reflected IDL attribute has a default value, then set newValue to defaultValue.
+            // 6. If the given value is in the range minimum to 2147483647, inclusive, then set newValue to it.
+            // 7. Run this's set the content attribute with newValue converted to the shortest possible string representing the number as a valid non-negative integer.
+            attribute_generator.append(R"~~~(
     u32 minimum = 0;
     u32 new_value = minimum;
     if (cpp_value >= minimum && cpp_value <= 2147483647)
         new_value = cpp_value;
     impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String::number(new_value));
 )~~~");
-            } else if (attribute.type->is_integer() && !attribute.type->is_nullable()) {
-                attribute_generator.append(R"~~~(
+        } else if (attribute.type->is_integer() && !attribute.type->is_nullable()) {
+            attribute_generator.append(R"~~~(
     impl->set_attribute_value("@attribute.reflect_name@"_fly_string, String::number(cpp_value));
 )~~~");
-            }
-            // If a reflected IDL attribute has the type T?, where T is either Element or an interface that inherits
-            // from Element, then with attr being the reflected content attribute name:
-            // FIXME: Handle "an interface that inherits from Element".
-            else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
-                // The setter steps are:
-                // 1. If the given value is null, then:
-                //     1. Set this's explicitly set attr-element to null.
-                //     2. Run this's delete the content attribute.
-                //     3. Return.
-                attribute_generator.append(R"~~~(
+        }
+        // If a reflected IDL attribute has the type T?, where T is either Element or an interface that inherits
+        // from Element, then with attr being the reflected content attribute name:
+        // FIXME: Handle "an interface that inherits from Element".
+        else if (attribute.type->is_nullable() && attribute.type->name() == "Element") {
+            // The setter steps are:
+            // 1. If the given value is null, then:
+            //     1. Set this's explicitly set attr-element to null.
+            //     2. Run this's delete the content attribute.
+            //     3. Return.
+            attribute_generator.append(R"~~~(
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
     if (!cpp_value) {
@@ -4240,24 +4246,24 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return JS::js_undefined();
     }
 )~~~");
-                // 2. Run this's set the content attribute with the empty string.
-                attribute_generator.append(R"~~~(
+            // 2. Run this's set the content attribute with the empty string.
+            attribute_generator.append(R"~~~(
     impl->set_attribute_value(content_attribute, String {});
 )~~~");
-                // 3. Set this's explicitly set attr-element to a weak reference to the given value.
-                attribute_generator.append(R"~~~(
+            // 3. Set this's explicitly set attr-element to a weak reference to the given value.
+            attribute_generator.append(R"~~~(
     impl->set_@attribute.cpp_name@(*cpp_value);
 )~~~");
-            }
-            // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
-            // that inherits from Element, then with attr being the reflected content attribute name:
-            // FIXME: Handle "an interface that inherits from Element".
-            else if (is_nullable_frozen_array_of_single_type(attribute.type, "Element"sv)) {
-                // 1. If the given value is null:
-                //     1. Set this's explicitly set attr-elements to null.
-                //     2. Run this's delete the content attribute.
-                //     3. Return.
-                attribute_generator.append(R"~~~(
+        }
+        // If a reflected IDL attribute has the type FrozenArray<T>?, where T is either Element or an interface
+        // that inherits from Element, then with attr being the reflected content attribute name:
+        // FIXME: Handle "an interface that inherits from Element".
+        else if (is_nullable_frozen_array_of_single_type(attribute.type, "Element"sv)) {
+            // 1. If the given value is null:
+            //     1. Set this's explicitly set attr-elements to null.
+            //     2. Run this's delete the content attribute.
+            //     3. Return.
+            attribute_generator.append(R"~~~(
     static auto content_attribute = "@attribute.reflect_name@"_fly_string;
 
     if (!cpp_value.has_value()) {
@@ -4267,16 +4273,16 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     }
 )~~~");
 
-                // 2. Run this's set the content attribute with the empty string.
-                attribute_generator.append(R"~~~(
+            // 2. Run this's set the content attribute with the empty string.
+            attribute_generator.append(R"~~~(
     impl->set_attribute_value(content_attribute, String {});
 )~~~");
 
-                // 3. Let elements be an empty list.
-                // 4. For each element in the given value:
-                //     1. Append a weak reference to element to elements.
-                // 5. Set this's explicitly set attr-elements to elements.
-                attribute_generator.append(R"~~~(
+            // 3. Let elements be an empty list.
+            // 4. For each element in the given value:
+            //     1. Append a weak reference to element to elements.
+            // 5. Set this's explicitly set attr-elements to elements.
+            attribute_generator.append(R"~~~(
     Vector<GC::Weak<DOM::Element>> elements;
     elements.ensure_capacity(cpp_value->size());
 
@@ -4286,42 +4292,42 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
 
     impl->set_@attribute.cpp_name@(move(elements));
 )~~~");
-            } else if (attribute.type->is_nullable()) {
-                attribute_generator.append(R"~~~(
+        } else if (attribute.type->is_nullable()) {
+            attribute_generator.append(R"~~~(
     if (!cpp_value.has_value())
         impl->remove_attribute("@attribute.reflect_name@"_fly_string);
     else
         impl->set_attribute_value("@attribute.reflect_name@"_fly_string, cpp_value.value());
 )~~~");
-            } else {
-                attribute_generator.append(R"~~~(
+        } else {
+            attribute_generator.append(R"~~~(
     impl->set_attribute_value("@attribute.reflect_name@"_fly_string, cpp_value);
 )~~~");
-            }
+        }
 
-            if (attribute.extended_attributes.contains("CEReactions")) {
-                // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
-                // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
-                // 4. Invoke custom element reactions in queue.
-                // 5. If an exception exception was thrown by the original steps, rethrow exception.
-                // 6. If a value value was returned from the original steps, return value.
-                attribute_generator.append(R"~~~(
+        if (attribute.extended_attributes.contains("CEReactions")) {
+            // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
+            // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
+            // 4. Invoke custom element reactions in queue.
+            // 5. If an exception exception was thrown by the original steps, rethrow exception.
+            // 6. If a value value was returned from the original steps, return value.
+            attribute_generator.append(R"~~~(
     auto queue = reactions_stack.element_queue_stack.take_last();
     Bindings::invoke_custom_element_reactions(queue);
 )~~~");
-            }
-        } else {
-            if (!attribute.extended_attributes.contains("CEReactions")) {
-                attribute_generator.append(R"~~~(
+        }
+    } else {
+        if (!attribute.extended_attributes.contains("CEReactions")) {
+            attribute_generator.append(R"~~~(
     TRY(throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(cpp_value); }));
 )~~~");
-            } else {
-                // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
-                // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
-                // 4. Invoke custom element reactions in queue.
-                // 5. If an exception exception was thrown by the original steps, rethrow exception.
-                // 6. If a value value was returned from the original steps, return value.
-                attribute_generator.append(R"~~~(
+        } else {
+            // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
+            // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
+            // 4. Invoke custom element reactions in queue.
+            // 5. If an exception exception was thrown by the original steps, rethrow exception.
+            // 6. If a value value was returned from the original steps, return value.
+            attribute_generator.append(R"~~~(
     auto maybe_exception = throw_dom_exception_if_needed(vm, [&] { return impl->set_@attribute.cpp_name@(cpp_value); });
 
     auto queue = reactions_stack.element_queue_stack.take_last();
@@ -4330,13 +4336,12 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     if (maybe_exception.is_error())
         return maybe_exception.release_error();
 )~~~");
-            }
         }
-        attribute_generator.append(R"~~~(
+    }
+    attribute_generator.append(R"~~~(
     return JS::js_undefined();
 }
 )~~~");
-    }
 }
 
 // https://webidl.spec.whatwg.org/#interface-prototype-object
