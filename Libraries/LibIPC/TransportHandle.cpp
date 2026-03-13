@@ -24,12 +24,6 @@ ErrorOr<TransportHandle> TransportHandle::from_transport(Transport& transport)
     return TransportHandle { File::adopt_fd(fd) };
 }
 
-ErrorOr<TransportHandle> TransportHandle::clone_from_transport(Transport& transport)
-{
-    auto file = TRY(transport.clone_for_transfer());
-    return TransportHandle { move(file) };
-}
-
 ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
     auto socket = TRY(Core::LocalSocket::adopt_fd(m_file.take_fd()));

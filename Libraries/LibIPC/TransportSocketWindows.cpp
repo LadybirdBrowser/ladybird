@@ -277,9 +277,4 @@ ErrorOr<int> TransportSocketWindows::release_underlying_transport_for_transfer()
     return m_socket->release_fd();
 }
 
-ErrorOr<IPC::File> TransportSocketWindows::clone_for_transfer()
-{
-    return IPC::File::clone_fd(m_socket->fd().value());
-}
-
 }

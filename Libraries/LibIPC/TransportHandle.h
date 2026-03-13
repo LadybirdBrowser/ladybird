@@ -32,7 +32,6 @@ public:
     TransportHandle& operator=(TransportHandle&&) = default;
 
     static ErrorOr<TransportHandle> from_transport(Transport& transport);
-    static ErrorOr<TransportHandle> clone_from_transport(Transport& transport);
 
     ErrorOr<NonnullOwnPtr<Transport>> create_transport() const;
 
