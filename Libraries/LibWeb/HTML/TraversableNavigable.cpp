@@ -980,9 +980,8 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
             }));
 
             // 5. Wait for eventsFired to be true.
-            main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
-                return events_fired;
-            }));
+            main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal,
+                GC::create_function(heap(), [&] { return events_fired; }));
 
             // 6. If finalStatus is not "continue", then return finalStatus.
             if (final_status != CheckIfUnloadingIsCanceledResult::Continue)
@@ -1017,9 +1016,8 @@ TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::che
     }
 
     // 8. Wait for completedTasks to be totalTasks.
-    main_thread_event_loop().spin_until(GC::create_function(heap(), [&] {
-        return completed_tasks == total_tasks;
-    }));
+    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal,
+        GC::create_function(heap(), [&] { return completed_tasks == total_tasks; }));
 
     // 9. Return finalStatus.
     return final_status;
