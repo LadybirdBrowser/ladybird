@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "05442024c3fda64320bd25d2251cc9807b84fb6f",
+  "builtin-baseline": "48cfe1e0e928341709d97fc3d2eff10ad6262c96",
   "dependencies": [
     {
       "name": "angle",
@@ -235,7 +235,7 @@
     },
     {
       "name": "curl",
-      "version": "8.18.0#1"
+      "version": "8.19.0#0"
     },
     {
       "name": "dav1d",
