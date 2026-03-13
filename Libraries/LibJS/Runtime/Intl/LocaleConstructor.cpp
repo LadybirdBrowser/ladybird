@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -134,20 +134,18 @@ static LocaleAndKeys make_locale_record(StringView tag, LocaleAndKeys options, R
     Vector<Unicode::Keyword> keywords;
 
     // 1. If tag contains a substring that is a Unicode locale extension sequence, then
-    for (auto& extension : locale_id->extensions) {
-        if (!extension.has<Unicode::LocaleExtension>())
-            continue;
-
+    locale_id->for_each_extension_of_type<Unicode::LocaleExtension>([&](Unicode::LocaleExtension& components) {
         // a. Let extension be the String value consisting of the substring of the Unicode locale extension sequence within tag.
         // b. Let components be UnicodeExtensionComponents(extension).
-        auto& components = extension.get<Unicode::LocaleExtension>();
+
         // c. Let attributes be components.[[Attributes]].
         attributes = move(components.attributes);
+
         // d. Let keywords be components.[[Keywords]].
         keywords = move(components.keywords);
 
-        break;
-    }
+        return IterationDecision::Break;
+    });
     // 2. Else,
     //     a. Let attributes be a new empty List.
     //     b. Let keywords be a new empty List.

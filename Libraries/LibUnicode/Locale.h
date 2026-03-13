@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/CharacterTypes.h>
+#include <AK/IterationDecision.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
@@ -71,6 +72,17 @@ struct LocaleID {
         }
 
         return removed_extensions;
+    }
+
+    template<typename ExtensionType, typename Callback>
+    void for_each_extension_of_type(Callback&& callback)
+    {
+        for (auto& extension : extensions) {
+            if (auto* extension_type = extension.get_pointer<ExtensionType>()) {
+                if (callback(*extension_type) == IterationDecision::Break)
+                    break;
+            }
+        }
     }
 
     LanguageID language_id {};
