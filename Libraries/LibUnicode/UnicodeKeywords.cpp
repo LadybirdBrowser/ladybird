@@ -59,7 +59,11 @@ Vector<String> available_calendars(StringView locale)
     if (icu_failure(status))
         return {};
 
-    return icu_string_enumeration_to_list(move(keywords), "ca");
+    return icu_string_enumeration_to_list(move(keywords), "ca", [](char const* value, size_t value_length) {
+        // "islamic" and "islamic-rgsa" are deprecated calendar types that DateTimeFormat resolves to other calendars,
+        // so they should not be advertised as available.
+        return !StringView { value, value_length }.is_one_of("islamic"sv, "islamic-rgsa"sv);
+    });
 }
 
 Vector<String> const& available_currencies()

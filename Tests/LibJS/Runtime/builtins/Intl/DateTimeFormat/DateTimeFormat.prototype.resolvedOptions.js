@@ -160,6 +160,28 @@ describe("correct behavior", () => {
         expect(etcUtc.resolvedOptions().timeZone).toBe("Etc/UTC");
     });
 
+    test("deprecated islamic calendars fall back to a supported calendar", () => {
+        const availableCalendars = Intl.supportedValuesOf("calendar");
+
+        // "islamic" and "islamic-rgsa" are deprecated and should fall back.
+        const islamic = new Intl.DateTimeFormat("en", { calendar: "islamic" });
+        const islamicCalendar = islamic.resolvedOptions().calendar;
+        expect(islamicCalendar).not.toBe("islamic");
+        expect(availableCalendars.includes(islamicCalendar)).toBeTrue();
+
+        const islamicRgsa = new Intl.DateTimeFormat("en", { calendar: "islamic-rgsa" });
+        const islamicRgsaCalendar = islamicRgsa.resolvedOptions().calendar;
+        expect(islamicRgsaCalendar).not.toBe("islamic-rgsa");
+        expect(availableCalendars.includes(islamicRgsaCalendar)).toBeTrue();
+
+        // Locale extension should also be handled.
+        const islamicExt = new Intl.DateTimeFormat("en-u-ca-islamic");
+        expect(islamicExt.resolvedOptions().calendar).not.toBe("islamic");
+
+        const islamicRgsaExt = new Intl.DateTimeFormat("en-u-ca-islamic-rgsa");
+        expect(islamicRgsaExt.resolvedOptions().calendar).not.toBe("islamic-rgsa");
+    });
+
     test("dateStyle", () => {
         const en = new Intl.DateTimeFormat("en");
         expect(en.resolvedOptions().dateStyle).toBeUndefined();
