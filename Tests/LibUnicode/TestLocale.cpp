@@ -366,12 +366,27 @@ TEST_CASE(canonicalize_unicode_locale_id)
     test("EN-U-1K-TRUE"sv, "en-u-1k"sv);
     test("en-u-1k-true-abcd"sv, "en-u-1k-true-abcd"sv);
     test("EN-U-1K-TRUE-ABCD"sv, "en-u-1k-true-abcd"sv);
+
+    // Keys for which "yes" is alased to "true" in the CLDR, which is then removed.
     test("en-u-kb-yes"sv, "en-u-kb"sv);
     test("EN-U-KB-YES"sv, "en-u-kb"sv);
+    test("en-u-kc-yes"sv, "en-u-kc"sv);
+    test("en-u-kh-yes"sv, "en-u-kh"sv);
+    test("en-u-kk-yes"sv, "en-u-kk"sv);
+    test("en-u-kn-yes"sv, "en-u-kn"sv);
+
+    // Keys for which "yes" is not alased to "true" in the CLDR, which is then preserved.
+    test("en-u-ka-yes"sv, "en-u-ka-yes"sv);
+    test("EN-U-KA-YES"sv, "en-u-ka-yes"sv);
+    test("en-u-kf-yes"sv, "en-u-kf-yes"sv);
+    test("en-u-kr-yes"sv, "en-u-kr-yes"sv);
+    test("en-u-ks-yes"sv, "en-u-ks-yes"sv);
+    test("en-u-kv-yes"sv, "en-u-kv-yes"sv);
+
+    test("en-u-ka-yes-kb-yes"sv, "en-u-ka-yes-kb"sv);
     test("en-u-kb-yes-abcd"sv, "en-u-kb-yes-abcd"sv);
     test("EN-U-KB-YES-ABCD"sv, "en-u-kb-yes-abcd"sv);
-    test("en-u-ka-yes"sv, "en-u-ka"sv);
-    test("EN-U-KA-YES"sv, "en-u-ka"sv);
+
     test("en-u-1k-names"sv, "en-u-1k-names"sv);
     test("EN-U-1K-NAMES"sv, "en-u-1k-names"sv);
     test("en-u-ks-primary"sv, "en-u-ks-level1"sv);
