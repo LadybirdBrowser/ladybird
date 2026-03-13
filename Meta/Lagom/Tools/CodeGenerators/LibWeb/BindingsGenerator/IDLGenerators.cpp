@@ -4130,13 +4130,20 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
     // 4. Let idlObject be null.
     // 5. If attribute is a regular attribute:
 
-    // FIXME: 1. Let jsValue be the this value, if it is not null or undefined, or realm’s global object otherwise. (This will subsequently cause a TypeError in a few steps, if the global object does not implement target and [LegacyLenientThis] is not specified.)
-    auto* impl = TRY(impl_from(vm));
-
+    // 1. Let jsValue be the this value, if it is not null or undefined, or realm’s global object otherwise.
+    //   (This will subsequently cause a TypeError in a few steps, if the global object does not implement target and [LegacyLenientThis] is not specified.)
     // FIXME: 2. If jsValue is a platform object, then perform a security check, passing jsValue, id, and "setter".
-    // FIXME: 3. Let validThis be true if jsValue implements target, or false otherwise.
-    // FIXME: 4. If validThis is false and attribute was not specified with the [LegacyLenientThis] extended attribute, then throw a TypeError.
+    // 3. Let validThis be true if jsValue implements target, or false otherwise.
+    auto maybe_impl = impl_from(vm);
+
+    // 4. If validThis is false and attribute was not specified with the [LegacyLenientThis] extended attribute, then throw a TypeError.
 )~~~");
+    if (!attribute.extended_attributes.contains("LegacyLenientThis")) {
+        attribute_generator.append(R"~~~(
+    auto impl = TRY(maybe_impl);
+)~~~");
+    }
+
     // For [CEReactions]: https://html.spec.whatwg.org/multipage/custom-elements.html#cereactions
 
     if (attribute.extended_attributes.contains("CEReactions")) {
@@ -4160,7 +4167,17 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return;
     }
 
-    // FIXME: 6. If validThis is false, then return undefined.
+    // 6. If validThis is false, then return undefined.
+    // NB: This is only possible if LegacyLenientThis is defined.
+    if (attribute.extended_attributes.contains("LegacyLenientThis")) {
+        attribute_generator.append(R"~~~(
+    if (maybe_impl.is_error())
+        return JS::js_undefined();
+
+    auto impl = maybe_impl.release_value();
+)~~~");
+    }
+
     // 7. If attribute is declared with a [LegacyLenientSetter] extended attribute, then return undefined.
     if (auto legacy_lenient_setter_identifier = attribute.extended_attributes.get("LegacyLenientSetter"sv); legacy_lenient_setter_identifier.has_value()) {
         attribute_generator.append(R"~~~(
