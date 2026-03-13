@@ -207,8 +207,8 @@ ThrowCompletionOr<GC::Ref<DateTimeFormat>> create_date_time_format(VM& vm, Funct
         if (!time_zone_identifier_record.has_value())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, time_zone, vm.names.timeZone);
 
-        // c. Set timeZone to timeZoneIdentifierRecord.[[PrimaryIdentifier]].
-        time_zone = time_zone_identifier_record->primary_identifier;
+        // c. Set timeZone to timeZoneIdentifierRecord.[[Identifier]].
+        time_zone = time_zone_identifier_record->identifier;
     }
 
     // 21. Set dateTimeFormat.[[TimeZone]] to timeZone.

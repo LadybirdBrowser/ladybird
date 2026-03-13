@@ -139,6 +139,27 @@ describe("correct behavior", () => {
         });
     });
 
+    test("timeZone identifiers are not canonicalized", () => {
+        ["Etc/UTC", "Etc/GMT", "GMT"].forEach(timeZone => {
+            const dtf = new Intl.DateTimeFormat("en", { timeZone: timeZone });
+            expect(dtf.resolvedOptions().timeZone).toBe(timeZone);
+        });
+
+        const calcutta = new Intl.DateTimeFormat("en", { timeZone: "Asia/Calcutta" });
+        expect(calcutta.resolvedOptions().timeZone).toBe("Asia/Calcutta");
+    });
+
+    test("timeZone lookup is case-insensitive but preserves IANA casing", () => {
+        const dtf = new Intl.DateTimeFormat("en", { timeZone: "america/new_york" });
+        expect(dtf.resolvedOptions().timeZone).toBe("America/New_York");
+
+        const utc = new Intl.DateTimeFormat("en", { timeZone: "utc" });
+        expect(utc.resolvedOptions().timeZone).toBe("UTC");
+
+        const etcUtc = new Intl.DateTimeFormat("en", { timeZone: "etc/utc" });
+        expect(etcUtc.resolvedOptions().timeZone).toBe("Etc/UTC");
+    });
+
     test("dateStyle", () => {
         const en = new Intl.DateTimeFormat("en");
         expect(en.resolvedOptions().dateStyle).toBeUndefined();
