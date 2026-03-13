@@ -10,7 +10,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/TypeCasts.h>
-#include <LibUnicode/ChineseDangiCalendar.h>
+#include <LibUnicode/Calendars/ChineseDangiCalendar.h>
 #include <LibUnicode/DateTimeFormat.h>
 #include <LibUnicode/ICU.h>
 #include <LibUnicode/Locale.h>

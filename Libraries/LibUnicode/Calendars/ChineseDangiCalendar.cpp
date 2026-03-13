@@ -6,7 +6,7 @@
 
 #include <AK/Time.h>
 #include <LibUnicode/Calendar.h>
-#include <LibUnicode/ChineseDangiCalendar.h>
+#include <LibUnicode/Calendars/ChineseDangiCalendar.h>
 #include <LibUnicode/ICU.h>
 
 namespace Unicode {
