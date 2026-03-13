@@ -1,5 +1,6 @@
 set(SOURCES
     Calendar.cpp
+    Calendars/AdjustedEraCalendar.cpp
     Calendars/ChineseDangiCalendar.cpp
     CharacterTypes.cpp
     Collator.cpp
