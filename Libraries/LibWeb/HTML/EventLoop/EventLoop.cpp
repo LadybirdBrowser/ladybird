@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -124,8 +125,9 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
 
     perform_a_microtask_checkpoint();
 
-    // NOTE: HTML event loop processing steps could run a task with arbitrary source
-    m_skip_event_loop_processing_steps = true;
+    // NOTE: HTML event loop processing steps could run a task with arbitrary source. We could end up re-entering into
+    //       this method; this makes sure we restore the skip value to its original value.
+    TemporaryChange saved_skip(m_skip_event_loop_processing_steps, true);
 
     Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
         if (goal_condition->function()())
@@ -146,8 +148,6 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
         Core::EventLoop::current().wake();
         return goal_condition->function()();
     }));
-
-    m_skip_event_loop_processing_steps = false;
 
     schedule();
 
