@@ -713,13 +713,27 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
         return node_used_values->content_height();
     };
 
+    Vector<Box const*> chain;
+    auto height_subtracting_chain = [&](Box const& anchor) -> CSSPixels {
+        auto height = content_height_of(anchor);
+        for (const auto* intermediate_block : chain) {
+            const auto& s = state.get(*intermediate_block);
+            height -= s.margin_top + s.margin_bottom
+                    + s.padding_top + s.padding_bottom
+                    + s.border_top + s.border_bottom;
+        }
+        return max(height, CSSPixels(0));
+    };
+
     // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
     auto containing_block = box.containing_block();
     while (containing_block) {
         // 1. Let element be the nearest ancestor containing block of element, if there is one.
         //    Otherwise, return the initial containing block.
+        // NOTE: The spec says to return the found element's height directly, but we should first
+        // subtract the margin/padding/border of intermediate blocks to get an accurate height.
         if (containing_block->is_viewport()) {
-            return content_height_of(*containing_block);
+            return height_subtracting_chain(*containing_block);
         }
 
         // 2. If element has a computed value of the display property that is table-cell, then return a
@@ -730,8 +744,10 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
         }
 
         // 3. If element has a computed value of the height property that is not auto, then return element.
+        // NOTE: The spec says to return the found element's height directly, but we should first
+        // subtract the margin/padding/border of intermediate blocks to get an accurate height.
         if (!containing_block->computed_values().height().is_auto()) {
-            return content_height_of(*containing_block);
+            return height_subtracting_chain(*containing_block);
         }
 
         // 4. If element has a computed value of the position property that is absolute, or if element is a
@@ -741,6 +757,7 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
         }
 
         // 5. Jump to the first step.
+        chain.append(containing_block);
         containing_block = containing_block->containing_block();
     }
     VERIFY_NOT_REACHED();

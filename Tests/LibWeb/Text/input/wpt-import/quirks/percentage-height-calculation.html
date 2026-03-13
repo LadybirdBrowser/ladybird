@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+ <head>
+  <title>The percentage height calculation quirk</title>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <style> iframe { width:20px; height:200px } </style>
+ </head>
+ <body>
+  <div id=log></div>
+  <iframe id=quirks></iframe>
+  <iframe id=almost></iframe>
+  <iframe id=standards></iframe>
+  <img id="preload">
+  <script>
+    var png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==";
+    // Ensure png is loaded and cached before we run the tests. Otherwise
+    // the tests that use it may run while it's not fully loaded and get <img>
+    // fallback layout (i.e., not an image with a 1x1 intrinsic size).
+    document.getElementById('preload').src = png;
+    setup({explicit_done:true});
+
+    var png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==";
+    var preload = new Image();
+    preload.src = png;
+
+    onload = function() {
+        var html = "<style id=style></style>";
+        var a_doctype = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">';
+        var s_doctype = '<!DOCTYPE HTML>';
+        var q = document.getElementById('quirks').contentWindow;
+        var a = document.getElementById('almost').contentWindow;
+        var s = document.getElementById('standards').contentWindow;
+        q.document.open();
+        q.document.write(html);
+        q.document.close();
+        a.document.open();
+        a.document.write(a_doctype + html);
+        a.document.close();
+        s.document.open();
+        s.document.write(s_doctype + html);
+        s.document.close();
+        [q, a, s].forEach(function(win) {
+            ['style', 'test'].forEach(function(id) {
+                Object.getPrototypeOf(win).__defineGetter__(id, function() { return win.document.getElementById(id); });
+            });
+        });
+
+        var tests = [
+        {style:'#test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'#test { height:50% }', body:'<div id=test></div>', q:92, s:0},
+        {style:'#test { height:25% }', body:'<div id=test></div>', q:46, s:0},
+        {style:'#test { height:12.5% }', body:'<div id=test></div>', q:23, s:0},
+        {style:'#test { height:100% }', body:'<div><div id=test></div></div>', q:184, s:0},
+        {style:'', body:'<img id=test src="{png}" height=100%>', q:184, s:1},
+        {style:'', body:'<img id=test src="{png}" height=100% border=10>', q:184, s:1},
+        {style:'', body:'<table id=test height=100%><tr><td></table>', q:184, s:6},
+        {style:'#foo { height:100px } #test { height:100% }', body:'<div id=foo><div><div id=test></div></div></div>', q:100, s:0},
+        {style:'#foo { height:100px } #grid { display:grid } #test { height:100% }', body:'<div id=foo><div id=grid><div id=test></div></div></div>', q:0, s:0},
+        {style:'#foo { height:100px } #grid { display:inline-grid } #test { height:100% }', body:'<div id=foo><div id=grid><div id=test></div></div></div>', q:0, s:0},
+        {style:'#foo { height:100px } #flex { display:flex } #test { height:100% }', body:'<div id=foo><div id=flex><div id=test></div></div></div>', q:0, s:0},
+        {style:'#foo { height:100px } #flex { display:inline-flex } #test { height:100% }', body:'<div id=foo><div id=flex><div id=test></div></div></div>', q:0, s:0},
+        {style:'#foo { position:absolute } #test { height:100% }', body:'<div id=foo><div><div id=test></div></div></div>', q:0, s:0},
+        {style:'#foo { position:relative } #test { height:100% }', body:'<div id=foo><div><div id=test></div></div></div>', q:184, s:0},
+        {style:'#foo { height:100px } #test { height:100%; position:absolute }', body:'<div id=foo><div><div id=test></div></div></div>', q:200, s:200},
+        {style:'#foo { height:100px } #test { height:100%; position:fixed }', body:'<div id=foo><div><div id=test></div></div></div>', q:200, s:200},
+        {style:'#foo { height:100px } #test { height:100%; position:relative }', body:'<div id=foo><div><div id=test></div></div></div>', q:100, s:0},
+        {style:'#foo { height:100px } #test { height:calc(100% + 1px) }', body:'<div id=foo><div id=test></div></div>', q:101, s:101},
+        {style:'#foo { height:100px } #test { height:5px; height:calc(100% + 1px) }', body:'<div id=foo><div><div id=test></div></div></div>', q:0, s:0},
+        {style:'html { display:inline } #test { height:100% }', body:'<div id=test></div>', q:184, s:0}, // display:inline on root has no effect
+        {style:'html { margin:10px } body { display:inline } #test { height:100% }', body:'<div id=test></div>', q:180, s:0},
+        {style:'body { margin:0 } #test { height:100% }', body:'<div id=test></div>', q:200, s:0},
+        {style:'body { margin:0; padding:10px } #test { height:100% }', body:'<div id=test></div>', q:180, s:0},
+        {style:'body { margin:0; border:10px solid } #test { height:100% }', body:'<div id=test></div>', q:180, s:0},
+        {style:'html { margin:10px } #test { height:100% }', body:'<div id=test></div>', q:164, s:0},
+        {style:'html { padding:10px } #test { height:100% }', body:'<div id=test></div>', q:164, s:0},
+        {style:'html { border:10px solid } #test { height:100% }', body:'<div id=test></div>', q:164, s:0},
+        {style:'html { position:absolute } #test { height:100% }', body:'<div id=test></div>', q:0, s:0},
+        {style:'body { position:absolute } #test { height:100% }', body:'<div id=test></div>', q:0, s:0},
+        {style:'html { height:100%; margin:10px } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'html { height:100%; padding:10px } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'html { height:100%; border:10px solid } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'body { height:100%; margin:10px } #test { height:100% }', body:'<div id=test></div>', q:200, s:0},
+        {style:'body { height:100%; padding:10px } #test { height:100% }', body:'<div id=test></div>', q:200, s:0},
+        {style:'body { height:100%; border:10px solid } #test { height:100% }', body:'<div id=test></div>', q:200, s:0},
+        {style:'html { position:absolute; height:100%; margin:10px } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'html { position:absolute; height:100%; padding:10px } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'html { position:absolute; height:100%; border:10px solid } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'body { margin:99px 0 } #test { height:100% }', body:'<div id=test></div>', q:2, s:0},
+        {style:'body { margin:110px 0 } #test { height:100% }', body:'<div id=test></div>', q:0, s:0},
+        {style:'html, body { border:10px none } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        {style:'html, body { border:10px hidden } #test { height:100% }', body:'<div id=test></div>', q:184, s:0},
+        ];
+
+        tests.forEach(function(t) {
+            test(function() {
+                // Hide scrollbars in all subdocuments so that a horizontal
+                // scrollbar doesn't appear and upset our calculations.
+                var style = t.style.replace(/\{png\}/g, png) + " html { overflow:hidden; }";
+                var body = t.body.replace(/\{png\}/g, png);
+                q.style.textContent = style;
+                a.style.textContent = style;
+                s.style.textContent = style;
+                q.document.body.innerHTML = body;
+                a.document.body.innerHTML = body;
+                s.document.body.innerHTML = body;
+
+                assert_equals(q.getComputedStyle(q.test).height,
+                              t.q + 'px',
+                              'quirks mode');
+                assert_equals(a.getComputedStyle(a.test).height,
+                              t.s + 'px',
+                              'almost standards mode');
+                assert_equals(s.getComputedStyle(s.test).height,
+                              t.s + 'px',
+                              'standards mode');
+            }, document.title+', '+t.style+t.body);
+        });
+
+        var xml_tests = [
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></html>', q:184, s:0},
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><body/><div id="test"/></html>', q:200, s:0},
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><span><body><div id="test"/></body></span></html>', q:200, s:0},
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><body><body><div id="test"/></body></body></html>', q:200, s:0},
+        {input:'<html><head xmlns="{html}"><style>#test { height:100% }</style></head><body xmlns="{html}"><div id="test"/></body></html>', q:184, s:0},
+        {input:'<div xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></div>', q:184, s:0},
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><body xmlns=""><div xmlns="{html}" id="test"/></body></html>', q:200, s:0},
+        {input:'<HTML xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></HTML>', q:184, s:0},
+        {input:'<html xmlns="{html}"><head><style>#test { height:100% }</style></head><BODY><div id="test"/></BODY></html>', q:200, s:0},
+        ];
+
+        var parser = new DOMParser();
+
+        xml_tests.forEach(function(t) {
+            test(function() {
+                var input = t.input.replace(/\{html\}/g, 'http://www.w3.org/1999/xhtml')
+                                   .replace(/\{png\}/g, png);
+                var root = parser.parseFromString(input, 'text/xml').documentElement;
+                q.document.replaceChild(root.cloneNode(true), q.document.documentElement);
+                a.document.replaceChild(root.cloneNode(true), a.document.documentElement);
+                s.document.replaceChild(root, s.document.documentElement);
+                assert_equals(q.getComputedStyle(q.test).height,
+                              t.q + 'px',
+                              'quirks mode');
+                assert_equals(a.getComputedStyle(a.test).height,
+                              t.s + 'px',
+                              'almost standards mode');
+                assert_equals(s.getComputedStyle(s.test).height,
+                              t.s + 'px',
+                              'standards mode');
+            }, document.title+', '+t.input);
+        });
+
+        done();
+    }
+  </script>
+ </body>
+</html>
