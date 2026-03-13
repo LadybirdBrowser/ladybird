@@ -101,8 +101,8 @@ ThrowCompletionOr<Value> canonical_code_for_display_names(VM& vm, DisplayNames::
         if (!Unicode::parse_unicode_language_id(code).has_value())
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, code, "language"sv);
 
-        // b. If IsStructurallyValidLanguageTag(code) is false, throw a RangeError exception.
-        if (!is_structurally_valid_language_tag(code))
+        // b. If IsWellFormedLanguageTag(code) is false, throw a RangeError exception.
+        if (!is_well_formed_language_tag(code))
             return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, code);
 
         // c. Return ! CanonicalizeUnicodeLocaleId(code).

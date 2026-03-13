@@ -259,7 +259,6 @@ ThrowCompletionOr<Value> LocaleConstructor::call()
 }
 
 // 15.1.1 Intl.Locale ( tag [ , options ] ), https://tc39.es/ecma402/#sec-Intl.Locale
-// 1.2.3 Intl.Locale ( tag [ , options ] ), https://tc39.es/proposal-intl-locale-info/#sec-Intl.Locale
 ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
@@ -295,99 +294,103 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
     // 10. Set options to ? CoerceOptionsToObject(options).
     auto options = TRY(coerce_options_to_object(vm, options_value));
 
-    // 11. If IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
-    if (!is_structurally_valid_language_tag(tag))
+    // 11. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
+    if (!is_well_formed_language_tag(tag))
         return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
-    // 12. Set tag to CanonicalizeUnicodeLocaleId(tag).
+    // 12. NOTE: Because LanguageId canonicalization can alter tag in arbitrary ways according to Alias Rules from
+    //     supplementalMetadata.xml, it is necessary to perform such canonicalization before applying overrides from
+    //     options.
+
+    // 13. Set tag to CanonicalizeUnicodeLocaleId(tag).
     tag = canonicalize_unicode_locale_id(tag);
 
-    // 13. Set tag to ? UpdateLanguageId(tag, options).
+    // 14. Set tag to ? UpdateLanguageId(tag, options).
     tag = TRY(update_language_id(vm, tag, options));
 
-    // 14. Let opt be a new Record.
+    // 15. Let opt be a new Record.
     LocaleAndKeys opt {};
 
-    // 15. Let calendar be ? GetOption(options, "calendar", STRING, EMPTY, undefined).
-    // 16. If calendar is not undefined, then
+    // 16. Let calendar be ? GetOption(options, "calendar", STRING, EMPTY, undefined).
+    // 17. If calendar is not undefined, then
     //     a. If calendar cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-    // 17. Set opt.[[ca]] to calendar.
+    // 18. Set opt.[[ca]] to calendar.
     opt.ca = TRY(get_string_option(vm, options, vm.names.calendar, Unicode::is_type_identifier));
 
-    // 18. Let collation be ? GetOption(options, "collation", STRING, EMPTY, undefined).
-    // 19. If collation is not undefined, then
+    // 19. Let collation be ? GetOption(options, "collation", STRING, EMPTY, undefined).
+    // 20. If collation is not undefined, then
     //     a. If collation cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-    // 20. Set opt.[[co]] to collation.
+    // 21. Set opt.[[co]] to collation.
     opt.co = TRY(get_string_option(vm, options, vm.names.collation, Unicode::is_type_identifier));
 
-    // 21. Let fw be ? GetOption(options, "firstDayOfWeek", STRING, EMPTY, undefined).
+    // 22. Let fw be ? GetOption(options, "firstDayOfWeek", STRING, EMPTY, undefined).
     auto first_day_of_week = TRY(get_string_option(vm, options, vm.names.firstDayOfWeek, nullptr));
 
-    // 22. If fw is not undefined, then
+    // 23. If fw is not undefined, then
     if (first_day_of_week.has_value()) {
-        // a. Set fw to WeekdayToString(fw).
-        first_day_of_week = MUST(String::from_utf8(weekday_to_string(*first_day_of_week)));
+        // a. Set fw to WeekdayToUValue(fw).
+        first_day_of_week = MUST(String::from_utf8(weekday_to_u_value(*first_day_of_week)));
 
         // b. If fw cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
         if (!Unicode::is_type_identifier(*first_day_of_week))
             return vm.throw_completion<RangeError>(ErrorType::OptionIsNotValidValue, *first_day_of_week, vm.names.firstDayOfWeek);
     }
 
-    // 23. Set opt.[[fw]] to firstDay.
+    // 24. Set opt.[[fw]] to fw.
     opt.fw = move(first_day_of_week);
 
-    // 24. Let hc be ? GetOption(options, "hourCycle", STRING, « "h11", "h12", "h23", "h24" », undefined).
-    // 25. Set opt.[[hc]] to hc.
+    // 25. Let hc be ? GetOption(options, "hourCycle", STRING, « "h11", "h12", "h23", "h24" », undefined).
+    // 26. Set opt.[[hc]] to hc.
     opt.hc = TRY(get_string_option(vm, options, vm.names.hourCycle, nullptr, AK::Array { "h11"sv, "h12"sv, "h23"sv, "h24"sv }));
 
-    // 26. Let kf be ? GetOption(options, "caseFirst", STRING, « "upper", "lower", "false" », undefined).
-    // 27. Set opt.[[kf]] to kf.
+    // 27. Let kf be ? GetOption(options, "caseFirst", STRING, « "upper", "lower", "false" », undefined).
+    // 28. Set opt.[[kf]] to kf.
     opt.kf = TRY(get_string_option(vm, options, vm.names.caseFirst, nullptr, AK::Array { "upper"sv, "lower"sv, "false"sv }));
 
-    // 28. Let kn be ? GetOption(options, "numeric", BOOLEAN, EMPTY, undefined).
+    // 29. Let kn be ? GetOption(options, "numeric", BOOLEAN, EMPTY, undefined).
     auto kn = TRY(get_option(vm, options, vm.names.numeric, OptionType::Boolean, {}, Empty {}));
 
-    // 29. If kn is not undefined, set kn to ! ToString(kn).
-    // 30. Set opt.[[kn]] to kn.
+    // 30. If kn is not undefined, set kn to ! ToString(kn).
+    // 31. Set opt.[[kn]] to kn.
     if (!kn.is_undefined())
         opt.kn = TRY(kn.to_string(vm));
 
-    // 31. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
-    // 32. If numberingSystem is not undefined, then
+    // 32. Let numberingSystem be ? GetOption(options, "numberingSystem", STRING, EMPTY, undefined).
+    // 33. If numberingSystem is not undefined, then
     //     a. If numberingSystem cannot be matched by the type Unicode locale nonterminal, throw a RangeError exception.
-    // 33. Set opt.[[nu]] to numberingSystem.
+    // 34. Set opt.[[nu]] to numberingSystem.
     opt.nu = TRY(get_string_option(vm, options, vm.names.numberingSystem, Unicode::is_type_identifier));
 
-    // 34. Let r be MakeLocaleRecord(tag, opt, localeExtensionKeys).
+    // 35. Let r be MakeLocaleRecord(tag, opt, localeExtensionKeys).
     auto result = make_locale_record(tag, move(opt), locale_extension_keys);
 
-    // 35. Set locale.[[Locale]] to r.[[locale]].
+    // 36. Set locale.[[Locale]] to r.[[locale]].
     locale->set_locale(move(result.locale));
 
-    // 36. Set locale.[[Calendar]] to r.[[ca]].
+    // 37. Set locale.[[Calendar]] to r.[[ca]].
     if (result.ca.has_value())
         locale->set_calendar(result.ca.release_value());
 
-    // 37. Set locale.[[Collation]] to r.[[co]].
+    // 38. Set locale.[[Collation]] to r.[[co]].
     if (result.co.has_value())
         locale->set_collation(result.co.release_value());
 
-    // 38. Set locale.[[FirstDayOfWeek]] to r.[[fw]].
+    // 39. Set locale.[[FirstDayOfWeek]] to r.[[fw]].
     if (result.fw.has_value())
         locale->set_first_day_of_week(result.fw.release_value());
 
-    // 39. Set locale.[[HourCycle]] to r.[[hc]].
+    // 40. Set locale.[[HourCycle]] to r.[[hc]].
     if (result.hc.has_value())
         locale->set_hour_cycle(result.hc.release_value());
 
-    // 40. If localeExtensionKeys contains "kf", then
+    // 41. If localeExtensionKeys contains "kf", then
     if (locale_extension_keys.span().contains_slow("kf"sv)) {
         // a. Set locale.[[CaseFirst]] to r.[[kf]].
         if (result.kf.has_value())
             locale->set_case_first(result.kf.release_value());
     }
 
-    // 41. If localeExtensionKeys contains "kn", then
+    // 42. If localeExtensionKeys contains "kn", then
     if (locale_extension_keys.span().contains_slow("kn"sv)) {
         // a. If SameValue(r.[[kn]], "true") is true or r.[[kn]] is the empty String, then
         if (result.kn.has_value() && (result.kn == "true"sv || result.kn->is_empty())) {
@@ -401,11 +404,11 @@ ThrowCompletionOr<GC::Ref<Object>> LocaleConstructor::construct(FunctionObject& 
         }
     }
 
-    // 42. Set locale.[[NumberingSystem]] to r.[[nu]].
+    // 43. Set locale.[[NumberingSystem]] to r.[[nu]].
     if (result.nu.has_value())
         locale->set_numbering_system(result.nu.release_value());
 
-    // 43. Return locale.
+    // 44. Return locale.
     return locale;
 }
 

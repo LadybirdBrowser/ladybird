@@ -28,9 +28,8 @@ public:
     static constexpr auto locale_extension_keys()
     {
         // 15.2.2 Internal slots, https://tc39.es/ecma402/#sec-intl.locale-internal-slots
-        // 1.3.2 Internal slots, https://tc39.es/proposal-intl-locale-info/#sec-intl.locale-internal-slots
         // The value of the [[LocaleExtensionKeys]] internal slot is a List that must include all elements of
-        // « "ca", "co", "fw"sv, "hc", "nu" », must additionally include any element of « "kf", "kn" » that is also an
+        // « "ca", "co", "fw", "hc", "nu" », must additionally include any element of « "kf", "kn" » that is also an
         // element of %Intl.Collator%.[[RelevantExtensionKeys]], and must not include any other elements.
         return AK::Array { "ca"sv, "co"sv, "fw"sv, "hc"sv, "kf"sv, "kn"sv, "nu"sv };
     }
@@ -84,11 +83,10 @@ private:
     mutable Optional<Unicode::LocaleID> m_cached_locale_id;
 };
 
-// Table 1: WeekInfo Record Fields, https://tc39.es/proposal-intl-locale-info/#table-locale-weekinfo-record
+// Table 27: WeekInfo Record Fields, https://tc39.es/ecma402/#sec-weekinfooflocale
 struct WeekInfo {
-    u8 minimal_days { 0 }; // [[MinimalDays]]
-    u8 first_day { 0 };    // [[FirstDay]]
-    Vector<u8> weekend;    // [[Weekend]]
+    u8 first_day { 0 }; // [[FirstDay]]
+    Vector<u8> weekend; // [[Weekend]]
 };
 
 Optional<String> get_locale_variants(Unicode::LocaleID const&);
@@ -97,9 +95,10 @@ GC::Ref<Array> calendars_of_locale(VM&, Locale const&);
 GC::Ref<Array> collations_of_locale(VM&, Locale const& locale);
 GC::Ref<Array> hour_cycles_of_locale(VM&, Locale const& locale);
 GC::Ref<Array> numbering_systems_of_locale(VM&, Locale const&);
-GC::Ref<Array> time_zones_of_locale(VM&, Locale const&);
-StringView weekday_to_string(StringView weekday);
-Optional<u8> string_to_weekday_value(StringView weekday);
+Value time_zones_of_locale(VM&, Locale const&);
+StringView text_direction_of_locale(Locale const&);
+StringView weekday_to_u_value(StringView weekday);
+Optional<u8> weekday_u_value_to_number(StringView weekday);
 WeekInfo week_info_of_locale(Locale const&);
 
 }

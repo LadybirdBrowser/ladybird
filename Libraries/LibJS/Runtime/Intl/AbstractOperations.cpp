@@ -23,8 +23,8 @@
 
 namespace JS::Intl {
 
-// 6.2.1 IsStructurallyValidLanguageTag ( locale ), https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
-bool is_structurally_valid_language_tag(StringView locale)
+// 6.2.1 IsWellFormedLanguageTag ( locale ), https://tc39.es/ecma402/#sec-iswellformedlanguagetag
+bool is_well_formed_language_tag(StringView locale)
 {
     auto contains_duplicate_variant = [&](auto& variants) {
         if (variants.is_empty())
@@ -309,8 +309,8 @@ ThrowCompletionOr<Vector<String>> canonicalize_locale_list(VM& vm, Value locales
                 tag = TRY(key_value.to_string(vm));
             }
 
-            // v. If ! IsStructurallyValidLanguageTag(tag) is false, throw a RangeError exception.
-            if (!is_structurally_valid_language_tag(tag))
+            // v. If IsWellFormedLanguageTag(tag) is false, throw a RangeError exception.
+            if (!is_well_formed_language_tag(tag))
                 return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
             // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
