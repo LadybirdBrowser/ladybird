@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/FlyString.h>
 #include <AK/RefPtr.h>
 #include <AK/Utf16String.h>
@@ -54,7 +55,7 @@ enum FontWidth {
 
 constexpr float text_shaping_resolution = 64;
 
-class Font : public RefCounted<Font> {
+class Font : public AtomicRefCounted<Font> {
 public:
     Font(NonnullRefPtr<Typeface const>, float point_width, float point_height, unsigned dpi_x, unsigned dpi_y, FontVariationSettings const variations, ShapeFeatures const& features);
     ScaledFontMetrics metrics() const;
