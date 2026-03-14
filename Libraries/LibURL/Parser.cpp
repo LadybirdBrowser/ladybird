@@ -20,6 +20,7 @@
 #include <LibTextCodec/Decoder.h>
 #include <LibTextCodec/Encoder.h>
 #include <LibURL/Parser.h>
+#include <LibURL/RustIntegration.h>
 #include <LibUnicode/IDNA.h>
 
 namespace URL {
@@ -708,6 +709,10 @@ static String remove_ascii_tab_or_newline(StringView input)
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
+#ifdef ENABLE_RUST
+    return RustIntegration::parse_basic_url(raw_input, base_url, url, state_override, encoding);
+#endif
+
     dbgln_if(URL_PARSER_DEBUG, "URL::Parser::basic_parse: Parsing '{}'", raw_input);
 
     size_t start_index = 0;

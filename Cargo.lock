@@ -737,6 +737,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "liburl_rust"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "libunicode_rust",
+]
+
+[[package]]
 name = "libwasm_cranelift"
 version = "0.1.0"
 dependencies = [
