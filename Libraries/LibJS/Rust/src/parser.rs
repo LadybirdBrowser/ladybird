@@ -60,6 +60,8 @@ pub(crate) const PRECEDENCE_COMMA: i32 = 0;
 pub(crate) const PRECEDENCE_ASSIGNMENT: i32 = 2;
 pub(crate) const PRECEDENCE_UNARY: i32 = 17;
 pub(crate) const PRECEDENCE_MEMBER: i32 = 19;
+// Conservative until we benchmark actual parser stack usage across targets.
+const MAX_PARSER_RECURSION_DEPTH: u32 = 1024;
 
 /// Result of parsing a function's formal parameter list.
 pub struct ParsedParameters {
@@ -298,6 +300,9 @@ pub struct Parser<'a> {
     /// `(a=(b=(c=0)))` where each failed arrow attempt would otherwise
     /// re-attempt inner positions during grouping expression re-parse.
     arrow_function_failed_positions: HashSet<usize>,
+    /// Recursive-descent parser nesting depth.
+    parse_recursion_depth: u32,
+    recursion_limit_exceeded: bool,
 }
 
 impl<'a> Parser<'a> {
@@ -342,6 +347,8 @@ impl<'a> Parser<'a> {
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
             arrow_function_failed_positions: HashSet::new(),
+            parse_recursion_depth: 0,
+            recursion_limit_exceeded: false,
         }
     }
 
@@ -599,6 +606,9 @@ impl<'a> Parser<'a> {
     // === Error reporting ===
 
     pub(crate) fn syntax_error(&mut self, message: &str) {
+        if self.recursion_limit_exceeded {
+            return;
+        }
         self.errors.push(ParseError {
             message: message.to_string(),
             line: self.current_token.line_number,
@@ -607,6 +617,9 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn syntax_error_at(&mut self, message: &str, line: u32, column: u32) {
+        if self.recursion_limit_exceeded {
+            return;
+        }
         self.errors.push(ParseError {
             message: message.to_string(),
             line,
@@ -616,6 +629,34 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn syntax_error_at_position(&mut self, message: &str, pos: Position) {
         self.syntax_error_at(message, pos.line, pos.column);
+    }
+
+    pub(crate) fn with_parser_recursion_guard<T, F>(&mut self, f: F) -> Option<T>
+    where
+        F: FnOnce(&mut Self) -> T,
+    {
+        self.parse_recursion_depth += 1;
+        if self.parse_recursion_depth > MAX_PARSER_RECURSION_DEPTH {
+            self.parse_recursion_depth -= 1;
+            if !self.recursion_limit_exceeded {
+                self.recursion_limit_exceeded = true;
+                self.errors.push(ParseError {
+                    message: "Maximum parser recursion depth exceeded".to_string(),
+                    line: self.current_token.line_number,
+                    column: self.current_token.line_column,
+                });
+            }
+            return None;
+        }
+
+        let result = f(self);
+        debug_assert!(self.parse_recursion_depth > 0);
+        self.parse_recursion_depth -= 1;
+        Some(result)
+    }
+
+    pub(crate) fn should_abort_parsing(&self) -> bool {
+        self.recursion_limit_exceeded
     }
 
     /// Register a referenced private name. Returns true if we're inside a class
@@ -1002,7 +1043,7 @@ impl<'a> Parser<'a> {
         }
 
         children.extend(self.parse_statement_list(true));
-        if !self.done() {
+        if !self.done() && !self.should_abort_parsing() {
             if self.flags.in_function_context {
                 self.expected("CurlyClose");
             } else {
@@ -1030,9 +1071,12 @@ impl<'a> Parser<'a> {
         let mut children = Vec::new();
 
         while !self.done() {
+            if self.should_abort_parsing() {
+                break;
+            }
             children.extend(self.parse_statement_list(true));
 
-            if self.done() {
+            if self.done() || self.should_abort_parsing() {
                 break;
             }
 
@@ -1049,7 +1093,9 @@ impl<'a> Parser<'a> {
         }
 
         // Check that all exported bindings are declared in the module.
-        self.check_undeclared_exports(&children);
+        if !self.should_abort_parsing() {
+            self.check_undeclared_exports(&children);
+        }
 
         self.flags.strict_mode = strict_before;
         self.flags.await_expression_is_valid = await_before;
@@ -1103,7 +1149,7 @@ impl<'a> Parser<'a> {
     pub(crate) fn parse_directive(&mut self) -> (bool, Vec<Statement>) {
         let mut found_use_strict = false;
         let mut statements = Vec::new();
-        while !self.done() && self.match_token(TokenType::StringLiteral) {
+        while !self.done() && !self.should_abort_parsing() && self.match_token(TokenType::StringLiteral) {
             let raw_value = self.token_original_value(&self.current_token);
             let statement = self.parse_statement(false);
             statements.push(statement);
@@ -1121,20 +1167,26 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_statement_list(&mut self, allow_labelled_functions: bool) -> Vec<Statement> {
-        let mut statements = Vec::new();
-        while !self.done() {
-            if self.match_export_or_import() {
-                break;
+        self.with_parser_recursion_guard(|parser| {
+            let mut statements = Vec::new();
+            while !parser.done() {
+                if parser.should_abort_parsing() {
+                    break;
+                }
+                if parser.match_export_or_import() {
+                    break;
+                }
+                if parser.match_declaration() {
+                    statements.push(parser.parse_declaration());
+                } else if parser.match_statement() {
+                    statements.push(parser.parse_statement(allow_labelled_functions));
+                } else {
+                    break;
+                }
             }
-            if self.match_declaration() {
-                statements.push(self.parse_declaration());
-            } else if self.match_statement() {
-                statements.push(self.parse_statement(allow_labelled_functions));
-            } else {
-                break;
-            }
-        }
-        statements
+            statements
+        })
+        .unwrap_or_default()
     }
 
     pub(crate) fn match_statement(&mut self) -> bool {
