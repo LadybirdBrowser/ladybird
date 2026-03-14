@@ -8,13 +8,12 @@
 
 #include <AK/ByteReader.h>
 #include <AK/MemoryStream.h>
-#include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
-#include <LibIPC/File.h>
 #include <LibIPC/Transport.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MessagePortPrototype.h>
@@ -107,13 +106,12 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataEncoder&
         if (m_remote_port)
             m_remote_port->m_has_been_shipped = true;
 
-        auto fd = MUST(m_transport->release_underlying_transport_for_transfer());
+        auto handle = MUST(m_transport->release_for_transfer());
         m_transport.clear();
 
         // 2. Set dataHolder.[[RemotePort]] to remotePort.
-        // TODO: Mach IPC
         data_holder.encode(IPC_FILE_TAG);
-        data_holder.encode(IPC::File::adopt_fd(fd));
+        data_holder.encode(handle);
     }
     // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
     else {
@@ -135,9 +133,8 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     // 3. If dataHolder.[[RemotePort]] is not null, then entangle dataHolder.[[RemotePort]] and value.
     //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)
     if (auto fd_tag = data_holder.decode<u8>(); fd_tag == IPC_FILE_TAG) {
-        // TODO: Mach IPC
-        auto fd = data_holder.decode<IPC::File>();
-        m_transport = make<IPC::Transport>(MUST(Core::LocalSocket::adopt_fd(fd.take_fd())));
+        auto handle = data_holder.decode<IPC::TransportHandle>();
+        m_transport = MUST(handle.create_transport());
 
         m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
             if (strong_this->m_enabled)
@@ -185,7 +182,7 @@ void MessagePort::entangle_with(MessagePort& remote_port)
 
     auto paired = MUST(IPC::Transport::create_paired());
     m_transport = move(paired.local);
-    m_remote_port->m_transport = move(paired.remote);
+    m_remote_port->m_transport = MUST(paired.remote_handle.create_transport());
 
     m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
         if (strong_this->m_enabled)

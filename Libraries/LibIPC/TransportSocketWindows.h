@@ -10,6 +10,7 @@
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
+#include <LibIPC/TransportHandle.h>
 
 namespace IPC {
 
@@ -20,7 +21,7 @@ class TransportSocketWindows {
 public:
     struct Paired {
         NonnullOwnPtr<TransportSocketWindows> local;
-        NonnullOwnPtr<TransportSocketWindows> remote;
+        TransportHandle remote_handle;
     };
     static ErrorOr<Paired> create_paired();
 
@@ -46,8 +47,7 @@ public:
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
-    // Obnoxious name to make it clear that this is a dangerous operation.
-    ErrorOr<int> release_underlying_transport_for_transfer();
+    ErrorOr<TransportHandle> release_for_transfer();
 
 private:
     ErrorOr<void> duplicate_handles(Bytes, Vector<size_t> const& handle_offsets);

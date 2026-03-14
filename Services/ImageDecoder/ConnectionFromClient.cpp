@@ -58,7 +58,7 @@ Messages::ImageDecoderServer::InitTransportResponse ConnectionFromClient::init_t
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::connect_new_client()
 {
     auto paired = TRY(IPC::Transport::create_paired());
-    auto handle = TRY(IPC::TransportHandle::from_transport(*paired.remote));
+    auto handle = move(paired.remote_handle);
 
     // Note: A ref is stored in the static s_connections map
     auto client = adopt_ref(*new ConnectionFromClient(move(paired.local)));

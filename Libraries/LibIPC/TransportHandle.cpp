@@ -18,16 +18,10 @@ TransportHandle::TransportHandle(File file)
 {
 }
 
-ErrorOr<TransportHandle> TransportHandle::from_transport(Transport& transport)
-{
-    auto fd = TRY(transport.release_underlying_transport_for_transfer());
-    return TransportHandle { File::adopt_fd(fd) };
-}
-
 ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 {
     auto socket = TRY(Core::LocalSocket::adopt_fd(m_file.take_fd()));
-    TRY(socket->set_blocking(true));
+    TRY(socket->set_blocking(false));
     return make<Transport>(move(socket));
 }
 

@@ -10,8 +10,10 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
 #include <LibCore/System.h>
+#include <LibIPC/File.h>
 #include <LibIPC/HandleType.h>
 #include <LibIPC/Limits.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocketWindows.h>
 
 #include <AK/Windows.h>
@@ -31,14 +33,12 @@ ErrorOr<TransportSocketWindows::Paired> TransportSocketWindows::create_paired()
     TRY(socket0->set_close_on_exec(true));
     TRY(socket0->set_blocking(false));
 
-    auto socket1 = TRY(Core::LocalSocket::adopt_fd(fds[1]));
+    TRY(Core::System::set_close_on_exec(fds[1], true));
     guard_fd_1.disarm();
-    TRY(socket1->set_close_on_exec(true));
-    TRY(socket1->set_blocking(false));
 
     return Paired {
         make<TransportSocketWindows>(move(socket0)),
-        make<TransportSocketWindows>(move(socket1)),
+        TransportHandle { File::adopt_fd(fds[1]) },
     };
 }
 
@@ -272,9 +272,10 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
     return should_shutdown;
 }
 
-ErrorOr<int> TransportSocketWindows::release_underlying_transport_for_transfer()
+ErrorOr<TransportHandle> TransportSocketWindows::release_for_transfer()
 {
-    return m_socket->release_fd();
+    auto fd = TRY(m_socket->release_fd());
+    return TransportHandle { File::adopt_fd(fd) };
 }
 
 }

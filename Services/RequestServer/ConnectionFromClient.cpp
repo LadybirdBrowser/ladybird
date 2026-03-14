@@ -141,7 +141,7 @@ Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect
 ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket()
 {
     auto paired = TRY(IPC::Transport::create_paired());
-    auto handle = TRY(IPC::TransportHandle::from_transport(*paired.remote));
+    auto handle = move(paired.remote_handle);
 
     // Note: A ref is stored in the m_connections map
     auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, m_connections, m_disk_cache));
