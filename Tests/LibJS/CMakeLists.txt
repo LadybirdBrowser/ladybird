@@ -1,7 +1,10 @@
 ladybird_test(test-value-js.cpp LibJS LIBS LibJS LibUnicode)
 
 ladybird_testjs_test(test-js.cpp test-js LIBS LibGC)
-set_tests_properties(test-js PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT})
+set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT};LIBJS_TEST_PARSER_MODE=rust")
+
+add_test(NAME test-js-cpp COMMAND $<TARGET_FILE:test-js>)
+set_tests_properties(test-js-cpp PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_PROJECT_ROOT};LIBJS_TEST_PARSER_MODE=cpp")
 
 if (NOT WIN32)
     add_custom_target(test-js-bytecode ALL DEPENDS test-js "${CMAKE_BINARY_DIR}/bin/test-js-bytecode")
