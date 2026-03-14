@@ -49,7 +49,7 @@ template<typename U>
 Weak<T>& Weak<T>::operator=(U const& other)
 requires(IsConvertible<U*, T*>)
 {
-    if (ptr() != other) {
+    if (ptr() != &other) {
         m_impl = *other.heap().create_weak_impl(const_cast<void*>(static_cast<void const*>(&other)));
     }
     return *this;
