@@ -460,8 +460,17 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         // -> request’s current URL’s origin is same origin with request’s origin, and request’s response tainting is "basic"
         // -> request’s current URL’s scheme is "data"
         // -> request’s mode is "navigate" or "websocket"
+        // AD-HOC: Treat file:// font loads from file:// pages as same-origin.
+        //         Fonts require CORS mode per spec, but file:// origins are opaque in our implementation,
+        //         so the standard same-origin check always fails. Other browsers (Chromium, WebKit, Firefox)
+        //         all allow loading fonts from file:// URLs on file:// pages.
+        auto is_file_to_file_font_load = origin && origin->is_opaque_file_origin()
+            && request->current_url().scheme() == "file"sv
+            && request->destination() == Infrastructure::Request::Destination::Font;
+
         if (
             (origin && request->current_url().origin().is_same_origin(*origin) && request->response_tainting() == Infrastructure::Request::ResponseTainting::Basic)
+            || is_file_to_file_font_load
             || request->current_url().scheme() == "data"sv
             || (request->mode() == Infrastructure::Request::Mode::Navigate || request->mode() == Infrastructure::Request::Mode::WebSocket)) {
             // 1. Set request’s response tainting to "basic".
