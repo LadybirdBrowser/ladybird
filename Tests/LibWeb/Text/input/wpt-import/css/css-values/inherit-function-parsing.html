@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>CSS Values: The inherit() function (parsing)</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#inherit-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/parsing-testcommon.js"></script>
+<script>
+  // 'left' chosen arbitrarily:
+  test_valid_value('left', 'inherit(--x)');
+  test_valid_value('left', 'calc(inherit(--x) + 1px)');
+  test_valid_value('left', 'inherit(--x,)');
+  test_valid_value('left', 'inherit(--x, )');
+  test_valid_value('left', 'inherit(--x , )');
+  test_valid_value('left', 'inherit(--x, foo)');
+  test_invalid_value('left', 'inherit(!!, foo)');
+  test_invalid_value('left', 'inherit(, foo)');
+</script>

@@ -69,6 +69,8 @@ Optional<ArbitrarySubstitutionFunction> to_arbitrary_substitution_function(FlySt
         return ArbitrarySubstitutionFunction::Env;
     if (name.equals_ignoring_ascii_case("if"sv))
         return ArbitrarySubstitutionFunction::If;
+    if (name.equals_ignoring_ascii_case("inherit"sv))
+        return ArbitrarySubstitutionFunction::Inherit;
     if (name.equals_ignoring_ascii_case("var"sv))
         return ArbitrarySubstitutionFunction::Var;
     return {};
@@ -345,6 +347,44 @@ static Vector<ComponentValue> replace_an_if_function(DOM::AbstractElement& eleme
     return {};
 }
 
+// https://drafts.csswg.org/css-values-5/#replace-an-inherit-function
+static Vector<ComponentValue> replace_an_inherit_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
+{
+    // To replace an inherit() function, given a list of arguments:
+    auto declaration_value_list = arguments.get<DeclarationValueList>();
+    auto const& first_argument = declaration_value_list.first();
+    auto const second_argument = declaration_value_list.get(1);
+
+    // 1. Substitute arbitrary substitution functions in the first <declaration-value> of arguments, then parse it as a
+    //    <custom-property-name>.
+    auto substituted_first_argument = substitute_arbitrary_substitution_functions(element, guarded_contexts, first_argument);
+
+    TokenStream first_argument_tokens { substituted_first_argument };
+    first_argument_tokens.discard_whitespace();
+    auto const& name_token = first_argument_tokens.consume_a_token();
+    first_argument_tokens.discard_whitespace();
+
+    // 2. If parsing returned a <custom-property-name>, and the inherited value of that custom property on the element
+    //    does not contain the guaranteed-invalid value, return that inherited value.
+    if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
+        if (auto element_to_inherit_style_from = element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
+            if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(name_token.token().ident())) {
+                auto inherited_value_tokens = inherited_value->tokenize();
+                if (!contains_guaranteed_invalid_value(inherited_value_tokens))
+                    return inherited_value_tokens;
+            }
+        }
+    }
+
+    // 3. Otherwise, if a second <declaration-value>? was passed in arguments, substitute arbitrary substitution
+    //    functions in that argument, and return the result.
+    if (second_argument.has_value())
+        return substitute_arbitrary_substitution_functions(element, guarded_contexts, second_argument.value());
+
+    // 4. Otherwise, return the guaranteed-invalid value.
+    return { ComponentValue { GuaranteedInvalidValue {} } };
+}
+
 // https://drafts.csswg.org/css-variables-1/#replace-a-var-function
 static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -571,6 +611,10 @@ Optional<ArbitrarySubstitutionFunctionArguments> parse_according_to_argument_gra
 
         return return_if_no_remaining_tokens(args);
     }
+    case ArbitrarySubstitutionFunction::Inherit:
+        // https://drafts.csswg.org/css-values-5/#inherit-notation
+        // <inherit-args> = inherit( <declaration-value>, <declaration-value>? )
+        return return_if_no_remaining_tokens(parse_declaration_value_then_optional_declaration_value(tokens, Token::Type::Comma).map([](DeclarationValueList const& list) -> ArbitrarySubstitutionFunctionArguments { return list; }));
     case ArbitrarySubstitutionFunction::Var:
         // https://drafts.csswg.org/css-variables/#funcdef-var
         // <var-args> = var( <declaration-value> , <declaration-value>? )
@@ -589,6 +633,8 @@ Vector<ComponentValue> replace_an_arbitrary_substitution_function(DOM::AbstractE
         return replace_an_env_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::If:
         return replace_an_if_function(element, guarded_contexts, arguments);
+    case ArbitrarySubstitutionFunction::Inherit:
+        return replace_an_inherit_function(element, guarded_contexts, arguments);
     case ArbitrarySubstitutionFunction::Var:
         return replace_a_var_function(element, guarded_contexts, arguments);
     }

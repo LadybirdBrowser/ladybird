@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<title>CSS Values: The inherit() function (basic behavior)</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#inherit-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main>
+</main>
+
+<template id=inherit_immediate_parent>
+  <style>
+    #parent {
+      --z: 2;
+    }
+    #target {
+      --z: 13;
+      z-index: inherit(--z);
+    }
+  </style>
+  <div id=parent>
+    <div id=target>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_immediate_parent.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(target).zIndex, '2');
+  }, 'inherit() on value set on parent');
+</script>
+
+<template id=inherit_ancestor>
+  <style>
+    :root {
+      --z: 2;
+    }
+    #foo {
+      --z: 13;
+      z-index: inherit(--z);
+    }
+  </style>
+  <div id=foo>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_ancestor.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(foo).zIndex, '2');
+  }, 'inherit() on value set on ancestor');
+</script>
+
+<template id=inherit_fallback>
+  <style>
+    #foo {
+      --z: 13;
+      z-index: inherit(--z, 4);
+    }
+  </style>
+  <div id=foo>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_fallback.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(foo).zIndex, '4');
+  }, 'inherit(), no value set on parent');
+</script>
+
+<template id=inherit_accumulate_values>
+  <style>
+    #e1 { --v: e1; }
+    #e2 { --v: e2 inherit(--v); }
+    #e3 { --v: e3 inherit(--v); }
+  </style>
+  <div id=e1>
+    <div id=e2>
+      <div id=e3>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_accumulate_values.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(e3).getPropertyValue('--v'), 'e3 e2 e1');
+  }, 'inherit(), accumulating values');
+</script>
+
+<template id=inherit_accumulate_font_size>
+  <style>
+    @property --f {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 0px;
+    }
+    #e1 { font-size: 3px; --f: 1em; }
+    #e2 { font-size: 5px; --f: calc(1em + inherit(--f)); }
+    #e3 { font-size: 7px; --f: calc(1em + inherit(--f)); }
+  </style>
+  <div id=e1>
+    <div id=e2>
+      <div id=e3>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_accumulate_font_size.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(e3).getPropertyValue('--f'), '15px');
+  }, 'inherit(), accumulating font-size');
+</script>
+
+<template id=inherit_within_if>
+  <style>
+    #parent {
+      --z: 2;
+    }
+    #target {
+      --z: 13;
+      z-index: if(style(--z > inherit(--z)):4; else:7);
+    }
+  </style>
+  <div id=parent>
+    <div id=target>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(inherit_within_if.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(target).zIndex, '4');
+  }, 'inherit() can be used within if()');
+</script>

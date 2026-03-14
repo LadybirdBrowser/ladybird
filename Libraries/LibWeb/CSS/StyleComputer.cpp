@@ -2196,6 +2196,7 @@ void StyleComputer::compute_custom_properties(ComputedProperties&, DOM::Abstract
         return;
     }
 
+    // FIXME: We should update in place so that non-recomputed children aren't left pointing at stale data
     abstract_element.set_custom_property_data(
         CustomPropertyData::create(move(resolved_own), parent_data ? move(parent_data) : data->parent()));
 }

@@ -5842,6 +5842,8 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
         element.element().set_style_uses_attr_css_function();
     if (unresolved.includes_if_function())
         element.element().set_style_uses_if_css_function();
+    if (unresolved.includes_inherit_function())
+        element.element().set_style_uses_inherit_css_function();
     if (unresolved.includes_var_function())
         element.element().set_style_uses_var_css_function();
 

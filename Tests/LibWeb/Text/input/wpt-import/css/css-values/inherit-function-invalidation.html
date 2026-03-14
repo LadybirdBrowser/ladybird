@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<title>CSS Values: The inherit() function (invalidation)</title>
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#inherit-notation">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<main id=main>
+</main>
+
+<template id=parent_change_unregistered>
+  <style>
+    #outer {
+      --z: 2;
+    }
+    #target {
+      z-index: inherit(--z);
+    }
+  </style>
+  <div id=outer>
+    <div id=target>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(parent_change_unregistered.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(target).zIndex, '2');
+    assert_equals(getComputedStyle(target).getPropertyValue('--z'), '2');
+    outer.style.setProperty('--z', '4');
+    assert_equals(getComputedStyle(target).zIndex, '4');
+    assert_equals(getComputedStyle(target).getPropertyValue('--z'), '4');
+  }, 'inherit() invalidates when values changes on parent element, inherited');
+</script>
+
+<!-- Like the previous test, but #target is buried deeper. -->
+<template id=parent_change_unregistered_deep>
+  <style>
+    #outer {
+      --z: 2;
+    }
+    #target {
+      z-index: inherit(--z, 7);
+    }
+  </style>
+  <div id=outer>
+    <div>
+      <div>
+        <div>
+          <div id=target></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(parent_change_unregistered_deep.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(target).zIndex, '2');
+    outer.style.setProperty('--z', '4');
+    assert_equals(getComputedStyle(target).zIndex, '4');
+  }, 'inherit() invalidates when values changes on parent element, inherited, deeper');
+</script>
+
+<template id=parent_change_registered>
+  <style>
+    @property --z {
+      syntax: "<integer>";
+      inherits: false;
+      initial-value: 0;
+    }
+    #outer {
+      --z: 2;
+    }
+    #target {
+      z-index: inherit(--z, 7);
+    }
+  </style>
+  <div id=outer>
+    <div id=target>
+    </div>
+  </div>
+</template>
+<script>
+  test((t) => {
+    main.append(parent_change_registered.content.cloneNode(true));
+    t.add_cleanup(() => { main.replaceChildren(); });
+    assert_equals(getComputedStyle(target).zIndex, '2');
+    assert_equals(getComputedStyle(target).getPropertyValue('--z'), '0');
+    outer.style.setProperty('--z', '4');
+    assert_equals(getComputedStyle(target).zIndex, '4');
+    assert_equals(getComputedStyle(target).getPropertyValue('--z'), '0');
+  }, 'inherit() invalidates when values changes on parent element, non-inherited');
+</script>

@@ -76,6 +76,8 @@ void Function::contains_arbitrary_substitution_function(SubstitutionFunctionsPre
         presence.env = true;
     else if (name.equals_ignoring_ascii_case("if"sv))
         presence.if_ = true;
+    else if (name.equals_ignoring_ascii_case("inherit"sv))
+        presence.inherit = true;
     else if (name.equals_ignoring_ascii_case("var"sv))
         presence.var = true;
     for (auto const& component_value : value) {
