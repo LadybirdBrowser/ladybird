@@ -4,6 +4,7 @@ members = [
     "Libraries/LibJS/Rust",
     "Libraries/LibRegex/Rust",
     "Libraries/LibUnicode/Rust",
+    "Libraries/LibURL/Rust",
     "Libraries/LibWasm/Rust",
     "Libraries/LibWeb/ContentBlocker/Rust",
     "Libraries/LibWeb/Rust",

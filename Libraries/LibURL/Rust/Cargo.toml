@@ -1,0 +1,18 @@
+[package]
+name = "liburl_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+libunicode_rust = { path = "../../LibUnicode/Rust" }
+
+[features]
+default = []
+allocator = []
+debug-validation-errors = []
+
+[build-dependencies]
+cbindgen = "0.29"
