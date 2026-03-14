@@ -21,6 +21,18 @@ enum LocalForInit {
 impl<'a> Parser<'a> {
     pub(crate) fn parse_statement(&mut self, allow_labelled_function: bool) -> Statement {
         let start = self.position();
+        if self.should_abort_parsing() {
+            return self.statement(start, StatementKind::Empty);
+        }
+
+        self.with_parser_recursion_guard(|parser| {
+            parser.parse_statement_impl(allow_labelled_function)
+        })
+        .unwrap_or_else(|| self.statement(start, StatementKind::Empty))
+    }
+
+    fn parse_statement_impl(&mut self, allow_labelled_function: bool) -> Statement {
+        let start = self.position();
         let tt = self.current_token_type();
 
         match tt {
@@ -82,6 +94,9 @@ impl<'a> Parser<'a> {
         let mut children = Vec::new();
 
         while !self.match_token(TokenType::CurlyClose) && !self.done() {
+            if self.should_abort_parsing() {
+                break;
+            }
             if self.match_declaration() {
                 children.push(self.parse_declaration());
             } else {
@@ -609,6 +624,9 @@ impl<'a> Parser<'a> {
         let mut cases = Vec::new();
         let mut has_default = false;
         while !self.match_token(TokenType::CurlyClose) && !self.done() {
+            if self.should_abort_parsing() {
+                break;
+            }
             let case = self.parse_switch_case();
             if case.test.is_none() {
                 if has_default {
@@ -658,6 +676,9 @@ impl<'a> Parser<'a> {
             && !self.match_token(TokenType::Default)
             && !self.done()
         {
+            if self.should_abort_parsing() {
+                break;
+            }
             if self.match_declaration() {
                 children.push(self.parse_declaration());
             } else {
