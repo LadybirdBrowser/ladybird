@@ -12,7 +12,7 @@
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/AutoCloseFileDescriptor.h>
-#include <LibIPC/Forward.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
 
@@ -43,7 +43,7 @@ public:
 
     struct Paired {
         NonnullOwnPtr<TransportSocket> local;
-        NonnullOwnPtr<TransportSocket> remote;
+        TransportHandle remote_handle;
     };
     static ErrorOr<Paired> create_paired();
 
@@ -70,8 +70,7 @@ public:
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
-    // Obnoxious name to make it clear that this is a dangerous operation.
-    ErrorOr<int> release_underlying_transport_for_transfer();
+    ErrorOr<TransportHandle> release_for_transfer();
 
 private:
     enum class TransferState {

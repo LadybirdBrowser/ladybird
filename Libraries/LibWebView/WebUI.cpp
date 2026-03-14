@@ -17,7 +17,7 @@ template<typename WebUIType>
 static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client, String host)
 {
     auto paired = TRY(IPC::Transport::create_paired());
-    auto handle = TRY(IPC::TransportHandle::from_transport(*paired.remote));
+    auto handle = move(paired.remote_handle);
 
     auto web_ui = WebUIType::create(client, move(paired.local), move(host));
     client.async_connect_to_web_ui(0, move(handle));

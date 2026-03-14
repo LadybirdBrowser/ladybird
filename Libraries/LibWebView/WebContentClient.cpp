@@ -791,7 +791,7 @@ Messages::WebContentClient::RequestWorkerAgentResponse WebContentClient::request
         auto request_server_handle = MUST(connect_new_request_server_client());
         auto image_decoder_handle = MUST(connect_new_image_decoder_client());
         auto worker_client = MUST(WebView::launch_web_worker_process(worker_type));
-        auto worker_handle = MUST(IPC::TransportHandle::from_transport(worker_client->transport()));
+        auto worker_handle = MUST(worker_client->transport().release_for_transfer());
         return { move(worker_handle), move(request_server_handle), move(image_decoder_handle) };
     }
 

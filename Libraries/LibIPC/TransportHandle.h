@@ -31,13 +31,11 @@ public:
     TransportHandle(TransportHandle&&) = default;
     TransportHandle& operator=(TransportHandle&&) = default;
 
-    static ErrorOr<TransportHandle> from_transport(Transport& transport);
-
     ErrorOr<NonnullOwnPtr<Transport>> create_transport() const;
 
-private:
     explicit TransportHandle(File);
 
+private:
     template<typename U>
     friend ErrorOr<void> encode(Encoder&, U const&);
 

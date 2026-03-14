@@ -12,7 +12,9 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/Attachment.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Limits.h>
+#include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocket.h>
 #include <LibThreading/Thread.h>
 
@@ -31,14 +33,13 @@ ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
     TRY(socket0->set_close_on_exec(true));
     TRY(socket0->set_blocking(false));
 
-    auto socket1 = TRY(Core::LocalSocket::adopt_fd(fds[1]));
+    TRY(Core::System::set_close_on_exec(fds[1], true));
     guard_fd_1.disarm();
-    TRY(socket1->set_close_on_exec(true));
-    TRY(socket1->set_blocking(false));
 
+    // Local side gets a full transport; remote side is just a handle containing the raw fd for transfer to another process.
     return Paired {
         make<TransportSocket>(move(socket0)),
-        make<TransportSocket>(move(socket1)),
+        TransportHandle { File::adopt_fd(fds[1]) },
     };
 }
 
@@ -504,10 +505,11 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
     return m_peer_eof ? ShouldShutdown::Yes : ShouldShutdown::No;
 }
 
-ErrorOr<int> TransportSocket::release_underlying_transport_for_transfer()
+ErrorOr<TransportHandle> TransportSocket::release_for_transfer()
 {
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
-    return m_socket->release_fd();
+    auto fd = TRY(m_socket->release_fd());
+    return TransportHandle { File::adopt_fd(fd) };
 }
 
 }
