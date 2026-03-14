@@ -165,6 +165,18 @@ impl<'a> Parser<'a> {
         associativity: Associativity,
         forbidden: ForbiddenTokens,
     ) -> Expression {
+        self.with_parser_recursion_guard(|parser| {
+            parser.parse_expression_inner(min_precedence, associativity, forbidden)
+        })
+        .unwrap_or_else(|| self.expression(self.position(), ExpressionKind::Error))
+    }
+
+    fn parse_expression_inner(
+        &mut self,
+        min_precedence: i32,
+        associativity: Associativity,
+        forbidden: ForbiddenTokens,
+    ) -> Expression {
         if self.match_unary_prefixed_expression() {
             let start = self.position();
             let expression = self.parse_unary_prefixed_expression();
