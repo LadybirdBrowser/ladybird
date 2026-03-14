@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+1 Pass
+2 Fail
+Pass	inherit() invalidates when values changes on parent element, inherited
+Fail	inherit() invalidates when values changes on parent element, inherited, deeper
+Fail	inherit() invalidates when values changes on parent element, non-inherited
