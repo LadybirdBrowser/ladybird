@@ -332,7 +332,6 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
 {
     // Layout for a nested SVG viewport.
     // https://svgwg.org/svg2-draft/coords.html#EstablishingANewSVGViewport.
-    SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, m_current_viewbox_transform);
     auto& nested_viewport_state = m_state.get_mutable(viewport);
     auto resolve_dimension = [](auto& node, auto size, auto reference_value) {
         // The value auto for width and height on the ‘svg’ element is treated as 100%.
@@ -346,11 +345,32 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     auto nested_viewport_y = viewport.computed_values().y().to_px(viewport, m_viewport_size.height());
     auto nested_viewport_width = resolve_dimension(viewport, viewport.computed_values().width(), m_viewport_size.width());
     auto nested_viewport_height = resolve_dimension(viewport, viewport.computed_values().height(), m_viewport_size.height());
-    nested_viewport_state.set_content_offset({ nested_viewport_x, nested_viewport_y });
-    nested_viewport_state.set_content_width(nested_viewport_width);
-    nested_viewport_state.set_content_height(nested_viewport_height);
+
+    CSSPixelPoint content_offset { nested_viewport_x, nested_viewport_y };
+    auto content_width = nested_viewport_width;
+    auto content_height = nested_viewport_height;
+    auto parent_viewbox_transform = m_current_viewbox_transform;
+
+    auto* svg_element = as_if<SVG::SVGSVGElement>(*viewport.dom_node());
+    if (svg_element && svg_element->view_box().has_value()) {
+        // FIXME: Avoid converting SVG box to floats.
+        Gfx::FloatRect nested_rect {
+            { nested_viewport_x.to_float(), nested_viewport_y.to_float() },
+            { nested_viewport_width.to_float(), nested_viewport_height.to_float() }
+        };
+        auto mapped_rect = m_current_viewbox_transform.map(nested_rect);
+        content_offset = mapped_rect.location().to_type<CSSPixels>();
+        content_width = CSSPixels(mapped_rect.width());
+        content_height = CSSPixels(mapped_rect.height());
+        parent_viewbox_transform = {};
+    }
+
+    nested_viewport_state.set_content_offset(content_offset);
+    nested_viewport_state.set_content_width(content_width);
+    nested_viewport_state.set_content_height(content_height);
     nested_viewport_state.set_has_definite_width(true);
     nested_viewport_state.set_has_definite_height(true);
+    SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, parent_viewbox_transform);
     nested_context.run(*m_available_space);
 }
 
