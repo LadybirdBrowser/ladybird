@@ -26,7 +26,7 @@ use std::ffi::c_void;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::u32_from_usize;
+use std::collections::HashMap;
 
 // =============================================================================
 // Function table (side table for FunctionData)
@@ -34,7 +34,7 @@ use crate::u32_from_usize;
 
 /// Opaque handle into the `FunctionTable`. Copy + Clone so AST nodes can
 /// freely duplicate it without cloning the underlying `FunctionData`.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
 pub struct FunctionId(u32);
 
 /// Flat side table that owns all `FunctionData` produced during parsing.
@@ -46,7 +46,10 @@ pub struct FunctionId(u32);
 /// `take()` replaces the slot with `None` so each `FunctionData` is
 /// moved out exactly once (during codegen / GDI). This eliminates the
 /// deep clone that was previously required in `create_shared_function_data`.
-pub struct FunctionTable(Vec<Option<Box<FunctionData>>>);
+pub struct FunctionTable {
+    functions: HashMap<FunctionId, Box<FunctionData>>,
+    next_id: u32,
+}
 
 impl Default for FunctionTable {
     fn default() -> Self {
@@ -56,13 +59,17 @@ impl Default for FunctionTable {
 
 impl FunctionTable {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self {
+            functions: HashMap::default(),
+            next_id: 0,
+        }
     }
 
     /// Insert a `FunctionData`, returning a `FunctionId` handle.
     pub fn insert(&mut self, data: FunctionData) -> FunctionId {
-        let id = FunctionId(u32_from_usize(self.0.len()));
-        self.0.push(Some(Box::new(data)));
+        let id = FunctionId(self.next_id);
+        self.next_id += 1;
+        self.functions.insert(id, Box::new(data));
         id
     }
 
@@ -71,8 +78,8 @@ impl FunctionTable {
     /// # Panics
     /// Panics if the slot was already taken.
     pub fn get(&self, id: FunctionId) -> &FunctionData {
-        self.0[id.0 as usize]
-            .as_ref()
+        self.functions
+            .get(&id)
             .expect("FunctionTable::get: slot already taken")
     }
 
@@ -81,31 +88,19 @@ impl FunctionTable {
     /// # Panics
     /// Panics if the slot was already taken.
     pub fn take(&mut self, id: FunctionId) -> Box<FunctionData> {
-        let idx = id.0 as usize;
-        if idx >= self.0.len() {
-            panic!(
-                "FunctionTable::take: index {} out of bounds (table len {})",
-                idx,
-                self.0.len()
-            );
-        }
-        self.0[idx]
-            .take()
+        self.functions
+            .remove(&id)
             .expect("FunctionTable::take: slot already taken")
     }
 
     /// Take ownership if the slot is still present; returns None if already taken.
     fn try_take(&mut self, id: FunctionId) -> Option<Box<FunctionData>> {
-        self.0.get_mut(id.0 as usize).and_then(|slot| slot.take())
+        self.functions.remove(&id)
     }
 
-    /// Insert a `Box<FunctionData>` at a specific id, growing the table if needed.
+    /// Insert a `Box<FunctionData>` at a specific id.
     fn insert_at(&mut self, id: FunctionId, data: Box<FunctionData>) {
-        let idx = id.0 as usize;
-        if idx >= self.0.len() {
-            self.0.resize_with(idx + 1, || None);
-        }
-        self.0[idx] = Some(data);
+        self.functions.insert(id, data);
     }
 
     /// Extract a subtable containing all `FunctionId`s reachable from the
