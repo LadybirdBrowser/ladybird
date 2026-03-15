@@ -873,6 +873,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // NOTE: Dispatching an event may have disturbed the world.
     if (m_navigable->active_document() != document)
         return EventResult::Accepted;
+    if (!document->is_fully_active())
+        return EventResult::Accepted;
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!paint_root())
         return EventResult::Accepted;
@@ -890,7 +892,9 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     else if (auto focused_area = document->focused_area())
         HTML::run_unfocusing_steps(focused_area);
 
-    // NOTE: Focusing may have invalidated layout.
+    // NOTE: Focusing may have invalidated layout or made the document inactive.
+    if (!document->is_fully_active())
+        return EventResult::Handled;
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
     if (!paint_root())
         return EventResult::Handled;
@@ -1454,7 +1458,10 @@ EventResult EventHandler::focus_previous_element()
 
 GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(CSSPixelPoint visual_viewport_position) const
 {
-    auto exact_hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
+    auto root = paint_root();
+    if (!root)
+        return {};
+    auto exact_hit = root->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
     if (!exact_hit.has_value())
         return {};
 
