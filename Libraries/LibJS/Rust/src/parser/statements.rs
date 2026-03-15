@@ -941,8 +941,10 @@ impl<'a> Parser<'a> {
                 ForInOfLhs::Declaration(Box::new(declaration))
             }
             LocalForInit::Expression(expression) => {
-                if Self::is_array_expression(&expression) || Self::is_object_expression(&expression)
-                {
+                if matches!(
+                    &expression.inner,
+                    ExpressionKind::Array(_) | ExpressionKind::Object(_)
+                ) {
                     match self.synthesize_binding_pattern(init_start) {
                         Some(pattern) => {
                             for (name, id) in self.pattern_bound_names.drain(..) {

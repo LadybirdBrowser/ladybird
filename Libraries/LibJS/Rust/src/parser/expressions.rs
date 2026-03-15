@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
             // This prevents ambiguity like `-x ** y` (is it `(-x) ** y` or `-(x ** y)`?).
             // ++x ** y and --x ** y are valid (they're UpdateExpressions, not UnaryExpressions).
             if self.match_token(TokenType::DoubleAsterisk)
-                && !Self::is_update_expression(&expression)
+                && !matches!(&expression.inner, ExpressionKind::Update { .. })
             {
                 self.syntax_error(
                     "Unparenthesized unary expression can't appear on the left-hand side of '**'",
@@ -263,7 +263,7 @@ impl<'a> Parser<'a> {
             // Tagged template literals bind tighter than any operator, so we
             // consume them eagerly after each secondary expression — but NOT
             // after update expressions (x++`template` is not valid).
-            if !Self::is_update_expression(&expression) {
+            if !matches!(&expression.inner, ExpressionKind::Update { .. }) {
                 expression = self.parse_tagged_template_literals(lhs_start, expression);
             }
         }
@@ -804,7 +804,10 @@ impl<'a> Parser<'a> {
                 let op = token_to_assignment_op(tt);
                 if op == AssignmentOp::Assignment
                     && !lhs_is_parenthesized
-                    && (Self::is_object_expression(&lhs) || Self::is_array_expression(&lhs))
+                    && matches!(
+                        &lhs.inner,
+                        ExpressionKind::Object(_) | ExpressionKind::Array(_)
+                    )
                 {
                     // Save pattern_bound_names so that an outer binding
                     // pattern parse in progress doesn't lose its entries.
@@ -1106,7 +1109,9 @@ impl<'a> Parser<'a> {
                     Associativity::Right,
                     ForbiddenTokens::none(),
                 );
-                if self.flags.strict_mode && Self::is_identifier(&expression) {
+                if self.flags.strict_mode
+                    && matches!(&expression.inner, ExpressionKind::Identifier(_))
+                {
                     self.syntax_error_at(
                         "Delete of an unqualified identifier in strict mode.",
                         rhs_start.line,
