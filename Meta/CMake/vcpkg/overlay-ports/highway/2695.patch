@@ -1,0 +1,25 @@
+From 21635e43996f0b4365584f69b0014655f548853a Mon Sep 17 00:00:00 2001
+From: John Platts <john_platts@hotmail.com>
+Date: Sun, 31 Aug 2025 22:08:43 -0500
+Subject: [PATCH] Fix for AVX10_2 target with Android NDK r29-beta3
+
+---
+ hwy/ops/x86_128-inl.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/hwy/ops/x86_128-inl.h b/hwy/ops/x86_128-inl.h
+index bcd08d590d..3a2820102e 100644
+--- a/hwy/ops/x86_128-inl.h
++++ b/hwy/ops/x86_128-inl.h
+@@ -71,8 +71,9 @@ namespace detail {
+ #endif
+ 
+ #undef HWY_X86_HAVE_AVX10_2_OPS
+-#if HWY_TARGET_IS_AVX10_2 && \
+-    (HWY_COMPILER_GCC_ACTUAL >= 1501 || HWY_COMPILER3_CLANG >= 200103)
++#if HWY_TARGET_IS_AVX10_2 &&            \
++    (HWY_COMPILER_GCC_ACTUAL >= 1501 || \
++     (HWY_COMPILER3_CLANG >= 200103 && HWY_COMPILER_CLANG != 2100))
+ #define HWY_X86_HAVE_AVX10_2_OPS 1
+ #else
+ #define HWY_X86_HAVE_AVX10_2_OPS 0
