@@ -5,6 +5,12 @@
       "right": "border-right-color",
       "bottom": "border-bottom-color",
       "left": "border-left-color"
+    },
+    "logical": {
+      "block-start": "border-block-start-color",
+      "inline-end": "border-inline-end-color",
+      "block-end": "border-block-end-color",
+      "inline-start": "border-inline-start-color"
     }
   },
   "border-radius": {
@@ -13,6 +19,12 @@
       "bottom-left": "border-bottom-left-radius",
       "top-right": "border-top-right-radius",
       "bottom-right": "border-bottom-right-radius"
+    },
+    "logical": {
+      "start-start": "border-start-start-radius",
+      "start-end": "border-start-end-radius",
+      "end-start": "border-end-start-radius",
+      "end-end": "border-end-end-radius"
     }
   },
   "border-style": {
@@ -21,6 +33,12 @@
       "right": "border-right-style",
       "bottom": "border-bottom-style",
       "left": "border-left-style"
+    },
+    "logical": {
+      "block-start": "border-block-start-style",
+      "inline-end": "border-inline-end-style",
+      "block-end": "border-block-end-style",
+      "inline-start": "border-inline-start-style"
     }
   },
   "border-width": {
@@ -29,6 +47,12 @@
       "right": "border-right-width",
       "bottom": "border-bottom-width",
       "left": "border-left-width"
+    },
+    "logical": {
+      "block-start": "border-block-start-width",
+      "inline-end": "border-inline-end-width",
+      "block-end": "border-block-end-width",
+      "inline-start": "border-inline-start-width"
     }
   },
   "corner-shape": {
@@ -37,6 +61,12 @@
       "bottom-left": "corner-bottom-left-shape",
       "top-right": "corner-top-right-shape",
       "bottom-right": "corner-bottom-right-shape"
+    },
+    "logical": {
+      "start-start": "corner-start-start-shape",
+      "start-end": "corner-start-end-shape",
+      "end-start": "corner-end-start-shape",
+      "end-end": "corner-end-end-shape"
     }
   },
   "inset": {
@@ -45,6 +75,12 @@
       "right": "right",
       "bottom": "bottom",
       "left": "left"
+    },
+    "logical": {
+      "block-start": "inset-block-start",
+      "inline-end": "inset-inline-end",
+      "block-end": "inset-block-end",
+      "inline-start": "inset-inline-start"
     }
   },
   "margin": {
@@ -53,24 +89,42 @@
       "right": "margin-right",
       "bottom": "margin-bottom",
       "left": "margin-left"
+    },
+    "logical": {
+      "block-start": "margin-block-start",
+      "inline-end": "margin-inline-end",
+      "block-end": "margin-block-end",
+      "inline-start": "margin-inline-start"
     }
   },
   "max-size": {
     "physical": {
       "width": "max-width",
       "height": "max-height"
+    },
+    "logical": {
+      "block-size": "max-block-size",
+      "inline-size": "max-inline-size"
     }
   },
   "min-size": {
     "physical": {
       "width": "min-width",
       "height": "min-height"
+    },
+    "logical": {
+      "block-size": "min-block-size",
+      "inline-size": "min-inline-size"
     }
   },
   "overflow": {
     "physical": {
       "x": "overflow-x",
       "y": "overflow-y"
+    },
+    "logical": {
+      "block-xy": "overflow-block",
+      "inline-xy": "overflow-inline"
     }
   },
   "overflow-clip-margin": {
@@ -79,6 +133,12 @@
       "right": "overflow-clip-margin-right",
       "bottom": "overflow-clip-margin-bottom",
       "left": "overflow-clip-margin-left"
+    },
+    "logical": {
+      "block-start": "overflow-clip-margin-block-start",
+      "inline-end": "overflow-clip-margin-inline-end",
+      "block-end": "overflow-clip-margin-block-end",
+      "inline-start": "overflow-clip-margin-inline-start"
     }
   },
   "padding": {
@@ -87,12 +147,22 @@
       "right": "padding-right",
       "bottom": "padding-bottom",
       "left": "padding-left"
+    },
+    "logical": {
+      "block-start": "padding-block-start",
+      "inline-end": "padding-inline-end",
+      "block-end": "padding-block-end",
+      "inline-start": "padding-inline-start"
     }
   },
   "size": {
     "physical": {
       "width": "width",
       "height": "height"
+    },
+    "logical": {
+      "block-size": "block-size",
+      "inline-size": "inline-size"
     }
   }
 }
