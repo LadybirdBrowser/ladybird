@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/8205 -->
+<!-- Ensure selecting text across shadow tree boundaries does not crash. -->
+<body>
+<div id="host"></div>
+<p id="outside">Text outside the shadow tree</p>
+<script>
+    const host = document.getElementById("host");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = "<span id='inside'>Text inside shadow tree</span>";
+
+    if (window.internals) {
+        const inside = shadow.getElementById("inside");
+        const outside = document.getElementById("outside");
+
+        const insideRect = inside.getBoundingClientRect();
+        const outsideRect = outside.getBoundingClientRect();
+
+        const startX = insideRect.x + insideRect.width / 2;
+        const startY = insideRect.y + insideRect.height / 2;
+
+        const endX = outsideRect.x + outsideRect.width / 2;
+        const endY = outsideRect.y + outsideRect.height / 2;
+
+        internals.mouseDown(startX, startY);
+        internals.mouseMove(endX, endY);
+        internals.mouseUp(endX, endY);
+    }
+</script>
+</body>

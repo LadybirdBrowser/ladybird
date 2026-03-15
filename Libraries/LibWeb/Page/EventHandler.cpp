@@ -274,6 +274,17 @@ static GC::Ref<DOM::Range> find_paragraph_range(DOM::Text& text_node, WebIDL::Un
 // https://drafts.csswg.org/css-ui/#propdef-user-select
 static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_offset, GC::Ptr<DOM::Node> focus_node, size_t focus_offset, Selection::Selection* selection, CSS::UserSelect user_select)
 {
+    // Helper to safely get the user-select used value. If a node has no layout node
+    // (e.g. near shadow DOM boundaries), we walk up the tree to find the nearest ancestor
+    // that does have a layout node to inherit the correct user-select value.
+    auto safe_user_select = [](GC::Ptr<DOM::Node> node) -> CSS::UserSelect {
+        for (auto* n = node.ptr(); n; n = n->parent()) {
+            if (auto* layout = n->layout_node())
+                return layout->user_select_used_value();
+        }
+        return CSS::UserSelect::Text;
+    };
+
     // https://drafts.csswg.org/css-ui/#valdef-user-select-contain
     // NB: This is clamping the focus node to any node with user-select: contain that stands between it and the anchor node.
     if (focus_node != anchor_node) {
@@ -285,12 +296,12 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         //     focus node, as this means they are inside the same contain element, or not in a contain element at all.
         //     This takes care of the "selection trying to escape from a contain" case.
         while (
-            (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            (!potential_contain_node->is_element() || safe_user_select(potential_contain_node) != CSS::UserSelect::Contain) && potential_contain_node->parent() && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             potential_contain_node = potential_contain_node->parent();
         }
 
         if (
-            potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
+            safe_user_select(potential_contain_node) == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
             if (focus_node->is_before(*potential_contain_node)) {
                 focus_offset = 0;
             } else {
@@ -310,11 +321,11 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
             auto target_node = potential_contain_node;
             potential_contain_node = focus_node;
             while (
-                (!potential_contain_node->is_element() || potential_contain_node->layout_node()->user_select_used_value() != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
+                (!potential_contain_node->is_element() || safe_user_select(potential_contain_node) != CSS::UserSelect::Contain) && potential_contain_node->parent() && potential_contain_node != target_node) {
                 potential_contain_node = potential_contain_node->parent();
             }
             if (
-                potential_contain_node->layout_node()->user_select_used_value() == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
+                safe_user_select(potential_contain_node) == CSS::UserSelect::Contain && !potential_contain_node->is_inclusive_ancestor_of(*anchor_node)) {
                 if (potential_contain_node->is_before(*anchor_node)) {
                     focus_node = potential_contain_node->next_in_pre_order();
                     while (potential_contain_node->is_inclusive_ancestor_of(*focus_node)) {
@@ -345,7 +356,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
 
         // A selection started outside of this element must not end in this element. If the user attempts to create such
         // a selection, the UA must instead end the selection range at the element boundary.
-        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::None) {
+        while (focus_node->parent() && safe_user_select(focus_node->parent()) == CSS::UserSelect::None) {
             focus_node = focus_node->parent();
         }
         if (focus_node->is_before(*anchor_node)) {
@@ -366,7 +377,7 @@ static void set_user_selection(GC::Ptr<DOM::Node> anchor_node, size_t anchor_off
         // then the selection must contain the entire element including all its descendants. If the element is selected
         // and the used value of 'user-select' on its parent is 'all', then the parent must be included in the selection,
         // recursively.
-        while (focus_node->parent() && focus_node->parent()->layout_node()->user_select_used_value() == CSS::UserSelect::All) {
+        while (focus_node->parent() && safe_user_select(focus_node->parent()) == CSS::UserSelect::All) {
             if (anchor_node == focus_node) {
                 anchor_node = focus_node->parent();
             }
