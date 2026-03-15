@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 97 tests
+Found 145 tests
 
-97 Pass
+113 Pass
+32 Fail
 Pass	setup
 Pass	RSA-PSS with SHA-1 and no salt verification
 Pass	RSA-PSS with SHA-256 and no salt verification
@@ -12,6 +13,14 @@ Pass	RSA-PSS with SHA-1, salted verification
 Pass	RSA-PSS with SHA-256, salted verification
 Pass	RSA-PSS with SHA-384, salted verification
 Pass	RSA-PSS with SHA-512, salted verification
+Fail	RSA-PSS with SHA-1 and no salt verification with altered signature during call
+Fail	RSA-PSS with SHA-256 and no salt verification with altered signature during call
+Fail	RSA-PSS with SHA-384 and no salt verification with altered signature during call
+Fail	RSA-PSS with SHA-512 and no salt verification with altered signature during call
+Fail	RSA-PSS with SHA-1, salted verification with altered signature during call
+Fail	RSA-PSS with SHA-256, salted verification with altered signature during call
+Fail	RSA-PSS with SHA-384, salted verification with altered signature during call
+Fail	RSA-PSS with SHA-512, salted verification with altered signature during call
 Pass	RSA-PSS with SHA-1 and no salt verification with altered signature after call
 Pass	RSA-PSS with SHA-256 and no salt verification with altered signature after call
 Pass	RSA-PSS with SHA-384 and no salt verification with altered signature after call
@@ -20,6 +29,30 @@ Pass	RSA-PSS with SHA-1, salted verification with altered signature after call
 Pass	RSA-PSS with SHA-256, salted verification with altered signature after call
 Pass	RSA-PSS with SHA-384, salted verification with altered signature after call
 Pass	RSA-PSS with SHA-512, salted verification with altered signature after call
+Fail	RSA-PSS with SHA-1 and no salt verification with transferred signature during call
+Fail	RSA-PSS with SHA-256 and no salt verification with transferred signature during call
+Fail	RSA-PSS with SHA-384 and no salt verification with transferred signature during call
+Fail	RSA-PSS with SHA-512 and no salt verification with transferred signature during call
+Fail	RSA-PSS with SHA-1, salted verification with transferred signature during call
+Fail	RSA-PSS with SHA-256, salted verification with transferred signature during call
+Fail	RSA-PSS with SHA-384, salted verification with transferred signature during call
+Fail	RSA-PSS with SHA-512, salted verification with transferred signature during call
+Pass	RSA-PSS with SHA-1 and no salt verification with transferred signature after call
+Pass	RSA-PSS with SHA-256 and no salt verification with transferred signature after call
+Pass	RSA-PSS with SHA-384 and no salt verification with transferred signature after call
+Pass	RSA-PSS with SHA-512 and no salt verification with transferred signature after call
+Pass	RSA-PSS with SHA-1, salted verification with transferred signature after call
+Pass	RSA-PSS with SHA-256, salted verification with transferred signature after call
+Pass	RSA-PSS with SHA-384, salted verification with transferred signature after call
+Pass	RSA-PSS with SHA-512, salted verification with transferred signature after call
+Fail	RSA-PSS with SHA-1 and no salt with altered plaintext during call
+Fail	RSA-PSS with SHA-256 and no salt with altered plaintext during call
+Fail	RSA-PSS with SHA-384 and no salt with altered plaintext during call
+Fail	RSA-PSS with SHA-512 and no salt with altered plaintext during call
+Fail	RSA-PSS with SHA-1, salted with altered plaintext during call
+Fail	RSA-PSS with SHA-256, salted with altered plaintext during call
+Fail	RSA-PSS with SHA-384, salted with altered plaintext during call
+Fail	RSA-PSS with SHA-512, salted with altered plaintext during call
 Pass	RSA-PSS with SHA-1 and no salt with altered plaintext after call
 Pass	RSA-PSS with SHA-256 and no salt with altered plaintext after call
 Pass	RSA-PSS with SHA-384 and no salt with altered plaintext after call
@@ -28,6 +61,22 @@ Pass	RSA-PSS with SHA-1, salted with altered plaintext after call
 Pass	RSA-PSS with SHA-256, salted with altered plaintext after call
 Pass	RSA-PSS with SHA-384, salted with altered plaintext after call
 Pass	RSA-PSS with SHA-512, salted with altered plaintext after call
+Fail	RSA-PSS with SHA-1 and no salt with transferred plaintext during call
+Fail	RSA-PSS with SHA-256 and no salt with transferred plaintext during call
+Fail	RSA-PSS with SHA-384 and no salt with transferred plaintext during call
+Fail	RSA-PSS with SHA-512 and no salt with transferred plaintext during call
+Fail	RSA-PSS with SHA-1, salted with transferred plaintext during call
+Fail	RSA-PSS with SHA-256, salted with transferred plaintext during call
+Fail	RSA-PSS with SHA-384, salted with transferred plaintext during call
+Fail	RSA-PSS with SHA-512, salted with transferred plaintext during call
+Pass	RSA-PSS with SHA-1 and no salt with transferred plaintext after call
+Pass	RSA-PSS with SHA-256 and no salt with transferred plaintext after call
+Pass	RSA-PSS with SHA-384 and no salt with transferred plaintext after call
+Pass	RSA-PSS with SHA-512 and no salt with transferred plaintext after call
+Pass	RSA-PSS with SHA-1, salted with transferred plaintext after call
+Pass	RSA-PSS with SHA-256, salted with transferred plaintext after call
+Pass	RSA-PSS with SHA-384, salted with transferred plaintext after call
+Pass	RSA-PSS with SHA-512, salted with transferred plaintext after call
 Pass	RSA-PSS with SHA-1 and no salt using privateKey to verify
 Pass	RSA-PSS with SHA-256 and no salt using privateKey to verify
 Pass	RSA-PSS with SHA-384 and no salt using privateKey to verify

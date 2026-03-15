@@ -1,21 +1,46 @@
 Harness status: OK
 
-Found 45 tests
+Found 69 tests
 
-45 Pass
+53 Pass
+16 Fail
 Pass	setup
 Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification
 Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification
 Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification
 Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification
+Fail	RSASSA-PKCS1-v1_5 with SHA-1 verification with altered signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-256 verification with altered signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-384 verification with altered signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-512 verification with altered signature during call
 Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification with altered signature after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification with altered signature after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification with altered signature after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification with altered signature after call
+Fail	RSASSA-PKCS1-v1_5 with SHA-1 verification with transferred signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-256 verification with transferred signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-384 verification with transferred signature during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-512 verification with transferred signature during call
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 verification with transferred signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 verification with transferred signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 verification with transferred signature after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 verification with transferred signature after call
+Fail	RSASSA-PKCS1-v1_5 with SHA-1 with altered plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-256 with altered plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-384 with altered plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-512 with altered plaintext during call
 Pass	RSASSA-PKCS1-v1_5 with SHA-1 with altered plaintext after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-256 with altered plaintext after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-384 with altered plaintext after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-512 with altered plaintext after call
+Fail	RSASSA-PKCS1-v1_5 with SHA-1 with transferred plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-256 with transferred plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-384 with transferred plaintext during call
+Fail	RSASSA-PKCS1-v1_5 with SHA-512 with transferred plaintext during call
+Pass	RSASSA-PKCS1-v1_5 with SHA-1 with transferred plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-256 with transferred plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-384 with transferred plaintext after call
+Pass	RSASSA-PKCS1-v1_5 with SHA-512 with transferred plaintext after call
 Pass	RSASSA-PKCS1-v1_5 with SHA-1 using privateKey to verify
 Pass	RSASSA-PKCS1-v1_5 with SHA-256 using privateKey to verify
 Pass	RSASSA-PKCS1-v1_5 with SHA-384 using privateKey to verify
