@@ -14,6 +14,7 @@
 #include <AK/Assertions.h>
 #include <AK/Diagnostics.h>
 #include <AK/Platform.h>
+#include <AK/Types.h>
 
 #ifdef AK_OS_WINDOWS
 #    define timeval dummy_timeval
@@ -118,4 +119,10 @@ inline void windows_shutdown()
 {
     terminate_wsa();
 }
+
+ALWAYS_INLINE constexpr u64 filetime_to_u64(FILETIME const& ft)
+{
+    return (((u64)ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+}
+
 #endif
