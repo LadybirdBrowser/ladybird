@@ -357,7 +357,8 @@ pub unsafe extern "C" fn rust_compile_program(
             let program = parser.parse_program(starts_in_strict_mode);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 return std::ptr::null_mut();
             }
@@ -527,7 +528,7 @@ pub unsafe extern "C" fn rust_parsed_program_compile_regexes(parsed: *mut Parsed
         let deferred = std::mem::take(&mut parsed.deferred_regexes);
         parsed
             .errors
-            .extend(Parser::compile_deferred_regexes(deferred));
+            .extend(crate::parser::compile_deferred_regexes(deferred));
     }
 }
 
@@ -731,7 +732,8 @@ pub unsafe extern "C" fn rust_compile_eval(
             let program = parser.parse_program(starts_in_strict_mode);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 if let Some(cb) = error_callback {
                     for err in &regex_errors {
@@ -927,7 +929,8 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let program = parser.parse_program(false);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 if let Some(cb) = error_callback {
                     for err in &regex_errors {
@@ -1051,7 +1054,8 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
             let program = parser.parse_program(true); // strict mode
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 let errors: Vec<String> = regex_errors
                     .iter()
