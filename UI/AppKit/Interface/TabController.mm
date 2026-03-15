@@ -334,6 +334,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         _location_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_LOCATION_IDENTIFIER];
         [_location_toolbar_item setView:location_search_field];
+
+        self.location_toolbar_item_width = [[location_search_field widthAnchor] constraintEqualToConstant:600];
+        self.location_toolbar_item_width.active = YES;
     }
 
     return _location_toolbar_item;
