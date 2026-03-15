@@ -118,7 +118,10 @@ impl FunctionTable {
                 self.collect_from_pattern(pat, &mut subtable);
             }
         }
-        self.collect_from_statement(&data.body, &mut subtable);
+        // Only walk body if it's been parsed; lazy bodies have no inner functions yet.
+        if let FunctionBodyKind::Parsed(ref body) = data.body {
+            self.collect_from_statement(body, &mut subtable);
+        }
         subtable
     }
 
@@ -133,8 +136,10 @@ impl FunctionTable {
                     self.collect_from_pattern(pat, result);
                 }
             }
-            // Walk the function body.
-            self.collect_from_statement(&data.body, result);
+            // Walk the function body (only if parsed).
+            if let FunctionBodyKind::Parsed(ref body) = data.body {
+                self.collect_from_statement(body, result);
+            }
             result.insert_at(id, data);
         }
     }
@@ -401,6 +406,7 @@ impl FunctionTable {
             | ExpressionKind::This
             | ExpressionKind::Super
             | ExpressionKind::MetaProperty(_)
+            | ExpressionKind::SyntaxOnly(_)
             | ExpressionKind::Error => {}
         }
     }
@@ -803,13 +809,40 @@ pub enum FunctionParameterBinding {
     BindingPattern(BindingPattern),
 }
 
+/// A function body that may be lazily parsed.
+#[derive(Debug)]
+pub enum FunctionBodyKind {
+    /// Fully parsed AST body.
+    Parsed(Box<Statement>),
+    /// Deferred: body has not been parsed yet; only the source range is stored.
+    Lazy(LazyFunctionBody),
+}
+
+/// Source position and flags for a deferred function body.
+#[derive(Debug, Clone)]
+pub struct LazyFunctionBody {
+    pub body_start_offset: u32,
+    pub body_start_line: u32,
+    pub body_start_column: u32,
+    pub has_use_strict: bool,
+}
+
+impl FunctionBodyKind {
+    pub fn expect_parsed(&self) -> &Statement {
+        match self {
+            FunctionBodyKind::Parsed(s) => s,
+            FunctionBodyKind::Lazy(_) => panic!("expected parsed body"),
+        }
+    }
+}
+
 /// Shared data for FunctionDeclaration and FunctionExpression.
 #[derive(Debug)]
 pub struct FunctionData {
     pub name: Option<Rc<Identifier>>,
     pub source_text_start: u32,
     pub source_text_end: u32,
-    pub body: Box<Statement>,
+    pub body: FunctionBodyKind,
     pub parameters: Vec<FunctionParameter>,
     pub function_length: i32,
     pub kind: FunctionKind,
@@ -1263,6 +1296,9 @@ pub struct ScopeData {
     pub uses_this_from_environment: bool,
     pub contains_direct_call_to_eval: bool,
     pub contains_access_to_arguments_object: bool,
+    /// True when this scope contains a lazily-parsed inner function.
+    /// Forces environment creation so the lazy function can capture variables.
+    pub has_lazy_inner_function: bool,
 }
 
 impl ScopeData {
@@ -1318,6 +1354,19 @@ pub struct VarToInit {
 // =============================================================================
 // Expression enum
 // =============================================================================
+
+/// Lightweight classification of expressions used by `is_*` helpers.
+/// In syntax-check mode, `SyntaxOnly(class)` replaces full AST nodes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExpressionClass {
+    Identifier,
+    Member,
+    Call,
+    Object,
+    Array,
+    Update,
+    Other,
+}
 
 #[derive(Clone, Debug)]
 pub enum ExpressionKind {
@@ -1419,8 +1468,26 @@ pub enum ExpressionKind {
     },
     Await(Box<Expression>),
 
+    /// Syntax-check-only sentinel — replaces full AST nodes during lazy parse.
+    SyntaxOnly(ExpressionClass),
+
     // Error recovery
     Error,
+}
+
+impl ExpressionKind {
+    pub fn classify(&self) -> ExpressionClass {
+        match self {
+            ExpressionKind::Identifier(_) => ExpressionClass::Identifier,
+            ExpressionKind::Member { .. } => ExpressionClass::Member,
+            ExpressionKind::Call(_) => ExpressionClass::Call,
+            ExpressionKind::Object(_) => ExpressionClass::Object,
+            ExpressionKind::Array(_) => ExpressionClass::Array,
+            ExpressionKind::Update { .. } => ExpressionClass::Update,
+            ExpressionKind::SyntaxOnly(class) => *class,
+            _ => ExpressionClass::Other,
+        }
+    }
 }
 
 // =============================================================================

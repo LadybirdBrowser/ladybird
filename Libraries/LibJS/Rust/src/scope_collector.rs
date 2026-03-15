@@ -183,6 +183,33 @@ pub struct ParameterEntry {
     pub is_first_from_pattern: bool,
 }
 
+/// Hash a name slice for use as a lightweight set key in FreeVarOnly mode.
+/// Using pre-hashed keys avoids allocating Utf16String for every declaration.
+#[inline]
+fn name_hash(name: &[u16]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut h = DefaultHasher::new();
+    name.hash(&mut h);
+    h.finish()
+}
+
+/// Lightweight per-scope tracking for FreeVarOnly mode.
+/// Tracks which names are declared vs used so `close_scope` can compute
+/// free variables (used − declared) and propagate them upward.
+/// Declarations use hashes only (membership tests are sufficient).
+/// `used` stores hash→name so the final free variable set can produce
+/// the actual Utf16String names.
+#[derive(Debug, Default)]
+struct FreeVarData {
+    declared: HashSet<u64>,
+    /// Subset of `declared` containing only `var` bindings.  When the scope
+    /// has parameter expressions, `var` body bindings must not mask
+    /// identifier references from default-parameter expressions.
+    var_declared: HashSet<u64>,
+    used: HashMap<u64, Utf16String>,
+}
+
 #[derive(Debug)]
 struct ScopeRecord {
     scope_type: ScopeType,
@@ -203,11 +230,22 @@ struct ScopeRecord {
     contains_await_expression: bool,
     poisoned_by_eval_in_scope_chain: bool,
     eval_in_current_function: bool,
+    /// Set when this scope contains a lazily-parsed inner function.
+    /// Prevents local variable optimization (all variables must be
+    /// heap-allocated) without implying eval exists.
+    has_lazy_inner_function: bool,
+    /// Identifier names referenced by lazily-parsed inner functions.
+    /// Only these specific names are prevented from being optimized as
+    /// local variables (more precise than blanket `has_lazy_inner_function`).
+    lazy_function_free_vars: Option<HashSet<Utf16String>>,
     uses_this_from_environment: bool,
     uses_this: bool,
     is_arrow_function: bool,
     is_function_declaration: bool,
     has_parameter_expressions: bool,
+
+    /// FreeVarOnly mode tracking.  `None` in Full mode.
+    free_var: Option<FreeVarData>,
 
     // Tree (indices into ScopeCollector::records)
     parent: Option<usize>,
@@ -220,6 +258,7 @@ impl ScopeRecord {
         scope_type: ScopeType,
         scope_level: ScopeLevel,
         scope_data: Option<Rc<RefCell<ScopeData>>>,
+        free_var_only: bool,
     ) -> Self {
         Self {
             scope_type,
@@ -235,11 +274,18 @@ impl ScopeRecord {
             contains_await_expression: false,
             poisoned_by_eval_in_scope_chain: false,
             eval_in_current_function: false,
+            has_lazy_inner_function: false,
+            lazy_function_free_vars: None,
             uses_this_from_environment: false,
             uses_this: false,
             is_arrow_function: false,
             is_function_declaration: false,
             has_parameter_expressions: false,
+            free_var: if free_var_only {
+                Some(FreeVarData::default())
+            } else {
+                None
+            },
             parent: None,
             top_level: None,
             children: Vec::new(),
@@ -248,6 +294,11 @@ impl ScopeRecord {
 
     fn is_top_level(&self) -> bool {
         self.scope_level.is_top_level()
+    }
+
+    /// Access the FreeVarData. Only valid in FreeVarOnly mode.
+    fn fv(&mut self) -> &mut FreeVarData {
+        self.free_var.as_mut().expect("fv() called in Full mode")
     }
 
     fn variable(&mut self, name: &[u16]) -> &mut ScopeVariable {
@@ -315,10 +366,26 @@ pub struct ScopeCollectorState {
     saved_flags: Vec<SavedScopeFlags>,
 }
 
+/// Operating mode for the scope collector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScopeCollectorMode {
+    /// Full scope analysis with AST annotation and local variable computation.
+    Full,
+    /// Lightweight mode for syntax-check parsers: tracks declarations and
+    /// identifier references per scope to compute free variables (identifiers
+    /// used but not declared within the lazy function body).  Does NOT annotate
+    /// AST nodes or build local variable lists.
+    FreeVarOnly,
+}
+
 pub struct ScopeCollector {
     records: Vec<ScopeRecord>,
     current: Option<usize>,
     errors: Vec<ParseError>,
+    pub mode: ScopeCollectorMode,
+    /// Free variable names collected in FreeVarOnly mode.  Populated by
+    /// `close_scope()` when it pops the outermost function scope.
+    free_variables: HashSet<Utf16String>,
 }
 
 impl Default for ScopeCollector {
@@ -333,6 +400,40 @@ impl ScopeCollector {
             records: Vec::new(),
             current: None,
             errors: Vec::new(),
+            mode: ScopeCollectorMode::Full,
+            free_variables: HashSet::default(),
+        }
+    }
+
+    pub fn new_free_var_only() -> Self {
+        Self {
+            records: Vec::new(),
+            current: None,
+            errors: Vec::new(),
+            mode: ScopeCollectorMode::FreeVarOnly,
+            free_variables: HashSet::default(),
+        }
+    }
+
+    #[inline]
+    fn is_free_var_only(&self) -> bool {
+        self.mode == ScopeCollectorMode::FreeVarOnly
+    }
+
+    /// Return the free variables collected during FreeVarOnly mode parsing.
+    pub fn take_free_variables(&mut self) -> HashSet<Utf16String> {
+        std::mem::take(&mut self.free_variables)
+    }
+
+    /// Record an identifier name as used in the current scope (FreeVarOnly
+    /// mode only).  Called from SYNTAX_ONLY identifier-reference paths and
+    /// from brace-counting of doubly-nested lazy functions.
+    pub fn use_identifier_in_free_var_tracking(&mut self, name: &[u16]) {
+        if let Some(index) = self.current
+            && let Some(ref mut fv) = self.records[index].free_var
+        {
+            let h = name_hash(name);
+            fv.used.entry(h).or_insert_with(|| Utf16String::from(name));
         }
     }
 
@@ -414,7 +515,8 @@ impl ScopeCollector {
         scope_level: ScopeLevel,
     ) {
         let index = self.records.len();
-        let mut record = ScopeRecord::new(scope_type, scope_level, scope_data);
+        let mut record =
+            ScopeRecord::new(scope_type, scope_level, scope_data, self.is_free_var_only());
         record.parent = self.current;
 
         if scope_type != ScopeType::Function
@@ -441,6 +543,42 @@ impl ScopeCollector {
 
     pub fn close_scope(&mut self) {
         let index = self.current.expect("close_scope with no current scope");
+
+        if self.is_free_var_only() {
+            // Compute free variables: used − declared, then propagate up.
+            let fv = self.records[index].free_var.take().unwrap();
+            let has_param_exprs = self.records[index].has_parameter_expressions;
+
+            // Collect names used but not declared in this scope.
+            // Special case: when the scope has parameter expressions, var
+            // body bindings don't shadow default-parameter references
+            // (they live in separate scopes per the spec).
+            let free_names = fv.used.iter().filter(|(hash, _)| {
+                if !fv.declared.contains(hash) {
+                    return true;
+                }
+                has_param_exprs && fv.var_declared.contains(hash)
+            });
+
+            if let Some(parent_index) = self.records[index].parent {
+                let parent_fv = self.records[parent_index].fv();
+                for (hash, name) in free_names {
+                    parent_fv.used.insert(*hash, name.clone());
+                }
+                // Propagate flags to parent.
+                let eval = self.records[index].contains_direct_call_to_eval;
+                let this = self.records[index].uses_this;
+                let await_ = self.records[index].contains_await_expression;
+                self.records[parent_index].contains_direct_call_to_eval |= eval;
+                self.records[parent_index].uses_this |= this;
+                self.records[parent_index].contains_await_expression |= await_;
+            } else {
+                self.free_variables
+                    .extend(free_names.map(|(_, name)| name.clone()));
+            }
+            self.current = self.records[index].parent;
+            return;
+        }
 
         if let Some(parent_index) = self.records[index].parent
             && !self.records[index].has_function_parameters
@@ -471,8 +609,19 @@ impl ScopeCollector {
         self.open_scope(ScopeType::Function, None, ScopeLevel::FunctionTopLevel);
         if let Some(name) = function_name {
             let index = self.current.expect("no current scope");
-            self.records[index].variable(name).flags |= VarFlags::BOUND;
+            if self.is_free_var_only() {
+                self.records[index].fv().declared.insert(name_hash(name));
+            } else {
+                self.records[index].variable(name).flags |= VarFlags::BOUND;
+            }
         }
+    }
+
+    /// Mark the current scope as having function parameters.
+    /// Used by lazy parsing to ensure build_function_scope_data runs.
+    pub fn mark_has_function_parameters(&mut self) {
+        let index = self.current.expect("no current scope");
+        self.records[index].has_function_parameters = true;
     }
 
     pub fn open_block_scope(&mut self, scope_data: Option<Rc<RefCell<ScopeData>>>) {
@@ -527,6 +676,15 @@ impl ScopeCollector {
         declaration_line: u32,
         declaration_column: u32,
     ) {
+        if self.is_free_var_only() {
+            // In FreeVarOnly mode, add to current scope's declared_names (block-scoped).
+            let index = self.current.expect("no current scope");
+            for name in bound_names {
+                self.records[index].fv().declared.insert(name_hash(name));
+            }
+            return;
+        }
+
         let index = self.current.expect("no current scope");
 
         for name in bound_names {
@@ -555,6 +713,28 @@ impl ScopeCollector {
         declaration_column: u32,
         declaration_kind: Option<DeclarationKind>,
     ) {
+        if self.is_free_var_only() {
+            // In FreeVarOnly mode, hoist var declarations to the nearest
+            // function scope's declared_names.
+            let index = self.current.expect("no current scope");
+            for (name, _) in bound_names {
+                let h = name_hash(name);
+                // Walk up to find function boundary
+                let mut scope_index = index;
+                loop {
+                    if self.records[scope_index].is_top_level() {
+                        self.records[scope_index].fv().declared.insert(h);
+                        self.records[scope_index].fv().var_declared.insert(h);
+                        break;
+                    }
+                    scope_index = self.records[scope_index]
+                        .parent
+                        .expect("scope has no parent");
+                }
+            }
+            return;
+        }
+
         let index = self.current.expect("no current scope");
 
         for (name, identifier) in bound_names {
@@ -600,6 +780,15 @@ impl ScopeCollector {
         declaration_line: u32,
         declaration_column: u32,
     ) {
+        if self.is_free_var_only() {
+            // In FreeVarOnly mode, function declarations act like var at
+            // function level or like let at block level.  For free variable
+            // tracking we just need to know the name is declared.
+            let index = self.current.expect("no current scope");
+            self.records[index].fv().declared.insert(name_hash(name));
+            return;
+        }
+
         let index = self.current.expect("no current scope");
         let scope_level = self.records[index].scope_level;
 
@@ -652,6 +841,13 @@ impl ScopeCollector {
     // catch pattern forbid `var` declarations with the same name in the
     // catch block (unlike regular block-scoped variables).
     pub fn add_catch_parameter_pattern(&mut self, bound_names: &[&[u16]]) {
+        if self.is_free_var_only() {
+            let index = self.current.expect("no current scope");
+            for name in bound_names {
+                self.records[index].fv().declared.insert(name_hash(name));
+            }
+            return;
+        }
         let index = self.current.expect("no current scope");
         for name in bound_names {
             let var = self.records[index].variable(name);
@@ -660,6 +856,11 @@ impl ScopeCollector {
     }
 
     pub fn add_catch_parameter_identifier(&mut self, name: &[u16], identifier: Rc<Identifier>) {
+        if self.is_free_var_only() {
+            let index = self.current.expect("no current scope");
+            self.records[index].fv().declared.insert(name_hash(name));
+            return;
+        }
         let index = self.current.expect("no current scope");
         let var = self.records[index].variable(name);
         var.flags |= VarFlags::VAR | VarFlags::BOUND | VarFlags::CATCH_PARAMETER;
@@ -674,6 +875,17 @@ impl ScopeCollector {
         name: &[u16],
         declaration_kind: Option<DeclarationKind>,
     ) {
+        if self.is_free_var_only() {
+            if let Some(index) = self.current {
+                let h = name_hash(name);
+                self.records[index]
+                    .fv()
+                    .used
+                    .entry(h)
+                    .or_insert_with(|| Utf16String::from(name));
+            }
+            return;
+        }
         let index = self.current.expect("no current scope");
         self.records[index]
             .identifier_groups
@@ -699,6 +911,21 @@ impl ScopeCollector {
         entries: &[ParameterEntry],
         has_parameter_expressions: bool,
     ) {
+        if self.is_free_var_only() {
+            // In FreeVarOnly mode, just track parameter names as declared.
+            if let Some(index) = self.current {
+                self.records[index].has_parameter_expressions = has_parameter_expressions;
+                for entry in entries {
+                    if !entry.name.is_empty() {
+                        self.records[index]
+                            .fv()
+                            .declared
+                            .insert(name_hash(&entry.name));
+                    }
+                }
+            }
+            return;
+        }
         let index = self.current.expect("no current scope");
         self.records[index].has_function_parameters = true;
         self.records[index].has_parameter_expressions = has_parameter_expressions;
@@ -752,6 +979,9 @@ impl ScopeCollector {
     // === Scope node ===
 
     pub fn set_scope_node(&mut self, scope_data: Rc<RefCell<ScopeData>>) {
+        if self.is_free_var_only() {
+            return;
+        }
         let index = self.current.expect("no current scope");
         self.records[index].scope_data = Some(scope_data.clone());
         // Update block_scope_data for any pending functions_to_hoist that
@@ -764,6 +994,54 @@ impl ScopeCollector {
     }
 
     // === Flag setters ===
+
+    /// Mark that the current function scope contains a lazily-parsed inner
+    /// function whose variable captures are unknown. This conservatively
+    /// poisons the enclosing scope chain so all variables are heap-allocated
+    /// and `this` is available from the environment, ensuring correctness
+    /// when the lazy function is later compiled and may capture anything.
+    pub fn mark_has_lazy_inner_function(&mut self) {
+        let index = self.current.expect("no current scope");
+        // Walk up ALL ancestor scopes and mark them. The lazy function
+        // might capture variables from any ancestor function scope, so
+        // all of them must prevent local variable optimization.
+        let mut si = match self.records[index].parent {
+            Some(p) => p,
+            None => return,
+        };
+        loop {
+            self.records[si].has_lazy_inner_function = true;
+            match self.records[si].parent {
+                Some(p) => si = p,
+                None => break,
+            }
+        }
+    }
+
+    /// Store the free variables from a lazily-parsed inner function on
+    /// ancestor scopes.  During analysis, only these specific names are
+    /// prevented from being optimized as local variables (instead of the
+    /// blanket `has_lazy_inner_function` flag).
+    pub fn add_lazy_function_free_variables(&mut self, names: HashSet<Utf16String>) {
+        if names.is_empty() {
+            return;
+        }
+        let index = self.current.expect("no current scope");
+        let mut si = match self.records[index].parent {
+            Some(p) => p,
+            None => return,
+        };
+        loop {
+            self.records[si]
+                .lazy_function_free_vars
+                .get_or_insert_with(HashSet::new)
+                .extend(names.iter().cloned());
+            match self.records[si].parent {
+                Some(p) => si = p,
+                None => break,
+            }
+        }
+    }
 
     // https://tc39.es/ecma262/#sec-function-calls-runtime-semantics-evaluation
     // A direct call to eval (identifier `eval` as callee) can introduce new
@@ -1149,7 +1427,13 @@ impl ScopeCollector {
                 }
 
                 if !group.captured_by_nested_function && !group.used_inside_with_statement {
-                    if records[index].poisoned_by_eval_in_scope_chain {
+                    if records[index].poisoned_by_eval_in_scope_chain
+                        || records[index].has_lazy_inner_function
+                        || records[index]
+                            .lazy_function_free_vars
+                            .as_ref()
+                            .is_some_and(|s| s.contains(&name))
+                    {
                         continue;
                     }
 
@@ -1360,6 +1644,11 @@ impl ScopeCollector {
                 record.contains_direct_call_to_eval || record.poisoned_by_eval_in_scope_chain;
             sd.contains_access_to_arguments_object =
                 record.contains_access_to_arguments_object_in_non_strict_mode;
+            sd.has_lazy_inner_function = record.has_lazy_inner_function
+                || record
+                    .lazy_function_free_vars
+                    .as_ref()
+                    .is_some_and(|s| !s.is_empty());
         }
     }
 

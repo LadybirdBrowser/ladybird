@@ -357,7 +357,8 @@ pub unsafe extern "C" fn rust_compile_program(
             let program = parser.parse_program(starts_in_strict_mode);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 return std::ptr::null_mut();
             }
@@ -428,6 +429,9 @@ pub unsafe extern "C" fn rust_parse_program(
             } else {
                 Parser::new(source_slice, pt)
             };
+            if dump_ast {
+                parser.disable_lazy_parsing = true;
+            }
 
             let program = parser.parse_program(false);
 
@@ -527,7 +531,7 @@ pub unsafe extern "C" fn rust_parsed_program_compile_regexes(parsed: *mut Parsed
         let deferred = std::mem::take(&mut parsed.deferred_regexes);
         parsed
             .errors
-            .extend(Parser::compile_deferred_regexes(deferred));
+            .extend(crate::parser::compile_deferred_regexes(deferred));
     }
 }
 
@@ -731,7 +735,8 @@ pub unsafe extern "C" fn rust_compile_eval(
             let program = parser.parse_program(starts_in_strict_mode);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 if let Some(cb) = error_callback {
                     for err in &regex_errors {
@@ -927,7 +932,8 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let program = parser.parse_program(false);
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 if let Some(cb) = error_callback {
                     for err in &regex_errors {
@@ -1051,7 +1057,8 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
             let program = parser.parse_program(true); // strict mode
 
             // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
+            let regex_errors =
+                crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
             if !regex_errors.is_empty() {
                 let errors: Vec<String> = regex_errors
                     .iter()
@@ -2192,6 +2199,93 @@ pub unsafe extern "C" fn rust_free_string(ptr: *mut u8, len: usize) {
     }
 }
 
+/// Materialize a lazily-deferred function body on demand.
+///
+/// Called during bytecode compilation when `rust_compile_function`
+/// encounters a `FunctionBodyKind::Lazy`.  Creates a fresh parser
+/// at the saved source offset, fully parses the body, runs scope
+/// analysis, and returns the parsed AST, inner function table, and
+/// parsing insights.
+///
+/// The function source was already validated for syntax errors during
+/// the initial parse (by the SYNTAX_ONLY checker), so this pass
+/// builds the full AST and scope tree needed for codegen.
+fn materialize_lazy_body(
+    lazy: &ast::LazyFunctionBody,
+    function_data: &ast::FunctionData,
+    source: &[u16],
+) -> (
+    Box<ast::Statement>,
+    ast::FunctionTable,
+    ast::FunctionParsingInsights,
+) {
+    use crate::parser::Parser;
+
+    let strict_mode = function_data.is_strict_mode || lazy.has_use_strict;
+    let is_async = matches!(
+        function_data.kind,
+        ast::FunctionKind::Async | ast::FunctionKind::AsyncGenerator
+    );
+    let is_generator = matches!(
+        function_data.kind,
+        ast::FunctionKind::Generator | ast::FunctionKind::AsyncGenerator
+    );
+
+    let mut parser = Parser::new_for_lazy_parse(
+        source,
+        lazy.body_start_offset as usize,
+        lazy.body_start_line,
+        lazy.body_start_column,
+        strict_mode,
+        is_async,
+        is_generator,
+    );
+
+    // Register parameters so var-redeclarations (e.g. `function f(i) { var i = [i]; }`)
+    // resolve correctly during scope analysis.
+    parser.register_function_parameters_with_scope(&function_data.parameters, &[]);
+
+    let (has_use_strict, mut children) = parser.parse_directive();
+    children.extend(parser.parse_statement_list(false));
+
+    let body_is_strict = strict_mode || has_use_strict;
+
+    let insights = ast::FunctionParsingInsights {
+        contains_direct_call_to_eval: parser.scope_collector.contains_direct_call_to_eval(),
+        uses_this: parser.scope_collector.uses_this(),
+        uses_this_from_environment: parser.scope_collector.uses_this_from_environment(),
+        might_need_arguments_object: parser.flags.function_might_need_arguments_object,
+    };
+
+    parser.consume_token(crate::token::TokenType::CurlyClose);
+
+    let scope = ast::ScopeData::shared_with_children(children);
+    parser.scope_collector.set_scope_node(scope.clone());
+    parser.scope_collector.close_scope();
+    parser.scope_collector.analyze(false);
+
+    // Compile regex literals found during deferred parsing.
+    crate::parser::compile_deferred_regexes(parser.take_deferred_regexes());
+
+    let range = ast::SourceRange {
+        start: ast::Position {
+            line: 0,
+            column: 0,
+            offset: lazy.body_start_offset,
+        },
+        end: parser.position(),
+    };
+    let body = ast::Statement::new(
+        range,
+        ast::StatementKind::FunctionBody {
+            scope,
+            in_strict_mode: body_is_strict,
+        },
+    );
+
+    (Box::new(body), parser.function_table, insights)
+}
+
 /// Compile a function body.
 ///
 /// Takes ownership of the `Box<FunctionData>` and compiles it into a
@@ -2219,9 +2313,22 @@ pub unsafe extern "C" fn rust_compile_function(
                 return std::ptr::null_mut();
             }
             let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
-            let function_data = Box::new(payload.data);
+            let mut function_data = Box::new(payload.data);
+            let mut function_table = payload.function_table;
 
-            let body_scope = match &function_data.body.inner {
+            // If the body was lazily parsed, fully parse it now.
+            if let ast::FunctionBodyKind::Lazy(ref lazy) = function_data.body {
+                let source_slice = std::slice::from_raw_parts(_source, source_len);
+                let (parsed_body, inner_table, insights) =
+                    materialize_lazy_body(lazy, &function_data, source_slice);
+                function_data.body = ast::FunctionBodyKind::Parsed(parsed_body);
+                function_data.parsing_insights = insights;
+                function_table = inner_table;
+            }
+
+            let body_stmt = function_data.body.expect_parsed();
+
+            let body_scope = match &body_stmt.inner {
                 StatementKind::FunctionBody { scope, .. } => Some(scope),
                 StatementKind::Block(scope) => Some(scope),
                 _ => None,
@@ -2235,7 +2342,7 @@ pub unsafe extern "C" fn rust_compile_function(
             generator.strict = function_data.is_strict_mode;
             generator.function_environment_needed = sfd_metadata.function_environment_needed;
             generator.builtin_abstract_operations_enabled = builtin_abstract_operations_enabled;
-            generator.function_table = payload.function_table;
+            generator.function_table = function_table;
             generator.vm_ptr = vm_ptr;
             generator.source_code_ptr = source_code_ptr;
             generator.source_len = source_len;
@@ -2294,8 +2401,7 @@ pub unsafe extern "C" fn rust_compile_function(
                 generator.switch_to_basic_block(start_block);
             }
 
-            let result =
-                bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
+            let result = bytecode::codegen::generate_statement(body_stmt, &mut generator, None);
 
             if !generator.is_current_block_terminated() {
                 if generator.is_in_generator_or_async_function() {
@@ -2355,12 +2461,14 @@ struct BodyScopeInfo {
     var_names: Vec<ast::Utf16String>,
     annexb_function_names: Vec<ast::Utf16String>,
     has_arguments_object_local: bool,
+    has_lazy_inner_function: bool,
 }
 
 /// Compute FDI runtime metadata matching the C++ SharedFunctionInstanceData
 /// constructor (ECMA-262 §10.2.11).
 fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
-    let body_scope = match &function_data.body.inner {
+    let body_stmt = function_data.body.expect_parsed();
+    let body_scope = match &body_stmt.inner {
         ast::StatementKind::FunctionBody { scope, .. } => Some(scope),
         _ => None,
     };
@@ -2390,6 +2498,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
                 .local_variables
                 .iter()
                 .any(|lv| lv.kind == ast::LocalVarKind::ArgumentsObject),
+            has_lazy_inner_function: sd.has_lazy_inner_function,
         }
     } else {
         BodyScopeInfo {
@@ -2404,6 +2513,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
             var_names: Vec::new(),
             annexb_function_names: Vec::new(),
             has_arguments_object_local: false,
+            has_lazy_inner_function: false,
         }
     };
 
@@ -2517,7 +2627,8 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
         || var_environment_bindings_count > 0
         || lex_environment_bindings_count > 0
         || bsi.uses_this_from_env
-        || bsi.contains_eval;
+        || bsi.contains_eval
+        || bsi.has_lazy_inner_function;
 
     SfdMetadata {
         uses_this: bsi.uses_this,

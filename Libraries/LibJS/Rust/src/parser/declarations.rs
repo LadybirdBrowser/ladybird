@@ -21,6 +21,10 @@ use crate::token::TokenType;
 fn expression_into_identifier(expression: Expression) -> Rc<Identifier> {
     match expression.inner {
         ExpressionKind::Identifier(id) => id,
+        ExpressionKind::SyntaxOnly(ExpressionClass::Identifier) => {
+            // Syntax-check mode — return dummy identifier.
+            Rc::new(Identifier::new(expression.range, Utf16String::default()))
+        }
         _ => unreachable!("expected Identifier expression"),
     }
 }
@@ -84,7 +88,7 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
     }
 }
 
-impl<'a> Parser<'a> {
+impl<'a, const SYNTAX_ONLY: bool> Parser<'a, SYNTAX_ONLY> {
     pub(crate) fn parse_declaration(&mut self) -> Statement {
         if self.match_token(TokenType::Async) {
             let next = self.next_token();
@@ -540,14 +544,31 @@ impl<'a> Parser<'a> {
         // function body don't steal names from an outer binding context.
         let saved_pattern_bound_names = std::mem::take(&mut self.pattern_bound_names);
 
+        // Temporarily reset nesting depth during parameter parsing so that
+        // function expressions in default values are eagerly parsed. Their
+        // variable captures must be visible to the enclosing scope analysis.
+        let saved_depth = self.function_nesting_depth;
+        self.function_nesting_depth = 0;
         let parsed = self.parse_formal_parameters();
+        self.function_nesting_depth = saved_depth;
+        // Register parameter names with the scope collector. In FreeVarOnly
+        // mode, this tracks them as declared_names so free variable tracking
+        // can subtract them and correctly detect has_parameter_expressions.
         self.register_function_parameters_with_scope(&parsed.parameters, &parsed.parameter_info);
 
         self.flags.in_generator_function_context = in_generator_before;
         self.flags.await_expression_is_valid = await_before;
 
-        let (body, has_use_strict, mut insights) =
-            self.parse_function_body(is_async, is_generator, parsed.is_simple);
+        let lazy = self.should_lazy_parse() && parsed.is_simple;
+        self.function_nesting_depth += 1;
+        let (body_kind, has_use_strict, mut insights) = if lazy {
+            self.parse_function_body_lazy(is_async, is_generator)
+        } else {
+            let (body, strict, ins) =
+                self.parse_function_body(is_async, is_generator, parsed.is_simple);
+            (FunctionBodyKind::Parsed(Box::new(body)), strict, ins)
+        };
+        self.function_nesting_depth -= 1;
 
         self.scope_collector.close_scope();
         self.pattern_bound_names = saved_pattern_bound_names;
@@ -569,8 +590,12 @@ impl<'a> Parser<'a> {
             name: name.clone(),
             source_text_start: start.offset,
             source_text_end: self.source_text_end_offset(),
-            body: Box::new(body),
-            parameters: parsed.parameters,
+            body: body_kind,
+            parameters: if SYNTAX_ONLY {
+                Vec::new()
+            } else {
+                parsed.parameters
+            },
             function_length: parsed.function_length,
             kind,
             is_strict_mode: self.flags.strict_mode || has_use_strict,
@@ -743,6 +768,10 @@ impl<'a> Parser<'a> {
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
+            ExpressionKind::SyntaxOnly(_) => {
+                // Syntax-check mode — class was already validated, return empty.
+                self.statement(start, StatementKind::Empty)
+            }
             _ => unreachable!("parse_class_expression must return ExpressionKind::Class"),
         }
     }
@@ -805,7 +834,7 @@ impl<'a> Parser<'a> {
                 name: ctor_name,
                 source_text_start: start.offset,
                 source_text_end: self.source_text_end_offset(),
-                body: Box::new(body),
+                body: FunctionBodyKind::Parsed(Box::new(body)),
                 parameters,
                 function_length: 0,
                 kind: FunctionKind::Normal,
@@ -828,7 +857,7 @@ impl<'a> Parser<'a> {
                 name: ctor_name,
                 source_text_start: start.offset,
                 source_text_end: self.source_text_end_offset(),
-                body: Box::new(body),
+                body: FunctionBodyKind::Parsed(Box::new(body)),
                 parameters: Vec::new(),
                 function_length: 0,
                 kind: FunctionKind::Normal,
@@ -1218,6 +1247,220 @@ impl<'a> Parser<'a> {
         (body, has_use_strict, insights)
     }
 
+    /// Lazy-parse a function body.  Returns `FunctionBodyKind::Lazy` with
+    /// the source position and flags needed for later materialization.
+    ///
+    /// In normal mode, spawns a `Parser<true>` syntax checker that validates
+    /// syntax, collects free variables, and propagates `this`/`eval`/private-name
+    /// usage back to the outer parser.  In syntax-check mode, delegates to
+    /// `skip_function_body_brace_counting` instead.
+    pub(crate) fn parse_function_body_lazy(
+        &mut self,
+        is_async: bool,
+        is_generator: bool,
+    ) -> (FunctionBodyKind, bool, FunctionParsingInsights) {
+        if SYNTAX_ONLY {
+            return self.skip_function_body_brace_counting();
+        }
+
+        // Spawn syntax-check parser.
+        self.consume();
+        let body_start_offset = self.current_token.offset;
+        let body_start_line = self.current_token.line_number;
+        let body_start_column = self.current_token.line_column;
+
+        let mut checker: Parser<'_, true> = Parser::new_for_syntax_check(
+            self.source,
+            body_start_offset as usize,
+            body_start_line,
+            body_start_column,
+            is_async,
+            is_generator,
+        );
+        // Transfer template literal states so the checker's lexer correctly
+        // distinguishes `}` as TemplateLiteralExprEnd vs CurlyClose when
+        // the function body is inside a template expression.
+        if !self.lexer.template_states.is_empty() {
+            checker.lexer.template_states = self.lexer.template_states.clone();
+        }
+        // If we're inside a class body, tell the checker so that private
+        // name references (e.g. `this.#field`) don't produce spurious
+        // "undeclared private field" errors.  The actual validation is
+        // performed by the outer parser at class-body end.
+        if self.class_scope_depth > 0 {
+            checker.referenced_private_names_stack.push(HashSet::new());
+        }
+        // Open a function scope in the checker so declaration/reference
+        // tracking can compute free variables for this lazy function body.
+        checker.scope_collector.open_function_scope(None);
+
+        let (has_use_strict, _) = checker.parse_directive();
+        if has_use_strict {
+            checker.flags.strict_mode = true;
+        }
+        checker.parse_statement_list(false);
+        checker.consume_token(TokenType::CurlyClose);
+
+        // Read insights from the checker's scope BEFORE closing the root
+        // scope (which sets current to None, making getters return false).
+        let checker_uses_this = checker.scope_collector.uses_this();
+        let checker_has_eval = checker.scope_collector.contains_direct_call_to_eval();
+
+        // Close the function scope — this computes free variables in
+        // FreeVarOnly mode (used - declared) for the lazy function body.
+        checker.scope_collector.close_scope();
+
+        // Transfer the checker's lexer position back.
+        let saved_states = std::mem::take(&mut self.lexer.saved_states);
+        self.lexer = checker.lexer;
+        self.lexer.saved_states = saved_states;
+        self.current_token = checker.current_token;
+        self.errors.extend(checker.errors);
+
+        // Propagate private name references from the checker back to the
+        // outer parser so the class-level validation sees them.
+        if self.class_scope_depth > 0
+            && let Some(checker_names) = checker.referenced_private_names_stack.into_iter().next()
+            && let Some(outer_names) = self.referenced_private_names_stack.last_mut()
+        {
+            outer_names.extend(checker_names);
+        }
+
+        if checker_uses_this {
+            self.scope_collector.set_uses_this();
+        }
+        if checker_has_eval {
+            self.scope_collector.set_contains_direct_call_to_eval();
+        }
+
+        // If the lazy function contains eval(), we must fall back to the
+        // conservative approach: eval can access ANY variable by name from
+        // a string, so free variable tracking can't determine what's captured.
+        if checker_has_eval {
+            self.scope_collector.mark_has_lazy_inner_function();
+        } else {
+            // Extract the free variables and pass them to the parent parser's
+            // scope collector for precise per-variable optimization.
+            let free_vars = checker.scope_collector.take_free_variables();
+            self.scope_collector
+                .add_lazy_function_free_variables(free_vars);
+        }
+
+        let insights = FunctionParsingInsights {
+            uses_this: self.scope_collector.uses_this(),
+            uses_this_from_environment: self.scope_collector.uses_this_from_environment(),
+            contains_direct_call_to_eval: self.scope_collector.contains_direct_call_to_eval(),
+            might_need_arguments_object: checker.flags.function_might_need_arguments_object,
+        };
+
+        let lazy = LazyFunctionBody {
+            body_start_offset,
+            body_start_line,
+            body_start_column,
+            has_use_strict,
+        };
+        (FunctionBodyKind::Lazy(lazy), has_use_strict, insights)
+    }
+
+    /// Skip a function body by counting braces (SYNTAX_ONLY mode only).
+    /// Tracks `this`, `eval`, identifiers, and private names via token
+    /// scanning, but does not validate syntax.  Used for doubly-nested
+    /// bodies where spawning another syntax checker would produce
+    /// mismatched line numbers.
+    fn skip_function_body_brace_counting(
+        &mut self,
+    ) -> (FunctionBodyKind, bool, FunctionParsingInsights) {
+        let mut depth: u32 = 1;
+        let mut saw_this = false;
+        let mut has_use_strict = false;
+        let mut body_start_offset = 0u32;
+        let mut body_start_line = 0u32;
+        let mut body_start_column = 0u32;
+        let mut is_first_token = true;
+        loop {
+            self.consume();
+            if is_first_token {
+                is_first_token = false;
+                body_start_offset = self.current_token.offset;
+                body_start_line = self.current_token.line_number;
+                body_start_column = self.current_token.line_column;
+                if self.current_token_type() == TokenType::StringLiteral {
+                    let val = self.token_original_value(&self.current_token);
+                    if crate::parser::is_use_strict(val) {
+                        has_use_strict = true;
+                    }
+                }
+            }
+            match self.current_token_type() {
+                TokenType::CurlyOpen => depth += 1,
+                TokenType::CurlyClose => {
+                    depth -= 1;
+                    if depth == 0 {
+                        self.consume();
+                        break;
+                    }
+                }
+                // Skip over template literals so that `}` inside
+                // template expressions (e.g. `${fn() { ... }()}`)
+                // is not counted as a closing brace.
+                TokenType::TemplateLiteralStart => {
+                    let mut tmpl_depth: u32 = 0;
+                    loop {
+                        self.consume();
+                        match self.current_token_type() {
+                            TokenType::TemplateLiteralExprStart => tmpl_depth += 1,
+                            TokenType::TemplateLiteralExprEnd => tmpl_depth -= 1,
+                            TokenType::TemplateLiteralEnd if tmpl_depth == 0 => break,
+                            TokenType::Eof => break,
+                            _ => {}
+                        }
+                    }
+                }
+                TokenType::This => saw_this = true,
+                // Register private identifiers so that the class
+                // validation doesn't report them as undeclared.
+                TokenType::PrivateIdentifier => {
+                    let value = self.token_value(&self.current_token).to_vec();
+                    self.register_referenced_private_name(&value);
+                }
+                // Collect identifier tokens for free variable tracking.
+                // These come from brace-counted (doubly-nested) function
+                // bodies where full scope analysis isn't available.
+                TokenType::Identifier => {
+                    let value = self.token_value(&self.current_token).to_vec();
+                    // Conservatively treat any use of `eval` as a
+                    // potential direct eval call.  We can't distinguish
+                    // `eval(...)` from `obj.eval` in brace-counting, but
+                    // false positives are harmless (just less optimized).
+                    if value == utf16!("eval") {
+                        self.scope_collector.set_contains_direct_call_to_eval();
+                        self.scope_collector.set_uses_this();
+                    }
+                    self.scope_collector
+                        .use_identifier_in_free_var_tracking(&value);
+                }
+                TokenType::Eof => break,
+                _ => {}
+            }
+        }
+        if saw_this {
+            self.scope_collector.set_uses_this();
+        }
+        let insights = FunctionParsingInsights {
+            uses_this: self.scope_collector.uses_this(),
+            uses_this_from_environment: self.scope_collector.uses_this_from_environment(),
+            contains_direct_call_to_eval: self.scope_collector.contains_direct_call_to_eval(),
+            might_need_arguments_object: self.flags.function_might_need_arguments_object,
+        };
+        let lazy = LazyFunctionBody {
+            body_start_offset,
+            body_start_line,
+            body_start_column,
+            has_use_strict,
+        };
+        (FunctionBodyKind::Lazy(lazy), has_use_strict, insights)
+    }
+
     // https://tc39.es/ecma262/#sec-function-definitions
     // FormalParameters : [empty]
     //                  | FunctionRestParameter
@@ -1511,9 +1754,9 @@ impl<'a> Parser<'a> {
                         if self.match_token(TokenType::StringLiteral) {
                             let token = self.consume();
                             let (value, _has_octal) = self.parse_string_value(&token);
-                            let id = self.make_identifier(entry_start, value);
+                            let id = self.make_identifier(entry_start, value.clone());
                             self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                                .register_identifier(id.clone(), &value, None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
                             let token = self.consume();
@@ -1523,19 +1766,19 @@ impl<'a> Parser<'a> {
                             } else {
                                 value.to_vec()
                             };
-                            let id = self.make_identifier(entry_start, name_value);
+                            let id = self.make_identifier(entry_start, name_value.clone());
                             self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                                .register_identifier(id.clone(), &name_value, None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume();
                             let value = self.token_value(&token).to_vec();
                             entry_name_value = value.clone().into();
-                            let id = self.make_identifier(entry_start, value);
+                            let id = self.make_identifier(entry_start, value.clone());
                             // C++ calls parse_identifier() for binding pattern property
                             // keys, which registers them. Do the same here.
                             self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                                .register_identifier(id.clone(), &value, None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
 

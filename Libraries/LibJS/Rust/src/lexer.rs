@@ -40,7 +40,7 @@ use crate::u32_from_usize;
 
 /// State for tracking template literal nesting.
 #[derive(Clone)]
-struct TemplateState {
+pub(crate) struct TemplateState {
     in_expression: bool,
     open_bracket_count: u32,
 }
@@ -68,8 +68,8 @@ pub struct Lexer<'a> {
     current_token_type: TokenType,
     regex_is_in_character_class: bool,
     allow_html_comments: bool,
-    template_states: Vec<TemplateState>,
-    saved_states: Vec<SavedLexerState>,
+    pub(crate) template_states: Vec<TemplateState>,
+    pub(crate) saved_states: Vec<SavedLexerState>,
 }
 
 // Unicode constants used by the lexical grammar.

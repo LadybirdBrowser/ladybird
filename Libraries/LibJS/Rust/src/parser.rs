@@ -24,6 +24,41 @@
 //! is always available via `self.current_token`. Calling `consume()` returns
 //! the current token and advances to the next one.
 //!
+//! ## Lazy parsing
+//!
+//! Nested function bodies are deferred ("lazily parsed") to reduce startup
+//! cost — most functions in a large bundle are never called during initial
+//! page load.  This is controlled by `function_nesting_depth`: at depth 0
+//! (top-level) bodies are always eagerly parsed; at depth ≥ 1 they may be
+//! deferred.
+//!
+//! The parser is generic over `const SYNTAX_ONLY: bool` (similar to JSC's
+//! `ASTBuilder` / `SyntaxChecker` template parameter).  When `SYNTAX_ONLY`
+//! is false (the default), full AST nodes are constructed.  When true,
+//! lightweight `SyntaxOnly` sentinels replace expressions and statements,
+//! avoiding heap allocation while still validating syntax and tracking
+//! free variables.
+//!
+//! A function body is deferred in three steps:
+//!
+//! 1. **Syntax check**: The normal parser (`SYNTAX_ONLY=false`) spawns a
+//!    `Parser<true>` to scan the body.  This validates syntax, collects
+//!    free variables (identifiers used but not declared locally), and
+//!    detects `eval`/`this`/`arguments` usage — but does not build an AST.
+//!
+//! 2. **Store metadata**: A `FunctionBodyKind::Lazy` is stored with the
+//!    source offset, line/column, and flags.  Free variable names are
+//!    propagated to ancestor scopes so their variables aren't incorrectly
+//!    optimized as stack locals.
+//!
+//! 3. **Materialize on demand**: When `rust_compile_function` needs the
+//!    body for bytecode generation, `materialize_lazy_body` creates a
+//!    fresh parser at the saved offset and fully parses the body.
+//!
+//! Inside a `SYNTAX_ONLY` parser, doubly-nested function bodies are
+//! skipped via brace-counting (no recursive syntax checker), with special
+//! handling for template literals and private identifiers.
+//!
 //! ## Backtracking
 //!
 //! Some constructs require speculative parsing (e.g., arrow functions:
@@ -37,9 +72,9 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    BindingPattern, CompiledRegex, Expression, ExpressionKind, FunctionParameter, FunctionTable,
-    Identifier, PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind,
-    Utf16String,
+    BindingPattern, CompiledRegex, Expression, ExpressionClass, ExpressionKind, FunctionParameter,
+    FunctionTable, Identifier, PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement,
+    StatementKind, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -201,6 +236,10 @@ pub(crate) struct ParserFlags {
     /// C++ uses separate `consume()` and `consume_and_allow_division()` methods;
     /// we emulate this by skipping the check in property key contexts.
     pub in_property_key_context: bool,
+    /// Set inside `with` statement bodies to prevent lazy parsing of inner
+    /// functions.  `with` creates a dynamic scope that affects variable
+    /// resolution at runtime, so function bodies must be eagerly parsed.
+    pub in_with_statement: bool,
 }
 
 /// A regex literal whose compilation is deferred until after parsing.
@@ -225,7 +264,7 @@ struct SavedState {
 ///
 /// Produces an AST. Parsing methods live in the `expressions`,
 /// `statements`, and `declarations` submodules (all `impl Parser`).
-pub struct Parser<'a> {
+pub struct Parser<'a, const SYNTAX_ONLY: bool = false> {
     lexer: Lexer<'a>,
     /// `consume()` returns this and advances to the next token.
     current_token: Token,
@@ -308,22 +347,22 @@ pub struct Parser<'a> {
 
     /// Regex literals whose compilation is deferred until after parsing.
     deferred_regexes: Vec<DeferredRegex>,
+    pub(crate) function_nesting_depth: u32,
+    /// When true, all function bodies are eagerly parsed (e.g. for AST dumping).
+    pub disable_lazy_parsing: bool,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(source: &'a [u16], program_type: ProgramType) -> Self {
-        Self::new_with_line_offset(source, program_type, 1)
-    }
-
-    pub fn new_with_line_offset(
+impl<'a, const SYNTAX_ONLY: bool> Parser<'a, SYNTAX_ONLY> {
+    /// Shared constructor — builds a parser with the given lexer, flags,
+    /// scope collector, and nesting depth.  All other fields default.
+    fn new_inner(
         source: &'a [u16],
+        mut lexer: Lexer<'a>,
         program_type: ProgramType,
-        initial_line_number: u32,
+        flags: ParserFlags,
+        scope_collector: ScopeCollector,
+        function_nesting_depth: u32,
     ) -> Self {
-        let mut lexer = Lexer::new(source, initial_line_number, 0);
-        if program_type == ProgramType::Module {
-            lexer.disallow_html_comments();
-        }
         let first_token = lexer.next();
         Self {
             lexer,
@@ -332,7 +371,7 @@ impl<'a> Parser<'a> {
             saved_states: Vec::new(),
             program_type,
             source,
-            flags: ParserFlags::default(),
+            flags,
             initiated_by_eval: false,
             in_eval_function_context: false,
             labels_in_scope: HashMap::new(),
@@ -351,12 +390,106 @@ impl<'a> Parser<'a> {
             for_loop_declaration_count: 0,
             for_loop_declaration_has_init: false,
             for_loop_declaration_is_var: false,
-            scope_collector: ScopeCollector::new(),
+            scope_collector,
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
             arrow_function_failed_positions: HashSet::new(),
             deferred_regexes: Vec::new(),
+            function_nesting_depth,
+            disable_lazy_parsing: false,
         }
+    }
+}
+
+impl<'a> Parser<'a> {
+    pub fn new(source: &'a [u16], program_type: ProgramType) -> Self {
+        Self::new_with_line_offset(source, program_type, 1)
+    }
+
+    pub fn new_with_line_offset(
+        source: &'a [u16],
+        program_type: ProgramType,
+        initial_line_number: u32,
+    ) -> Self {
+        let mut lexer = Lexer::new(source, initial_line_number, 0);
+        if program_type == ProgramType::Module {
+            lexer.disallow_html_comments();
+        }
+        Self::new_inner(
+            source,
+            lexer,
+            program_type,
+            ParserFlags::default(),
+            ScopeCollector::new(),
+            0,
+        )
+    }
+
+    /// Create a parser positioned mid-source for deferred lazy body parsing.
+    pub fn new_for_lazy_parse(
+        source: &'a [u16],
+        offset: usize,
+        line_number: u32,
+        line_column: u32,
+        strict_mode: bool,
+        is_async: bool,
+        is_generator: bool,
+    ) -> Self {
+        let lexer = Lexer::new_at_offset(source, offset, line_number, line_column);
+        let mut parser = Self::new_inner(
+            source,
+            lexer,
+            ProgramType::Script,
+            ParserFlags {
+                strict_mode,
+                in_function_context: true,
+                in_generator_function_context: is_generator,
+                await_expression_is_valid: is_async,
+                ..ParserFlags::default()
+            },
+            ScopeCollector::new(),
+            1,
+        );
+        parser.scope_collector.open_function_scope(None);
+        parser.scope_collector.mark_has_function_parameters();
+        parser
+    }
+}
+
+impl<'a> Parser<'a, true> {
+    /// Create a syntax-check parser.  Same recursive descent as the normal
+    /// parser but with `SYNTAX_ONLY=true`: expression/statement factories
+    /// return lightweight sentinels, Vec pushes are skipped.
+    pub fn new_for_syntax_check(
+        source: &'a [u16],
+        offset: usize,
+        line_number: u32,
+        line_column: u32,
+        is_async: bool,
+        is_generator: bool,
+    ) -> Self {
+        let lexer = Lexer::new_at_offset(source, offset, line_number, line_column);
+        Self::new_inner(
+            source,
+            lexer,
+            ProgramType::Script,
+            ParserFlags {
+                in_function_context: true,
+                in_generator_function_context: is_generator,
+                await_expression_is_valid: is_async,
+                ..ParserFlags::default()
+            },
+            ScopeCollector::new_free_var_only(),
+            1,
+        )
+    }
+}
+
+impl<'a, const SYNTAX_ONLY: bool> Parser<'a, SYNTAX_ONLY> {
+    pub(crate) fn should_lazy_parse(&self) -> bool {
+        self.function_nesting_depth > 0
+            && !self.flags.in_with_statement
+            && !self.disable_lazy_parsing
     }
 
     // === AST construction helpers ===
@@ -368,11 +501,27 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn expression(&self, start: Position, expression: ExpressionKind) -> Expression {
-        Expression::new(self.range_from(start), expression)
+    /// Fast path for syntax-check mode — avoids constructing ExpressionKind.
+    #[inline(always)]
+    pub(crate) fn syntax_only(&self, start: Position, class: ExpressionClass) -> Expression {
+        debug_assert!(SYNTAX_ONLY);
+        Expression::new(self.range_from(start), ExpressionKind::SyntaxOnly(class))
+    }
+
+    pub(crate) fn expression(&self, start: Position, kind: ExpressionKind) -> Expression {
+        if SYNTAX_ONLY {
+            return Expression::new(
+                self.range_from(start),
+                ExpressionKind::SyntaxOnly(kind.classify()),
+            );
+        }
+        Expression::new(self.range_from(start), kind)
     }
 
     pub(crate) fn statement(&self, start: Position, statement: StatementKind) -> Statement {
+        if SYNTAX_ONLY {
+            return Statement::new(self.range_from(start), StatementKind::Empty);
+        }
         Statement::new(self.range_from(start), statement)
     }
 
@@ -381,6 +530,20 @@ impl<'a> Parser<'a> {
         start: Position,
         name: impl Into<Utf16String>,
     ) -> Rc<Identifier> {
+        if SYNTAX_ONLY {
+            // Shared dummy — avoids per-call Rc allocation.
+            // Uses thread_local because Rc is not Send/Sync (required by static).
+            thread_local! {
+                static DUMMY: Rc<Identifier> = Rc::new(Identifier::new(
+                    SourceRange {
+                        start: Position { line: 0, column: 0, offset: 0 },
+                        end: Position { line: 0, column: 0, offset: 0 },
+                    },
+                    Utf16String::default(),
+                ));
+            }
+            return DUMMY.with(|d| d.clone());
+        }
         Rc::new(Identifier::new(self.range_from(start), name.into()))
     }
 
@@ -687,24 +850,6 @@ impl<'a> Parser<'a> {
         std::mem::take(&mut self.deferred_regexes)
     }
 
-    /// Batch-compile deferred regex literals. On error, returns the errors.
-    pub(crate) fn compile_deferred_regexes(deferred: Vec<DeferredRegex>) -> Vec<ParseError> {
-        let mut errors = Vec::new();
-        for d in deferred {
-            match crate::bytecode::ffi::compile_regex(&d.pattern, &d.flags) {
-                Ok(handle) => d.compiled_regex.set(handle),
-                Err(msg) => {
-                    errors.push(ParseError {
-                        message: msg,
-                        line: d.line,
-                        column: d.column,
-                    });
-                }
-            }
-        }
-        errors
-    }
-
     pub(crate) fn validate_regex_flags(&mut self, flags: &[u16]) {
         let valid_flags: &[u16] = &[
             ch(b'd'),
@@ -966,34 +1111,30 @@ impl<'a> Parser<'a> {
         allow_call_expression: bool,
         strict_mode: bool,
     ) -> bool {
-        match &expression.inner {
-            ExpressionKind::Identifier(_) | ExpressionKind::Member { .. } => true,
-            // CallExpression: In strict mode, call expressions are always ~invalid~ as
-            // assignment targets. In non-strict mode, they are ~web-compat~ (runtime error).
-            // NewExpression is always ~invalid~.
-            ExpressionKind::Call(_) if allow_call_expression && !strict_mode => true,
-            _ => false,
-        }
+        let c = expression.inner.classify();
+        c == ExpressionClass::Identifier
+            || c == ExpressionClass::Member
+            || (allow_call_expression && !strict_mode && c == ExpressionClass::Call)
     }
 
     fn is_object_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Object(_))
+        expression.inner.classify() == ExpressionClass::Object
     }
 
     fn is_array_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Array(_))
+        expression.inner.classify() == ExpressionClass::Array
     }
 
     fn is_identifier(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Identifier(_))
+        expression.inner.classify() == ExpressionClass::Identifier
     }
 
     fn is_member_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Member { .. })
+        expression.inner.classify() == ExpressionClass::Member
     }
 
     fn is_update_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Update { .. })
+        expression.inner.classify() == ExpressionClass::Update
     }
 
     // === Main entry point ===
@@ -1198,7 +1339,9 @@ impl<'a> Parser<'a> {
         while !self.done() && self.match_token(TokenType::StringLiteral) {
             let raw_value = self.token_original_value(&self.current_token);
             let statement = self.parse_statement(false);
-            statements.push(statement);
+            if !SYNTAX_ONLY {
+                statements.push(statement);
+            }
 
             if is_use_strict(raw_value) {
                 found_use_strict = true;
@@ -1224,9 +1367,15 @@ impl<'a> Parser<'a> {
                 break;
             }
             if self.match_declaration() {
-                statements.push(self.parse_declaration());
+                let s = self.parse_declaration();
+                if !SYNTAX_ONLY {
+                    statements.push(s);
+                }
             } else if self.match_statement() {
-                statements.push(self.parse_statement(allow_labelled_functions));
+                let s = self.parse_statement(allow_labelled_functions);
+                if !SYNTAX_ONLY {
+                    statements.push(s);
+                }
             } else {
                 break;
             }
@@ -1413,7 +1562,26 @@ impl<'a> Parser<'a> {
 
 // === Helpers ===
 
-fn is_use_strict(raw: &[u16]) -> bool {
+/// Batch-compile deferred regex literals.  Free function so it can be
+/// called without specifying the SYNTAX_ONLY const generic.
+pub(crate) fn compile_deferred_regexes(deferred: Vec<DeferredRegex>) -> Vec<ParseError> {
+    let mut errors = Vec::new();
+    for d in deferred {
+        match crate::bytecode::ffi::compile_regex(&d.pattern, &d.flags) {
+            Ok(handle) => d.compiled_regex.set(handle),
+            Err(msg) => {
+                errors.push(ParseError {
+                    message: msg,
+                    line: d.line,
+                    column: d.column,
+                });
+            }
+        }
+    }
+    errors
+}
+
+pub(crate) fn is_use_strict(raw: &[u16]) -> bool {
     raw == utf16!("'use strict'") || raw == utf16!("\"use strict\"")
 }
 
