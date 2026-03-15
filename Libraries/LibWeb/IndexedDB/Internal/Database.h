@@ -8,6 +8,7 @@
 
 #include <LibGC/HeapVector.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -29,8 +30,9 @@ public:
 
     void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
     using AssociatedConnections = GC::HeapVector<GC::Ref<IDBDatabase>>;
-    GC::Ref<AssociatedConnections> associated_connections();
-    GC::Ref<AssociatedConnections> associated_connections_except(IDBDatabase& connection);
+    GC::Ref<AssociatedConnections> associated_connections_as_heap_vector();
+    GC::Ref<AssociatedConnections> associated_connections_as_heap_vector_except(IDBDatabase& connection);
+    GC::RootVector<GC::Ref<IDBDatabase>> associated_connections_as_root_vector();
 
     ReadonlySpan<GC::Ref<ObjectStore>> object_stores() { return m_object_stores; }
     GC::Ptr<ObjectStore> object_store_with_name(String const& name) const;
