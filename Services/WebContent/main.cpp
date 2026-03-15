@@ -5,6 +5,7 @@
  */
 
 #include <AK/LexicalPath.h>
+#include <LibAudioServer/SessionClientOfAudioServer.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/LocalServer.h>
@@ -100,6 +101,8 @@ static ErrorOr<void> load_content_filters(StringView config_path);
 static ErrorOr<void> connect_to_resource_loader(GC::Heap& heap, IPC::TransportHandle const& handle);
 static ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle);
 
+static ErrorOr<void> setup_audio_server(IPC::File const& socket_file, ByteString const& grant_id, bool init_transport);
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -148,6 +151,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     StringView echo_server_port_string_view {};
     StringView default_time_zone {};
     bool file_origins_are_tuple_origins = false;
+    ByteString audio_grant_id { "*"sv };
 
     Core::ArgsParser args_parser;
     args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
@@ -223,7 +227,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #endif
 
     OPENSSL_TRY(OSSL_set_max_threads(nullptr, Core::System::hardware_concurrency()));
-
     Web::HTML::Window::set_enable_test_mode(enable_test_mode);
     Web::HTML::Window::set_internals_object_exposed(expose_internals_object);
     Web::HTML::UniversalGlobalScopeMixin::set_experimental_interfaces_exposed(expose_experimental_interfaces);
@@ -258,6 +261,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     webcontent_client->on_image_decoder_connection = [](auto const& handle) {
         if (auto result = connect_to_image_decoder(handle); result.is_error())
             dbgln("Failed to connect to image decoder: {}", result.error());
+    };
+    webcontent_client->on_audio_server_connection = [&](auto const& socket_file, auto const& grant_id) {
+        if (auto result = setup_audio_server(socket_file, grant_id, false); result.is_error())
+            dbgln("Failed to reinitialize audio server: {}", result.error());
     };
 
     return event_loop.exec();
@@ -314,5 +321,24 @@ ErrorOr<void> connect_to_image_decoder(IPC::TransportHandle const& handle)
         static_cast<WebView::ImageCodecPlugin&>(Web::Platform::ImageCodecPlugin::the()).set_client(move(new_client));
     else
         Web::Platform::ImageCodecPlugin::install(*new WebView::ImageCodecPlugin(move(new_client)));
+    return {};
+}
+
+static ErrorOr<void> setup_audio_server(IPC::File const& socket_file, ByteString const& grant_id, bool init_transport)
+{
+    auto socket = TRY(Core::LocalSocket::adopt_fd(socket_file.take_fd()));
+    TRY(socket->set_blocking(true));
+    auto new_client = TRY(try_make_ref_counted<AudioServer::SessionClientOfAudioServer>(make<IPC::Transport>(move(socket))));
+    if (init_transport) {
+#ifdef AK_OS_WINDOWS
+        auto response = new_client->send_sync<Messages::ToAudioServerFromSessionClient::InitTransport>(Core::System::getpid());
+        new_client->transport().set_peer_pid(response->peer_pid());
+#endif
+    }
+    NonnullRefPtr<AudioServer::SessionClientOfAudioServer> client = *new_client;
+    if (!grant_id.is_empty())
+        client->set_grant_id(grant_id);
+    client->on_devices_changed = [] { }; // FIXME: notify navigator.mediaDevices
+    AudioServer::SessionClientOfAudioServer::set_default_client(client);
     return {};
 }

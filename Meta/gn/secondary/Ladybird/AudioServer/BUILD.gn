@@ -1,0 +1,66 @@
+import("//Meta/gn/build/libs/pulse/enable.gni")
+
+executable("AudioServer") {
+  configs += [ "//Ladybird:ladybird_config" ]
+  include_dirs = [
+    "//Userland/Libraries",
+    "//Userland/Services",
+  ]
+  deps = [
+    "//AK",
+    "//Userland/Libraries/LibAudioServer",
+    "//Userland/Libraries/LibAudioServer:ToAudioServerFromBrokerEndpoint",
+    "//Userland/Libraries/LibAudioServer:ToAudioServerFromSessionClientEndpoint",
+    "//Userland/Libraries/LibAudioServer:ToBrokerFromAudioServerEndpoint",
+    "//Userland/Libraries/LibAudioServer:ToSessionClientFromAudioServerEndpoint",
+    "//Userland/Libraries/LibCore",
+    "//Userland/Libraries/LibIPC",
+    "//Userland/Libraries/LibMain",
+    "//Userland/Libraries/LibMedia",
+    "//Userland/Libraries/LibThreading",
+  ]
+  sources = [
+    "//Userland/Services/AudioServer/BrokerConnection.cpp",
+    "//Userland/Services/AudioServer/InputStream.cpp",
+    "//Userland/Services/AudioServer/OutputStream.cpp",
+    "//Userland/Services/AudioServer/Server.cpp",
+    "//Userland/Services/AudioServer/SessionConnection.cpp",
+    "//Userland/Services/AudioServer/main.cpp",
+  ]
+
+  if (current_os == "mac") {
+    sources += [
+      "//Userland/Services/AudioServer/Platform/CoreAudio.pp",
+      "//Userland/Services/AudioServer/Platform/CoreAudioInputStream.cpp",
+      "//Userland/Services/AudioServer/Platform/CoreAudioOutputDriver.cpp",
+    ]
+    frameworks = [
+      "AudioToolbox.framework",
+      "CoreAudio.framework",
+      "CoreFoundation.framework",
+    ]
+  } else if (current_os == "win") {
+    sources += [
+      "//Userland/Services/AudioServer/Platform/Wasapi.cpp",
+      "//Userland/Services/AudioServer/Platform/WasapiInputStream.cpp",
+      "//Userland/Services/AudioServer/Platform/WasapiOutputDriver.cpp",
+    ]
+    libs = [
+      "avrt",
+      "ole32",
+      "winmm",
+    ]
+  } else if (enable_pulseaudio) {
+    sources += [
+      "//Userland/Services/AudioServer/Platform/PulseAudio.cpp",
+      "//Userland/Services/AudioServer/Platform/PulseAudioInputStream.cpp",
+      "//Userland/Services/AudioServer/Platform/PulseAudioOutputDriver.cpp",
+    ]
+    deps += [ "//Meta/gn/build/libs/pulse" ]
+    defines = [ "HAVE_PULSEAUDIO=1" ]
+  } else {
+    sources += [ "//Userland/Services/AudioServer/Platform/StubPlatform.cpp" ]
+  }
+
+  output_dir = "$root_out_dir/libexec"
+}

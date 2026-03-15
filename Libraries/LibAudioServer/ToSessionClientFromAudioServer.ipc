@@ -1,0 +1,21 @@
+#include <AK/ByteString.h>
+#include <AK/Vector.h>
+#include <AudioServer/OutputDriver.h>
+#include <LibAudioServer/LibAudioServer.h>
+
+endpoint ToSessionClientFromAudioServer
+{
+	did_get_devices(u64 request_token, Vector<AudioServer::DeviceInfo> devices) =|
+	did_create_input_stream(u64 request_token, AudioServer::InputStreamDescriptor descriptor) =|
+	did_start_input_stream(u64 request_token) =|
+	did_stop_input_stream(u64 request_token) =|
+	did_destroy_input_stream(u64 request_token) =|
+	did_set_output_sink_volume(u64 request_token) =|
+	did_create_session(u64 request_token, u64 session_id) =|
+	did_destroy_session(u64 request_token) =|
+	request_error(u64 request_token, ByteString error) =|
+
+	output_sink_ready(AudioServer::OutputSinkTransport output_sink_transport) =|
+	output_sink_failed(u64 session_id, ByteString error) =|
+	notify_devices_changed() =|
+}

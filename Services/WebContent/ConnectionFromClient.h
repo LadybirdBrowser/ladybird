@@ -48,6 +48,7 @@ public:
 
     Function<void(IPC::TransportHandle const&)> on_request_server_connection;
     Function<void(IPC::TransportHandle const&)> on_image_decoder_connection;
+    Function<void(IPC::File const&, ByteString const&)> on_audio_server_connection;
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
 
@@ -65,6 +66,7 @@ private:
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
+    virtual void connect_to_audio_server(IPC::File socket_file, ByteString grant_id) override;
     virtual void update_system_theme(u64 page_id, Core::AnonymousBuffer) override;
     virtual void update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect>, u32) override;
     virtual void load_url(u64 page_id, URL::URL) override;

@@ -51,6 +51,7 @@ config("ladybird_config") {
 }
 
 ladybird_helper_processes = [
+  "AudioServer",
   "ImageDecoder",
   "RequestServer",
   "WebContent",

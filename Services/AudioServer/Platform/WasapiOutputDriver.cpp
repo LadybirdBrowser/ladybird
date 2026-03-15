@@ -12,6 +12,7 @@
 #include <AK/FixedArray.h>
 #include <AK/Format.h>
 #include <AK/Math.h>
+#include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Platform.h>
 #include <AK/Queue.h>
@@ -20,15 +21,15 @@
 #include <AK/Time.h>
 #include <AK/Types.h>
 #include <AK/Vector.h>
+#include <AK/Windows.h>
+#include <AudioServer/OutputDriver.h>
+#include <AudioServer/Platform/Wasapi.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/ChannelMap.h>
-#include <LibMedia/Audio/PlaybackStreamWasapi.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibThreading/Mutex.h>
 #include <LibThreading/Thread.h>
-
-#include <AK/Windows.h>
 #include <audioclient.h>
 #include <avrt.h>
 #include <mmdeviceapi.h>
@@ -37,7 +38,35 @@
 // NOTE: Not using the newer winrt that supersedes wrl as that uses exceptions for error handling
 #include <wrl/client.h>
 
-namespace Audio {
+namespace AudioServer {
+
+using Audio::Channel;
+using Audio::ChannelMap;
+using Audio::SampleSpecification;
+
+class WasapiOutputDriver final : public OutputDriver {
+public:
+    using SampleSpecificationCallback = OutputDriver::SampleSpecificationCallback;
+    using AudioDataRequestCallback = OutputDriver::AudioDataRequestCallback;
+
+    static ErrorOr<NonnullOwnPtr<OutputDriver>> create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&&, AudioDataRequestCallback&&);
+
+    virtual void set_underrun_callback(Function<void()>) override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> resume() override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> drain_buffer_and_suspend() override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> discard_buffer_and_suspend() override;
+    virtual AK::Duration device_time_played() const override;
+    virtual NonnullRefPtr<Core::ThreadedPromise<void>> set_volume(double) override;
+
+private:
+    struct AudioState;
+
+    explicit WasapiOutputDriver(NonnullRefPtr<AudioState>);
+    static ALWAYS_INLINE AK::Duration total_time_played_with_com_initialized(AudioState& state);
+    virtual ~WasapiOutputDriver() override;
+
+    NonnullRefPtr<AudioState> m_state;
+};
 
 using namespace Microsoft::WRL;
 
@@ -89,7 +118,7 @@ public:
 
 static thread_local ComUninitializer s_com_uninitializer {};
 
-struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStreamWASAPI::AudioState> {
+struct WasapiOutputDriver::AudioState : public AtomicRefCounted<WasapiOutputDriver::AudioState> {
     AudioState();
     ~AudioState();
 
@@ -104,33 +133,29 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
     UINT32 buffer_frame_count;
     HANDLE buffer_event = 0;
 
-    PlaybackStreamWASAPI::AudioDataRequestCallback data_request_callback;
+    OutputDriver::AudioDataRequestCallback data_request_callback;
     Function<void()> underrun_callback;
 
     Threading::Mutex task_queue_mutex;
     Queue<Variant<TaskPlay, TaskDrainAndSuspend, TaskDiscardAndSuspend>> task_queue;
-    // FIXME: Create a owning handle type to be shared in the codebase
     HANDLE task_event = 0;
 
     bool playing = false;
-    bool drain_and_suspend = false;
     Atomic<bool> exit_requested = false;
-
-    static int render_thread_loop(AudioState& state);
-    RefPtr<Core::ThreadedPromise<AK::Duration>> resume_promise;
-    RefPtr<Core::ThreadedPromise<void>> suspend_promise;
 
     Vector<float, ChannelMap::capacity()> channel_volumes;
     UINT64 audio_client_clock_frequency;
+
+    static int render_thread_loop(AudioState& state);
 };
 
-PlaybackStreamWASAPI::AudioState::AudioState()
+WasapiOutputDriver::AudioState::AudioState()
 {
     task_event = CreateEvent(NULL, FALSE, FALSE, NULL);
     VERIFY(task_event);
 }
 
-PlaybackStreamWASAPI::AudioState::~AudioState()
+WasapiOutputDriver::AudioState::~AudioState()
 {
     if (buffer_event)
         CloseHandle(buffer_event);
@@ -138,19 +163,19 @@ PlaybackStreamWASAPI::AudioState::~AudioState()
         CloseHandle(task_event);
 }
 
-ALWAYS_INLINE AK::Duration PlaybackStreamWASAPI::total_time_played_with_com_initialized(PlaybackStreamWASAPI::AudioState& state)
+ALWAYS_INLINE AK::Duration WasapiOutputDriver::total_time_played_with_com_initialized(WasapiOutputDriver::AudioState& state)
 {
     UINT64 position;
     MUST_HR(state.clock->GetPosition(&position, nullptr));
     return AK::Duration::from_time_units(AK::clamp_to<i64>(position), 1, state.audio_client_clock_frequency);
 }
 
-PlaybackStreamWASAPI::PlaybackStreamWASAPI(NonnullRefPtr<AudioState> state)
+WasapiOutputDriver::WasapiOutputDriver(NonnullRefPtr<AudioState> state)
     : m_state(move(state))
 {
 }
 
-PlaybackStreamWASAPI::~PlaybackStreamWASAPI()
+WasapiOutputDriver::~WasapiOutputDriver()
 {
     m_state->exit_requested.store(true, MemoryOrder::memory_order_release);
     // Poke the event to wake the thread up from wait
@@ -158,9 +183,12 @@ PlaybackStreamWASAPI::~PlaybackStreamWASAPI()
     SetEvent(m_state->buffer_event);
 }
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&& specification_callback, AudioDataRequestCallback&& data_callback)
+ErrorOr<NonnullOwnPtr<OutputDriver>> create_platform_output_driver(DeviceHandle device_handle, OutputState initial_output_state, u32 target_latency_ms, OutputDriver::SampleSpecificationCallback&& specification_callback, OutputDriver::AudioDataRequestCallback&& data_callback)
 {
-    return PlaybackStreamWASAPI::create(initial_output_state, target_latency_ms, move(specification_callback), move(data_callback));
+    if (device_handle != 0)
+        return Error::from_string_literal("WASAPI output supports only the default output device");
+
+    return WasapiOutputDriver::create(initial_output_state, target_latency_ms, move(specification_callback), move(data_callback));
 }
 
 static void print_audio_format(WAVEFORMATEXTENSIBLE& format)
@@ -188,55 +216,17 @@ static void print_audio_format(WAVEFORMATEXTENSIBLE& format)
         Span<u8> { reinterpret_cast<char*>(&format.SubFormat), 16 });
 }
 
-// This needs to be kept up to date with KSAUDIO_CHANNEL_LAYOUT in ksmedia.h
-#define ENUMERATE_CHANNEL_POSITIONS(C)                            \
-    C(SPEAKER_FRONT_LEFT, Channel::FrontLeft)                     \
-    C(SPEAKER_FRONT_RIGHT, Channel::FrontRight)                   \
-    C(SPEAKER_FRONT_CENTER, Channel::FrontCenter)                 \
-    C(SPEAKER_LOW_FREQUENCY, Channel::LowFrequency)               \
-    C(SPEAKER_BACK_LEFT, Channel::BackLeft)                       \
-    C(SPEAKER_BACK_RIGHT, Channel::BackRight)                     \
-    C(SPEAKER_FRONT_LEFT_OF_CENTER, Channel::FrontLeftOfCenter)   \
-    C(SPEAKER_FRONT_RIGHT_OF_CENTER, Channel::FrontRightOfCenter) \
-    C(SPEAKER_BACK_CENTER, Channel::BackCenter)                   \
-    C(SPEAKER_SIDE_LEFT, Channel::SideLeft)                       \
-    C(SPEAKER_SIDE_RIGHT, Channel::SideRight)                     \
-    C(SPEAKER_TOP_CENTER, Channel::TopCenter)                     \
-    C(SPEAKER_TOP_FRONT_LEFT, Channel::TopFrontLeft)              \
-    C(SPEAKER_TOP_FRONT_CENTER, Channel::TopFrontCenter)          \
-    C(SPEAKER_TOP_FRONT_RIGHT, Channel::TopFrontRight)            \
-    C(SPEAKER_TOP_BACK_LEFT, Channel::TopBackLeft)                \
-    C(SPEAKER_TOP_BACK_CENTER, Channel::TopBackCenter)            \
-    C(SPEAKER_TOP_BACK_RIGHT, Channel::TopBackRight)
-
-static ErrorOr<ChannelMap> convert_bitmask_to_channel_map(u32 channel_bitmask)
+ErrorOr<NonnullOwnPtr<OutputDriver>> WasapiOutputDriver::create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&& sample_specification_callback, AudioDataRequestCallback&& data_request_callback)
 {
-    Vector<Channel, ChannelMap::capacity()> channels;
+    (void)target_latency_ms;
 
-#define MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG(ksmedia_channel_name, audio_channel)               \
-    if ((channel_bitmask & ksmedia_channel_name) != 0) {                                      \
-        if (channels.size() == ChannelMap::capacity()) [[unlikely]]                           \
-            return Error::from_string_literal("Device channel layout had too many channels"); \
-        channels.unchecked_append(audio_channel);                                             \
-    }
-
-    ENUMERATE_CHANNEL_POSITIONS(MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG);
-
-    if ((channel_bitmask & SPEAKER_RESERVED) != 0) [[unlikely]]
-        return Error::from_string_literal("Unsupported new KSMEDIA version");
-
-    return ChannelMap { channels };
-}
-
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState initial_output_state, u32, SampleSpecificationCallback&& sample_specification_callback, AudioDataRequestCallback&& data_request_callback)
-{
     HRESULT hr;
     if (!s_com_uninitializer.initialized) {
         TRY_HR(CoInitializeEx(NULL, COINIT_MULTITHREADED));
         s_com_uninitializer.initialized = true;
     }
 
-    auto state = make_ref_counted<PlaybackStreamWASAPI::AudioState>();
+    auto state = make_ref_counted<WasapiOutputDriver::AudioState>();
 
     TRY_HR(CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, IID_PPV_ARGS(&state->enumerator)));
     TRY_HR(state->enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &state->device));
@@ -248,7 +238,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     state->audio_client->GetMixFormat(reinterpret_cast<WAVEFORMATEX**>(&device_format));
     ScopeGuard free_mix_format = [&device_format] { CoTaskMemFree(device_format); };
 
-    dbgln_if(AUDIO_DEBUG, "PlaybackStreamWASAPI: Mixing engine audio format:\n");
+    dbgln_if(AUDIO_DEBUG, "WasapiOutputDriver: Mixing engine audio format:\n");
     if (AUDIO_DEBUG)
         print_audio_format(*device_format);
 
@@ -257,7 +247,7 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     VERIFY(popcount(device_format->dwChannelMask) == device_format->Format.nChannels);
     auto channels = device_format->Format.nChannels;
 
-    ChannelMap channel_map = MUST(convert_bitmask_to_channel_map(device_format->dwChannelMask));
+    ChannelMap channel_map = MUST(convert_ksmedia_channel_bitmask_to_channel_map(device_format->dwChannelMask));
 
     sample_specification_callback(SampleSpecification { device_format->Format.nSamplesPerSec, channel_map });
 
@@ -319,10 +309,10 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     audio_thread->start();
     audio_thread->detach();
 
-    return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamWASAPI(move(state))));
+    return TRY(adopt_nonnull_own_or_enomem(new (nothrow) WasapiOutputDriver(move(state))));
 }
 
-int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::AudioState& state)
+int WasapiOutputDriver::AudioState::render_thread_loop(WasapiOutputDriver::AudioState& state)
 {
     MUST_HR(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
 
@@ -347,7 +337,7 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
                     [&state](TaskPlay const& task) {
                         HRESULT hr = state.audio_client->Start();
                         if (hr == AUDCLNT_E_NOT_STOPPED)
-                            dbgln_if(AUDIO_DEBUG, "PlaybackStreamWASAPI: Trying to start an already running stream.");
+                            dbgln_if(AUDIO_DEBUG, "WasapiOutputDriver: Trying to start an already running stream.");
                         else
                             MUST_HR(move(hr));
                         task.promise->resolve(total_time_played_with_com_initialized(state));
@@ -363,7 +353,7 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
                                 MUST_HR(state.audio_client->GetCurrentPadding(&padding));
                             }
                             if (padding == 0)
-                                dbgln_if(AUDIO_DEBUG, "------- PlaybackStreamWASAPI: overslept draining buffer --------");
+                                dbgln_if(AUDIO_DEBUG, "------- WasapiOutputDriver: overslept draining buffer --------");
                             while (padding > 0) {
                                 AK::atomic_pause();
                                 MUST_HR(state.audio_client->GetCurrentPadding(&padding));
@@ -435,12 +425,12 @@ int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::A
     return 0;
 }
 
-void PlaybackStreamWASAPI::set_underrun_callback(Function<void()> underrun_callback)
+void WasapiOutputDriver::set_underrun_callback(Function<void()> underrun_callback)
 {
     m_state->underrun_callback = move(underrun_callback);
 }
 
-NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamWASAPI::resume()
+NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> WasapiOutputDriver::resume()
 {
     auto promise = Core::ThreadedPromise<AK::Duration>::create();
     TaskPlay task = { .promise = promise };
@@ -453,7 +443,7 @@ NonnullRefPtr<Core::ThreadedPromise<AK::Duration>> PlaybackStreamWASAPI::resume(
     return promise;
 }
 
-NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::drain_buffer_and_suspend()
+NonnullRefPtr<Core::ThreadedPromise<void>> WasapiOutputDriver::drain_buffer_and_suspend()
 {
     auto promise = Core::ThreadedPromise<void>::create();
     TaskDrainAndSuspend task = { .promise = promise };
@@ -466,7 +456,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::drain_buffer_an
     return promise;
 }
 
-NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::discard_buffer_and_suspend()
+NonnullRefPtr<Core::ThreadedPromise<void>> WasapiOutputDriver::discard_buffer_and_suspend()
 {
     auto promise = Core::ThreadedPromise<void>::create();
     TaskDiscardAndSuspend task = { .promise = promise };
@@ -479,7 +469,7 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::discard_buffer_
     return promise;
 }
 
-AK::Duration PlaybackStreamWASAPI::total_time_played() const
+AK::Duration WasapiOutputDriver::device_time_played() const
 {
     if (!s_com_uninitializer.initialized) [[unlikely]] {
         MUST_HR(CoInitializeEx(nullptr, COINIT_MULTITHREADED));
@@ -489,7 +479,7 @@ AK::Duration PlaybackStreamWASAPI::total_time_played() const
     return total_time_played_with_com_initialized(m_state);
 }
 
-NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamWASAPI::set_volume(double volume)
+NonnullRefPtr<Core::ThreadedPromise<void>> WasapiOutputDriver::set_volume(double volume)
 {
     HRESULT hr;
     auto promise = Core::ThreadedPromise<void>::create();
