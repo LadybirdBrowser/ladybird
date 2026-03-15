@@ -21,6 +21,7 @@ GC_DEFINE_ALLOCATOR(RsaHashedKeyAlgorithm);
 GC_DEFINE_ALLOCATOR(EcKeyAlgorithm);
 GC_DEFINE_ALLOCATOR(AesKeyAlgorithm);
 GC_DEFINE_ALLOCATOR(HmacKeyAlgorithm);
+GC_DEFINE_ALLOCATOR(KmacKeyAlgorithm);
 
 template<typename T>
 static JS::ThrowCompletionOr<T*> impl_from(JS::VM& vm, StringView Name)
@@ -234,6 +235,28 @@ JS_DEFINE_NATIVE_FUNCTION(HmacKeyAlgorithm::hash_getter)
 JS_DEFINE_NATIVE_FUNCTION(HmacKeyAlgorithm::length_getter)
 {
     auto* impl = TRY(impl_from<HmacKeyAlgorithm>(vm, "HmacKeyAlgorithm"sv));
+    return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->length(); }));
+}
+
+GC::Ref<KmacKeyAlgorithm> KmacKeyAlgorithm::create(JS::Realm& realm)
+{
+    return realm.create<KmacKeyAlgorithm>(realm);
+}
+
+KmacKeyAlgorithm::KmacKeyAlgorithm(JS::Realm& realm)
+    : KeyAlgorithm(realm)
+{
+}
+
+void KmacKeyAlgorithm::initialize(JS::Realm& realm)
+{
+    Base::initialize(realm);
+    define_native_accessor(realm, "length"_utf16_fly_string, length_getter, {}, JS::Attribute::Enumerable | JS::Attribute::Configurable);
+}
+
+JS_DEFINE_NATIVE_FUNCTION(KmacKeyAlgorithm::length_getter)
+{
+    auto* impl = TRY(impl_from<KmacKeyAlgorithm>(vm, "KmacKeyAlgorithm"sv));
     return TRY(Bindings::throw_dom_exception_if_needed(vm, [&] { return impl->length(); }));
 }
 

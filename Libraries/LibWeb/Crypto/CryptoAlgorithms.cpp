@@ -16,6 +16,7 @@
 #include <LibCrypto/ASN1/Constants.h>
 #include <LibCrypto/ASN1/DER.h>
 #include <LibCrypto/Authentication/HMAC.h>
+#include <LibCrypto/Authentication/KMAC.h>
 #include <LibCrypto/Certificate/Certificate.h>
 #include <LibCrypto/Cipher/AES.h>
 #include <LibCrypto/Cipher/ChaCha.h>
@@ -705,6 +706,64 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(J
     auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
 
     return adopt_own<AlgorithmParams>(*new CShakeParams { length, function_name, customization });
+}
+
+KmacParams::~KmacParams() = default;
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-params
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacParams::from_value(JS::VM& vm, JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+
+    // 1. If the length member is missing, throw a TypeError.
+    if (!MUST(object.has_property("length"_utf16_fly_string))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "length");
+    }
+
+    auto const length_value = TRY(object.get("length"_utf16_fly_string));
+    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
+
+    // 2. Let customization be the optional customization member or the empty octet string.
+    auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
+
+    return adopt_own<AlgorithmParams>(*new KmacParams { length, customization });
+}
+
+KmacKeyGenParams::~KmacKeyGenParams() = default;
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-keygen-params
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacKeyGenParams::from_value(JS::VM& vm, JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+
+    // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
+    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
+    if (MUST(object.has_property("length"_utf16_fly_string))) {
+        auto length_value = TRY(object.get("length"_utf16_fly_string));
+        maybe_length = TRY(length_value.to_u32(vm));
+    }
+
+    return adopt_own<AlgorithmParams>(*new KmacKeyGenParams { maybe_length });
+}
+
+KmacImportParams::~KmacImportParams() = default;
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-import-params
+JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacImportParams::from_value(JS::VM& vm, JS::Value value)
+{
+    VERIFY(value.is_object());
+    auto& object = value.as_object();
+
+    // 1. If the length member is present, record its unsigned long value; otherwise leave it unset.
+    auto maybe_length = Optional<WebIDL::UnsignedLong> {};
+    if (MUST(object.has_property("length"_utf16_fly_string))) {
+        auto length_value = TRY(object.get("length"_utf16_fly_string));
+        maybe_length = TRY(length_value.to_u32(vm));
+    }
+
+    return adopt_own<AlgorithmParams>(*new KmacImportParams { maybe_length });
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-encrypt
@@ -10368,6 +10427,360 @@ WebIDL::ExceptionOr<JS::Value> AesOcb::get_key_length(AlgorithmParams const& par
     }
 
     // 2. Return the length member of normalizedDerivedKeyAlgorithm.
+    return JS::Value(length);
+}
+
+static WebIDL::ExceptionOr<ByteBuffer> kmac_calculate_mac(
+    JS::Realm& realm,
+    StringView algorithm_name,
+    ReadonlyBytes key,
+    ReadonlyBytes message,
+    u32 output_length_bits,
+    Optional<ReadonlyBytes> customization)
+{
+    auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(algorithm_name);
+    if (!kind.has_value())
+        return WebIDL::OperationError::create(realm, "Unsupported KMAC algorithm"_utf16);
+    ::Crypto::Authentication::KMAC kmac(*kind);
+
+    auto maybe_result = kmac.sign(key, message, output_length_bits, customization);
+    if (maybe_result.is_error())
+        return WebIDL::OperationError::create(realm, "KMAC operation failed"_utf16);
+
+    return maybe_result.release_value();
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
+WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> KMAC::sign(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+{
+    auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
+
+    // 1. Let customization be the customization member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto const& customization = normalized_algorithm.customization;
+
+    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const output_length = normalized_algorithm.length;
+
+    // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+    //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
+    //    using the key represented by [[handle]] internal slot of key as the K input parameter,
+    //    message as the X input parameter, the outputLength member of normalizedAlgorithm as the L input parameter,
+    //    and customization as the S input parameter.
+    // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+    //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185]
+    //    using the key represented by [[handle]] internal slot of key as the K input parameter,
+    //    message as the X input parameter, the outputLength member of normalizedAlgorithm as the L input parameter,
+    //    and customization as the S input parameter.
+    auto mac = TRY(kmac_calculate_mac(
+        m_realm,
+        params.name,
+        key_data.bytes(),
+        message.bytes(),
+        output_length,
+        customization.map([](auto const& v) { return v.span(); })));
+
+    // 3. Return a byte sequence containing mac.
+    return JS::ArrayBuffer::create(m_realm, move(mac));
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-verify
+WebIDL::ExceptionOr<JS::Value> KMAC::verify(AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+{
+    auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
+
+    // 1. Let customization be the customization member of normalizedAlgorithm if present or the empty octet string otherwise.
+    auto const& customization = normalized_algorithm.customization;
+
+    auto const& key_data = key->handle().get<ByteBuffer>();
+    auto const output_length = normalized_algorithm.length;
+
+    // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+    //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
+    //    using the key represented by [[handle]] internal slot of key as the K input parameter, message as the X input parameter,
+    //    the outputLength member of normalizedAlgorithm as the L input parameter, and customization as the S input parameter.
+    // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+    //    Let mac be the result of performing the KMAC256 function defined in Section 4 of [NIST-SP800-185]
+    //    using the key represented by [[handle]] internal slot of key as the K input parameter, message as the X input parameter,
+    //    the outputLength member of normalizedAlgorithm as the L input parameter, and customization as the S input parameter.
+    auto mac = TRY(kmac_calculate_mac(
+        m_realm,
+        params.name,
+        key_data.bytes(),
+        message.bytes(),
+        output_length,
+        customization.map([](auto const& v) { return v.span(); })));
+
+    // 3. Let computedMac be the byte sequence containing mac.
+    // 4. Return true if computedMac equals signature and false otherwise.
+    return mac == signature;
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-generate-key
+WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>>> KMAC::generate_key(AlgorithmParams const& params, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
+    for (auto const& usage : usages) {
+        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+    }
+
+    auto const& normalized_algorithm = static_cast<KmacKeyGenParams const&>(params);
+
+    WebIDL::UnsignedLong length;
+    // 2. If the length member of normalizedAlgorithm is present:
+    //    Let length be equal to the length member of normalizedAlgorithm.
+    // 2. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+    //    Let length be 128.
+    // 2. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+    //    Let length be 256.
+    if (!normalized_algorithm.length.has_value()) {
+        auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(params.name);
+        if (!kind.has_value())
+            return WebIDL::OperationError::create(m_realm, "Unsupported KMAC algorithm"_utf16);
+        length = ::Crypto::Authentication::KMAC::default_key_length(*kind);
+    } else if (normalized_algorithm.length.value() != 0) {
+        length = normalized_algorithm.length.value();
+    } else {
+        return WebIDL::OperationError::create(m_realm, "Invalid key length"_utf16);
+    }
+
+    // 3. Generate a key of length bits.
+    // 4. If key generation fails, throw an OperationError.
+    auto key_data = MUST(generate_random_key(m_realm->vm(), length));
+
+    // 5. Let key be a new CryptoKey object representing the generated key.
+    auto key = CryptoKey::create(m_realm, move(key_data));
+
+    // 6. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 7. Let algorithm be a new KmacKeyAlgorithm.
+    auto algorithm = KmacKeyAlgorithm::create(m_realm);
+
+    // 8. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+    algorithm->set_name(params.name);
+
+    // 9. Set the length attribute of algorithm to length.
+    algorithm->set_length(length);
+
+    // 10. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 11. Set the [[extractable]] internal slot of key to extractable.
+    key->set_extractable(extractable);
+
+    // 12. Set the [[usages]] internal slot of key to usages.
+    key->set_usages(usages);
+
+    // 13. Return key.
+    return Variant<GC::Ref<CryptoKey>, GC::Ref<CryptoKeyPair>> { key };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(AlgorithmParams const& params, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& usages)
+{
+    auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
+
+    // 1. Let keyData be the key data to be imported.
+
+    // 2. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
+    for (auto const& usage : usages) {
+        if (usage != Bindings::KeyUsage::Sign && usage != Bindings::KeyUsage::Verify)
+            return WebIDL::SyntaxError::create(m_realm, Utf16String::formatted("Invalid key usage '{}'", idl_enum_to_string(usage)));
+    }
+
+    ByteBuffer data;
+
+    // 3. If format is "raw-secret":
+    if (format == Bindings::KeyFormat::RawSecret) {
+        // 1. Let data be keyData.
+        data = move(key_data.get<ByteBuffer>());
+    }
+    // 3. If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. If keyData is a JsonWebKey dictionary:
+        //        Let jwk equal keyData.
+        //    Otherwise:
+        //        Throw a DataError.
+        if (!key_data.has<Bindings::JsonWebKey>())
+            return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
+
+        auto const& jwk = key_data.get<Bindings::JsonWebKey>();
+
+        // 2. If the kty field of jwk is not "oct", then throw a DataError.
+        if (jwk.kty != "oct"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid key type"_utf16);
+
+        // 3. If jwk does not meet the requirements of Section 6.4 of JSON Web Algorithms [JWA], then throw a DataError.
+        // NOTE: parse_jwk_symmetric_key() performs the validation required for symmetric JWKs.
+
+        // 4. Let data be the byte sequence obtained by decoding the k field of jwk.
+        data = TRY(parse_jwk_symmetric_key(m_realm, jwk));
+
+        // 5. -> If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+        //           If the alg field of jwk is present and is not "K128", then throw a DataError.
+        //    -> If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+        //           If the alg field of jwk is present and is not "K256", then throw a DataError.
+        auto const& algorithm_name = normalized_algorithm.name;
+        if (algorithm_name == "KMAC128"sv) {
+            if (jwk.alg.has_value() && *jwk.alg != "K128"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid alg field for KMAC128"_utf16);
+        } else if (algorithm_name == "KMAC256"sv) {
+            if (jwk.alg.has_value() && *jwk.alg != "K256"sv)
+                return WebIDL::DataError::create(m_realm, "Invalid alg field for KMAC256"_utf16);
+        }
+
+        // 6. If usages is non-empty and the use field of jwk is present and is not "sign", then throw a DataError.
+        if (!usages.is_empty() && jwk.use.has_value() && *jwk.use != "sign"sv)
+            return WebIDL::DataError::create(m_realm, "Invalid use in JsonWebKey"_utf16);
+
+        // 7. If the key_ops field of jwk is present, and is invalid according to the requirements of JSON Web Key [JWK]
+        //    or does not contain all of the specified usages values, then throw a DataError.
+        TRY(validate_jwk_key_ops(m_realm, jwk, usages));
+
+        // 8. If the ext field of jwk is present and has the value false and extractable is true, then throw a DataError.
+        if (jwk.ext.has_value() && !*jwk.ext && extractable)
+            return WebIDL::DataError::create(m_realm, "Invalid ext field"_utf16);
+    }
+    // 3. Otherwise:
+    else {
+        // 1. Throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Only raw-secret and jwk formats are supported"_utf16);
+    }
+
+    // 4. Let length be the length in bits of data.
+    auto length = static_cast<WebIDL::UnsignedLong>(data.size() * 8);
+
+    // 5. If the length member of normalizedAlgorithm is present:
+    if (normalized_algorithm.length.has_value()) {
+        auto requested_length = normalized_algorithm.length.value();
+
+        // 1. If the length member of normalizedAlgorithm is greater than length, then throw a DataError.
+        if (requested_length > length)
+            return WebIDL::DataError::create(m_realm, "Invalid data size"_utf16);
+
+        // 2. If the length member of normalizedAlgorithm is less than or equal to length minus eight, then throw a DataError.
+        if (requested_length <= length - 8)
+            return WebIDL::DataError::create(m_realm, "Invalid data size"_utf16);
+
+        // 3. Otherwise:
+        //        Set length equal to the length member of normalizedAlgorithm.
+        length = requested_length;
+    }
+
+    // 6. Let key be a new CryptoKey object representing a KMAC key with the first length bits of data.
+    auto length_in_bytes = length / 8;
+    if (data.size() > length_in_bytes)
+        data = MUST(data.slice(0, length_in_bytes));
+
+    auto key = CryptoKey::create(m_realm, move(data));
+
+    // 7. Set the [[type]] internal slot of key to "secret".
+    key->set_type(Bindings::KeyType::Secret);
+
+    // 8. Let algorithm be a new KmacKeyAlgorithm.
+    auto algorithm = KmacKeyAlgorithm::create(m_realm);
+
+    // 9. Set the name attribute of algorithm to the name member of normalizedAlgorithm.
+    algorithm->set_name(normalized_algorithm.name);
+
+    // 10. Set the length attribute of algorithm to length.
+    algorithm->set_length(length);
+
+    // 11. Set the [[algorithm]] internal slot of key to algorithm.
+    key->set_algorithm(algorithm);
+
+    // 12. Return key.
+    return key;
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-export-key
+WebIDL::ExceptionOr<GC::Ref<JS::Object>> KMAC::export_key(Bindings::KeyFormat format, GC::Ref<CryptoKey> key)
+{
+    // 1. If the underlying cryptographic key material represented by the [[handle]] internal slot of key cannot be accessed, then throw an OperationError.
+    // Note: In our impl this is always accessible
+
+    GC::Ptr<JS::Object> result = nullptr;
+
+    // 2. If format is "raw-secret":
+    if (format == Bindings::KeyFormat::RawSecret) {
+        // 1. Let result be the raw bits of the key represented by [[handle]] internal slot of key.
+        auto data = key->handle().get<ByteBuffer>();
+        result = JS::ArrayBuffer::create(m_realm, data);
+    }
+    // 2. If format is "jwk":
+    else if (format == Bindings::KeyFormat::Jwk) {
+        // 1. Let jwk be a new JsonWebKey dictionary.
+        Bindings::JsonWebKey jwk = {};
+
+        // 2. Set the kty attribute of jwk to the string "oct".
+        jwk.kty = "oct"_string;
+
+        // 3. Set the k attribute of jwk to be a string containing the raw bits of the key represented by [[handle]] internal slot of key,
+        //    encoded according to JSON Web Algorithms [JWA].
+        auto const& key_bytes = key->handle().get<ByteBuffer>();
+        jwk.k = TRY_OR_THROW_OOM(m_realm->vm(), encode_base64url(key_bytes, AK::OmitPadding::Yes));
+
+        // 4. Let keyAlgorithm be the [[algorithm]] internal slot of key.
+        // 5. -> If the name member of keyAlgorithm is "KMAC128":
+        //        Set the alg attribute of jwk to the string "K128".
+        //    -> If the name member of keyAlgorithm is "KMAC256":
+        //        Set the alg attribute of jwk to the string "K256".
+        auto const& algorithm_name = key->algorithm_name();
+        if (algorithm_name == "KMAC128"_string) {
+            jwk.alg = "K128"_string;
+        } else if (algorithm_name == "KMAC256"_string) {
+            jwk.alg = "K256"_string;
+        }
+
+        // 6. Set the key_ops attribute of jwk to equal the usages attribute of key.
+        jwk.key_ops = Vector<String> {};
+        jwk.key_ops->ensure_capacity(key->internal_usages().size());
+        for (auto const& usage : key->internal_usages()) {
+            jwk.key_ops->unchecked_append(Bindings::idl_enum_to_string(usage));
+        }
+
+        // 7. Set the ext attribute of jwk to equal the [[extractable]] internal slot of key.
+        jwk.ext = key->extractable();
+
+        // 8. Let result be jwk.
+        return TRY(jwk.to_object(m_realm));
+    }
+    // 2. Otherwise:
+    else {
+        // 1. throw a NotSupportedError.
+        return WebIDL::NotSupportedError::create(m_realm, "Cannot export to unsupported format"_utf16);
+    }
+
+    // 3. Return result.
+    return GC::Ref { *result };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-get-key-length
+WebIDL::ExceptionOr<JS::Value> KMAC::get_key_length(AlgorithmParams const& params)
+{
+    auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
+
+    WebIDL::UnsignedLong length;
+
+    // 1. If the length member of normalizedAlgorithm is present:
+    //        Let length be equal to the length member of normalizedAlgorithm.
+    if (normalized_algorithm.length.has_value()) {
+        length = normalized_algorithm.length.value();
+    }
+    // 1. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
+    //        Let length be 128.
+    // 1. Otherwise, if the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC256":
+    //        Let length be 256.
+    else {
+        auto kind = ::Crypto::Authentication::KMAC::kind_from_algorithm_name(params.name);
+        if (!kind.has_value())
+            return WebIDL::OperationError::create(m_realm, "Unsupported KMAC algorithm"_utf16);
+
+        length = ::Crypto::Authentication::KMAC::default_key_length(*kind);
+    }
+
+    // 2. Return length.
     return JS::Value(length);
 }
 

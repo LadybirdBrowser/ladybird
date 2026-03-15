@@ -176,4 +176,28 @@ private:
     WebIDL::UnsignedLong m_length;
 };
 
+// https://wicg.github.io/webcrypto-modern-algos/#KmacKeyAlgorithm-dictionary
+struct KmacKeyAlgorithm : public KeyAlgorithm {
+    JS_OBJECT(KmacKeyAlgorithm, KeyAlgorithm);
+    GC_DECLARE_ALLOCATOR(KmacKeyAlgorithm);
+
+public:
+    static GC::Ref<KmacKeyAlgorithm> create(JS::Realm&);
+
+    virtual ~KmacKeyAlgorithm() override = default;
+
+    WebIDL::UnsignedLong length() const { return m_length; }
+    void set_length(WebIDL::UnsignedLong length) { m_length = length; }
+
+protected:
+    KmacKeyAlgorithm(JS::Realm&);
+
+    virtual void initialize(JS::Realm&) override;
+
+private:
+    JS_DECLARE_NATIVE_FUNCTION(length_getter);
+
+    WebIDL::UnsignedLong m_length { 0 };
+};
+
 }

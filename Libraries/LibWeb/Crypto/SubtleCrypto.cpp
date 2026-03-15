@@ -1706,6 +1706,16 @@ SupportedAlgorithmsMap const& supported_algorithms()
     define_an_algorithm<AesOcb>("exportKey"_string, "AES-OCB"_string);
     define_an_algorithm<AesOcb, AesDerivedKeyParams>("get key length"_string, "AES-OCB"_string);
 
+    // https://wicg.github.io/webcrypto-modern-algos/#kmac-registration
+    for (auto const& algorithm : { "KMAC128"_string, "KMAC256"_string }) {
+        define_an_algorithm<KMAC, KmacParams>("sign"_string, algorithm);
+        define_an_algorithm<KMAC, KmacParams>("verify"_string, algorithm);
+        define_an_algorithm<KMAC, KmacKeyGenParams>("generateKey"_string, algorithm);
+        define_an_algorithm<KMAC, KmacImportParams>("importKey"_string, algorithm);
+        define_an_algorithm<KMAC>("exportKey"_string, algorithm);
+        define_an_algorithm<KMAC, KmacImportParams>("get key length"_string, algorithm);
+    }
+
     return internal_object;
 }
 
