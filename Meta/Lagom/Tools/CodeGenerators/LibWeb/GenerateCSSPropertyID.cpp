@@ -82,14 +82,14 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
 void replace_logical_aliases(JsonObject& properties, JsonObject& logical_property_groups)
 {
-    // Grab the first property in each logical group, to use as the template
-    HashMap<String, String> first_property_in_logical_group;
-    logical_property_groups.for_each_member([&first_property_in_logical_group](String const& name, JsonValue const& value) {
+    // Grab the first physical property in each logical group, to use as the template
+    HashMap<String, String> first_physical_property_in_logical_group;
+    logical_property_groups.for_each_member([&first_physical_property_in_logical_group](String const& name, JsonValue const& value) {
         bool found = false;
-        value.as_object().for_each_member([&](String const&, JsonValue const& member_value) {
+        value.as_object().get_object("physical"sv)->for_each_member([&](String const&, JsonValue const& member_value) {
             if (found)
                 return;
-            first_property_in_logical_group.set(name, member_value.as_string());
+            first_physical_property_in_logical_group.set(name, member_value.as_string());
             found = true;
         });
         VERIFY(found);
@@ -107,7 +107,7 @@ void replace_logical_aliases(JsonObject& properties, JsonObject& logical_propert
                 VERIFY_NOT_REACHED();
             }
 
-            if (auto physical_property_name = first_property_in_logical_group.get(group_name.value()); physical_property_name.has_value()) {
+            if (auto physical_property_name = first_physical_property_in_logical_group.get(group_name.value()); physical_property_name.has_value()) {
                 logical_aliases.set(name, physical_property_name.value());
             } else {
                 dbgln("Logical property group '{}' not found! (Property: '{}')", group_name.value(), name);
@@ -1763,7 +1763,7 @@ PropertyID map_logical_alias_to_physical_property(PropertyID property_id, Logica
             }
             auto const& group = maybe_group.value();
             auto mapped_property = [&](StringView entry_name) {
-                if (auto maybe_string = group.get_string(entry_name); maybe_string.has_value()) {
+                if (auto maybe_string = group.get_object("physical"sv)->get_string(entry_name); maybe_string.has_value()) {
                     return title_casify(maybe_string.value());
                 }
                 dbgln("Logical property group '{}' is missing entry for '{}', requested by property '{}'.", group_name.value(), entry_name, property_name);
@@ -2010,7 +2010,7 @@ Optional<LogicalPropertyGroup> logical_property_group_for_property(PropertyID pr
     logical_property_groups.for_each_member([&](auto& logical_property_group_name, auto& mapping) {
         auto& group_members = logical_property_group_members.ensure(logical_property_group_name);
 
-        mapping.as_object().for_each_member([&](auto&, auto& physical_property) {
+        mapping.as_object().get_object("physical"sv)->for_each_member([&](auto&, auto& physical_property) {
             group_members.append(physical_property.as_string());
         });
     });
