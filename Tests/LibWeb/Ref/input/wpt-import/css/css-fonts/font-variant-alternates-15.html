@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>CSS Test:  font-variant-alternates: ornaments(); low level equivalence</title>
+<link rel="author" title="Chris Lilley" href="chris@w3.org">
+<link rel="match" href="../../../../expected/wpt-import/css/css-fonts/font-variant-alternates-15-ref.html">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-variant-alternates-prop">
+<link rel="help" href="https://www.w3.org/TR/css-fonts-4/#font-feature-settings-prop">
+<link rel="help" href="https://drafts.csswg.org/css-fonts/#font-feature-values">
+<meta name="assert" content="Enables replacement of default glyphs with ornaments, if provided in the font (font specific, OpenType feature: ornm &lt;feature-index&gt;).">
+<style>
+  @font-face {
+    font-family: fwf;
+    src: url(support/fonts/FontWithFancyFeatures.otf);
+  }
+  @font-feature-values fwf {
+    @ornaments {
+      foo: 1;
+      bar: 2;
+      baz: 3;
+    }
+  }
+  .test {
+	  font-family: fwf;
+	  font-size: 2em;
+	  line-height: 1.1;
+	  font-variant-alternates: ornaments(doesnt-exist);
+  }
+  .high {
+	 font-variant-alternates: ornaments(foo);
+  }
+  .low {
+   font-feature-settings: "hist" off, "salt" 00, "ss01" off, "ss02" off, "ss03" off,
+    "cv01" off, "cv02" off, "cv03" off,  "swsh" 00, "cswh" 00, "ornm" 01, "nalt" 00;
+  }
+</style>
+<body>
+
+<p>Test passes if the three lines below are identical, with sixteen crosses (✗), one check mark (✓) followed by three crosses (✗). </p>
+<section class="test">
+  <p class="high">Xnophijklmqrstuvwxyz</p>
+  <p class="low">Xnophijklmqrstuvwxyz</p>
+  <p class="ref">BBBBBBBBBBBBBBBBABBB</p>
+</section>

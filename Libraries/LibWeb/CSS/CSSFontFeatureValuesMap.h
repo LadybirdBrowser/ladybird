@@ -18,7 +18,7 @@ class CSSFontFeatureValuesMap final : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesMap);
 
 public:
-    static GC::Ref<CSSFontFeatureValuesMap> create(JS::Realm&, size_t max_value_count);
+    static GC::Ref<CSSFontFeatureValuesMap> create(JS::Realm&, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
 
     GC::Ref<JS::Map> map_entries() { return m_map_entries; }
 
@@ -29,13 +29,14 @@ public:
     OrderedHashMap<FlyString, Vector<u32>> to_ordered_hash_map() const;
 
 private:
-    CSSFontFeatureValuesMap(JS::Realm&, size_t max_value_count);
+    CSSFontFeatureValuesMap(JS::Realm&, size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
 
     virtual void initialize(JS::Realm&) override;
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<JS::Map> m_map_entries;
     size_t m_max_value_count { 0 };
+    GC::Ref<CSSFontFeatureValuesRule> m_parent_rule;
 };
 
 }
