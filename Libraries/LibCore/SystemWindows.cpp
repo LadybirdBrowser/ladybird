@@ -230,8 +230,34 @@ ErrorOr<int> dup(int handle)
 
 bool is_socket(int handle)
 {
-    // FILE_TYPE_PIPE is returned for sockets and pipes. We don't use Windows pipes.
-    return GetFileType(to_handle(handle)) == FILE_TYPE_PIPE;
+    // Safeguard against POSIX-style error values (e.g. -1) being passed down into Windows API
+    if (handle < 0)
+        return false;
+
+    auto os_handle = to_handle(handle);
+
+    // Since we bypass the CRT translation layer on Windows, the provided integer is a raw OS handle
+    auto file_type = GetFileType(os_handle);
+
+    // Fast-path: Windows classifies sockets as FILE_TYPE_PIPE
+    // We can immediately reject handles for files, consoles or 'unknown' to avoid unnecessary Winsock overhead
+    if (file_type != FILE_TYPE_PIPE)
+        return false;
+
+    // Windows cannot distinguish between anonymous pipes and sockets on handle level
+    // Thus we rely on a getsockopt() to make sure we don't treat a standard IPC pipe as a network socket
+    int socket_type = 0;
+    int option_length = sizeof(socket_type);
+    auto socket = static_cast<SOCKET>(reinterpret_cast<uintptr_t>(os_handle));
+    auto const result = ::getsockopt(socket, SOL_SOCKET, SO_TYPE, reinterpret_cast<char*>(&socket_type), &option_length);
+
+    if (result != SOCKET_ERROR && option_length == static_cast<int>(sizeof(socket_type)))
+        return true;
+
+    // If the application hasn't initialized Winsock yet, the probe will fail with WSANOTINITIALISED.
+    VERIFY(WSAGetLastError() != WSANOTINITIALISED);
+
+    return false;
 }
 
 ErrorOr<void> bind(int sockfd, struct sockaddr const* name, socklen_t name_size)
