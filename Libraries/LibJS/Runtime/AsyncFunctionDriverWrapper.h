@@ -25,6 +25,7 @@ public:
     void visit_edges(Cell::Visitor&) override;
 
     void continue_async_execution(VM&, Value, bool is_successful);
+    void schedule_resume(Value, bool is_fulfilled);
 
 private:
     AsyncFunctionDriverWrapper(Realm&, GC::Ref<GeneratorObject>, GC::Ref<Promise> top_level_promise);

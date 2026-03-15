@@ -46,6 +46,37 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     if (!m_suspended_execution_context)
         m_suspended_execution_context = vm.running_execution_context().copy();
 
+    // OPTIMIZATION: Fast path for non-thenable values.
+    //
+    // Per spec, PromiseResolve wraps non-Promise values in a new resolved promise,
+    // then PerformPromiseThen attaches reaction handlers and schedules a microtask.
+    // This creates 10+ GC objects per await.
+    //
+    // Since primitives can never have a "then" property, and already-settled native
+    // Promises with the %Promise% constructor don't need wrapping, we can skip all
+    // of that machinery and directly schedule the async function's continuation.
+    //
+    // For pending promises, or promises with a non-standard constructor, we fall
+    // through to the spec-compliant slow path.
+    if (!value.is_object()) {
+        // Primitive values are never thenable -- schedule resume directly.
+        schedule_resume(value, true);
+        return {};
+    }
+
+    if (auto promise = value.as_if<Promise>()) {
+        // Already-settled native Promises whose constructor is the intrinsic %Promise%.
+        auto* promise_prototype = realm.intrinsics().promise_prototype().ptr();
+        if (promise->state() != Promise::State::Pending
+            && promise->shape().property_count() == 0
+            && promise->shape().prototype() == promise_prototype
+            && promise_prototype->get_without_side_effects(vm.names.constructor) == Value(realm.intrinsics().promise_constructor())) {
+            schedule_resume(promise->result(), promise->state() == Promise::State::Fulfilled);
+            promise->set_is_handled();
+            return {};
+        }
+    }
+
     // 2. Let promise be ? PromiseResolve(%Promise%, value).
     auto* promise_object = TRY(promise_resolve(vm, realm.intrinsics().promise_constructor(), value));
 
@@ -119,6 +150,19 @@ ThrowCompletionOr<void> AsyncFunctionDriverWrapper::await(JS::Value value)
     // 11. Assert: If control reaches here, then asyncContext is the running execution context again.
     // 12. Return completion.
     return {};
+}
+
+void AsyncFunctionDriverWrapper::schedule_resume(Value value, bool is_fulfilled)
+{
+    auto& vm = this->vm();
+    vm.host_enqueue_promise_job(
+        GC::create_function(vm.heap(), [this, value, is_fulfilled, &vm]() -> ThrowCompletionOr<Value> {
+            TRY(vm.push_execution_context(*m_suspended_execution_context, {}));
+            continue_async_execution(vm, value, is_fulfilled);
+            vm.pop_execution_context();
+            return js_undefined();
+        }),
+        vm.current_realm());
 }
 
 void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, bool is_successful)
