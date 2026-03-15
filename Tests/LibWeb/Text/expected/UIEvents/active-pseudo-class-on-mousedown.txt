@@ -1,0 +1,22 @@
+:active before click:
+  inner: false
+  outer: false
+:active during mousedown on #inner:
+  inner: true
+  outer: true
+  body: true
+:active after mouseup:
+  inner: false
+  outer: false
+:active during mousedown on #checkbox:
+  label: false
+  checkbox: true
+:active after mouseup on #label:
+  label: false
+  checkbox: false
+:active during mousedown on #label:
+  label: true
+  checkbox: true
+:active after mouseup on #label:
+  label: false
+  checkbox: false

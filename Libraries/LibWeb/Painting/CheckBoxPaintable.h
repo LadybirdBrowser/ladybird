@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Painting/LabelablePaintable.h>
+#include <LibWeb/Painting/PaintableBox.h>
 
 namespace Web::Painting {
 
-class CheckBoxPaintable final : public LabelablePaintable {
-    GC_CELL(CheckBoxPaintable, LabelablePaintable);
+class CheckBoxPaintable final : public PaintableBox {
+    GC_CELL(CheckBoxPaintable, PaintableBox);
     GC_DECLARE_ALLOCATOR(CheckBoxPaintable);
 
 public:

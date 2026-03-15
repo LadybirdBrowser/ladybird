@@ -25,6 +25,9 @@
 
 namespace Web::Painting {
 
+class ResizeHandle;
+class Scrollbar;
+
 WEB_API void set_paint_viewport_scrollbars(bool enabled);
 ResolvedCSSFilter resolve_css_filter(CSS::Filter const& computed_filter, PaintableBox const& paintable_box);
 
@@ -154,6 +157,25 @@ public:
 
     virtual bool handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers, int wheel_delta_x, int wheel_delta_y) override;
 
+    struct ScrollbarData {
+        CSSPixelRect gutter_rect;
+        CSSPixelRect thumb_rect;
+        CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
+    };
+    enum class ScrollDirection {
+        Horizontal,
+        Vertical,
+    };
+
+    Optional<ScrollbarData> compute_scrollbar_data(
+        ScrollDirection direction,
+        ChromeMetrics const& chrome_metrics,
+        ScrollStateSnapshot const* = nullptr) const;
+    Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
+
+    GC::Ptr<Scrollbar> scrollbar(ScrollDirection) const;
+    GC::Ref<Scrollbar> ensure_scrollbar(ScrollDirection);
+
     enum class ConflictingElementKind {
         Cell,
         Row,
@@ -207,7 +229,18 @@ public:
 
     Optional<CSSPixelRect> get_clip_rect() const;
 
-    virtual bool wants_mouse_events() const override;
+    struct PhysicalResizeAxes {
+        bool horizontal;
+        bool vertical;
+    };
+    PhysicalResizeAxes physical_resize_axes() const;
+
+    bool resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& chrome_metrics) const;
+    bool is_chrome_mirrored() const;
+    bool has_resizer() const;
+
+    GC::Ptr<ResizeHandle> resize_handle() const;
+    GC::Ref<ResizeHandle> ensure_resize_handle();
 
     CSSPixelRect transform_reference_box() const;
 
@@ -278,41 +311,16 @@ protected:
 
     virtual CSSPixelRect compute_absolute_rect() const;
 
-    struct ScrollbarData {
-        CSSPixelRect gutter_rect;
-        CSSPixelRect thumb_rect;
-        CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
-    };
-    enum class ScrollDirection {
-        Horizontal,
-        Vertical,
-    };
     [[nodiscard]] TraversalDecision hit_test_children(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const;
     [[nodiscard]] TraversalDecision hit_test_continuation(Function<TraversalDecision(HitTestResult)> const& callback) const;
     [[nodiscard]] TraversalDecision hit_test_chrome(CSSPixelPoint adjusted_position, Function<TraversalDecision(HitTestResult)> const& callback) const;
 
-    Optional<ScrollbarData> compute_scrollbar_data(
-        ScrollDirection direction,
-        ChromeMetrics const& chrome_metrics,
-        ScrollStateSnapshot const* = nullptr) const;
     CSSPixels available_scrollbar_length(ScrollDirection direction, ChromeMetrics const& chrome_metrics) const;
-    Optional<CSSPixelRect> absolute_scrollbar_rect(ScrollDirection direction, bool with_gutter, ChromeMetrics const& chrome_metrics) const;
     Optional<CSSPixelRect> absolute_resizer_rect(ChromeMetrics const& chrome_metrics) const;
     bool could_be_scrolled_by_wheel_event(ScrollDirection direction) const;
-    bool resizer_contains(CSSPixelPoint adjusted_position, ChromeMetrics const& chrome_metrics) const;
-    bool is_chrome_mirrored() const;
-    bool has_resizer() const;
 
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
-
-    virtual DispatchEventOfSameName handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
-    virtual DispatchEventOfSameName handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned button, unsigned modifiers) override;
-    virtual DispatchEventOfSameName handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned buttons, unsigned modifiers) override;
-    virtual void handle_mouseleave(Badge<EventHandler>) override;
-
-    bool scrollbar_contains(ScrollDirection, CSSPixelPoint adjusted_position, ChromeMetrics const& chrome_metrics) const;
-    void scroll_to_mouse_position(CSSPixelPoint, ChromeMetrics const& chrome_metrics);
 
     GC::Ptr<StackingContext> m_stacking_context;
 
@@ -335,10 +343,9 @@ private:
 
     ResolvedCSSFilter m_filter;
 
-    Optional<CSSPixels> m_scroll_thumb_grab_position;
-    Optional<ScrollDirection> m_scroll_thumb_dragging_direction;
-    mutable bool m_draw_enlarged_horizontal_scrollbar { false };
-    mutable bool m_draw_enlarged_vertical_scrollbar { false };
+    GC::Ptr<Scrollbar> m_horizontal_scrollbar;
+    GC::Ptr<Scrollbar> m_vertical_scrollbar;
+    GC::Ptr<ResizeHandle> m_resize_handle;
     bool m_has_non_invertible_css_transform { false };
 
     OwnPtr<StickyInsets> m_sticky_insets;

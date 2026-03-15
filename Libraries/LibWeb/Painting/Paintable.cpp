@@ -118,21 +118,6 @@ GC::Ptr<HTML::Navigable> Paintable::navigable() const
     return document().navigable();
 }
 
-Paintable::DispatchEventOfSameName Paintable::handle_mousedown(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned)
-{
-    return DispatchEventOfSameName::Yes;
-}
-
-Paintable::DispatchEventOfSameName Paintable::handle_mouseup(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned)
-{
-    return DispatchEventOfSameName::Yes;
-}
-
-Paintable::DispatchEventOfSameName Paintable::handle_mousemove(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned)
-{
-    return DispatchEventOfSameName::Yes;
-}
-
 bool Paintable::handle_mousewheel(Badge<EventHandler>, CSSPixelPoint, unsigned, unsigned, int, int)
 {
     return false;

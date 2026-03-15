@@ -421,21 +421,17 @@ void WebContentView::mousePressEvent(QMouseEvent* event)
     auto elapsed = event->timestamp() - m_last_click_timestamp;
     auto distance = (event->position() - m_last_click_position).manhattanLength();
 
-    if (elapsed < static_cast<u64>(QApplication::doubleClickInterval()) && distance < QApplication::startDragDistance())
+    if (elapsed < static_cast<u64>(QApplication::doubleClickInterval()) && distance < QApplication::startDragDistance()) {
         ++m_click_count;
-    else
+        if (m_click_count < 1)
+            m_click_count = 1;
+    } else {
         m_click_count = 1;
+    }
     m_last_click_timestamp = event->timestamp();
     m_last_click_position = event->position();
 
-    if (m_click_count == 3) {
-        enqueue_native_event(Web::MouseEvent::Type::TripleClick, *event);
-        m_click_count = 0;
-    } else if (m_click_count == 2) {
-        enqueue_native_event(Web::MouseEvent::Type::DoubleClick, *event);
-    } else {
-        enqueue_native_event(Web::MouseEvent::Type::MouseDown, *event);
-    }
+    enqueue_native_event(Web::MouseEvent::Type::MouseDown, *event);
 }
 
 void WebContentView::mouseReleaseEvent(QMouseEvent* event)
@@ -835,7 +831,7 @@ void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePoi
         }
     }
 
-    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, nullptr });
+    enqueue_input_event(Web::MouseEvent { type, position, screen_position.to_type<Web::DevicePixels>(), button, buttons, modifiers, wheel_delta_x, wheel_delta_y, m_click_count, nullptr });
 }
 
 struct DragData : Web::BrowserInputData {

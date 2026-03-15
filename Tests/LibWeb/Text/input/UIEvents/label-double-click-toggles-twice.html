@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+</style>
+<label id="label"><input type="checkbox" id="checkbox"> Check me</label>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`initial: ${checkbox.checked}`);
+
+        // Single click on the label text (not directly on the checkbox).
+        internals.click(60, 10);
+        println(`after single click: ${checkbox.checked}`);
+
+        // Double click on the label text. Both clicks should toggle the checkbox,
+        // resulting in the original state.
+        internals.click(60, 10, 1);
+        internals.click(60, 10, 2);
+        println(`after double click: ${checkbox.checked}`);
+    });
+</script>

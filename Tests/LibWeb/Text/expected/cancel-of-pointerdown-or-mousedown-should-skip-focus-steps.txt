@@ -1,4 +1,10 @@
+> preventing pointerdown
 pointerdown
+pointerup
+click
+> preventing mousedown
+pointerdown
+mousedown
 pointerup
 mouseup
 click

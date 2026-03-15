@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+
+#target {
+    width: 100px;
+    height: 100px;
+    background-color: yellowgreen;
+}
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    function logEvent(e) {
+        println(`${e.type} target=#${e.target.id} button=${e.button} detail=${e.detail}`);
+    }
+
+    const events = [
+        'pointerdown', 'pointerup',
+        'mousedown', 'mouseup',
+        'click', 'dblclick', 'auxclick',
+        'contextmenu',
+    ];
+    events.forEach(type => target.addEventListener(type, logEvent));
+
+    test(() => {
+        println("> single left click");
+        internals.click(50, 50);
+
+        println("> double left click");
+        internals.click(50, 50, 2);
+
+        println("> triple left click");
+        internals.click(50, 50, 3);
+
+        println("> single right click");
+        internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+
+        println("> single right click with contextmenu default behavior prevented");
+        target.addEventListener('contextmenu', e => e.preventDefault());
+        internals.click(50, 50, 1, internals.BUTTON_RIGHT);
+    });
+</script>

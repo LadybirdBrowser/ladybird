@@ -547,7 +547,7 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // FIXME: Maybe match this selector sometimes?
         return false;
     case CSS::PseudoClass::Active:
-        return element.is_active();
+        return element.is_being_activated();
     case CSS::PseudoClass::Hover:
         return matches_hover_pseudo_class(element);
     case CSS::PseudoClass::Focus:

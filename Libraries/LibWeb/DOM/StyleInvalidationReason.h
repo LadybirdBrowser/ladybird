@@ -23,6 +23,7 @@ namespace Web::DOM {
     X(EditingDeletion)                              \
     X(ElementAttributeChange)                       \
     X(ElementSetShadowRoot)                         \
+    X(ElementSetActive)                             \
     X(Fullscreen)                                   \
     X(HTMLDialogElementSetIsModal)                  \
     X(HTMLDetailsOrDialogOpenAttributeChange)       \

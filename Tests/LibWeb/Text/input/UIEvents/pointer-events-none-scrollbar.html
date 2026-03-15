@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+
+#scrollable {
+    width: 150px;
+    height: 100px;
+    overflow-y: scroll;
+    pointer-events: none;
+}
+
+#content {
+    height: 1000px;
+}
+</style>
+<div id="scrollable">
+    <div id="content"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Move over the scrollbar area, then click on it. With pointer-events: none,
+        // this should not crash and should not scroll.
+        internals.mouseMove(147, 50);
+        internals.mouseDown(147, 50);
+        internals.mouseUp(147, 50);
+        println(`scrollTop after click on scrollbar: ${scrollable.scrollTop}`);
+
+        // Wheel events should also not scroll the element.
+        internals.wheel(75, 50, 0, 100);
+        println(`scrollTop after wheel: ${scrollable.scrollTop}`);
+    });
+</script>

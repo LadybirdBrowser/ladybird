@@ -140,7 +140,7 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
 
     if (!stacking_context() && (!layout_node().is_anonymous() || is_positioned())
         && absolute_border_box_rect().contains(local_position.value())) {
-        if (callback(HitTestResult { const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
+        if (callback(HitTestResult { .paintable = const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
 
@@ -156,7 +156,7 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
         if (fragment_absolute_rect.contains(local_position)) {
             if (fragment.paintable().hit_test(position, type, callback) == TraversalDecision::Break)
                 return TraversalDecision::Break;
-            HitTestResult hit_test_result { const_cast<Paintable&>(fragment.paintable()), fragment.index_in_node_for_point(local_position), 0, 0 };
+            HitTestResult hit_test_result { .paintable = const_cast<Paintable&>(fragment.paintable()), .index_in_node = fragment.index_in_node_for_point(local_position), .vertical_distance = 0, .horizontal_distance = 0 };
             if (callback(hit_test_result) == TraversalDecision::Break)
                 return TraversalDecision::Break;
         } else if (type == HitTestType::TextCursor) {

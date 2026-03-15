@@ -1090,7 +1090,7 @@ struct HideCursor {
 
 - (void)mouseExited:(NSEvent*)event
 {
-    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseLeave, {}, {}, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, nullptr };
+    Web::MouseEvent mouse_event { Web::MouseEvent::Type::MouseLeave, {}, {}, Web::UIEvents::MouseButton::None, Web::UIEvents::MouseButton::None, Web::UIEvents::KeyModifier::Mod_None, 0, 0, 0, nullptr };
     m_web_view_bridge->enqueue_input_event(move(mouse_event));
 }
 

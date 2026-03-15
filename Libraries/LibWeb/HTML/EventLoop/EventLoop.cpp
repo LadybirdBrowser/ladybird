@@ -293,7 +293,7 @@ void EventLoop::process_input_events() const
                 [&](MouseEvent const& mouse_event) {
                     switch (mouse_event.type) {
                     case MouseEvent::Type::MouseDown:
-                        return page.handle_mousedown(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
+                        return page.handle_mousedown(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count);
                     case MouseEvent::Type::MouseUp:
                         return page.handle_mouseup(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
                     case MouseEvent::Type::MouseMove:
@@ -302,10 +302,6 @@ void EventLoop::process_input_events() const
                         return page.handle_mouseleave();
                     case MouseEvent::Type::MouseWheel:
                         return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y);
-                    case MouseEvent::Type::DoubleClick:
-                        return page.handle_doubleclick(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
-                    case MouseEvent::Type::TripleClick:
-                        return page.handle_tripleclick(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
                     }
                     VERIFY_NOT_REACHED();
                 },

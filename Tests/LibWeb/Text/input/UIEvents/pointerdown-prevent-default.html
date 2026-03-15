@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 200px;
+    height: 200px;
+}
+
+#target {
+    width: 100px;
+    height: 100px;
+    background-color: yellowgreen;
+}
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    function logEvent(e) {
+        println(`${e.type}`);
+    }
+
+    const events = [
+        'pointerdown', 'pointerup',
+        'mousedown', 'mouseup',
+        'click',
+    ];
+    events.forEach(type => target.addEventListener(type, logEvent));
+
+    target.addEventListener('pointerdown', e => e.preventDefault());
+
+    test(() => {
+        println("> click with pointerdown preventDefault");
+        internals.click(50, 50);
+    });
+</script>

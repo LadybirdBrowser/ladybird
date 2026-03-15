@@ -752,7 +752,6 @@ set(SOURCES
     Layout/InlineFormattingContext.cpp
     Layout/InlineLevelIterator.cpp
     Layout/InlineNode.cpp
-    Layout/LabelableNode.cpp
     Layout/LayoutState.cpp
     Layout/LegendBox.cpp
     Layout/LineBox.cpp
@@ -839,7 +838,6 @@ set(SOURCES
     Painting/FieldSetPaintable.cpp
     Painting/GradientPainting.cpp
     Painting/ImagePaintable.cpp
-    Painting/LabelablePaintable.cpp
     Painting/MarkerPaintable.cpp
     Painting/NavigableContainerViewportPaintable.cpp
     Painting/Paintable.cpp
@@ -849,6 +847,8 @@ set(SOURCES
     Painting/PaintableWithLines.cpp
     Painting/RadioButtonPaintable.cpp
     Painting/ResolvedCSSFilter.cpp
+    Painting/ResizeHandle.cpp
+    Painting/Scrollbar.cpp
     Painting/ScrollFrame.cpp
     Painting/ScrollState.cpp
     Painting/ShadowPainting.cpp

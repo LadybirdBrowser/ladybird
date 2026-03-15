@@ -7,12 +7,12 @@
 #pragma once
 
 #include <LibWeb/Forward.h>
-#include <LibWeb/Layout/FormAssociatedLabelableNode.h>
+#include <LibWeb/Layout/ReplacedBox.h>
 
 namespace Web::Layout {
 
-class RadioButton final : public FormAssociatedLabelableNode {
-    GC_CELL(RadioButton, FormAssociatedLabelableNode);
+class RadioButton final : public ReplacedBox {
+    GC_CELL(RadioButton, ReplacedBox);
     GC_DECLARE_ALLOCATOR(RadioButton);
 
 public:

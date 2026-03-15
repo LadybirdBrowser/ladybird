@@ -951,7 +951,6 @@ class ImageBox;
 class InlineFormattingContext;
 class InlineNode;
 class Label;
-class LabelableNode;
 class LegendBox;
 class LineBox;
 class LineBoxFragment;
@@ -1039,7 +1038,6 @@ namespace Web::Painting {
 class AudioPaintable;
 class CheckBoxPaintable;
 class FieldSetPaintable;
-class LabelablePaintable;
 class MediaPaintable;
 class Paintable;
 class PaintableBox;

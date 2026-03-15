@@ -22,6 +22,8 @@ public:
     GC::Ptr<HTMLElement> control() const;
     GC::Ptr<HTMLFormElement> form() const;
 
+    virtual void set_being_activated(bool) override;
+
 private:
     HTMLLabelElement(DOM::Document&, DOM::QualifiedName);
 

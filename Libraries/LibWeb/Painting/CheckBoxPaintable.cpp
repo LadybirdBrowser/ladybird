@@ -42,7 +42,7 @@ CheckBoxPaintable::create(Layout::CheckBox const& layout_box)
 }
 
 CheckBoxPaintable::CheckBoxPaintable(Layout::CheckBox const& layout_box)
-    : LabelablePaintable(layout_box)
+    : PaintableBox(layout_box)
 {
 }
 
@@ -57,7 +57,7 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
         return;
 
     auto const& checkbox = as<HTML::HTMLInputElement const>(*dom_node());
-    bool enabled = layout_box().dom_node().enabled();
+    bool enabled = checkbox.enabled();
     auto checkbox_rect = context.enclosing_device_rect(absolute_rect()).to_type<int>();
     auto checkbox_radius = checkbox_rect.width() / 5;
 
@@ -66,7 +66,8 @@ void CheckBoxPaintable::paint(DisplayListRecordingContext& context, PaintPhase p
     };
 
     auto modify_color = [&](Color color) {
-        if (being_pressed() && enabled)
+        // FIXME: Make this only take effect while this element or its labels are hovered.
+        if (checkbox.is_being_activated() && enabled)
             return shade(color, 0.3f);
         return color;
     };

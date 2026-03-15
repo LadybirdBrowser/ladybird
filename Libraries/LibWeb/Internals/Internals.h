@@ -49,7 +49,7 @@ public:
     void commit_text();
 
     // Low-level mouse primitives
-    void mouse_down(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
+    void mouse_down(double x, double y, WebIDL::UnsignedShort click_count, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void mouse_up(double x, double y, WebIDL::UnsignedShort button, WebIDL::UnsignedShort modifiers);
     void mouse_move(double x, double y, WebIDL::UnsignedShort modifiers);
 
