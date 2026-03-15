@@ -43,11 +43,13 @@ private:
 
     struct Entry {
         StyleProperty property;
+        size_t cascade_index { 0 };
         CascadeOrigin origin;
         Optional<FlyString> layer_name;
         GC::Ptr<CSS::CSSStyleDeclaration const> source;
     };
     HashMap<PropertyID, Vector<Entry>> m_properties;
+    size_t m_next_cascade_index { 0 };
     AK::FixedBitmap<to_underlying(last_longhand_property_id) + 1> m_contained_properties_cache { false };
 };
 

@@ -90,6 +90,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
                 .property_id = property_id,
                 .value = value,
             };
+            entry.cascade_index = m_next_cascade_index++;
             return;
         }
     }
@@ -100,6 +101,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
             .property_id = property_id,
             .value = value,
         },
+        .cascade_index = m_next_cascade_index++,
         .origin = origin,
         .layer_name = move(layer_name),
         .source = source,
@@ -119,6 +121,7 @@ void CascadedProperties::set_property_from_presentational_hint(PropertyID proper
                 .property_id = longhand_property_id,
                 .value = longhand_value,
             },
+            .cascade_index = m_next_cascade_index++,
             .origin = CascadeOrigin::Author,
             .layer_name = {},
             .source = nullptr,
