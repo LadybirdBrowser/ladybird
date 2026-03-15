@@ -221,137 +221,80 @@ fn keyword_from_str(s: &[u16]) -> Option<TokenType> {
     // against compile-time UTF-16 constants (zero allocation).
     match s.len() {
         2 => {
-            if s == utf16!("do") {
-                return Some(TokenType::Do);
-            }
-            if s == utf16!("if") {
-                return Some(TokenType::If);
-            }
-            if s == utf16!("in") {
-                return Some(TokenType::In);
-            }
+            return Some(match s {
+                s if s == utf16!("do") => TokenType::Do,
+                s if s == utf16!("if") => TokenType::If,
+                s if s == utf16!("in") => TokenType::In,
+                _ => return None,
+            });
         }
         3 => {
-            if s == utf16!("for") {
-                return Some(TokenType::For);
-            }
-            if s == utf16!("let") {
-                return Some(TokenType::Let);
-            }
-            if s == utf16!("new") {
-                return Some(TokenType::New);
-            }
-            if s == utf16!("try") {
-                return Some(TokenType::Try);
-            }
-            if s == utf16!("var") {
-                return Some(TokenType::Var);
-            }
+            return Some(match s {
+                s if s == utf16!("for") => TokenType::For,
+                s if s == utf16!("let") => TokenType::Let,
+                s if s == utf16!("new") => TokenType::New,
+                s if s == utf16!("try") => TokenType::Try,
+                s if s == utf16!("var") => TokenType::Var,
+                _ => return None,
+            });
         }
         4 => {
-            if s == utf16!("case") {
-                return Some(TokenType::Case);
-            }
-            if s == utf16!("else") {
-                return Some(TokenType::Else);
-            }
-            if s == utf16!("enum") {
-                return Some(TokenType::Enum);
-            }
-            if s == utf16!("null") {
-                return Some(TokenType::NullLiteral);
-            }
-            if s == utf16!("this") {
-                return Some(TokenType::This);
-            }
-            if s == utf16!("true") {
-                return Some(TokenType::BoolLiteral);
-            }
-            if s == utf16!("void") {
-                return Some(TokenType::Void);
-            }
-            if s == utf16!("with") {
-                return Some(TokenType::With);
-            }
+            return Some(match s {
+                s if s == utf16!("case") => TokenType::Case,
+                s if s == utf16!("else") => TokenType::Else,
+                s if s == utf16!("enum") => TokenType::Enum,
+                s if s == utf16!("null") => TokenType::NullLiteral,
+                s if s == utf16!("this") => TokenType::This,
+                s if s == utf16!("true") => TokenType::BoolLiteral,
+                s if s == utf16!("void") => TokenType::Void,
+                s if s == utf16!("with") => TokenType::With,
+                _ => return None,
+            });
         }
         5 => {
-            if s == utf16!("async") {
-                return Some(TokenType::Async);
-            }
-            if s == utf16!("await") {
-                return Some(TokenType::Await);
-            }
-            if s == utf16!("break") {
-                return Some(TokenType::Break);
-            }
-            if s == utf16!("catch") {
-                return Some(TokenType::Catch);
-            }
-            if s == utf16!("class") {
-                return Some(TokenType::Class);
-            }
-            if s == utf16!("const") {
-                return Some(TokenType::Const);
-            }
-            if s == utf16!("false") {
-                return Some(TokenType::BoolLiteral);
-            }
-            if s == utf16!("super") {
-                return Some(TokenType::Super);
-            }
-            if s == utf16!("throw") {
-                return Some(TokenType::Throw);
-            }
-            if s == utf16!("while") {
-                return Some(TokenType::While);
-            }
-            if s == utf16!("yield") {
-                return Some(TokenType::Yield);
-            }
+            return Some(match s {
+                s if s == utf16!("async") => TokenType::Async,
+                s if s == utf16!("await") => TokenType::Await,
+                s if s == utf16!("break") => TokenType::Break,
+                s if s == utf16!("catch") => TokenType::Catch,
+                s if s == utf16!("class") => TokenType::Class,
+                s if s == utf16!("const") => TokenType::Const,
+                s if s == utf16!("false") => TokenType::BoolLiteral,
+                s if s == utf16!("super") => TokenType::Super,
+                s if s == utf16!("throw") => TokenType::Throw,
+                s if s == utf16!("while") => TokenType::While,
+                s if s == utf16!("yield") => TokenType::Yield,
+                _ => return None,
+            });
         }
         6 => {
-            if s == utf16!("delete") {
-                return Some(TokenType::Delete);
-            }
-            if s == utf16!("export") {
-                return Some(TokenType::Export);
-            }
-            if s == utf16!("import") {
-                return Some(TokenType::Import);
-            }
-            if s == utf16!("return") {
-                return Some(TokenType::Return);
-            }
-            // NB: "static" is intentionally NOT lexed as TokenType::Static.
-            // C++ lexes it as Identifier and handles it contextually in class parsing.
-            if s == utf16!("switch") {
-                return Some(TokenType::Switch);
-            }
-            if s == utf16!("typeof") {
-                return Some(TokenType::Typeof);
-            }
+            return Some(match s {
+                s if s == utf16!("delete") => TokenType::Delete,
+                s if s == utf16!("export") => TokenType::Export,
+                s if s == utf16!("import") => TokenType::Import,
+                s if s == utf16!("return") => TokenType::Return,
+                // NB: "static" is intentionally NOT lexed as TokenType::Static.
+                // C++ lexes it as Identifier and handles it contextually in class parsing.
+                s if s == utf16!("switch") => TokenType::Switch,
+                s if s == utf16!("typeof") => TokenType::Typeof,
+                _ => return None,
+            });
         }
         7 => {
-            if s == utf16!("default") {
-                return Some(TokenType::Default);
-            }
-            if s == utf16!("extends") {
-                return Some(TokenType::Extends);
-            }
-            if s == utf16!("finally") {
-                return Some(TokenType::Finally);
-            }
+            return Some(match s {
+                s if s == utf16!("default") => TokenType::Default,
+                s if s == utf16!("extends") => TokenType::Extends,
+                s if s == utf16!("finally") => TokenType::Finally,
+                _ => return None,
+            });
         }
         8 => {
-            if s == utf16!("continue") {
-                return Some(TokenType::Continue);
-            }
-            if s == utf16!("debugger") {
-                return Some(TokenType::Debugger);
-            }
-            if s == utf16!("function") {
-                return Some(TokenType::Function);
-            }
+            return Some(match s {
+                s if s == utf16!("continue") => TokenType::Continue,
+                s if s == utf16!("debugger") => TokenType::Debugger,
+                s if s == utf16!("function") => TokenType::Function,
+                _ => return None,
+            });
         }
         10 => {
             if s == utf16!("instanceof") {
@@ -549,6 +492,15 @@ impl<'a> Lexer<'a> {
 
         self.current_code_unit = self.source[self.position];
         self.position += 1;
+    }
+
+    fn consume_while<F>(&mut self, condition: F)
+    where
+        F: Fn(&Self) -> bool,
+    {
+        while !self.is_eof() && condition(self) {
+            self.consume();
+        }
     }
 
     fn current_code_point(&self) -> u32 {
@@ -965,53 +917,37 @@ impl<'a> Lexer<'a> {
         let mut token_message: Option<String> = None;
 
         if !in_template || self.current_template_state().in_expression {
-            loop {
+            while !self.is_eof() {
                 if self.is_line_terminator() {
                     line_has_token_yet = false;
-                    loop {
-                        self.consume();
-                        if !self.is_line_terminator() {
-                            break;
-                        }
-                    }
+                    self.consume(); // Consume current to avoid unnecessary 2nd check
+                    self.consume_while(|s| s.is_line_terminator());
                 } else if self.is_whitespace() {
-                    loop {
-                        self.consume();
-                        if !self.is_whitespace() {
-                            break;
-                        }
-                    }
+                    self.consume(); // Consume current to avoid unnecessary 2nd check
+                    self.consume_while(|s| s.is_whitespace());
                 } else if self.is_line_comment_start(line_has_token_yet) {
-                    self.consume();
-                    loop {
-                        self.consume();
-                        if self.is_eof() || self.is_line_terminator() {
-                            break;
-                        }
-                    }
+                    self.consume(); // Skip the start sequence
+                    self.consume_while(|s| !s.is_line_terminator());
                 } else if self.is_block_comment_start() {
                     let start_line_number = self.line_number;
-                    self.consume();
-                    loop {
-                        self.consume();
-                        if self.is_eof() || self.is_block_comment_end() {
-                            break;
-                        }
-                    }
+                    self.consume(); // Consume start
+                    self.consume_while(|s| !s.is_block_comment_end());
+
+                    // Since consume_while !is_block_comment_end() has finished,
+                    // we are now either at EOF or a valid block comment end
                     if self.is_eof() {
                         unterminated_comment = true;
+                    } else {
+                        // Valid block comment end
+                        self.consume(); // Consume *
+                        self.consume(); // Consume /
                     }
-                    self.consume(); // consume *
-                    if self.is_eof() {
-                        unterminated_comment = true;
-                    }
-                    self.consume(); // consume /
 
                     if start_line_number != self.line_number {
                         line_has_token_yet = false;
                     }
                 } else {
-                    break;
+                    break; // Found a real token
                 }
             }
         }
@@ -1135,9 +1071,7 @@ impl<'a> Lexer<'a> {
                 self.consume();
                 if self.current_code_unit == ch(b'.') {
                     self.consume();
-                    while is_ascii_digit(self.current_code_unit) {
-                        self.consume();
-                    }
+                    self.consume_while(|s| is_ascii_digit(s.current_code_unit));
                     if self.current_code_unit == ch(b'e') || self.current_code_unit == ch(b'E') {
                         is_invalid = !self.consume_exponent();
                     }
@@ -1156,12 +1090,8 @@ impl<'a> Lexer<'a> {
                     self.try_consume_bigint_suffix(&mut token_type);
                 } else if is_ascii_digit(self.current_code_unit) {
                     // Legacy octal without 0o prefix
-                    loop {
-                        self.consume();
-                        if !is_ascii_digit(self.current_code_unit) {
-                            break;
-                        }
-                    }
+                    self.consume();
+                    self.consume_while(|s| is_ascii_digit(s.current_code_unit));
                 }
             } else {
                 while is_ascii_digit(self.current_code_unit)
