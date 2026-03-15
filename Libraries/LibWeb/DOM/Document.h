@@ -580,6 +580,7 @@ public:
     void update_the_visibility_state(HTML::VisibilityState);
 
     void run_the_resize_steps();
+    void record_current_viewport_size();
     void run_the_scroll_steps();
 
     void evaluate_media_queries_and_report_changes();
