@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Altomani Gianluca <altomanigianluca@gmail.com>
+ * Copyright (c) 2026, Altomani Gianluca <altomanigianluca@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,27 @@
 #include <LibWeb/HTML/HTMLFormElement.h>
 
 namespace Web::CredentialManagement {
+
+class PasswordCredentialInterface final : public CredentialInterface {
+    CREDENTIAL_INTERFACE(PasswordCredentialInterface);
+
+public:
+    virtual String type() const override { return "password"_string; }
+    virtual String options_member_identifier() const override { return "password"_string; }
+    virtual Optional<String> get_permission_policy() const override { return {}; }
+    virtual Optional<String> create_permission_policy() const override { return {}; }
+
+    virtual String discovery() const override { return "credential store"_string; }
+    virtual bool supports_conditional_user_mediation() const override
+    {
+        // NOTE: PasswordCredential does not override is_conditional_mediation_available(),
+        //       therefore conditional mediation is not supported.
+        return false;
+    }
+
+    // https://w3c.github.io/webappsec-credential-management/#create-passwordcredential
+    virtual WebIDL::ExceptionOr<Variant<Empty, GC::Ref<Credential>, GC::Ref<CreateCredentialAlgorithm>>> create(JS::Realm&, URL::Origin const&, CredentialCreationOptions const&, bool) const override;
+};
 
 // https://www.w3.org/TR/credential-management-1/#passwordcredential
 class PasswordCredential final
@@ -32,6 +53,10 @@ public:
     URL::Origin const& origin() const { return m_origin; }
 
     String type() const override { return "password"_string; }
+    virtual CredentialInterface const& interface() const override
+    {
+        return PasswordCredentialInterface::the();
+    }
 
 private:
     PasswordCredential(JS::Realm&, PasswordCredentialData const&, URL::Origin);
