@@ -4103,7 +4103,6 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
         return {};
     };
 
-    // FIXME: Implement path(). See: https://www.w3.org/TR/css-shapes-1/#basic-shape-functions
     if (function_name.equals_ignoring_ascii_case("inset"sv)) {
         // inset() = inset( <length-percentage>{1,4} [ round <'border-radius'> ]? )
         auto arguments_tokens = TokenStream { component_value.function().value };
