@@ -1,0 +1,97 @@
+Harness status: OK
+
+Found 92 tests
+
+92 Pass
+Pass	SHA-1 with empty source data
+Pass	sha-1 with empty source data
+Pass	Sha-1 with empty source data
+Pass	SHA-256 with empty source data
+Pass	sha-256 with empty source data
+Pass	Sha-256 with empty source data
+Pass	SHA-384 with empty source data
+Pass	sha-384 with empty source data
+Pass	Sha-384 with empty source data
+Pass	SHA-512 with empty source data
+Pass	sha-512 with empty source data
+Pass	Sha-512 with empty source data
+Pass	SHA-1 with short source data
+Pass	sha-1 with short source data
+Pass	Sha-1 with short source data
+Pass	SHA-1 with short source data and altered buffer during call
+Pass	SHA-1 with short source data and altered buffer after call
+Pass	SHA-256 with short source data
+Pass	sha-256 with short source data
+Pass	Sha-256 with short source data
+Pass	SHA-256 with short source data and altered buffer during call
+Pass	SHA-256 with short source data and altered buffer after call
+Pass	SHA-384 with short source data
+Pass	sha-384 with short source data
+Pass	Sha-384 with short source data
+Pass	SHA-384 with short source data and altered buffer during call
+Pass	SHA-384 with short source data and altered buffer after call
+Pass	SHA-512 with short source data
+Pass	sha-512 with short source data
+Pass	Sha-512 with short source data
+Pass	SHA-512 with short source data and altered buffer during call
+Pass	SHA-512 with short source data and altered buffer after call
+Pass	SHA-1 with medium source data
+Pass	sha-1 with medium source data
+Pass	Sha-1 with medium source data
+Pass	SHA-1 with medium source data and altered buffer during call
+Pass	SHA-1 with medium source data and altered buffer after call
+Pass	SHA-256 with medium source data
+Pass	sha-256 with medium source data
+Pass	Sha-256 with medium source data
+Pass	SHA-256 with medium source data and altered buffer during call
+Pass	SHA-256 with medium source data and altered buffer after call
+Pass	SHA-384 with medium source data
+Pass	sha-384 with medium source data
+Pass	Sha-384 with medium source data
+Pass	SHA-384 with medium source data and altered buffer during call
+Pass	SHA-384 with medium source data and altered buffer after call
+Pass	SHA-512 with medium source data
+Pass	sha-512 with medium source data
+Pass	Sha-512 with medium source data
+Pass	SHA-512 with medium source data and altered buffer during call
+Pass	SHA-512 with medium source data and altered buffer after call
+Pass	SHA-1 with long source data
+Pass	sha-1 with long source data
+Pass	Sha-1 with long source data
+Pass	SHA-1 with long source data and altered buffer during call
+Pass	SHA-1 with long source data and altered buffer after call
+Pass	SHA-256 with long source data
+Pass	sha-256 with long source data
+Pass	Sha-256 with long source data
+Pass	SHA-256 with long source data and altered buffer during call
+Pass	SHA-256 with long source data and altered buffer after call
+Pass	SHA-384 with long source data
+Pass	sha-384 with long source data
+Pass	Sha-384 with long source data
+Pass	SHA-384 with long source data and altered buffer during call
+Pass	SHA-384 with long source data and altered buffer after call
+Pass	SHA-512 with long source data
+Pass	sha-512 with long source data
+Pass	Sha-512 with long source data
+Pass	SHA-512 with long source data and altered buffer during call
+Pass	SHA-512 with long source data and altered buffer after call
+Pass	AES-GCM with empty
+Pass	RSA-OAEP with empty
+Pass	PBKDF2 with empty
+Pass	AES-KW with empty
+Pass	AES-GCM with short
+Pass	RSA-OAEP with short
+Pass	PBKDF2 with short
+Pass	AES-KW with short
+Pass	AES-GCM with medium
+Pass	RSA-OAEP with medium
+Pass	PBKDF2 with medium
+Pass	AES-KW with medium
+Pass	AES-GCM with long
+Pass	RSA-OAEP with long
+Pass	PBKDF2 with long
+Pass	AES-KW with long
+Pass	empty algorithm object with empty
+Pass	empty algorithm object with short
+Pass	empty algorithm object with medium
+Pass	empty algorithm object with long
