@@ -14,6 +14,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
+#include <AK/CpuBackoff.h>
 #include <AK/Endian.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/Agent.h>
@@ -472,7 +473,7 @@ JS_DEFINE_NATIVE_FUNCTION(AtomicsObject::pause)
 
     // The number of times the signal is sent for an integral Number N is less than or equal to the number times it is sent for N + 1 if both N and N + 1 have the same sign.
     for (; N != 0; N--)
-        AK::atomic_pause();
+        cpu_pause();
 
     // 3. Return undefined.
     return js_undefined();
