@@ -48,6 +48,14 @@ ErrorOr<RequestPipe> RequestPipe::create()
     int option = 1;
     TRY(Core::System::ioctl(socket_fds[0], FIONBIO, &option));
     TRY(Core::System::ioctl(socket_fds[1], FIONBIO, &option));
+
+    // Increase socket buffer sizes from OS default (~8KB on macOS) to allow
+    // larger writes/reads per syscall, significantly improving throughput for
+    // large response bodies.
+    static constexpr int buffer_size = 512 * KiB;
+    (void)Core::System::setsockopt(socket_fds[0], SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size));
+    (void)Core::System::setsockopt(socket_fds[1], SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size));
+
     return RequestPipe(socket_fds[0], socket_fds[1]);
 }
 
