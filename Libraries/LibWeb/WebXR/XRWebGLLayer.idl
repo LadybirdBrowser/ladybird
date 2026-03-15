@@ -5,7 +5,7 @@
 typedef (WebGLRenderingContext or
          WebGL2RenderingContext) XRWebGLRenderingContext;
 
-dictionary XRWebGLLayerInit {
+[Experimental] dictionary XRWebGLLayerInit {
     boolean antialias = true;
     boolean depth = true;
     boolean stencil = false;
@@ -14,7 +14,7 @@ dictionary XRWebGLLayerInit {
     double framebufferScaleFactor = 1.0;
 };
 
-[SecureContext, Exposed=Window]
+[Experimental, SecureContext, Exposed=Window]
 interface XRWebGLLayer: XRLayer {
     constructor(XRSession session,
                XRWebGLRenderingContext context,

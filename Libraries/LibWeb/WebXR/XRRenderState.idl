@@ -1,6 +1,6 @@
 // https://immersive-web.github.io/webxr/#xrrenderstate-interface
 
-dictionary XRRenderStateInit {
+[Experimental] dictionary XRRenderStateInit {
     double depthNear;
     double depthFar;
     boolean passthroughFullyObscured;
@@ -9,7 +9,7 @@ dictionary XRRenderStateInit {
     // FIXME: sequence<XRLayer>? layers;
 };
 
-[SecureContext, Exposed=Window] interface XRRenderState {
+[Experimental, SecureContext, Exposed=Window] interface XRRenderState {
     [FIXME] readonly attribute double depthNear;
     [FIXME] readonly attribute double depthFar;
     [FIXME] readonly attribute boolean? passthroughFullyObscured;

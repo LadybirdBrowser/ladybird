@@ -2,12 +2,12 @@
 #import <WebXR/XRSession.idl>
 
 // https://immersive-web.github.io/webxr/#xrsessionevent-interface
-[SecureContext, Exposed=Window]
+[Experimental, SecureContext, Exposed=Window]
 interface XRSessionEvent : Event {
     constructor(DOMString type, XRSessionEventInit eventInitDict);
     [SameObject] readonly attribute XRSession session;
 };
 
-dictionary XRSessionEventInit : EventInit {
+[Experimental] dictionary XRSessionEventInit : EventInit {
     required XRSession session;
 };

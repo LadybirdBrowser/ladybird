@@ -1,13 +1,13 @@
 #import <DOM/EventTarget.idl>
 #import <WebXR/XRRenderState.idl>
 
-enum XRVisibilityState {
+[Experimental] enum XRVisibilityState {
     "visible",
     "visible-blurred",
     "hidden",
 };
 
-[SecureContext, Exposed=Window] interface XRSession : EventTarget {
+[Experimental, SecureContext, Exposed=Window] interface XRSession : EventTarget {
     // Attributes
     [FIXME] readonly attribute XRVisibilityState visibilityState;
     [FIXME] readonly attribute float? frameRate;
