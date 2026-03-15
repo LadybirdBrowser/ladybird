@@ -5182,9 +5182,17 @@ InstructionPointer BytecodeInterpreter::branch_to_label(Configuration& configura
     auto const& label = configuration.label_stack().unsafe_last();
     dbgln_if(WASM_TRACE_DEBUG, "...which is actually IP {}, and has {} result(s)", label.continuation().value(), label.arity());
 
-    if constexpr (NeedsStackAdjustment) {
-        if (actually_branching)
-            configuration.value_stack().remove(label.stack_height(), configuration.value_stack().size() - label.stack_height() - label.arity());
+    if (actually_branching) {
+        auto expected_stack_size = label.stack_height() + label.arity();
+        auto actual_stack_size = configuration.value_stack().size();
+
+        if constexpr (NeedsStackAdjustment) {
+            configuration.value_stack().remove(label.stack_height(), actual_stack_size - expected_stack_size);
+        } else if (actual_stack_size > expected_stack_size) {
+            // Synthetic *.nostack branches assume there is no stack adjustment, but if instruction metadata
+            // is stale or imprecise in complex control-flow we must still preserve correct branch semantics.
+            configuration.value_stack().remove(label.stack_height(), actual_stack_size - expected_stack_size);
+        }
     }
     return actually_branching ? label.continuation().value() - 1 : current_ip;
 }
