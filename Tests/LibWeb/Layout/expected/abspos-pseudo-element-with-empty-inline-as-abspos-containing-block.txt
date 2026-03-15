@@ -1,0 +1,201 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 740.34375 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 653.953125 0+0+78.390625] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [356.625,8] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [356.625,8 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 43, rect: [8,8 348.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b": "
+          frag 1 from InlineNode start: 0, length: 0, rect: [356.625,8 0x0] baseline: 13.796875
+          frag 2 from TextNode start: 0, length: 1, rect: [356.625,8 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          InlineNode <span.with-pseudo> at [8,8] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,26] [0+0+0 784 0+0+0] [0+0+0 36 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,44] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,44 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,26] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 42, rect: [8,26 340.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b":"
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [8,44] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [8,44] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from InlineNode start: 0, length: 0, rect: [8,44 0x0] baseline: 13.796875
+          frag 1 from TextNode start: 0, length: 1, rect: [8,44 9.46875x18] baseline: 13.796875
+              "b"
+          InlineNode <span.with-pseudo> at [8,44] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,62] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [356.625,62] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [356.625,62 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,62] [0+0+0 784 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 43, rect: [8,62 348.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b": "
+          frag 1 from BlockContainer start: 0, length: 0, rect: [356.625,75 0x0] baseline: 0
+          frag 2 from InlineNode start: 0, length: 0, rect: [356.625,62 0x0] baseline: 13.796875
+          frag 3 from TextNode start: 0, length: 1, rect: [356.625,62 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          BlockContainer <div.inline-block> at [356.625,75] inline-block [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: not-inline
+          InlineNode <span.with-pseudo> at [8,62] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,80] [0+0+0 784 0+0+0] [0+0+0 160.390625 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [513.40625,222] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [513.40625,222 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 160.390625 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 43, rect: [8,222 348.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b": "
+          frag 1 from BlockContainer start: 0, length: 0, rect: [435.015625,158 0x0] baseline: 156.78125
+          frag 2 from InlineNode start: 0, length: 0, rect: [513.40625,222 0x0] baseline: 13.796875
+          frag 3 from TextNode start: 0, length: 1, rect: [513.40625,222 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          BlockContainer <div.inline-block.with-margin> at [435.015625,158] inline-block [78.390625+0+0 0 0+0+78.390625] [78.390625+0+0 0 0+0+78.390625] [BFC] children: not-inline
+          InlineNode <span.with-pseudo> at [8,80] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,240.390625] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,240.390625] [0+0+0 784 0+0+0] [0+0+0 174.78125 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> at [522.75,318.390625] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [522.75,318.390625 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,240.390625] [0+0+0 784 0+0+0] [0+0+0 174.78125 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 43, rect: [8,318.390625 348.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b": "
+          frag 1 from BlockContainer start: 0, length: 0, rect: [435.015625,318.390625 9.34375x18] baseline: 92.1875
+          frag 2 from InlineNode start: 0, length: 0, rect: [522.75,318.390625 0x0] baseline: 13.796875
+          frag 3 from TextNode start: 0, length: 1, rect: [522.75,318.390625 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          BlockContainer <div.inline-block.with-margin> at [435.015625,318.390625] inline-block [78.390625+0+0 9.34375 0+0+78.390625] [78.390625+0+0 18 0+0+78.390625] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 1, rect: [435.015625,318.390625 9.34375x18] baseline: 13.796875
+                "a"
+            TextNode <#text> (not painted)
+          InlineNode <span.with-pseudo> at [8,240.390625] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,415.171875] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.with-margin> at [86.390625,493.5625] [78.390625+0+0 627.21875 0+0+78.390625] [78.390625+0+0 18 0+0+78.390625] children: not-inline
+        BlockContainer <(anonymous)> at [435.015625,493.5625] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [435.015625,493.5625 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [86.390625,493.5625] [0+0+0 627.21875 0+0+0] [0+0+0 18 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 43, rect: [86.390625,493.5625 348.625x18] baseline: 13.796875
+              "green "c" should be written on top of "b": "
+          frag 1 from InlineNode start: 0, length: 0, rect: [435.015625,493.5625 0x0] baseline: 13.796875
+          frag 2 from TextNode start: 0, length: 1, rect: [435.015625,493.5625 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          InlineNode <span.with-pseudo> at [86.390625,493.5625] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,589.953125] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      BlockContainer <div.with-margin.with-max-width> at [86.390625,589.953125] [78.390625+0+0 100 0+0+605.609375] [78.390625+0+0 72 0+0+78.390625] children: not-inline
+        BlockContainer <(anonymous)> at [178.046875,643.953125] positioned [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [178.046875,643.953125 8.890625x18] baseline: 13.796875
+              "c"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [86.390625,589.953125] [0+0+0 100 0+0+0] [0+0+0 72 0+0+0] children: inline
+          frag 0 from TextNode start: 0, length: 9, rect: [86.390625,589.953125 71.296875x18] baseline: 13.796875
+              "green "c""
+          frag 1 from TextNode start: 10, length: 9, rect: [86.390625,607.953125 77.046875x18] baseline: 13.796875
+              "should be"
+          frag 2 from TextNode start: 20, length: 10, rect: [86.390625,625.953125 84.625x18] baseline: 13.796875
+              "written on"
+          frag 3 from TextNode start: 31, length: 12, rect: [86.390625,643.953125 91.65625x18] baseline: 13.796875
+              "top of "b": "
+          frag 4 from InlineNode start: 0, length: 0, rect: [178.046875,643.953125 0x0] baseline: 13.796875
+          frag 5 from TextNode start: 0, length: 1, rect: [178.046875,643.953125 9.46875x18] baseline: 13.796875
+              "b"
+          TextNode <#text> (not painted)
+          InlineNode <span.with-pseudo> at [86.390625,589.953125] [0+0+0 0 0+0+0] [0+0+0 18 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,740.34375] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600] overflow: [0,0 800x740.34375]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x740.34375]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x653.953125]
+      PaintableWithLines (BlockContainer<DIV>) [8,8 784x18]
+        PaintableWithLines (BlockContainer(anonymous)) [356.625,8 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 784x18]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [8,8 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,26 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,26 784x36]
+        PaintableWithLines (BlockContainer(anonymous)) [8,44 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,26 784x18]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<DIV>) [8,44 784x0]
+        PaintableWithLines (BlockContainer(anonymous)) [8,44 784x18]
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [8,44 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,62 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,62 784x18]
+        PaintableWithLines (BlockContainer(anonymous)) [356.625,62 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,62 784x18]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.inline-block) [356.625,75 0x0]
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [8,62 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,80 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,80 784x160.390625]
+        PaintableWithLines (BlockContainer(anonymous)) [513.40625,222 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,80 784x160.390625]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.inline-block.with-margin) [435.015625,158 0x0]
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [8,80 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,240.390625 784x0]
+      PaintableWithLines (BlockContainer<DIV>) [8,240.390625 784x174.78125]
+        PaintableWithLines (BlockContainer(anonymous)) [522.75,318.390625 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,240.390625 784x174.78125]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (BlockContainer<DIV>.inline-block.with-margin) [435.015625,318.390625 9.34375x18]
+            TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [8,240.390625 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,415.171875 784x0]
+      PaintableWithLines (BlockContainer<DIV>.with-margin) [86.390625,493.5625 627.21875x18]
+        PaintableWithLines (BlockContainer(anonymous)) [435.015625,493.5625 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [86.390625,493.5625 627.21875x18]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [86.390625,493.5625 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,589.953125 784x0]
+      PaintableWithLines (BlockContainer<DIV>.with-margin.with-max-width) [86.390625,589.953125 100x72]
+        PaintableWithLines (BlockContainer(anonymous)) [178.046875,643.953125 0x0]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [86.390625,589.953125 100x72]
+          TextPaintable (TextNode<#text>)
+          PaintableWithLines (InlineNode<SPAN>.with-pseudo) [86.390625,589.953125 0x18]
+          TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer(anonymous)) [8,740.34375 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x740.34375] [children: 0] (z-index: auto)

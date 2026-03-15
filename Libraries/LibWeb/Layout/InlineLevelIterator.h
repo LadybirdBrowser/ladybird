@@ -28,6 +28,7 @@ public:
             ForcedBreak,
             AbsolutelyPositionedElement,
             FloatingElement,
+            AbsolutePositioningInlineContainingElement,
         };
         Type type {};
         GC::Ptr<Layout::Node const> node {};

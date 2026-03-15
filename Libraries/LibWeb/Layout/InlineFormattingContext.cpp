@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/InlineLevelIterator.h>
 #include <LibWeb/Layout/LineBuilder.h>
@@ -329,6 +330,12 @@ void InlineFormattingContext::generate_line_boxes()
                 // Even if this introduces clearance, we do NOT reset the margin state, because that is clearance
                 // between floats and does not contribute to the height of the Inline Formatting Context.
                 parent().layout_floating_box(*box, containing_block(), *m_available_space, 0, &line_builder);
+            }
+            break;
+
+        case InlineLevelIterator::Item::Type::AbsolutePositioningInlineContainingElement:
+            if (auto* inline_node = as_if<InlineNode>(*item.node)) {
+                line_builder.append_inline(*inline_node, item.margin_start, item.margin_end);
             }
             break;
 

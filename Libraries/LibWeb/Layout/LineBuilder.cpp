@@ -6,6 +6,7 @@
 
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/LineBuilder.h>
+#include <LibWeb/Layout/InlineNode.h>
 #include <LibWeb/Layout/TextNode.h>
 
 namespace Web::Layout {
@@ -103,6 +104,12 @@ void LineBuilder::append_box(Box const& box, CSSPixels leading_size, CSSPixels t
         .line_box_index = m_containing_block_used_values.line_boxes.size() - 1,
         .fragment_index = line_box.fragments().size() - 1,
     };
+}
+
+void LineBuilder::append_inline(InlineNode const& inline_node, CSSPixels leading_margin, CSSPixels trailing_margin)
+{
+    auto& line_box = ensure_last_line_box();
+    line_box.add_fragment(inline_node, 0, 0, 0, 0, leading_margin, trailing_margin, 0, 0, 0, 0);
 }
 
 void LineBuilder::append_text_chunk(TextNode const& text_node, size_t offset_in_node, size_t length_in_node, CSSPixels leading_size, CSSPixels trailing_size, CSSPixels leading_margin, CSSPixels trailing_margin, CSSPixels content_width, CSSPixels content_height, RefPtr<Gfx::GlyphRun> glyph_run)
@@ -280,7 +287,7 @@ void LineBuilder::update_last_line()
             // The CSS specification calls this AD (A+D, Ascent + Descent).
 
             CSSPixels fragment_baseline = 0;
-            if (fragment.layout_node().is_text_node()) {
+            if (fragment.layout_node().is_text_node() || fragment.layout_node().is_inline_node()) {
                 fragment_baseline = CSSPixels::nearest_value_for(font_metrics.ascent) + half_leading;
             } else {
                 auto const& box = as<Layout::Box>(fragment.layout_node());
