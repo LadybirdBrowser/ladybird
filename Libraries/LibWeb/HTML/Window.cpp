@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NumericLimits.h>
 #include <AK/Utf8View.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -26,12 +27,17 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Screen.h>
 #include <LibWeb/CookieStore/CookieStore.h>
+#include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/FetchLaterResult.h>
+#include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -51,7 +57,6 @@
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/PageTransitionEvent.h>
-#include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -61,6 +66,7 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Internals/Internals.h>
@@ -68,12 +74,15 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/RequestIdleCallback/IdleDeadline.h>
+#include <LibWeb/SecureContexts/AbstractOperations.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/Speech/SpeechSynthesis.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/ViewTransition/ViewTransition.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/DOMException.h>
+#include <math.h>
 
 namespace Web::HTML {
 
@@ -275,10 +284,6 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Str
 
         // 4. If urlRecord matches about:blank, then perform the URL and history update steps given targetNavigable's active document and urlRecord.
         if (url_matches_about_blank(url_record.value())) {
-            // AD-HOC: Mark the initial about:blank for the new window as load complete
-            // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*target_navigable->active_document());
-
             perform_url_and_history_update_steps(*target_navigable->active_document(), url_record.release_value());
         }
 
@@ -1979,6 +1984,177 @@ Window::NamedObjects Window::named_objects(StringView name)
     });
 
     return objects;
+}
+
+// https://fetch.spec.whatwg.org/#dom-window-fetchlater
+WebIDL::ExceptionOr<GC::Ref<Fetch::FetchLaterResult>> Window::fetch_later(Fetch::RequestInfo const& input, Fetch::DeferredRequestInit const& init)
+{
+    auto& realm = this->realm();
+
+    // 1. Let requestObject be the result of invoking the initial value of Request as constructor with input and init.
+    auto request_object = TRY(Fetch::Request::construct_impl(realm, input, init.to_request_init()));
+
+    // 2. If requestObject's signal is aborted, then throw requestObject's signal's abort reason.
+    if (request_object->signal()->aborted())
+        return JS::throw_completion(request_object->signal()->reason());
+
+    // 3. Let request be requestObject's request.
+    auto request = request_object->request();
+
+    // 4. Let activateAfter be null.
+    Optional<HighResolutionTime::DOMHighResTimeStamp> activate_after;
+
+    // 5. If init["activateAfter"] exists, then set activateAfter to init["activateAfter"].
+    if (init.activate_after.has_value())
+        activate_after = *init.activate_after;
+
+    // 6. If activateAfter is less than zero, then throw a RangeError.
+    if (activate_after.has_value() && *activate_after < 0)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::RangeError, "activateAfter must not be negative"sv };
+
+    // 7. If this's relevant global object's associated Document is not fully active, then throw a TypeError.
+    if (!associated_document().is_fully_active())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Document is not fully active"sv };
+
+    // FIXME: Enforce the "deferred-fetch" permissions policy for this document.
+    // This currently does not handle iframe `allow="deferred-fetch"` delegation rules,
+    // including redirected cross-origin iframe navigations.
+
+    // 8. If request's URL's scheme is not an HTTP(S) scheme, then throw a TypeError.
+    if (!request->url().scheme().is_one_of("http"sv, "https"sv))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "URL must use the HTTP or HTTPS scheme"sv };
+
+    // 9. If request's URL is not potentially trustworthy, then throw a TypeError.
+    if (SecureContexts::is_url_potentially_trustworthy(request->url()) != SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "URL must be potentially trustworthy"sv };
+
+    // 10. If request's body is non-null and request's body length is null, then throw a TypeError.
+    if (auto* body = request->body().get_pointer<GC::Ref<Fetch::Infrastructure::Body>>(); body != nullptr && !(*body)->length().has_value())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Request body length must be known"sv };
+
+    // 11. Let availableDeferredFetchQuota be this's relevant global object's associated Document's deferred-fetch quota.
+    // FIXME: Implement deferred fetch quota tracking.
+
+    // 12. Let totalRequestLength be request's body length if request's body is non-null; otherwise 0.
+    auto total_request_length = 0ULL;
+    if (auto* body = request->body().get_pointer<GC::Ref<Fetch::Infrastructure::Body>>(); body != nullptr)
+        total_request_length = (*body)->length().value_or(0);
+    (void)total_request_length;
+
+    // 13. If totalRequestLength > availableDeferredFetchQuota, then throw a "QuotaExceededError" DOMException.
+    // FIXME: Enforce quota and throw QuotaExceededError with { quota, requested } details.
+
+    // 14. Let activated be false.
+    // NOTE: We represent this via FetchLaterResult::activated, which is initialized to false.
+
+    // Additional queue setup required by the deferred fetch queueing algorithm.
+    Fetch::Fetching::populate_request_from_client(realm, request);
+    request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
+    request->set_keepalive(true);
+
+    // 15. Let deferredRecord be the result of calling queue a deferred fetch given request, activateAfter, and the following step: set activated to true.
+    // NOTE: The "set activated to true" callback is wired through deferred-fetch processing, not executed at queue time.
+    auto result = Fetch::FetchLaterResult::create(realm);
+    auto& deferred_fetch_records = relevant_settings_object(*this).deferred_fetch_records();
+
+    Optional<HighResolutionTime::DOMHighResTimeStamp> activation_time;
+    if (activate_after.has_value())
+        activation_time = performance()->now() + *activate_after;
+
+    // https://fetch.spec.whatwg.org/#queue-a-deferred-fetch
+    // 1. Let deferredFetchRecord be a new deferred fetch record containing request and activationTime.
+    // 2. Append deferredFetchRecord to request’s client’s fetch group’s deferred fetch records.
+    deferred_fetch_records.empend(request, result, request_object->signal(), activation_time);
+
+    // 3. If activateAfter is not null, queue a global task on the deferred fetch task source on request's client.
+    //    FIXME: Model the deferred fetch task source explicitly.
+    //    For now, schedule timeout-based processing.
+    if (activate_after.has_value()) {
+        auto delay = max(0.0, *activate_after);
+        auto timeout = NumericLimits<i32>::max();
+        if (delay < static_cast<double>(NumericLimits<i32>::max()))
+            timeout = static_cast<i32>(ceil(delay));
+
+        run_steps_after_a_timeout(timeout, [strong_this = GC::Root(*this)] {
+            strong_this->activate_deferred_fetches_if_needed(false);
+        });
+    }
+
+    // 17. Return deferredFetchResult.
+    return result;
+}
+
+// https://fetch.spec.whatwg.org/#process-deferred-fetches
+void Window::activate_deferred_fetches()
+{
+    activate_deferred_fetches_if_needed(true);
+}
+
+// https://fetch.spec.whatwg.org/#process-deferred-fetches
+void Window::activate_deferred_fetches_if_needed(bool force_all)
+{
+    auto& vm = this->vm();
+    auto& realm = this->realm();
+    auto& deferred_fetch_records = relevant_settings_object(*this).deferred_fetch_records();
+    auto const now = performance()->now();
+    Optional<HighResolutionTime::DOMHighResTimeStamp> next_due_in;
+
+    // https://fetch.spec.whatwg.org/#process-deferred-fetches
+    // This processes this environment's deferred fetch records.
+    for (size_t i = 0; i < deferred_fetch_records.size();) {
+        auto& deferred_fetch = deferred_fetch_records[i];
+
+        if (deferred_fetch.signal && deferred_fetch.signal->aborted()) {
+            deferred_fetch_records.remove(i);
+            continue;
+        }
+
+        if (!force_all && !deferred_fetch.activation_time.has_value()) {
+            ++i;
+            continue;
+        }
+
+        auto const due = !deferred_fetch.activation_time.has_value() || *deferred_fetch.activation_time <= now;
+        if (!force_all && !due) {
+            auto remaining = *deferred_fetch.activation_time - now;
+            if (!next_due_in.has_value() || remaining < *next_due_in)
+                next_due_in = remaining;
+            ++i;
+            continue;
+        }
+
+        // https://fetch.spec.whatwg.org/#process-a-deferred-fetch
+        // 1. If deferredRecord’s invoke state is not "pending", then return.
+        // 2. Set deferredRecord’s invoke state to "sent".
+        // (Handled implicitly by removing the record below)
+
+        // 3. Fetch deferredRecord’s request.
+        (void)Fetch::Fetching::fetch(
+            realm,
+            deferred_fetch.request,
+            Fetch::Infrastructure::FetchAlgorithms::create(vm, {}),
+            Fetch::Fetching::UseParallelQueue::Yes);
+
+        // 4. Queue a global task on the deferred fetch task source with deferredRecord’s request’s client’s global object to run deferredRecord’s notify invoked.
+        HTML::queue_global_task(HTML::Task::Source::DeferredFetch, realm.global_object(), GC::create_function(realm.heap(), [result = deferred_fetch.result]() mutable {
+            result->set_activated(true);
+        }));
+
+        deferred_fetch_records.remove(i);
+    }
+
+    if (!force_all && next_due_in.has_value()) {
+        auto timeout = NumericLimits<i32>::max();
+        if (*next_due_in <= 0) {
+            timeout = 0;
+        } else if (*next_due_in < static_cast<double>(NumericLimits<i32>::max())) {
+            timeout = max(1, static_cast<i32>(ceil(*next_due_in)));
+        }
+
+        run_steps_after_a_timeout(timeout, [strong_this = GC::Root(*this)] {
+            strong_this->activate_deferred_fetches_if_needed(false);
+        });
+    }
 }
 
 bool Window::find(String const& string)

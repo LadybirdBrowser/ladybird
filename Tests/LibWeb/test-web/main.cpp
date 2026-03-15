@@ -735,12 +735,23 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     context.total_tests += variants.size() - 1;
 }
 
-static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void start_timeout_for_test(TestWebView& view, Test& test, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
     test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
+        auto current_index = s_current_test_index_by_view.get(&view);
+        if (!current_index.has_value() || *current_index != test_index)
+            return;
+
         view.on_test_complete({ test_index, TestResult::Timeout });
     });
+    test.timeout_timer->start();
+}
+
+static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+{
+    auto test_index = test.index;
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -919,7 +930,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path)
@@ -961,9 +971,7 @@ static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap co
 static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&view, &context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -1066,15 +1074,12 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -1177,29 +1182,21 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app)
 {
     s_current_test_index_by_view.set(&view, test_index);
+    auto& test = context.tests[test_index];
+    start_timeout_for_test(view, test, app.per_test_timeout_in_seconds * 1000);
 
-    // Clear the current document.
-    // FIXME: Implement a debug-request to do this more thoroughly.
     auto promise = Core::Promise<Empty>::construct();
 
-    view.on_load_finish = [promise](auto const& url) {
-        if (!url.equals(URL::about_blank()))
+    promise->when_resolved([&view, test_index, &app, &context](auto) {
+        auto current_index = s_current_test_index_by_view.get(&view);
+        if (!current_index.has_value() || *current_index != test_index)
             return;
 
-        Core::deferred_invoke([promise]() {
-            promise->resolve({});
-        });
-    };
-
-    view.on_test_finish = {};
-
-    promise->when_resolved([&view, test_index, &app, &context](auto) {
         auto& test = context.tests[test_index];
         auto real_path = MUST(FileSystem::real_path(test.input_path));
         auto headers_path = ByteString::formatted("{}.headers", real_path);
@@ -1238,7 +1235,28 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         VERIFY_NOT_REACHED();
     });
 
-    view.load(URL::about_blank());
+    auto begin_reset = [&view, test_index, promise]() {
+        view.on_load_finish = [&view, test_index, promise](auto const& url) {
+            if (!url.equals(URL::about_blank()))
+                return;
+
+            auto current_index = s_current_test_index_by_view.get(&view);
+            if (!current_index.has_value() || *current_index != test_index)
+                return;
+
+            Core::deferred_invoke([promise]() {
+                promise->resolve({});
+            });
+        };
+
+        view.on_test_finish = {};
+
+        view.load(URL::about_blank());
+    };
+
+    // Drain late IPC from the previous run before reusing this view.
+    view.sync_with_web_content();
+    begin_reset();
 }
 
 static void set_ui_callbacks_for_tests(TestWebView& view)

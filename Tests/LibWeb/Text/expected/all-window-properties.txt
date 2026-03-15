@@ -155,6 +155,7 @@ EventSource
 EventTarget
 External
 FederatedCredential
+FetchLaterResult
 File
 FileList
 FileReader

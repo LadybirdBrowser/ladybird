@@ -10,8 +10,10 @@
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/SyntheticHostDefined.h>
+#include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/Fetch/FetchLaterResult.h>
 #include <LibWeb/Fetch/Infrastructure/FetchRecord.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/PolicyContainers.h>
@@ -67,10 +69,21 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_storage_manager);
     visitor.visit(m_service_worker_registration_object_map);
     visitor.visit(m_service_worker_object_map);
+    for (auto& deferred_fetch : m_deferred_fetch_records) {
+        visitor.visit(deferred_fetch.request);
+        visitor.visit(deferred_fetch.result);
+        visitor.visit(deferred_fetch.signal);
+    }
 }
 
 void EnvironmentSettingsObject::discard_environment()
 {
+    // AD-HOC: Fetch processes deferred fetches on fetch-group termination, but
+    // HTML does not currently hook that up for discarded Window environments.
+    // Activate pending deferred fetches before marking the environment discarded.
+    if (auto* window = as_if<HTML::Window>(global_object()))
+        window->activate_deferred_fetches();
+
     // https://w3c.github.io/ServiceWorker/#ref-for-environment-discarding-steps
     // Each service worker client has the following environment discarding steps:
 

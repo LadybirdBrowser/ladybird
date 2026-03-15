@@ -2,6 +2,7 @@
 #import <Fetch/Body.idl>
 #import <Fetch/BodyInit.idl>
 #import <Fetch/Headers.idl>
+#import <HighResolutionTime/DOMHighResTimeStamp.idl>
 
 typedef (Request or USVString) RequestInfo;
 
@@ -48,6 +49,10 @@ dictionary RequestInit {
     RequestDuplex duplex;
     RequestPriority priority;
     any window; // can only be set to null
+};
+
+dictionary DeferredRequestInit : RequestInit {
+    DOMHighResTimeStamp activateAfter;
 };
 
 enum RequestDestination { "", "audio", "audioworklet", "document", "embed", "font", "frame", "iframe", "image", "json", "manifest", "object", "paintworklet", "report", "script", "sharedworker", "style",  "track", "video", "worker", "xslt" };

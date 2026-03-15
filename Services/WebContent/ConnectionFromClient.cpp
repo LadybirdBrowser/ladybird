@@ -178,6 +178,11 @@ void ConnectionFromClient::load_url(u64 page_id, URL::URL url)
     page->page().load(url);
 }
 
+void ConnectionFromClient::ping(u64 page_id)
+{
+    [[maybe_unused]] auto page = this->page(page_id);
+}
+
 void ConnectionFromClient::load_html(u64 page_id, ByteString html)
 {
     if (auto page = this->page(page_id); page.has_value())

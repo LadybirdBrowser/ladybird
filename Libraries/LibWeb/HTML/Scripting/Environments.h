@@ -125,6 +125,22 @@ public:
     // https://fetch.spec.whatwg.org/#concept-fetch-group
     auto& fetch_group() { return m_fetch_group; }
 
+    struct DeferredFetchRecord {
+        DeferredFetchRecord(GC::Ref<Fetch::Infrastructure::Request> request, GC::Ref<Fetch::FetchLaterResult> result, GC::Ptr<DOM::AbortSignal> signal, Optional<HighResolutionTime::DOMHighResTimeStamp> activation_time)
+            : request(request)
+            , result(result)
+            , signal(signal)
+            , activation_time(activation_time)
+        {
+        }
+
+        GC::Ref<Fetch::Infrastructure::Request> request;
+        GC::Ref<Fetch::FetchLaterResult> result;
+        GC::Ptr<DOM::AbortSignal> signal;
+        Optional<HighResolutionTime::DOMHighResTimeStamp> activation_time;
+    };
+    Vector<DeferredFetchRecord>& deferred_fetch_records() { return m_deferred_fetch_records; }
+
     SerializedEnvironmentSettingsObject serialize();
 
     GC::Ref<StorageAPI::StorageManager> storage_manager();
@@ -190,6 +206,9 @@ private:
     // https://w3c.github.io/ServiceWorker/#service-worker-client-discarded-flag
     // A service worker client has an associated discarded flag. It is initially unset.
     bool m_discarded { false };
+
+    // https://fetch.spec.whatwg.org/#fetch-group-deferred-fetch-records
+    Vector<DeferredFetchRecord> m_deferred_fetch_records;
 };
 
 JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);

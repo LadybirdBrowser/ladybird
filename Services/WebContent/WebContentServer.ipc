@@ -36,6 +36,7 @@ endpoint WebContentServer
     update_screen_rects(u64 page_id, Vector<Web::DevicePixelRect> rects, u32 main_screen_index) =|
 
     load_url(u64 page_id, URL::URL url) =|
+    ping(u64 page_id) => ()
     load_html(u64 page_id, ByteString html) =|
     reload(u64 page_id) =|
     traverse_the_history_by_delta(u64 page_id, i32 delta) =|

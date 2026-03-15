@@ -1,0 +1,5 @@
+// https://fetch.spec.whatwg.org/#fetchlaterresult
+[Exposed=Window]
+interface FetchLaterResult {
+    readonly attribute boolean activated;
+};

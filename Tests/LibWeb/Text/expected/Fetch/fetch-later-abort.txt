@@ -1,0 +1,4 @@
+activated before timeout: false
+activated after timeout: false
+cookie observed: false
+PASS

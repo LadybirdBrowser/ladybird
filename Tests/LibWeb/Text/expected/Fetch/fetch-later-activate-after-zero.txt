@@ -1,0 +1,4 @@
+activated before wait: false
+activated after wait: true
+cookie observed: true
+PASS

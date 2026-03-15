@@ -23,6 +23,7 @@ public:
     static NonnullOwnPtr<TestWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
 
     void clear_content_filters();
+    void sync_with_web_content() { client().ping(page_id()); }
     pid_t web_content_pid() const;
 
     NonnullRefPtr<Core::Promise<RefPtr<Gfx::Bitmap const>>> take_screenshot();

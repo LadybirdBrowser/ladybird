@@ -45,6 +45,9 @@ public:
         // https://html.spec.whatwg.org/multipage/webappapis.html#navigation-and-traversal-task-source
         NavigationAndTraversal,
 
+        // https://fetch.spec.whatwg.org/#deferred-fetch-task-source
+        DeferredFetch,
+
         // https://w3c.github.io/FileAPI/#fileReadingTaskSource
         FileReading,
 

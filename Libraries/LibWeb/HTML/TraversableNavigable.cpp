@@ -121,6 +121,15 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
     traversable->m_session_history_entries.append(*initial_history_entry);
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
+    // The spec's "create a new browsing context and document" algorithm
+    // completely finishes loading this initial about:blank earlier. In our
+    // implementation, we need to do that here once it becomes the active
+    // document of the newly created traversable. This should move back to the
+    // earlier spec-aligned point once initial about:blank documents can finish
+    // loading before navigable association.
+    if (document->is_initial_about_blank())
+        HTML::HTMLParser::the_end(*document);
+
     // FIXME: 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
 
     // 11. Append traversable to the user agent's top-level traversable set.
@@ -155,21 +164,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
         });
     traversable->set_emulated_position_data(emulated_position_coordinates);
 
-    // AD-HOC: Mark the about:blank document as finished parsing if we're only going to about:blank
-    //         Skip the initial navigation as well. This matches the behavior of the window open steps.
-
-    if (url_matches_about_blank(initial_navigation_url)) {
-        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(traversable->heap(), [traversable, initial_navigation_url] {
-            // FIXME: We do this other places too when creating a new about:blank document. Perhaps it's worth a spec issue?
-            HTML::HTMLParser::the_end(*traversable->active_document());
-
-            // FIXME: If we perform the URL and history update steps here, we start hanging tests and the UI process will
-            //        try to load() the initial URLs passed on the command line before we finish processing the events here.
-            //        However, because we call this before the PageClient is fully initialized... that gets awkward.
-        }));
-    }
-
-    else {
+    if (!url_matches_about_blank(initial_navigation_url)) {
         // 2. Navigate traversable to initialNavigationURL using traversable's active document, with documentResource set to initialNavigationPostResource.
         TRY(traversable->navigate({ .url = initial_navigation_url,
             .source_document = *traversable->active_document(),

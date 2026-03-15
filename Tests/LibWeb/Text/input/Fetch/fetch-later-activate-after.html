@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="fetch-later-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            let server = httpTestServer();
+            let token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            let cookieName = `fetchlater_activate_${token.replace("-", "_")}`;
+
+            let checkUrl = await server.createEcho("GET", `/fetch-later-check-${token}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                },
+                reflect_headers_in_body: true,
+            });
+            let setUrl = await server.createEcho("POST", `/fetch-later-set-${token}`, {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                    "Set-Cookie": `${cookieName}=1; Path=/`,
+                },
+            });
+
+            let activationDelayMs = 250;
+            let result = fetchLater(setUrl, {
+                method: "POST",
+                credentials: "include",
+                body: "defer me",
+                activateAfter: activationDelayMs,
+            });
+
+            await timeout(50);
+            let activatedBeforeDelayElapsed = result.activated;
+            println(`activated before delay elapsed: ${activatedBeforeDelayElapsed}`);
+            let becameActivated = await waitForActivated(result);
+            println(`activated after timeout: ${becameActivated}`);
+
+            let cookieObserved = await waitForCookie(checkUrl, cookieName);
+            println(`cookie observed: ${cookieObserved}`);
+            println(!activatedBeforeDelayElapsed && becameActivated && cookieObserved ? "PASS" : "FAIL");
+        } catch (error) {
+            println(`FAIL - ${error}`);
+        }
+    });
+</script>

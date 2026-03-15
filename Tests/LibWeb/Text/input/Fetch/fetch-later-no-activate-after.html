@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="fetch-later-helper.js"></script>
+<script>
+    promiseTest(async () => {
+        try {
+            let server = httpTestServer();
+            let token = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            let cookieName = `fetchlater_no_activate_after_${token.replace("-", "_")}`;
+            let checkUrl = await server.createEcho("GET", `/fetch-later-no-activate-after-check-${token}`, {
+                status: 200,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                },
+                reflect_headers_in_body: true,
+            });
+            let setUrl = await server.createEcho("POST", `/fetch-later-no-activate-after-set-${token}`, {
+                status: 204,
+                headers: {
+                    "Access-Control-Allow-Origin": location.origin,
+                    "Access-Control-Allow-Credentials": "true",
+                    "Set-Cookie": `${cookieName}=1; Path=/`,
+                },
+            });
+
+            let iframe = document.createElement("iframe");
+            iframe.srcdoc = `
+<!DOCTYPE html>
+<script>
+    let request = new Request(${JSON.stringify(setUrl)}, {
+        method: "POST",
+        credentials: "include",
+        body: "activate on termination"
+    });
+    let result = fetchLater(request);
+    parent.postMessage({ type: "fetch-later-queued", activatedBeforeUnload: result.activated }, "*");
+<\/script>`;
+            document.body.appendChild(iframe);
+
+            let message = await waitForMessage("fetch-later-queued");
+            let cookieObservedBeforeUnload = await waitForCookie(checkUrl, cookieName, 500);
+            iframe.remove();
+            let cookieObservedAfterUnload = await waitForCookie(checkUrl, cookieName);
+            println(`activated before iframe unload: ${message.activatedBeforeUnload}`);
+            println(`cookie observed before iframe unload: ${cookieObservedBeforeUnload}`);
+            println(`cookie observed after iframe unload: ${cookieObservedAfterUnload}`);
+            println(!message.activatedBeforeUnload && !cookieObservedBeforeUnload && cookieObservedAfterUnload ? "PASS" : "FAIL");
+        } catch (error) {
+            println(`FAIL - ${error}`);
+        }
+    });
+</script>

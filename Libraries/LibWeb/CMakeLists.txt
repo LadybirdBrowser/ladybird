@@ -392,6 +392,7 @@ set(SOURCES
     Fetch/Fetching/PendingResponse.cpp
     Fetch/Fetching/RefCountedFlag.cpp
     Fetch/FetchMethod.cpp
+    Fetch/FetchLaterResult.cpp
     Fetch/Headers.cpp
     Fetch/HeadersIterator.cpp
     Fetch/Infrastructure/FetchAlgorithms.cpp
