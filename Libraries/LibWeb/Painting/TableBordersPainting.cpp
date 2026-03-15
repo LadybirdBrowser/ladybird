@@ -7,6 +7,7 @@
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Traits.h>
+#include <LibGfx/Orientation.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableBox.h>
@@ -32,6 +33,29 @@ struct Traits<CellCoordinates> : public DefaultTraits<CellCoordinates> {
 }
 
 namespace Web::Painting {
+
+// https://www.w3.org/TR/CSS22/box.html#border-style-properties
+static constexpr double dark_light_absolute_value_difference = 1. / 3;
+
+static Color light_color_for_inset_and_outset(Color const& color)
+{
+    auto hsv = color.to_hsv();
+    if (hsv.value >= dark_light_absolute_value_difference)
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value + dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
+}
+
+static Color dark_color_for_inset_and_outset(Color const& color)
+{
+    auto hsv = color.to_hsv();
+    if (hsv.value < dark_light_absolute_value_difference)
+        return color;
+    auto result = Color::from_hsv({ hsv.hue, hsv.saturation, hsv.value - dark_light_absolute_value_difference });
+    result.set_alpha(color.alpha());
+    return result;
+}
 
 static void collect_cell_boxes(Vector<PaintableBox const&>& cell_boxes, PaintableBox const& table_paintable)
 {
@@ -286,13 +310,59 @@ static void paint_collected_edges(DisplayListRecordingContext& context, Vector<B
             ? border_edge_painting_info.rect.top_right()
             : border_edge_painting_info.rect.bottom_left();
 
+        auto border_rect = border_edge_painting_info.rect.to_type<int>();
+        auto orientation = border_edge_painting_info.direction == EdgeDirection::Horizontal
+            ? Gfx::Orientation::Horizontal
+            : Gfx::Orientation::Vertical;
+
         if (border_style == CSS::LineStyle::Dotted) {
             context.display_list_recorder().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::LineStyle::Dotted);
         } else if (border_style == CSS::LineStyle::Dashed) {
             context.display_list_recorder().draw_line(p1.to_type<int>(), p2.to_type<int>(), color, width.value(), Gfx::LineStyle::Dashed);
+        } else if (border_style == CSS::LineStyle::Double) {
+            // https://www.w3.org/TR/CSS22/box.html#border-style-properties
+            // "Two parallel solid lines with some space between them."
+            auto one_third = max(DevicePixels(1), width / 3);
+            auto outer_rect = border_rect;
+            outer_rect.set_secondary_size_for_orientation(orientation, one_third.value());
+            context.display_list_recorder().fill_rect(outer_rect, color);
+            auto inner_rect = border_rect;
+            inner_rect.set_secondary_offset_for_orientation(orientation, border_rect.secondary_offset_for_orientation(orientation) + border_rect.secondary_size_for_orientation(orientation) - one_third.value());
+            inner_rect.set_secondary_size_for_orientation(orientation, one_third.value());
+            context.display_list_recorder().fill_rect(inner_rect, color);
+        } else if (border_style == CSS::LineStyle::Groove || border_style == CSS::LineStyle::Ridge) {
+            // https://www.w3.org/TR/CSS22/box.html#border-style-properties
+            // Groove: outer half is inset-colored, inner half is outset-colored.
+            // Ridge: outer half is outset-colored, inner half is inset-colored.
+            // FIXME: Determine whether this is a top/left vs bottom/right edge for more accurate
+            //        inset/outset/groove/ridge coloring on collapsed table borders.
+            auto outer_color = border_style == CSS::LineStyle::Groove
+                ? dark_color_for_inset_and_outset(color)
+                : light_color_for_inset_and_outset(color);
+            auto inner_color = border_style == CSS::LineStyle::Groove
+                ? light_color_for_inset_and_outset(color)
+                : dark_color_for_inset_and_outset(color);
+            auto half = max(DevicePixels(1), width / 2);
+            auto remainder = width - half;
+            auto outer_rect = border_rect;
+            outer_rect.set_secondary_size_for_orientation(orientation, half.value());
+            context.display_list_recorder().fill_rect(outer_rect, outer_color);
+            auto inner_rect = border_rect;
+            inner_rect.set_secondary_offset_for_orientation(orientation, border_rect.secondary_offset_for_orientation(orientation) + half.value());
+            inner_rect.set_secondary_size_for_orientation(orientation, remainder.value());
+            context.display_list_recorder().fill_rect(inner_rect, inner_color);
+        } else if (border_style == CSS::LineStyle::Inset || border_style == CSS::LineStyle::Outset) {
+            // https://www.w3.org/TR/CSS22/box.html#border-style-properties
+            // Inset: looks as though the box were embedded in the canvas.
+            // Outset: opposite of inset.
+            // FIXME: Determine whether this is a top/left vs bottom/right edge for more accurate
+            //        inset/outset coloring on collapsed table borders.
+            auto adjusted_color = border_style == CSS::LineStyle::Inset
+                ? dark_color_for_inset_and_outset(color)
+                : light_color_for_inset_and_outset(color);
+            context.display_list_recorder().fill_rect(border_rect, adjusted_color);
         } else {
-            // FIXME: Support the remaining line styles instead of rendering them as solid.
-            context.display_list_recorder().fill_rect(Gfx::IntRect(border_edge_painting_info.rect.location(), border_edge_painting_info.rect.size()), color);
+            context.display_list_recorder().fill_rect(border_rect, color);
         }
     }
 }
