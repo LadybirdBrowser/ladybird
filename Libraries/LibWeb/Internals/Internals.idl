@@ -62,6 +62,8 @@ interface Internals {
     DOMString getComputedLabel(Element element);
     DOMString getComputedAriaLevel(Element element);
     unsigned short getEchoServerPort();
+    unsigned short getOriginServerPort(unsigned long index);
+    unsigned long getOriginServerCount();
 
     undefined setBrowserZoom(double factor);
     undefined setDevicePixelRatio(double ratio);

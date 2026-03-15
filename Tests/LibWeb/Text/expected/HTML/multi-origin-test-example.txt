@@ -1,0 +1,4 @@
+Origin count: 3
+Origins have different ports: true
+areDifferentOrigins works: true
+PASS

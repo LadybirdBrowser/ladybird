@@ -148,6 +148,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool is_headless = false;
     bool disable_scrollbar_painting = false;
     StringView echo_server_port_string_view {};
+    StringView multi_origin_server_ports_string_view {};
     StringView default_time_zone {};
     bool file_origins_are_tuple_origins = false;
 
@@ -170,6 +171,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(collect_garbage_on_every_allocation, "Collect garbage after every JS heap allocation", "collect-garbage-on-every-allocation");
     args_parser.add_option(disable_scrollbar_painting, "Don't paint horizontal or vertical viewport scrollbars", "disable-scrollbar-painting");
     args_parser.add_option(echo_server_port_string_view, "Echo server port used in test internals", "echo-server-port", 0, "echo_server_port");
+    args_parser.add_option(multi_origin_server_ports_string_view, "Comma-separated multi-origin server ports", "multi-origin-server-ports", 0, "ports");
     args_parser.add_option(is_headless, "Report that the browser is running in headless mode", "headless");
     args_parser.add_option(default_time_zone, "Default time zone", "default-time-zone", 0, "time-zone-id");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
@@ -215,6 +217,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             Web::Internals::Internals::set_echo_server_port(maybe_echo_server_port.value());
         else
             VERIFY_NOT_REACHED();
+    }
+
+    if (!multi_origin_server_ports_string_view.is_empty()) {
+        Vector<u16> ports;
+        for (auto const& port_str : multi_origin_server_ports_string_view.split_view(',')) {
+            if (auto maybe_port = port_str.to_number<u16>(); maybe_port.has_value())
+                ports.append(maybe_port.value());
+        }
+        Web::Internals::Internals::set_multi_origin_server_ports(move(ports));
     }
 
 #if defined(AK_OS_MACOS)

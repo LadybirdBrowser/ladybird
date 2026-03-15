@@ -572,7 +572,9 @@ __finishTest
 __preventMultipleTestFunctions
 animationFrame
 asyncTest
+hasMultiOriginSupport
 httpTestServer
+multiOriginTestServer
 printElement
 println
 promiseTest
