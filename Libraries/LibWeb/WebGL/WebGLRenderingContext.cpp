@@ -111,12 +111,6 @@ void WebGLRenderingContext::needs_to_present()
     m_canvas_element->set_needs_repaint();
 }
 
-bool WebGLRenderingContext::is_context_lost() const
-{
-    dbgln_if(WEBGL_CONTEXT_DEBUG, "WebGLRenderingContext::is_context_lost()");
-    return m_context_lost;
-}
-
 Optional<WebGLContextAttributes> WebGLRenderingContext::get_context_attributes()
 {
     if (is_context_lost())

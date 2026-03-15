@@ -31,7 +31,6 @@ public:
 
     GC::Ref<HTML::HTMLCanvasElement> canvas_for_binding() const;
 
-    bool is_context_lost() const;
     Optional<WebGLContextAttributes> get_context_attributes();
 
     RefPtr<Gfx::PaintingSurface> surface();
@@ -59,10 +58,6 @@ private:
     // https://www.khronos.org/registry/webgl/specs/latest/1.0/#actual-context-parameters
     // Each WebGLRenderingContext has actual context parameters, set each time the drawing buffer is created, in a WebGLContextAttributes object.
     WebGLContextAttributes m_actual_context_parameters {};
-
-    // https://www.khronos.org/registry/webgl/specs/latest/1.0/#webgl-context-lost-flag
-    // Each WebGLRenderingContext has a webgl context lost flag, which is initially unset.
-    bool m_context_lost { false };
 };
 
 }

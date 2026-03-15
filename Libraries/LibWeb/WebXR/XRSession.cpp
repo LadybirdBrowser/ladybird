@@ -64,6 +64,12 @@ void XRSession::reject_promise(JS::Realm& realm, WebIDL::Promise const& promise,
     m_outstanding_promises.remove_first_matching([&](auto& entry) { return entry == &promise; });
 }
 
+// https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
+void XRSession::update_render_state(XRRenderStateInit const&)
+{
+    dbgln("FIXME: stubbed out XRSession.updateRenderState()");
+}
+
 GC::Ref<WebIDL::Promise> XRSession::end()
 {
     // 1. Let promise be a new Promise in the relevant realm of this XRSession.

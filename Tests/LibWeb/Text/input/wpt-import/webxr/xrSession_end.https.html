@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<body>
+  <script src=../resources/testharness.js></script>
+  <script src=../resources/testharnessreport.js></script>
+  <script src="resources/webxr_util.js"></script>
+  <script src="resources/webxr_test_constants.js"></script>
+
+  <script>
+    const immersivetestName = "end event fires when immersive session ends";
+    const nonimmersiveTestName = "end event fires when non-immersive session ends";
+    let watcherDone = new Event("watcherdone");
+    const fakeDeviceInitParams = TRACKED_IMMERSIVE_DEVICE;
+
+    let testFunction = function(session, testDeviceController, t) {
+      let eventWatcher = new EventWatcher(t, session, ["end", "watcherdone"]);
+      let eventPromise = eventWatcher.wait_for(["end", "watcherdone"]);
+
+      function onSessionEnd(event) {
+        t.step( () => {
+          assert_equals(event.session, session);
+
+          let eventSession = event.session;
+          assert_equals(eventSession, event.session,
+            "XRSessionEvent.session returns the same object.");
+
+          session.dispatchEvent(watcherDone);
+        });
+      }
+      session.addEventListener("end", onSessionEnd, false);
+      session.end();
+
+      return eventPromise;
+    };
+
+    xr_session_promise_test(immersivetestName, testFunction,
+      fakeDeviceInitParams, 'immersive-vr');
+    xr_session_promise_test(nonimmersiveTestName, testFunction,
+      fakeDeviceInitParams, 'inline');
+  </script>
+</body>

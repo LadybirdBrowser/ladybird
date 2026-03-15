@@ -1,12 +1,13 @@
 #import <DOM/EventTarget.idl>
+#import <WebXR/XRRenderState.idl>
 
-enum XRVisibilityState {
+[Experimental] enum XRVisibilityState {
     "visible",
     "visible-blurred",
     "hidden",
 };
 
-[SecureContext, Exposed=Window] interface XRSession : EventTarget {
+[Experimental, SecureContext, Exposed=Window] interface XRSession : EventTarget {
     // Attributes
     [FIXME] readonly attribute XRVisibilityState visibilityState;
     [FIXME] readonly attribute float? frameRate;
@@ -18,7 +19,7 @@ enum XRVisibilityState {
     [FIXME] readonly attribute boolean isSystemKeyboardSupported;
     
     // Methods
-    [FIXME] undefined updateRenderState(optional XRRenderStateInit state = {});
+    undefined updateRenderState(optional XRRenderStateInit state = {});
     [FIXME] Promise<undefined> updateTargetFrameRate(float rate);
     [FIXME, NewObject] Promise<XRReferenceSpace> requestReferenceSpace(XRReferenceSpaceType type);
     

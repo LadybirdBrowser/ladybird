@@ -7,6 +7,8 @@
 #pragma once
 
 #include <LibWeb/DOM/EventTarget.h>
+#include <LibWeb/WebXR/XRRenderState.h>
+#include <LibWeb/WebXR/XRSystem.h>
 
 namespace Web::WebXR {
 
@@ -19,6 +21,9 @@ public:
     static GC::Ref<XRSession> create(JS::Realm&, GC::Ref<XRSystem>);
     virtual ~XRSession() override = default;
 
+    // https://immersive-web.github.io/webxr/#dom-xrsession-updaterenderstate
+    void update_render_state(XRRenderStateInit const&);
+
     // https://immersive-web.github.io/webxr/#dom-xrsession-end
     GC::Ref<WebIDL::Promise> end();
 
@@ -30,6 +35,11 @@ public:
 
     bool promise_resolved() const { return m_promise_resolved; }
     void set_promise_resolved(bool promise_resolved) { m_promise_resolved = promise_resolved; }
+
+    bool ended() const { return m_ended; }
+
+    // https://immersive-web.github.io/webxr/#immersive-session
+    bool is_immersive() const { return m_mode != Bindings::XRSessionMode::Inline; }
 
 private:
     XRSession(JS::Realm&, XRSystem&);
@@ -50,6 +60,9 @@ private:
 
     // https://immersive-web.github.io/webxr/#xrsession-ended
     bool m_ended { false };
+
+    // https://immersive-web.github.io/webxr/#xrsession-mode
+    Bindings::XRSessionMode m_mode {};
 };
 
 }

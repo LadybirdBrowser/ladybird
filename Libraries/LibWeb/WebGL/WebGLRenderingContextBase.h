@@ -47,6 +47,14 @@ public:
 
     virtual OpenGLContext& context() = 0;
 
+    bool is_context_lost() const;
+
+    bool xr_compatible() const { return m_xr_compatible; }
+    void set_xr_compatible(bool xr_compatible) { m_xr_compatible = xr_compatible; }
+
+    // https://immersive-web.github.io/webxr/#dom-webglrenderingcontextbase-makexrcompatible
+    GC::Ref<WebIDL::Promise> make_xr_compatible();
+
     Optional<Vector<String>> get_supported_extensions();
     JS::Object* get_extension(String const& name);
 
@@ -171,6 +179,13 @@ protected:
 
 private:
     GLenum m_error { 0 };
+
+    // https://registry.khronos.org/webgl/specs/latest/2.0/#webgl-context-lost-flag
+    // Each WebGLRenderingContext and WebGL2RenderingContext has a webgl context lost flag, which is initially unset.
+    bool m_context_lost { false };
+
+    // https://immersive-web.github.io/webxr/#xr-compatible
+    bool m_xr_compatible { false };
 
     Vector<WebIDL::UnsignedLong> m_enabled_compressed_texture_formats;
 
