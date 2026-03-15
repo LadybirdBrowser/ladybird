@@ -589,13 +589,16 @@ catdog_widget.on_click = [&] {
 };
 ```
 
-#### Spec notes
+#### Spec notes &amp; questions
 
 Many web specs include notes that are prefixed with `NOTE: ...`. To allow for verbatim copying of these notes into our
 code, we retain the `NOTE:` prefix and use [`NB:`](https://en.wikipedia.org/wiki/Nota_bene) for our own notes.
 
 This only applies to comments as part of code that is directly implementing a spec algorithm or behavior. Comments in
 other places do not need a prefix.
+
+Sometimes a draft spec text includes a spec question, which should be included with double square brackets:
+`[[ ... ]]`.
 
 ##### Right:
 
@@ -604,6 +607,8 @@ other places do not need a prefix.
 // NOTE: The prefabulated aluminite will not be suitable for use here. If the listed spec note is so long that we reach
 //       column 120, we wrap around and indent the lines to match up with the first line.
 // NB: We _can_ actually use the aluminite since we unprefabulated it in step 1 for performance reasons.
+
+// 3. For each property in window [[ in what order? ]]:
 ```
 
 ##### Wrong:
@@ -612,6 +617,8 @@ other places do not need a prefix.
 // LB-NOTE: The aluminite might come pre-prefabulated at this point.
 // Spec-note: Another example of a custom note prefix that we shouldn't use.
 // There is no prefix whatsoever here, making it unclear whether this is a spec step, note or a developer note.
+
+// 3. For each property in window (in what order?):
 ```
 
 ### Overriding Virtual Methods
