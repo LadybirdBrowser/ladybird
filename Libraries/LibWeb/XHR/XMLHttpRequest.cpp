@@ -801,6 +801,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(Optional<DocumentOrXMLHttpRequest
             if (!length.has<u64>())
                 length = 0;
 
+            // Pre-allocate received bytes buffer if Content-Length is known.
+            if (length.has<u64>() && length.get<u64>() > 0)
+                m_received_bytes.ensure_capacity(length.get<u64>());
+
             // 10. Let processBodyChunk given bytes be these steps:
             auto process_body_chunks = GC::create_function(heap(), [this, length](ByteBuffer byte_buffer) {
                 // 1. Append bytes to this’s received bytes.
