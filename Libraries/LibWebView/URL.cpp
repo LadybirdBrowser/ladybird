@@ -44,6 +44,12 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         https_scheme_was_guessed = true;
     }
 
+    // IP addresses should default to http:// since they rarely have valid TLS certificates.
+    if (https_scheme_was_guessed) {
+        if (auto const& host = url->host(); host.has_value() && (host->has<IPv4Address>() || host->has<IPv6Address>()))
+            url->set_scheme("http"_string);
+    }
+
     // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.
     static constexpr Array SUPPORTED_SCHEMES { "about"sv, "data"sv, "file"sv, "http"sv, "https"sv, "resource"sv };
     if (!any_of(SUPPORTED_SCHEMES, [&](StringView const& scheme) { return scheme == url->scheme(); }))

@@ -189,6 +189,13 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
     expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
 
+    expect_url_equals_sanitized_url("http://192.168.1.1/"sv, "192.168.1.1"sv);          // IPv4: default to http.
+    expect_url_equals_sanitized_url("http://127.0.0.1/"sv, "127.0.0.1"sv);              // Loopback: default to http.
+    expect_url_equals_sanitized_url("http://10.0.0.1:8080/"sv, "10.0.0.1:8080"sv);      // IPv4 with port: default to http.
+    expect_url_equals_sanitized_url("https://192.168.1.1/"sv, "https://192.168.1.1"sv); // Explicit https: respect user.
+    expect_url_equals_sanitized_url("http://192.168.1.1/"sv, "http://192.168.1.1"sv);   // Explicit http: respect user.
+    expect_url_equals_sanitized_url("http://[::1]/"sv, "[::1]"sv);                      // IPv6: default to http.
+
     expect_url_equals_sanitized_url("https://example.com/"sv, "example"sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
     expect_url_equals_sanitized_url("https://example.def.com/"sv, "example.def"sv, WebView::AppendTLD::Yes);
     expect_url_equals_sanitized_url("https://com.com/"sv, "com"sv, WebView::AppendTLD::Yes);
