@@ -1331,7 +1331,7 @@ BorderRadiiData PaintableBox::border_radii_data() const
     if (!computed_values.has_noninitial_border_radii())
         return {};
     CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
-    return normalize_border_radii_data(layout_node(), border_rect,
+    return normalize_border_radii_data(layout_node(), border_rect, border_rect,
         computed_values.border_top_left_radius(), computed_values.border_top_right_radius(),
         computed_values.border_bottom_right_radius(), computed_values.border_bottom_left_radius());
 }

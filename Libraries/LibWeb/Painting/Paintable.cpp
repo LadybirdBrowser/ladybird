@@ -227,15 +227,15 @@ CSSPixelPoint Paintable::box_type_agnostic_position() const
     return position;
 }
 
-Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
+Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, CSSPixelRect const& border_rect, CSSPixelRect const& reference_rect, CSS::BorderRadiusData const& top_left_radius, CSS::BorderRadiusData const& top_right_radius, CSS::BorderRadiusData const& bottom_right_radius, CSS::BorderRadiusData const& bottom_left_radius)
 {
     Painting::BorderRadiiData radii_px {
         .top_left = {
-            top_left_radius.horizontal_radius.to_px(node, rect.width()),
-            top_left_radius.vertical_radius.to_px(node, rect.height()) },
-        .top_right = { top_right_radius.horizontal_radius.to_px(node, rect.width()), top_right_radius.vertical_radius.to_px(node, rect.height()) },
-        .bottom_right = { bottom_right_radius.horizontal_radius.to_px(node, rect.width()), bottom_right_radius.vertical_radius.to_px(node, rect.height()) },
-        .bottom_left = { bottom_left_radius.horizontal_radius.to_px(node, rect.width()), bottom_left_radius.vertical_radius.to_px(node, rect.height()) }
+            top_left_radius.horizontal_radius.to_px(node, reference_rect.width()),
+            top_left_radius.vertical_radius.to_px(node, reference_rect.height()) },
+        .top_right = { top_right_radius.horizontal_radius.to_px(node, reference_rect.width()), top_right_radius.vertical_radius.to_px(node, reference_rect.height()) },
+        .bottom_right = { bottom_right_radius.horizontal_radius.to_px(node, reference_rect.width()), bottom_right_radius.vertical_radius.to_px(node, reference_rect.height()) },
+        .bottom_left = { bottom_left_radius.horizontal_radius.to_px(node, reference_rect.width()), bottom_left_radius.vertical_radius.to_px(node, reference_rect.height()) }
     };
 
     // Scale overlapping curves according to https://www.w3.org/TR/css-backgrounds-3/#corner-overlap
@@ -253,14 +253,14 @@ Painting::BorderRadiiData normalize_border_radii_data(Layout::Node const& node, 
         auto s_left = radii_px.bottom_left.vertical_radius + radii_px.top_left.vertical_radius;
 
         CSSPixelFraction f = 1;
-        if (s_top > rect.width())
-            f = min(f, rect.width() / s_top);
-        if (s_right > rect.height())
-            f = min(f, rect.height() / s_right);
-        if (s_bottom > rect.width())
-            f = min(f, rect.width() / s_bottom);
-        if (s_left > rect.height())
-            f = min(f, rect.height() / s_left);
+        if (s_top > border_rect.width())
+            f = min(f, border_rect.width() / s_top);
+        if (s_right > border_rect.height())
+            f = min(f, border_rect.height() / s_right);
+        if (s_bottom > border_rect.width())
+            f = min(f, border_rect.width() / s_bottom);
+        if (s_left > border_rect.height())
+            f = min(f, border_rect.height() / s_left);
 
         // If f is 1 or more, the radii fit perfectly and no more scaling is needed
         if (f >= 1)

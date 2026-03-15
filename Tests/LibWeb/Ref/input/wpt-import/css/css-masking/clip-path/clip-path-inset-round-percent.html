@@ -1,0 +1,19 @@
+<!doctype html>
+<title>inset() with percentages resolves against reference box, not inset rect</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1704742">
+<link rel="help" href="https://drafts.csswg.org/css-shapes/#basic-shape-functions">
+<link rel="author" href="mailto:emilio@crisal.io" title="Emilio Cobos Álvarez">
+<link rel="author" href="https://mozilla.org" title="Mozilla">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-masking/clip-path/clip-path-inset-round-percent-ref.html">
+<style>
+body {
+  margin: 0;
+}
+div {
+  width: 100px;
+  height: 100px;
+  background: deeppink;
+  clip-path: inset(80% 0 0 round 8%)
+}
+</style>
+<div></div>

@@ -8,9 +8,12 @@
 #include "BasicShapeStyleValue.h"
 #include <LibGfx/Path.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/ValueType.h>
+#include <LibWeb/Painting/BorderRadiiData.h>
+#include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/SVG/Path.h>
 
 namespace Web::CSS {
@@ -26,14 +29,13 @@ static Gfx::Path path_from_resolved_rect(float top, float right, float bottom, f
     return path;
 }
 
+// https://drafts.csswg.org/css-shapes/#funcdef-basic-shape-inset
 Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) const
 {
     auto resolved_top = LengthPercentageOrAuto::from_style_value(top).to_px_or_zero(node, reference_box.height()).to_float();
     auto resolved_right = LengthPercentageOrAuto::from_style_value(right).to_px_or_zero(node, reference_box.width()).to_float();
     auto resolved_bottom = LengthPercentageOrAuto::from_style_value(bottom).to_px_or_zero(node, reference_box.height()).to_float();
     auto resolved_left = LengthPercentageOrAuto::from_style_value(left).to_px_or_zero(node, reference_box.width()).to_float();
-
-    // FIXME: Respect border radius
 
     // A pair of insets in either dimension that add up to more than the used dimension
     // (such as left and right insets of 75% apiece) use the CSS Backgrounds 3 § 4.5 Overlapping Curves rules
@@ -56,7 +58,71 @@ Gfx::Path Inset::to_path(CSSPixelRect reference_box, Layout::Node const& node) c
         resolved_left *= f;
     }
 
-    return path_from_resolved_rect(resolved_top, reference_box.width().to_float() - resolved_right, reference_box.height().to_float() - resolved_bottom, resolved_left);
+    float left_edge = resolved_left;
+    float top_edge = resolved_top;
+    float right_edge = reference_box.width().to_float() - resolved_right;
+    float bottom_edge = reference_box.height().to_float() - resolved_bottom;
+
+    CSSPixelRect inset_rect {
+        CSSPixels(left_edge), CSSPixels(top_edge),
+        CSSPixels(right_edge - left_edge), CSSPixels(bottom_edge - top_edge)
+    };
+
+    auto const& border_radius_rect = border_radius->as_border_radius_rect();
+
+    auto to_border_radius_data = [](StyleValue const& corner) -> CSS::BorderRadiusData {
+        auto const& br = corner.as_border_radius();
+        return CSS::BorderRadiusData {
+            LengthPercentage::from_style_value(br.horizontal_radius()),
+            LengthPercentage::from_style_value(br.vertical_radius())
+        };
+    };
+
+    auto radii = Painting::normalize_border_radii_data(
+        node,
+        inset_rect,
+        reference_box,
+        to_border_radius_data(*border_radius_rect.top_left()),
+        to_border_radius_data(*border_radius_rect.top_right()),
+        to_border_radius_data(*border_radius_rect.bottom_right()),
+        to_border_radius_data(*border_radius_rect.bottom_left()));
+
+    if (!radii.has_any_radius())
+        return path_from_resolved_rect(top_edge, right_edge, bottom_edge, left_edge);
+
+    auto top_left_horizontal_radius = radii.top_left.horizontal_radius.to_float();
+    auto top_left_vertical_radius = radii.top_left.vertical_radius.to_float();
+
+    auto top_right_horizontal_radius = radii.top_right.horizontal_radius.to_float();
+    auto top_right_vertical_radius = radii.top_right.vertical_radius.to_float();
+
+    auto bottom_right_horizontal_radius = radii.bottom_right.horizontal_radius.to_float();
+    auto bottom_right_vertical_radius = radii.bottom_right.vertical_radius.to_float();
+
+    auto bottom_left_horizontal_radius = radii.bottom_left.horizontal_radius.to_float();
+    auto bottom_left_vertical_radius = radii.bottom_left.vertical_radius.to_float();
+
+    Gfx::Path path;
+    path.move_to({ left_edge + top_left_horizontal_radius, top_edge });
+    path.line_to({ right_edge - top_right_horizontal_radius, top_edge });
+
+    if (top_right_horizontal_radius > 0 && top_right_vertical_radius > 0)
+        path.elliptical_arc_to({ right_edge, top_edge + top_right_vertical_radius }, { top_right_horizontal_radius, top_right_vertical_radius }, 0, false, true);
+
+    path.line_to({ right_edge, bottom_edge - bottom_right_vertical_radius });
+    if (bottom_right_horizontal_radius > 0 && bottom_right_vertical_radius > 0)
+        path.elliptical_arc_to({ right_edge - bottom_right_horizontal_radius, bottom_edge }, { bottom_right_horizontal_radius, bottom_right_vertical_radius }, 0, false, true);
+
+    path.line_to({ left_edge + bottom_left_horizontal_radius, bottom_edge });
+    if (bottom_left_horizontal_radius > 0 && bottom_left_vertical_radius > 0)
+        path.elliptical_arc_to({ left_edge, bottom_edge - bottom_left_vertical_radius }, { bottom_left_horizontal_radius, bottom_left_vertical_radius }, 0, false, true);
+
+    path.line_to({ left_edge, top_edge + top_left_vertical_radius });
+    if (top_left_horizontal_radius > 0 && top_left_vertical_radius > 0)
+        path.elliptical_arc_to({ left_edge + top_left_horizontal_radius, top_edge }, { top_left_horizontal_radius, top_left_vertical_radius }, 0, false, true);
+
+    path.close();
+    return path;
 }
 
 void Inset::serialize(StringBuilder& builder, SerializationMode mode) const
