@@ -2,41 +2,40 @@ Harness status: OK
 
 Found 65 tests
 
-49 Pass
-16 Fail
+65 Pass
 Pass	setup
 Pass	HMAC with SHA-1 verification
 Pass	HMAC with SHA-256 verification
 Pass	HMAC with SHA-384 verification
 Pass	HMAC with SHA-512 verification
-Fail	HMAC with SHA-1 verification with altered signature during call
-Fail	HMAC with SHA-256 verification with altered signature during call
-Fail	HMAC with SHA-384 verification with altered signature during call
-Fail	HMAC with SHA-512 verification with altered signature during call
+Pass	HMAC with SHA-1 verification with altered signature during call
+Pass	HMAC with SHA-256 verification with altered signature during call
+Pass	HMAC with SHA-384 verification with altered signature during call
+Pass	HMAC with SHA-512 verification with altered signature during call
 Pass	HMAC with SHA-1 verification with altered signature after call
 Pass	HMAC with SHA-256 verification with altered signature after call
 Pass	HMAC with SHA-384 verification with altered signature after call
 Pass	HMAC with SHA-512 verification with altered signature after call
-Fail	HMAC with SHA-1 verification with transferred signature during call
-Fail	HMAC with SHA-256 verification with transferred signature during call
-Fail	HMAC with SHA-384 verification with transferred signature during call
-Fail	HMAC with SHA-512 verification with transferred signature during call
+Pass	HMAC with SHA-1 verification with transferred signature during call
+Pass	HMAC with SHA-256 verification with transferred signature during call
+Pass	HMAC with SHA-384 verification with transferred signature during call
+Pass	HMAC with SHA-512 verification with transferred signature during call
 Pass	HMAC with SHA-1 verification with transferred signature after call
 Pass	HMAC with SHA-256 verification with transferred signature after call
 Pass	HMAC with SHA-384 verification with transferred signature after call
 Pass	HMAC with SHA-512 verification with transferred signature after call
-Fail	HMAC with SHA-1 with altered plaintext during call
-Fail	HMAC with SHA-256 with altered plaintext during call
-Fail	HMAC with SHA-384 with altered plaintext during call
-Fail	HMAC with SHA-512 with altered plaintext during call
+Pass	HMAC with SHA-1 with altered plaintext during call
+Pass	HMAC with SHA-256 with altered plaintext during call
+Pass	HMAC with SHA-384 with altered plaintext during call
+Pass	HMAC with SHA-512 with altered plaintext during call
 Pass	HMAC with SHA-1 with altered plaintext after call
 Pass	HMAC with SHA-256 with altered plaintext after call
 Pass	HMAC with SHA-384 with altered plaintext after call
 Pass	HMAC with SHA-512 with altered plaintext after call
-Fail	HMAC with SHA-1 with transferred plaintext during call
-Fail	HMAC with SHA-256 with transferred plaintext during call
-Fail	HMAC with SHA-384 with transferred plaintext during call
-Fail	HMAC with SHA-512 with transferred plaintext during call
+Pass	HMAC with SHA-1 with transferred plaintext during call
+Pass	HMAC with SHA-256 with transferred plaintext during call
+Pass	HMAC with SHA-384 with transferred plaintext during call
+Pass	HMAC with SHA-512 with transferred plaintext during call
 Pass	HMAC with SHA-1 with transferred plaintext after call
 Pass	HMAC with SHA-256 with transferred plaintext after call
 Pass	HMAC with SHA-384 with transferred plaintext after call
