@@ -483,7 +483,7 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         return {};
     }
 
-    if (name_token.is(Token::Type::Ident) && (is_css_wide_keyword(name_token.ident()) || name_token.ident().is_one_of_ignoring_ascii_case("none"sv, "default"sv))) {
+    if (name_token.is(Token::Type::Ident) && !is_valid_custom_ident(name_token.ident(), { { "none"sv } })) {
         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
             .rule_name = "@keyframes"_fly_string,
             .prelude = prelude_stream.dump_string(),
@@ -793,7 +793,7 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
         parsing_params = CSS::Parser::ParsingParams { realm() };
 
     auto syntax_component_values = parse_component_values_list(parsing_params, syntax_maybe.value());
-    auto maybe_syntax = parse_as_syntax(syntax_component_values);
+    auto maybe_syntax = parse_as_syntax(syntax_component_values, LimitSingleComponentIdentToCustomIdent::Yes);
 
     // If the provided string is not a valid syntax string (if it returns failure when consume
     // a syntax definition is called on it), the descriptor is invalid and must be ignored.
@@ -808,14 +808,15 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
 
     if (initial_value_maybe) {
         initial_value_maybe = Web::CSS::Parser::parse_with_a_syntax(parsing_params, initial_value_maybe->tokenize(), *maybe_syntax);
+
         // Otherwise, if the value of the syntax descriptor is not the universal syntax definition,
         // the following conditions must be met for the @property rule to be valid:
-        //  - The initial-value descriptor must be present.
-        //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
-        //  - FIXME: The initial-value must be computationally independent.
-
-        if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid()) {
-            return {};
+        if (maybe_syntax->type() != CSS::Parser::SyntaxNode::NodeType::Universal) {
+            //  - The initial-value descriptor must be present.
+            //  - The initial-value descriptor’s value must parse successfully according to the grammar specified by the syntax definition.
+            //  - The initial-value must be computationally independent.
+            if (!initial_value_maybe || initial_value_maybe->is_guaranteed_invalid() || !initial_value_maybe->is_computationally_independent())
+                return {};
         }
     }
 

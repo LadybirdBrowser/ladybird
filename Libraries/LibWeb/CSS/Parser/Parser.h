@@ -63,6 +63,9 @@ struct NegateNode {
 
 }
 
+struct SyntaxParsingContext {
+    ValueType type;
+};
 struct FunctionContext {
     StringView name;
 };
@@ -85,7 +88,7 @@ enum SpecialContext : u8 {
     TranslateZArgument,
 };
 // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext, SyntaxParsingContext>;
 
 enum class ParsingMode {
     Normal,
@@ -170,7 +173,7 @@ public:
 
     static Optional<Vector<ComponentValue>> parse_declaration_value(TokenStream<ComponentValue>&, Optional<Token::Type> end_token_type = {});
 
-    NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax, Optional<DOM::AbstractElement> const& element = {});
+    NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax);
 
     RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&);
     RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
@@ -590,7 +593,7 @@ private:
 
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(DOM::AbstractElement, GuardedSubstitutionContexts&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 
-    RefPtr<StyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node, Optional<DOM::AbstractElement> const& element);
+    RefPtr<StyleValue const> parse_according_to_syntax_node(TokenStream<ComponentValue>& tokens, SyntaxNode const& syntax_node);
 
     static bool has_ignored_vendor_prefix(StringView);
 
@@ -655,5 +658,6 @@ RefPtr<CSS::Supports> parse_css_supports(CSS::Parser::ParsingParams const&, Stri
 Vector<CSS::Parser::ComponentValue> parse_component_values_list(CSS::Parser::ParsingParams const&, StringView);
 GC::Ref<JS::Realm> internal_css_realm();
 ErrorOr<String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<String> mime_type_charset, ByteBuffer const& encoded_string);
+bool is_valid_custom_ident(FlyString const&, ReadonlySpan<StringView> const& blacklist);
 
 }

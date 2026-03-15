@@ -27,6 +27,8 @@ public:
 
     bool properties_equal(URLStyleValue const& other) const { return m_url == other.m_url && m_paint_fallback == other.m_paint_fallback; }
 
+    virtual bool is_computationally_independent() const override { return !m_paint_fallback || m_paint_fallback->is_computationally_independent(); }
+
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override
     {
         builder.append(m_url.to_string());

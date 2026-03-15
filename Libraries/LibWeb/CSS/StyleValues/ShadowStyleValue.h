@@ -54,6 +54,15 @@ public:
 
     bool properties_equal(ShadowStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override
+    {
+        return (!m_properties.color || m_properties.color->is_computationally_independent())
+            && m_properties.offset_x->is_computationally_independent()
+            && m_properties.offset_y->is_computationally_independent()
+            && (!m_properties.blur_radius || m_properties.blur_radius->is_computationally_independent())
+            && (!m_properties.spread_distance || m_properties.spread_distance->is_computationally_independent());
+    }
+
 private:
     ShadowStyleValue(
         ShadowType shadow_type,

@@ -88,6 +88,8 @@ public:
     String to_string(SerializationMode) const;
     bool operator==(Size const&) const = default;
 
+    bool is_computationally_independent() const { return !m_length_percentage.has_value() || m_length_percentage->is_computationally_independent(); }
+
 private:
     explicit Size(Type type, Optional<LengthPercentage> = {});
 

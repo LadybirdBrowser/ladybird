@@ -83,7 +83,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
     // 3. Attempt to consume a syntax definition from syntax. If it returns failure, throw a SyntaxError.
     //    Otherwise, let syntax definition be the returned syntax definition.
     auto syntax_component_values = parse_component_values_list(parsing_params, definition.syntax);
-    auto maybe_syntax = parse_as_syntax(syntax_component_values);
+    auto maybe_syntax = parse_as_syntax(syntax_component_values, Parser::LimitSingleComponentIdentToCustomIdent::Yes);
     if (!maybe_syntax) {
         return WebIDL::SyntaxError::create(realm, "Invalid syntax definition"_utf16);
     }
@@ -125,7 +125,9 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
         // Otherwise, let parsed initial value be the parsed result.
         // NB: Already done
 
-        // FIXME: If parsed initial value is not computationally independent, throw a SyntaxError and exit this algorithm.
+        // If parsed initial value is not computationally independent, throw a SyntaxError and exit this algorithm.
+        if (!initial_value_maybe->is_computationally_independent())
+            return WebIDL::SyntaxError::create(realm, "Initial value must be computationally independent"_utf16);
     }
 
     // 5. Set inherit flag to the value of inherits.

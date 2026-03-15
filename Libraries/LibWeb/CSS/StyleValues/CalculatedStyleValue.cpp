@@ -847,6 +847,13 @@ bool NumericCalculationNode::equals(CalculationNode const& other) const
     return m_value == static_cast<NumericCalculationNode const&>(other).m_value;
 }
 
+bool NumericCalculationNode::is_computationally_independent() const
+{
+    return m_value.visit(
+        [](Length const& length) { return length.is_computationally_independent(); },
+        [](auto const&) { return true; });
+}
+
 GC::Ptr<CSSNumericValue> NumericCalculationNode::reify(JS::Realm& realm) const
 {
     return m_value.visit(
@@ -908,6 +915,11 @@ bool SumCalculationNode::equals(CalculationNode const& other) const
             return false;
     }
     return true;
+}
+
+bool SumCalculationNode::is_computationally_independent() const
+{
+    return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
 GC::Ptr<CSSNumericValue> SumCalculationNode::reify(JS::Realm& realm) const
@@ -972,6 +984,11 @@ bool ProductCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
+bool ProductCalculationNode::is_computationally_independent() const
+{
+    return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
+}
+
 GC::Ptr<CSSNumericValue> ProductCalculationNode::reify(JS::Realm& realm) const
 {
     auto reified_children = reify_children(realm, m_values);
@@ -1017,6 +1034,11 @@ bool NegateCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<NegateCalculationNode const&>(other).m_value);
+}
+
+bool NegateCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 GC::Ptr<CSSNumericValue> NegateCalculationNode::reify(JS::Realm& realm) const
@@ -1070,6 +1092,11 @@ bool InvertCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<InvertCalculationNode const&>(other).m_value);
+}
+
+bool InvertCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 GC::Ptr<CSSNumericValue> InvertCalculationNode::reify(JS::Realm& realm) const
@@ -1186,6 +1213,11 @@ bool MinCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
+bool MinCalculationNode::is_computationally_independent() const
+{
+    return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
+}
+
 GC::Ptr<CSSNumericValue> MinCalculationNode::reify(JS::Realm& realm) const
 {
     auto reified_children = reify_children(realm, m_values);
@@ -1251,6 +1283,11 @@ bool MaxCalculationNode::equals(CalculationNode const& other) const
             return false;
     }
     return true;
+}
+
+bool MaxCalculationNode::is_computationally_independent() const
+{
+    return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
 }
 
 GC::Ptr<CSSNumericValue> MaxCalculationNode::reify(JS::Realm& realm) const
@@ -1353,6 +1390,13 @@ bool ClampCalculationNode::equals(CalculationNode const& other) const
         && m_max_value->equals(*static_cast<ClampCalculationNode const&>(other).m_max_value);
 }
 
+bool ClampCalculationNode::is_computationally_independent() const
+{
+    return m_min_value->is_computationally_independent()
+        && m_center_value->is_computationally_independent()
+        && m_max_value->is_computationally_independent();
+}
+
 GC::Ptr<CSSNumericValue> ClampCalculationNode::reify(JS::Realm& realm) const
 {
     auto lower = m_min_value->reify(realm);
@@ -1413,6 +1457,11 @@ bool AbsCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<AbsCalculationNode const&>(other).m_value);
+}
+
+bool AbsCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<SignCalculationNode const> SignCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1488,6 +1537,11 @@ bool SignCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<SignCalculationNode const&>(other).m_value);
+}
+
+bool SignCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<SinCalculationNode const> SinCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1574,6 +1628,11 @@ bool SinCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<SinCalculationNode const&>(other).m_value);
 }
 
+bool SinCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
+}
+
 NonnullRefPtr<CosCalculationNode const> CosCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) CosCalculationNode(move(value)));
@@ -1620,6 +1679,11 @@ bool CosCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<CosCalculationNode const&>(other).m_value);
 }
 
+bool CosCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
+}
+
 NonnullRefPtr<TanCalculationNode const> TanCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) TanCalculationNode(move(value)));
@@ -1664,6 +1728,11 @@ bool TanCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<TanCalculationNode const&>(other).m_value);
+}
+
+bool TanCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<AsinCalculationNode const> AsinCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
@@ -1756,6 +1825,11 @@ bool AsinCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AsinCalculationNode const&>(other).m_value);
 }
 
+bool AsinCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
+}
+
 NonnullRefPtr<AcosCalculationNode const> AcosCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) AcosCalculationNode(move(value)));
@@ -1802,6 +1876,11 @@ bool AcosCalculationNode::equals(CalculationNode const& other) const
     return m_value->equals(*static_cast<AcosCalculationNode const&>(other).m_value);
 }
 
+bool AcosCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
+}
+
 NonnullRefPtr<AtanCalculationNode const> AtanCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) AtanCalculationNode(move(value)));
@@ -1846,6 +1925,11 @@ bool AtanCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<AtanCalculationNode const&>(other).m_value);
+}
+
+bool AtanCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<Atan2CalculationNode const> Atan2CalculationNode::create(NonnullRefPtr<CalculationNode const> y, NonnullRefPtr<CalculationNode const> x)
@@ -1919,6 +2003,11 @@ bool Atan2CalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<Atan2CalculationNode const&>(other).m_y);
 }
 
+bool Atan2CalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
+}
+
 NonnullRefPtr<PowCalculationNode const> PowCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
 {
     return adopt_ref(*new (nothrow) PowCalculationNode(move(x), move(y)));
@@ -1975,6 +2064,11 @@ bool PowCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<PowCalculationNode const&>(other).m_y);
 }
 
+bool PowCalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
+}
+
 NonnullRefPtr<SqrtCalculationNode const> SqrtCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) SqrtCalculationNode(move(value)));
@@ -2026,6 +2120,11 @@ bool SqrtCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<SqrtCalculationNode const&>(other).m_value);
+}
+
+bool SqrtCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<HypotCalculationNode const> HypotCalculationNode::create(Vector<NonnullRefPtr<CalculationNode const>> values)
@@ -2113,6 +2212,11 @@ bool HypotCalculationNode::equals(CalculationNode const& other) const
     return true;
 }
 
+bool HypotCalculationNode::is_computationally_independent() const
+{
+    return all_of(m_values, [](NonnullRefPtr<CalculationNode const> const& value) { return value->is_computationally_independent(); });
+}
+
 NonnullRefPtr<LogCalculationNode const> LogCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
 {
     return adopt_ref(*new (nothrow) LogCalculationNode(move(x), move(y)));
@@ -2170,6 +2274,11 @@ bool LogCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<LogCalculationNode const&>(other).m_y);
 }
 
+bool LogCalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
+}
+
 NonnullRefPtr<ExpCalculationNode const> ExpCalculationNode::create(NonnullRefPtr<CalculationNode const> value)
 {
     return adopt_ref(*new (nothrow) ExpCalculationNode(move(value)));
@@ -2220,6 +2329,11 @@ bool ExpCalculationNode::equals(CalculationNode const& other) const
     if (type() != other.type())
         return false;
     return m_value->equals(*static_cast<ExpCalculationNode const&>(other).m_value);
+}
+
+bool ExpCalculationNode::is_computationally_independent() const
+{
+    return m_value->is_computationally_independent();
 }
 
 NonnullRefPtr<RoundCalculationNode const> RoundCalculationNode::create(RoundingStrategy strategy, NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
@@ -2394,6 +2508,11 @@ bool RoundCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RoundCalculationNode const&>(other).m_y);
 }
 
+bool RoundCalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
+}
+
 NonnullRefPtr<ModCalculationNode const> ModCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -2482,6 +2601,11 @@ bool ModCalculationNode::equals(CalculationNode const& other) const
         return false;
     return m_x->equals(*static_cast<ModCalculationNode const&>(other).m_x)
         && m_y->equals(*static_cast<ModCalculationNode const&>(other).m_y);
+}
+
+bool ModCalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
 }
 
 NonnullRefPtr<RandomCalculationNode const> RandomCalculationNode::create(NonnullRefPtr<RandomValueSharingStyleValue const> random_value_sharing, NonnullRefPtr<CalculationNode const> minimum, NonnullRefPtr<CalculationNode const> maximum, RefPtr<CalculationNode const> step)
@@ -2682,6 +2806,14 @@ bool RandomCalculationNode::equals(CalculationNode const& other) const
         && m_step == other_random.m_step;
 }
 
+bool RandomCalculationNode::is_computationally_independent() const
+{
+    return m_random_value_sharing->is_computationally_independent()
+        && m_minimum->is_computationally_independent()
+        && m_maximum->is_computationally_independent()
+        && (!m_step || m_step->is_computationally_independent());
+}
+
 NonnullRefPtr<RemCalculationNode const> RemCalculationNode::create(NonnullRefPtr<CalculationNode const> x, NonnullRefPtr<CalculationNode const> y)
 {
     // https://www.w3.org/TR/css-values-4/#determine-the-type-of-a-calculation
@@ -2732,6 +2864,11 @@ bool RemCalculationNode::equals(CalculationNode const& other) const
         && m_y->equals(*static_cast<RemCalculationNode const&>(other).m_y);
 }
 
+bool RemCalculationNode::is_computationally_independent() const
+{
+    return m_x->is_computationally_independent() && m_y->is_computationally_independent();
+}
+
 NonnullRefPtr<NonMathFunctionCalculationNode const> NonMathFunctionCalculationNode::create(AbstractNonMathCalcFunctionStyleValue const& function, NumericType numeric_type)
 {
     return adopt_ref(*new (nothrow) NonMathFunctionCalculationNode(move(function), move(numeric_type)));
@@ -2759,6 +2896,11 @@ bool NonMathFunctionCalculationNode::equals(CalculationNode const& other) const
         return false;
 
     return static_cast<NonMathFunctionCalculationNode const&>(other).function() == m_function;
+}
+
+bool NonMathFunctionCalculationNode::is_computationally_independent() const
+{
+    return m_function->is_computationally_independent();
 }
 
 CalculatedStyleValue::CalculationResult CalculatedStyleValue::CalculationResult::from_value(Value const& value, CalculationResolutionContext const& context, Optional<NumericType> numeric_type)
@@ -2882,6 +3024,11 @@ bool CalculatedStyleValue::equals(StyleValue const& other) const
         return false;
 
     return m_calculation->equals(*other.as_calculated().m_calculation);
+}
+
+bool CalculatedStyleValue::is_computationally_independent() const
+{
+    return m_calculation->is_computationally_independent();
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value

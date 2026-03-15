@@ -22,6 +22,14 @@ public:
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
+    virtual bool is_computationally_independent() const override
+    {
+        return m_properties.channels[0]->is_computationally_independent()
+            && m_properties.channels[1]->is_computationally_independent()
+            && m_properties.channels[2]->is_computationally_independent()
+            && m_properties.alpha->is_computationally_independent();
+    }
+
     virtual bool is_color_function() const override { return true; }
 
     static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "display-p3-linear"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };

@@ -1,0 +1,28 @@
+Harness status: OK
+
+Found 23 tests
+
+23 Pass
+Pass	percentage
+Pass	number
+Pass	length
+Pass	time
+Pass	function
+Pass	nested_function
+Pass	parentheses
+Pass	braces
+Pass	brackets
+Pass	at_keyword_unknown
+Pass	at_keyword_known
+Pass	at_keyword_unknown_and_block
+Pass	at_keyword_known_and_block
+Pass	unbalanced_close_bracket_at_toplevel
+Pass	unbalanced_close_paren_at_toplevel
+Pass	unbalanced_close_bracket_in_something_balanced
+Pass	unbalanced_close_paren_in_something_balanced
+Pass	unbalanced_close_brace_in_something_balanced
+Pass	CDO_at_top_level
+Pass	CDC_at_top_level
+Pass	semicolon_not_at_top_level_value_unused
+Pass	CDO_not_at_top_level_value_unused
+Pass	CDC_not_at_top_level_value_unused

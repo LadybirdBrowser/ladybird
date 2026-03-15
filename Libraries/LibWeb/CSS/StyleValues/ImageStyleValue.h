@@ -45,6 +45,8 @@ public:
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual bool equals(StyleValue const& other) const override;
 
+    virtual bool is_computationally_independent() const override { return true; }
+
     virtual void load_any_resources(DOM::Document&) override;
 
     Optional<CSSPixels> natural_width() const override;

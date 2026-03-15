@@ -35,6 +35,8 @@ public:
 
     bool properties_equal(OpenTypeTaggedStyleValue const&) const;
 
+    virtual bool is_computationally_independent() const override { return m_value->is_computationally_independent(); }
+
 private:
     explicit OpenTypeTaggedStyleValue(Mode mode, FlyString tag, ValueComparingNonnullRefPtr<StyleValue const> value)
         : StyleValueWithDefaultOperators(Type::OpenTypeTagged)

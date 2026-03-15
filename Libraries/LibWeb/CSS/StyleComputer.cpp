@@ -2353,7 +2353,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
             auto const& string_value = entry->as_string().string_value();
 
             // AD-HOC: We shouldn't convert strings that aren't valid <custom-ident>s
-            if (is_css_wide_keyword(string_value) || string_value.is_one_of_ignoring_ascii_case("default"sv, "none"sv))
+            if (!is_valid_custom_ident(string_value, { { "none"sv } }))
                 return entry;
 
             return CustomIdentStyleValue::create(entry->as_string().string_value());

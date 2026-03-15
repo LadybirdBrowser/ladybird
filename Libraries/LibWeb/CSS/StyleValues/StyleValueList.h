@@ -46,6 +46,11 @@ public:
 
     bool properties_equal(StyleValueList const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override
+    {
+        return all_of(m_properties.values, [](auto& value) { return value->is_computationally_independent(); });
+    }
+
     Separator separator() const { return m_properties.separator; }
 
     virtual void set_style_sheet(GC::Ptr<CSSStyleSheet>) override;

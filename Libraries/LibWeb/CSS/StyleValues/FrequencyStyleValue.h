@@ -36,6 +36,8 @@ public:
         return m_frequency == other_frequency.m_frequency;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit FrequencyStyleValue(Frequency frequency)
         : DimensionStyleValue(Type::Frequency)

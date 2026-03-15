@@ -36,6 +36,8 @@ public:
         return m_time == other_time.m_time;
     }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
 private:
     explicit TimeStyleValue(Time time)
         : DimensionStyleValue(Type::Time)

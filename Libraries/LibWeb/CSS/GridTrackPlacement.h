@@ -59,23 +59,31 @@ public:
 
     GridTrackPlacement absolutized(ComputationContext const&) const;
 
+    bool is_computationally_independent() const
+    {
+        return m_value.visit([](auto const& value) { return value.is_computationally_independent(); });
+    }
+
     bool operator==(GridTrackPlacement const& other) const = default;
 
 private:
     struct Auto {
         bool operator==(Auto const&) const = default;
+        bool is_computationally_independent() const { return true; }
     };
 
     struct AreaOrLine {
         Optional<IntegerOrCalculated> line_number;
         Optional<String> name;
         bool operator==(AreaOrLine const& other) const = default;
+        bool is_computationally_independent() const { return !line_number.has_value() || line_number->is_computationally_independent(); }
     };
 
     struct Span {
         IntegerOrCalculated value;
         Optional<String> name;
         bool operator==(Span const& other) const = default;
+        bool is_computationally_independent() const { return value.is_computationally_independent(); }
     };
 
     GridTrackPlacement()

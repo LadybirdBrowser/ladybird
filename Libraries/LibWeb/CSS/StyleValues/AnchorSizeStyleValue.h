@@ -24,6 +24,8 @@ public:
 
     bool properties_equal(AnchorSizeStyleValue const& other) const { return m_properties == other.m_properties; }
 
+    virtual bool is_computationally_independent() const override { return true; }
+
     Optional<FlyString const&> anchor_name() const { return m_properties.anchor_name; }
     Optional<AnchorSize> anchor_size() const { return m_properties.anchor_size; }
     ValueComparingRefPtr<StyleValue const> fallback_value() const

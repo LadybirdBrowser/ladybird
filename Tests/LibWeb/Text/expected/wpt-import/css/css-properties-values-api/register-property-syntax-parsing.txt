@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-199 Pass
-40 Fail
+231 Pass
+8 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -34,7 +34,7 @@ Pass	syntax:'<length>#', initialValue:'2px, 7px, calc(8px)' is valid
 Pass	syntax:'<percentage>', initialValue:'-9.3e3%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'-54%' is valid
 Pass	syntax:'<length-percentage>', initialValue:'0' is valid
-Fail	syntax:'<length-percentage>', initialValue:'calc(-11px + 10.4%)' is valid
+Pass	syntax:'<length-percentage>', initialValue:'calc(-11px + 10.4%)' is valid
 Pass	syntax:'<length>', initialValue:'10vmin' is valid
 Pass	syntax:'<percentage> | <length>+', initialValue:'calc(100vh - 10px) 30px' is valid
 Pass	syntax:'<number>', initialValue:'-109' is valid
@@ -84,23 +84,23 @@ Pass	syntax:'<url>', initialValue:'url(a)' is valid
 Pass	syntax:'<color>+', initialValue:'yellow blue' is valid
 Pass	syntax:'<color>+', initialValue:'yellow blue ' is valid
 Pass	syntax:'<color>+ | <color>', initialValue:'yellow blue' is valid
-Fail	syntax:'<color> | <color>+', initialValue:'yellow blue' is valid
+Pass	syntax:'<color> | <color>+', initialValue:'yellow blue' is valid
 Pass	syntax:'<color># | <color>', initialValue:'yellow, blue' is valid
-Fail	syntax:'<color> | <color>#', initialValue:'yellow, blue' is valid
+Pass	syntax:'<color> | <color>#', initialValue:'yellow, blue' is valid
 Pass	syntax:'<color># | <color>+', initialValue:'yellow blue' is valid
-Fail	syntax:'<color>+ | <color>#', initialValue:'yellow, blue' is valid
+Pass	syntax:'<color>+ | <color>#', initialValue:'yellow, blue' is valid
 Pass	syntax:'<color>+ | yellow', initialValue:'yellow blue' is valid
 Pass	syntax:'yellow', initialValue:'yellow' is valid
-Fail	syntax:'yellow | <color>+', initialValue:'yellow blue' is valid
+Pass	syntax:'yellow | <color>+', initialValue:'yellow blue' is valid
 Pass	syntax:'<color># | yellow', initialValue:'yellow, blue' is valid
-Fail	syntax:'yellow | <color>#', initialValue:'yellow, blue' is valid
+Pass	syntax:'yellow | <color>#', initialValue:'yellow, blue' is valid
 Pass	syntax:'<transform-list> | <transform-function> ', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-function> | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
+Pass	syntax:'<transform-function> | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
 Pass	syntax:'<transform-list> | <transform-function>+ ', initialValue:'scale(2) rotate(90deg)' is valid
 Pass	syntax:'<transform-function>+ | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
 Pass	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2) rotate(90deg)' is valid
 Pass	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2) rotate(90deg)' is valid
-Fail	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2), rotate(90deg)' is valid
+Pass	syntax:'<transform-list> | <transform-function># ', initialValue:'scale(2), rotate(90deg)' is valid
 Pass	syntax:'<transform-function># | <transform-list>', initialValue:'scale(2), rotate(90deg)' is valid
 Pass	syntax:'<transform-list>', initialValue:'scale(2) rotate(90deg) ' is valid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1' is valid
@@ -168,17 +168,17 @@ Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px 1' is i
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1 1px' is invalid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1px 1%' is invalid
 Pass	syntax:'<integer>+ | <percentage>+ | <length>+ ', initialValue:'1% 1px' is invalid
-Fail	syntax:'initial', initialValue:'initial' is invalid
-Fail	syntax:'inherit', initialValue:'inherit' is invalid
-Fail	syntax:'unset', initialValue:'unset' is invalid
-Fail	syntax:'revert', initialValue:'revert' is invalid
-Fail	syntax:'revert-layer', initialValue:'revert-layer' is invalid
-Fail	syntax:'default', initialValue:'default' is invalid
-Fail	syntax:'<length>|initial', initialValue:'10px' is invalid
-Fail	syntax:'<length>|INHERIT', initialValue:'10px' is invalid
-Fail	syntax:'<percentage>|unsEt', initialValue:'2%' is invalid
-Fail	syntax:'<color>|REVert', initialValue:'red' is invalid
-Fail	syntax:'<integer>|deFAUlt', initialValue:'1' is invalid
+Pass	syntax:'initial', initialValue:'initial' is invalid
+Pass	syntax:'inherit', initialValue:'inherit' is invalid
+Pass	syntax:'unset', initialValue:'unset' is invalid
+Pass	syntax:'revert', initialValue:'revert' is invalid
+Pass	syntax:'revert-layer', initialValue:'revert-layer' is invalid
+Pass	syntax:'default', initialValue:'default' is invalid
+Pass	syntax:'<length>|initial', initialValue:'10px' is invalid
+Pass	syntax:'<length>|INHERIT', initialValue:'10px' is invalid
+Pass	syntax:'<percentage>|unsEt', initialValue:'2%' is invalid
+Pass	syntax:'<color>|REVert', initialValue:'red' is invalid
+Pass	syntax:'<integer>|deFAUlt', initialValue:'1' is invalid
 Fail	syntax:'*', initialValue:'initial' is invalid
 Fail	syntax:'*', initialValue:'inherit' is invalid
 Fail	syntax:'*', initialValue:'unset' is invalid
@@ -196,25 +196,25 @@ Pass	syntax:'<custom-ident>+', initialValue:'foo unset bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo revert bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo revert-layer bar' is invalid
 Pass	syntax:'<custom-ident>+', initialValue:'foo default bar' is invalid
-Fail	syntax:'*', initialValue:')' is invalid
-Fail	syntax:'*', initialValue:'([)]' is invalid
-Fail	syntax:'*', initialValue:'whee!' is invalid
-Fail	syntax:'*', initialValue:'"
+Pass	syntax:'*', initialValue:')' is invalid
+Pass	syntax:'*', initialValue:'([)]' is invalid
+Pass	syntax:'*', initialValue:'whee!' is invalid
+Pass	syntax:'*', initialValue:'"
 ' is invalid
-Fail	syntax:'*', initialValue:'url(moo '')' is invalid
+Pass	syntax:'*', initialValue:'url(moo '')' is invalid
 Pass	syntax:'*', initialValue:'semi;colon' is invalid
 Fail	syntax:'*', initialValue:'var(invalid var ref)' is invalid
 Fail	syntax:'*', initialValue:'var(--foo)' is invalid
-Fail	syntax:'banana', initialValue:'bAnAnA' is invalid
+Pass	syntax:'banana', initialValue:'bAnAnA' is invalid
 Pass	syntax:'<length>', initialValue:'var(--moo)' is invalid
 Pass	syntax:'<length>', initialValue:'10' is invalid
 Pass	syntax:'<length>', initialValue:'10%' is invalid
 Pass	syntax:'<length>', initialValue:'calc(5px + 10%)' is invalid
-Fail	syntax:'<length>', initialValue:'10em' is invalid
-Fail	syntax:'<length>', initialValue:'calc(4px + 3em)' is invalid
-Fail	syntax:'<length>', initialValue:'calc(4px + calc(8 * 2em))' is invalid
-Fail	syntax:'<length>+', initialValue:'calc(2ex + 16px)' is invalid
-Fail	syntax:'<length>+', initialValue:'10px calc(20px + 4rem)' is invalid
+Pass	syntax:'<length>', initialValue:'10em' is invalid
+Pass	syntax:'<length>', initialValue:'calc(4px + 3em)' is invalid
+Pass	syntax:'<length>', initialValue:'calc(4px + calc(8 * 2em))' is invalid
+Pass	syntax:'<length>+', initialValue:'calc(2ex + 16px)' is invalid
+Pass	syntax:'<length>+', initialValue:'10px calc(20px + 4rem)' is invalid
 Pass	syntax:'<length>+', initialValue:'' is invalid
 Pass	syntax:'<length>#', initialValue:'' is invalid
 Pass	syntax:'<length>', initialValue:'10px;' is invalid
@@ -223,8 +223,8 @@ Pass	syntax:'<percentage>', initialValue:'0' is invalid
 Pass	syntax:'<integer>', initialValue:'1.0' is invalid
 Pass	syntax:'<integer>', initialValue:'1e0' is invalid
 Pass	syntax:'<number>|foo', initialValue:'foo var(--foo, bla)' is invalid
-Fail	syntax:'Foo | bar', initialValue:'foo' is invalid
-Fail	syntax:'Foo | bar', initialValue:'Bar' is invalid
+Pass	syntax:'Foo | bar', initialValue:'foo' is invalid
+Pass	syntax:'Foo | bar', initialValue:'Bar' is invalid
 Pass	syntax:'<angle>', initialValue:'0' is invalid
 Pass	syntax:'<angle>', initialValue:'10%' is invalid
 Pass	syntax:'<time>', initialValue:'2px' is invalid
