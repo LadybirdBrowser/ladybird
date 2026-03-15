@@ -706,33 +706,42 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn validate_regex_flags(&mut self, flags: &[u16]) {
-        let valid_flags: &[u16] = &[
-            ch(b'd'),
-            ch(b'g'),
-            ch(b'i'),
-            ch(b'm'),
-            ch(b's'),
-            ch(b'u'),
-            ch(b'v'),
-            ch(b'y'),
-        ];
+        const VALID_FLAGS: [bool; 128] = {
+            let mut table = [false; 128];
+            table[b'd' as usize] = true;
+            table[b'g' as usize] = true;
+            table[b'i' as usize] = true;
+            table[b'm' as usize] = true;
+            table[b's' as usize] = true;
+            table[b'u' as usize] = true;
+            table[b'v' as usize] = true;
+            table[b'y' as usize] = true;
+            table
+        };
+
         let mut seen = [false; 128];
+
         for &flag in flags {
-            if flag >= 128 || !valid_flags.contains(&flag) {
+            let idx = flag as usize;
+
+            // ASCII check + validity
+            if idx >= 128 || !VALID_FLAGS[idx] {
                 self.syntax_error(&format!(
                     "Invalid RegExp flag '{}'",
                     char::from_u32(flag as u32).unwrap_or('?')
                 ));
                 return;
             }
-            if seen[flag as usize] {
+
+            if seen[idx] {
                 self.syntax_error(&format!(
                     "Repeated RegExp flag '{}'",
                     char::from_u32(flag as u32).unwrap_or('?')
                 ));
                 return;
             }
-            seen[flag as usize] = true;
+
+            seen[idx] = true;
         }
     }
 
