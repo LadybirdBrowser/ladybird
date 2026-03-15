@@ -402,6 +402,20 @@ void Page::prompt_closed(Optional<String> response)
     }
 }
 
+Optional<Fetch::Infrastructure::AuthenticationEntry> Page::did_request_sign_in_dialog()
+{
+    m_client->page_did_request_sign_in_dialog();
+    return spin_event_loop_until_dialog_closed(*m_client, m_pending_sign_in_response);
+}
+
+void Page::sign_in_closed(Optional<Fetch::Infrastructure::AuthenticationEntry> response)
+{
+    if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
+        m_pending_sign_in_response = move(response);
+        on_pending_dialog_closed();
+    }
+}
+
 void Page::dismiss_dialog(GC::Ref<GC::Function<void()>> on_dialog_closed)
 {
     m_on_pending_dialog_closed = on_dialog_closed;

@@ -26,6 +26,7 @@
 #include <LibIPC/Forward.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 
 namespace IPC {
 
@@ -141,6 +142,9 @@ ErrorOr<URL::BlobURLEntry::Blob> decode(Decoder&);
 
 template<>
 ErrorOr<URL::BlobURLEntry::MediaSource> decode(Decoder&);
+
+template<>
+ErrorOr<Web::Fetch::Infrastructure::AuthenticationEntry> decode(Decoder&);
 
 template<Concepts::Array T>
 ErrorOr<T> decode(Decoder& decoder)

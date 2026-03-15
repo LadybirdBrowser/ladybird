@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
+#include <UI/Qt/LoginDialog.h>
 #include <UI/Qt/WebContentView.h>
 
 #include <QBoxLayout>

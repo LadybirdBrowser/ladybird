@@ -7,10 +7,12 @@
  */
 
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <UI/Qt/BrowserWindow.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/LoginDialog.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
@@ -221,6 +223,24 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_request_dismiss_dialog = [this]() {
         if (m_dialog)
             m_dialog->reject();
+    };
+
+    view().on_request_sign_in_dialog = [this]() {
+        m_dialog = new LoginDialog(view().window());
+
+        QObject::connect(m_dialog, &QDialog::finished, this, [this](auto result) {
+            Optional<Web::Fetch::Infrastructure::AuthenticationEntry> authentication_entry {};
+            if (result == QDialog::Accepted) {
+                auto const& sign_in_dialog = static_cast<LoginDialog&>(*m_dialog);
+                authentication_entry = Web::Fetch::Infrastructure::AuthenticationEntry { .username = sign_in_dialog.username(), .password = sign_in_dialog.password() };
+            }
+            view().sign_in_closed(authentication_entry);
+
+            m_dialog->close();
+            m_dialog = nullptr;
+        });
+
+        m_dialog->open();
     };
 
     view().on_request_color_picker = [this](Color current_color) {

@@ -138,6 +138,7 @@ public:
     void alert_closed();
     void confirm_closed(bool accepted);
     void prompt_closed(Optional<String> const& response);
+    void sign_in_closed(Optional<Web::Fetch::Infrastructure::AuthenticationEntry> const&);
     void color_picker_update(Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state);
     void file_picker_closed(Vector<Web::HTML::SelectedFile> selected_files);
     void select_dropdown_closed(Optional<u32> const& selected_item_id);
@@ -209,6 +210,7 @@ public:
     Function<void(String const& message)> on_request_set_prompt_text;
     Function<void()> on_request_accept_dialog;
     Function<void()> on_request_dismiss_dialog;
+    Function<void()> on_request_sign_in_dialog;
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
     Function<void(JsonObject)> on_received_accessibility_tree;
