@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="match" href="../expected/css-background-clip-text-pseudo-element-ref.html" />
+  <meta name="fuzzy" content="maxDifference=0-3;totalPixels=0-27725">
+  <style>
+    h1 {
+      background: black;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1:before {
+      content: attr(data-text);
+      position: absolute;
+      left: 200px;
+    }
+  </style>
+  </head>
+  <body>
+  <h1 data-text="test">test</h1>
+  </body>
+</html>
