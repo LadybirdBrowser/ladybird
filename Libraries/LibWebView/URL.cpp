@@ -14,6 +14,56 @@
 
 namespace WebView {
 
+static bool is_local_ip_address(URL::URL const& url)
+{
+    auto const& host = url.host();
+    if (!host.has_value())
+        return false;
+
+    if (host->has<IPv4Address>()) {
+        auto const& addr = host->get<IPv4Address>();
+        // 127.0.0.0/8
+        if (addr[0] == 127)
+            return true;
+        // 10.0.0.0/8
+        if (addr[0] == 10)
+            return true;
+        // 172.16.0.0/12
+        if (addr[0] == 172 && addr[1] >= 16 && addr[1] <= 31)
+            return true;
+        // 192.168.0.0/16
+        if (addr[0] == 192 && addr[1] == 168)
+            return true;
+        // 169.254.0.0/16 (link-local)
+        if (addr[0] == 169 && addr[1] == 254)
+            return true;
+        return false;
+    }
+
+    if (host->has<IPv6Address>()) {
+        auto const& addr = host->get<IPv6Address>().to_in6_addr_t();
+        // ::1 (loopback)
+        bool is_loopback = true;
+        for (int i = 0; i < 15; ++i) {
+            if (addr[i] != 0) {
+                is_loopback = false;
+                break;
+            }
+        }
+        if (is_loopback && addr[15] == 1)
+            return true;
+        // fe80::/10 (link-local)
+        if (addr[0] == 0xfe && (addr[1] & 0xc0) == 0x80)
+            return true;
+        // fc00::/7 (unique local)
+        if ((addr[0] & 0xfe) == 0xfc)
+            return true;
+        return false;
+    }
+
+    return false;
+}
+
 Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> const& search_engine, AppendTLD append_tld)
 {
     auto search_url_or_error = [&]() -> Optional<URL::URL> {
@@ -41,13 +91,13 @@ Optional<URL::URL> sanitize_url(StringView location, Optional<SearchEngine> cons
         if (!url.has_value())
             return search_url_or_error();
 
-        https_scheme_was_guessed = true;
-    }
-
-    // IP addresses should default to http:// since they rarely have valid TLS certificates.
-    if (https_scheme_was_guessed) {
-        if (auto const& host = url->host(); host.has_value() && (host->has<IPv4Address>() || host->has<IPv6Address>()))
+        // Local/private IP addresses should default to http:// since they rarely have valid TLS certificates.
+        // Public IPs still default to https://.
+        // However, if the user explicitly specified port 443, honor the https scheme.
+        if (is_local_ip_address(*url) && !location.contains(":443"sv))
             url->set_scheme("http"_string);
+        else
+            https_scheme_was_guessed = true;
     }
 
     // FIXME: Add support for other schemes, e.g. "mailto:". Firefox and Chrome open mailto: locations.

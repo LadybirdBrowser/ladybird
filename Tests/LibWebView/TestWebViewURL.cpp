@@ -189,12 +189,15 @@ TEST_CASE(location_to_search_or_url)
     expect_url_equals_sanitized_url("https://localhost/hello.world"sv, "localhost/hello.world"sv);
     expect_url_equals_sanitized_url("https://localhost/hello.world?query=123"sv, "localhost/hello.world?query=123"sv);
 
-    expect_url_equals_sanitized_url("http://192.168.1.1/"sv, "192.168.1.1"sv);          // IPv4: default to http.
+    expect_url_equals_sanitized_url("http://192.168.1.1/"sv, "192.168.1.1"sv);          // Local IPv4: default to http.
     expect_url_equals_sanitized_url("http://127.0.0.1/"sv, "127.0.0.1"sv);              // Loopback: default to http.
-    expect_url_equals_sanitized_url("http://10.0.0.1:8080/"sv, "10.0.0.1:8080"sv);      // IPv4 with port: default to http.
+    expect_url_equals_sanitized_url("http://10.0.0.1:8080/"sv, "10.0.0.1:8080"sv);      // Local IPv4 with port: default to http.
     expect_url_equals_sanitized_url("https://192.168.1.1/"sv, "https://192.168.1.1"sv); // Explicit https: respect user.
     expect_url_equals_sanitized_url("http://192.168.1.1/"sv, "http://192.168.1.1"sv);   // Explicit http: respect user.
-    expect_url_equals_sanitized_url("http://[::1]/"sv, "[::1]"sv);                      // IPv6: default to http.
+    expect_url_equals_sanitized_url("http://[::1]/"sv, "[::1]"sv);                      // IPv6 loopback: default to http.
+    expect_url_equals_sanitized_url("https://127.0.0.1/"sv, "127.0.0.1:443"sv);         // Port 443 means https, even for local.
+    expect_url_equals_sanitized_url("https://8.8.8.8/"sv, "8.8.8.8"sv);                 // Public IPv4: default to https.
+    expect_url_equals_sanitized_url("https://[2606:4700:4700::1111]/"sv, "[2606:4700:4700::1111]"sv); // Public IPv6: default to https.
 
     expect_url_equals_sanitized_url("https://example.com/"sv, "example"sv, WebView::AppendTLD::Yes); // User holds down the Ctrl key.
     expect_url_equals_sanitized_url("https://example.def.com/"sv, "example.def"sv, WebView::AppendTLD::Yes);
