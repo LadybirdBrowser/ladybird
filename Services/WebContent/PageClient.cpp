@@ -1011,4 +1011,9 @@ void PageClient::queue_screenshot_task(Optional<Web::UniqueNodeID> node_id)
     page().top_level_traversable()->queue_screenshot_task(node_id);
 }
 
+void PageClient::show_notification(String const& title)
+{
+    client().async_did_request_show_notification(m_id, title);
+}
+
 }

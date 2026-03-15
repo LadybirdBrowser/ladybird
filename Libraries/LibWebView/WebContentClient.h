@@ -149,6 +149,7 @@ private:
     virtual void did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState) override;
     virtual void did_update_navigation_buttons_state(u64 page_id, bool back_enabled, bool forward_enabled) override;
     virtual void did_allocate_backing_stores(u64 page_id, i32 front_bitmap_id, Gfx::ShareableBitmap, i32 back_bitmap_id, Gfx::ShareableBitmap) override;
+    virtual void did_request_show_notification(u64 page_id, String title) override;
     virtual Messages::WebContentClient::RequestWorkerAgentResponse request_worker_agent(u64 page_id, Web::Bindings::AgentType worker_type) override;
 
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());

@@ -81,6 +81,12 @@ else()
     list(APPEND SOURCES TimeZoneWatcherUnimplemented.cpp)
 endif()
 
+if(LINUX OR BSD)
+    list(APPEND SOURCES NotificationUnix.cpp)
+else()
+    list(APPEND SOURCES NotificationUnimplemented.cpp)
+endif()
+
 if (APPLE OR CMAKE_SYSTEM_NAME STREQUAL "GNU")
     list(APPEND SOURCES MachPort.cpp)
 endif()
@@ -121,4 +127,10 @@ endif()
 
 if (ANDROID)
     target_link_libraries(LibCore PRIVATE log)
+endif()
+
+if (LINUX OR BSD)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(dbus REQUIRED IMPORTED_TARGET dbus-1)
+    target_link_libraries(LibCore PRIVATE PkgConfig::dbus)
 endif()

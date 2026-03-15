@@ -811,4 +811,12 @@ Optional<ViewImplementation&> WebContentClient::view_for_page_id(u64 page_id, So
     return {};
 }
 
+void WebContentClient::did_request_show_notification(u64 page_id, String title)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_request_show_notification)
+            view->on_request_show_notification(move(title));
+    }
+}
+
 }

@@ -460,6 +460,8 @@ public:
 
     virtual bool is_svg_page_client() const { return false; }
 
+    virtual void show_notification(String const&) { }
+
 protected:
     virtual ~PageClient() = default;
 };
