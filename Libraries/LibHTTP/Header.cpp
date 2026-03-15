@@ -59,6 +59,20 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
         return extract_token_headers(value);
     }
 
+    // Clear-Site-Data = 1#( quoted-string )
+    if (name.equals_ignoring_ascii_case("Clear-Site-Data"sv)) {
+        if (value.is_empty())
+            return {};
+
+        Vector<ByteString> trimmed_values;
+
+        value.view().for_each_split_view(',', SplitBehavior::Nothing, [&](auto value) {
+            trimmed_values.append(value.trim(" \t"sv));
+        });
+
+        return trimmed_values;
+    }
+
     // Access-Control-Request-Headers = 1#field-name      (field-name = token)
     // Accept-Ranges                  = acceptable-ranges (acceptable-ranges = 1#range-unit, range-unit = token)
     if (name.is_one_of_ignoring_ascii_case(

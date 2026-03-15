@@ -487,6 +487,36 @@ void CookieJar::expire_cookies_accessed_since(UnixDateTime since)
     m_transient_storage.expire_and_purge_cookies_accessed_since(since);
 }
 
+// https://w3c.github.io/webappsec-clear-site-data/#clear-cookies
+void CookieJar::clear_cookies_for_origin(URL::Origin const& origin)
+{
+    // 1. Let registered be the registered domain of origin's host.
+    auto registered = URL::get_registrable_domain(origin.host().serialize());
+    if (!registered.has_value())
+        return;
+
+    // 2. Let cookie list be the set of cookies from the cookie store whose domain attribute is a domain-match with registered.
+    m_transient_storage.for_each_cookie([&](HTTP::Cookie::Cookie& cookie) {
+        if (!HTTP::Cookie::domain_matches(cookie.domain, registered.value()))
+            return;
+
+        // 3. For each cookie in cookie list:
+        //     1. Remove cookie from the cookie store.
+        cookie.expiry_time = UnixDateTime::earliest();
+
+        CookieStorageKey key { cookie.name, cookie.domain, cookie.path };
+        m_transient_storage.set_cookie(key, cookie);
+    });
+
+    m_transient_storage.purge_expired_cookies();
+
+    // FIXME: 4. If the user agent supports other forms of cookie-like storage, these MUST also be cleared for origins whose host's registered domain is registered.
+
+    // FIXME: 5. Clear any Channel IDs and bound tokens associated with origins whose host's registered domain is registered.
+
+    // FIXME: 6. Clear authentication entries and proxy-authentication entries associated with origins whose host's registered domain is registered.
+}
+
 Requests::CacheSizes CookieJar::estimate_storage_size_accessed_since(UnixDateTime since) const
 {
     return m_transient_storage.estimate_storage_size_accessed_since(since);
