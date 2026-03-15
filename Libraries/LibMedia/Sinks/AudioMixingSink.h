@@ -80,8 +80,7 @@ private:
     Core::EventLoop& m_main_thread_event_loop;
     NonnullRefPtr<AudioMixingSinkWeakReference> m_weak_self;
 
-    Threading::Mutex m_mutex;
-    Threading::ConditionVariable m_wait_condition { m_mutex };
+    Threading::RecursiveMutex m_mutex;
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     Audio::SampleSpecification m_sample_specification;
     bool m_playing { false };

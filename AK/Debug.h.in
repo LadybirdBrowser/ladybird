@@ -194,6 +194,10 @@
 #    cmakedefine01 MATROSKA_TRACE_DEBUG
 #endif
 
+#ifndef MUTEX_DEBUG
+#    cmakedefine01 MUTEX_DEBUG
+#endif
+
 #ifndef NETWORKJOB_DEBUG
 #    cmakedefine01 NETWORKJOB_DEBUG
 #endif

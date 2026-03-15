@@ -48,10 +48,10 @@ public:
     }
 
 private:
-    [[nodiscard]] ALWAYS_INLINE MutexLocker lock() { return MutexLocker(m_lock); }
+    [[nodiscard]] ALWAYS_INLINE auto lock() { return MutexLocker(m_lock); }
 
     T m_value;
-    Mutex m_lock {};
+    RecursiveMutex m_lock;
 };
 
 }

@@ -52,7 +52,7 @@ public:
     void unlock() { m_mutex.unlock(); }
 
 private:
-    Threading::Mutex m_mutex;
+    Threading::RecursiveMutex m_mutex;
 };
 
 }

@@ -8,41 +8,93 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Debug.h>
 #include <AK/Noncopyable.h>
 #include <AK/Types.h>
 #include <pthread.h>
 
 namespace Threading {
 
-class Mutex {
+class MutexImpl {
+    friend class ConditionVariable;
+
+protected:
+    void initialize(int type)
+    {
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_settype(&attr, type);
+        auto rc = pthread_mutex_init(&m_mutex, &attr);
+        VERIFY(rc == 0);
+        pthread_mutexattr_destroy(&attr);
+    }
+
+    void destroy()
+    {
+        auto rc = pthread_mutex_destroy(&m_mutex);
+        VERIFY(rc == 0);
+    }
+
+    ALWAYS_INLINE void lock()
+    {
+        auto rc = pthread_mutex_lock(&m_mutex);
+        VERIFY(rc == 0);
+    }
+
+    ALWAYS_INLINE void unlock()
+    {
+        auto rc = pthread_mutex_unlock(&m_mutex);
+        VERIFY(rc == 0);
+    }
+
+private:
+    pthread_mutex_t m_mutex;
+};
+
+class RecursiveMutex : protected MutexImpl {
+    AK_MAKE_NONCOPYABLE(RecursiveMutex);
+    AK_MAKE_NONMOVABLE(RecursiveMutex);
+
+public:
+    RecursiveMutex() { initialize(PTHREAD_MUTEX_RECURSIVE); }
+    ~RecursiveMutex() { destroy(); }
+
+    using MutexImpl::lock;
+    using MutexImpl::unlock;
+};
+
+class Mutex : protected MutexImpl {
     AK_MAKE_NONCOPYABLE(Mutex);
     AK_MAKE_NONMOVABLE(Mutex);
     friend class ConditionVariable;
 
 public:
-    Mutex()
-        : m_lock_count(0)
-    {
-        pthread_mutexattr_t attr;
-        pthread_mutexattr_init(&attr);
-        pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-        pthread_mutex_init(&m_mutex, &attr);
-        pthread_mutexattr_destroy(&attr);
-    }
-    ~Mutex()
-    {
-        VERIFY(m_lock_count == 0);
-        pthread_mutex_destroy(&m_mutex);
-    }
+    enum Behavior {
+        Normal = PTHREAD_MUTEX_NORMAL,
+        Checked = PTHREAD_MUTEX_ERRORCHECK
+    };
 
-    void lock();
-    void unlock();
+#if MUTEX_DEBUG
+    static constexpr Behavior default_behavior = Checked;
+#else
+    static constexpr Behavior default_behavior = Normal;
+#endif
 
-private:
-    pthread_mutex_t m_mutex;
-    unsigned m_lock_count { 0 };
+    Mutex(Behavior behavior = default_behavior) { initialize(behavior); }
+
+    ~Mutex() { destroy(); }
+
+    using MutexImpl::lock;
+    using MutexImpl::unlock;
 };
 
+template<typename T>
+concept Lockable = requires(T t) {
+    t.lock();
+    t.unlock();
+};
+
+template<Lockable Mutex>
 class [[nodiscard]] MutexLocker {
     AK_MAKE_NONCOPYABLE(MutexLocker);
     AK_MAKE_NONMOVABLE(MutexLocker);
@@ -63,21 +115,5 @@ public:
 private:
     Mutex& m_mutex;
 };
-
-ALWAYS_INLINE void Mutex::lock()
-{
-    pthread_mutex_lock(&m_mutex);
-    m_lock_count++;
-}
-
-ALWAYS_INLINE void Mutex::unlock()
-{
-    VERIFY(m_lock_count > 0);
-    // FIXME: We need to protect the lock count with the mutex itself.
-    // This may be bad because we're not *technically* unlocked yet,
-    // but we're not handling any errors from pthread_mutex_unlock anyways.
-    m_lock_count--;
-    pthread_mutex_unlock(&m_mutex);
-}
 
 }
