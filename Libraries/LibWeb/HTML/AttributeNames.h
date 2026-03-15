@@ -81,6 +81,7 @@ namespace AttributeNames {
     __ENUMERATE_HTML_ATTRIBUTE(ended, "ended")                                           \
     __ENUMERATE_HTML_ATTRIBUTE(enterkeyhint, "enterkeyhint")                             \
     __ENUMERATE_HTML_ATTRIBUTE(event, "event")                                           \
+    __ENUMERATE_HTML_ATTRIBUTE(exportparts, "exportparts")                               \
     __ENUMERATE_HTML_ATTRIBUTE(face, "face")                                             \
     __ENUMERATE_HTML_ATTRIBUTE(fetchpriority, "fetchpriority")                           \
     __ENUMERATE_HTML_ATTRIBUTE(for_, "for")                                              \
