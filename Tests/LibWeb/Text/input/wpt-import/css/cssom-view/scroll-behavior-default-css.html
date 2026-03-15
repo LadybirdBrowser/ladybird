@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<title>Testing default value of scroll-behavior</title>
+<meta name="timeout" content="long"/>
+<link rel="author" title="Frédéric Wang" href="mailto:fwang@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#propdef-scroll-behavior">
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#scrolling-box">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../dom/events/scrolling/scroll_support.js"></script>
+<script src="support/scroll-behavior.js"></script>
+<style>
+  .scrollable {
+    overflow: auto;
+    width: 400px;
+    height: 200px;
+  }
+</style>
+<div id="log">
+</div>
+<div id="overflowNode" class="scrollable">
+  <div style="width: 2000px; height: 1000px; background: linear-gradient(135deg, red, green);">
+    <span style="display: inline-block; width: 500px; height: 250px;"></span><span id="elementToReveal" style="display: inline-block; vertical-align: -15px; width: 10px; height: 15px; background: black;"></span>
+  </div>
+</div>
+<script>
+  var scrollingElement = overflowNode;
+  var elementToRevealLeft = 500;
+  var elementToRevealTop = 250;
+  var scrollFunction = "scroll";
+
+  promise_test(async () => {
+    await waitForCompositorReady();
+  }, "Make sure the page is ready for animation.");
+
+  promise_test(() => {
+    resetScroll(scrollingElement);
+    assert_equals(scrollingElement.scrollLeft, 0);
+    assert_equals(scrollingElement.scrollTop, 0);
+    scrollNode(scrollingElement, "scroll", "instant", elementToRevealLeft, elementToRevealTop);
+    assert_equals(scrollingElement.scrollLeft, elementToRevealLeft, "Should set scrollLeft immediately");
+    assert_equals(scrollingElement.scrollTop, elementToRevealTop, "Should set scrollTop immediately");
+    return new Promise((resolve) => { resolve(); });
+  }, "Instant scrolling of an element with default scroll-behavior");
+
+  promise_test(() => {
+    resetScroll(scrollingElement);
+    assert_equals(scrollingElement.scrollLeft, 0);
+    assert_equals(scrollingElement.scrollTop, 0);
+    scrollNode(scrollingElement, "scroll", "smooth", elementToRevealLeft, elementToRevealTop);
+    assert_less_than(scrollingElement.scrollLeft, elementToRevealLeft, "Should not set scrollLeft immediately");
+    assert_less_than(scrollingElement.scrollTop, elementToRevealTop, "Should not set scrollTop immediately");
+    return waitForScrollEnd(scrollingElement).then(() => {
+      assert_equals(scrollingElement.scrollLeft, elementToRevealLeft, "Final value of scrollLeft");
+      assert_equals(scrollingElement.scrollTop, elementToRevealTop, "Final value of scrollTop");
+    });
+  }, "Smooth scrolling of an element with default scroll-behavior");
+</script>

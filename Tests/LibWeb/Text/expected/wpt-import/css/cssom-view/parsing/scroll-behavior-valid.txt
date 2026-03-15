@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	e.style['scroll-behavior'] = "auto" should set the property value
+Pass	e.style['scroll-behavior'] = "smooth" should set the property value

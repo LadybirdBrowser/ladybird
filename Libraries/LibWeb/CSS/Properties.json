@@ -3810,6 +3810,17 @@
     "affects-stacking-context": true,
     "requires-computation": "cascaded-value"
   },
+  "scroll-behavior": {
+    "initial": "auto",
+    "inherited": false,
+    "affects-layout": false,
+    "animation-type": "none",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "smooth"
+    ]
+  },
   "scroll-timeline": {
     "affects-layout": false,
     "initial": "none block",

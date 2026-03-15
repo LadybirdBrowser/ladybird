@@ -752,6 +752,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'rx': 'auto'
 'ry': 'auto'
 'scale': 'none'
+'scrollBehavior': 'auto'
+'scroll-behavior': 'auto'
 'scrollTimeline': 'none'
 'scroll-timeline': 'none'
 'scrollTimelineAxis': 'block'
