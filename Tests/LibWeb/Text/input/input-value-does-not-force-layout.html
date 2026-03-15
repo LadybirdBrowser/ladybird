@@ -23,15 +23,24 @@
         input.focus();
         input.offsetWidth;
 
-        // Performance test: setting input.value must not synchronously trigger a full layout.
+        // Setting input.value with dirty layout must not be significantly slower than without it.
         const values = ["a", "ab"];
-        const start = performance.now();
+
+        const baselineStart = performance.now();
+        for (let i = 0; i < 2000; i++)
+            app.children[i % 2000].style.padding = (4 + (i % 2)) + "px";
+        const baseline = performance.now() - baselineStart;
+
+        input.offsetWidth;
+
+        const testStart = performance.now();
         for (let i = 0; i < 2000; i++) {
             app.children[i % 2000].style.padding = (4 + (i % 2)) + "px";
             input.value = values[i % 2];
         }
-        const elapsed = performance.now() - start;
+        const test = performance.now() - testStart;
 
-        println(elapsed < 5000 ? "PASS" : `FAIL: took ${elapsed.toFixed(0)}ms`);
+        const ratio = test / Math.max(baseline, 1);
+        println(ratio < 5 ? "PASS" : `FAIL: ratio ${ratio.toFixed(1)}x (baseline=${baseline.toFixed(0)}ms, test=${test.toFixed(0)}ms)`);
     });
 </script>
