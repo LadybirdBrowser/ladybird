@@ -26,6 +26,7 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -556,9 +557,26 @@ WebIDL::ExceptionOr<WebIDL::Short> Range::compare_point(GC::Ref<Node> node, WebI
     return 0;
 }
 
+// AD-HOC: Find the nearest block-level ancestor of a node by checking the
+//         computed display property of the node's layout node.
+static Node const* nearest_block_ancestor(Node const* node)
+{
+    for (auto const* n = node->parent(); n; n = n->parent()) {
+        if (auto const* layout_node = n->layout_node()) {
+            if (layout_node->computed_values().display().is_block_outside())
+                return n;
+        }
+    }
+    return nullptr;
+}
+
 // https://dom.spec.whatwg.org/#dom-range-stringifier
 Utf16String Range::to_string() const
 {
+    // NOTE: We ensure that the layout is up-to-date so that we can use display
+    //       properties to detect block-level boundaries.
+    const_cast<Document&>(start_container()->document()).update_layout(DOM::UpdateLayoutReason::RangeToString);
+
     // 1. Let s be the empty string.
     StringBuilder builder(StringBuilder::Mode::UTF16);
 
@@ -568,20 +586,38 @@ Utf16String Range::to_string() const
     if (start_text && start_container() == end_container())
         return MUST(start_text->substring_data(start_offset(), end_offset() - start_offset()));
 
+    // AD-HOC: Track the current block ancestor so we only insert newlines
+    //         when transitioning between different block containers.
+    Node const* current_block = nullptr;
+
     // 3. If this’s start node is a Text node, then append the substring of that node’s data from this’s start offset until the end to s.
-    if (start_text)
+    if (start_text && start_container()->layout_node()) {
         builder.append(MUST(start_text->substring_data(start_offset(), start_text->length_in_utf16_code_units() - start_offset())));
+        current_block = nearest_block_ancestor(start_container().ptr());
+    }
 
     // 4. Append the concatenation of the data of all Text nodes that are contained in this, in tree order, to s.
+    //    AD-HOC: Insert newlines at block-level element boundaries to match other browser behavior.
     for_each_contained([&](GC::Ref<Node> node) {
-        if (auto* text_node = as_if<Text>(*node))
+        if (auto* text_node = as_if<Text>(*node); text_node && node->layout_node()) {
+            auto const* block = nearest_block_ancestor(node.ptr());
+            if (!builder.is_empty() && block && block != current_block) {
+                builder.append('\n');
+            }
             builder.append(text_node->data());
+            current_block = block;
+        }
         return IterationDecision::Continue;
     });
 
     // 5. If this’s end node is a Text node, then append the substring of that node’s data from its start until this’s end offset to s.
-    if (auto* end_text = as_if<Text>(*end_container()))
+    if (auto* end_text = as_if<Text>(*end_container()); end_text && end_container()->layout_node()) {
+        auto const* block = nearest_block_ancestor(end_container().ptr());
+        if (!builder.is_empty() && block && block != current_block) {
+            builder.append('\n');
+        }
         builder.append(MUST(end_text->substring_data(0, end_offset())));
+    }
 
     // 6. Return s.
     return builder.to_utf16_string();
