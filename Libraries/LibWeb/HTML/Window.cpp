@@ -7,6 +7,7 @@
  */
 
 #include <AK/Utf8View.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -79,6 +80,27 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Window);
 
+static GC::WeakHashSet<Window>& all_windows()
+{
+    static GC::WeakHashSet<Window> windows;
+    return windows;
+}
+
+void Window::for_each_active(Function<IterationDecision(Window&)> callback)
+{
+    auto windows = all_windows();
+    for (auto& window : windows) {
+        if (!window.m_associated_document)
+            continue;
+
+        if (!window.m_associated_document->is_fully_active())
+            continue;
+
+        if (callback(window) == IterationDecision::Break)
+            break;
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks
 void run_animation_frame_callbacks(DOM::Document& document, double now)
 {
@@ -116,6 +138,8 @@ Window::Window(JS::Realm& realm)
         .has_legacy_unenumerable_named_properties_interface_extended_attribute = true,
         .has_global_interface_extended_attribute = true,
     };
+
+    all_windows().set(*this);
 }
 
 void Window::visit_edges(JS::Cell::Visitor& visitor)
@@ -152,6 +176,7 @@ void Window::finalize()
 {
     Base::finalize();
     WindowOrWorkerGlobalScopeMixin::finalize();
+    all_windows().remove(*this);
 }
 
 Window::~Window() = default;

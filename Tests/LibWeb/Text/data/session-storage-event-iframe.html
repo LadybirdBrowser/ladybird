@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script>
+function handleStorageEvent(e) {
+    if (window.sessionStorage === e.storageArea)
+        e.storageAreaString = "sessionStorage";
+    window.parent.onStorageEventReceived(e);
+}
+</script>
+</head>
+<!-- Intentionally do NOT access sessionStorage before the event fires.
+     The storage event should still be received even though the Storage
+     object has not yet been lazily created for this window. -->
+<body onstorage="handleStorageEvent(event);">
+</body>
+</html>

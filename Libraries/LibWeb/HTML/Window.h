@@ -8,6 +8,8 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Function.h>
+#include <AK/IterationDecision.h>
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
@@ -275,6 +277,8 @@ public:
     [[nodiscard]] JS::Value named_item_value(FlyString const&) const override;
 
     bool find(String const& string);
+
+    static void for_each_active(Function<IterationDecision(Window&)> callback);
 
 private:
     explicit Window(JS::Realm&);
