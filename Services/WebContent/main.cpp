@@ -57,7 +57,7 @@
 #    include <signal.h>
 static void crash_signal_handler(int signo)
 {
-    char const* name = "unknown";
+    char const* name;
     switch (signo) {
     case SIGSEGV:
         name = "SIGSEGV";
@@ -73,6 +73,9 @@ static void crash_signal_handler(int signo)
         break;
     case SIGILL:
         name = "SIGILL";
+        break;
+    default:
+        name = "unknown";
         break;
     }
     warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
