@@ -87,6 +87,7 @@ endif()
 
 if (APPLE)
     list(APPEND SOURCES IOSurface.cpp)
+    list(APPEND SOURCES Platform/ScopedAutoreleasePoolMacOS.mm)
 endif()
 
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
