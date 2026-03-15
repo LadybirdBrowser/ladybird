@@ -38,7 +38,6 @@ EventLoop::EventLoop(Type type)
     : m_type(type)
 {
     m_task_queue = heap().allocate<TaskQueue>(*this);
-    m_microtask_queue = heap().allocate<TaskQueue>(*this);
 
     m_rendering_task_function = GC::create_function(heap(), [this] {
         update_the_rendering();
@@ -52,7 +51,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_reached_step_1_tasks);
     visitor.visit(m_task_queue);
-    visitor.visit(m_microtask_queue);
+    m_microtask_queue.for_each([&](auto& task) { visitor.visit(task); });
     visitor.visit(m_currently_running_task);
     visitor.visit(m_backup_incumbent_realm_stack);
     visitor.visit(m_rendering_task_function);
@@ -227,7 +226,7 @@ void EventLoop::process()
     }
 
     // If there are eligible tasks in the queue, schedule a new round of processing. :^)
-    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue->is_empty() && !m_performing_a_microtask_checkpoint)) {
+    if (m_task_queue->has_runnable_tasks() || (!m_microtask_queue.is_empty() && !m_performing_a_microtask_checkpoint)) {
         schedule();
     }
 }
@@ -574,10 +573,11 @@ TaskID queue_a_task(HTML::Task::Source source, GC::Ptr<EventLoop> event_loop, GC
     auto task = HTML::Task::create(event_loop->vm(), source, document, steps);
 
     // 8. Let queue be the task queue to which source is associated on event loop.
-    auto& queue = source == HTML::Task::Source::Microtask ? event_loop->microtask_queue() : event_loop->task_queue();
-
     // 9. Append task to queue.
-    queue.add(task);
+    if (source == HTML::Task::Source::Microtask)
+        event_loop->enqueue_microtask(task);
+    else
+        event_loop->task_queue().add(task);
 
     return task->id();
 }
@@ -615,7 +615,7 @@ void queue_a_microtask(DOM::Document const* document, GC::Ref<GC::Function<void(
     // FIXME: 7. Set microtask's script evaluation environment settings object set to an empty set.
 
     // 8. Enqueue microtask on event loop's microtask queue.
-    (void)event_loop.microtask_queue().enqueue(microtask);
+    event_loop.enqueue_microtask(microtask);
 }
 
 void perform_a_microtask_checkpoint()
@@ -641,9 +641,9 @@ void EventLoop::perform_a_microtask_checkpoint()
     m_performing_a_microtask_checkpoint = true;
 
     // 3. While the event loop's microtask queue is not empty:
-    while (!m_microtask_queue->is_empty()) {
+    while (!m_microtask_queue.is_empty()) {
         // 1. Let oldestMicrotask be the result of dequeuing from the event loop's microtask queue.
-        auto oldest_microtask = m_microtask_queue->dequeue();
+        auto oldest_microtask = m_microtask_queue.dequeue();
 
         // 2. Set the event loop's currently running task to oldestMicrotask.
         m_currently_running_task = oldest_microtask;

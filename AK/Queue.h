@@ -76,6 +76,18 @@ public:
         return m_segments.last()->data.last();
     }
 
+    template<typename F>
+    void for_each(F&& callback) const
+    {
+        bool first = true;
+        for (auto const& segment : m_segments) {
+            size_t start = first ? m_index_into_first : 0;
+            first = false;
+            for (size_t i = start; i < segment.data.size(); ++i)
+                callback(segment.data[i]);
+        }
+    }
+
     void clear()
     {
         while (auto* segment = m_segments.take_first())

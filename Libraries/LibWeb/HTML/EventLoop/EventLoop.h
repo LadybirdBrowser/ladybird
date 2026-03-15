@@ -8,6 +8,7 @@
 
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
+#include <AK/Queue.h>
 #include <LibCore/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
@@ -53,8 +54,9 @@ public:
     TaskQueue& task_queue() { return *m_task_queue; }
     TaskQueue const& task_queue() const { return *m_task_queue; }
 
-    TaskQueue& microtask_queue() { return *m_microtask_queue; }
-    TaskQueue const& microtask_queue() const { return *m_microtask_queue; }
+    bool microtask_queue_empty() const { return m_microtask_queue.is_empty(); }
+    void enqueue_microtask(GC::Ref<HTML::Task> task) { m_microtask_queue.enqueue(task); }
+    GC::Ref<HTML::Task> dequeue_microtask() { return m_microtask_queue.dequeue(); }
 
     void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
     void spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
@@ -108,7 +110,7 @@ private:
     Vector<GC::Ref<GC::Function<void()>>> m_reached_step_1_tasks;
 
     GC::Ptr<TaskQueue> m_task_queue;
-    GC::Ptr<TaskQueue> m_microtask_queue;
+    Queue<GC::Ref<HTML::Task>> m_microtask_queue;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#currently-running-task
     GC::Ptr<Task> m_currently_running_task { nullptr };
