@@ -243,6 +243,32 @@ TEST_CASE(IsDestructible)
     EXPECT_TRAIT_FALSE(IsTriviallyDestructible, C);
 }
 
+TEST_CASE(IsTriviallyRelocatable)
+{
+    EXPECT_TRAIT_TRUE(IsTriviallyRelocatable, int, float, char, Empty);
+    EXPECT_TRAIT_TRUE(IsTriviallyRelocatable, int*, Empty*);
+
+    struct TriviallyRelocatable {
+    };
+    EXPECT_TRAIT_TRUE(IsTriviallyRelocatable, TriviallyRelocatable);
+
+    struct NonTriviallyRelocatable {
+        NonTriviallyRelocatable(NonTriviallyRelocatable&&) { }
+        ~NonTriviallyRelocatable() { }
+    };
+    EXPECT_TRAIT_FALSE(IsTriviallyRelocatable, NonTriviallyRelocatable);
+
+    struct NonTrivialMove {
+        NonTrivialMove(NonTrivialMove&&) { }
+    };
+    EXPECT_TRAIT_FALSE(IsTriviallyRelocatable, NonTrivialMove);
+
+    struct NonTrivialDestructor {
+        ~NonTrivialDestructor() { }
+    };
+    EXPECT_TRAIT_FALSE(IsTriviallyRelocatable, NonTrivialDestructor);
+}
+
 TEST_CASE(CommonType)
 {
     using TCommon0 = CommonType<int, float, char>;

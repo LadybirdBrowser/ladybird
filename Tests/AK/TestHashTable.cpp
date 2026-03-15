@@ -537,3 +537,207 @@ TEST_CASE(values)
     EXPECT_EQ(values[1], 30);
     EXPECT_EQ(values[2], 20);
 }
+
+struct AddressTrackingType {
+    int value;
+
+    explicit AddressTrackingType(int v)
+        : value(v)
+    {
+        s_live_instances.set(this);
+    }
+
+    AddressTrackingType(AddressTrackingType&& other)
+        : value(other.value)
+    {
+        s_live_instances.set(this);
+    }
+
+    ~AddressTrackingType() { s_live_instances.remove(this); }
+
+    AddressTrackingType& operator=(AddressTrackingType&& other)
+    {
+        if (this != &other)
+            value = other.value;
+        return *this;
+    }
+
+    AddressTrackingType(AddressTrackingType const&) = delete;
+    AddressTrackingType& operator=(AddressTrackingType const&) = delete;
+
+    bool operator==(AddressTrackingType const& other) const { return value == other.value; }
+
+    static HashTable<AddressTrackingType const*> s_live_instances;
+};
+
+HashTable<AddressTrackingType const*> AddressTrackingType::s_live_instances;
+
+static_assert(!IsTriviallyRelocatable<AddressTrackingType>);
+
+namespace AK {
+
+template<>
+struct Traits<AddressTrackingType> : public DefaultTraits<AddressTrackingType> {
+    static unsigned hash(AddressTrackingType const&) { return 0; }
+};
+
+}
+
+TEST_CASE(non_trivially_relocatable_bucket_relocation)
+{
+    HashTable<AddressTrackingType> table;
+
+    for (int i = 0; i < 50; ++i)
+        table.set(AddressTrackingType(i));
+
+    for (int i = 0; i < 50; i += 3)
+        table.remove(AddressTrackingType(i));
+
+    for (auto& entry : table)
+        EXPECT(AddressTrackingType::s_live_instances.contains(&entry));
+}
+
+TEST_CASE(non_trivially_relocatable_bucket_relocation_ordered)
+{
+    OrderedHashTable<AddressTrackingType> table;
+
+    for (int i = 0; i < 50; ++i)
+        table.set(AddressTrackingType(i));
+
+    for (int i = 0; i < 50; i += 3)
+        table.remove(AddressTrackingType(i));
+
+    for (auto& entry : table)
+        EXPECT(AddressTrackingType::s_live_instances.contains(&entry));
+}
+
+static constexpr int ITERATION_COUNT = 100;
+
+struct NonTrivialValue {
+    int value;
+    Vector<int> data;
+
+    explicit NonTrivialValue(int v)
+        : value(v)
+        , data({ v, v + 1, v + 2 })
+    {
+    }
+
+    NonTrivialValue(NonTrivialValue&& other)
+        : value(other.value)
+        , data(move(other.data))
+    {
+    }
+
+    NonTrivialValue& operator=(NonTrivialValue&& other)
+    {
+        if (this != &other) {
+            value = other.value;
+            data = move(other.data);
+        }
+        return *this;
+    }
+
+    NonTrivialValue(NonTrivialValue const&) = delete;
+    NonTrivialValue& operator=(NonTrivialValue const&) = delete;
+
+    bool operator==(NonTrivialValue const& other) const { return value == other.value; }
+};
+
+static_assert(!IsTriviallyRelocatable<NonTrivialValue>);
+
+namespace AK {
+
+template<>
+struct Traits<NonTrivialValue> : public DefaultTraits<NonTrivialValue> {
+    static unsigned hash(NonTrivialValue const& v) { return u32_hash(v.value); }
+};
+
+}
+
+BENCHMARK_CASE(insert_remove_int)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        HashTable<int> table;
+        for (int i = 0; i < 10'000; ++i)
+            table.set(i);
+        for (int i = 0; i < 10'000; i += 2)
+            table.remove(i);
+        for (int i = 10'000; i < 15'000; ++i)
+            table.set(i);
+    }
+}
+
+BENCHMARK_CASE(insert_remove_int_ordered)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        OrderedHashTable<int> table;
+        for (int i = 0; i < 10'000; ++i)
+            table.set(i);
+        for (int i = 0; i < 10'000; i += 2)
+            table.remove(i);
+        for (int i = 10'000; i < 15'000; ++i)
+            table.set(i);
+    }
+}
+
+BENCHMARK_CASE(insert_remove_non_trivial)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        HashTable<NonTrivialValue> table;
+        for (int i = 0; i < 10'000; ++i)
+            table.set(NonTrivialValue(i));
+        for (int i = 0; i < 10'000; i += 2)
+            table.remove(NonTrivialValue(i));
+        for (int i = 10'000; i < 15'000; ++i)
+            table.set(NonTrivialValue(i));
+    }
+}
+
+BENCHMARK_CASE(insert_remove_non_trivial_ordered)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        OrderedHashTable<NonTrivialValue> table;
+        for (int i = 0; i < 10'000; ++i)
+            table.set(NonTrivialValue(i));
+        for (int i = 0; i < 10'000; i += 2)
+            table.remove(NonTrivialValue(i));
+        for (int i = 10'000; i < 15'000; ++i)
+            table.set(NonTrivialValue(i));
+    }
+}
+
+// Increase the likelihoood of collisions to stress the collision resolution code paths.
+struct CollidingIntTraits : public DefaultTraits<int> {
+    static unsigned hash(int value) { return u32_hash(value) & 0xF; }
+};
+
+struct CollidingNonTrivialTraits : public DefaultTraits<NonTrivialValue> {
+    static unsigned hash(NonTrivialValue const& v) { return u32_hash(v.value) & 0xF; }
+};
+
+BENCHMARK_CASE(high_collision_int)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        HashTable<int, CollidingIntTraits> table;
+        for (int i = 0; i < 1'000; ++i)
+            table.set(i);
+        for (int i = 0; i < 1'000; i += 3)
+            table.remove(i);
+        for (int i = 1'000; i < 1'500; ++i)
+            table.set(i);
+    }
+}
+
+BENCHMARK_CASE(high_collision_non_trivial)
+{
+    for (int iter = 0; iter < ITERATION_COUNT; ++iter) {
+        HashTable<NonTrivialValue, CollidingNonTrivialTraits> table;
+        for (int i = 0; i < 1'000; ++i)
+            table.set(NonTrivialValue(i));
+        for (int i = 0; i < 1'000; i += 3)
+            table.remove(NonTrivialValue(i));
+        for (int i = 1'000; i < 1'500; ++i)
+            table.set(NonTrivialValue(i));
+    }
+}
