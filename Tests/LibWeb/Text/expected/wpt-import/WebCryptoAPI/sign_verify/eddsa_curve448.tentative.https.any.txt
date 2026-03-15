@@ -2,16 +2,15 @@ Harness status: OK
 
 Found 19 tests
 
-15 Pass
-4 Fail
+19 Pass
 Pass	EdDSA Ed448 verification
-Fail	EdDSA Ed448 verification with altered signature during call
+Pass	EdDSA Ed448 verification with altered signature during call
 Pass	EdDSA Ed448 verification with altered signature after call
-Fail	EdDSA Ed448 verification with transferred signature during call
+Pass	EdDSA Ed448 verification with transferred signature during call
 Pass	EdDSA Ed448 verification with transferred signature after call
-Fail	EdDSA Ed448 with altered data during call
+Pass	EdDSA Ed448 with altered data during call
 Pass	EdDSA Ed448 with altered data after call
-Fail	EdDSA Ed448 with transferred data during call
+Pass	EdDSA Ed448 with transferred data during call
 Pass	EdDSA Ed448 with transferred data after call
 Pass	EdDSA Ed448 using privateKey to verify
 Pass	EdDSA Ed448 using publicKey to sign
