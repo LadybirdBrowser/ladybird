@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Inheritance of CSSOM View properties</title>
+<link rel="help" href="https://drafts.csswg.org/cssom-view/#property-index">
+<meta name="assert" content="Properties inherit or not according to the spec.">
+<meta name="assert" content="Properties have initial values according to the spec.">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../css/support/inheritance-testcommon.js"></script>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+assert_not_inherited('scroll-behavior', 'auto', 'smooth');
+</script>
+</body>
+</html>

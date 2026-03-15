@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 3 tests
+
+2 Pass
+1 Fail
+Pass	Make sure the page is ready for animation.
+Pass	Instant scrolling of an element with default scroll-behavior
+Fail	Smooth scrolling of an element with default scroll-behavior

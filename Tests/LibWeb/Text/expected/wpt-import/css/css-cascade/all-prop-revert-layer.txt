@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 286 tests
+Found 287 tests
 
-282 Pass
+283 Pass
 4 Fail
 Pass	accent-color
 Pass	border-collapse
@@ -250,6 +250,7 @@ Pass	row-gap
 Pass	rx
 Pass	ry
 Pass	scale
+Pass	scroll-behavior
 Pass	scroll-timeline-axis
 Pass	scroll-timeline-name
 Pass	scrollbar-gutter
