@@ -1,0 +1,19 @@
+Harness status: OK
+
+Found 13 tests
+
+12 Pass
+1 Fail
+Pass	[[SetPrototypeOf]] and [[GetPrototypeOf]]
+Pass	[[PreventExtensions]] and [[IsExtensible]]
+Fail	[[GetOwnProperty]]
+Pass	[[GetOwnProperty]] (named property visibility algorithm)
+Pass	[[DefineOwnProperty]]
+Pass	[[HasProperty]]
+Pass	[[Get]]
+Pass	[[Get]] (named property visibility algorithm)
+Pass	[[Set]] (direct)
+Pass	[[Set]] (prototype chain)
+Pass	[[Set]] (Reflect.set)
+Pass	[[Delete]]
+Pass	[[OwnPropertyKeys]]
