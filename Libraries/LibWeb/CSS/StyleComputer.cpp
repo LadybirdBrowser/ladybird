@@ -1719,10 +1719,18 @@ GC::Ref<ComputedProperties> StyleComputer::create_document_style() const
     return style;
 }
 
-GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
+GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties, DisableAncestorFilter disable_ancestor_filter) const
 {
-    auto& style_scope = abstract_element.style_scope();
-    return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
+    if (disable_ancestor_filter == DisableAncestorFilter::Yes)
+        m_disable_ancestor_filter_counter = true;
+
+    auto const& style_scope = abstract_element.style_scope();
+    auto& result = *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
+
+    if (disable_ancestor_filter == DisableAncestorFilter::Yes)
+        m_disable_ancestor_filter_counter = false;
+
+    return result;
 }
 
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
