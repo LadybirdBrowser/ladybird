@@ -2221,7 +2221,7 @@ pub unsafe extern "C" fn rust_compile_function(
             let payload = Box::from_raw(rust_function_ast as *mut ast::FunctionPayload);
             let function_data = Box::new(payload.data);
 
-            let body_scope = match &function_data.body.inner {
+            let body_scope = match &function_data.body.expect_parsed().inner {
                 StatementKind::FunctionBody { scope, .. } => Some(scope),
                 StatementKind::Block(scope) => Some(scope),
                 _ => None,
@@ -2294,8 +2294,11 @@ pub unsafe extern "C" fn rust_compile_function(
                 generator.switch_to_basic_block(start_block);
             }
 
-            let result =
-                bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
+            let result = bytecode::codegen::generate_statement(
+                function_data.body.expect_parsed(),
+                &mut generator,
+                None,
+            );
 
             if !generator.is_current_block_terminated() {
                 if generator.is_in_generator_or_async_function() {
@@ -2360,7 +2363,7 @@ struct BodyScopeInfo {
 /// Compute FDI runtime metadata matching the C++ SharedFunctionInstanceData
 /// constructor (ECMA-262 §10.2.11).
 fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
-    let body_scope = match &function_data.body.inner {
+    let body_scope = match &function_data.body.expect_parsed().inner {
         ast::StatementKind::FunctionBody { scope, .. } => Some(scope),
         _ => None,
     };
