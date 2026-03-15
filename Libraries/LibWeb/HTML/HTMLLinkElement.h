@@ -203,9 +203,9 @@ private:
     void preconnect(LinkProcessingOptions const&);
     void preload(LinkProcessingOptions&, GC::Ptr<GC::Function<void(Fetch::Infrastructure::Response&)>> process_response = {});
 
-    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer, u64 fetch_generation);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
-    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
+    void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer, u64 fetch_generation);
 
     bool should_fetch_and_process_resource_type() const;
 
@@ -243,6 +243,8 @@ private:
     Optional<String> m_mime_type;
 
     GC::Weak<DOM::Document> m_parser_document;
+
+    u64 m_fetch_generation { 0 };
 };
 
 }
