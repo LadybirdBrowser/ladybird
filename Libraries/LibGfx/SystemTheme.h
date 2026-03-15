@@ -13,6 +13,7 @@
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ConfigFile.h>
+#include <limits.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/TextAlignment.h>
 
@@ -285,7 +286,7 @@ struct SystemTheme {
     Gfx::TextAlignment alignment[(int)AlignmentRole::__Count];
     bool flag[(int)FlagRole::__Count];
     int metric[(int)MetricRole::__Count];
-    char path[(int)PathRole::__Count][256]; // TODO: PATH_MAX?
+    char path[(int)PathRole::__Count][PATH_MAX];
 };
 
 Core::AnonymousBuffer& current_system_theme_buffer();
