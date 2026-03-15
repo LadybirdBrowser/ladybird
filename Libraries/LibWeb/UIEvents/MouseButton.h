@@ -27,6 +27,8 @@ AK_ENUM_BITWISE_OPERATORS(MouseButton);
 constexpr i16 mouse_button_to_button_code(MouseButton button)
 {
     switch (button) {
+    case MouseButton::None:
+        return -1;
     case MouseButton::Primary:
         return 0;
     case MouseButton::Middle:
