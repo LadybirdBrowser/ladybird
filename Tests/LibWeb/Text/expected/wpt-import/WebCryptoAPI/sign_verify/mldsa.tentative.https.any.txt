@@ -1,18 +1,37 @@
 Harness status: OK
 
-Found 40 tests
+Found 58 tests
 
-40 Pass
+46 Pass
+12 Fail
 Pass	setup
 Pass	ML-DSA-44 basic test verification
 Pass	ML-DSA-65 basic test verification
 Pass	ML-DSA-87 basic test verification
+Fail	ML-DSA-44 basic test verification with altered signature during call
+Fail	ML-DSA-65 basic test verification with altered signature during call
+Fail	ML-DSA-87 basic test verification with altered signature during call
 Pass	ML-DSA-44 basic test verification with altered signature after call
 Pass	ML-DSA-65 basic test verification with altered signature after call
 Pass	ML-DSA-87 basic test verification with altered signature after call
+Fail	ML-DSA-44 basic test verification with transferred signature during call
+Fail	ML-DSA-65 basic test verification with transferred signature during call
+Fail	ML-DSA-87 basic test verification with transferred signature during call
+Pass	ML-DSA-44 basic test verification with transferred signature after call
+Pass	ML-DSA-65 basic test verification with transferred signature after call
+Pass	ML-DSA-87 basic test verification with transferred signature after call
+Fail	ML-DSA-44 basic test with altered plaintext during call
+Fail	ML-DSA-65 basic test with altered plaintext during call
+Fail	ML-DSA-87 basic test with altered plaintext during call
 Pass	ML-DSA-44 basic test with altered plaintext after call
 Pass	ML-DSA-65 basic test with altered plaintext after call
 Pass	ML-DSA-87 basic test with altered plaintext after call
+Fail	ML-DSA-44 basic test with transferred plaintext during call
+Fail	ML-DSA-65 basic test with transferred plaintext during call
+Fail	ML-DSA-87 basic test with transferred plaintext during call
+Pass	ML-DSA-44 basic test with transferred plaintext after call
+Pass	ML-DSA-65 basic test with transferred plaintext after call
+Pass	ML-DSA-87 basic test with transferred plaintext after call
 Pass	ML-DSA-44 basic test using privateKey to verify
 Pass	ML-DSA-65 basic test using privateKey to verify
 Pass	ML-DSA-87 basic test using privateKey to verify

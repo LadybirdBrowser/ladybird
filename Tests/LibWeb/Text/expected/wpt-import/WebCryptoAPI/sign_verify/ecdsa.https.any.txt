@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 253 tests
+Found 325 tests
 
-253 Pass
+277 Pass
+48 Fail
 Pass	setup
 Pass	ECDSA P-256 with SHA-1 verification
 Pass	ECDSA P-256 with SHA-256 verification
@@ -16,6 +17,18 @@ Pass	ECDSA P-521 with SHA-1 verification
 Pass	ECDSA P-521 with SHA-256 verification
 Pass	ECDSA P-521 with SHA-384 verification
 Pass	ECDSA P-521 with SHA-512 verification
+Fail	ECDSA P-256 with SHA-1 verification with altered signature during call
+Fail	ECDSA P-256 with SHA-256 verification with altered signature during call
+Fail	ECDSA P-256 with SHA-384 verification with altered signature during call
+Fail	ECDSA P-256 with SHA-512 verification with altered signature during call
+Fail	ECDSA P-384 with SHA-1 verification with altered signature during call
+Fail	ECDSA P-384 with SHA-256 verification with altered signature during call
+Fail	ECDSA P-384 with SHA-384 verification with altered signature during call
+Fail	ECDSA P-384 with SHA-512 verification with altered signature during call
+Fail	ECDSA P-521 with SHA-1 verification with altered signature during call
+Fail	ECDSA P-521 with SHA-256 verification with altered signature during call
+Fail	ECDSA P-521 with SHA-384 verification with altered signature during call
+Fail	ECDSA P-521 with SHA-512 verification with altered signature during call
 Pass	ECDSA P-256 with SHA-1 verification with altered signature after call
 Pass	ECDSA P-256 with SHA-256 verification with altered signature after call
 Pass	ECDSA P-256 with SHA-384 verification with altered signature after call
@@ -28,6 +41,42 @@ Pass	ECDSA P-521 with SHA-1 verification with altered signature after call
 Pass	ECDSA P-521 with SHA-256 verification with altered signature after call
 Pass	ECDSA P-521 with SHA-384 verification with altered signature after call
 Pass	ECDSA P-521 with SHA-512 verification with altered signature after call
+Fail	ECDSA P-256 with SHA-1 verification with transferred signature during call
+Fail	ECDSA P-256 with SHA-256 verification with transferred signature during call
+Fail	ECDSA P-256 with SHA-384 verification with transferred signature during call
+Fail	ECDSA P-256 with SHA-512 verification with transferred signature during call
+Fail	ECDSA P-384 with SHA-1 verification with transferred signature during call
+Fail	ECDSA P-384 with SHA-256 verification with transferred signature during call
+Fail	ECDSA P-384 with SHA-384 verification with transferred signature during call
+Fail	ECDSA P-384 with SHA-512 verification with transferred signature during call
+Fail	ECDSA P-521 with SHA-1 verification with transferred signature during call
+Fail	ECDSA P-521 with SHA-256 verification with transferred signature during call
+Fail	ECDSA P-521 with SHA-384 verification with transferred signature during call
+Fail	ECDSA P-521 with SHA-512 verification with transferred signature during call
+Pass	ECDSA P-256 with SHA-1 verification with transferred signature after call
+Pass	ECDSA P-256 with SHA-256 verification with transferred signature after call
+Pass	ECDSA P-256 with SHA-384 verification with transferred signature after call
+Pass	ECDSA P-256 with SHA-512 verification with transferred signature after call
+Pass	ECDSA P-384 with SHA-1 verification with transferred signature after call
+Pass	ECDSA P-384 with SHA-256 verification with transferred signature after call
+Pass	ECDSA P-384 with SHA-384 verification with transferred signature after call
+Pass	ECDSA P-384 with SHA-512 verification with transferred signature after call
+Pass	ECDSA P-521 with SHA-1 verification with transferred signature after call
+Pass	ECDSA P-521 with SHA-256 verification with transferred signature after call
+Pass	ECDSA P-521 with SHA-384 verification with transferred signature after call
+Pass	ECDSA P-521 with SHA-512 verification with transferred signature after call
+Fail	ECDSA P-256 with SHA-1 with altered plaintext during call
+Fail	ECDSA P-256 with SHA-256 with altered plaintext during call
+Fail	ECDSA P-256 with SHA-384 with altered plaintext during call
+Fail	ECDSA P-256 with SHA-512 with altered plaintext during call
+Fail	ECDSA P-384 with SHA-1 with altered plaintext during call
+Fail	ECDSA P-384 with SHA-256 with altered plaintext during call
+Fail	ECDSA P-384 with SHA-384 with altered plaintext during call
+Fail	ECDSA P-384 with SHA-512 with altered plaintext during call
+Fail	ECDSA P-521 with SHA-1 with altered plaintext during call
+Fail	ECDSA P-521 with SHA-256 with altered plaintext during call
+Fail	ECDSA P-521 with SHA-384 with altered plaintext during call
+Fail	ECDSA P-521 with SHA-512 with altered plaintext during call
 Pass	ECDSA P-256 with SHA-1 with altered plaintext after call
 Pass	ECDSA P-256 with SHA-256 with altered plaintext after call
 Pass	ECDSA P-256 with SHA-384 with altered plaintext after call
@@ -40,6 +89,30 @@ Pass	ECDSA P-521 with SHA-1 with altered plaintext after call
 Pass	ECDSA P-521 with SHA-256 with altered plaintext after call
 Pass	ECDSA P-521 with SHA-384 with altered plaintext after call
 Pass	ECDSA P-521 with SHA-512 with altered plaintext after call
+Fail	ECDSA P-256 with SHA-1 with transferred plaintext during call
+Fail	ECDSA P-256 with SHA-256 with transferred plaintext during call
+Fail	ECDSA P-256 with SHA-384 with transferred plaintext during call
+Fail	ECDSA P-256 with SHA-512 with transferred plaintext during call
+Fail	ECDSA P-384 with SHA-1 with transferred plaintext during call
+Fail	ECDSA P-384 with SHA-256 with transferred plaintext during call
+Fail	ECDSA P-384 with SHA-384 with transferred plaintext during call
+Fail	ECDSA P-384 with SHA-512 with transferred plaintext during call
+Fail	ECDSA P-521 with SHA-1 with transferred plaintext during call
+Fail	ECDSA P-521 with SHA-256 with transferred plaintext during call
+Fail	ECDSA P-521 with SHA-384 with transferred plaintext during call
+Fail	ECDSA P-521 with SHA-512 with transferred plaintext during call
+Pass	ECDSA P-256 with SHA-1 with transferred plaintext after call
+Pass	ECDSA P-256 with SHA-256 with transferred plaintext after call
+Pass	ECDSA P-256 with SHA-384 with transferred plaintext after call
+Pass	ECDSA P-256 with SHA-512 with transferred plaintext after call
+Pass	ECDSA P-384 with SHA-1 with transferred plaintext after call
+Pass	ECDSA P-384 with SHA-256 with transferred plaintext after call
+Pass	ECDSA P-384 with SHA-384 with transferred plaintext after call
+Pass	ECDSA P-384 with SHA-512 with transferred plaintext after call
+Pass	ECDSA P-521 with SHA-1 with transferred plaintext after call
+Pass	ECDSA P-521 with SHA-256 with transferred plaintext after call
+Pass	ECDSA P-521 with SHA-384 with transferred plaintext after call
+Pass	ECDSA P-521 with SHA-512 with transferred plaintext after call
 Pass	ECDSA P-256 with SHA-1 using privateKey to verify
 Pass	ECDSA P-256 with SHA-256 using privateKey to verify
 Pass	ECDSA P-256 with SHA-384 using privateKey to verify
