@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/svg-nested-viewport-positioning-ref.html" />
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 256 256">
+    <rect x="0" y="0" width="256" height="256" fill="red" />
+    <svg x="0" y="0" viewBox="0 0 256 256">
+        <rect x="0" y="0" width="256" height="256" fill="lime" />
+        <circle cx="128" cy="128" r="32" fill="blue" />
+    </svg>
+</svg>
