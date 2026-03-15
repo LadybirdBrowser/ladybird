@@ -36,8 +36,8 @@ MediaControls::MediaControls(HTMLMediaElement& media_element)
 MediaControls::~MediaControls()
 {
     remove_event_listeners();
-    if (auto media_element = m_media_element.ptr())
-        media_element->set_shadow_root(nullptr);
+    if (m_media_element)
+        m_media_element->set_shadow_root(nullptr);
 }
 
 void MediaControls::create_shadow_tree()
@@ -136,6 +136,7 @@ void MediaControls::set_up_event_listeners()
 {
     auto& media_element = *m_media_element;
     auto& realm = media_element.realm();
+    auto& window = as<HTML::Window>(realm.global_object());
 
     // Media element state events
     add_event_listener(realm, media_element, HTML::EventNames::play, [this]() {
@@ -234,7 +235,7 @@ void MediaControls::set_up_event_listeners()
         set_current_time(*position);
 
         auto& realm = m_media_element->realm();
-        auto& window = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+        auto& window = as<HTML::Window>(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -305,7 +306,7 @@ void MediaControls::set_up_event_listeners()
         set_volume(*volume);
 
         auto& realm = m_media_element->realm();
-        auto& window = static_cast<HTML::Window&>(relevant_global_object(*m_media_element));
+        auto& window = as<HTML::Window>(realm.global_object());
 
         auto mousemove_listener = add_event_listener(realm, window, UIEvents::EventNames::mousemove, [this](UIEvents::MouseEvent const& event) {
             VERIFY(m_media_element);
@@ -408,6 +409,21 @@ void MediaControls::set_up_event_listeners()
 
         return true;
     });
+
+    // Use requestAnimationFrame to update the timeline, since timeupdate only fires every 250ms.
+    auto request_animation_frame_callback_function = JS::NativeFunction::create(
+        realm, [this](JS::VM&) {
+            update_timeline();
+
+            auto& realm = m_media_element->realm();
+            auto& window = as<HTML::Window>(realm.global_object());
+            window.request_animation_frame(*m_request_animation_frame_callback);
+
+            return JS::js_undefined();
+        },
+        0, Utf16FlyString {}, &realm);
+    m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
+    window.request_animation_frame(*m_request_animation_frame_callback);
 }
 
 void MediaControls::toggle_playback()
@@ -471,7 +487,11 @@ void MediaControls::update_timeline()
     if (!isnan(duration) && duration > 0.0)
         percentage = (m_media_element->current_time() / duration) * 100.0;
 
+    if (m_last_timeline_percentage == percentage)
+        return;
+
     MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
+    m_last_timeline_percentage = percentage;
 }
 
 void MediaControls::update_timestamp()
