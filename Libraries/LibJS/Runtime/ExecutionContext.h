@@ -62,6 +62,15 @@ public:
     // FIXME: Move this out of LibJS (e.g. by using the CustomData concept), as it's used exclusively by LibWeb.
     u32 skip_when_determining_incumbent_counter { 0 };
 
+    // Non-standard: Used by generators/async generators to communicate yield/await
+    // state back to the caller without allocating a GC cell.
+    // UINT32_MAX means "no continuation" (generator is done).
+    static constexpr u32 no_yield_continuation = UINT32_MAX;
+    u32 yield_continuation { no_yield_continuation };
+
+    bool yield_is_await { false };
+    bool caller_is_construct { false };
+
     Optional<Value> this_value;
 
     GC::Ptr<Bytecode::Executable> executable;
@@ -110,7 +119,6 @@ public:
     u32 passed_argument_count { 0 };
     u32 caller_return_pc { 0 };
     u32 caller_dst_raw { 0 };
-    bool caller_is_construct { false };
 
 private:
     friend class Bytecode::Interpreter;

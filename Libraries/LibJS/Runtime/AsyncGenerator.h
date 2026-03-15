@@ -28,7 +28,7 @@ public:
         Completed,
     };
 
-    static GC::Ref<AsyncGenerator> create(Realm&, Value, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>>, NonnullOwnPtr<ExecutionContext>);
+    static GC::Ref<AsyncGenerator> create(Realm&, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>>, NonnullOwnPtr<ExecutionContext>);
 
     virtual ~AsyncGenerator() override;
 
@@ -44,7 +44,7 @@ public:
     Optional<String> const& generator_brand() const { return m_generator_brand; }
 
 private:
-    AsyncGenerator(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, GC::Ref<Bytecode::Executable>, Value);
+    AsyncGenerator(Realm&, Object* prototype, NonnullOwnPtr<ExecutionContext>, GC::Ref<Bytecode::Executable>);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -59,7 +59,7 @@ private:
     Optional<String> m_generator_brand;                        // [[GeneratorBrand]]
 
     GC::Ref<Bytecode::Executable> m_generating_executable;
-    Value m_previous_value;
+    u32 m_yield_continuation { ExecutionContext::no_yield_continuation };
     GC::Ptr<Promise> m_current_promise;
 };
 

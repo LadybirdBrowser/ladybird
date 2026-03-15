@@ -34,9 +34,9 @@ public:
     ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);
     ThrowCompletionOr<Value> run(SourceTextModule&);
 
-    ThrowCompletionOr<Value> run_executable(ExecutionContext&, Executable&, Optional<size_t> entry_point);
+    ThrowCompletionOr<Value> run_executable(ExecutionContext&, Executable&, u32 entry_point = 0);
 
-    ThrowCompletionOr<Value> run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point, Value initial_accumulator_value)
+    ThrowCompletionOr<Value> run_executable(ExecutionContext& context, Executable& executable, u32 entry_point, Value initial_accumulator_value)
     {
         context.registers_and_constants_and_locals_and_arguments_span()[0] = initial_accumulator_value;
         return run_executable(context, executable, entry_point);
