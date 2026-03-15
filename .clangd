@@ -4,3 +4,6 @@ CompileFlags:
 Diagnostics:
   UnusedIncludes: None
   MissingIncludes: None
+
+Style:
+  AngledHeaders: ["AK/.*", "Lib.*"]
