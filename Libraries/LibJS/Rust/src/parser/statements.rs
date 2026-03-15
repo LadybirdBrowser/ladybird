@@ -18,7 +18,7 @@ enum LocalForInit {
     Expression(Expression),
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_statement(&mut self, allow_labelled_function: bool) -> Statement {
         let start = self.position();
         let tt = self.current_token_type();
@@ -110,8 +110,7 @@ impl<'a> Parser<'a> {
         } else if self.match_token(TokenType::Function) || self.match_token(TokenType::Class) {
             let name = self.current_token.token_type.name();
             self.syntax_error(&format!(
-                "{} declaration not allowed in single-statement context",
-                name
+                "{name} declaration not allowed in single-statement context"
             ));
         } else if self.match_token(TokenType::Let)
             && self.next_token().token_type == TokenType::BracketOpen
@@ -189,7 +188,7 @@ impl<'a> Parser<'a> {
 
             if !self.labels_in_scope.contains_key(label_value.as_slice()) {
                 let label_str = String::from_utf16_lossy(&label_value);
-                self.syntax_error(&format!("Label '{}' not found", label_str));
+                self.syntax_error(&format!("Label '{label_str}' not found"));
             }
 
             self.consume_or_insert_semicolon();
@@ -238,7 +237,7 @@ impl<'a> Parser<'a> {
                 *entry = Some((label_line, label_col));
             } else {
                 let label_str = String::from_utf16_lossy(&label_value);
-                self.syntax_error(&format!("Label '{}' not found or invalid", label_str));
+                self.syntax_error(&format!("Label '{label_str}' not found or invalid"));
             }
 
             Some(label_value)
@@ -820,7 +819,7 @@ impl<'a> Parser<'a> {
 
         if self.labels_in_scope.contains_key(label.as_slice()) {
             let label_str = String::from_utf16_lossy(&label);
-            self.syntax_error(&format!("Label '{}' has already been declared", label_str));
+            self.syntax_error(&format!("Label '{label_str}' has already been declared"));
         }
 
         if self.match_token(TokenType::Function)
@@ -943,15 +942,12 @@ impl<'a> Parser<'a> {
             LocalForInit::Expression(expression) => {
                 if Self::is_array_expression(&expression) || Self::is_object_expression(&expression)
                 {
-                    match self.synthesize_binding_pattern(init_start) {
-                        Some(pattern) => {
-                            for (name, id) in self.pattern_bound_names.drain(..) {
-                                self.scope_collector.register_identifier(id, &name, None);
-                            }
-                            ForInOfLhs::Pattern(pattern)
-                        }
-                        _ => ForInOfLhs::Expression(Box::new(expression)),
+                    let pattern = self.synthesize_binding_pattern(init_start);
+
+                    for (name, id) in self.pattern_bound_names.drain(..) {
+                        self.scope_collector.register_identifier(id, &name, None);
                     }
+                    ForInOfLhs::Pattern(pattern)
                 } else {
                     ForInOfLhs::Expression(Box::new(expression))
                 }

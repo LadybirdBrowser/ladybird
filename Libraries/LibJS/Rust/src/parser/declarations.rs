@@ -84,7 +84,7 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn parse_declaration(&mut self) -> Statement {
         if self.match_token(TokenType::Async) {
             let next = self.next_token();
@@ -416,7 +416,7 @@ impl<'a> Parser<'a> {
         self.scope_collector.set_is_function_declaration();
 
         let fd = self.parse_function_common(
-            &name,
+            name,
             &fn_name,
             kind,
             is_async,
@@ -486,7 +486,7 @@ impl<'a> Parser<'a> {
         self.scope_collector.open_function_scope(fn_name_for_scope);
 
         let fd = self.parse_function_common(
-            &name,
+            name,
             &fn_name_value,
             kind,
             is_async,
@@ -503,7 +503,7 @@ impl<'a> Parser<'a> {
     #[allow(clippy::too_many_arguments)]
     fn parse_function_common(
         &mut self,
-        name: &Option<Rc<Identifier>>,
+        name: Option<Rc<Identifier>>,
         fn_name: &[u16],
         kind: FunctionKind,
         is_async: bool,
@@ -518,8 +518,7 @@ impl<'a> Parser<'a> {
             {
                 let name_str = String::from_utf16_lossy(fn_name);
                 self.syntax_error(&format!(
-                    "async generator function is not allowed to be called '{}'",
-                    name_str
+                    "async generator function is not allowed to be called '{name_str}'"
                 ));
             }
             if self.flags.in_class_static_init_block && fn_name == utf16!("await") {
@@ -566,7 +565,7 @@ impl<'a> Parser<'a> {
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
 
         FunctionData {
-            name: name.clone(),
+            name,
             source_text_start: start.offset,
             source_text_end: self.source_text_end_offset(),
             body: Box::new(body),
@@ -687,8 +686,7 @@ impl<'a> Parser<'a> {
             } else {
                 let name_str = String::from_utf16_lossy(&name);
                 self.syntax_error(&format!(
-                    "Reference to undeclared private field or method '{}'",
-                    name_str
+                    "Reference to undeclared private field or method '{name_str}'"
                 ));
             }
         }
@@ -1037,8 +1035,7 @@ impl<'a> Parser<'a> {
                     if is_error {
                         let name_str = String::from_utf16_lossy(name);
                         self.syntax_error(&format!(
-                            "Duplicate private field or method named '{}'",
-                            name_str
+                            "Duplicate private field or method named '{name_str}'"
                         ));
                     }
                 }
@@ -1049,8 +1046,7 @@ impl<'a> Parser<'a> {
             {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate private field or method named '{}'",
-                    name_str
+                    "Duplicate private field or method named '{name_str}'"
                 ));
             }
         }
@@ -1301,17 +1297,15 @@ impl<'a> Parser<'a> {
                     if self.flags.strict_mode {
                         let name_str = String::from_utf16_lossy(&value);
                         self.syntax_error(&format!(
-                            "Duplicate parameter '{}' not allowed in strict mode",
-                            name_str
+                            "Duplicate parameter '{name_str}' not allowed in strict mode"
                         ));
                     } else if has_seen_default {
                         let name_str = String::from_utf16_lossy(&value);
-                        self.syntax_error(&format!("Duplicate parameter '{}' not allowed in function with default parameter", name_str));
+                        self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed in function with default parameter"));
                     } else if has_seen_rest {
                         let name_str = String::from_utf16_lossy(&value);
                         self.syntax_error(&format!(
-                            "Duplicate parameter '{}' not allowed in function with rest parameter",
-                            name_str
+                            "Duplicate parameter '{name_str}' not allowed in function with rest parameter"
                         ));
                     }
                 }
@@ -1562,12 +1556,9 @@ impl<'a> Parser<'a> {
                             if Self::is_object_expression(&expression)
                                 || Self::is_array_expression(&expression)
                             {
-                                if let Some(pattern) =
-                                    self.synthesize_binding_pattern(expression_start)
-                                {
-                                    entry_alias =
-                                        Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                                }
+                                let pattern = self.synthesize_binding_pattern(expression_start);
+                                entry_alias =
+                                    Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                             } else if Self::is_member_expression(&expression) {
                                 entry_alias =
                                     Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
@@ -1620,9 +1611,8 @@ impl<'a> Parser<'a> {
                 );
                 if Self::is_object_expression(&expression) || Self::is_array_expression(&expression)
                 {
-                    if let Some(pattern) = self.synthesize_binding_pattern(expression_start) {
-                        entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
-                    }
+                    let pattern = self.synthesize_binding_pattern(expression_start);
+                    entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                 } else if Self::is_member_expression(&expression) {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                 } else if Self::is_identifier(&expression) {

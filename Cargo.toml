@@ -16,3 +16,19 @@ inherits = "release"
 incremental = false
 codegen-units = 1
 lto = true
+
+[workspace.lints.clippy]
+all = "deny" # includes lintgroups: correctness, suspicious, style, complexity, perf
+# from clippy:nursery:
+redundant_clone = "deny"
+# from clippy:pedantic:
+uninlined_format_args = "deny"
+semicolon_if_nothing_returned = "deny"
+manual_let_else = "deny"
+unnecessary_wraps = "deny"
+manual_assert = "deny"
+ref_option = "deny"
+elidable_lifetime_names = "deny"
+unnested_or_patterns = "deny"
+borrow_as_ptr = "deny"
+explicit_iter_loop = "deny"

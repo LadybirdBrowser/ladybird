@@ -1308,7 +1308,7 @@ impl Generator {
                         OperandType::Register => {} // stays as-is
                         OperandType::Local => op.offset_index_by(number_of_registers),
                         OperandType::Constant => {
-                            op.offset_index_by(number_of_registers + number_of_locals)
+                            op.offset_index_by(number_of_registers + number_of_locals);
                         }
                         OperandType::Argument => op.offset_index_by(
                             number_of_registers + number_of_locals + number_of_constants,
@@ -1432,7 +1432,7 @@ impl Generator {
             block_offsets.push(offset);
             let block = &self.basic_blocks[block_index];
             let mut block_actions = Vec::with_capacity(block.instructions.len());
-            for (instruction, _) in block.instructions.iter() {
+            for (instruction, _) in &block.instructions {
                 match instruction {
                     Instruction::Jump { target } => {
                         let target_block = target.0 as usize;

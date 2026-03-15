@@ -92,9 +92,9 @@ fn print_node(state: &DumpState, text: &str) {
         }
     };
     if let Some(output) = state.output {
-        let _ = writeln!(output.borrow_mut(), "{}", line);
+        let _ = writeln!(output.borrow_mut(), "{line}");
     } else {
-        println!("{}", line);
+        println!("{line}");
     }
 }
 
@@ -139,14 +139,14 @@ fn color_node_name(state: &DumpState, name: &str) -> String {
     if !state.use_color {
         return name.to_string();
     }
-    format!("{}{}{}", WHITE_BOLD, name, RESET)
+    format!("{WHITE_BOLD}{name}{RESET}")
 }
 
 fn color_string(state: &DumpState, value: &str) -> String {
     if !state.use_color {
-        return format!("\"{}\"", value);
+        return format!("\"{value}\"");
     }
-    format!("{}\"{}\"{}", GREEN, value, RESET)
+    format!("{GREEN}\"{value}\"{RESET}")
 }
 
 fn color_string_utf16(state: &DumpState, value: &[u16]) -> String {
@@ -159,7 +159,7 @@ fn color_number_f64(state: &DumpState, value: f64) -> String {
     if !state.use_color {
         return s;
     }
-    format!("{}{}{}", MAGENTA, s, RESET)
+    format!("{MAGENTA}{s}{RESET}")
 }
 
 fn color_number_bool(state: &DumpState, value: bool) -> String {
@@ -167,49 +167,49 @@ fn color_number_bool(state: &DumpState, value: bool) -> String {
     if !state.use_color {
         return s.to_string();
     }
-    format!("{}{}{}", MAGENTA, s, RESET)
+    format!("{MAGENTA}{s}{RESET}")
 }
 
 fn color_number_str(state: &DumpState, value: &str) -> String {
     if !state.use_color {
         return value.to_string();
     }
-    format!("{}{}{}", MAGENTA, value, RESET)
+    format!("{MAGENTA}{value}{RESET}")
 }
 
 fn color_op(state: &DumpState, op: &str) -> String {
     if !state.use_color {
-        return format!("({})", op);
+        return format!("({op})");
     }
-    format!("({}{}{})", YELLOW, op, RESET)
+    format!("({YELLOW}{op}{RESET})")
 }
 
 fn color_label(state: &DumpState, label: &str) -> String {
     if !state.use_color {
         return label.to_string();
     }
-    format!("{}{}{}", DIM, label, RESET)
+    format!("{DIM}{label}{RESET}")
 }
 
 fn color_local(state: &DumpState, kind: &str, index: u32) -> String {
     if !state.use_color {
-        return format!("[{}:{}]", kind, index);
+        return format!("[{kind}:{index}]");
     }
-    format!("{}[{}:{}]{}", CYAN, kind, index, RESET)
+    format!("{CYAN}[{kind}:{index}]{RESET}")
 }
 
 fn color_global(state: &DumpState) -> String {
     if !state.use_color {
         return "[global]".to_string();
     }
-    format!("{}[global]{}", YELLOW, RESET)
+    format!("{YELLOW}[global]{RESET}")
 }
 
 fn color_flag(state: &DumpState, flag: &str) -> String {
     if !state.use_color {
-        return format!("[{}]", flag);
+        return format!("[{flag}]");
     }
-    format!("{}[{}]{}", DIM, flag, RESET)
+    format!("{DIM}[{flag}]{RESET}")
 }
 
 /// Convert UTF-16 to a valid UTF-8 string, replacing lone surrogates with U+FFFD.
@@ -434,10 +434,10 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                 print_node(&init_state, &color_label(state, "init"));
                 match init {
                     ForInit::Expression(expr) => {
-                        dump_expression(expr, &child_state(&init_state, true))
+                        dump_expression(expr, &child_state(&init_state, true));
                     }
                     ForInit::Declaration(decl) => {
-                        dump_statement(decl, &child_state(&init_state, true))
+                        dump_statement(decl, &child_state(&init_state, true));
                     }
                 }
             }
@@ -602,7 +602,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                     let local_name = utf16_to_string(&entry.local_name);
                     print_node(
                         &child_state(state, i == data.entries.len() - 1),
-                        &format!("ImportName: {}, LocalName: {}", import_name, local_name),
+                        &format!("ImportName: {import_name}, LocalName: {local_name}"),
                     );
                 }
             }
@@ -635,8 +635,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                             None => "null".to_string(),
                         }
                     };
-                    let mut desc =
-                        format!("ExportName: {}, LocalName: {}", export_name, local_name);
+                    let mut desc = format!("ExportName: {export_name}, LocalName: {local_name}");
                     if let Some(ref module_request) = data.module_request {
                         desc.push_str(&format!(
                             ", ModuleRequest: {}{}",

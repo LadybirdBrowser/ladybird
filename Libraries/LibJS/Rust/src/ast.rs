@@ -82,13 +82,12 @@ impl FunctionTable {
     /// Panics if the slot was already taken.
     pub fn take(&mut self, id: FunctionId) -> Box<FunctionData> {
         let idx = id.0 as usize;
-        if idx >= self.0.len() {
-            panic!(
-                "FunctionTable::take: index {} out of bounds (table len {})",
-                idx,
-                self.0.len()
-            );
-        }
+        assert!(
+            idx < self.0.len(),
+            "FunctionTable::take: index {} out of bounds (table len {})",
+            idx,
+            self.0.len()
+        );
         self.0[idx]
             .take()
             .expect("FunctionTable::take: slot already taken")
@@ -446,10 +445,10 @@ impl FunctionTable {
             if let Some(ref alias) = entry.alias {
                 match alias {
                     BindingEntryAlias::BindingPattern(sub) => {
-                        self.collect_from_pattern(sub, result)
+                        self.collect_from_pattern(sub, result);
                     }
                     BindingEntryAlias::MemberExpression(expr) => {
-                        self.collect_from_expression(expr, result)
+                        self.collect_from_expression(expr, result);
                     }
                     BindingEntryAlias::Identifier(_) => {}
                 }

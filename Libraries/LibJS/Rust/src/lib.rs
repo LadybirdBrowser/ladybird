@@ -870,16 +870,16 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                 let mut validate_src: Vec<u16> = Vec::new();
                 match kind {
                     ast::FunctionKind::Generator => {
-                        validate_src.extend_from_slice(utf16!("function* test("))
+                        validate_src.extend_from_slice(utf16!("function* test("));
                     }
                     ast::FunctionKind::Async => {
-                        validate_src.extend_from_slice(utf16!("async function test("))
+                        validate_src.extend_from_slice(utf16!("async function test("));
                     }
                     ast::FunctionKind::AsyncGenerator => {
-                        validate_src.extend_from_slice(utf16!("async function* test("))
+                        validate_src.extend_from_slice(utf16!("async function* test("));
                     }
                     ast::FunctionKind::Normal => {
-                        validate_src.extend_from_slice(utf16!("function test("))
+                        validate_src.extend_from_slice(utf16!("function test("));
                     }
                 }
                 validate_src.extend_from_slice(parameters_slice);
@@ -1292,8 +1292,8 @@ unsafe fn call_export_callback(
     callback: ModuleExportEntryCallback,
     ctx: *mut c_void,
     kind: u8,
-    export_name: &Option<ast::Utf16String>,
-    local_or_import_name: &Option<ast::Utf16String>,
+    export_name: Option<&ast::Utf16String>,
+    local_or_import_name: Option<&ast::Utf16String>,
     module_request: Option<&ast::ModuleRequest>,
 ) {
     unsafe {
@@ -1456,9 +1456,7 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
 
         // Process export entries (matching SourceTextModule::parse steps 9-10).
         for child in &scope.children {
-            let export_data = if let StatementKind::Export(ref data) = child.inner {
-                data
-            } else {
+            let StatementKind::Export(ref export_data) = child.inner else {
                 continue;
             };
 
@@ -1499,8 +1497,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                                 cb.push_local_export,
                                 ctx,
                                 entry.kind as u8,
-                                &entry.export_name,
-                                &entry.local_or_import_name,
+                                entry.export_name.as_ref(),
+                                entry.local_or_import_name.as_ref(),
                                 None,
                             );
                         } else {
@@ -1509,8 +1507,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                                 cb.push_indirect_export,
                                 ctx,
                                 ExportEntryKind::NamedExport as u8,
-                                &entry.export_name,
-                                &import_entry.import_name,
+                                entry.export_name.as_ref(),
+                                import_entry.import_name.as_ref(),
                                 Some(&import_entry.module_request),
                             );
                         }
@@ -1520,8 +1518,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                             cb.push_local_export,
                             ctx,
                             entry.kind as u8,
-                            &entry.export_name,
-                            &entry.local_or_import_name,
+                            entry.export_name.as_ref(),
+                            entry.local_or_import_name.as_ref(),
                             None,
                         );
                     }
@@ -1531,8 +1529,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         cb.push_star_export,
                         ctx,
                         entry.kind as u8,
-                        &entry.export_name,
-                        &entry.local_or_import_name,
+                        entry.export_name.as_ref(),
+                        entry.local_or_import_name.as_ref(),
                         export_data.module_request.as_ref(),
                     );
                 } else {
@@ -1541,8 +1539,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                         cb.push_indirect_export,
                         ctx,
                         entry.kind as u8,
-                        &entry.export_name,
-                        &entry.local_or_import_name,
+                        entry.export_name.as_ref(),
+                        entry.local_or_import_name.as_ref(),
                         export_data.module_request.as_ref(),
                     );
                 }
@@ -1994,7 +1992,7 @@ unsafe fn extract_eval_gdi(
             &mut |name| eval_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
             &mut |name| eval_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
             &mut |name, is_const| {
-                eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+                eval_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const);
             },
             function_table,
         );
@@ -2057,7 +2055,7 @@ unsafe fn extract_script_gdi(
             &mut |name| script_gdi_push_var_scoped_name(ctx, name.as_ptr(), name.len()),
             &mut |name| script_gdi_push_annex_b_name(ctx, name.as_ptr(), name.len()),
             &mut |name, is_const| {
-                script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const)
+                script_gdi_push_lexical_binding(ctx, name.as_ptr(), name.len(), is_const);
             },
             function_table,
         );

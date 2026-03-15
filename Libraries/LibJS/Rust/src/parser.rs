@@ -488,8 +488,7 @@ impl<'a> Parser<'a> {
             if is_strict_reserved_word(value) {
                 let name = String::from_utf16_lossy(value);
                 self.syntax_error(&format!(
-                    "Identifier must not be a reserved word in strict mode ('{}')",
-                    name
+                    "Identifier must not be a reserved word in strict mode ('{name}')"
                 ));
             }
         }
@@ -656,8 +655,7 @@ impl<'a> Parser<'a> {
         if !self.register_referenced_private_name(&value) {
             let name = String::from_utf16_lossy(&value);
             self.syntax_error(&format!(
-                "Reference to undeclared private field or method '{}'",
-                name
+                "Reference to undeclared private field or method '{name}'"
             ));
         }
         let token = self.consume();
@@ -851,8 +849,7 @@ impl<'a> Parser<'a> {
             } else if is_strict_reserved_word(name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Identifier must not be a reserved word in strict mode ('{}')",
-                    name_str
+                    "Identifier must not be a reserved word in strict mode ('{name_str}')"
                 ));
             }
         }
@@ -870,8 +867,7 @@ impl<'a> Parser<'a> {
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate parameter '{}' not allowed in arrow function",
-                    name_str
+                    "Duplicate parameter '{name_str}' not allowed in arrow function"
                 ));
             }
         }
@@ -895,8 +891,7 @@ impl<'a> Parser<'a> {
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
-                    "Duplicate parameter '{}' not allowed in strict mode",
-                    name_str
+                    "Duplicate parameter '{name_str}' not allowed in strict mode"
                 ));
             }
         }
@@ -929,7 +924,7 @@ impl<'a> Parser<'a> {
 
     /// Re-parse the source range starting at `start` as a binding pattern
     /// with member expressions allowed (for destructuring assignment patterns).
-    pub(crate) fn synthesize_binding_pattern(&mut self, start: Position) -> Option<BindingPattern> {
+    pub(crate) fn synthesize_binding_pattern(&mut self, start: Position) -> BindingPattern {
         // Clear any syntax errors that occurred in the range of the expression
         // being reinterpreted as a binding pattern. This matches C++'s behavior
         // where errors like duplicate __proto__ in object literals are cleared
@@ -957,7 +952,7 @@ impl<'a> Parser<'a> {
         self.current_token = saved_token;
         self.allow_member_expressions = saved_allow;
 
-        Some(pattern)
+        pattern
     }
 
     // https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype

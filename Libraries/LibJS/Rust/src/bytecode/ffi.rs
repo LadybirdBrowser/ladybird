@@ -367,7 +367,7 @@ pub unsafe fn create_shared_function_data(
             uses_this_from_environment,
         };
 
-        let sfd_ptr = rust_create_sfd(vm_ptr, source_code_ptr, &ffi_data);
+        let sfd_ptr = rust_create_sfd(vm_ptr, source_code_ptr, &raw const ffi_data);
 
         assert!(
             !sfd_ptr.is_null(),
@@ -561,7 +561,7 @@ pub unsafe fn create_executable(
             regex_count: generator.compiled_regexes.len(),
         };
 
-        rust_create_executable(vm_ptr, source_code_ptr, &ffi_data)
+        rust_create_executable(vm_ptr, source_code_ptr, &raw const ffi_data)
     }
 }
 
@@ -585,7 +585,7 @@ pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Stri
             pattern.len(),
             flags.as_ptr(),
             flags.len(),
-            &mut error,
+            &raw mut error,
         );
         if error.is_null() {
             Ok(handle)

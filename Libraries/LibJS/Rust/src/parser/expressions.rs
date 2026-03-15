@@ -26,7 +26,7 @@ enum EscapeMode {
     StringLiteral,
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     pub(crate) fn match_expression(&mut self) -> bool {
         match self.current_token_type() {
             TokenType::BoolLiteral
@@ -813,36 +813,29 @@ impl<'a> Parser<'a> {
                     // lhs_start. When the expression is parenthesized (e.g.
                     // `([a,b]) = ...`), lhs_start points to `(` but we need
                     // to re-lex from `[` to correctly synthesize the pattern.
-                    match self.synthesize_binding_pattern(lhs.range.start) {
-                        Some(binding_pattern) => {
-                            // Register synthesized identifiers with the scope collector so
-                            // they get resolved as locals during analyze().
-                            for (name, id) in self.pattern_bound_names.drain(..) {
-                                self.scope_collector.register_identifier(id, &name, None);
-                            }
-                            self.pattern_bound_names = saved_bound_names;
-                            self.consume();
-                            let rhs = self.parse_expression(
-                                min_precedence,
-                                Associativity::Right,
-                                forbidden,
-                            );
-                            return (
-                                self.expression(
-                                    start,
-                                    ExpressionKind::Assignment {
-                                        op,
-                                        lhs: AssignmentLhs::Pattern(binding_pattern),
-                                        rhs: Box::new(rhs),
-                                    },
-                                ),
-                                ForbiddenTokens::none(),
-                            );
-                        }
-                        _ => {
-                            self.pattern_bound_names = saved_bound_names;
-                        }
+
+                    let binding_pattern = self.synthesize_binding_pattern(lhs.range.start);
+
+                    // Register synthesized identifiers with the scope collector so
+                    // they get resolved as locals during analyze().
+                    for (name, id) in self.pattern_bound_names.drain(..) {
+                        self.scope_collector.register_identifier(id, &name, None);
                     }
+                    self.pattern_bound_names = saved_bound_names;
+                    self.consume();
+                    let rhs =
+                        self.parse_expression(min_precedence, Associativity::Right, forbidden);
+                    return (
+                        self.expression(
+                            start,
+                            ExpressionKind::Assignment {
+                                op,
+                                lhs: AssignmentLhs::Pattern(binding_pattern),
+                                rhs: Box::new(rhs),
+                            },
+                        ),
+                        ForbiddenTokens::none(),
+                    );
                 }
                 let allow_call = !matches!(
                     tt,
@@ -1679,7 +1672,7 @@ impl<'a> Parser<'a> {
             // Strict-mode reserved words cannot be used as shorthand properties.
             if self.flags.strict_mode && is_strict_reserved_word(&kv) {
                 let name_str = String::from_utf16_lossy(&kv);
-                self.syntax_error(&format!("'{}' is a reserved keyword", name_str));
+                self.syntax_error(&format!("'{name_str}' is a reserved keyword"));
             }
             let id = self.make_identifier(obj_start, kv);
             self.scope_collector
@@ -1970,7 +1963,7 @@ impl<'a> Parser<'a> {
                         ),
                         // C++ uses rule_start (template literal start) for NullLiteral.
                         None => {
-                            expressions.push(self.expression(start, ExpressionKind::NullLiteral))
+                            expressions.push(self.expression(start, ExpressionKind::NullLiteral));
                         }
                     }
                 } else {
@@ -2211,7 +2204,7 @@ fn process_escape_sequences_impl(input: &[u16], mode: EscapeMode) -> EscapeResul
     }
 }
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Try to parse an arrow function expression, with memoization.
     /// If a previous attempt at this position already failed, returns `None`
     /// immediately. Otherwise attempts the parse and caches the failure.

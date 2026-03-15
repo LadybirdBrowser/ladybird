@@ -119,7 +119,9 @@ fn generate_expression_inner(
         }
 
         // === Identifiers ===
-        ExpressionKind::Identifier(ident) => generate_identifier(ident, generator, preferred_dst),
+        ExpressionKind::Identifier(ident) => {
+            Some(generate_identifier(ident, generator, preferred_dst))
+        }
 
         // === This ===
         ExpressionKind::This => {
@@ -166,14 +168,18 @@ fn generate_expression_inner(
         }
 
         // === Function expressions ===
-        ExpressionKind::Function(function_id) => {
-            generate_function_expression(generator, *function_id, preferred_dst)
-        }
+        ExpressionKind::Function(function_id) => Some(generate_function_expression(
+            generator,
+            *function_id,
+            preferred_dst,
+        )),
 
         // === Array ===
-        ExpressionKind::Array(elements) => {
-            generate_array_expression(generator, elements, preferred_dst)
-        }
+        ExpressionKind::Array(elements) => Some(generate_array_expression(
+            generator,
+            elements,
+            preferred_dst,
+        )),
 
         // === Member access ===
         ExpressionKind::Member {
@@ -204,7 +210,11 @@ fn generate_expression_inner(
         ExpressionKind::Yield {
             argument,
             is_yield_from,
-        } => generate_yield_expression(generator, argument.as_deref(), *is_yield_from),
+        } => Some(generate_yield_expression(
+            generator,
+            argument.as_deref(),
+            *is_yield_from,
+        )),
 
         // === Await ===
         ExpressionKind::Await(inner) => {
@@ -275,10 +285,17 @@ fn generate_expression_inner(
         ExpressionKind::TaggedTemplateLiteral {
             tag,
             template_literal,
-        } => generate_tagged_template_literal(generator, tag, template_literal, preferred_dst),
+        } => Some(generate_tagged_template_literal(
+            generator,
+            tag,
+            template_literal,
+            preferred_dst,
+        )),
 
         // === Object ===
-        ExpressionKind::Object(data) => generate_object_expression(generator, data, preferred_dst),
+        ExpressionKind::Object(data) => {
+            Some(generate_object_expression(generator, data, preferred_dst))
+        }
 
         // === OptionalChain ===
         ExpressionKind::OptionalChain { base, references } => {
@@ -326,7 +343,9 @@ fn generate_expression_inner(
             Some(dst)
         }
 
-        ExpressionKind::Class(data) => generate_class_expression(generator, data, preferred_dst),
+        ExpressionKind::Class(data) => {
+            Some(generate_class_expression(generator, data, preferred_dst))
+        }
 
         ExpressionKind::PrivateIdentifier(_) => {
             // Private identifiers are handled by member access codegen
@@ -544,14 +563,13 @@ fn generate_function_expression(
     generator: &mut Generator,
     function_id: FunctionId,
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     let data = generator.function_table.take(function_id);
     let has_name = data.name.is_some();
-    let mut name_id = None;
 
     // Named function expressions get an intermediate scope so the name
     // is visible inside the function body but not outside.
-    if has_name {
+    let name_id = if has_name {
         let parent = generator
             .lexical_environment_register_stack
             .last()
@@ -580,8 +598,10 @@ fn generate_function_expression(
             is_global: false,
             is_strict: false,
         });
-        name_id = Some(id);
-    }
+        Some(id)
+    } else {
+        None
+    };
 
     let dst = choose_dst(generator, preferred_dst);
     // For anonymous function expressions, use the pending LHS name
@@ -616,14 +636,14 @@ fn generate_function_expression(
 
         generator.end_variable_scope();
     }
-    Some(dst)
+    dst
 }
 
 fn generate_array_expression(
     generator: &mut Generator,
     elements: &[Option<Expression>],
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     // If all elements are constant primitives, emit NewPrimitiveArray.
     if !elements.is_empty()
         && elements.iter().all(|e| match e {
@@ -654,7 +674,7 @@ fn generate_array_expression(
             element_count: u32_from_usize(values.len()),
             elements: values,
         });
-        return Some(dst);
+        return dst;
     }
 
     // Find the first spread element.
@@ -712,7 +732,7 @@ fn generate_array_expression(
         }
     }
 
-    Some(dst)
+    dst
 }
 
 fn generate_member_expression(
@@ -774,7 +794,7 @@ fn generate_yield_expression(
     generator: &mut Generator,
     argument: Option<&Expression>,
     is_yield_from: bool,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     // Match C++ YieldExpression::generate_bytecode: allocate
     // completion registers before evaluating the argument.
     let received_completion = generator.allocate_register();
@@ -788,13 +808,13 @@ fn generate_yield_expression(
     };
 
     if is_yield_from {
-        return Some(generate_yield_from(
+        return generate_yield_from(
             generator,
             value,
             &received_completion,
             &received_completion_type,
             &received_completion_value,
-        ));
+        );
     }
 
     // Match C++ YieldExpression::generate_bytecode: create continuation
@@ -871,7 +891,7 @@ fn generate_yield_expression(
     generator.generate_return(&received_completion_value);
 
     generator.switch_to_basic_block(normal_block);
-    Some(received_completion_value)
+    received_completion_value
 }
 
 /// Generate bytecode for an expression, returning `undefined` if the
@@ -1114,18 +1134,18 @@ pub fn generate_statement(
             // NB: We do NOT mark the local as initialized here, matching C++
             // emit_set_variable(Initialize) behavior. This preserves TDZ checks
             // for subsequent uses of the class name.
-            if let (Some(name_ident), Some(val)) = (&data.name, &value) {
+            if let Some(name_ident) = &data.name {
                 if name_ident.is_local() {
                     let local = generator.resolve_local(
                         name_ident.local_index.get(),
                         name_ident.local_type.get().unwrap(),
                     );
-                    generator.emit_mov(&local, val);
+                    generator.emit_mov(&local, &value);
                 } else {
                     let id = generator.intern_identifier(&name_ident.name);
                     generator.emit(Instruction::InitializeLexicalBinding {
                         identifier: id,
-                        src: val.operand(),
+                        src: value.operand(),
                         cache: EnvironmentCoordinate::empty(),
                     });
                 }
@@ -1868,7 +1888,7 @@ fn generate_identifier(
     ident: &Identifier,
     generator: &mut Generator,
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     if ident.is_local() {
         let local_index = ident.local_index.get();
         let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
@@ -1894,14 +1914,14 @@ fn generate_identifier(
                 src: local.operand(),
             });
         }
-        return Some(local);
+        return local;
     }
 
     // OPTIMIZATION: Generate builtin constants (undefined, NaN, Infinity) directly.
     if ident.is_global.get()
         && let Some(constant) = maybe_generate_builtin_constant(generator, &ident.name)
     {
-        return Some(constant);
+        return constant;
     }
 
     let dst = choose_dst(generator, preferred_dst);
@@ -1928,7 +1948,7 @@ fn generate_identifier(
             cache: EnvironmentCoordinate::empty(),
         });
     }
-    Some(dst)
+    dst
 }
 
 fn maybe_generate_builtin_constant(
@@ -2228,7 +2248,7 @@ fn generate_conditional(
 fn generate_with_completion(
     body: &Statement,
     generator: &mut Generator,
-    completion: &Option<ScopedOperand>,
+    completion: Option<&ScopedOperand>,
     preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
     let saved = generator.current_completion_register.clone();
@@ -2275,9 +2295,9 @@ fn generate_if_statement(
         // if-statements reuse the same register (matching C++).
         let child_dst = completion.as_ref().or(preferred_dst);
         if is_truthy {
-            generate_with_completion(consequent, generator, &completion, child_dst);
+            generate_with_completion(consequent, generator, completion.as_ref(), child_dst);
         } else if let Some(alt) = alternate {
-            generate_with_completion(alt, generator, &completion, child_dst);
+            generate_with_completion(alt, generator, completion.as_ref(), child_dst);
         }
         return completion;
     }
@@ -2370,7 +2390,7 @@ fn generate_while_statement(
     generator.begin_continuable_scope(test_block, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -2413,7 +2433,7 @@ fn generate_do_while_statement(
     generator.begin_continuable_scope(test_block, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -2557,7 +2577,7 @@ fn generate_for_statement(
     generator.begin_continuable_scope(continue_target, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
-    generate_with_completion(body, generator, &completion, preferred_dst);
+    generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
 
     generator.end_breakable_scope();
     generator.end_continuable_scope();
@@ -3468,7 +3488,7 @@ fn generate_update_expression(
     // so we can store back without re-evaluating.
     match &argument.inner {
         ExpressionKind::Identifier(ident) => {
-            let value = generate_identifier(ident, generator, None)?;
+            let value = generate_identifier(ident, generator, None);
             let result = emit_update_op(generator, op, prefixed, &value);
             emit_set_variable(generator, ident, &value);
             Some(result)
@@ -3612,7 +3632,7 @@ fn generate_assignment_expression(
                 }
 
                 // Load LHS value first (needed for both compound and logical assignments).
-                let lhs_val = generate_identifier(ident, generator, None)?;
+                let lhs_val = generate_identifier(ident, generator, None);
                 let lhs_val = generator.copy_if_needed_to_preserve_evaluation_order(&lhs_val);
 
                 let is_logical = matches!(
@@ -4864,7 +4884,7 @@ fn emit_compound_assignment(
                 dst: dst_op,
                 lhs: lhs_op,
                 rhs: rhs_op,
-            })
+            });
         }
         AssignmentOp::AndAssignment
         | AssignmentOp::OrAssignment
@@ -4946,7 +4966,7 @@ fn generate_tagged_template_literal(
     tag: &Expression,
     template_literal: &Expression,
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     // Resolve tag and this_value based on the tag expression type.
     let (tag_reg, this_value) = match &tag.inner {
         ExpressionKind::Member {
@@ -5024,9 +5044,8 @@ fn generate_tagged_template_literal(
 
     // Build template strings for GetTemplateObject.
     // expressions has alternating: string_0, expression_0, string_1, expression_1, ..., string_n
-    let data = match &template_literal.inner {
-        ExpressionKind::TemplateLiteral(d) => d,
-        _ => unreachable!("TaggedTemplateLiteral template must be TemplateLiteral"),
+    let ExpressionKind::TemplateLiteral(data) = &template_literal.inner else {
+        unreachable!("TaggedTemplateLiteral template must be TemplateLiteral");
     };
 
     // Collect cooked strings (even indices). NullLiteral means invalid escape → undefined.
@@ -5080,7 +5099,7 @@ fn generate_tagged_template_literal(
     drop(argument_regs);
     drop(this_op);
 
-    Some(dst)
+    dst
 }
 
 // =============================================================================
@@ -5291,7 +5310,7 @@ fn generate_object_expression(
     generator: &mut Generator,
     properties: &[ObjectProperty],
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     let dst = choose_dst(generator, preferred_dst);
 
     // Determine if this is a simple object literal (all KeyValue with non-computed
@@ -5326,7 +5345,7 @@ fn generate_object_expression(
     });
 
     if properties.is_empty() {
-        return Some(dst);
+        return dst;
     }
 
     for (slot, property) in properties.iter().enumerate() {
@@ -5506,7 +5525,7 @@ fn generate_object_expression(
         });
     }
 
-    Some(dst)
+    dst
 }
 
 /// Emit a property set for an object literal key (static or computed).
@@ -5858,7 +5877,7 @@ fn generate_class_expression(
     generator: &mut Generator,
     data: &ClassData,
     preferred_dst: Option<&ScopedOperand>,
-) -> Option<ScopedOperand> {
+) -> ScopedOperand {
     let has_super = data.super_class.is_some();
     // Always consume pending_lhs_name. Named classes don't use it, but we
     // must clear it to prevent it from leaking to nested expressions.
@@ -6284,7 +6303,7 @@ fn generate_class_expression(
         generator.emit(Instruction::LeavePrivateEnvironment);
     }
 
-    Some(dst)
+    dst
 }
 
 /// Synthesize a default constructor SharedFunctionInstanceData.
@@ -6622,7 +6641,7 @@ fn generate_for_in_statement(
     }
 
     if !generator.is_current_block_terminated() {
-        generate_with_completion(body, generator, &completion, preferred_dst);
+        generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
     }
 
     if needs_lexical_env {
@@ -6869,7 +6888,7 @@ fn generate_for_of_statement_inner(
     }
 
     if !generator.is_current_block_terminated() {
-        generate_with_completion(body, generator, &completion, preferred_dst);
+        generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
     }
 
     // Restore lexical env before continuing
@@ -8102,15 +8121,15 @@ pub fn emit_function_declaration_instantiation(
     }
 
     // Determine if arguments object is needed (from parsing insights).
-    let mut arguments_object_needed = function_data.parsing_insights.might_need_arguments_object;
-
-    if is_arrow
+    let mut arguments_object_needed = if is_arrow
         || parameter_names
             .iter()
             .any(|p| p.name == utf16!("arguments"))
     {
-        arguments_object_needed = false;
-    }
+        false
+    } else {
+        function_data.parsing_insights.might_need_arguments_object
+    };
 
     let function_scope_data = body_scope.function_scope_data.as_ref();
 
@@ -8237,7 +8256,7 @@ pub fn emit_function_declaration_instantiation(
                     match ident.local_type.get() {
                         Some(LocalType::Variable) => generator.mark_local_initialized(local_index),
                         Some(LocalType::Argument) => {
-                            generator.mark_argument_initialized(local_index)
+                            generator.mark_argument_initialized(local_index);
                         }
                         None => {}
                     }
@@ -8875,14 +8894,12 @@ fn try_constant_fold_to_boolean(
 fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Option<bool> {
     // Same type: use strict equality rules.
     match (lhs, rhs) {
-        (ConstantValue::Null, ConstantValue::Null)
-        | (ConstantValue::Null, ConstantValue::Undefined)
-        | (ConstantValue::Undefined, ConstantValue::Null)
-        | (ConstantValue::Undefined, ConstantValue::Undefined) => return Some(true),
-        (ConstantValue::Null, _)
-        | (ConstantValue::Undefined, _)
-        | (_, ConstantValue::Null)
-        | (_, ConstantValue::Undefined) => return Some(false),
+        (
+            ConstantValue::Null | ConstantValue::Undefined,
+            ConstantValue::Null | ConstantValue::Undefined,
+        ) => return Some(true),
+        (ConstantValue::Null | ConstantValue::Undefined, _)
+        | (_, ConstantValue::Null | ConstantValue::Undefined) => return Some(false),
         (ConstantValue::Number(a), ConstantValue::Number(b)) => return Some(a == b),
         (ConstantValue::String(a), ConstantValue::String(b)) => return Some(a == b),
         (ConstantValue::Boolean(a), ConstantValue::Boolean(b)) => return Some(a == b),
@@ -9570,7 +9587,7 @@ fn format_double_for_display(n: f64) -> String {
         return "0".to_string();
     }
     // Get the scientific notation representation to extract the exponent.
-    let e_str = format!("{:e}", n);
+    let e_str = format!("{n:e}");
     if let Some(e_pos) = e_str.find('e') {
         let exp_str = &e_str[e_pos + 1..];
         let displayed_exponent = exp_str.parse::<i32>().unwrap_or(0);
@@ -9579,11 +9596,11 @@ fn format_double_for_display(n: f64) -> String {
         if !(-6..=20).contains(&displayed_exponent) {
             let mantissa_part = &e_str[..e_pos];
             if displayed_exponent < 0 {
-                return format!("{}e{}", mantissa_part, displayed_exponent);
+                return format!("{mantissa_part}e{displayed_exponent}");
             } else {
-                return format!("{}e+{}", mantissa_part, displayed_exponent);
+                return format!("{mantissa_part}e+{displayed_exponent}");
             }
         }
     }
-    format!("{}", n)
+    format!("{n}")
 }

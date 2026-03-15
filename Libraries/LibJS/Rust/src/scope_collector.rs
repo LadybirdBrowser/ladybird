@@ -611,7 +611,7 @@ impl ScopeCollector {
         if scope_level != ScopeLevel::NotTopLevel && scope_level != ScopeLevel::ModuleTopLevel {
             let var = self.records[index].variable(name);
             var.flags |= VarFlags::VAR;
-            var.var_identifier = name_identifier.clone();
+            var.var_identifier = name_identifier;
         } else {
             // Check flags first, then modify. This avoids borrow checker issues
             // since we need to access both variables and functions_to_hoist.
@@ -1245,9 +1245,8 @@ impl ScopeCollector {
     // - arguments object metadata (has_argument_parameter, has_function_named_arguments, etc.)
     fn build_function_scope_data(records: &[ScopeRecord], index: usize) {
         let record = &records[index];
-        let scope_data = match record.scope_data {
-            Some(ref sd) => sd,
-            None => return,
+        let Some(ref scope_data) = record.scope_data else {
+            return;
         };
 
         let has_argument_parameter = record
