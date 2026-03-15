@@ -21,8 +21,6 @@ class WEB_API Storage : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Storage);
 
 public:
-    static constexpr bool OVERRIDES_FINALIZE = true;
-
     // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-type
     enum class Type {
         Local,
@@ -47,7 +45,6 @@ private:
     Storage(JS::Realm&, Type, GC::Ref<StorageAPI::StorageBottle>);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void finalize() override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // ^PlatformObject

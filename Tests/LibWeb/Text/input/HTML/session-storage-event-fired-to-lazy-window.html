@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Verify that a storage event is fired to a window that has not yet accessed
+    // sessionStorage - i.e. its Storage object has not yet been lazily created.
+    // See: https://github.com/whatwg/html/issues/10135
+    asyncTest(async (done) => {
+        const key = 'my-key';
+
+        const eventReceived = Promise.withResolvers();
+        window.onStorageEventReceived = eventReceived.resolve;
+
+        const iframe = document.createElement('iframe');
+        iframe.src = '../../data/session-storage-event-iframe.html';
+        const iframeLoaded = new Promise(resolve => { iframe.onload = resolve; });
+        document.body.appendChild(iframe);
+        await iframeLoaded;
+
+        sessionStorage.setItem(key, 'hello');
+
+        const e = await eventReceived.promise;
+        println(`key: ${key}`);
+        println(`oldValue: ${e.oldValue}`);
+        println(`newValue: ${e.newValue}`);
+        println(`storageArea: ${e.storageAreaString}`);
+
+        sessionStorage.removeItem(key);
+        done();
+    });
+</script>

@@ -21,13 +21,6 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(Storage);
 
-static HashTable<GC::RawRef<Storage>>& all_storages()
-{
-    // FIXME: This needs to be stored at the user agent level.
-    static HashTable<GC::RawRef<Storage>> storages;
-    return storages;
-}
-
 GC::Ref<Storage> Storage::create(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle> storage_bottle)
 {
     return realm.create<Storage>(realm, type, move(storage_bottle));
@@ -48,8 +41,6 @@ Storage::Storage(JS::Realm& realm, Type type, GC::Ref<StorageAPI::StorageBottle>
         .named_property_setter_has_identifier = true,
         .named_property_deleter_has_identifier = true,
     };
-
-    all_storages().set(*this);
 }
 
 Storage::~Storage() = default;
@@ -58,12 +49,6 @@ void Storage::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Storage);
     Base::initialize(realm);
-}
-
-void Storage::finalize()
-{
-    Base::finalize();
-    all_storages().remove(*this);
 }
 
 void Storage::visit_edges(GC::Cell::Visitor& visitor)
@@ -179,6 +164,21 @@ void Storage::reorder()
     // NOTE: This basically means that we're not required to maintain any particular iteration order.
 }
 
+static GC::Ptr<Storage> obtain_storage_for_window(Window& window, Storage::Type type)
+{
+    if (type == Storage::Type::Local) {
+        auto storage = window.local_storage();
+        if (storage.is_exception())
+            return {};
+        return storage.release_value();
+    }
+
+    auto storage = window.session_storage();
+    if (storage.is_exception())
+        return {};
+    return storage.release_value();
+}
+
 // https://html.spec.whatwg.org/multipage/webstorage.html#concept-storage-broadcast
 void Storage::broadcast(Optional<String> const& key, Optional<String> const& old_value, Optional<String> const& new_value)
 {
@@ -193,39 +193,48 @@ void Storage::broadcast(Optional<String> const& key, Optional<String> const& old
 
     // 3. Let remoteStorages be all Storage objects excluding storage whose:
     GC::RootVector<GC::Ref<Storage>> remote_storages(heap());
-    for (auto storage : all_storages()) {
-        if (storage == this)
-            continue;
 
+    // AD-HOC: The specification defines this by iterating over created Storage objects. However, Storage objects are
+    //         created lazily when accessed through window.localStorage or window.sessionStorage. This means that events
+    //         will not be fired to Windows who have not had these properties accessed - which is not expected.
+    //         See: https://github.com/whatwg/html/issues/10135. To solve this, we instead iterate over all active
+    //         windows, and initialize any storage objects as part of this loop.
+    Window::for_each_active([&](auto& window) {
         // * type is storage's type
-        if (storage->type() != type())
-            continue;
+        auto storage = obtain_storage_for_window(window, type());
+        if (!storage)
+            return IterationDecision::Continue;
+
+        // "excluding storage"
+        if (storage == this)
+            return IterationDecision::Continue;
 
         // * relevant settings object's origin is same origin with storage's relevant settings object's origin
-        if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(storage).origin()))
-            continue;
+        if (!relevant_settings_object(*this).origin().is_same_origin(relevant_settings_object(*storage).origin()))
+            return IterationDecision::Continue;
 
         // * and, if type is "session", whose relevant settings object's associated Document's node navigable's traversable navigable
         //   is thisDocument's node navigable's traversable navigable.
         if (type() == Type::Session) {
-            auto& storage_document = *relevant_settings_object(storage).responsible_document();
+            auto& storage_document = *relevant_settings_object(*storage).responsible_document();
 
             // NB: It is possible the remote storage may have not been fully teared down immediately at the point it's
             //     document is made inactive.
             if (!storage_document.navigable())
-                continue;
+                return IterationDecision::Continue;
 
             // NB: It is possible for this storage's document to have lost its navigable if script holds a reference to
             //     the Storage object after its browsing context has navigated to a new document.
             if (!this_document.navigable())
-                continue;
+                return IterationDecision::Continue;
 
             if (storage_document.navigable()->traversable_navigable() != this_document.navigable()->traversable_navigable())
-                continue;
+                return IterationDecision::Continue;
         }
 
-        remote_storages.append(storage);
-    }
+        remote_storages.append(*storage);
+        return IterationDecision::Continue;
+    });
 
     // 4. For each remoteStorage of remoteStorages: queue a global task on the DOM manipulation task source given remoteStorage's relevant
     //    global object to fire an event named storage at remoteStorage's relevant global object, using StorageEvent, with key initialized
