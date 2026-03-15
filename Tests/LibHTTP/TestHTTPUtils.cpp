@@ -172,12 +172,29 @@ TEST_CASE(extract_header_values)
             EXPECT_EQ(result, (Vector<ByteString> {}));
         }
 
-        result = HTTP::Header { header, ",,,"sv }.extract_header_values();
+        // Two commas and some spaces.
+        result = HTTP::Header { header, ",   ,"sv }.extract_header_values();
         if (requires_at_least_one) {
             EXPECT_EQ(result, OptionalNone {});
         } else {
             EXPECT_EQ(result, (Vector<ByteString> {}));
         }
+
+        // Only a comma.
+        result = HTTP::Header { header, ","sv }.extract_header_values();
+        if (requires_at_least_one) {
+            EXPECT_EQ(result, OptionalNone {});
+        } else {
+            EXPECT_EQ(result, (Vector<ByteString> {}));
+        }
+
+        // Empty list element ignored.
+        result = HTTP::Header { header, "foo , ,bar,charlie"sv }.extract_header_values();
+        EXPECT_EQ(result, (Vector<ByteString> { "foo", "bar", "charlie" }));
+
+        // Leading empty list component.
+        result = HTTP::Header { header, ",foo,bar"sv }.extract_header_values();
+        EXPECT_EQ(result, (Vector<ByteString> { "foo", "bar" }));
 
         // Space inside a token is invalid.
         result = HTTP::Header { header, "no no"sv }.extract_header_values();
@@ -203,9 +220,9 @@ TEST_CASE(extract_header_values)
         result = HTTP::Header { header, "bb-8,no no"sv }.extract_header_values();
         EXPECT_EQ(result, OptionalNone {});
 
-        // Whitespace-only item between commas fails.
+        // Whitespace-only item is ignored.
         result = HTTP::Header { header, "bb-8,  ,no"sv }.extract_header_values();
-        EXPECT_EQ(result, OptionalNone {});
+        EXPECT_EQ(result, (Vector<ByteString> { "bb-8", "no" }));
     }
 
     // Other headers: returned as a single-element list regardless of content.

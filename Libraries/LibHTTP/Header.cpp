@@ -24,17 +24,19 @@ Header Header::isomorphic_encode(StringView name, StringView value)
     return { TextCodec::isomorphic_encode(name), TextCodec::isomorphic_encode(value) };
 }
 
+// https://www.rfc-editor.org/rfc/rfc9110.html#name-recipient-requirements
 static Optional<Vector<ByteString>> extract_token_headers(ByteString const& value)
 {
-    auto parts = value.split(',', SplitBehavior::Nothing);
-    for (auto& part : parts) {
-        part = part.trim(HTTP_WHITESPACE, TrimMode::Both);
-        if (part.is_empty())
+    Vector<ByteString> result;
+    for (auto& part : value.split(',', SplitBehavior::Nothing)) {
+        auto trimmed = part.trim(HTTP_WHITESPACE, TrimMode::Both);
+        if (trimmed.is_empty())
+            continue;
+        if (!is_header_name(trimmed))
             return {};
-        if (!is_header_name(part))
-            return {};
+        result.append(move(trimmed));
     }
-    return parts;
+    return result;
 }
 
 // https://fetch.spec.whatwg.org/#extract-header-values
