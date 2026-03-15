@@ -10,6 +10,9 @@ endif()
 # vcpkg flags depend on what linker we are using
 include("Meta/CMake/use_linker.cmake")
 
+# cache directory tag creation
+include("Meta/CMake/cachedir_tag.cmake")
+
 if (APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 14.0)
 endif()
