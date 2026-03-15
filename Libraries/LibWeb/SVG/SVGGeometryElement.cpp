@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGGeometryElementPrototype.h>
 #include <LibWeb/Layout/SVGGeometryBox.h>
@@ -35,7 +36,9 @@ GC::Ptr<Layout::Node> SVGGeometryElement::create_layout_node(GC::Ref<CSS::Comput
 
 float SVGGeometryElement::get_total_length()
 {
-    return 0;
+    auto viewport_size = this->get_viewport_size();
+    auto path = this->get_path(viewport_size);
+    return path.length();
 }
 
 GC::Ref<Geometry::DOMPoint> SVGGeometryElement::get_point_at_length(float distance)
