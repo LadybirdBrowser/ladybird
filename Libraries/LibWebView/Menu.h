@@ -43,6 +43,7 @@ enum class ActionID {
     ViewSource,
 
     OpenInNewTab,
+    OpenInNewWindow,
     CopyURL,
 
     OpenImage,

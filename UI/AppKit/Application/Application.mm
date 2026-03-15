@@ -64,6 +64,12 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     return [[tab web_view] view];
 }
 
+void Application::open_url_in_new_window(URL::URL const& url) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    (void)[delegate createNewTab:url fromTab:nil activateTab:Web::HTML::ActivateTab::Yes];
+}
+
 Optional<ByteString> Application::ask_user_for_download_path(StringView file) const
 {
     auto* panel = [NSSavePanel savePanel];
