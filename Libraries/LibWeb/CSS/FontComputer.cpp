@@ -498,7 +498,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
         default:
             return {};
         }
-        return find_font(Platform::FontPlugin::the().generic_font_name(generic_font));
+        return find_font(Platform::FontPlugin::the().generic_font_name(generic_font, weight, slope));
     };
 
     auto font_list = Gfx::FontCascadeList::create();

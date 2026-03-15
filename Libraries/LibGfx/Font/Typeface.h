@@ -60,10 +60,10 @@ struct FontCacheKey {
 
 class Typeface : public RefCounted<Typeface> {
 public:
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, int ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, int ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, int ttc_index = 0);
-    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, int ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_font_data(NonnullOwnPtr<Gfx::FontData>, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_externally_owned_memory(ReadonlyBytes bytes, u32 ttc_index = 0);
 
     virtual ~Typeface();
 
@@ -88,7 +88,7 @@ protected:
     Typeface();
 
     virtual ReadonlyBytes buffer() const = 0;
-    virtual unsigned ttc_index() const = 0;
+    virtual u32 ttc_index() const = 0;
 
 private:
     OwnPtr<FontData> m_font_data;
