@@ -1,0 +1,58 @@
+Harness status: OK
+
+Found 52 tests
+
+45 Pass
+7 Fail
+Pass	The percentage height calculation quirk, #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, #test { height:50% }<div id=test></div>
+Pass	The percentage height calculation quirk, #test { height:25% }<div id=test></div>
+Pass	The percentage height calculation quirk, #test { height:12.5% }<div id=test></div>
+Pass	The percentage height calculation quirk, #test { height:100% }<div><div id=test></div></div>
+Fail	The percentage height calculation quirk, <img id=test src="{png}" height=100%>
+Fail	The percentage height calculation quirk, <img id=test src="{png}" height=100% border=10>
+Fail	The percentage height calculation quirk, <table id=test height=100%><tr><td></table>
+Pass	The percentage height calculation quirk, #foo { height:100px } #test { height:100% }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #grid { display:grid } #test { height:100% }<div id=foo><div id=grid><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #grid { display:inline-grid } #test { height:100% }<div id=foo><div id=grid><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #flex { display:flex } #test { height:100% }<div id=foo><div id=flex><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #flex { display:inline-flex } #test { height:100% }<div id=foo><div id=flex><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { position:absolute } #test { height:100% }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { position:relative } #test { height:100% }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #test { height:100%; position:absolute }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #test { height:100%; position:fixed }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #test { height:100%; position:relative }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, #foo { height:100px } #test { height:calc(100% + 1px) }<div id=foo><div id=test></div></div>
+Fail	The percentage height calculation quirk, #foo { height:100px } #test { height:5px; height:calc(100% + 1px) }<div id=foo><div><div id=test></div></div></div>
+Pass	The percentage height calculation quirk, html { display:inline } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { margin:10px } body { display:inline } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { margin:0 } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { margin:0; padding:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { margin:0; border:10px solid } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { margin:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { padding:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { border:10px solid } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { position:absolute } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { position:absolute } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { height:100%; margin:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { height:100%; padding:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { height:100%; border:10px solid } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { height:100%; margin:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { height:100%; padding:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { height:100%; border:10px solid } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { position:absolute; height:100%; margin:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { position:absolute; height:100%; padding:10px } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html { position:absolute; height:100%; border:10px solid } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { margin:99px 0 } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, body { margin:110px 0 } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html, body { border:10px none } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, html, body { border:10px hidden } #test { height:100% }<div id=test></div>
+Pass	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></html>
+Pass	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><body/><div id="test"/></html>
+Fail	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><span><body><div id="test"/></body></span></html>
+Fail	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><body><body><div id="test"/></body></body></html>
+Pass	The percentage height calculation quirk, <html><head xmlns="{html}"><style>#test { height:100% }</style></head><body xmlns="{html}"><div id="test"/></body></html>
+Pass	The percentage height calculation quirk, <div xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></div>
+Fail	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><body xmlns=""><div xmlns="{html}" id="test"/></body></html>
+Pass	The percentage height calculation quirk, <HTML xmlns="{html}"><head><style>#test { height:100% }</style></head><body><div id="test"/></body></HTML>
+Pass	The percentage height calculation quirk, <html xmlns="{html}"><head><style>#test { height:100% }</style></head><BODY><div id="test"/></BODY></html>
