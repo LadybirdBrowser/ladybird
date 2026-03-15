@@ -1,0 +1,14 @@
+#import <DOM/Event.idl>
+#import <MediaCapture/MediaStreamTrack.idl>
+
+// https://w3c.github.io/mediacapture-main/#dictdef-mediastreamtrackeventinit
+dictionary MediaStreamTrackEventInit : EventInit {
+    required MediaStreamTrack track;
+};
+
+// https://w3c.github.io/mediacapture-main/#mediastreamtrackevent
+[Exposed=Window]
+interface MediaStreamTrackEvent : Event {
+    constructor(DOMString type, MediaStreamTrackEventInit eventInitDict);
+    [SameObject] readonly attribute MediaStreamTrack track;
+};

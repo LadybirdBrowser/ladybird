@@ -164,10 +164,12 @@ struct ElementCreationOptions {
 
 enum class PolicyControlledFeature : u8 {
     Autoplay,
+    Camera,
     EncryptedMedia,
     FocusWithoutUserActivation,
     Fullscreen,
     Gamepad,
+    Microphone,
     WindowManagement,
 };
 

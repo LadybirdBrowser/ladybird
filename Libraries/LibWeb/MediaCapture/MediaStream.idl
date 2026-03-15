@@ -1,0 +1,21 @@
+#import <DOM/EventHandler.idl>
+#import <DOM/EventTarget.idl>
+#import <MediaCapture/MediaStreamTrack.idl>
+#import <MediaCapture/MediaStreamTrackEvent.idl>
+
+// https://w3c.github.io/mediacapture-main/#mediastream
+[Exposed=Window]
+interface MediaStream : EventTarget {
+    constructor(optional sequence<MediaStreamTrack> tracks = []);
+    readonly attribute DOMString id;
+    sequence<MediaStreamTrack> getAudioTracks();
+    sequence<MediaStreamTrack> getVideoTracks();
+    sequence<MediaStreamTrack> getTracks();
+    MediaStreamTrack? getTrackById(DOMString trackId);
+    undefined addTrack(MediaStreamTrack track);
+    undefined removeTrack(MediaStreamTrack track);
+    MediaStream clone();
+    readonly attribute boolean active;
+    attribute EventHandler onaddtrack;
+    attribute EventHandler onremovetrack;
+};
