@@ -3578,6 +3578,19 @@ void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_eleme
     ensure_pseudo_element(pseudo_element.value()).set_custom_property_data(move(data));
 }
 
+void Element::refresh_custom_property_data()
+{
+    auto inherit_parent = element_to_inherit_style_from({});
+    RefPtr<CSS::CustomPropertyData const> parent_data;
+    if (inherit_parent)
+        parent_data = inherit_parent->custom_property_data({});
+
+    if (m_custom_property_data.ptr() == parent_data.ptr())
+        return;
+
+    m_custom_property_data = parent_data;
+}
+
 RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS::PseudoElement> pseudo_element) const
 {
     if (!pseudo_element.has_value())

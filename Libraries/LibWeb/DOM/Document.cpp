@@ -1666,8 +1666,16 @@ bool Document::layout_is_up_to_date() const
 
         if (needs_full_style_update || node.needs_style_update() || parent_display_changed || (recompute_elements_depending_on_custom_properties && element.style_uses_var_css_function()) || needs_style_update_due_to_if_media) {
             node_invalidation = element.recompute_style(did_change_custom_properties);
-        } else if (needs_inherited_style_update) {
-            node_invalidation = element.recompute_inherited_style();
+        } else {
+            if (recompute_elements_depending_on_custom_properties) {
+                // Even if this element wasn't fully recomputed, refresh its
+                // custom property data chain so that descendants that use var()
+                // inherit up-to-date values through intermediate elements.
+                element.refresh_custom_property_data();
+            }
+            if (needs_inherited_style_update) {
+                node_invalidation = element.recompute_inherited_style();
+            }
         }
         is_display_none = static_cast<Element&>(node).computed_properties()->display().is_none();
 

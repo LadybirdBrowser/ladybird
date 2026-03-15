@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .inner {
+        color: var(--color);
+        opacity: var(--opacity);
+    }
+</style>
+
+<!--
+    Test that updating a custom property on an element correctly invalidates
+    styles of descendants that use var(), even when there are intermediate
+    elements between the declaring element and the consuming element that
+    don't use var() themselves.
+-->
+
+<div id="root" style="--color: red; --opacity: 1;">
+    <div id="intermediate">
+        <div id="consumer" class="inner">text</div>
+    </div>
+</div>
+
+<div id="root2" style="--color: blue;">
+    <div id="mid1">
+        <div id="mid2">
+            <div id="deep-consumer" class="inner">text</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    test(() => {
+        const cs = (id) => getComputedStyle(document.getElementById(id));
+
+        // Initial values should be correct.
+        println(`initial color: ${cs("consumer").color}`);
+        println(`initial opacity: ${cs("consumer").opacity}`);
+
+        // Update custom property on root via inline style.
+        document.getElementById("root").style.setProperty("--color", "green");
+        println(`after setProperty color: ${cs("consumer").color}`);
+
+        // Update another custom property.
+        document.getElementById("root").style.setProperty("--opacity", "0.5");
+        println(`after setProperty opacity: ${cs("consumer").opacity}`);
+
+        // Multiple intermediate elements.
+        println(`deep initial color: ${cs("deep-consumer").color}`);
+        document.getElementById("root2").style.setProperty("--color", "green");
+        println(`deep after setProperty color: ${cs("deep-consumer").color}`);
+
+        // Change again to verify repeated updates work.
+        document.getElementById("root").style.setProperty("--color", "blue");
+        println(`second update color: ${cs("consumer").color}`);
+    });
+</script>
