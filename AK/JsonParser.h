@@ -32,6 +32,10 @@ private:
     ErrorOr<JsonValue> parse_false();
     ErrorOr<JsonValue> parse_true();
     ErrorOr<JsonValue> parse_null();
+
+    // Keep recursive parsing depth bounded so untrusted JSON cannot overflow the call stack.
+    static constexpr size_t max_nesting_depth { 512 };
+    size_t m_current_nesting_depth { 0 };
 };
 
 }

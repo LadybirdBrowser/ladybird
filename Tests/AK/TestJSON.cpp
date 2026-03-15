@@ -319,6 +319,32 @@ TEST_CASE(json_parse_fails_on_invalid_number)
 #undef EXPECT_JSON_PARSE_TO_FAIL
 }
 
+TEST_CASE(json_parse_rejects_excessive_nesting_depth)
+{
+    StringBuilder input;
+    constexpr size_t nesting_depth = 4096;
+
+    input.append_repeated('[', nesting_depth);
+    input.append('0');
+    input.append_repeated(']', nesting_depth);
+
+    auto parsed = JsonValue::from_string(input.string_view());
+    EXPECT(parsed.is_error());
+}
+
+TEST_CASE(json_parse_accepts_reasonable_nesting_depth)
+{
+    StringBuilder input;
+    constexpr size_t nesting_depth = 64;
+
+    input.append_repeated('[', nesting_depth);
+    input.append('0');
+    input.append_repeated(']', nesting_depth);
+
+    auto parsed = JsonValue::from_string(input.string_view());
+    EXPECT(!parsed.is_error());
+}
+
 struct CustomError {
 };
 
