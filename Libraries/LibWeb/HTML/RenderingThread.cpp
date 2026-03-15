@@ -11,6 +11,8 @@
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 
+#include <LibCore/Platform/ScopedAutoreleasePool.h>
+
 namespace Web::HTML {
 
 struct BackingStoreState {
@@ -98,6 +100,10 @@ public:
                 if (m_exit)
                     break;
             }
+
+            // Drain autoreleased Objective-C objects created by Metal/Skia each iteration,
+            // since this background thread has no autorelease pool.
+            Core::ScopedAutoreleasePool autorelease_pool;
 
             while (true) {
                 auto command = [this]() -> Optional<CompositorCommand> {

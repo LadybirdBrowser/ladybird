@@ -14,6 +14,7 @@
 #include <LibCore/EventLoopImplementationUnix.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Notifier.h>
+#include <LibCore/Platform/ScopedAutoreleasePool.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibThreading/Mutex.h>
@@ -308,6 +309,7 @@ int EventLoopImplementationUnix::exec()
 
 size_t EventLoopImplementationUnix::pump(PumpMode mode)
 {
+    ScopedAutoreleasePool autorelease_pool;
     static_cast<EventLoopManagerUnix&>(EventLoopManager::the()).wait_for_events(mode);
     return ThreadEventQueue::current().process();
 }
