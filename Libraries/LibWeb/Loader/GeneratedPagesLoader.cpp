@@ -30,14 +30,14 @@ void set_browser_process_executable_path(StringView executable_path)
     s_browser_process_executable_path = MUST(String::from_utf8(executable_path));
 }
 
-ErrorOr<String> load_error_page(URL::URL const& url, StringView error_message)
+ErrorOr<String> load_error_page(StringView location, StringView error_message)
 {
     // Generate HTML error page from error template file
     // FIXME: Use an actual templating engine (our own one when it's built, preferably with a way to check these usages at compile time)
     auto template_file = TRY(Core::Resource::load_from_uri("resource://ladybird/templates/error.html"sv));
     StringBuilder builder;
     SourceGenerator generator { builder, '%', '%' };
-    generator.set("failed_url", escape_html_entities(url.to_byte_string()));
+    generator.set("failed_url", escape_html_entities(location));
     generator.set("error_message", escape_html_entities(error_message));
     generator.append(template_file->data());
     return TRY(String::from_utf8(generator.as_string_view()));
