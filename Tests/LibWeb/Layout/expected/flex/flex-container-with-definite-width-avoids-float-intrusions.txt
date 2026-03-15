@@ -1,10 +1,10 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1098 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 400 0+0+392] [8+0+0 990 0+0+8] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 400 0+0+8] [8+0+0 990 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 400 0+0+0] [0+0+0 18 0+0+0] children: inline
         BreakNode <br> (not painted)
         BlockContainer <div.a> at [8,26] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-      Box <div.c> at [8,126] flex-container(row) [0+0+0 400 0+0+-100] [0+0+0 100 0+0+0] [FFC] children: not-inline
+      Box <div.c> at [8,126] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [8,126] flex-item [0+0+0 257.3125 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 31, rect: [8,126 257.3125x18] baseline: 13.796875
               "This should clear the blue box."
@@ -14,7 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <hr> at [9,235] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,244] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       BlockContainer <div.b> at [358,244] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
-      Box <div.c> at [8,444] flex-container(row) [0+0+0 400 0+0+-150] [0+0+0 100 0+0+0] [FFC] children: not-inline
+      Box <div.c> at [8,444] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [8,444] flex-item [0+0+0 268.5625 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 32, rect: [8,444 268.5625x18] baseline: 13.796875
               "This should clear the green box."
@@ -24,7 +24,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <hr> at [9,553] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,562] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       BlockContainer <div.b> at [358,562] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
-      Box <div.d> at [58,662] flex-container(row) [50+0+0 300 0+0+-100] [0+0+0 100 0+0+0] [FFC] children: not-inline
+      Box <div.d> at [58,662] flex-container(row) [50+0+0 300 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [58,662] flex-item [0+0+0 300 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 34, rect: [58,662 287.78125x18] baseline: 13.796875
               "This should clear the blue box and"
@@ -35,7 +35,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <hr> at [9,771] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,780] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-      Box <div.e> at [148,780] flex-container(row) [50+0+40 150 0+0+60] [0+0+0 100 0+0+0] [FFC] children: not-inline
+      Box <div.e> at [148,780] flex-container(row) [50+0+40 150 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [148,780] flex-item [0+0+0 150 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 15, rect: [148,780 123.125x18] baseline: 13.796875
               "This should sit"

@@ -264,7 +264,11 @@ void BlockFormattingContext::compute_width(Box const& box, AvailableSpace const&
                 }
             } else {
                 if (!margin_left.is_auto() && !margin_right.is_auto()) {
-                    margin_right = CSS::Length::make_px(margin_right.to_px_or_zero(box) + underflow_px);
+                    // AD-HOC: CSS 2.2 § 10.3.3 says to adjust margin-right to satisfy the constraint equation in the
+                    //         over-constrained case. However, the inflated value serves no layout purpose (position is
+                    //         determined by margin-left, width is already set, siblings position independently) and
+                    //         all major browsers agree on not storing it.
+                    //         See https://github.com/w3c/csswg-drafts/issues/2328.
                 } else if (!margin_left.is_auto() && margin_right.is_auto()) {
                     margin_right = CSS::Length::make_px(underflow_px);
                 } else if (margin_left.is_auto() && !margin_right.is_auto()) {

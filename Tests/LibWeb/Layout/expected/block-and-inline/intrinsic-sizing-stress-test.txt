@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1760.375 0+0+0] [BFC] children: not-inline
     BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
       TextNode <#text> (not painted)
-    BlockContainer <body> at [0,10] [0+0+0 831.75 0+0+-31.75] [0+0+0 1740.375 0+0+10] children: not-inline
+    BlockContainer <body> at [0,10] [0+0+0 831.75 0+0+0] [0+0+0 1740.375 0+0+10] children: not-inline
       BlockContainer <(anonymous)> at [0,10] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
@@ -70,7 +70,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [2,184] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,186] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
-          BlockContainer <div.with-max-width> at [6,188] [0+0+2 300 2+0+519.75] [0+0+2 28 2+0+0] children: not-inline
+          BlockContainer <div.with-max-width> at [6,188] [0+0+2 300 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,190] [0+0+2 296 2+0+0] [0+0+2 24 2+0+0] children: not-inline
               BlockContainer <div.plain> at [10,192] [0+0+2 292 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,194] [0+0+2 288 2+0+0] [0+0+2 16 2+0+0] children: not-inline
@@ -344,7 +344,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <(anonymous)> at [0,852] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      BlockContainer <div.section> at [2,854] [0+2+0 297.71875 0+2+530.03125] [10+2+0 60 0+2+10] children: not-inline
+      BlockContainer <div.section> at [2,854] [0+2+0 297.71875 0+2+0] [10+2+0 60 0+2+10] children: not-inline
         BlockContainer <(anonymous)> at [2,854] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,858] [0+0+4 289.71875 4+0+0] [0+0+4 16 4+0+0] children: inline

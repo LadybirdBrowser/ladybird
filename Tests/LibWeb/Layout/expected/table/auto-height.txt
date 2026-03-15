@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [1,1] [0+1+0 798 0+1+0] [0+1+0 62 0+1+0] [BFC] children: not-inline
     BlockContainer <body> at [10,10] [8+1+0 780 0+1+8] [8+1+0 44 0+1+8] children: not-inline
       BlockContainer <div> at [11,11] [0+1+0 778 0+1+0] [0+1+0 20 0+1+0] children: not-inline
-        TableWrapper <(anonymous)> at [11,11] [0+0+0 29.15625 0+0+748.84375] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at [11,11] [0+0+0 29.15625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
           Box <(anonymous)> at [11,11] table-box [0+0+0 29.15625 0+0+0] [0+0+0 20 0+0+0] [TFC] children: not-inline
             Box <(anonymous)> at [11,11] table-row [0+0+0 29.15625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
               BlockContainer <span> at [12,12] table-cell [0+1+0 27.15625 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
@@ -10,7 +10,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     "foo"
                 TextNode <#text> (not painted)
       BlockContainer <div> at [11,33] [0+1+0 778 0+1+0] [0+1+0 20 0+1+0] children: not-inline
-        TableWrapper <(anonymous)> at [11,33] [0+0+0 29.640625 0+0+748.359375] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TableWrapper <(anonymous)> at [11,33] [0+0+0 29.640625 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
           Box <(anonymous)> at [11,33] table-box [0+0+0 29.640625 0+0+0] [0+0+0 20 0+0+0] [TFC] children: not-inline
             Box <(anonymous)> at [11,33] table-row [0+0+0 29.640625 0+0+0] [0+0+0 20 0+0+0] children: not-inline
               BlockContainer <span> at [12,34] table-cell [0+1+0 27.640625 0+1+0] [0+1+0 18 0+1+0] [BFC] children: inline
