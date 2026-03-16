@@ -3691,7 +3691,7 @@ void Document::update_the_visibility_state(HTML::VisibilityState visibility_stat
     dispatch_event(event);
 }
 
-// https://drafts.csswg.org/cssom-view/#run-the-resize-steps
+// https://drafts.csswg.org/cssom-view/#document-run-the-resize-steps
 void Document::run_the_resize_steps()
 {
     // 1. If doc’s viewport has had its width or height changed
@@ -3706,19 +3706,27 @@ void Document::run_the_resize_steps()
     VisualViewportState visual_viewport_state = { visual_viewport.scale(), { visual_viewport.width(), visual_viewport.height() } };
     bool is_initial_size = !m_last_viewport_size.has_value();
 
-    if (m_last_viewport_size == viewport_size && m_last_visual_viewport_state == visual_viewport_state)
+    bool viewport_size_changed = m_last_viewport_size != viewport_size;
+    bool visual_viewport_state_changed = m_last_visual_viewport_state != visual_viewport_state;
+
+    if (!viewport_size_changed && !visual_viewport_state_changed)
         return;
+
     m_last_viewport_size = viewport_size;
     m_last_visual_viewport_state = visual_viewport_state;
 
     if (!is_initial_size) {
-        auto window_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
-        window_resize_event->set_is_trusted(true);
-        window()->dispatch_event(window_resize_event);
+        if (viewport_size_changed) {
+            auto window_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+            window_resize_event->set_is_trusted(true);
+            window()->dispatch_event(window_resize_event);
+        }
 
-        auto visual_viewport_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
-        visual_viewport_resize_event->set_is_trusted(true);
-        visual_viewport.dispatch_event(visual_viewport_resize_event);
+        if (visual_viewport_state_changed) {
+            auto visual_viewport_resize_event = DOM::Event::create(realm(), UIEvents::EventNames::resize);
+            visual_viewport_resize_event->set_is_trusted(true);
+            visual_viewport.dispatch_event(visual_viewport_resize_event);
+        }
     }
 }
 
