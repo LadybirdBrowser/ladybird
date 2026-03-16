@@ -19,6 +19,7 @@
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/QualifiedName.h>
+#include <LibWeb/DOM/RequestFullscreenError.h>
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/AttributeNames.h>
@@ -603,15 +604,6 @@ private:
     FlyString make_html_uppercased_qualified_name() const;
 
     void invalidate_style_after_attribute_change(FlyString const& attribute_name, Optional<String> const& old_value, Optional<String> const& new_value);
-
-    enum class RequestFullscreenError : u8 {
-        False,
-        ElementReadyCheckFailed,
-        UnsupportedElement,
-        NoTransientUserActivation,
-        ElementNodeDocIsNotPendingDoc
-    };
-    static Utf16String request_fullscreen_error_to_string(RequestFullscreenError);
 
     void exit_fullscreen_on_element_removal();
     RequestFullscreenError is_element_allowed_to_enter_fullscreen(FullscreenRequester) const;

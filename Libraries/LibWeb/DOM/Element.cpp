@@ -2573,26 +2573,9 @@ void Element::exit_fullscreen_on_element_removal()
     });
 }
 
-Utf16String Element::request_fullscreen_error_to_string(RequestFullscreenError error)
-{
-    switch (error) {
-    case RequestFullscreenError::False:
-        break;
-    case RequestFullscreenError::ElementReadyCheckFailed:
-        return "Element ready check failed"_utf16;
-    case RequestFullscreenError::UnsupportedElement:
-        return "Not supported element"_utf16;
-    case RequestFullscreenError::NoTransientUserActivation:
-        return "No transient user activation available to consume"_utf16;
-    case RequestFullscreenError::ElementNodeDocIsNotPendingDoc:
-        return "Element's node document is not pending doc"_utf16;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
 // 5. If any of conditions are false, set error to true
-Element::RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen(FullscreenRequester fullscreen_requester) const
+RequestFullscreenError Element::is_element_allowed_to_enter_fullscreen(FullscreenRequester fullscreen_requester) const
 {
     // * This’s namespace is the HTML namespace or this is an SVG svg or MathML math element. [SVG] [MATHML]
     // FIXME: This likely wants to use is<MathML::MathMLMathElement> instead.
