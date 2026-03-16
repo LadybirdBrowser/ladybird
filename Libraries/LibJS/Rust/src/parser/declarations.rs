@@ -1368,6 +1368,19 @@ impl Parser<'_> {
     //                      | `[` BindingElementList `]`
     //                      | `[` BindingElementList `,` Elision? BindingRestElement? `]`
     pub(crate) fn parse_binding_pattern(&mut self) -> BindingPattern {
+        let fallback_kind = if self.match_token(TokenType::BracketOpen) {
+            BindingPatternKind::Array
+        } else {
+            BindingPatternKind::Object
+        };
+        self.with_parser_recursion_guard(|parser| parser.parse_binding_pattern_impl())
+            .unwrap_or_else(|| BindingPattern {
+                kind: fallback_kind,
+                entries: Vec::new(),
+            })
+    }
+
+    fn parse_binding_pattern_impl(&mut self) -> BindingPattern {
         let is_object = self.match_token(TokenType::CurlyOpen);
         let is_array = self.match_token(TokenType::BracketOpen);
         if !is_object && !is_array {
@@ -1396,7 +1409,7 @@ impl Parser<'_> {
         };
         let mut entries: Vec<BindingEntry> = Vec::new();
 
-        while !self.match_token(closing_token) && !self.done() {
+        while !self.match_token(closing_token) && !self.done() && !self.should_abort_parsing() {
             // Array elision: bare comma.
             if !is_object && self.match_token(TokenType::Comma) {
                 self.consume();
@@ -1617,7 +1630,9 @@ impl Parser<'_> {
             }
         }
 
-        self.consume_token(closing_token);
+        if !self.should_abort_parsing() {
+            self.consume_token(closing_token);
+        }
         self.binding_pattern_start = outer_pattern_start;
         BindingPattern { kind, entries }
     }
