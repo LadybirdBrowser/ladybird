@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    TestWebViewFileRequestAllowlist.cpp
     TestWebViewURL.cpp
 )
 

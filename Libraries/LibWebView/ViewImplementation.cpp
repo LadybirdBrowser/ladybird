@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Error.h>
 #include <AK/String.h>
 #include <AK/TemporaryChange.h>
@@ -61,8 +62,25 @@ ViewImplementation::ViewImplementation()
     });
 
     on_request_file = [this](auto const& path, auto request_id) {
-        auto file = Core::File::open(path, Core::File::OpenMode::Read);
+        auto canonical = LexicalPath::canonicalized_path(path);
 
+        if (!LexicalPath::is_absolute_path(canonical)) {
+            client().async_handle_file_return(page_id(), EACCES, {}, request_id);
+            return;
+        }
+
+        LexicalPath requested { canonical };
+        auto is_allowed = any_of(m_allowed_file_directory_trees, [&](auto const& allowed_directory) {
+            return requested.is_child_of(LexicalPath { allowed_directory });
+        });
+
+        if (!is_allowed) {
+            dbgln("ViewImplementation: Rejected file request outside allowed directories: {}", path);
+            client().async_handle_file_return(page_id(), EACCES, {}, request_id);
+            return;
+        }
+
+        auto file = Core::File::open(canonical, Core::File::OpenMode::Read);
         if (file.is_error())
             client().async_handle_file_return(page_id(), file.error().code(), {}, request_id);
         else
@@ -113,6 +131,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
     m_backup_bitmap = nullptr;
     handle_resize();
 
+    m_allowed_file_directory_trees.clear();
     load(url);
 }
 
@@ -154,6 +173,22 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 void ViewImplementation::load(URL::URL const& url)
 {
     m_url = url;
+
+    if (url.scheme() == "file"sv) {
+        auto canonical_path = LexicalPath::canonicalized_path(url.file_path());
+        auto directory = LexicalPath::dirname(canonical_path);
+        LexicalPath lexical_directory { directory };
+        if (!directory.is_empty() && !lexical_directory.is_root()) {
+            auto already_covered = any_of(m_allowed_file_directory_trees, [&](auto const& allowed) {
+                return lexical_directory.is_child_of(LexicalPath { allowed });
+            });
+            if (!already_covered)
+                m_allowed_file_directory_trees.append(directory);
+        }
+    } else {
+        m_allowed_file_directory_trees.clear();
+    }
+
     client().async_load_url(page_id(), url);
 }
 
@@ -684,6 +719,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
 
     initialize_client();
     VERIFY(m_client_state.client);
+
+    m_allowed_file_directory_trees.clear();
 
     // Don't keep a stale backup bitmap around.
     m_backup_bitmap = nullptr;

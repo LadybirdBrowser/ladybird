@@ -320,6 +320,8 @@ protected:
     URL::URL m_url;
     Utf16String m_title;
 
+    Vector<ByteString> m_allowed_file_directory_trees;
+
     double m_zoom_level { 1.0 };
     double m_device_pixel_ratio { 1.0 };
     double m_maximum_frames_per_second { 60.0 };

@@ -6,8 +6,10 @@
 
 #include "TestWebView.h"
 
+#include <LibCore/File.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ShareableBitmap.h>
+#include <LibIPC/File.h>
 
 namespace TestWeb {
 
@@ -23,6 +25,14 @@ TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewp
     : WebView::HeadlessWebView(move(theme), viewport_size)
     , m_test_promise(TestPromise::construct())
 {
+    // Allow unrestricted file access for tests, which load shared resources from sibling directories.
+    on_request_file = [this](auto const& path, auto request_id) {
+        auto file = Core::File::open(path, Core::File::OpenMode::Read);
+        if (file.is_error())
+            client().async_handle_file_return(page_id(), file.error().code(), {}, request_id);
+        else
+            client().async_handle_file_return(page_id(), 0, IPC::File::adopt_file(file.release_value()), request_id);
+    };
 }
 
 void TestWebView::clear_content_filters()
