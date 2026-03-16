@@ -108,6 +108,8 @@ pub fn generate(program: &Program) -> String {
     w!(out, ".text");
     w!(out);
 
+    emit_proc_start(&mut out);
+
     // Generate entry point
     generate_entry_point(&mut out, program);
 
@@ -119,20 +121,84 @@ pub fn generate(program: &Program) -> String {
         generate_handler(&mut out, handler, program, &pinned);
     }
 
+    generate_exit_point(&mut out, program.object_format);
+    emit_proc_end(&mut out);
+    emit_file_trailer(&mut out);
+
+    out
+}
+
+fn emit_proc_start(out: &mut String) {
+    // Start one unwind-covered region for the entire monolithic interpreter
+    // blob, from the entry label through the last handler.
+    w!(out, ".globl CSYM(asm_interpreter_entry)");
+    w!(out, ".p2align 4");
+    w!(out, "CSYM(asm_interpreter_entry):");
+    w!(out, "    .cfi_startproc");
+}
+
+fn emit_proc_end(out: &mut String) {
+    // Close the interpreter's unwind frame after the last handler so any PC
+    // within the handler blob can unwind back to the C++ caller.
+    w!(out, ".cfi_endproc");
+    w!(out);
+}
+
+fn emit_file_trailer(out: &mut String) {
     // Mark stack as non-executable (required by Linux linker)
     w!(out, "#ifndef __APPLE__");
     w!(out, ".section .note.GNU-stack,\"\",@progbits");
     w!(out, "#endif");
+}
 
-    out
+fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
+    // Shared exit path: restore callee-saved registers and return.
+    // Keep this at the end of the proc so its CFI state does not affect
+    // later handler PCs. Mach-O's assembler rejects epilogue CFI directives,
+    // so only emit those for ELF.
+    w!(out, ".Lexit:");
+    w!(out, "    ldp x25, x26, [sp, #16]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x25");
+        w!(out, "    .cfi_restore x26");
+    }
+    w!(out, "    ldp x27, x28, [sp, #32]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x27");
+        w!(out, "    .cfi_restore x28");
+    }
+    w!(out, "    ldp x19, x20, [sp, #48]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x19");
+        w!(out, "    .cfi_restore x20");
+    }
+    w!(out, "    ldp x21, x22, [sp, #64]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x21");
+        w!(out, "    .cfi_restore x22");
+    }
+    w!(out, "    ldp x23, x24, [sp, #80]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x23");
+        w!(out, "    .cfi_restore x24");
+    }
+    w!(out, "    ldr d8, [sp, #96]");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore d8");
+    }
+    w!(out, "    ldp x29, x30, [sp], #112");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore x29");
+        w!(out, "    .cfi_restore x30");
+        w!(out, "    .cfi_def_cfa sp, 0");
+    }
+    w!(out, "    ret");
+    w!(out);
 }
 
 fn generate_entry_point(out: &mut String, program: &Program) {
     // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, Interpreter* interp)
     // AAPCS64: x0=bytecode, w1=entry_point, x2=values, x3=interp
-    w!(out, ".globl CSYM(asm_interpreter_entry)");
-    w!(out, ".p2align 4");
-    w!(out, "CSYM(asm_interpreter_entry):");
 
     // Save callee-saved registers and link register.
     // Pinned: x19(dispatch), x20(interp), x21(ip), x26(pb), x27(values), x28(exec_ctx)
@@ -141,13 +207,28 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = NAN_BASE_TAG (pinned constants).
     // d8 is pinned to hold CANON_NAN_BITS (callee-saved FP register).
     w!(out, "    stp x29, x30, [sp, #-112]!");
+    w!(out, "    .cfi_def_cfa_offset 112");
+    w!(out, "    .cfi_offset x29, -112");
+    w!(out, "    .cfi_offset x30, -104");
     w!(out, "    mov x29, sp");
+    w!(out, "    .cfi_def_cfa_register x29");
     w!(out, "    stp x25, x26, [sp, #16]");
+    w!(out, "    .cfi_offset x25, -96");
+    w!(out, "    .cfi_offset x26, -88");
     w!(out, "    stp x27, x28, [sp, #32]");
+    w!(out, "    .cfi_offset x27, -80");
+    w!(out, "    .cfi_offset x28, -72");
     w!(out, "    stp x19, x20, [sp, #48]");
+    w!(out, "    .cfi_offset x19, -64");
+    w!(out, "    .cfi_offset x20, -56");
     w!(out, "    stp x21, x22, [sp, #64]");
+    w!(out, "    .cfi_offset x21, -48");
+    w!(out, "    .cfi_offset x22, -40");
     w!(out, "    stp x23, x24, [sp, #80]");
+    w!(out, "    .cfi_offset x23, -32");
+    w!(out, "    .cfi_offset x24, -24");
     w!(out, "    str d8, [sp, #96]");
+    w!(out, "    .cfi_offset d8, -16");
 
     // Set up pinned registers
     // x0=bytecode (pb), w1=entry_point (pc), x2=values, x3=interp
@@ -208,16 +289,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &Pinn
     emit_dispatch_from_ip(out);
     w!(out);
 
-    // Exit path: restore callee-saved registers and return
-    w!(out, ".Lexit:");
-    w!(out, "    ldp x25, x26, [sp, #16]");
-    w!(out, "    ldp x27, x28, [sp, #32]");
-    w!(out, "    ldp x19, x20, [sp, #48]");
-    w!(out, "    ldp x21, x22, [sp, #64]");
-    w!(out, "    ldp x23, x24, [sp, #80]");
-    w!(out, "    ldr d8, [sp, #96]");
-    w!(out, "    ldp x29, x30, [sp], #112");
-    w!(out, "    ret");
+    // Shared exit path is emitted at the end of the proc.
     w!(out);
 }
 
