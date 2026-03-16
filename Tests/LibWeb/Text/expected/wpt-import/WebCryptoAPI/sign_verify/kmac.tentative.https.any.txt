@@ -1,0 +1,109 @@
+Harness status: OK
+
+Found 103 tests
+
+1 Pass
+102 Fail
+Pass	setup
+Fail	importVectorKeys step: KMAC128 with no customization verification
+Fail	importVectorKeys step: KMAC128 with customization verification
+Fail	importVectorKeys step: KMAC128 with large data and customization verification
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification
+Fail	importVectorKeys step: KMAC256 with large data and customization verification
+Fail	importVectorKeys step: KMAC128 with no customization verification with altered signature during call
+Fail	importVectorKeys step: KMAC128 with customization verification with altered signature during call
+Fail	importVectorKeys step: KMAC128 with large data and customization verification with altered signature during call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification with altered signature during call
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification with altered signature during call
+Fail	importVectorKeys step: KMAC256 with large data and customization verification with altered signature during call
+Fail	importVectorKeys step: KMAC128 with no customization verification with altered signature after call
+Fail	importVectorKeys step: KMAC128 with customization verification with altered signature after call
+Fail	importVectorKeys step: KMAC128 with large data and customization verification with altered signature after call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification with altered signature after call
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification with altered signature after call
+Fail	importVectorKeys step: KMAC256 with large data and customization verification with altered signature after call
+Fail	importVectorKeys step: KMAC128 with no customization verification with transferred signature during call
+Fail	importVectorKeys step: KMAC128 with customization verification with transferred signature during call
+Fail	importVectorKeys step: KMAC128 with large data and customization verification with transferred signature during call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification with transferred signature during call
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification with transferred signature during call
+Fail	importVectorKeys step: KMAC256 with large data and customization verification with transferred signature during call
+Fail	importVectorKeys step: KMAC128 with no customization verification with transferred signature after call
+Fail	importVectorKeys step: KMAC128 with customization verification with transferred signature after call
+Fail	importVectorKeys step: KMAC128 with large data and customization verification with transferred signature after call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification with transferred signature after call
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification with transferred signature after call
+Fail	importVectorKeys step: KMAC256 with large data and customization verification with transferred signature after call
+Fail	importVectorKeys step: KMAC128 with no customization with altered plaintext during call
+Fail	importVectorKeys step: KMAC128 with customization with altered plaintext during call
+Fail	importVectorKeys step: KMAC128 with large data and customization with altered plaintext during call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output with altered plaintext during call
+Fail	importVectorKeys step: KMAC256 with large data and no customization with altered plaintext during call
+Fail	importVectorKeys step: KMAC256 with large data and customization with altered plaintext during call
+Fail	importVectorKeys step: KMAC128 with no customization with altered plaintext after call
+Fail	importVectorKeys step: KMAC128 with customization with altered plaintext after call
+Fail	importVectorKeys step: KMAC128 with large data and customization with altered plaintext after call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output with altered plaintext after call
+Fail	importVectorKeys step: KMAC256 with large data and no customization with altered plaintext after call
+Fail	importVectorKeys step: KMAC256 with large data and customization with altered plaintext after call
+Fail	importVectorKeys step: KMAC128 with no customization with transferred plaintext during call
+Fail	importVectorKeys step: KMAC128 with customization with transferred plaintext during call
+Fail	importVectorKeys step: KMAC128 with large data and customization with transferred plaintext during call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output with transferred plaintext during call
+Fail	importVectorKeys step: KMAC256 with large data and no customization with transferred plaintext during call
+Fail	importVectorKeys step: KMAC256 with large data and customization with transferred plaintext during call
+Fail	importVectorKeys step: KMAC128 with no customization with transferred plaintext after call
+Fail	importVectorKeys step: KMAC128 with customization with transferred plaintext after call
+Fail	importVectorKeys step: KMAC128 with large data and customization with transferred plaintext after call
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output with transferred plaintext after call
+Fail	importVectorKeys step: KMAC256 with large data and no customization with transferred plaintext after call
+Fail	importVectorKeys step: KMAC256 with large data and customization with transferred plaintext after call
+Fail	importVectorKeys step: KMAC128 with no customization no verify usage
+Fail	importVectorKeys step: KMAC128 with customization no verify usage
+Fail	importVectorKeys step: KMAC128 with large data and customization no verify usage
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output no verify usage
+Fail	importVectorKeys step: KMAC256 with large data and no customization no verify usage
+Fail	importVectorKeys step: KMAC256 with large data and customization no verify usage
+Fail	importVectorKeys step: KMAC128 with no customization round trip
+Fail	importVectorKeys step: KMAC128 with customization round trip
+Fail	importVectorKeys step: KMAC128 with large data and customization round trip
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output round trip
+Fail	importVectorKeys step: KMAC256 with large data and no customization round trip
+Fail	importVectorKeys step: KMAC256 with large data and customization round trip
+Fail	importVectorKeys step: KMAC128 with no customization verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC128 with customization verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC128 with large data and customization verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC256 with large data and customization verification failure due to wrong plaintext
+Fail	importVectorKeys step: KMAC128 with no customization verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC128 with customization verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC128 with large data and customization verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC256 with large data and customization verification failure due to wrong signature
+Fail	importVectorKeys step: KMAC128 with no customization verification failure due to short signature
+Fail	importVectorKeys step: KMAC128 with customization verification failure due to short signature
+Fail	importVectorKeys step: KMAC128 with large data and customization verification failure due to short signature
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification failure due to short signature
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification failure due to short signature
+Fail	importVectorKeys step: KMAC256 with large data and customization verification failure due to short signature
+Fail	importVectorKeys step: KMAC128 with no customization verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC128 with customization verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC128 with large data and customization verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC256 with large data and no customization verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC256 with large data and customization verification failure due to wrong length parameter
+Fail	importVectorKeys step: KMAC128 with no customization signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC128 with customization signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC128 with large data and customization signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with large data and no customization signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with large data and customization signing with wrong algorithm name
+Fail	importVectorKeys step: KMAC128 with no customization verifying with wrong algorithm name
+Fail	importVectorKeys step: KMAC128 with customization verifying with wrong algorithm name
+Fail	importVectorKeys step: KMAC128 with large data and customization verifying with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with customization and 512-bit output verifying with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with large data and no customization verifying with wrong algorithm name
+Fail	importVectorKeys step: KMAC256 with large data and customization verifying with wrong algorithm name
