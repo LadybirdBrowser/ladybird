@@ -23,7 +23,7 @@ enum MouseButton : u8 {
 
 AK_ENUM_BITWISE_OPERATORS(MouseButton);
 
-// https://www.w3.org/TR/uievents/#dom-mouseevent-button
+// https://w3c.github.io/pointerevents/#the-button-property
 constexpr i16 mouse_button_to_button_code(MouseButton button)
 {
     switch (button) {
@@ -44,7 +44,7 @@ constexpr i16 mouse_button_to_button_code(MouseButton button)
     }
 }
 
-// https://www.w3.org/TR/uievents/#dom-mouseevent-button
+// https://w3c.github.io/pointerevents/#the-button-property
 constexpr MouseButton button_code_to_mouse_button(i16 button)
 {
     if (button == 0)
