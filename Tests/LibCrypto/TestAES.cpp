@@ -444,6 +444,22 @@ TEST_CASE(test_AES_GCM_128bit_encrypt_with_aad)
     EXPECT(memcmp(result_tag, tag.data(), tag.size()) == 0);
 }
 
+TEST_CASE(test_AES_GCM_128bit_encrypt_decrypt_round_trip_with_non_standard_iv)
+{
+    Crypto::Cipher::AESGCMCipher cipher("\xfe\xff\xe9\x92\x86\x65\x73\x1c\x6d\x6a\x8f\x94\x67\x30\x83\x08"_b);
+    auto plaintext = "The quick brown fox jumps over the lazy dog!"_b;
+    // 16-byte IV (non-standard; default is 12) to exercise EVP_CTRL_GCM_SET_IVLEN.
+    auto iv = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"_b;
+    auto aad = "\xde\xad\xbe\xef"_b;
+
+    auto [ciphertext, tag] = TRY_OR_FAIL(cipher.encrypt(plaintext, iv, aad, 16));
+    EXPECT_NE(ciphertext.size(), 0u);
+
+    auto decrypted = TRY_OR_FAIL(cipher.decrypt(ciphertext, iv, aad, tag));
+    EXPECT_EQ(decrypted.size(), plaintext.size());
+    EXPECT(memcmp(plaintext.data(), decrypted.data(), plaintext.size()) == 0);
+}
+
 TEST_CASE(test_AES_GCM_128bit_decrypt_empty)
 {
     Crypto::Cipher::AESGCMCipher cipher("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"_b);

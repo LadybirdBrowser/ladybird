@@ -119,7 +119,7 @@ ErrorOr<AESGCMCipher::EncryptedData> AESGCMCipher::encrypt(ReadonlyBytes plainte
 {
     auto ctx = TRY(OpenSSL_CIPHER_CTX::create());
 
-    OPENSSL_TRY(EVP_DecryptInit(ctx.ptr(), m_cipher, nullptr, nullptr));
+    OPENSSL_TRY(EVP_EncryptInit(ctx.ptr(), m_cipher, nullptr, nullptr));
     OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_GCM_SET_IVLEN, iv.size(), nullptr));
 
     OPENSSL_TRY(EVP_EncryptInit(ctx.ptr(), nullptr, m_key.data(), iv.data()));
