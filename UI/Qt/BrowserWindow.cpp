@@ -46,16 +46,15 @@ FullscreenMode::FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit
     , m_exit_button(exit_button)
 {
     connect(m_exit_button, &QPushButton::clicked, this, [this]() {
-        exit();
+        exit(ExitInitiatedBy::UI);
     });
 }
 
-void FullscreenMode::exit()
+void FullscreenMode::exit(ExitInitiatedBy initiated_by)
 {
-    // If there's a document tree in fullscreen, exit fully on root document.
     if (is_api_fullscreen()) {
         qApp->removeEventFilter(this);
-        if (m_window->tab_index(m_fullscreen_tab) != -1) {
+        if (initiated_by == ExitInitiatedBy::UI && m_window->tab_index(m_fullscreen_tab) != -1) {
             m_fullscreen_tab->view().exit_fullscreen();
         }
         emit on_exit_fullscreen();
@@ -358,7 +357,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
             setWindowTitle(QString("%1 - Ladybird").arg(tab->title()));
 
         set_current_tab(tab);
-        fullscreen_mode().exit();
+        fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
     });
     QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::request_to_close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);

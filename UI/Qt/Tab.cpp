@@ -355,7 +355,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     view().on_exit_fullscreen_window = [this]() {
-        m_window->fullscreen_mode().exit();
+        m_window->fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::WebContent);
         m_toolbar->show();
         view().did_update_window_rect();
     };

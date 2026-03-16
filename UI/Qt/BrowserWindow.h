@@ -49,7 +49,12 @@ public:
     static constexpr int button_animation_time() { return 750; }
     explicit FullscreenMode(BrowserWindow* window, ExitFullscreenButton* exit_button);
 
-    void exit();
+    enum class ExitInitiatedBy {
+        UI,
+        WebContent,
+    };
+
+    void exit(ExitInitiatedBy);
     void enter(Tab* tab);
     // Called after a window change event that has identifed the current window state to be fullscreen.
     void entered_fullscreen();
