@@ -1550,6 +1550,10 @@ Vector<PropertyID> const& shorthands_for_longhand(PropertyID property_id)
 
         // background-image is required to compute the other background-* properties
         "BackgroundImage"sv,
+
+        // text direction and writing mode properties are required to map logical properties to their physical counterparts
+        "Direction"sv,
+        "WritingMode"sv,
     };
 
     generator.append(R"~~~(

@@ -25,6 +25,7 @@ public:
     virtual ~CascadedProperties() override;
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
+    [[nodiscard]] PropertyID property_with_higher_priority(PropertyID, PropertyID) const;
     [[nodiscard]] GC::Ptr<CSSStyleDeclaration const> property_source(PropertyID) const;
     [[nodiscard]] Optional<StyleProperty> style_property(PropertyID) const;
 

@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        display: none;
+        padding-inline-start: 12px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        println(getComputedStyle(target).paddingInlineStart);
+    });
+</script>

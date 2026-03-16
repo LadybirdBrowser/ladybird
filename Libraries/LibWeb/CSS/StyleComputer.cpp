@@ -453,21 +453,12 @@ void StyleComputer::cascade_declarations(
     Vector<MatchingRule const*> const& matching_rules,
     CascadeOrigin cascade_origin,
     Important important,
-    Optional<FlyString> layer_name,
-    Optional<LogicalAliasMappingContext> logical_alias_mapping_context,
-    ReadonlySpan<PropertyID> properties_to_cascade) const
+    Optional<FlyString> layer_name) const
 {
     AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
-
-            // OPTIMIZATION: If we've been asked to only cascade a specific set of properties, skip the rest.
-            if (!properties_to_cascade.is_empty()) {
-                if (!properties_to_cascade.contains_slow(property.property_id))
-                    continue;
-            }
-
             if (important != property.important)
                 continue;
 
@@ -506,22 +497,12 @@ void StyleComputer::cascade_declarations(
                     return;
                 seen_properties.set(to_underlying(longhand_id), true);
 
-                PropertyID physical_property_id;
-
-                if (property_is_logical_alias(longhand_id)) {
-                    if (!logical_alias_mapping_context.has_value())
-                        return;
-                    physical_property_id = map_logical_alias_to_physical_property(longhand_id, logical_alias_mapping_context.value());
-                } else {
-                    physical_property_id = longhand_id;
-                }
-
                 if (longhand_value.is_revert()) {
-                    cascaded_properties.revert_property(physical_property_id, important, cascade_origin);
+                    cascaded_properties.revert_property(longhand_id, important, cascade_origin);
                 } else if (longhand_value.is_revert_layer()) {
-                    cascaded_properties.revert_layer_property(physical_property_id, important, layer_name);
+                    cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
                 } else {
-                    cascaded_properties.set_property(physical_property_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
                 }
             });
         }
@@ -1196,7 +1177,7 @@ StyleComputer::MatchingRuleSet StyleComputer::build_matching_rule_set(DOM::Abstr
 
 // https://www.w3.org/TR/css-cascade/#cascading
 // https://drafts.csswg.org/css-cascade-5/#layering
-GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set, Optional<LogicalAliasMappingContext> logical_alias_mapping_context, ReadonlySpan<PropertyID> properties_to_cascade) const
+GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::AbstractElement abstract_element, bool did_match_any_pseudo_element_rules, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
 {
     auto cascaded_properties = m_document->heap().allocate<CascadedProperties>();
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
@@ -1205,10 +1186,10 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
     }
 
     // Normal user agent declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::No, {});
 
     // Normal user declarations
-    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(*cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::No, {});
 
     // Author presentational hints
     // The spec calls this a special "Author presentational hint origin":
@@ -1234,19 +1215,19 @@ GC::Ref<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Abstract
 
     // Normal author declarations, ordered by @layer, with un-@layer-ed rules last
     for (auto const& layer : matching_rule_set.author_rules) {
-        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name, logical_alias_mapping_context, properties_to_cascade);
+        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::No, layer.qualified_layer_name);
     }
 
     // Important author declarations, with un-@layer-ed rules first, followed by each @layer in reverse order.
     for (auto const& layer : matching_rule_set.author_rules.in_reverse()) {
-        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+        cascade_declarations(cascaded_properties, abstract_element, layer.rules, CascadeOrigin::Author, Important::Yes, {});
     }
 
     // Important user declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_rules, CascadeOrigin::User, Important::Yes, {});
 
     // Important user agent declarations
-    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {}, logical_alias_mapping_context, properties_to_cascade);
+    cascade_declarations(cascaded_properties, abstract_element, matching_rule_set.user_agent_rules, CascadeOrigin::UserAgent, Important::Yes, {});
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -1349,45 +1330,6 @@ CSSPixels StyleComputer::relative_size_mapping(RelativeSize relative_size, CSSPi
         return inherited_font_size * CSSPixels(5) / 4;
     }
     VERIFY_NOT_REACHED();
-}
-
-LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(DOM::AbstractElement abstract_element, ComputeStyleMode mode, MatchingRuleSet const& matching_rule_set) const
-{
-    auto normalize_value = [&](auto property_id, auto value) {
-        if (!value || value->is_inherit() || value->is_unset()) {
-            if (auto const inheritance_parent = abstract_element.element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->computed_properties()) {
-                value = inheritance_parent->computed_properties()->property(property_id);
-            } else {
-                value = property_initial_value(property_id);
-            }
-        }
-
-        if (value->is_initial())
-            value = property_initial_value(property_id);
-
-        return value;
-    };
-
-    bool did_match_any_pseudo_element_rules = false;
-
-    static Array<PropertyID, 2> properties_to_cascade {
-        PropertyID::WritingMode,
-        PropertyID::Direction,
-    };
-    auto cascaded_properties = compute_cascaded_values(
-        abstract_element,
-        did_match_any_pseudo_element_rules,
-        mode, matching_rule_set,
-        {},
-        properties_to_cascade);
-
-    auto writing_mode = normalize_value(PropertyID::WritingMode, cascaded_properties->property(PropertyID::WritingMode));
-    auto direction = normalize_value(PropertyID::Direction, cascaded_properties->property(PropertyID::Direction));
-
-    return LogicalAliasMappingContext {
-        .writing_mode = keyword_to_writing_mode(writing_mode->to_keyword()).release_value(),
-        .direction = keyword_to_direction(direction->to_keyword()).release_value()
-    };
 }
 
 void StyleComputer::compute_property_values(ComputedProperties& style, Optional<DOM::AbstractElement> abstract_element) const
@@ -1823,8 +1765,7 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
         }
     }
 
-    auto logical_alias_mapping_context = compute_logical_alias_mapping_context(abstract_element, mode, matching_rule_set);
-    auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set, logical_alias_mapping_context, {});
+    auto cascaded_properties = compute_cascaded_values(abstract_element, did_match_any_pseudo_element_rules, mode, matching_rule_set);
     abstract_element.set_cascaded_properties(cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
@@ -1978,11 +1919,45 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         return compute_value_of_property(property_id, style_value, get_property_specified_value, computation_context, device_pixels_per_css_pixel);
     };
 
+    Optional<LogicalAliasMappingContext> logical_alias_mapping_context;
+    auto const get_logical_alias_mapping_context = [&]() {
+        if (!logical_alias_mapping_context.has_value())
+            logical_alias_mapping_context = LogicalAliasMappingContext { computed_style->writing_mode(), computed_style->direction() };
+
+        return *logical_alias_mapping_context;
+    };
+
     for (auto property_id : property_computation_order()) {
         RefPtr<StyleValue const> value;
         bool requires_computation;
 
-        if (auto cascaded_style_property = cascaded_properties.style_property(property_id); cascaded_style_property.has_value()) {
+        PropertyID cascaded_property_id = property_id;
+        PropertyID inherited_property_id = property_id;
+
+        if (logical_property_group_for_property(property_id).has_value()) {
+            PropertyID counterpart_property_id;
+
+            if (property_is_logical_alias(property_id)) {
+                counterpart_property_id = map_logical_alias_to_physical_property(property_id, get_logical_alias_mapping_context());
+
+                // AD-HOC: While the spec says that inheritance of logical aliases should be direct, other browsers
+                //         instead inherit from the physical counterpart - the CSSWG has resolved to update the spec to
+                //         reflect this - see https://github.com/w3c/csswg-drafts/issues/3029
+                inherited_property_id = counterpart_property_id;
+            } else {
+                counterpart_property_id = map_physical_property_to_logical_alias(property_id, get_logical_alias_mapping_context());
+            }
+
+            // https://drafts.csswg.org/css-logical/#box
+            // Within each logical property group, corresponding flow-relative and physical properties are paired using
+            // the element’s own computed writing mode. Although the specified value of each property remains distinct,
+            // paired properties share a computed value. This shared value is determined by cascading the declarations
+            // of both properties together as one; in other words, the computed value of both properties in the pair is
+            // derived from the specified value of the property declared with higher priority in the CSS cascade.
+            cascaded_property_id = cascaded_properties.property_with_higher_priority(property_id, counterpart_property_id);
+        }
+
+        if (auto cascaded_style_property = cascaded_properties.style_property(cascaded_property_id); cascaded_style_property.has_value()) {
             if (cascaded_style_property->important == Important::Yes)
                 computed_style->set_property_important(property_id, Important::Yes);
             value = cascaded_style_property->value;
@@ -2007,18 +1982,17 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
         // In the color property, the used value of currentcolor is the resolved inherited value.
         should_inherit |= property_id == PropertyID::Color && value && value->to_keyword() == Keyword::Currentcolor;
 
-        // FIXME: Logical properties should inherit from their parent's equivalent unmapped logical property.
         if (should_inherit && computed_properties_to_inherit_from) {
             computed_style->set_property_inherited(property_id, ComputedProperties::Inherited::Yes);
-            value = computed_properties_to_inherit_from->property(property_id, ComputedProperties::WithAnimationsApplied::No);
+            value = computed_properties_to_inherit_from->property(inherited_property_id, ComputedProperties::WithAnimationsApplied::No);
             requires_computation = property_requires_computation_with_inherited_value(property_id);
 
             // FIXME: Do we need to recompute animated inherited values?
-            if (auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(property_id); animated_value.has_value())
+            if (auto animated_value = computed_properties_to_inherit_from->animated_property_values().get(inherited_property_id); animated_value.has_value())
                 computed_style->set_animated_property(
                     property_id,
                     *animated_value.value(),
-                    computed_properties_to_inherit_from->is_animated_property_result_of_transition(property_id)
+                    computed_properties_to_inherit_from->is_animated_property_result_of_transition(inherited_property_id)
                         ? AnimatedPropertyResultOfTransition::Yes
                         : AnimatedPropertyResultOfTransition::No,
                     ComputedProperties::Inherited::Yes);
@@ -2029,7 +2003,9 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
             requires_computation = property_requires_computation_with_initial_value(property_id);
         }
 
-        computed_style->set_property_without_modifying_flags(property_id, requires_computation ? compute_property(property_id, value.release_nonnull()) : value.release_nonnull());
+        // NB: We compute using the inherited (physical) property to avoid having to add cases for all the logical
+        //     alias properties in `compute_value_of_property`
+        computed_style->set_property_without_modifying_flags(property_id, requires_computation ? compute_property(inherited_property_id, value.release_nonnull()) : value.release_nonnull());
     }
 
     if (is<HTML::HTMLHtmlElement>(abstract_element.element()))

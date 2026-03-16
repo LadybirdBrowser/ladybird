@@ -163,9 +163,8 @@ private:
 
     [[nodiscard]] MatchingRuleSet build_matching_rule_set(DOM::AbstractElement, PseudoClassBitmap& attempted_pseudo_class_matches, bool& did_match_any_pseudo_element_rules, ComputeStyleMode, StyleScope const&) const;
 
-    LogicalAliasMappingContext compute_logical_alias_mapping_context(DOM::AbstractElement, ComputeStyleMode, MatchingRuleSet const&) const;
     [[nodiscard]] GC::Ptr<ComputedProperties> compute_style_impl(DOM::AbstractElement, ComputeStyleMode, Optional<bool&> did_change_custom_properties, StyleScope const&) const;
-    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&, Optional<LogicalAliasMappingContext>, ReadonlySpan<PropertyID> properties_to_cascade) const;
+    [[nodiscard]] GC::Ref<CascadedProperties> compute_cascaded_values(DOM::AbstractElement, bool did_match_any_pseudo_element_rules, ComputeStyleMode, MatchingRuleSet const&) const;
     void compute_custom_properties(ComputedProperties&, DOM::AbstractElement) const;
     void start_needed_transitions(ComputedProperties const& old_style, ComputedProperties& new_style, DOM::AbstractElement) const;
     void resolve_effective_overflow_values(ComputedProperties&) const;
@@ -181,9 +180,7 @@ private:
         Vector<MatchingRule const*> const&,
         CascadeOrigin,
         Important,
-        Optional<FlyString> layer_name,
-        Optional<LogicalAliasMappingContext>,
-        ReadonlySpan<PropertyID> properties_to_cascade) const;
+        Optional<FlyString> layer_name) const;
 
     GC::Ref<DOM::Document> m_document;
 
