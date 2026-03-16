@@ -160,28 +160,6 @@ static QIcon const& app_icon()
     return icon;
 }
 
-class HamburgerMenu : public QMenu {
-public:
-    using QMenu::QMenu;
-    virtual ~HamburgerMenu() override = default;
-
-    virtual void showEvent(QShowEvent*) override
-    {
-        if (!isVisible())
-            return;
-        auto* browser_window = as<BrowserWindow>(parentWidget());
-        if (!browser_window)
-            return;
-        auto* current_tab = browser_window->current_tab();
-        if (!current_tab)
-            return;
-        // Ensure the hamburger menu placed within the browser window.
-        auto* hamburger_button = current_tab->hamburger_button();
-        auto button_top_right = hamburger_button->mapToGlobal(hamburger_button->rect().bottomRight());
-        move(button_top_right - QPoint(rect().width(), 0));
-    }
-};
-
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
     : m_tabs_container(new TabWidget(this))
     , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
@@ -217,7 +195,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         });
     }
 
-    m_hamburger_menu = new HamburgerMenu(this);
+    m_hamburger_menu = new QMenu(this);
 
     if (!Settings::the()->show_menubar())
         menuBar()->hide();
