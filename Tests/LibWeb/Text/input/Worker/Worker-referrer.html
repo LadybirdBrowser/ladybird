@@ -43,7 +43,7 @@
             body: `
                 <!DOCTYPE html>
                 <script>
-                    new Worker("/redirect-first").onmessage = e => window.parent.postMessage(e.data, "*")
+                    new Worker("${redirectFirstUrl}").onmessage = e => window.parent.postMessage(e.data, "*")
                 <\/script>`,
         });
 

@@ -4,7 +4,7 @@
     asyncTest(async done => {
         const server = httpTestServer();
 
-        await server.createEcho("GET", "/worker-script-fetch-referrer/worker.js", {
+        const workerUrl = await server.createEcho("GET", "/worker-script-fetch-referrer/worker.js", {
             status: 200,
             headers: {
                 "Content-Type": "text/javascript",
@@ -23,7 +23,7 @@
                 <!DOCTYPE html>
                 <script>
                     history.replaceState(null, "", new URL("/updated-via-history", location.href))
-                    new Worker("/worker-script-fetch-referrer/worker.js").onmessage = e => window.parent.postMessage(e.data, "*")
+                    new Worker("${workerUrl}").onmessage = e => window.parent.postMessage(e.data, "*")
                 <\/script>`,
         });
 
