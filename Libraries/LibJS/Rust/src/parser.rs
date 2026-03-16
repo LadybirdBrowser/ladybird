@@ -638,6 +638,10 @@ impl<'a> Parser<'a> {
     where
         F: FnOnce(&mut Self) -> T,
     {
+        if self.should_abort_parsing() {
+            return None;
+        }
+
         self.parse_recursion_depth += 1;
         if self.parse_recursion_depth > MAX_PARSER_RECURSION_DEPTH {
             self.parse_recursion_depth -= 1;
