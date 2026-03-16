@@ -5027,6 +5027,14 @@ void Document::make_active()
     auto navigable = this->navigable();
     if (navigable) {
         m_visibility_state = navigable->traversable_navigable()->system_visibility_state();
+
+        // AD-HOC: Record the initial viewport and visual viewport state so that if the viewport changes before the
+        //         first rendering update (e.g. in our fullscreen tests), change events are still fired.
+        if (!m_last_viewport_size.has_value()) {
+            m_last_viewport_size = viewport_rect().size().to_type<int>();
+            auto& current_visual_viewport = *visual_viewport();
+            m_last_visual_viewport_state = VisualViewportState { current_visual_viewport.scale(), { current_visual_viewport.width(), current_visual_viewport.height() } };
+        }
     }
 
     // TODO: 4. Queue a new VisibilityStateEntry whose visibility state is document's visibility state and whose timestamp is zero.
