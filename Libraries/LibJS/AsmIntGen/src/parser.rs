@@ -61,7 +61,9 @@ pub struct Program {
     pub op_layouts: HashMap<String, OpLayout>,
     /// Ordered list of all opcode names from Bytecode.def.
     pub opcode_list: Vec<String>,
-    /// Target object format (affects relocation syntax on AArch64).
+    /// Target object format.
+    /// Affects backend details that differ between ELF and Mach-O, such as
+    /// relocation syntax and which CFI directives assemblers accept.
     pub object_format: ObjectFormat,
     /// Whether the target has ARMv8.3 FEAT_JSCVT (fjcvtzs instruction).
     pub has_jscvt: bool,

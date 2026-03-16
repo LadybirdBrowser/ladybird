@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::parser::{AsmInstruction, Handler, Operand, Program};
+use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{resolve_register, Arch};
 use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, w, HandlerState};
 use std::collections::HashMap;
@@ -65,6 +65,8 @@ pub fn generate(program: &Program) -> String {
     w!(out, ".text");
     w!(out);
 
+    emit_proc_start(&mut out);
+
     // Generate entry point
     generate_entry_point(&mut out, program);
 
@@ -76,29 +78,92 @@ pub fn generate(program: &Program) -> String {
         generate_handler(&mut out, handler, program);
     }
 
+    generate_exit_point(&mut out, program.object_format);
+    emit_proc_end(&mut out);
+    emit_file_trailer(&mut out);
+
+    out
+}
+
+fn emit_proc_start(out: &mut String) {
+    // Start one unwind-covered region for the entire monolithic interpreter
+    // blob, from the entry label through the last handler.
+    w!(out, ".globl CSYM(asm_interpreter_entry)");
+    w!(out, ".p2align 4");
+    w!(out, "CSYM(asm_interpreter_entry):");
+    w!(out, "    .cfi_startproc");
+}
+
+fn emit_proc_end(out: &mut String) {
+    // Close the interpreter's unwind frame after the last handler so any PC
+    // within the handler blob can unwind back to the C++ caller.
+    w!(out, ".cfi_endproc");
+    w!(out);
+}
+
+fn emit_file_trailer(out: &mut String) {
     // Mark stack as non-executable (required by Linux linker)
     w!(out, "#ifndef __APPLE__");
     w!(out, ".section .note.GNU-stack,\"\",@progbits");
     w!(out, "#endif");
+}
 
-    out
+fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
+    // Shared exit path: restore callee-saved registers and return.
+    // Keep this at the end of the proc so its CFI state does not affect
+    // later handler PCs. Mach-O's assembler rejects epilogue CFI directives,
+    // so only emit those for ELF.
+    w!(out, ".Lexit:");
+    w!(out, "    add rsp, 8");
+    w!(out, "    pop r15");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore r15");
+    }
+    w!(out, "    pop r14");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore r14");
+    }
+    w!(out, "    pop r13");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore r13");
+    }
+    w!(out, "    pop r12");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore r12");
+    }
+    w!(out, "    pop rbx");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore rbx");
+    }
+    w!(out, "    pop rbp");
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, "    .cfi_restore rbp");
+        w!(out, "    .cfi_def_cfa rsp, 8");
+    }
+    w!(out, "    ret");
+    w!(out);
 }
 
 fn generate_entry_point(out: &mut String, program: &Program) {
     // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, Interpreter* interp)
     // System V AMD64: rdi=bytecode, esi=entry_point, rdx=values, rcx=interp
-    w!(out, ".globl CSYM(asm_interpreter_entry)");
-    w!(out, ".p2align 4");
-    w!(out, "CSYM(asm_interpreter_entry):");
 
     // Save callee-saved registers
     w!(out, "    push rbp");
+    w!(out, "    .cfi_def_cfa_offset 16");
+    w!(out, "    .cfi_offset rbp, -16");
     w!(out, "    mov rbp, rsp");
+    w!(out, "    .cfi_def_cfa_register rbp");
     w!(out, "    push rbx");
+    w!(out, "    .cfi_offset rbx, -24");
     w!(out, "    push r12");
+    w!(out, "    .cfi_offset r12, -32");
     w!(out, "    push r13");
+    w!(out, "    .cfi_offset r13, -40");
     w!(out, "    push r14");
+    w!(out, "    .cfi_offset r14, -48");
     w!(out, "    push r15");
+    w!(out, "    .cfi_offset r15, -56");
     // Align stack to 16 bytes (pushed rbp + 5 regs = 48 bytes, need one more for alignment)
     w!(out, "    sub rsp, 8");
 
@@ -153,16 +218,7 @@ fn generate_fallback_handler(out: &mut String, program: &Program) {
     emit_dispatch(out);
     w!(out);
 
-    // Exit path: restore callee-saved registers and return
-    w!(out, ".Lexit:");
-    w!(out, "    add rsp, 8");
-    w!(out, "    pop r15");
-    w!(out, "    pop r14");
-    w!(out, "    pop r13");
-    w!(out, "    pop r12");
-    w!(out, "    pop rbx");
-    w!(out, "    pop rbp");
-    w!(out, "    ret");
+    // Shared exit path is emitted at the end of the proc.
     w!(out);
 }
 
