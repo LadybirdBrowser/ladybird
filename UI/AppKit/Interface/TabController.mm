@@ -30,6 +30,40 @@ static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
 
+@interface LocationSearchFieldCell : NSSearchFieldCell
+
+@end
+
+@implementation LocationSearchFieldCell
+
+- (NSRect)adjustedFrameToVerticallyCenterText:(NSRect)frame
+{
+    NSSize textSize = [self cellSizeForBounds:frame];
+    CGFloat delta = frame.size.height - textSize.height;
+    if (delta > 0) {
+        frame.origin.y += delta / 2.0;
+        frame.size.height -= delta;
+    }
+    return frame;
+}
+
+- (void)drawInteriorWithFrame:(NSRect)frame inView:(NSView*)view
+{
+    [super drawInteriorWithFrame:[self adjustedFrameToVerticallyCenterText:frame] inView:view];
+}
+
+- (void)editWithFrame:(NSRect)frame inView:(NSView*)view editor:(NSText*)editor delegate:(id)delegate event:(NSEvent*)event
+{
+    [super editWithFrame:[self adjustedFrameToVerticallyCenterText:frame] inView:view editor:editor delegate:delegate event:event];
+}
+
+- (void)selectWithFrame:(NSRect)frame inView:(NSView*)view editor:(NSText*)editor delegate:(id)delegate start:(NSInteger)start length:(NSInteger)length
+{
+    [super selectWithFrame:[self adjustedFrameToVerticallyCenterText:frame] inView:view editor:editor delegate:delegate start:start length:length];
+}
+
+@end
+
 @interface LocationSearchField : NSSearchField
 
 - (BOOL)becomeFirstResponder;
@@ -37,6 +71,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @end
 
 @implementation LocationSearchField
+
++ (Class)cellClass
+{
+    return [LocationSearchFieldCell class];
+}
 
 - (BOOL)becomeFirstResponder
 {
