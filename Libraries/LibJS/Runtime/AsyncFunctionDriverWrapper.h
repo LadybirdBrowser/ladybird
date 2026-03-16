@@ -35,8 +35,7 @@ private:
     GC::Ptr<Promise> m_current_promise { nullptr };
     OwnPtr<ExecutionContext> m_suspended_execution_context;
 
-    GC::Ptr<NativeFunction> m_on_fulfilled;
-    GC::Ptr<NativeFunction> m_on_rejected;
+    GC::Ptr<NativeFunction> m_on_settled;
 };
 
 }
