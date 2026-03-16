@@ -55,6 +55,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     OwnPtr<WebView::Autocomplete> m_autocomplete;
 
     bool m_fullscreen_requested_for_web_content;
+    bool m_fullscreen_exit_was_ui_initiated;
     bool m_fullscreen_should_restore_tab_bar;
 }
 
@@ -108,6 +109,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         m_page_index = 0;
         m_fullscreen_requested_for_web_content = false;
+        m_fullscreen_exit_was_ui_initiated = true;
         m_fullscreen_should_restore_tab_bar = false;
 
         self.autocomplete = [[Autocomplete alloc] init:self withToolbarItem:self.location_toolbar_item];
@@ -134,6 +136,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 
         m_page_index = page_index;
         m_fullscreen_requested_for_web_content = false;
+        m_fullscreen_exit_was_ui_initiated = true;
         m_fullscreen_should_restore_tab_bar = false;
     }
 
@@ -174,6 +177,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 - (void)onExitFullscreenWindow
 {
     if (([self.window styleMask] & NSWindowStyleMaskFullScreen) != 0) {
+        m_fullscreen_exit_was_ui_initiated = false;
         [self.window toggleFullScreen:nil];
     }
 }
@@ -499,7 +503,8 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         }
     }
 
-    [[[self tab] web_view] handleExitFullScreen];
+    if (exchange(m_fullscreen_exit_was_ui_initiated, true))
+        [[[self tab] web_view] handleExitFullScreen];
 }
 
 - (NSApplicationPresentationOptions)window:(NSWindow*)window
