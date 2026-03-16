@@ -37,6 +37,7 @@ private:
     OwnPtr<ExecutionContext> m_suspended_execution_context;
 
     GC::Ptr<NativeFunction> m_on_settled;
+    bool m_is_initial_execution { true };
 };
 
 }

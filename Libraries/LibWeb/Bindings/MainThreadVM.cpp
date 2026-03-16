@@ -333,6 +333,10 @@ void initialize_main_thread_vm(AgentType type)
         }));
     };
 
+    s_main_thread_vm->host_promise_job_queue_is_empty = []() -> bool {
+        return HTML::main_thread_event_loop().microtask_queue_empty();
+    };
+
     // 8.1.5.4.4 HostMakeJobCallback(callable), https://html.spec.whatwg.org/multipage/webappapis.html#hostmakejobcallback
     // https://whatpr.org/html/9893/webappapis.html#hostmakejobcallback
     s_main_thread_vm->host_make_job_callback = [](JS::FunctionObject& callable) -> GC::Ref<JS::JobCallback> {

@@ -118,6 +118,10 @@ VM::VM(ErrorMessages error_messages)
         enqueue_promise_job(job, realm);
     };
 
+    host_promise_job_queue_is_empty = [this]() -> bool {
+        return m_promise_jobs.is_empty();
+    };
+
     host_make_job_callback = [](FunctionObject& function_object) {
         return make_job_callback(function_object);
     };

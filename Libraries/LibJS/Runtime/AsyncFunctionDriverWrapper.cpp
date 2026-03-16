@@ -181,12 +181,44 @@ void AsyncFunctionDriverWrapper::continue_async_execution(VM& vm, Value value, b
                 return {};
             }
 
-            // We hit `await Promise`
+            // We hit `await value`
+            //
+            // OPTIMIZATION: Synchronous await fast path.
+            // If we're not in the initial execution (i.e. we were resumed from a microtask)
+            // and the microtask queue is empty, we can resolve the await synchronously
+            // without suspending. This is safe because no other microtask can observe the
+            // difference in execution order.
+            if (!m_is_initial_execution && vm.host_promise_job_queue_is_empty()) {
+                auto& realm = *vm.current_realm();
+                if (!promise_value.is_object()) {
+                    // Primitive values are never thenable.
+                    generator_result = m_generator_object->resume(vm, promise_value, {});
+                    continue;
+                }
+                if (auto promise = promise_value.as_if<Promise>()) {
+                    auto* promise_prototype = realm.intrinsics().promise_prototype().ptr();
+                    if (promise->state() != Promise::State::Pending
+                        && promise->shape().property_count() == 0
+                        && promise->shape().prototype() == promise_prototype
+                        && promise_prototype->get_without_side_effects(vm.names.constructor) == Value(realm.intrinsics().promise_constructor())) {
+                        auto is_fulfilled = promise->state() == Promise::State::Fulfilled;
+                        promise->set_is_handled();
+                        if (is_fulfilled) {
+                            generator_result = m_generator_object->resume(vm, promise->result(), {});
+                        } else {
+                            generator_result = m_generator_object->resume_abrupt(vm, throw_completion(promise->result()), {});
+                        }
+                        continue;
+                    }
+                }
+            }
+
             auto await_result = this->await(promise_value);
             if (await_result.is_throw_completion()) {
                 generator_result = m_generator_object->resume_abrupt(vm, await_result.release_error(), {});
                 continue;
             }
+            m_is_initial_execution = false;
             return {};
         }
     }();

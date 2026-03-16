@@ -600,6 +600,98 @@ describe("microtask ordering with await", () => {
     });
 });
 
+// The synchronous await fast path fires when:
+//   1. m_is_initial_execution is false (i.e. we've already suspended once), AND
+//   2. the microtask queue is empty (no other async work in flight)
+// This means it activates on the 2nd+ await in a single async function
+// when no other async functions are running concurrently.
+describe("synchronous await fast path", () => {
+    test("multiple rejected promises in sequence", () => {
+        const caught = [];
+        async function f() {
+            for (const v of [1, 2, 3]) {
+                try {
+                    await Promise.reject(v);
+                } catch (e) {
+                    caught.push(e);
+                }
+            }
+        }
+        f();
+        runQueuedPromiseJobs();
+        expect(caught).toEqual([1, 2, 3]);
+    });
+
+    test("mixed resolved and rejected promises", () => {
+        const results = [];
+        async function f() {
+            results.push(await Promise.resolve("a"));
+            try {
+                await Promise.reject("b");
+            } catch (e) {
+                results.push("caught:" + e);
+            }
+            results.push(await 42);
+            results.push(await Promise.resolve("d"));
+            try {
+                await Promise.reject("e");
+            } catch (e) {
+                results.push("caught:" + e);
+            }
+        }
+        f();
+        runQueuedPromiseJobs();
+        expect(results).toEqual(["a", "caught:b", 42, "d", "caught:e"]);
+    });
+
+    test("promise with own property falls back to slow path", () => {
+        const results = [];
+        async function f() {
+            results.push(await Promise.resolve(1));
+            const p = Promise.resolve(2);
+            p.extraProp = true;
+            results.push(await p);
+            results.push(await Promise.resolve(3));
+        }
+        f();
+        runQueuedPromiseJobs();
+        expect(results).toEqual([1, 2, 3]);
+    });
+
+    test("promise subclass falls back to slow path", () => {
+        class MyPromise extends Promise {}
+        const results = [];
+        async function f() {
+            results.push(await Promise.resolve(1));
+            results.push(await MyPromise.resolve(2));
+            results.push(await Promise.resolve(3));
+        }
+        f();
+        runQueuedPromiseJobs();
+        expect(results).toEqual([1, 2, 3]);
+    });
+
+    test("pending promise falls back to slow path", () => {
+        let resolve;
+        const results = [];
+        async function f() {
+            results.push(await Promise.resolve(1));
+            results.push(
+                await new Promise(r => {
+                    resolve = r;
+                })
+            );
+            results.push(await Promise.resolve(3));
+        }
+        f();
+        runQueuedPromiseJobs();
+        expect(results).toEqual([1]);
+        resolve(2);
+        runQueuedPromiseJobs();
+        expect(results).toEqual([1, 2, 3]);
+    });
+});
+
 describe("await fast path does not invoke getters on Promise.prototype.constructor", () => {
     test("getter on Promise.prototype.constructor causes fallback to slow path", () => {
         let calls = 0;
