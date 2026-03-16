@@ -1,0 +1,38 @@
+<!doctype html>
+<style>
+    #root {
+        position: relative;
+        z-index: 0;
+    }
+
+    #positive {
+        height: 1px;
+        position: relative;
+        z-index: 1;
+    }
+
+    #negative {
+        position: relative;
+        z-index: -1;
+    }
+
+    #link {
+        display: inline-block;
+        height: 20px;
+        width: 40px;
+    }
+</style>
+<div id="root">
+    <div id="positive"></div>
+    <div id="negative">
+        <a id="link" href="#"></a>
+    </div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = link.getBoundingClientRect();
+        const node = internals.hitTest(rect.left + rect.width / 2, rect.top + rect.height / 2).node;
+        println(node === link);
+    });
+</script>

@@ -381,7 +381,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     auto const is_visible = paintable_box().computed_values().visibility() == CSS::Visibility::Visible;
 
     // NOTE: Hit testing basically happens in reverse painting order.
-    // https://www.w3.org/TR/CSS22/visuren.html#z-index
+    // https://drafts.csswg.org/css2/#z-index
 
     // 7. the child stacking contexts with positive stack levels (least positive first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
@@ -445,10 +445,11 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     }
 
     // 2. the child stacking contexts with negative stack levels (most negative first).
-    // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
+    // NB: Hit testing follows reverse painting order, so we visit the least negative stack levels first.
     for (auto const child : m_children.in_reverse()) {
+        // Skip positive/ zero index child stacking contexts, which have already been handled above.
         if (child->paintable_box().computed_values().z_index().value_or(0) >= 0)
-            break;
+            continue;
         if (child->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
