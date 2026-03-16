@@ -27,6 +27,31 @@
 
 namespace Gfx {
 
+static RefPtr<SkiaBackendContext> s_the;
+
+void SkiaBackendContext::initialize_gpu_backend()
+{
+    VERIFY(!s_the);
+
+#ifdef AK_OS_MACOS
+    auto metal_context = get_metal_context();
+    s_the = create_metal_context(*metal_context);
+#elif USE_VULKAN
+    auto maybe_vulkan_context = Gfx::create_vulkan_context();
+    if (maybe_vulkan_context.is_error()) {
+        dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
+        return;
+    }
+    auto vulkan_context = maybe_vulkan_context.release_value();
+    s_the = create_vulkan_context(vulkan_context);
+#endif
+}
+
+RefPtr<SkiaBackendContext> SkiaBackendContext::the()
+{
+    return s_the;
+}
+
 #ifdef USE_VULKAN
 class SkiaVulkanBackendContext final : public SkiaBackendContext {
     AK_MAKE_NONCOPYABLE(SkiaVulkanBackendContext);

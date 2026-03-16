@@ -34,7 +34,6 @@
 #include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/Path2D.h>
 #include <LibWeb/HTML/TextMetrics.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Painting/Paintable.h>
@@ -248,8 +247,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
 
-    auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
-    m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
+    m_surface = Gfx::PaintingSurface::create_with_size(canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
     m_painter = nullptr;
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha

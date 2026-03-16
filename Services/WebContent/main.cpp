@@ -15,6 +15,7 @@
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -198,7 +199,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Web::set_browser_process_executable_path(executable_path);
 
     // Always use the CPU backend for tests, as the GPU backend is not deterministic
-    WebContent::PageClient::set_use_skia_painter(force_cpu_painting ? WebContent::PageClient::UseSkiaPainter::CPUBackend : WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
+    if (force_cpu_painting) {
+        WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::CPUBackend);
+    } else {
+        Gfx::SkiaBackendContext::initialize_gpu_backend();
+        WebContent::PageClient::set_use_skia_painter(WebContent::PageClient::UseSkiaPainter::GPUBackendIfAvailable);
+    }
 
     WebContent::PageClient::set_is_headless(is_headless);
 

@@ -7,6 +7,7 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/BackingStoreManager.h>
 #include <WebContent/PageClient.h>
@@ -50,7 +51,7 @@ void BackingStoreManager::restart_resize_timer()
 
 void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 {
-    auto skia_backend_context = m_navigable->skia_backend_context();
+    auto skia_backend_context = Gfx::SkiaBackendContext::the();
 
     RefPtr<Gfx::PaintingSurface> front_store;
     RefPtr<Gfx::PaintingSurface> back_store;
@@ -119,11 +120,11 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 
 #ifdef USE_VULKAN
     if (skia_backend_context) {
-        front_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        front_store = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
         front_store->on_flush = [front_bitmap](auto& surface) {
             surface.read_into_bitmap(*front_bitmap);
         };
-        back_store = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        back_store = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
         back_store->on_flush = [back_bitmap](auto& surface) {
             surface.read_into_bitmap(*back_bitmap);
         };

@@ -94,12 +94,13 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_vkimage(NonnullRefPt
 }
 #endif
 
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(RefPtr<SkiaBackendContext> context, IntSize size, BitmapFormat color_type, AlphaType alpha_type)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, BitmapFormat color_type, AlphaType alpha_type)
 {
     auto sk_color_type = to_skia_color_type(color_type);
     auto sk_alpha_type = to_skia_alpha_type(color_type, alpha_type);
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
+    auto context = SkiaBackendContext::the();
     if (context) {
         context->lock();
         auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);

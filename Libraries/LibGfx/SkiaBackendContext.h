@@ -39,6 +39,9 @@ public:
     static RefPtr<SkiaBackendContext> create_metal_context(NonnullRefPtr<MetalContext>);
 #endif
 
+    static void initialize_gpu_backend();
+    static RefPtr<SkiaBackendContext> the();
+
     SkiaBackendContext() { }
     virtual ~SkiaBackendContext() { }
 

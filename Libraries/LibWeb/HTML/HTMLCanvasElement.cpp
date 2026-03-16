@@ -23,7 +23,6 @@
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Layout/CanvasBox.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
@@ -307,14 +306,13 @@ Gfx::IntSize HTMLCanvasElement::bitmap_size_for_canvas(size_t minimum_width, siz
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-canvas-todataurl
 String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
 {
-    // It is possible the canvas doesn't have a associated bitmap so create one
+    // It is possible the canvas doesn't have an associated bitmap so create one
     allocate_painting_surface_if_needed();
     auto surface = this->surface();
     auto size = bitmap_size_for_canvas();
     if (!surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
-        surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 
     // FIXME: 1. If this canvas element's bitmap's origin-clean flag is set to false, then throw a "SecurityError" DOMException.
@@ -391,8 +389,7 @@ RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
     auto surface = this->surface();
     if (auto const size = bitmap_size_for_canvas(); !surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        auto const skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
-        surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 
     RefPtr<Gfx::Bitmap> bitmap;

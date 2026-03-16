@@ -212,8 +212,6 @@ public:
 
     [[nodiscard]] bool has_inclusive_ancestor_with_visibility_hidden() const;
 
-    RefPtr<Gfx::SkiaBackendContext> skia_backend_context() const;
-
     RenderingThread& rendering_thread() { return m_rendering_thread; }
 
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
@@ -291,7 +289,6 @@ private:
     bool m_pending_set_browser_zoom_request { false };
     bool m_should_show_line_box_borders { false };
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
-    RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     RenderingThread m_rendering_thread;
 };
 

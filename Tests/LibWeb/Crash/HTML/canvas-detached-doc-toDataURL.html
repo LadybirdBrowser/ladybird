@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var canvas = doc.createElement('canvas');
+canvas.width = 100;
+canvas.height = 100;
+doc.body.appendChild(canvas);
+canvas.toDataURL();
+</script>
+</body>

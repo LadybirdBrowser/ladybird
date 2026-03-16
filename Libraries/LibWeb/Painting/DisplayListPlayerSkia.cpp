@@ -28,17 +28,13 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/PainterSkia.h>
 #include <LibGfx/PathSkia.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/PaintStyle.h>
 
 namespace Web::Painting {
-
-DisplayListPlayerSkia::DisplayListPlayerSkia(RefPtr<Gfx::SkiaBackendContext> context)
-    : m_context(context)
-{
-}
 
 DisplayListPlayerSkia::DisplayListPlayerSkia()
 {
@@ -97,8 +93,8 @@ static SkM44 to_skia_matrix4x4(Gfx::FloatMatrix4x4 const& matrix)
 
 void DisplayListPlayerSkia::flush()
 {
-    if (m_context)
-        m_context->flush_and_submit(&surface().sk_surface());
+    if (auto context = Gfx::SkiaBackendContext::the())
+        context->flush_and_submit(&surface().sk_surface());
     surface().flush();
 }
 
@@ -143,7 +139,7 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
     auto bitmap = command.source->current_bitmap();
     if (!bitmap)
         return;
-    if (m_context && !bitmap->ensure_sk_image(*m_context))
+    if (Gfx::SkiaBackendContext::the() && !bitmap->ensure_sk_image(*Gfx::SkiaBackendContext::the()))
         return;
     auto dst_rect = to_skia_rect(command.dst_rect);
     SkRect src_rect = SkRect::MakeIWH(bitmap->width(), bitmap->height());
@@ -155,7 +151,7 @@ void DisplayListPlayerSkia::draw_external_content(DrawExternalContent const& com
 
 void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitmap const& command)
 {
-    if (m_context && !command.bitmap->ensure_sk_image(*m_context))
+    if (Gfx::SkiaBackendContext::the() && !command.bitmap->ensure_sk_image(*Gfx::SkiaBackendContext::the()))
         return;
 
     auto dst_rect = to_skia_rect(command.dst_rect);
@@ -171,7 +167,7 @@ void DisplayListPlayerSkia::draw_scaled_immutable_bitmap(DrawScaledImmutableBitm
 
 void DisplayListPlayerSkia::draw_repeated_immutable_bitmap(DrawRepeatedImmutableBitmap const& command)
 {
-    if (m_context && !command.bitmap->ensure_sk_image(*m_context))
+    if (Gfx::SkiaBackendContext::the() && !command.bitmap->ensure_sk_image(*Gfx::SkiaBackendContext::the()))
         return;
 
     SkMatrix matrix;
@@ -469,7 +465,7 @@ SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServe
         if (tile_size.is_empty())
             return {};
 
-        auto tile_surface = Gfx::PaintingSurface::create_with_size(m_context, tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+        auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
 
         execute_display_list_into_surface(*pattern->tile_display_list(), *tile_surface);
 

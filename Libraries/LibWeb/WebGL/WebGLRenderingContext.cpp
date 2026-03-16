@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/WebGLRenderingContextPrototype.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
-#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/WebGL/EventNames.h>
@@ -50,7 +50,7 @@ JS::ThrowCompletionOr<GC::Ptr<WebGLRenderingContext>> WebGLRenderingContext::cre
     // We should be coming here from getContext being called on a wrapped <canvas> element.
     auto context_attributes = TRY(convert_value_to_context_attributes_dictionary(canvas_element.vm(), options));
 
-    auto skia_backend_context = canvas_element.navigable()->traversable_navigable()->skia_backend_context();
+    auto skia_backend_context = Gfx::SkiaBackendContext::the();
     if (!skia_backend_context) {
         fire_webgl_context_creation_error(canvas_element);
         return GC::Ptr<WebGLRenderingContext> { nullptr };

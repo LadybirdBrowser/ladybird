@@ -118,7 +118,7 @@ RefPtr<Gfx::PaintingSurface> SVGDecodedImageData::render_to_surface(Gfx::IntSize
     if (m_cached_rendered_surfaces.size() > 10)
         m_cached_rendered_surfaces.remove(m_cached_rendered_surfaces.begin());
 
-    auto surface = Gfx::PaintingSurface::create_with_size(m_document->navigable()->skia_backend_context(), size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     auto display_list = record_display_list(size);
     if (!display_list)
         return nullptr;

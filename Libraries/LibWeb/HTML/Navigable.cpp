@@ -145,28 +145,6 @@ bool Navigable::is_ancestor_of(GC::Ref<Navigable> other) const
     return false;
 }
 
-static RefPtr<Gfx::SkiaBackendContext> g_cached_skia_backend_context;
-
-static RefPtr<Gfx::SkiaBackendContext> get_skia_backend_context()
-{
-    if (!g_cached_skia_backend_context) {
-#ifdef AK_OS_MACOS
-        auto metal_context = Gfx::get_metal_context();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_metal_context(*metal_context);
-#elif USE_VULKAN
-        auto maybe_vulkan_context = Gfx::create_vulkan_context();
-        if (maybe_vulkan_context.is_error()) {
-            dbgln("Vulkan context creation failed: {}", maybe_vulkan_context.error());
-            return {};
-        }
-
-        auto vulkan_context = maybe_vulkan_context.release_value();
-        g_cached_skia_backend_context = Gfx::SkiaBackendContext::create_vulkan_context(vulkan_context);
-#endif
-    }
-    return g_cached_skia_backend_context;
-}
-
 Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
     : m_page(page)
     , m_event_handler({}, *this)
@@ -179,19 +157,9 @@ Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
 {
     all_navigables().set(*this);
 
-    auto display_list_player_type = page->client().display_list_player_type();
-    if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-        m_skia_backend_context = get_skia_backend_context();
-    }
-
     if (!m_is_svg_page) {
-        OwnPtr<Painting::DisplayListPlayerSkia> skia_player;
-        if (display_list_player_type == DisplayListPlayerType::SkiaGPUIfAvailable) {
-            skia_player = make<Painting::DisplayListPlayerSkia>(m_skia_backend_context);
-        } else {
-            skia_player = make<Painting::DisplayListPlayerSkia>();
-        }
-        m_rendering_thread.set_skia_player(move(skia_player));
+        auto display_list_player_type = page->client().display_list_player_type();
+        m_rendering_thread.set_skia_player(make<Painting::DisplayListPlayerSkia>());
         m_rendering_thread.start(display_list_player_type);
     }
 }
@@ -2909,11 +2877,6 @@ void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintC
 {
     record_display_list_and_scroll_state(paint_config);
     m_rendering_thread.request_screenshot(painting_surface, move(callback));
-}
-
-RefPtr<Gfx::SkiaBackendContext> Navigable::skia_backend_context() const
-{
-    return m_skia_backend_context;
 }
 
 GC::Ref<WebIDL::Promise> Navigable::scroll_viewport_by_delta(CSSPixelPoint delta)
