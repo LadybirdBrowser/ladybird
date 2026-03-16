@@ -38,7 +38,7 @@ static void assertion_handler_impl(char const*)
 #if defined(AK_OS_WINDOWS)
 #    define EXPORT __declspec(dllexport)
 #else
-#    define EXPORT __attribute__((visibility("default")))
+#    define EXPORT __attribute__((visibility("default"), retain, used))
 #endif
 
 extern "C" EXPORT void ak_assertion_handler(char const* message);
