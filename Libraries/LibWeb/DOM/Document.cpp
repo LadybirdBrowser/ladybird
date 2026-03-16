@@ -6978,44 +6978,44 @@ GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
     auto top_level_doc = navigable()->top_level_traversable()->active_document();
 
     // 6. If topLevelDoc is in docs, and it is a simple fullscreen document, then set doc to topLevelDoc and resize to true.
-    GC::Ref<Document> document_to_unfullscreen { *this };
+    GC::Ref<Document> doc { *this };
     if (top_level_doc && top_level_doc->is_simple_fullscreen_document() && docs->elements().contains_slow(GC::Ref { *top_level_doc })) {
-        document_to_unfullscreen = *top_level_doc;
+        doc = *top_level_doc;
         resize = true;
     }
 
     // 7. If doc’s fullscreen element is not connected:
-    if (auto fullscreen_element = document_to_unfullscreen->fullscreen_element(); !fullscreen_element->is_connected()) {
+    if (auto fullscreen_element = doc->fullscreen_element(); !fullscreen_element->is_connected()) {
         // 1. Append (fullscreenchange, doc’s fullscreen element) to doc’s list of pending fullscreen events.
-        document_to_unfullscreen->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *fullscreen_element);
+        doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *fullscreen_element);
 
         // 2. Unfullscreen doc’s fullscreen element.
-        document_to_unfullscreen->unfullscreen_element(*fullscreen_element);
+        doc->unfullscreen_element(*fullscreen_element);
     }
 
     // 8. Return promise, and run the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [&realm, document_to_unfullscreen, promise, resize] {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [&realm, doc, promise, resize] {
         HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
         // FIXME: 9. Run the fully unlock the screen orientation steps with doc.
 
         // 10. If resize is true, resize doc’s viewport to its "normal" dimensions.
         // NB: Fullscreen API is affected by site-isolation and will require additional work once site-isolation is implemented.
         if (resize)
-            document_to_unfullscreen->page().client().page_did_request_exit_fullscreen();
+            doc->page().client().page_did_request_exit_fullscreen();
 
         // 11. If doc’s fullscreen element is null, then resolve promise with undefined and terminate these steps.
-        if (!document_to_unfullscreen->fullscreen_element()) {
+        if (!doc->fullscreen_element()) {
             WebIDL::resolve_promise(realm, promise, JS::js_undefined());
             return;
         }
 
         // 12. Let exitDocs be the result of collecting documents to unfullscreen given doc.
-        auto exit_docs = document_to_unfullscreen->collect_documents_to_unfullscreen();
+        auto exit_docs = doc->collect_documents_to_unfullscreen();
 
         // 13. Let descendantDocs be an ordered set consisting of doc’s descendant navigables' active documents whose
         //     fullscreen element is non-null, if any, in tree order.
         auto descendant_docs = realm.heap().allocate<GC::HeapVector<GC::Ref<Document>>>();
-        for (auto& descendant : document_to_unfullscreen->descendant_navigables()) {
+        for (auto& descendant : doc->descendant_navigables()) {
             if (descendant->active_document()->fullscreen_element())
                 descendant_docs->elements().append(*descendant->active_document());
         }
