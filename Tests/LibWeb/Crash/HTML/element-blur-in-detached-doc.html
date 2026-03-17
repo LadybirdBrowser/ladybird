@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- Test: blur() and focus() on elements in a detached document should not crash -->
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+['div','input','textarea','select','button','a','canvas','video'].forEach(function(tag) {
+    var el = doc.createElement(tag);
+    doc.body.appendChild(el);
+    el.blur();
+    el.focus();
+});
+</script>
+</body>
