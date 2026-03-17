@@ -124,6 +124,10 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
 
         // 2. Let parentNavigableEntries be the result of getting session history entries for parentNavigable.
         auto parent_navigable_entries = parent_navigable->get_session_history_entries();
+        if (parent_navigable_entries.is_empty()) {
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
+        }
 
         // 3. Let targetStepSHE be the first session history entry in parentNavigableEntries whose document state equals parentDocState.
         auto target_step_she = *parent_navigable_entries.find_if([parent_doc_state](auto& entry) {

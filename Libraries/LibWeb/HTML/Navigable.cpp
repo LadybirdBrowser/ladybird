@@ -705,7 +705,9 @@ Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() c
         }
     }
 
-    VERIFY_NOT_REACHED();
+    // Navigable was not found in its traversable's session history (e.g. removed during teardown).
+    static Vector<GC::Ref<SessionHistoryEntry>> empty_entries;
+    return empty_entries;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container

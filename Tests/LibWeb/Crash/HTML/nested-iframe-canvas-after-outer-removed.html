@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<body>
+<script>
+var outer = document.createElement('iframe');
+document.body.appendChild(outer);
+var inner = outer.contentDocument.createElement('iframe');
+outer.contentDocument.body.appendChild(inner);
+var canvas = inner.contentDocument.createElement('canvas');
+canvas.width = 100;
+canvas.height = 100;
+inner.contentDocument.body.appendChild(canvas);
+outer.remove();
+canvas.toDataURL();
+</script>
+</body>
