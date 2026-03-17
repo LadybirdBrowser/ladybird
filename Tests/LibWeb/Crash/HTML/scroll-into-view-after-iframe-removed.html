@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!-- Test: scrollIntoView on a removed iframe element should not crash -->
+<html class="test-wait">
+<body>
+<script>
+var iframe = document.createElement('iframe');
+iframe.src = 'about:blank';
+iframe.onload = function() {
+    var div = iframe.contentDocument.createElement('div');
+    div.style.height = '2000px';
+    iframe.contentDocument.body.appendChild(div);
+    var target = iframe.contentDocument.createElement('div');
+    iframe.contentDocument.body.appendChild(target);
+    target.offsetHeight;
+    iframe.remove();
+    setTimeout(function() {
+        target.scrollIntoView();
+        document.documentElement.classList.remove('test-wait');
+    }, 50);
+};
+document.body.appendChild(iframe);
+</script>
+</body>

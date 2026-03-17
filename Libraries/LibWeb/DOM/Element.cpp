@@ -2819,7 +2819,8 @@ static GC::Ref<WebIDL::Promise> scroll_an_element_into_view(Element& target, Bin
                 // NOTE: Since calculated position is relative to the viewport, we need to add the viewport's position to it
                 //       before passing to perform_a_scroll_of_the_viewport() that expects a position relative to the page.
                 position.set_y(position.y() + document.viewport_rect().y());
-                document.navigable()->perform_a_scroll_of_the_viewport(position);
+                if (auto navigable = document.navigable())
+                    navigable->perform_a_scroll_of_the_viewport(position);
             }
         }
 
