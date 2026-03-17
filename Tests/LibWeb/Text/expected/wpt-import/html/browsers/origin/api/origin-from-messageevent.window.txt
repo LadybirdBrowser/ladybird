@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 6 tests
+
+2 Pass
+4 Fail
+Fail	Constructed `MessageEvent` objects have no real origins.
+Pass	Origin.from(MessageEvent) returns a tuple origin for messages from same-origin frames.
+Fail	Origin.from(MessageEvent) returns a tuple origin for messages from cross-origin frames.
+Fail	Origin.from(MessageEvent) returns an opaque origin for messages from sandboxed frames.
+Pass	Origin.from(MessageEvent) returns a tuple origin for same-origin windows.
+Fail	Origin.from(MessageEvent) returns a tuple origin for cross-origin windows.

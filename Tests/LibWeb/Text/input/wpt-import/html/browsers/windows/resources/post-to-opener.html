@@ -1,0 +1,8 @@
+<script>
+  if (window.opener) {
+    window.opener.postMessage({
+      "name": window.name,
+      "isTop": window.top === window
+    }, "*");
+  }
+</script>
