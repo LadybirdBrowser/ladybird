@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<body>
+<script>
+class InternalsEl extends HTMLElement {
+    static formAssociated = true;
+    constructor() { super(); this._internals = this.attachInternals(); }
+}
+customElements.define('x-internals', InternalsEl);
+var el = document.createElement('x-internals');
+document.body.appendChild(el);
+var doc = document.implementation.createHTMLDocument('');
+doc.adoptNode(el);
+doc.body.appendChild(el);
+el._internals.reportValidity();
+</script>
+</body>

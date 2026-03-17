@@ -931,6 +931,8 @@ bool HTMLElement::is_form_associated_custom_element()
     // An autonomous custom element is called a form-associated custom element if the element is associated with a
     // custom element definition whose form-associated field is set to true.
     auto definition = document().lookup_custom_element_definition(namespace_uri(), local_name(), is_value());
+    if (!definition)
+        return false;
     return definition->form_associated();
 }
 
