@@ -1318,7 +1318,7 @@ end
 # Property access (indexed + named + inline caches)
 # ============================================================================
 
-# Fast path for array[int32_index] = value with simple indexed storage.
+# Fast path for array[int32_index] = value with Packed/Holey indexed storage.
 handler PutByValue
     # Only fast-path Normal puts (not Getter/Setter/Own)
     load8 t0, [pb, pc, m_kind]
@@ -1342,19 +1342,25 @@ handler PutByValue
     branch_bits_set t0, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
     # Check !may_interfere_with_indexed_property_access
     branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
-    # Check storage kind is Packed (1) or Holey (2)
+    # Packed is the hot path: existing elements can be overwritten directly.
     load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_zero t0, .slow
-    branch_eq t0, INDEXED_STORAGE_KIND_DICTIONARY, .slow
-    # Check index < array_like_size
+    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
+    # Check index vs array_like_size
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
-    # Load directly from m_indexed_elements[index]
+    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    load_operand t1, m_src
+    store64 [t5, t4, 8], t1
+    dispatch_next
+.not_packed:
+    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    # Holey arrays need a slot load to distinguish existing elements from holes.
+    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
     load64 t1, [t5, t4, 8]
     mov t0, EMPTY_TAG_SHIFTED
     branch_eq t1, t0, .slow
-    # Store value to m_indexed_elements[index]
     load_operand t1, m_src
     store64 [t5, t4, 8], t1
     dispatch_next
@@ -1542,7 +1548,7 @@ handler PutById
     dispatch_next
 end
 
-# Fast path for array[int32_index] with simple indexed storage.
+# Fast path for array[int32_index] with Packed/Holey indexed storage.
 handler GetByValue
     load_operand t1, m_base
     load_operand t2, m_property
@@ -1564,21 +1570,27 @@ handler GetByValue
     branch_bits_set t0, OBJECT_FLAG_IS_TYPED_ARRAY, .try_typed_array
     # Check !may_interfere_with_indexed_property_access
     branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
-    # Check storage kind is Packed (1) or Holey (2)
+    # Packed is the hot path: in-bounds elements are always present.
     load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_zero t0, .slow
-    branch_eq t0, INDEXED_STORAGE_KIND_DICTIONARY, .slow
+    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
     # Check index < array_like_size
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
-    # Load directly from m_indexed_elements[index]
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
     load64 t0, [t5, t4, 8]
-    # Check value is not empty (hole)
-    mov t5, EMPTY_TAG_SHIFTED
-    branch_eq t0, t5, .slow
     # NB: No accessor check needed -- Packed/Holey storage
     #     can only hold default-attributed data properties.
+    store_operand m_dst, t0
+    dispatch_next
+.not_packed:
+    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    # Holey arrays need a slot load to distinguish present elements from holes.
+    load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    branch_ge_unsigned t4, t5, .slow
+    load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    load64 t0, [t5, t4, 8]
+    mov t5, EMPTY_TAG_SHIFTED
+    branch_eq t0, t5, .slow
     store_operand m_dst, t0
     dispatch_next
 .try_typed_array:

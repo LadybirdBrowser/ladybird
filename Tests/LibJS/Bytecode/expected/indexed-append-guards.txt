@@ -1,0 +1,89 @@
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg6, identifier:Object
+[  20]       GetById dst:reg7, base:reg6, property:preventExtensions, base_identifier:Object
+[  40]       NewObject dst:reg8
+[  50]       ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
+[  60]       PutByValue base:reg8, property:Int32(0), src:Int32(1), kind:Own
+[  78]       Call dst:reg5, callee:reg7, this_value:reg6, Object.preventExtensions, arguments:[reg8]
+[  a0]       InitializeLexicalBinding identifier:object, src:reg5
+[  b8]       GetGlobal dst:reg6, identifier:expect_type_error
+[  d0]       NewFunction dst:reg7, shared_function_data_index:0
+[  e8]       Call dst:reg5, callee:reg6, this_value:Undefined, expect_type_error, arguments:[reg7]
+[ 110]       GetGlobal dst:reg6, identifier:object
+[ 128]       GetByValue dst:reg7, base:reg6, property:Int32(1), base_identifier:object
+[ 140]       StrictlyInequals dst:reg6, lhs:reg7, rhs:Undefined
+[ 150]       Mov dst:reg7, src:Undefined
+[ 160]       JumpFalse condition:reg6, target:@1b0
+[ 170]    1: GetGlobal dst:reg9, identifier:Error
+[ 188]       CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Indexed object append mutated")]
+[ 1a8]       Throw src:reg8
+[ 1b0]    2: NewPrimitiveArray dst:reg5, elements:[1, 2]
+[ 1d0]       InitializeLexicalBinding identifier:array, src:reg5
+[ 1e8]       GetGlobal dst:reg6, identifier:Object
+[ 200]       GetById dst:reg8, base:reg6, property:defineProperty, base_identifier:Object
+[ 220]       GetGlobal dst:reg9, identifier:array
+[ 238]       NewObject dst:reg10
+[ 248]       InitObjectLiteralProperty object:reg10, property:writable, src:Bool(false), shape_cache_index:0, property_slot:0
+[ 260]       CacheObjectShape object:reg10
+[ 270]       Call dst:reg5, callee:reg8, this_value:reg6, Object.defineProperty, arguments:[reg9, String("length"), reg10]
+[ 2a0]       GetGlobal dst:reg7, identifier:expect_type_error
+[ 2b8]       NewFunction dst:reg8, shared_function_data_index:1
+[ 2d0]       Call dst:reg6, callee:reg7, this_value:Undefined, expect_type_error, arguments:[reg8]
+[ 2f8]       GetGlobal dst:reg5, identifier:array
+[ 310]       GetLength dst:reg7, base:reg5, base_identifier:array
+[ 328]       StrictlyInequals dst:reg5, lhs:reg7, rhs:Int32(2)
+[ 338]       Mov dst:reg7, src:Undefined
+[ 348]       JumpFalse condition:reg5, target:@398
+[ 358]    3: GetGlobal dst:reg9, identifier:Error
+[ 370]       CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Array length changed")]
+[ 390]       Throw src:reg8
+[ 398]    4: GetGlobal dst:reg5, identifier:array
+[ 3b0]       GetByValue dst:reg6, base:reg5, property:Int32(2), base_identifier:array
+[ 3c8]       StrictlyInequals dst:reg5, lhs:reg6, rhs:Undefined
+[ 3d8]       Mov dst:reg6, src:Undefined
+[ 3e8]       JumpFalse condition:reg5, target:@438
+[ 3f8]    5: GetGlobal dst:reg9, identifier:Error
+[ 410]       CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Array append mutated")]
+[ 430]       Throw src:reg8
+[ 438]    6: End value:reg6
+
+JS bytecode executable "expect_type_error"
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       Mov dst:did_throw~1, src:Bool(false)
+[  18]       Jump target:@c0
+[  20]    1: Catch dst:reg5
+[  28]       SetLexicalEnvironment environment:reg4
+[  30]       Mov dst:error~0, src:reg5
+[  40]       GetGlobal dst:reg7, identifier:TypeError
+[  58]       InstanceOf dst:reg8, lhs:error~0, rhs:reg7
+[  68]       Not dst:reg6, src:reg8
+[  78]       JumpFalse condition:reg6, target:@90
+[  88]    2: Throw src:error~0
+[  90]    3: Mov dst:did_throw~1, src:Bool(true)
+[  a0]    4: Not dst:reg5, src:did_throw~1
+[  b0]       JumpIf condition:reg5, true_target:@f8, false_target:@138
+[  c0]    5: Mov dst:reg6, src:arg0
+[  d0]       Call dst:reg5, callee:reg6, this_value:Undefined, callback
+[  f0]       Jump target:@a0
+[  f8]    6: GetGlobal dst:reg7, identifier:Error
+[ 110]       CallConstruct dst:reg6, callee:reg7, Error, arguments:[String("Expected TypeError")]
+[ 130]       Throw src:reg6
+[ 138]    7: End value:Undefined
+
+Exception handlers:
+    from   c0 to   f8 handler   20
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg5, identifier:object
+[  20]       PutByValue base:reg5, property:Int32(1), src:Int32(2), kind:Normal, base_identifier:object
+[  38]       End value:Undefined
+
+JS bytecode executable ""
+[   0]    0: GetLexicalEnvironment dst:reg4
+[   8]       GetGlobal dst:reg5, identifier:array
+[  20]       GetGlobal dst:reg6, identifier:array
+[  38]       GetLength dst:reg7, base:reg6, base_identifier:array
+[  50]       PutByValue base:reg5, property:reg7, src:Int32(3), kind:Normal, base_identifier:array
+[  68]       End value:Undefined

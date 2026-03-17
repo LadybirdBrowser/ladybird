@@ -9,9 +9,9 @@
 
 #include <AK/Format.h>
 #include <LibJS/Bytecode/Builtins.h>
-#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ExecutionContext.h>

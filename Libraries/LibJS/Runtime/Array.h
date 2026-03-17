@@ -67,6 +67,7 @@ public:
     bool is_simple_packed_array() const
     {
         return !m_is_proxy_target
+            && !may_interfere_with_indexed_property_access()
             && indexed_storage_kind() == IndexedStorageKind::Packed;
     }
 

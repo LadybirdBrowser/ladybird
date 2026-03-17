@@ -20,6 +20,7 @@ GC::Ref<ObservableArray> ObservableArray::create(JS::Realm& realm)
 ObservableArray::ObservableArray(JS::Realm& realm, Object& prototype)
     : JS::Array(realm, prototype)
 {
+    set_may_interfere_with_indexed_property_access();
 }
 
 void ObservableArray::visit_edges(JS::Cell::Visitor& visitor)
