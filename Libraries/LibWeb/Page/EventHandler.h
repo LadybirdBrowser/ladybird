@@ -137,7 +137,7 @@ private:
 
     NonnullOwnPtr<DragAndDropEventHandler> m_drag_and_drop_event_handler;
 
-    GC::RawPtr<DOM::Node> m_effective_legacy_mouse_pointer_position;
+    GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
 
     GC::Weak<DOM::Node> m_mousedown_target;
     int m_mousedown_click_count { 0 };
