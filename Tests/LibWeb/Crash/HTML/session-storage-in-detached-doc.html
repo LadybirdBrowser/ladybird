@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- Test: Accessing sessionStorage in a detached document should not crash -->
+<body>
+<script>
+var iframe = document.createElement('iframe');
+document.body.appendChild(iframe);
+var win = iframe.contentWindow;
+iframe.remove();
+win.sessionStorage.length;
+</script>
+</body>
