@@ -64,3 +64,32 @@ test("Invalid lengths", () => {
         Array.prototype.splice.call(obj, 0);
     }).toThrowWithMessage(RangeError, "Invalid array length");
 });
+
+test("uses ArraySpeciesCreate", () => {
+    class ResultArray extends Array {}
+    class DerivedArray extends Array {
+        static get [Symbol.species]() {
+            return ResultArray;
+        }
+    }
+
+    var array = new DerivedArray(1, 2, 3);
+    var removed = array.splice(1, 1, 9);
+    expect(removed).toBeInstanceOf(ResultArray);
+    expect(removed).toEqual([2]);
+    expect(array).toEqual([1, 9, 3]);
+});
+
+test("throws if the array length is not writable", () => {
+    var array = [1, 2, 3];
+    Object.defineProperty(array, "length", { writable: false });
+
+    expect(() => {
+        array.splice(1, 1);
+    }).toThrow(TypeError);
+    expect(array[0]).toBe(1);
+    expect(array[1]).toBe(3);
+    expect(array[2]).toBeUndefined();
+    expect(2 in array).toBeFalse();
+    expect(array.length).toBe(3);
+});

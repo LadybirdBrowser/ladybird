@@ -42,3 +42,16 @@ describe("normal behavior", () => {
         delete Array.prototype[1];
     });
 });
+
+test("throws if the array length is not writable", () => {
+    var a = [1, 2];
+    Object.defineProperty(a, "length", { writable: false });
+
+    expect(() => {
+        a.pop();
+    }).toThrow(TypeError);
+    expect(a[0]).toBe(1);
+    expect(a[1]).toBeUndefined();
+    expect(1 in a).toBeFalse();
+    expect(a.length).toBe(2);
+});

@@ -49,3 +49,17 @@ test("Invalid lengths", () => {
         Array.prototype.slice.call(obj, 0);
     }).toThrowWithMessage(RangeError, "Invalid array length");
 });
+
+test("uses ArraySpeciesCreate", () => {
+    class ResultArray extends Array {}
+    class DerivedArray extends Array {
+        static get [Symbol.species]() {
+            return ResultArray;
+        }
+    }
+
+    var array = new DerivedArray(1, 2, 3);
+    var slice = array.slice(1);
+    expect(slice).toBeInstanceOf(ResultArray);
+    expect(slice).toEqual([2, 3]);
+});

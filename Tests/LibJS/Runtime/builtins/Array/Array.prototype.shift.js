@@ -34,3 +34,16 @@ test("Issue #5884, GenericIndexedPropertyStorage::take_first() loses elements", 
     }
     expect(a.length).toBe(0);
 });
+
+test("throws if the array length is not writable", () => {
+    var a = [1, 2];
+    Object.defineProperty(a, "length", { writable: false });
+
+    expect(() => {
+        a.shift();
+    }).toThrow(TypeError);
+    expect(a[0]).toBe(2);
+    expect(a[1]).toBeUndefined();
+    expect(1 in a).toBeFalse();
+    expect(a.length).toBe(2);
+});

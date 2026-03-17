@@ -62,6 +62,14 @@ public:
 
     bool default_prototype_chain_intact() const;
 
+    // Packed arrays have no holes, so the prototype chain is irrelevant:
+    // every index [0, size) is an own data property.
+    bool is_simple_packed_array() const
+    {
+        return !m_is_proxy_target
+            && indexed_storage_kind() == IndexedStorageKind::Packed;
+    }
+
     virtual void visit_edges(Cell::Visitor& visitor) override;
 
 protected:

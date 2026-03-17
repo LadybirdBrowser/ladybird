@@ -51,3 +51,25 @@ describe("normal behavior", () => {
         expect(concatenated[2]).toBe(8);
     });
 });
+
+test("respects Symbol.isConcatSpreadable on packed array arguments", () => {
+    var array = [1, 2];
+    array[Symbol.isConcatSpreadable] = false;
+
+    var concatenated = [0].concat(array);
+    expect(concatenated).toEqual([0, array]);
+});
+
+test("uses ArraySpeciesCreate", () => {
+    class ResultArray extends Array {}
+    class DerivedArray extends Array {
+        static get [Symbol.species]() {
+            return ResultArray;
+        }
+    }
+
+    var array = new DerivedArray(1, 2);
+    var concatenated = array.concat([3]);
+    expect(concatenated).toBeInstanceOf(ResultArray);
+    expect(concatenated).toEqual([1, 2, 3]);
+});
