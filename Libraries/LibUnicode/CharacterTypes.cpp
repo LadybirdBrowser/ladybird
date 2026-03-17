@@ -547,6 +547,12 @@ u32 canonicalize(u32 code_point, bool unicode_mode)
 
     // 5. Let u be toUppercase(« cp »), according to the Unicode Default Case Conversion algorithm.
     // 6. Let uStr be CodePointsToString(u).
+
+    // OPTIMIZATION: For ASCII characters, toUppercase is just to_ascii_uppercase.
+    //               Conditions in 7 & 9 are trivially satisfied (ASCII always maps to a single code point, and the result stays in the same range).
+    if (code_point < 128)
+        return to_ascii_uppercase(code_point);
+
     auto code_point_string = String::from_code_point(code_point);
     auto uppercased = code_point_string.to_uppercase();
     if (uppercased.is_error())
