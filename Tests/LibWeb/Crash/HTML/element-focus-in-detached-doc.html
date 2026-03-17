@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- Test: Focusing elements in a removed iframe document should not crash -->
+<body>
+<script>
+var iframe = document.createElement('iframe');
+document.body.appendChild(iframe);
+var input = iframe.contentDocument.createElement('input');
+iframe.contentDocument.body.appendChild(input);
+iframe.remove();
+input.focus();
+input.blur();
+</script>
+</body>

@@ -271,10 +271,10 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     if (is_shadow_host(old_focus_target)) {
         auto shadow_root = static_cast<DOM::Element*>(old_focus_target)->shadow_root();
         if (shadow_root->delegates_focus()) {
-            auto browsing_context = old_focus_target->document().browsing_context();
-            if (!browsing_context)
+            auto bc = old_focus_target->document().browsing_context();
+            if (!bc)
                 return;
-            auto top_level_traversable = browsing_context->top_level_traversable();
+            auto top_level_traversable = bc->top_level_traversable();
             if (auto currently_focused_area = top_level_traversable->currently_focused_area()) {
                 if (shadow_root->is_shadow_including_ancestor_of(*currently_focused_area)) {
                     old_focus_target = currently_focused_area;
@@ -314,7 +314,8 @@ void run_unfocusing_steps(DOM::Node* old_focus_target)
     auto& top_document = as<DOM::Document>(*old_chain.last());
 
     // 8. If topDocument's node navigable has system focus, then run the focusing steps for topDocument's viewport.
-    if (top_document.navigable()->traversable_navigable()->is_focused()) {
+    auto navigable = top_document.navigable();
+    if (navigable && navigable->traversable_navigable() && navigable->traversable_navigable()->is_focused()) {
 
         // AD-HOC: Remove top_document from old_chain so step 1 in run_focus_update_steps doesn't cancel the blur.
         auto without_viewport_surrogate = old_chain;
