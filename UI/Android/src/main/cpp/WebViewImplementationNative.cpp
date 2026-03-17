@@ -61,7 +61,7 @@ void WebViewImplementationNative::initialize_client(WebView::ViewImplementation:
     m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
     client().async_set_window_handle(0, m_client_state.client_handle);
 
-    client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio);
+    client().async_set_viewport(0, viewport_size(), m_device_pixel_ratio, Web::ViewportIsFullscreen::No);
     client().async_set_zoom_level(0, m_zoom_level);
 
     set_system_visibility_state(Web::HTML::VisibilityState::Visible);

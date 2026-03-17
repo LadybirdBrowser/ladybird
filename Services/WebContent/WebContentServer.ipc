@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/ExecuteScript.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -42,7 +43,7 @@ endpoint WebContentServer
 
     ready_to_paint(u64 page_id) =|
 
-    set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
+    set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) =|
 
     key_event(u64 page_id, Web::KeyEvent event) =|
     mouse_event(u64 page_id, Web::MouseEvent event) =|

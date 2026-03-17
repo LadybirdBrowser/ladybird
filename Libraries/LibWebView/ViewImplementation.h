@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
@@ -134,6 +135,8 @@ public:
     void run_javascript(String const&);
     void js_console_input(String const&);
     void exit_fullscreen();
+
+    void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen);
 
     void alert_closed();
     void confirm_closed(bool accepted);
@@ -380,6 +383,8 @@ protected:
     size_t m_number_of_elements_playing_audio { 0 };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
+
+    Web::ViewportIsFullscreen m_is_fullscreen { Web::ViewportIsFullscreen::No };
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;

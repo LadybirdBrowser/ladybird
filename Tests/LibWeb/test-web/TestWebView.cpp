@@ -60,7 +60,8 @@ void TestWebView::on_test_complete(TestCompletion completion)
     m_pending_screenshot.clear();
     m_pending_dialog = Web::Page::PendingDialog::None;
     m_pending_prompt_text.clear();
-    client().async_set_viewport(m_client_state.page_index, viewport_size(), 1.0);
+    m_is_fullscreen = Web::ViewportIsFullscreen::No;
+    client().async_set_viewport(m_client_state.page_index, viewport_size(), 1.0, Web::ViewportIsFullscreen::No);
 
     m_test_promise->resolve(move(completion));
 }

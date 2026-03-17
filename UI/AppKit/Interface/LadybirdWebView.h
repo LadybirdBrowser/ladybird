@@ -59,6 +59,8 @@
 - (void)handleResize;
 - (void)handleDevicePixelRatioChange;
 - (void)handleDisplayRefreshRateChange;
+- (void)handleEnteredFullScreen;
+- (void)handleExitedFullScreen;
 - (void)handleExitFullScreen;
 - (void)handleVisibility:(BOOL)is_visible;
 

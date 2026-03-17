@@ -493,6 +493,18 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
 }
 
+- (void)windowDidEnterFullScreen:(NSNotification*)notification
+{
+    if (m_fullscreen_requested_for_web_content)
+        [[[self tab] web_view] handleEnteredFullScreen];
+}
+
+- (void)windowWillExitFullScreen:(NSNotification*)notification
+{
+    if (exchange(m_fullscreen_exit_was_ui_initiated, true))
+        [[[self tab] web_view] handleExitFullScreen];
+}
+
 - (void)windowDidExitFullScreen:(NSNotification*)notification
 {
     if (exchange(m_fullscreen_requested_for_web_content, false)) {
@@ -503,8 +515,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
         }
     }
 
-    if (exchange(m_fullscreen_exit_was_ui_initiated, true))
-        [[[self tab] web_view] handleExitFullScreen];
+    [[[self tab] web_view] handleExitedFullScreen];
 }
 
 - (NSApplicationPresentationOptions)window:(NSWindow*)window

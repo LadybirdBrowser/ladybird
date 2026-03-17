@@ -750,8 +750,15 @@ void BrowserWindow::changeEvent(QEvent* event)
 {
     if (event->type() == QEvent::WindowStateChange) {
         QWindowStateChangeEvent* stateChangeEvent = static_cast<QWindowStateChangeEvent*>(event);
-        if (windowState() & Qt::WindowFullScreen && !(stateChangeEvent->oldState() & Qt::WindowFullScreen)) {
+        bool was_fullscreen = stateChangeEvent->oldState() & Qt::WindowFullScreen;
+        bool is_fullscreen = windowState() & Qt::WindowFullScreen;
+
+        if (is_fullscreen && !was_fullscreen) {
             m_fullscreen_mode->entered_fullscreen();
+            if (m_fullscreen_mode->is_api_fullscreen())
+                view().set_is_fullscreen(Web::ViewportIsFullscreen::Yes);
+        } else if (!is_fullscreen && was_fullscreen) {
+            view().set_is_fullscreen(Web::ViewportIsFullscreen::No);
         }
     }
     QWidget::changeEvent(event);
