@@ -1857,6 +1857,20 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
         m_indexed_storage_kind = IndexedStorageKind::Holey;
 
     m_indexed_elements[index] = value;
+
+    // Promote Holey -> Packed when filling the last hole.
+    // Only check when writing to the last index to avoid O(N^2) scanning.
+    if (m_indexed_storage_kind == IndexedStorageKind::Holey && index == m_indexed_array_like_size - 1) {
+        bool has_holes = false;
+        for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+            if (m_indexed_elements[i].is_special_empty_value()) {
+                has_holes = true;
+                break;
+            }
+        }
+        if (!has_holes)
+            m_indexed_storage_kind = IndexedStorageKind::Packed;
+    }
 }
 
 bool Object::indexed_has(u32 index) const
