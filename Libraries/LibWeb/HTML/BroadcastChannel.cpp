@@ -155,12 +155,12 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
             auto& target_realm = relevant_realm(destination);
 
             // 3. Let data be StructuredDeserialize(serialized, targetRealm).
-            //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with the
-            //    origin attribute initialized to the serialization of sourceOrigin, and then abort these steps.
+            //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
+            //    origin initialized to sourceOrigin, and then abort these steps.
             auto data_or_error = structured_deserialize(vm, serialized, target_realm);
             if (data_or_error.is_exception()) {
                 MessageEventInit event_init {};
-                event_init.origin = source_origin.serialize();
+                event_init.origin = source_origin;
                 auto event = MessageEvent::create(target_realm, HTML::EventNames::messageerror, event_init);
                 event->set_is_trusted(true);
                 destination->dispatch_event(event);
@@ -168,10 +168,10 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Value message)
             }
 
             // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and the
-            //    origin attribute initialized to the serialization of sourceOrigin.
+            //    its origin initialized to sourceOrigin.
             MessageEventInit event_init {};
             event_init.data = data_or_error.release_value();
-            event_init.origin = source_origin.serialize();
+            event_init.origin = source_origin;
             auto event = MessageEvent::create(target_realm, HTML::EventNames::message, event_init);
             event->set_is_trusted(true);
             destination->dispatch_event(event);

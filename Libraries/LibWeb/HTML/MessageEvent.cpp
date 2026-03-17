@@ -68,6 +68,24 @@ void MessageEvent::visit_edges(Cell::Visitor& visitor)
         [&](auto const& ref) { visitor.visit(ref); });
 }
 
+// https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-origin
+String MessageEvent::origin() const
+{
+    return m_origin.visit(
+        // 1. If this's origin is an origin, then return the serialization of this's origin.
+        [](URL::Origin const& origin) {
+            return origin.serialize();
+        },
+        // 2. If this's origin is null, then return the empty string.
+        [](Empty) {
+            return String {};
+        },
+        // 3. Return this's origin.
+        [](String const& origin) {
+            return origin;
+        });
+}
+
 MessageEvent::SourceResult MessageEvent::source() const
 {
     return m_source.visit(
@@ -119,8 +137,14 @@ void MessageEvent::init_message_event(String const& type, bool bubbles, bool can
 // https://html.spec.whatwg.org/multipage/comms.html#the-messageevent-interface:extract-an-origin
 Optional<URL::Origin> MessageEvent::extract_an_origin() const
 {
-    // Objects implementing the MessageEvent interface's extract an origin steps are to return this's relevant settings object's origin.
-    return relevant_settings_object(*this).origin();
+    // Objects implementing the MessageEvent interface's extract an origin steps are to return this's origin if it is an origin; otherwise null.
+    return m_origin.visit(
+        [](URL::Origin const& origin) -> Optional<URL::Origin> {
+            return origin;
+        },
+        [](auto const&) -> Optional<URL::Origin> {
+            return {};
+        });
 }
 
 }

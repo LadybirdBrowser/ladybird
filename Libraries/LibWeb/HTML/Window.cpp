@@ -1265,8 +1265,8 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
                 return;
         }
 
-        // 2. Let origin be the serialization of incumbentSettings's origin.
-        auto origin = incumbent_settings.origin().serialize();
+        // 2. Let origin be the incumbentSettings's origin.
+        auto const& origin = incumbent_settings.origin();
 
         // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
         auto& source = as<WindowProxy>(incumbent_settings.realm().global_environment().global_this_value());
@@ -1277,7 +1277,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
         auto deserialize_record_or_error = structured_deserialize_with_transfer(serialize_with_transfer_result, target_realm);
 
         // If this throws an exception, catch it, fire an event named messageerror at targetWindow, using MessageEvent,
-        // with the origin attribute initialized to origin and the source attribute initialized to source, and then return.
+        // with its origin initialized to origin and the source attribute initialized to source, and then return.
         if (deserialize_record_or_error.is_exception()) {
             MessageEventInit message_event_init {};
             message_event_init.origin = origin;
@@ -1302,9 +1302,9 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
             }
         }
 
-        // 7. Fire an event named message at targetWindow, using MessageEvent, with the origin attribute initialized to origin,
-        //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports attribute
-        //    initialized to newPorts.
+        // 7. Fire an event named message at targetWindow, using MessageEvent, with its origin initialized to origin,
+        //    the source attribute initialized to source, the data attribute initialized to messageClone, and the ports
+        //    attribute initialized to newPorts.
         MessageEventInit message_event_init {};
         message_event_init.origin = origin;
         message_event_init.source = GC::make_root(source);

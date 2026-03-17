@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	Origin.from(MessageEvent) returns an opaque origin for a sandboxed frame.
-Fail	Origin.from(MessageEvent) returns the same opaque origin for each message from a sandboxed frame.
-Fail	Origin.from(MessageEvent) returns distinct opaque origins for each message from a reloaded sandboxed frame.
+3 Pass
+Pass	Origin.from(MessageEvent) returns an opaque origin for a sandboxed frame.
+Pass	Origin.from(MessageEvent) returns the same opaque origin for each message from a sandboxed frame.
+Pass	Origin.from(MessageEvent) returns distinct opaque origins for each message from a reloaded sandboxed frame.
