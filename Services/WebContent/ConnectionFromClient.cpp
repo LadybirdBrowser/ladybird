@@ -196,10 +196,12 @@ void ConnectionFromClient::traverse_the_history_by_delta(u64 page_id, i32 delta)
         page->page().traverse_the_history_by_delta(delta);
 }
 
-void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen)
+void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)
 {
-    if (auto page = this->page(page_id); page.has_value())
+    if (auto page = this->page(page_id); page.has_value()) {
         page->set_viewport(size, device_pixel_ratio);
+        page->page().set_viewport_is_fullscreen(is_fullscreen);
+    }
 }
 
 void ConnectionFromClient::ready_to_paint(u64 page_id)

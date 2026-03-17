@@ -22,8 +22,7 @@ promise_test(async t => {
       if (event.type == 'fullscreenchange') {
         step_timeout(t.unreached_func('timer callback'));
         requestAnimationFrame(t.step_func_done(() => {
-          // Removed 'resize' expectation for now, see https://crbug.com/381127087.
-          assert_array_equals(events, ['fullscreenchange'], 'event order');
+          assert_array_equals(events, ['resize', 'fullscreenchange'], 'event order');
           resolve();
         }));
       }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #target { width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const target = document.getElementById("target");
+
+        window.addEventListener("resize", () => {
+            println(`resize ${window.innerWidth}x${window.innerHeight}`);
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            println("fullscreenchange");
+        });
+
+        target.addEventListener("click", () => {
+            target.requestFullscreen().then(() => {
+                requestAnimationFrame(() => {
+                    document.exitFullscreen().then(() => done());
+                });
+            }, (err) => {
+                println(`promise rejected: ${err}`);
+                done();
+            });
+        });
+
+        internals.click(5, 5);
+    });
+</script>

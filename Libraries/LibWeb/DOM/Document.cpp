@@ -6994,60 +6994,7 @@ GC::Ref<WebIDL::Promise> Document::exit_fullscreen()
     }
 
     // 8. Return promise, and run the remaining steps in parallel.
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [&realm, doc, promise, resize] {
-        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
-        // FIXME: 9. Run the fully unlock the screen orientation steps with doc.
-
-        // 10. If resize is true, resize doc’s viewport to its "normal" dimensions.
-        // NB: Fullscreen API is affected by site-isolation and will require additional work once site-isolation is implemented.
-        if (resize)
-            doc->page().client().page_did_request_exit_fullscreen();
-
-        // 11. If doc’s fullscreen element is null, then resolve promise with undefined and terminate these steps.
-        if (!doc->fullscreen_element()) {
-            WebIDL::resolve_promise(realm, promise, JS::js_undefined());
-            return;
-        }
-
-        // 12. Let exitDocs be the result of collecting documents to unfullscreen given doc.
-        auto exit_docs = doc->collect_documents_to_unfullscreen();
-
-        // 13. Let descendantDocs be an ordered set consisting of doc’s descendant navigables' active documents whose
-        //     fullscreen element is non-null, if any, in tree order.
-        auto descendant_docs = realm.heap().allocate<GC::HeapVector<GC::Ref<Document>>>();
-        for (auto& descendant : doc->descendant_navigables()) {
-            if (descendant->active_document()->fullscreen_element())
-                descendant_docs->elements().append(*descendant->active_document());
-        }
-
-        // 14. For each exitDoc in exitDocs:
-        for (auto& exit_doc : exit_docs->elements()) {
-            // 1. Append (fullscreenchange, exitDoc’s fullscreen element) to exitDoc’s list of pending fullscreen events.
-            exit_doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *exit_doc->fullscreen_element());
-
-            // 2. If resize is true, unfullscreen exitDoc.
-            if (resize)
-                exit_doc->unfullscreen();
-            // 3. Otherwise, unfullscreen exitDoc’s fullscreen element.
-            else
-                exit_doc->unfullscreen_element(*exit_doc->fullscreen_element());
-        }
-
-        // 15. For each descendantDoc in descendantDocs:
-        for (auto& descendant_doc : descendant_docs->elements()) {
-            // 1. Append (fullscreenchange, descendantDoc’s fullscreen element) to descendantDoc’s list of pending fullscreen events.
-            descendant_doc->append_pending_fullscreen_change(PendingFullscreenEvent::Type::Change, *descendant_doc->fullscreen_element());
-
-            // 2. Unfullscreen descendantDoc.
-            descendant_doc->unfullscreen();
-        }
-
-        // Note: The order in which documents are unfullscreened is not observable, because run the fullscreen steps is
-        //       invoked in tree order.
-
-        // 16. Resolve promise with undefined.
-        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
-    }));
+    page().enqueue_fullscreen_exit(doc, resize, promise);
 
     return promise;
 }

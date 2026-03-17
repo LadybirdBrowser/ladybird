@@ -9,12 +9,15 @@
 #include <AK/SourceLocation.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
@@ -51,6 +54,16 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
     visitor.visit(m_pending_clipboard_requests);
+    m_pending_fullscreen_operations.for_each([&](auto const& operation) {
+        operation.visit([&](PendingFullscreenEnter const& enter_operation) {
+                visitor.visit(enter_operation.element);
+                visitor.visit(enter_operation.pending_doc);
+                visitor.visit(enter_operation.promise); },
+            [&](PendingFullscreenExit const& exit_operation) {
+                visitor.visit(exit_operation.doc);
+                visitor.visit(exit_operation.promise);
+            });
+    });
 }
 
 HTML::Navigable& Page::focused_navigable()
@@ -849,6 +862,209 @@ void Page::update_find_in_page_selection(Vector<GC::Root<DOM::Range>> matches)
         scroll_options.behavior = Bindings::ScrollBehavior::Instant;
         (void)element->scroll_into_view(scroll_options);
     }
+}
+
+void Page::enqueue_fullscreen_enter(GC::Ref<DOM::Element> element, GC::Ref<DOM::Document> pending_doc, DOM::RequestFullscreenError error, GC::Ref<WebIDL::Promise> promise)
+{
+    m_pending_fullscreen_operations.enqueue(PendingFullscreenEnter { element, pending_doc, error, promise });
+    // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
+    //       meaning the caller's synchronous JS should complete before we process the operation.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this]() {
+        process_pending_fullscreen_operations();
+    }));
+}
+
+void Page::enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ref<WebIDL::Promise> promise)
+{
+    m_pending_fullscreen_operations.enqueue(PendingFullscreenExit { doc, resize, promise });
+    // NOTE: Processing is deferred because the spec says "run the remaining steps in parallel",
+    //       meaning the caller's synchronous JS should complete before we process the operation.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this]() {
+        process_pending_fullscreen_operations();
+    }));
+}
+
+void Page::process_pending_fullscreen_operations()
+{
+    // FIXME: The Fullscreen API interacts with the top-level traversable's viewport. With site-isolation,
+    //        an iframe's content process won't have direct access to this Page, so fullscreen operations
+    //        will need to be routed through IPC to the top-level process.
+
+    // NOTE: Resolving/rejecting promises during processing may trigger JS microtasks that re-enter
+    //       this function (e.g., JS calls exitFullscreen() after a requestFullscreen() promise resolves).
+    //       The outer call's while loop will pick up newly enqueued items.
+    if (m_processing_fullscreen_operations)
+        return;
+    m_processing_fullscreen_operations = true;
+    ScopeGuard guard = [this] { m_processing_fullscreen_operations = false; };
+
+    while (!m_pending_fullscreen_operations.is_empty()) {
+        auto& front = m_pending_fullscreen_operations.head();
+
+        auto processed = front.visit(
+            [&](PendingFullscreenEnter& enter) -> bool {
+                // https://fullscreen.spec.whatwg.org/#dom-element-requestfullscreen
+
+                // 8. If error is false, then resize pendingDoc's node navigable's top-level traversable's
+                //    active document's viewport's dimensions, optionally taking into account
+                //    options["navigationUI"]:
+                if (enter.error == DOM::RequestFullscreenError::False) {
+                    if (m_viewport_is_fullscreen == ViewportIsFullscreen::No) {
+                        if (!m_fullscreen_ipc_sent_to_ui) {
+                            m_client->page_did_request_fullscreen_window();
+                            m_fullscreen_ipc_sent_to_ui = true;
+                        }
+                        // NB: Stop processing here and wait for a change in the fullscreen state if we aren't
+                        //     in the desired state yet.
+                        return false;
+                    }
+
+                    // 9. If any of the following conditions are false, then set error to true:
+                    //    * This's node document is pendingDoc.
+                    //    * The fullscreen element ready check for this returns true.
+                    if (enter.element->owner_document() != enter.pending_doc.ptr())
+                        enter.error = DOM::RequestFullscreenError::ElementNodeDocIsNotPendingDoc;
+                    else if (!enter.element->is_element_ready_for_fullscreen())
+                        enter.error = DOM::RequestFullscreenError::ElementReadyCheckFailed;
+                }
+
+                auto& realm = enter.element->realm();
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+                // 10. If error is true:
+                if (enter.error != DOM::RequestFullscreenError::False) {
+                    // 1. Append (fullscreenerror, this) to pendingDoc's list of pending fullscreen events.
+                    enter.pending_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Error, enter.element);
+
+                    // 2. Reject promise with a TypeError exception and terminate these steps.
+                    WebIDL::reject_promise(realm, enter.promise, JS::TypeError::create(realm, DOM::request_fullscreen_error_to_string(enter.error)));
+                    return true;
+                }
+
+                // 11. Let fullscreenElements be an ordered set initially consisting of this.
+                auto fullscreen_elements = realm.heap().allocate<GC::HeapVector<GC::Ref<DOM::Element>>>();
+                fullscreen_elements->elements().append(enter.element);
+
+                // 12. While true:
+                while (true) {
+                    // 1. Let last be the last item of fullscreenElements.
+                    auto last = fullscreen_elements->elements().last();
+
+                    // 2. Let container be last's node navigable's container.
+                    auto container = last->navigable()->container();
+
+                    // 3. If container is null, then break.
+                    if (!container)
+                        break;
+
+                    // 4. Append container to fullscreenElements.
+                    fullscreen_elements->elements().append(*container);
+                }
+
+                // 13. For each element in fullscreenElements:
+                for (auto& element : fullscreen_elements->elements()) {
+                    // 1. Let doc be element's node document.
+                    auto& doc = element->document();
+
+                    // 2. If element is doc's fullscreen element, continue.
+                    if (doc.fullscreen_element() == element)
+                        continue;
+
+                    // 3. If element is this and this is an iframe element, then set element's iframe fullscreen flag.
+                    if (element == enter.element && is<HTML::HTMLIFrameElement>(*enter.element))
+                        as<HTML::HTMLIFrameElement>(*element).set_iframe_fullscreen_flag(true);
+
+                    // 4. Fullscreen element within doc.
+                    doc.fullscreen_element_within_doc(element);
+
+                    // 5. Append (fullscreenchange, element) to doc's list of pending fullscreen events.
+                    doc.append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, element);
+                }
+
+                // 14. Resolve promise with undefined
+                WebIDL::resolve_promise(realm, enter.promise, JS::js_undefined());
+                return true;
+            },
+            [&](PendingFullscreenExit& exit) -> bool {
+                auto& realm = exit.doc->realm();
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+                // https://fullscreen.spec.whatwg.org/#exit-fullscreen
+
+                // FIXME: 9. Run the fully unlock the screen orientation steps with doc.
+
+                // 10. If resize is true, resize doc's viewport to its "normal" dimensions.
+                if (exit.resize && m_viewport_is_fullscreen == ViewportIsFullscreen::Yes) {
+                    if (!m_fullscreen_ipc_sent_to_ui) {
+                        m_client->page_did_request_exit_fullscreen();
+                        m_fullscreen_ipc_sent_to_ui = true;
+                    }
+                    // NB: Stop processing here and wait for a change in the fullscreen state if we aren't
+                    //     in the desired state yet.
+                    return false;
+                }
+
+                // 11. If doc's fullscreen element is null, then resolve promise with undefined and terminate these
+                //     steps.
+                if (!exit.doc->fullscreen_element()) {
+                    WebIDL::resolve_promise(realm, exit.promise, JS::js_undefined());
+                    return true;
+                }
+
+                // 12. Let exitDocs be the result of collecting documents to unfullscreen given doc.
+                auto exit_docs = exit.doc->collect_documents_to_unfullscreen();
+
+                // 13. Let descendantDocs be an ordered set consisting of doc's descendant navigables' active documents
+                //     whose fullscreen element is non-null, if any, in tree order.
+                auto descendant_docs = realm.heap().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
+                for (auto& descendant : exit.doc->descendant_navigables()) {
+                    if (descendant->active_document()->fullscreen_element())
+                        descendant_docs->elements().append(*descendant->active_document());
+                }
+
+                // 14. For each exitDoc in exitDocs:
+                for (auto& exit_doc : exit_docs->elements()) {
+                    // 1. Append (fullscreenchange, exitDoc's fullscreen element) to exitDoc's list of pending
+                    //    fullscreen events.
+                    exit_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *exit_doc->fullscreen_element());
+
+                    // 2. If resize is true, unfullscreen exitDoc.
+                    if (exit.resize)
+                        exit_doc->unfullscreen();
+                    // 3. Otherwise, unfullscreen exitDoc's fullscreen element.
+                    else
+                        exit_doc->unfullscreen_element(*exit_doc->fullscreen_element());
+                }
+
+                // 15. For each descendantDoc in descendantDocs:
+                for (auto& descendant_doc : descendant_docs->elements()) {
+                    // 1. Append (fullscreenchange, descendantDoc's fullscreen element) to descendantDoc's list of
+                    //    pending fullscreen events.
+                    descendant_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *descendant_doc->fullscreen_element());
+
+                    // 2. Unfullscreen descendantDoc.
+                    descendant_doc->unfullscreen();
+                }
+
+                // 16. Resolve promise with undefined.
+                WebIDL::resolve_promise(realm, exit.promise, JS::js_undefined());
+                return true;
+            });
+
+        if (!processed)
+            break;
+
+        m_pending_fullscreen_operations.dequeue();
+    }
+}
+
+void Page::set_viewport_is_fullscreen(ViewportIsFullscreen is_fullscreen)
+{
+    if (m_viewport_is_fullscreen == is_fullscreen)
+        return;
+    m_viewport_is_fullscreen = is_fullscreen;
+    m_fullscreen_ipc_sent_to_ui = false;
+    process_pending_fullscreen_operations();
 }
 
 }
