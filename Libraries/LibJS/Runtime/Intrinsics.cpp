@@ -374,8 +374,8 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
     m_default_array_prototype_shape = array_prototype()->shape();
     m_default_object_prototype_shape = object_prototype()->shape();
 
-    VERIFY(array_prototype()->indexed_properties().is_empty());
-    VERIFY(object_prototype()->indexed_properties().is_empty());
+    VERIFY(array_prototype()->indexed_array_like_size() == 0);
+    VERIFY(object_prototype()->indexed_array_like_size() == 0);
 
     m_regexp_builtin_exec_array_shape = heap().allocate<Shape>(realm);
     m_regexp_builtin_exec_array_shape->set_prototype_without_transition(realm.intrinsics().array_prototype());

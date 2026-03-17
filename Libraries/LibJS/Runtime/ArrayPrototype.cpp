@@ -1228,8 +1228,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::shift)
     // - has intact prototype chain, which means we don't have to worry about getters/setters potentially defined for holes.
     // - has simple storage type, which means all values have default attributes (if some elements have configurable=false, we cannot use fast path, because delete operation will fail).
     // then we could take a fast path by directly taking first element from indexed storage.
-    if (auto* array = as_if<Array>(*this_object); array && !array->is_proxy_target() && array->default_prototype_chain_intact() && array->indexed_properties().storage()->is_simple_storage()) {
-        auto first = array->indexed_properties().storage()->take_first().value;
+    if (auto* array = as_if<Array>(*this_object); array && !array->is_proxy_target() && array->default_prototype_chain_intact() && array->indexed_storage_kind() != IndexedStorageKind::Dictionary) {
+        auto first = array->indexed_take_first().value;
         if (first.is_special_empty_value())
             return js_undefined();
         return first;

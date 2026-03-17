@@ -153,7 +153,7 @@ ThrowCompletionOr<size_t> length_of_array_like(VM& vm, Object const& object)
 {
     // OPTIMIZATION: For Array objects with a magical "length" property, it should always reflect the size of indexed property storage.
     if (object.has_magical_length_property())
-        return object.indexed_properties().array_like_size();
+        return object.indexed_array_like_size();
 
     // 1. Return ℝ(? ToLength(? Get(obj, "length"))).
     static Bytecode::StaticPropertyLookupCache cache;
@@ -1178,7 +1178,7 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
         auto value = arguments[index];
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        object->indexed_properties().put(index, value);
+        object->indexed_put(index, value);
 
         // c. Set index to index + 1.
     }
@@ -1221,7 +1221,7 @@ Object* create_mapped_arguments_object(VM& vm, FunctionObject& function, Readonl
         auto value = arguments[index];
 
         // b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-        object->indexed_properties().put(index, value);
+        object->indexed_put(index, value);
 
         // c. Set index to index + 1.
     }

@@ -147,10 +147,13 @@ ThrowCompletionOr<GC::RootVector<Value>> StringObject::internal_own_property_key
     }
 
     // 6. For each own property key P of O such that P is an array index and ! ToIntegerOrInfinity(P) ≥ len, in ascending numeric index order, do
-    for (auto& entry : indexed_properties()) {
-        if (entry.index() >= length) {
-            // a. Add P as the last element of keys.
-            keys.append(PrimitiveString::create_from_unsigned_integer(vm, entry.index()));
+    {
+        auto indices = indexed_indices();
+        for (auto index : indices) {
+            if (index >= length) {
+                // a. Add P as the last element of keys.
+                keys.append(PrimitiveString::create_from_unsigned_integer(vm, index));
+            }
         }
     }
 

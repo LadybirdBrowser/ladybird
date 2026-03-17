@@ -126,8 +126,8 @@ ThrowCompletionOr<void> ArrayIterator::next(VM& vm, bool& done, Value& value)
         // b. Let elementValue be ? Get(array, elementKey).
         auto element_value = TRY([&]() -> ThrowCompletionOr<Value> {
             // OPTIMIZATION: For objects that don't interfere with indexed property access, we try looking directly at storage.
-            if (!array.may_interfere_with_indexed_property_access() && array.indexed_properties().has_index(index)) {
-                if (auto value = array.indexed_properties().get(index)->value; !value.is_accessor())
+            if (!array.may_interfere_with_indexed_property_access() && array.indexed_has(index)) {
+                if (auto value = array.indexed_get(index)->value; !value.is_accessor())
                     return value;
             }
 

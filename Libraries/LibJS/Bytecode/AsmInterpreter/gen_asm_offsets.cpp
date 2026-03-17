@@ -9,6 +9,7 @@
 
 #include <AK/Format.h>
 #include <LibJS/Bytecode/Builtins.h>
+#include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -38,7 +39,9 @@ int main()
     outln("# Object layout");
     EMIT_OFFSET(OBJECT_SHAPE, Object, m_shape);
     EMIT_OFFSET(OBJECT_NAMED_PROPERTIES, Object, m_named_properties);
-    EMIT_OFFSET(OBJECT_INDEXED_PROPERTIES, Object, m_indexed_properties);
+    EMIT_OFFSET(OBJECT_INDEXED_ELEMENTS, Object, m_indexed_elements);
+    EMIT_OFFSET(OBJECT_INDEXED_STORAGE_KIND, Object, m_indexed_storage_kind);
+    EMIT_OFFSET(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, m_indexed_array_like_size);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
 
     // Object flags byte
@@ -101,16 +104,14 @@ int main()
     outln("\n# Interpreter layout");
     EMIT_OFFSET(INTERPRETER_RUNNING_EXECUTION_CONTEXT, Interpreter, m_running_execution_context);
 
-    // IndexedPropertyStorage layout
-    outln("\n# IndexedPropertyStorage layout");
-    EMIT_OFFSET(INDEXED_PROPERTY_STORAGE_ARRAY_SIZE, IndexedPropertyStorage, m_array_size);
-    EMIT_OFFSET(INDEXED_PROPERTY_STORAGE_IS_SIMPLE, IndexedPropertyStorage, m_is_simple_storage);
+    // IndexedStorageKind enum values
+    outln("\n# IndexedStorageKind enum values");
+    outln("const INDEXED_STORAGE_KIND_NONE = {}", static_cast<u8>(IndexedStorageKind::None));
+    outln("const INDEXED_STORAGE_KIND_PACKED = {}", static_cast<u8>(IndexedStorageKind::Packed));
+    outln("const INDEXED_STORAGE_KIND_HOLEY = {}", static_cast<u8>(IndexedStorageKind::Holey));
+    outln("const INDEXED_STORAGE_KIND_DICTIONARY = {}", static_cast<u8>(IndexedStorageKind::Dictionary));
 
-    // SimpleIndexedPropertyStorage layout
-    outln("\n# SimpleIndexedPropertyStorage layout");
-    EMIT_OFFSET(SIMPLE_INDEXED_PROPERTY_STORAGE_PACKED_ELEMENTS, SimpleIndexedPropertyStorage, m_packed_elements);
-
-    // Vector<Value> layout (used for m_packed_elements and bytecode)
+    // Vector<Value> layout (used for bytecode)
     outln("\n# Vector<Value> layout");
     {
         Vector<Value> v;
@@ -120,11 +121,13 @@ int main()
         outln("const VECTOR_DATA = {}", vec_data);
         outln("const VECTOR_SIZE = {}", vec_size);
 
-        // Composite offsets for SimpleIndexedPropertyStorage.m_packed_elements data pointer
-        outln("const SIMPLE_INDEXED_PROPERTY_STORAGE_PACKED_DATA = {}", offsetof(SimpleIndexedPropertyStorage, m_packed_elements) + vec_data);
         // Composite offset for Executable.bytecode data pointer
         outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + vec_data);
     }
+
+    // PutKind enum
+    outln("\n# PutKind enum");
+    outln("const PUT_KIND_NORMAL = {}", static_cast<u8>(JS::Bytecode::PutKind::Normal));
 
     // PrototypeChainValidity layout
     outln("\n# PrototypeChainValidity layout");

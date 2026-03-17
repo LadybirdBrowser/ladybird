@@ -575,6 +575,23 @@ describe("frozen, sealed, and non-extensible", () => {
         expect(arr[5]).toBeUndefined();
     });
 
+    test("strict mode append to non-extensible indexed objects throws", () => {
+        expect(() => {
+            "use strict";
+            const obj = Object.preventExtensions({ 0: 1 });
+            obj[1] = 2;
+        }).toThrow(TypeError);
+    });
+
+    test("strict mode append to arrays with non-writable length throws", () => {
+        expect(() => {
+            "use strict";
+            const arr = [1, 2];
+            Object.defineProperty(arr, "length", { writable: false });
+            arr[arr.length] = 3;
+        }).toThrow(TypeError);
+    });
+
     test("TypedArray cannot be frozen", () => {
         expect(() => {
             Object.freeze(new Int32Array([1, 2, 3]));

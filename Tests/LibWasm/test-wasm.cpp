@@ -259,10 +259,12 @@ TESTJS_GLOBAL_FUNCTION(test_simd_vector, testSIMDVector)
     auto& got_array = static_cast<JS::TypedArrayBase&>(*got);
     auto element_size = 128 / TRY(TRY(expected_array.get("length"_utf16_fly_string)).to_u32(vm));
     size_t i = 0;
-    for (auto it = expected_array.indexed_properties().begin(false); it != expected_array.indexed_properties().end(); ++it) {
+    for (u32 it_index = 0; it_index < expected_array.indexed_array_like_size(); ++it_index) {
+        if (!expected_array.indexed_has(it_index))
+            continue;
         auto got_value = TRY(got_array.get(i++));
         u64 got = got_value.is_bigint() ? TRY(got_value.to_bigint_uint64(vm)) : (u64)TRY(got_value.to_index(vm));
-        auto expect = TRY(expected_array.get(it.index()));
+        auto expect = TRY(expected_array.get(it_index));
         if (expect.is_string()) {
             if (element_size != 32 && element_size != 64)
                 return vm.throw_completion<JS::TypeError>("Expected element of size 32 or 64"sv);

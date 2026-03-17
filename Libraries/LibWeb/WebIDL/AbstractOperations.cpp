@@ -556,7 +556,7 @@ bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVect
     if (!array || !elements.has_value())
         return !array && !elements.has_value();
 
-    bool is_equivalent = array->indexed_properties().array_like_size() == elements->size();
+    bool is_equivalent = array->indexed_array_like_size() == elements->size();
 
     for (size_t i = 0; is_equivalent && i < elements->size(); ++i) {
         auto cached_value = array->get_without_side_effects(JS::PropertyKey { i });

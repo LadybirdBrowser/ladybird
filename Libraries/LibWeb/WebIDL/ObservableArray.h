@@ -35,8 +35,8 @@ public:
     template<typename T, typename Callback>
     void for_each(Callback callback)
     {
-        for (auto& entry : indexed_properties()) {
-            auto value_and_attributes = indexed_properties().storage()->get(entry.index());
+        for (u32 i = 0; i < indexed_array_like_size(); ++i) {
+            auto value_and_attributes = indexed_get(i);
             if (value_and_attributes.has_value()) {
                 auto& style_sheet = as<T>(value_and_attributes->value.as_object());
                 callback(style_sheet);

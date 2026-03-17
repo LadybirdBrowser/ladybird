@@ -186,11 +186,11 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
         auto& array = tabular_data_item.as_array();
 
         // 3.1. Let `indices` be get the indices of `tabularDataItem`
-        auto& indices = array.indexed_properties();
+        auto indices = array.indexed_indices();
 
         // 3.2. For each `index` of `indices`
-        for (auto const& prop : indices) {
-            PropertyKey key(prop.index());
+        for (auto index : indices) {
+            PropertyKey key(index);
 
             // 3.2.1. Let `value` be `tabularDataItem[index]`
             Value value = TRY(array.get(key));
@@ -256,11 +256,12 @@ ThrowCompletionOr<Value> Console::table()
         HashMap<PropertyKey, bool> properties;
 
         if (TRY(properties_arg.is_array(vm))) {
-            auto& properties_array = properties_arg.as_array().indexed_properties();
-            auto* properties_storage = properties_array.storage();
-            for (auto const& col : properties_array) {
-                auto col_name = properties_storage->get(col.index()).value().value;
-                properties.set(TRY(PropertyKey::from_value(vm, col_name)), true);
+            auto& properties_arr = properties_arg.as_array();
+            auto prop_indices = properties_arr.indexed_indices();
+            for (auto index : prop_indices) {
+                auto col_result = properties_arr.indexed_get(index);
+                if (col_result.has_value())
+                    properties.set(TRY(PropertyKey::from_value(vm, col_result->value)), true);
             }
         }
 
@@ -277,11 +278,11 @@ ThrowCompletionOr<Value> Console::table()
             auto& array = tabular_data.as_array();
 
             // 3.1. Let `indices` be get the indices of `tabularData`
-            auto& indices = array.indexed_properties();
+            auto table_indices = array.indexed_indices();
 
             // 3.2. For each `index` of `indices`
-            for (auto const& prop : indices) {
-                PropertyKey index(prop.index());
+            for (auto idx : table_indices) {
+                PropertyKey index(idx);
 
                 // 3.2.1. Let `value` be `tabularData[index]`
                 Value value = TRY(array.get(index));

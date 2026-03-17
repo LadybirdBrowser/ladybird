@@ -69,6 +69,13 @@ struct CacheableSetPropertyMetadata {
     GC::Ptr<Object const> prototype;
 };
 
+enum class IndexedStorageKind : u8 {
+    None = 0,
+    Packed = 1,
+    Holey = 2,
+    Dictionary = 3,
+};
+
 class JS_API Object : public Cell {
     GC_CELL(Object, Cell);
     GC_DECLARE_ALLOCATOR(Object);
@@ -283,9 +290,46 @@ public:
     Value get_direct(size_t index) const { return m_named_properties[index]; }
     void put_direct(size_t index, Value value) { m_named_properties[index] = value; }
 
-    IndexedProperties const& indexed_properties() const { return m_indexed_properties; }
-    IndexedProperties& indexed_properties() { return m_indexed_properties; }
-    void set_indexed_property_elements(Vector<Value>&& values) { m_indexed_properties = IndexedProperties(move(values)); }
+    // Indexed property storage
+    Optional<ValueAndAttributes> indexed_get(u32 index) const;
+    void indexed_put(u32 index, Value, PropertyAttributes attributes = default_attributes);
+    bool indexed_has(u32 index) const;
+    void indexed_delete(u32 index);
+    u32 indexed_array_like_size() const { return m_indexed_array_like_size; }
+    bool set_indexed_array_like_size(size_t new_size);
+    void indexed_append(Value value, PropertyAttributes attributes = default_attributes);
+    ValueAndAttributes indexed_take_first();
+    ValueAndAttributes indexed_take_last();
+    size_t indexed_real_size() const;
+    Vector<u32> indexed_indices() const;
+    void set_indexed_property_elements(Vector<Value>&& values);
+    IndexedStorageKind indexed_storage_kind() const { return m_indexed_storage_kind; }
+
+    template<typename Callback>
+    void indexed_for_each_value(Callback callback)
+    {
+        switch (m_indexed_storage_kind) {
+        case IndexedStorageKind::None:
+            break;
+        case IndexedStorageKind::Packed:
+            for (u32 i = 0; i < m_indexed_array_like_size; ++i)
+                callback(m_indexed_elements[i]);
+            break;
+        case IndexedStorageKind::Holey:
+            for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+                if (!m_indexed_elements[i].is_special_empty_value())
+                    callback(m_indexed_elements[i]);
+            }
+            break;
+        case IndexedStorageKind::Dictionary:
+            for (auto& element : indexed_dictionary()->sparse_elements())
+                callback(element.value.value);
+            break;
+        }
+    }
+
+    // For FunctionPrototype.apply fast path
+    ReadonlySpan<Value> indexed_packed_elements_span() const;
 
     Shape& shape() { return *m_shape; }
     Shape const& shape() const { return *m_shape; }
@@ -333,10 +377,20 @@ private:
     };
 
     u8 m_flags { Flag::IsExtensible };
+    IndexedStorageKind m_indexed_storage_kind { IndexedStorageKind::None };
+    // 2 bytes padding
+    u32 m_indexed_array_like_size { 0 };
     void set_shape(Shape& shape) { m_shape = &shape; }
 
     Object* prototype() { return shape().prototype(); }
 
+    // Indexed storage helpers
+    GenericIndexedPropertyStorage* indexed_dictionary() const;
+    u32 indexed_elements_capacity() const;
+    void ensure_indexed_elements(u32 needed_capacity);
+    void grow_indexed_elements(u32 needed_capacity);
+    void transition_to_dictionary();
+    void free_indexed_elements();
     void ensure_named_storage_capacity(u32 needed);
     bool named_storage_is_inline() const { return m_named_properties == const_cast<Object*>(this)->m_inline_named_storage; }
 
@@ -346,7 +400,7 @@ public:
 private:
     GC::Ptr<Shape> m_shape;
     Value* m_named_properties { m_inline_named_storage };
-    IndexedProperties m_indexed_properties;
+    Value* m_indexed_elements { nullptr };
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]
     Value m_inline_named_storage[INLINE_NAMED_PROPERTY_CAPACITY] {};
 };

@@ -990,17 +990,10 @@ inline ThrowCompletionOr<Value> get_by_value(VM& vm, Optional<IdentifierTableInd
         auto& object = base_value.as_object();
         auto index = static_cast<u32>(property_key_value.as_i32());
 
-        auto const* object_storage = object.indexed_properties().storage();
-
         // For "non-typed arrays":
         if (!object.may_interfere_with_indexed_property_access()
-            && object_storage) {
-            auto maybe_value = [&] {
-                if (object_storage->is_simple_storage())
-                    return static_cast<SimpleIndexedPropertyStorage const*>(object_storage)->inline_get(index);
-                else
-                    return static_cast<GenericIndexedPropertyStorage const*>(object_storage)->get(index);
-            }();
+            && object.indexed_storage_kind() != IndexedStorageKind::None) {
+            auto maybe_value = object.indexed_get(index);
             if (maybe_value.has_value()) {
                 auto value = maybe_value->value;
                 if (!value.is_accessor())
@@ -1198,18 +1191,17 @@ inline ThrowCompletionOr<void> put_by_value(VM& vm, Value base, Optional<Utf16Fl
     if (kind == PutKind::Normal
         && base.is_object() && property_key_value.is_non_negative_int32()) {
         auto& object = base.as_object();
-        auto* storage = object.indexed_properties().storage();
         auto index = static_cast<u32>(property_key_value.as_i32());
 
         // For "non-typed arrays":
-        if (storage
-            && storage->is_simple_storage()
-            && !object.may_interfere_with_indexed_property_access()) {
-            auto maybe_value = storage->get(index);
+        if (!object.may_interfere_with_indexed_property_access()
+            && object.indexed_storage_kind() != IndexedStorageKind::None
+            && object.indexed_storage_kind() != IndexedStorageKind::Dictionary) {
+            auto maybe_value = object.indexed_get(index);
             if (maybe_value.has_value()) {
                 auto existing_value = maybe_value->value;
                 if (!existing_value.is_accessor()) {
-                    storage->put(index, value);
+                    object.indexed_put(index, value);
                     return {};
                 }
             }
@@ -1463,18 +1455,18 @@ inline ThrowCompletionOr<void> append(VM& vm, Value lhs, Value rhs, bool is_spre
 
     // Note: We know from codegen, that lhs is a plain array with only indexed properties
     auto& lhs_array = lhs.as_array();
-    auto lhs_size = lhs_array.indexed_properties().array_like_size();
+    auto lhs_size = lhs_array.indexed_array_like_size();
 
     if (is_spread) {
         // ...rhs
         size_t i = lhs_size;
         TRY(get_iterator_values(vm, rhs, [&i, &lhs_array](Value iterator_value) -> Optional<Completion> {
-            lhs_array.indexed_properties().put(i, iterator_value, default_attributes);
+            lhs_array.indexed_put(i, iterator_value);
             ++i;
             return {};
         }));
     } else {
-        lhs_array.indexed_properties().put(lhs_size, rhs, default_attributes);
+        lhs_array.indexed_put(lhs_size, rhs);
     }
 
     return {};
@@ -1970,7 +1962,7 @@ void NewArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto array = MUST(Array::create(interpreter.realm(), m_element_count));
     for (size_t i = 0; i < m_element_count; i++) {
-        array->indexed_properties().put(i, interpreter.get(m_elements[i]), default_attributes);
+        array->indexed_put(i, interpreter.get(m_elements[i]));
     }
     interpreter.set(dst(), array);
 }
@@ -1979,7 +1971,7 @@ void NewPrimitiveArray::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto array = MUST(Array::create(interpreter.realm(), m_element_count));
     for (size_t i = 0; i < m_element_count; i++)
-        array->indexed_properties().put(i, m_elements[i], default_attributes);
+        array->indexed_put(i, m_elements[i]);
     interpreter.set(dst(), array);
 }
 
@@ -2025,13 +2017,13 @@ void GetTemplateObject::execute_impl(Bytecode::Interpreter& interpreter) const
         auto cooked_value = interpreter.get(m_strings[index]);
 
         // c. Perform ! DefinePropertyOrThrow(template, prop, PropertyDescriptor { [[Value]]: cookedValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
-        template_object->indexed_properties().put(index, cooked_value, Attribute::Enumerable);
+        template_object->indexed_put(index, cooked_value, Attribute::Enumerable);
 
         // d. Let rawValue be the String value rawStrings[index].
         auto raw_value = interpreter.get(m_strings[count + index]);
 
         // e. Perform ! DefinePropertyOrThrow(rawObj, prop, PropertyDescriptor { [[Value]]: rawValue, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
-        raw_object->indexed_properties().put(index, raw_value, Attribute::Enumerable);
+        raw_object->indexed_put(index, raw_value, Attribute::Enumerable);
 
         // f. Set index to index + 1.
     }
@@ -2448,7 +2440,7 @@ void CreateRestParams::execute_impl(Bytecode::Interpreter& interpreter) const
     auto arguments_count = interpreter.running_execution_context().passed_argument_count;
     auto array = MUST(Array::create(interpreter.realm(), 0));
     for (size_t rest_index = m_rest_index; rest_index < arguments_count; ++rest_index)
-        array->indexed_properties().append(arguments[rest_index]);
+        array->indexed_append(arguments[rest_index]);
     interpreter.set(m_dst, array);
 }
 
@@ -2848,7 +2840,7 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
     auto& function = callee.as_function();
 
     auto& argument_array = arguments.as_array();
-    auto argument_array_length = argument_array.indexed_properties().array_like_size();
+    auto argument_array_length = argument_array.indexed_array_like_size();
 
     size_t argument_count = argument_array_length;
     size_t registers_and_locals_count = 0;
@@ -2867,7 +2859,7 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
     auto const insn_argument_count = argument_array_length;
 
     for (size_t i = 0; i < insn_argument_count; ++i) {
-        if (auto maybe_value = argument_array.indexed_properties().get(i); maybe_value.has_value())
+        if (auto maybe_value = argument_array.indexed_get(i); maybe_value.has_value())
             callee_context_argument_values[i] = maybe_value.release_value().value;
         else
             callee_context_argument_values[i] = js_undefined();
@@ -2932,7 +2924,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
     if (m_is_synthetic) {
         argument_array_length = MUST(length_of_array_like(vm, argument_array));
     } else {
-        argument_array_length = argument_array.indexed_properties().array_like_size();
+        argument_array_length = argument_array.indexed_array_like_size();
     }
 
     size_t argument_count = argument_array_length;
@@ -2956,7 +2948,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
             callee_context_argument_values[i] = argument_array.get_without_side_effects(PropertyKey { i });
     } else {
         for (size_t i = 0; i < insn_argument_count; ++i) {
-            if (auto maybe_value = argument_array.indexed_properties().get(i); maybe_value.has_value())
+            if (auto maybe_value = argument_array.indexed_get(i); maybe_value.has_value())
                 callee_context_argument_values[i] = maybe_value.release_value().value;
             else
                 callee_context_argument_values[i] = js_undefined();
