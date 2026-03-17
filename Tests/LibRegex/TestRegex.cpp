@@ -1691,13 +1691,16 @@ static Vector<ByteString> bytecode_dump(Regex<ECMA262> const& re)
 {
     Vector<ByteString> lines;
     auto& bytecode = re.parser_result.bytecode.get<regex::FlatByteCode>();
+    auto const* data = bytecode.flat_data().data();
+    auto data_size = bytecode.size();
     auto state = regex::MatchState::only_for_enumeration();
-    while (state.instruction_position < bytecode.size()) {
-        auto& opcode = bytecode.get_opcode(state);
-        lines.append(ByteString::formatted("{} {}", opcode.name(), opcode.arguments_string()));
-        if (is<regex::OpCode_Exit<regex::FlatByteCode>>(opcode))
+    while (state.instruction_position < data_size) {
+        auto id = static_cast<regex::OpCodeId>(data[state.instruction_position]);
+        auto sz = regex::opcode_size(id, data, state.instruction_position);
+        lines.append(ByteString::formatted("{} {}", regex::opcode_id_name(id), regex::opcode_arguments_string(id, data, state.instruction_position, state, bytecode)));
+        if (id == regex::OpCodeId::Exit)
             break;
-        state.instruction_position += opcode.size();
+        state.instruction_position += sz;
     }
     return lines;
 }

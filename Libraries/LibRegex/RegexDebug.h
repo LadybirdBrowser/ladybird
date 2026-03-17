@@ -41,15 +41,21 @@ public:
     void print_bytecode(ByteCode const& bytecode) const
     {
         auto state = MatchState::only_for_enumeration();
+        auto flat = bytecode.flat_data();
+        auto const* data = flat.data();
+        auto data_size = flat.size();
         for (;;) {
-            auto& opcode = bytecode.get_opcode(state);
-            print_opcode("PrintBytecode", opcode, state);
+            auto id = (data_size <= state.instruction_position)
+                ? OpCodeId::Exit
+                : static_cast<OpCodeId>(data[state.instruction_position]);
+            auto sz = opcode_size(id, data, state.instruction_position);
+            print_opcode("PrintBytecode", id, data, state, bytecode);
             out(m_file, "{}", m_debug_stripline);
 
-            if (is<OpCode_Exit>(opcode))
+            if (id == OpCodeId::Exit)
                 break;
 
-            state.instruction_position += opcode.size();
+            state.instruction_position += sz;
         }
 
         out(m_file, "String Table:\n");
@@ -69,53 +75,54 @@ public:
         fflush(m_file);
     }
 
-    void print_opcode(ByteString const& system, OpCode<ByteCode>& opcode, MatchState& state, size_t recursion = 0, bool newline = true) const
+    void print_opcode(ByteString const& system, OpCodeId id, ByteCodeValueType const* data, MatchState& state, ByteCodeBase const& bytecode, size_t recursion = 0, bool newline = true) const
     {
+        auto opcode_str = ByteString::formatted("[{:#02X}] {}", (int)id, opcode_id_name(id));
         out(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}",
             system.characters(),
             state.instruction_position,
             recursion,
-            opcode.to_byte_string().characters(),
-            opcode.arguments_string().characters(),
+            opcode_str.characters(),
+            opcode_arguments_string(id, data, state.instruction_position, state, bytecode).characters(),
             ByteString::formatted("ip: {:3},   sp: {:3}", state.instruction_position, state.string_position));
         if (newline)
             outln();
-        if (newline && is<OpCode_Compare>(opcode)) {
-            for (auto& line : to<OpCode_Compare>(opcode).variable_arguments_to_byte_string())
+        if (newline && id == OpCodeId::Compare) {
+            for (auto& line : compare_variable_arguments_to_byte_string(data, state.instruction_position, state, bytecode))
                 outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", line, "");
         }
     }
 
-    void print_result(OpCode<ByteCode> const& opcode, ByteCode const& bytecode, MatchInput const& input, MatchState& state, ExecutionResult result) const
+    void print_result(OpCodeId id, ByteCodeValueType const* data, size_t data_size, ByteCodeBase const& bytecode, MatchInput const& input, MatchState& state, size_t current_opcode_size, ExecutionResult result) const
     {
         StringBuilder builder;
         builder.append(execution_result_name(result));
         builder.appendff(", fc: {}, ss: {}", input.fail_counter, input.saved_positions.size());
         if (result == ExecutionResult::Succeeded) {
-            builder.appendff(", ip: {}/{}, sp: {}/{}", state.instruction_position, bytecode.size() - 1, state.string_position, input.view.length() - 1);
+            builder.appendff(", ip: {}/{}, sp: {}/{}", state.instruction_position, data_size - 1, state.string_position, input.view.length() - 1);
         } else if (result == ExecutionResult::Fork_PrioHigh) {
-            builder.appendff(", next ip: {}", state.fork_at_position + opcode.size());
+            builder.appendff(", next ip: {}", state.fork_at_position + current_opcode_size);
         } else if (result != ExecutionResult::Failed) {
-            builder.appendff(", next ip: {}", state.instruction_position + opcode.size());
+            builder.appendff(", next ip: {}", state.instruction_position + current_opcode_size);
         }
 
         outln(m_file, " | {:20}", builder.to_byte_string());
 
-        if (is<OpCode_CheckSavedPosition>(opcode)) {
+        if (id == OpCodeId::CheckSavedPosition) {
             auto last_saved = input.saved_positions.is_empty()
                 ? "saved: <empty>"_string
                 : MUST(String::formatted("saved: {}", input.saved_positions.last()));
             outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", last_saved, "");
         }
-        if (is<OpCode_CheckStepBack>(opcode) || is<OpCode_IncStepBack>(opcode)) {
+        if (id == OpCodeId::CheckStepBack || id == OpCodeId::IncStepBack) {
             auto last_step_back = state.step_backs.is_empty()
                 ? "step: <empty>"_string
                 : MUST(String::formatted("step: {}", state.step_backs.last()));
             outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", last_step_back, "");
         }
 
-        if (is<OpCode_Compare>(opcode)) {
-            for (auto& line : to<OpCode_Compare>(opcode).variable_arguments_to_byte_string(input)) {
+        if (id == OpCodeId::Compare) {
+            for (auto& line : compare_variable_arguments_to_byte_string(data, state.instruction_position, state, bytecode, input)) {
                 outln(m_file, "{:15} | {:5} | {:9} | {:35} | {:30} | {:20}", "", "", "", "", line, "");
             }
         }
