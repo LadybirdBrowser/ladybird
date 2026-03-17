@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@ladybird.org>
  * Copyright (c) 2024, Jamie Mansfield <jmansfield@cadixdev.org>
  * Copyright (c) 2024, Sam Atkins <sam@ladybird.org>
  *
@@ -7,15 +7,16 @@
  */
 
 #include <AK/StdLibExtras.h>
-#include <AK/TypeCasts.h>
+#include <UI/Qt/Icon.h>
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 
 #include <QContextMenuEvent>
 #include <QEvent>
-#include <QPushButton>
-#include <QStyleOption>
-#include <QStylePainter>
+#include <QHBoxLayout>
+#include <QMouseEvent>
+#include <QToolButton>
+#include <QVBoxLayout>
 
 namespace Ladybird {
 
@@ -24,12 +25,20 @@ TabBar::TabBar(QWidget* parent)
 {
 }
 
+void TabBar::set_available_width(int width)
+{
+    if (m_available_width != width) {
+        m_available_width = width;
+        updateGeometry();
+    }
+}
+
 QSize TabBar::tabSizeHint(int index) const
 {
     auto hint = QTabBar::tabSizeHint(index);
 
     if (auto count = this->count(); count > 0) {
-        auto width = this->width() / count;
+        auto width = (m_available_width > 0 ? m_available_width : this->width()) / count;
         width = min(225, width);
         width = max(128, width);
 
@@ -41,9 +50,9 @@ QSize TabBar::tabSizeHint(int index) const
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
 {
-    auto* tab_widget = as<QTabWidget>(this->parent());
-    auto* tab = as<Tab>(tab_widget->widget(tabAt(event->pos())));
-    if (tab)
+    auto* tab_widget = as<TabWidget>(parent());
+
+    if (auto* tab = tab_widget->tab(tabAt(event->pos())))
         tab->context_menu()->exec(event->globalPos());
 }
 
@@ -81,45 +90,139 @@ void TabBar::mouseMoveEvent(QMouseEvent* event)
 }
 
 TabWidget::TabWidget(QWidget* parent)
-    : QTabWidget(parent)
+    : QWidget(parent)
 {
-    // This must be called first, otherwise several of the options below have no effect.
-    setTabBar(new TabBar(this));
+    m_tab_bar = new TabBar(this);
+    m_tab_bar->setDocumentMode(true);
+    m_tab_bar->setElideMode(Qt::TextElideMode::ElideRight);
+    m_tab_bar->setMovable(true);
+    m_tab_bar->setTabsClosable(true);
+    m_tab_bar->setExpanding(false);
+    m_tab_bar->setUsesScrollButtons(true);
+    m_tab_bar->setDrawBase(false);
 
-    setDocumentMode(true);
-    setElideMode(Qt::TextElideMode::ElideRight);
-    setMovable(true);
-    setTabsClosable(true);
+    m_stacked_widget = new QStackedWidget(this);
 
-    setStyle(new TabStyle(this));
+    m_new_tab_button = new QToolButton(this);
+    m_new_tab_button->setIconSize(QSize(16, 16));
+    m_new_tab_button->setAutoRaise(true);
+    m_new_tab_button->setToolTip("New Tab");
 
-    installEventFilter(parent);
+    recreate_icons();
+
+    auto* tab_bar_row_layout = new QHBoxLayout;
+    tab_bar_row_layout->setSpacing(0);
+    tab_bar_row_layout->setContentsMargins(0, 0, 0, 0);
+    tab_bar_row_layout->addWidget(m_tab_bar);
+    tab_bar_row_layout->addWidget(m_new_tab_button);
+    tab_bar_row_layout->addStretch(1);
+
+    m_tab_bar_row = new QWidget(this);
+    m_tab_bar_row->setLayout(tab_bar_row_layout);
+
+    auto* main_layout = new QVBoxLayout(this);
+    main_layout->setSpacing(0);
+    main_layout->setContentsMargins(0, 0, 0, 0);
+    main_layout->addWidget(m_tab_bar_row);
+    main_layout->addWidget(m_stacked_widget, 1);
+
+    connect(m_tab_bar, &QTabBar::currentChanged, this, [this](int index) {
+        if (index >= 0 && index < m_stacked_widget->count())
+            m_stacked_widget->setCurrentIndex(index);
+
+        emit current_tab_changed(index);
+    });
+
+    connect(m_tab_bar, &QTabBar::tabCloseRequested, this, &TabWidget::tab_close_requested);
+
+    connect(m_tab_bar, &QTabBar::tabMoved, this, [this](int from, int to) {
+        ScopeGuard guard { [&]() { m_stacked_widget->blockSignals(false); } };
+        m_stacked_widget->blockSignals(true);
+
+        auto* widget = m_stacked_widget->widget(from);
+        m_stacked_widget->removeWidget(widget);
+        m_stacked_widget->insertWidget(to, widget);
+        m_stacked_widget->setCurrentIndex(m_tab_bar->currentIndex());
+    });
 }
 
-void TabWidget::paintEvent(QPaintEvent*)
+void TabWidget::add_tab(Tab* widget, QString const& label)
 {
-    auto prepare_style_options = [](QTabBar* tab_bar, QSize widget_size) {
-        QStyleOptionTabBarBase style_options;
-        QStyleOptionTab tab_overlap;
-        tab_overlap.shape = tab_bar->shape();
-        auto overlap = tab_bar->style()->pixelMetric(QStyle::PM_TabBarBaseOverlap, &tab_overlap, tab_bar);
-        style_options.initFrom(tab_bar);
-        style_options.shape = tab_bar->shape();
-        style_options.documentMode = tab_bar->documentMode();
-        // NOTE: This assumes the tab bar is at the top of the tab widget.
-        style_options.rect = { 0, widget_size.height() - overlap, widget_size.width(), overlap };
+    m_stacked_widget->addWidget(widget);
+    m_tab_bar->addTab(label);
 
-        return style_options;
-    };
+    update_tab_layout();
+}
 
-    QStylePainter painter { this, tabBar() };
-    if (auto* widget = cornerWidget(Qt::TopRightCorner)) {
-        // Manually paint the background for the area where the "new tab" button would have been
-        // if we hadn't relocated it in `TabStyle::subElementRect()`.
-        auto style_options = prepare_style_options(tabBar(), widget->size());
-        style_options.rect.translate(tabBar()->rect().width(), widget->y());
-        painter.drawPrimitive(QStyle::PE_FrameTabBarBase, style_options);
+void TabWidget::remove_tab(int index)
+{
+    auto* widget = m_stacked_widget->widget(index);
+    m_stacked_widget->removeWidget(widget);
+
+    m_tab_bar->removeTab(index);
+
+    if (m_tab_bar->count() > 0 && m_tab_bar->currentIndex() >= 0)
+        m_stacked_widget->setCurrentIndex(m_tab_bar->currentIndex());
+
+    update_tab_layout();
+}
+
+void TabWidget::set_current_tab(Tab* widget)
+{
+    if (auto index = m_stacked_widget->indexOf(widget); index >= 0)
+        set_current_index(index);
+}
+
+int TabWidget::index_of(Tab* widget) const
+{
+    return m_stacked_widget->indexOf(widget);
+}
+
+void TabWidget::set_new_tab_action(QAction* action)
+{
+    disconnect(m_new_tab_button, &QToolButton::clicked, nullptr, nullptr);
+
+    if (!action)
+        return;
+
+    connect(m_new_tab_button, &QToolButton::clicked, action, &QAction::trigger);
+}
+
+bool TabWidget::event(QEvent* event)
+{
+    if (auto type = event->type(); type == QEvent::MouseButtonRelease) {
+        auto const* mouse_event = static_cast<QMouseEvent const*>(event);
+
+        if (mouse_event->button() == Qt::MiddleButton) {
+            if (auto index = m_tab_bar->tabAt(mouse_event->pos()); index != -1) {
+                emit tab_close_requested(index);
+                return true;
+            }
+        }
+    } else if (type == QEvent::PaletteChange) {
+        recreate_icons();
     }
+
+    return QWidget::event(event);
+}
+
+void TabWidget::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    update_tab_layout();
+}
+
+void TabWidget::update_tab_layout()
+{
+    auto button_width = m_new_tab_button->sizeHint().width();
+    auto available_for_tabs = width() - button_width;
+
+    m_tab_bar->set_available_width(available_for_tabs);
+}
+
+void TabWidget::recreate_icons()
+{
+    m_new_tab_button->setIcon(create_tvg_icon_with_theme_colors("new_tab", palette()));
 }
 
 TabBarButton::TabBarButton(QIcon const& icon, QWidget* parent)
@@ -137,29 +240,6 @@ bool TabBarButton::event(QEvent* event)
         setFlat(true);
 
     return QPushButton::event(event);
-}
-
-TabStyle::TabStyle(QObject* parent)
-{
-    setParent(parent);
-}
-
-QRect TabStyle::subElementRect(QStyle::SubElement sub_element, QStyleOption const* option, QWidget const* widget) const
-{
-    // Place our add-tab button (set as the top-right corner widget) directly after the last tab
-    if (sub_element == QStyle::SE_TabWidgetRightCorner) {
-        auto* tab_widget = as<TabWidget>(widget);
-        auto tab_bar_size = tab_widget->tabBar()->sizeHint();
-        auto new_tab_button_size = tab_bar_size.height();
-        return QRect {
-            qMin(tab_bar_size.width(), tab_widget->width() - new_tab_button_size),
-            0,
-            new_tab_button_size,
-            new_tab_button_size
-        };
-    }
-
-    return QProxyStyle::subElementRect(sub_element, option, widget);
 }
 
 }

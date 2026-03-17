@@ -25,6 +25,7 @@
 #include <QActionGroup>
 #include <QGuiApplication>
 #include <QInputDialog>
+#include <QMenuBar>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPropertyAnimation>
@@ -32,6 +33,7 @@
 #include <QScreen>
 #include <QShortcut>
 #include <QStatusBar>
+#include <QStyle>
 #include <QTabBar>
 #include <QTimer>
 #include <QWheelEvent>
@@ -161,7 +163,6 @@ static QIcon const& app_icon()
 
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, Tab* parent_tab, Optional<u64> page_index)
     : m_tabs_container(new TabWidget(this))
-    , m_new_tab_button_toolbar(new QToolBar("New Tab", m_tabs_container))
     , m_is_popup_window(is_popup_window)
 {
     auto const& browser_options = WebView::Application::browser_options();
@@ -329,15 +330,15 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     connect(m_fullscreen_mode, &FullscreenMode::on_exit_fullscreen, this, &BrowserWindow::exit_fullscreen);
     connect(m_fullscreen_mode, &FullscreenMode::on_exit_fullscreen, m_exit_button, &ExitFullscreenButton::hide);
 
-    QObject::connect(m_tabs_container, &QTabWidget::currentChanged, [this](int index) {
-        auto* tab = as<Tab>(m_tabs_container->widget(index));
+    QObject::connect(m_tabs_container, &TabWidget::current_tab_changed, this, [this](int index) {
+        auto* tab = m_tabs_container->tab(index);
         if (tab)
             setWindowTitle(QString("%1 - Ladybird").arg(tab->title()));
 
         set_current_tab(tab);
         fullscreen_mode().exit(FullscreenMode::ExitInitiatedBy::UI);
     });
-    QObject::connect(m_tabs_container, &QTabWidget::tabCloseRequested, this, &BrowserWindow::request_to_close_tab);
+    QObject::connect(m_tabs_container, &TabWidget::tab_close_requested, this, &BrowserWindow::request_to_close_tab);
     QObject::connect(close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);
 
     for (int i = 0; i <= 7; ++i) {
@@ -345,7 +346,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
             if (m_tabs_container->count() <= 1)
                 return;
 
-            m_tabs_container->setCurrentIndex(min(i, m_tabs_container->count() - 1));
+            m_tabs_container->set_current_index(min(i, m_tabs_container->count() - 1));
         });
     }
 
@@ -353,7 +354,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         if (m_tabs_container->count() <= 1)
             return;
 
-        m_tabs_container->setCurrentIndex(m_tabs_container->count() - 1);
+        m_tabs_container->set_current_index(m_tabs_container->count() - 1);
     });
 
     if (parent_tab) {
@@ -364,11 +365,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         }
     }
 
-    m_new_tab_button_toolbar->addAction(m_new_tab_action);
-    m_new_tab_button_toolbar->setMovable(false);
-    m_new_tab_button_toolbar->setStyleSheet("QToolBar { background: transparent; }");
-    m_new_tab_button_toolbar->setIconSize(QSize(16, 16));
-    m_tabs_container->setCornerWidget(m_new_tab_button_toolbar, Qt::TopRightCorner);
+    m_tabs_container->set_new_tab_action(m_new_tab_action);
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
@@ -420,9 +417,9 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab, Tab& par
         set_current_tab(tab);
     }
 
-    m_tabs_container->addTab(tab, "New Tab");
+    m_tabs_container->add_tab(tab, "New Tab");
     if (activate_tab == Web::HTML::ActivateTab::Yes)
-        m_tabs_container->setCurrentWidget(tab);
+        m_tabs_container->set_current_tab(tab);
 
     initialize_tab(tab);
     return *tab;
@@ -441,9 +438,9 @@ Tab& BrowserWindow::create_new_tab(Web::HTML::ActivateTab activate_tab)
         set_current_tab(tab);
     }
 
-    m_tabs_container->addTab(tab, "New Tab");
+    m_tabs_container->add_tab(tab, "New Tab");
     if (activate_tab == Web::HTML::ActivateTab::Yes)
-        m_tabs_container->setCurrentWidget(tab);
+        m_tabs_container->set_current_tab(tab);
 
     initialize_tab(tab);
 
@@ -474,19 +471,19 @@ void BrowserWindow::initialize_tab(Tab* tab)
         return new_tab.view().handle();
     };
 
-    m_tabs_container->setTabIcon(m_tabs_container->indexOf(tab), tab->favicon());
+    m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->favicon());
     create_close_button_for_tab(tab);
 }
 
 void BrowserWindow::activate_tab(int index)
 {
-    m_tabs_container->setCurrentIndex(index);
+    m_tabs_container->set_current_index(index);
 }
 
 void BrowserWindow::definitely_close_tab(int index)
 {
-    auto* tab = m_tabs_container->widget(index);
-    m_tabs_container->removeTab(index);
+    auto* tab = m_tabs_container->tab(index);
+    m_tabs_container->remove_tab(index);
     tab->deleteLater();
 
     if (m_tabs_container->count() == 0)
@@ -495,7 +492,7 @@ void BrowserWindow::definitely_close_tab(int index)
 
 void BrowserWindow::move_tab(int old_index, int new_index)
 {
-    m_tabs_container->tabBar()->moveTab(old_index, new_index);
+    m_tabs_container->tab_bar()->moveTab(old_index, new_index);
 }
 
 void BrowserWindow::open_file()
@@ -505,18 +502,18 @@ void BrowserWindow::open_file()
 
 void BrowserWindow::request_to_close_tab(int index)
 {
-    auto* tab = as<Tab>(m_tabs_container->widget(index));
+    auto* tab = m_tabs_container->tab(index);
     tab->request_close();
 }
 
 void BrowserWindow::request_to_close_current_tab()
 {
-    request_to_close_tab(m_tabs_container->currentIndex());
+    request_to_close_tab(m_tabs_container->current_index());
 }
 
 int BrowserWindow::tab_index(Tab* tab)
 {
-    return m_tabs_container->indexOf(tab);
+    return m_tabs_container->index_of(tab);
 }
 
 void BrowserWindow::device_pixel_ratio_changed(qreal dpi)
@@ -541,43 +538,43 @@ void BrowserWindow::tab_title_changed(int index, QString const& title)
     QString title_escaped = title;
     title_escaped.replace("&", "&&");
 
-    m_tabs_container->setTabText(index, title_escaped);
-    m_tabs_container->setTabToolTip(index, title);
+    m_tabs_container->set_tab_text(index, title_escaped);
+    m_tabs_container->set_tab_tooltip(index, title);
 
-    if (m_tabs_container->currentIndex() == index)
+    if (m_tabs_container->current_index() == index)
         setWindowTitle(QString("%1 - Ladybird").arg(title));
 }
 
 void BrowserWindow::tab_favicon_changed(int index, QIcon const& icon)
 {
-    m_tabs_container->setTabIcon(index, icon);
+    m_tabs_container->set_tab_icon(index, icon);
 }
 
 void BrowserWindow::create_close_button_for_tab(Tab* tab)
 {
-    auto index = m_tabs_container->indexOf(tab);
-    m_tabs_container->setTabIcon(index, tab->favicon());
+    auto index = m_tabs_container->index_of(tab);
+    m_tabs_container->set_tab_icon(index, tab->favicon());
 
     auto* button = new TabBarButton(create_tvg_icon_with_theme_colors("close", palette()));
     auto position = audio_button_position_for_tab(index) == QTabBar::LeftSide ? QTabBar::RightSide : QTabBar::LeftSide;
 
     connect(button, &QPushButton::clicked, this, [this, tab]() {
-        auto index = m_tabs_container->indexOf(tab);
+        auto index = m_tabs_container->index_of(tab);
         request_to_close_tab(index);
     });
 
-    m_tabs_container->tabBar()->setTabButton(index, position, button);
+    m_tabs_container->tab_bar()->setTabButton(index, position, button);
 }
 
 void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState play_state)
 {
-    auto* tab = as<Tab>(m_tabs_container->widget(index));
+    auto* tab = m_tabs_container->tab(index);
     auto position = audio_button_position_for_tab(index);
 
     switch (play_state) {
     case Web::HTML::AudioPlayState::Paused:
         if (tab->view().page_mute_state() == Web::HTML::MuteState::Unmuted)
-            m_tabs_container->tabBar()->setTabButton(index, position, nullptr);
+            m_tabs_container->tab_bar()->setTabButton(index, position, nullptr);
         break;
 
     case Web::HTML::AudioPlayState::Playing:
@@ -591,17 +588,17 @@ void BrowserWindow::tab_audio_play_state_changed(int index, Web::HTML::AudioPlay
 
             switch (tab->view().audio_play_state()) {
             case Web::HTML::AudioPlayState::Paused:
-                m_tabs_container->tabBar()->setTabButton(index, position, nullptr);
+                m_tabs_container->tab_bar()->setTabButton(index, position, nullptr);
                 break;
             case Web::HTML::AudioPlayState::Playing:
-                auto* button = m_tabs_container->tabBar()->tabButton(index, position);
+                auto* button = m_tabs_container->tab_bar()->tabButton(index, position);
                 as<TabBarButton>(button)->setIcon(icon_for_page_mute_state(*tab));
                 button->setToolTip(tool_tip_for_page_mute_state(*tab));
                 break;
             }
         });
 
-        m_tabs_container->tabBar()->setTabButton(index, position, button);
+        m_tabs_container->tab_bar()->setTabButton(index, position, button);
         break;
     }
 }
@@ -632,7 +629,7 @@ QString BrowserWindow::tool_tip_for_page_mute_state(Tab& tab) const
 
 QTabBar::ButtonPosition BrowserWindow::audio_button_position_for_tab(int tab_index) const
 {
-    if (auto* button = m_tabs_container->tabBar()->tabButton(tab_index, QTabBar::LeftSide)) {
+    if (auto* button = m_tabs_container->tab_bar()->tabButton(tab_index, QTabBar::LeftSide)) {
         if (button->objectName() != "LadybirdAudioState")
             return QTabBar::RightSide;
     }
@@ -645,10 +642,10 @@ void BrowserWindow::open_next_tab()
     if (m_tabs_container->count() <= 1)
         return;
 
-    auto next_index = m_tabs_container->currentIndex() + 1;
+    auto next_index = m_tabs_container->current_index() + 1;
     if (next_index >= m_tabs_container->count())
         next_index = 0;
-    m_tabs_container->setCurrentIndex(next_index);
+    m_tabs_container->set_current_index(next_index);
 }
 
 void BrowserWindow::open_previous_tab()
@@ -656,10 +653,10 @@ void BrowserWindow::open_previous_tab()
     if (m_tabs_container->count() <= 1)
         return;
 
-    auto next_index = m_tabs_container->currentIndex() - 1;
+    auto next_index = m_tabs_container->current_index() - 1;
     if (next_index < 0)
         next_index = m_tabs_container->count() - 1;
-    m_tabs_container->setCurrentIndex(next_index);
+    m_tabs_container->set_current_index(next_index);
 }
 
 void BrowserWindow::show_find_in_page()
@@ -684,16 +681,14 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
 
 void BrowserWindow::enter_fullscreen()
 {
-    m_tabs_container->tabBar()->hide();
-    m_tabs_container->cornerWidget()->hide();
+    m_tabs_container->set_tab_bar_visible(false);
     m_restore_to_maximized = isMaximized();
     showFullScreen();
 }
 
 void BrowserWindow::exit_fullscreen()
 {
-    m_tabs_container->tabBar()->show();
-    m_tabs_container->cornerWidget()->show();
+    m_tabs_container->set_tab_bar_visible(true);
     if (m_restore_to_maximized)
         showMaximized();
     else
@@ -762,24 +757,6 @@ void BrowserWindow::wheelEvent(QWheelEvent* event)
         else if (event->angleDelta().y() < 0)
             m_current_tab->view().zoom_out();
     }
-}
-
-bool BrowserWindow::eventFilter(QObject* obj, QEvent* event)
-{
-    if (event->type() == QEvent::MouseButtonRelease) {
-        auto const* const mouse_event = static_cast<QMouseEvent*>(event);
-        if (mouse_event->button() == Qt::MouseButton::MiddleButton) {
-            if (obj == m_tabs_container) {
-                auto const tab_index = m_tabs_container->tabBar()->tabAt(mouse_event->pos());
-                if (tab_index != -1) {
-                    request_to_close_tab(tab_index);
-                    return true;
-                }
-            }
-        }
-    }
-
-    return QMainWindow::eventFilter(obj, event);
 }
 
 void BrowserWindow::closeEvent(QCloseEvent* event)
