@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-in-inline-element-ref.html">
+<style>
+p {
+    font-size: 20px;
+    line-height: 1.5;
+    margin: 10px 0;
+}
+
+p::selection {
+    background-color: red;
+}
+
+span::selection {
+    background-color: red;
+}
+</style>
+
+<p><span id="target">Hello World</span></p>
+
+<script>
+const range = document.createRange();
+range.selectNodeContents(document.getElementById("target"));
+getSelection().addRange(range);
+</script>

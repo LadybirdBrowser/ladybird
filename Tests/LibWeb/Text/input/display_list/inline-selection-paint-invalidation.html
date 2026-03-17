@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div>
+    <span id="target">Split<br>over<br>multiple<br>lines</span>
+</div>
+<script>
+test(() => {
+    const before = internals.dumpDisplayList();
+    const fillRectsBefore = before.split('\n').filter(l => l.includes('FillRect')).length;
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById('target'));
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    const after = internals.dumpDisplayList();
+    const fillRectsAfter = after.split('\n').filter(l => l.includes('FillRect')).length;
+
+    println(`New FillRect commands after selection: ${fillRectsAfter - fillRectsBefore}`);
+});
+</script>

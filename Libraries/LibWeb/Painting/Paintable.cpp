@@ -349,10 +349,17 @@ void Paintable::set_selection_state(SelectionState state)
     if (m_selection_state == state)
         return;
     m_selection_state = state;
-    if (auto* box = as_if<PaintableBox>(this))
+    if (auto* box = as_if<PaintableBox>(this)) {
         box->invalidate_paint_cache();
-    else if (auto* containing_block = this->containing_block())
+    } else if (auto* containing_block = this->containing_block()) {
         containing_block->invalidate_paint_cache();
+        for (auto const* ancestor = layout_node().parent(); ancestor && ancestor != &containing_block->layout_node(); ancestor = ancestor->parent()) {
+            for (auto& paintable : ancestor->paintables()) {
+                if (auto* ancestor_box = as_if<PaintableBox>(paintable))
+                    ancestor_box->invalidate_paint_cache();
+            }
+        }
+    }
 }
 
 void Paintable::scroll_ancestor_to_offset_into_view(size_t offset)
