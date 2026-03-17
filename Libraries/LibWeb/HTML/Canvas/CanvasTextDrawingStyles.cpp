@@ -112,7 +112,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
             // NOTE: The initial value here is non-standard as the default font is "10px sans-serif"
             // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
             //        a font-size of 10px) for OffscreenCanvas
-            auto length_resolution_context = CSS::Length::ResolutionContext::for_window(*document->window());
+            auto length_resolution_context = CSS::Length::ResolutionContext::for_document(*document);
             Optional<DOM::AbstractElement> abstract_element;
 
             if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {

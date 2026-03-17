@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var canvas = doc.createElement('canvas');
+canvas.width = 100; canvas.height = 100;
+doc.body.appendChild(canvas);
+var ctx = canvas.getContext('2d');
+if (ctx) {
+    ctx.font = '5vw sans-serif';
+    ctx.fillText('hello', 10, 50);
+    ctx.strokeText('hello', 10, 50);
+    ctx.measureText('hello');
+}
+</script>
+</body>
