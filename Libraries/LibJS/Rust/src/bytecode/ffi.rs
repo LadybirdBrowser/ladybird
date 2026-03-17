@@ -19,9 +19,7 @@
 //!
 //! ## FFI types
 //!
-//! All `FFI*` structs are `#[repr(C)]` and must match their counterparts
-//! in `BytecodeFactory.h`. Changes to field order or types here require
-//! corresponding changes on the C++ side.
+//! All `FFI*` structs are `#[repr(C)]`.
 
 use std::ffi::c_void;
 
@@ -31,8 +29,6 @@ use crate::u32_from_usize;
 
 /// Opaque pointer returned from rust_create_executable.
 pub type ExecutableHandle = *mut c_void;
-
-// FFI types matching BytecodeFactory.h.
 
 /// Exception handler range (C++ `BytecodeFactory::ExceptionHandlerData`).
 #[repr(C)]
@@ -400,9 +396,9 @@ pub unsafe fn create_sfd_for_gdi(
     }
 }
 
-/// Constant tags for the FFI constant buffer (ABI-compatible with BytecodeFactory).
+/// Constant tags for the FFI constant buffer (ABI-compatible).
 #[repr(u8)]
-enum ConstantTag {
+pub enum ConstantTag {
     Number = 0,
     BooleanTrue = 1,
     BooleanFalse = 2,

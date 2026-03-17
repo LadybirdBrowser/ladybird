@@ -45,7 +45,7 @@ Result<GC::Ref<Script>, Vector<ParserError>> Script::parse(StringView source_tex
     return realm.heap().allocate<Script>(realm, filename, move(script), host_defined);
 }
 
-Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
+Result<GC::Ref<Script>, Vector<ParserError>> Script::create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, HostDefined* host_defined)
 {
     auto filename = source_code->filename();
     auto rust_compilation = RustIntegration::compile_parsed_script(parsed, move(source_code), realm);

@@ -1270,7 +1270,7 @@ enum IteratorHint {
 }
 
 /// Literal value kind for class field initializers
-/// (ABI-compatible with BytecodeFactory).
+/// (ABI-compatible).
 #[repr(u8)]
 enum LiteralValueKind {
     None = 0,

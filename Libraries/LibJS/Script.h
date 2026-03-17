@@ -16,14 +16,18 @@
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Realm.h>
 
-struct RustParsedProgram;
-
 namespace JS {
 
 JS_API extern bool g_dump_ast;
 JS_API extern bool g_dump_ast_use_color;
 
 class FunctionDeclaration;
+
+namespace FFI {
+
+struct ParsedProgram;
+
+}
 
 namespace RustIntegration {
 
@@ -53,7 +57,7 @@ public:
 
     virtual ~Script() override;
     static Result<GC::Ref<Script>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, HostDefined* = nullptr, size_t line_number_offset = 1);
-    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
+    static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
 
     Realm& realm() { return *m_realm; }
     Program const* parse_node() const { return m_parse_node; }

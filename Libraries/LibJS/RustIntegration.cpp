@@ -19,7 +19,6 @@
 #    include <LibJS/Bytecode/PropertyKeyTable.h>
 #    include <LibJS/Bytecode/RegexTable.h>
 #    include <LibJS/Bytecode/StringTable.h>
-#    include <LibJS/BytecodeFactory.h>
 #    include <LibJS/Lexer.h>
 #    include <LibJS/Parser.h>
 #    include <LibJS/PipelineComparison.h>
@@ -30,11 +29,14 @@
 #    include <LibJS/Runtime/RegExpObject.h>
 #    include <LibJS/Runtime/SharedFunctionInstanceData.h>
 #    include <LibJS/Runtime/VM.h>
+#    include <LibJS/RustFFI.h>
 #    include <LibJS/Script.h>
 #    include <LibJS/SourceCode.h>
 
 extern bool JS::g_dump_ast;
 extern bool JS::g_dump_ast_use_color;
+
+using namespace JS::FFI;
 
 namespace JS::RustIntegration {
 
@@ -75,7 +77,7 @@ static Utf16String utf16_from_raw(uint16_t const* data, size_t len)
 // --- Error collection callbacks ---
 
 // Collects parse errors as a Vector<ParserError> (for Script/Module compilation).
-static void collect_parse_errors(void* ctx, char const* message, size_t message_len, uint32_t line, uint32_t column)
+static void collect_parse_errors(void* ctx, uint8_t const* message, size_t message_len, uint32_t line, uint32_t column)
 {
     auto& errors = *static_cast<Vector<ParserError>*>(ctx);
     errors.append({
@@ -85,7 +87,7 @@ static void collect_parse_errors(void* ctx, char const* message, size_t message_
 }
 
 // Collects a single parse error as a formatted String (for eval/dynamic function compilation).
-static void collect_single_parse_error(void* ctx, char const* message, size_t message_len, uint32_t line, uint32_t column)
+static void collect_single_parse_error(void* ctx, uint8_t const* message, size_t message_len, uint32_t line, uint32_t column)
 {
     auto& error_message = *static_cast<String*>(ctx);
     if (error_message.is_empty())
@@ -99,6 +101,8 @@ struct ScriptGdiBuilder {
 };
 
 }
+
+namespace JS::FFI {
 
 extern "C" void script_gdi_push_lexical_name(void* ctx, uint16_t const* name, size_t len)
 {
@@ -134,6 +138,8 @@ extern "C" void script_gdi_push_lexical_binding(void* ctx, uint16_t const* name,
     static_cast<JS::RustIntegration::ScriptGdiBuilder*>(ctx)->result.lexical_bindings.append({ JS::RustIntegration::utf16_fly_from(name, len), is_constant });
 }
 
+}
+
 // --- Eval GDI builder and callbacks ---
 
 namespace JS::RustIntegration {
@@ -164,6 +170,8 @@ struct EvalGdiBuilder {
 };
 
 }
+
+namespace JS::FFI {
 
 extern "C" void eval_gdi_set_strict(void* ctx, bool is_strict)
 {
@@ -197,6 +205,8 @@ extern "C" void eval_gdi_push_annex_b_name(void* ctx, uint16_t const* name, size
 extern "C" void eval_gdi_push_lexical_binding(void* ctx, uint16_t const* name, size_t len, bool is_constant)
 {
     static_cast<JS::RustIntegration::EvalGdiBuilder*>(ctx)->lexical_bindings.append({ JS::RustIntegration::utf16_fly_from(name, len), is_constant });
+}
+
 }
 
 // --- Module builder and callbacks ---
@@ -356,7 +366,7 @@ bool rust_pipeline_available()
     return rust_pipeline_enabled() && !compare_pipelines_enabled();
 }
 
-RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset)
+ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset)
 {
     if (!rust_pipeline_enabled() && !compare_pipelines_enabled())
         return nullptr;
@@ -364,7 +374,7 @@ RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_un
     return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 }
 
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)
         return {};
@@ -607,7 +617,7 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     return builder.to_result();
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)
         return {};
@@ -889,6 +899,8 @@ void free_function_ast(void* ast)
 
 // --- FFI factory functions (called by Rust to create C++ objects) ---
 
+namespace JS::FFI {
+
 struct RustCompiledRegex {
     regex::Parser::Result parsed_regex;
     String parsed_pattern;
@@ -913,27 +925,27 @@ static Utf16FlyString utf16_fly_from_ffi(FFIUtf16Slice slice)
 static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t const* end)
 {
     VERIFY(cursor < end);
-    auto tag = *cursor++;
+    auto const tag = *cursor++;
 
-    switch (tag) {
-    case CONSTANT_TAG_NUMBER: {
+    switch (static_cast<ConstantTag>(tag)) {
+    case ConstantTag::Number: {
         VERIFY(cursor + 8 <= end);
         double value;
         memcpy(&value, cursor, 8);
         cursor += 8;
         return JS::Value(value);
     }
-    case CONSTANT_TAG_BOOLEAN_TRUE:
+    case ConstantTag::BooleanTrue:
         return JS::Value(true);
-    case CONSTANT_TAG_BOOLEAN_FALSE:
+    case ConstantTag::BooleanFalse:
         return JS::Value(false);
-    case CONSTANT_TAG_NULL:
+    case ConstantTag::Null:
         return JS::js_null();
-    case CONSTANT_TAG_UNDEFINED:
+    case ConstantTag::Undefined:
         return JS::js_undefined();
-    case CONSTANT_TAG_EMPTY:
+    case ConstantTag::Empty:
         return JS::js_special_empty_value();
-    case CONSTANT_TAG_STRING: {
+    case ConstantTag::String: {
         VERIFY(cursor + 4 <= end);
         uint32_t len;
         memcpy(&len, cursor, 4);
@@ -948,7 +960,7 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
         cursor += len * 2;
         return JS::PrimitiveString::create(vm, move(str));
     }
-    case CONSTANT_TAG_BIGINT: {
+    case ConstantTag::BigInt: {
         VERIFY(cursor + 4 <= end);
         uint32_t len;
         memcpy(&len, cursor, 4);
@@ -969,7 +981,7 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
         }();
         return JS::BigInt::create(vm, move(integer));
     }
-    case CONSTANT_TAG_RAW_VALUE: {
+    case ConstantTag::RawValue: {
         VERIFY(cursor + 8 <= end);
         JS::Value value;
         memcpy(&value, cursor, 8);
@@ -983,7 +995,7 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
 
 extern "C" void* rust_create_executable(
     void* vm_ptr,
-    void* source_code_ptr,
+    void const* source_code_ptr,
     FFIExecutableData const* data)
 {
     auto& vm = *static_cast<JS::VM*>(vm_ptr);
@@ -1356,6 +1368,8 @@ extern "C" uint64_t get_abstract_operation_function(void* vm_ptr, uint16_t const
     VERIFY_NOT_REACHED();
 }
 
+}
+
 #else // !ENABLE_RUST
 
 namespace JS::RustIntegration {
@@ -1365,12 +1379,12 @@ bool rust_pipeline_available()
     return false;
 }
 
-RustParsedProgram* parse_program(u16 const*, size_t, ProgramType, size_t)
+FFI::ParsedProgram* parse_program(u16 const*, size_t, ProgramType, size_t)
 {
     return nullptr;
 }
 
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(RustParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(FFI::ParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
 {
     return {};
 }
@@ -1390,7 +1404,7 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(PrimitiveString&,
     return {};
 }
 
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::ParsedProgram*, NonnullRefPtr<SourceCode const>, Realm&)
 {
     return {};
 }

@@ -1,0 +1,20 @@
+language = "C++"
+header = """/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */"""
+pragma_once = true
+include_version = true
+namespaces = ["JS", "FFI"]
+line_length  = 120
+tab_width = 4
+no_includes = true
+sys_includes = ["stdint.h", "stddef.h"]
+usize_is_size_t = true
+
+[export]
+include = ["ConstantTag"]
+
+[export.mangle]
+rename_types = "PascalCase"

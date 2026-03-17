@@ -204,7 +204,7 @@ void SourceTextModule::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_tla_shared_data);
 }
 
-Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
+Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm, Script::HostDefined* host_defined)
 {
     auto filename = source_code->filename();
     auto rust_result = RustIntegration::compile_parsed_module(parsed, move(source_code), realm);

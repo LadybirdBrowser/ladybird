@@ -12,9 +12,13 @@
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 
-struct RustParsedProgram;
-
 namespace JS {
+
+namespace FFI {
+
+struct ParsedProgram;
+
+}
 
 // 16.2.1.6 Source Text Module Records, https://tc39.es/ecma262/#sec-source-text-module-records
 class JS_API SourceTextModule final : public CyclicModule {
@@ -25,7 +29,7 @@ public:
     virtual ~SourceTextModule() override;
 
     static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse(StringView source_text, Realm&, StringView filename = {}, Script::HostDefined* host_defined = nullptr);
-    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_parsed(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, Script::HostDefined* host_defined = nullptr);
+    static Result<GC::Ref<SourceTextModule>, Vector<ParserError>> parse_from_pre_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, Script::HostDefined* host_defined = nullptr);
 
     Program const* parse_node() const { return m_ecmascript_code; }
 

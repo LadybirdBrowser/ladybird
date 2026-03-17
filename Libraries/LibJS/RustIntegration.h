@@ -22,7 +22,11 @@
 #include <LibJS/SourceTextModule.h>
 
 // Opaque parsed program handle from the Rust pipeline.
-struct RustParsedProgram;
+namespace JS::FFI {
+
+struct ParsedProgram;
+
+}
 
 namespace JS::RustIntegration {
 
@@ -85,12 +89,12 @@ JS_API bool rust_pipeline_available();
 
 // Parse a program (script or module) without GC interaction. Thread-safe.
 // Returns nullptr if Rust is not available.
-JS_API RustParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);
+JS_API FFI::ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);
 
 // Compile a previously parsed script. Must be called on the main thread.
-// Consumes and frees the RustParsedProgram.
+// Consumes and frees the Rust ParsedProgram.
 // Returns nullopt if Rust is not available.
-Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
+Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a script. Returns nullopt if Rust is not available.
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset);
@@ -108,9 +112,9 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     PrimitiveString& source_text, VM& vm);
 
 // Compile a previously parsed module. Must be called on the main thread.
-// Consumes and frees the RustParsedProgram.
+// Consumes and frees the Rust ParsedProgram.
 // Returns nullopt if Rust is not available.
-Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(RustParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
+Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm);
 
 // Compile a module. Returns nullopt if Rust is not available.
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename);

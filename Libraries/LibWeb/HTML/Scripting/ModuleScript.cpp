@@ -71,7 +71,7 @@ WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::cre
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm& realm, URL::URL base_url, RustParsedProgram* parsed)
+WebIDL::ExceptionOr<GC::Ptr<JavaScriptModuleScript>> JavaScriptModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm& realm, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
 {
     auto script = realm.create<JavaScriptModuleScript>(move(base_url), filename, realm);
 

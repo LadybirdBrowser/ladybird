@@ -16,6 +16,7 @@ num-integer = "0.1"
 
 [build-dependencies]
 bytecode_def = { path = "../BytecodeDef" }
+cbindgen = "0.29"
 
 [lints]
 workspace = true
