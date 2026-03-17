@@ -64,16 +64,18 @@ public:
         return value;
     }
 
-    T const& head() const
+    template<typename Self>
+    auto&& head(this Self&& self)
     {
-        VERIFY(!is_empty());
-        return m_segments.first()->data[m_index_into_first];
+        VERIFY(!self.is_empty());
+        return self.m_segments.first()->data[self.m_index_into_first];
     }
 
-    T& tail()
+    template<typename Self>
+    auto&& tail(this Self&& self)
     {
-        VERIFY(!is_empty());
-        return m_segments.last()->data.last();
+        VERIFY(!self.is_empty());
+        return self.m_segments.last()->data.last();
     }
 
     template<typename F>
