@@ -7,9 +7,12 @@
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR" "")
 
     set(ARG_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
+    if (NOT ARG_FFI_OUTPUT_DIR)
+        set(ARG_FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
 
     # Find the workspace Cargo.lock to track as a dependency.
     get_filename_component(workspace_dir "${ARG_MANIFEST_PATH}" DIRECTORY)
@@ -57,6 +60,7 @@ function(import_rust_crate)
         "CC_${target_underscore}=${CMAKE_C_COMPILER}"
         "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
+        "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}"
     )
 
     # On Windows, rustc invokes the linker directly with MSVC-style flags, so we must not override it with a
@@ -98,7 +102,10 @@ function(import_rust_crate)
     add_custom_target(${ARG_CRATE_NAME}-build DEPENDS "${output_lib}")
 
     add_library(${ARG_CRATE_NAME} STATIC IMPORTED GLOBAL)
-    set_target_properties(${ARG_CRATE_NAME} PROPERTIES IMPORTED_LOCATION "${output_lib}")
+    set_target_properties(${ARG_CRATE_NAME} PROPERTIES
+            IMPORTED_LOCATION "${output_lib}"
+            INTERFACE_INCLUDE_DIRECTORIES "${ARG_FFI_OUTPUT_DIR}"
+    )
     add_dependencies(${ARG_CRATE_NAME} ${ARG_CRATE_NAME}-build)
 
     # Rust staticlibs bundle the standard library, which on Windows depends on system libraries.
