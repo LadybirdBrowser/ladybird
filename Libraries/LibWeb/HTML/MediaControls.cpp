@@ -130,6 +130,11 @@ void MediaControls::remove_event_listeners()
         target->remove_event_listener_without_options(event_name, *listener);
     }
     m_registered_event_listeners.clear();
+
+    if (m_media_element) {
+        auto& window = as<HTML::Window>(m_media_element->realm().global_object());
+        window.cancel_animation_frame(m_request_animation_frame_id);
+    }
 }
 
 void MediaControls::set_up_event_listeners()
@@ -417,13 +422,13 @@ void MediaControls::set_up_event_listeners()
 
             auto& realm = m_media_element->realm();
             auto& window = as<HTML::Window>(realm.global_object());
-            window.request_animation_frame(*m_request_animation_frame_callback);
+            m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
 
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
     m_request_animation_frame_callback = realm.heap().allocate<WebIDL::CallbackType>(request_animation_frame_callback_function, realm);
-    window.request_animation_frame(*m_request_animation_frame_callback);
+    m_request_animation_frame_id = window.request_animation_frame(*m_request_animation_frame_callback);
 }
 
 void MediaControls::toggle_playback()

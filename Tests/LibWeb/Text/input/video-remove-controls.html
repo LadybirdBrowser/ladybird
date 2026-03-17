@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const video = document.createElement("video");
+        video.controls = true;
+        document.body.appendChild(video);
+
+        video.controls = false;
+
+        requestAnimationFrame(() => {
+            println("PASS (didn't crash)");
+            done();
+        });
+    });
+</script>
