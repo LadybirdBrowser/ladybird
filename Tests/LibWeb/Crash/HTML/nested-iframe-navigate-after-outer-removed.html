@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<body>
+<script>
+var outer = document.createElement('iframe');
+document.body.appendChild(outer);
+var inner = outer.contentDocument.createElement('iframe');
+outer.contentDocument.body.appendChild(inner);
+var nav = inner.contentWindow.navigation;
+outer.remove();
+nav.navigate('about:blank');
+</script>
+</body>

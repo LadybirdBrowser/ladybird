@@ -919,7 +919,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // 3. If navigable is not a top-level traversable, then:
         if (!state_holder->navigable->is_top_level_traversable()) {
             // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
-            auto& parent_environment = state_holder->navigable->parent()->active_document()->relevant_settings_object();
+            auto parent_nav = state_holder->navigable->parent();
+            if (!parent_nav || !parent_nav->active_document()) {
+                top_level_completion_steps->function()(Navigable::NavigationParamsVariant { Optional<String> {} });
+                return;
+            }
+            auto& parent_environment = parent_nav->active_document()->relevant_settings_object();
 
             // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
             top_level_creation_url = parent_environment.top_level_creation_url;
