@@ -33,6 +33,56 @@ GC_DEFINE_ALLOCATOR(Object);
 
 static HashMap<GC::Ptr<Object const>, HashMap<Utf16FlyString, Object::IntrinsicAccessor>> s_intrinsics;
 
+// Heap-allocated named property storage layout:
+//   [u32 capacity] [u32 padding] [Value 0] [Value 1] ...
+//   m_named_properties points to Value 0.
+// For small property counts (<=INLINE_NAMED_PROPERTY_CAPACITY), storage is inline in the Object.
+static constexpr u32 HEAP_STORAGE_HEADER_SIZE = sizeof(Value);
+
+static Value* allocate_heap_named_storage(u32 capacity)
+{
+    VERIFY(capacity > Object::INLINE_NAMED_PROPERTY_CAPACITY);
+    auto* raw = static_cast<u8*>(malloc(HEAP_STORAGE_HEADER_SIZE + capacity * sizeof(Value)));
+    VERIFY(raw);
+    *reinterpret_cast<u32*>(raw) = capacity;
+    return reinterpret_cast<Value*>(raw + HEAP_STORAGE_HEADER_SIZE);
+}
+
+static void free_heap_named_storage(Value* storage)
+{
+    free(reinterpret_cast<u8*>(storage) - HEAP_STORAGE_HEADER_SIZE);
+}
+
+static u32 heap_named_storage_capacity(Value* storage)
+{
+    return *reinterpret_cast<u32*>(reinterpret_cast<u8*>(storage) - HEAP_STORAGE_HEADER_SIZE);
+}
+
+void Object::ensure_named_storage_capacity(u32 needed)
+{
+    bool is_inline = named_storage_is_inline();
+    u32 old_capacity = is_inline ? INLINE_NAMED_PROPERTY_CAPACITY : heap_named_storage_capacity(m_named_properties);
+    if (needed <= old_capacity)
+        return;
+    u32 new_capacity = max(needed, old_capacity * 2);
+    if (is_inline) {
+        auto* new_storage = allocate_heap_named_storage(new_capacity);
+        memcpy(new_storage, m_inline_named_storage, INLINE_NAMED_PROPERTY_CAPACITY * sizeof(Value));
+        for (u32 i = INLINE_NAMED_PROPERTY_CAPACITY; i < new_capacity; ++i)
+            new_storage[i] = Value();
+        m_named_properties = new_storage;
+    } else {
+        auto* raw = static_cast<u8*>(realloc(
+            reinterpret_cast<u8*>(m_named_properties) - HEAP_STORAGE_HEADER_SIZE,
+            HEAP_STORAGE_HEADER_SIZE + new_capacity * sizeof(Value)));
+        VERIFY(raw);
+        *reinterpret_cast<u32*>(raw) = new_capacity;
+        m_named_properties = reinterpret_cast<Value*>(raw + HEAP_STORAGE_HEADER_SIZE);
+        for (u32 i = old_capacity; i < new_capacity; ++i)
+            m_named_properties[i] = Value();
+    }
+}
+
 // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
 GC::Ref<Object> Object::create(Realm& realm, Object* prototype)
 {
@@ -95,13 +145,16 @@ Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
-    m_storage.resize_with_default_value(shape.property_count(), Value());
+    if (shape.property_count() > 0)
+        ensure_named_storage_capacity(shape.property_count());
 }
 
 Object::~Object()
 {
     if (has_intrinsic_accessors())
         s_intrinsics.remove(this);
+    if (!named_storage_is_inline())
+        free_heap_named_storage(m_named_properties);
 }
 
 void Object::initialize(Realm& realm)
@@ -112,7 +165,7 @@ void Object::initialize(Realm& realm)
 void Object::unsafe_set_shape(Shape& shape)
 {
     m_shape = shape;
-    m_storage.resize_with_default_value(shape.property_count(), Value());
+    ensure_named_storage_capacity(shape.property_count());
 }
 
 // 7.2 Testing and Comparison Operations, https://tc39.es/ecma262/#sec-testing-and-comparison-operations
@@ -1244,10 +1297,10 @@ Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key
 
         if (has_intrinsic_accessors()) {
             if (auto accessor = find_intrinsic_accessor(this, property_key); accessor.has_value())
-                const_cast<Object&>(*this).m_storage[metadata->offset] = (*accessor)(shape().realm());
+                const_cast<Object&>(*this).m_named_properties[metadata->offset] = (*accessor)(shape().realm());
         }
 
-        value = m_storage[metadata->offset];
+        value = m_named_properties[metadata->offset];
         attributes = metadata->attributes;
         property_offset = metadata->offset;
     }
@@ -1288,8 +1341,10 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
             m_shape->add_property_without_transition(property_key, attributes);
         else
             set_shape(*m_shape->create_put_transition(property_key, attributes));
-        m_storage.append(value);
-        return m_storage.size() - 1;
+        u32 new_offset = shape().property_count() - 1;
+        ensure_named_storage_capacity(shape().property_count());
+        m_named_properties[new_offset] = value;
+        return new_offset;
     }
 
     if (attributes != metadata->attributes) {
@@ -1299,7 +1354,7 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
             set_shape(*m_shape->create_configure_transition(property_key, attributes));
     }
 
-    m_storage[metadata->offset] = value;
+    m_named_properties[metadata->offset] = value;
     return metadata->offset;
 }
 
@@ -1320,11 +1375,13 @@ void Object::storage_delete(PropertyKey const& property_key)
 
     if (m_shape->is_dictionary()) {
         m_shape->remove_property_without_transition(property_key, metadata->offset);
-        m_storage.remove(metadata->offset);
-        return;
+    } else {
+        m_shape = m_shape->create_delete_transition(property_key);
     }
-    m_shape = m_shape->create_delete_transition(property_key);
-    m_storage.remove(metadata->offset);
+    // Shift remaining properties down to fill the gap.
+    u32 remaining = shape().property_count() - metadata->offset;
+    if (remaining > 0)
+        memmove(&m_named_properties[metadata->offset], &m_named_properties[metadata->offset + 1], remaining * sizeof(Value));
 }
 
 void Object::set_prototype(Object* new_prototype)
@@ -1533,7 +1590,8 @@ void Object::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_shape);
-    visitor.visit(m_storage);
+    if (auto count = shape().property_count())
+        visitor.visit(Span<Value> { m_named_properties, count });
 
     m_indexed_properties.visit_edges(visitor);
 

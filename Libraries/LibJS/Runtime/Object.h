@@ -280,8 +280,8 @@ public:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    Value get_direct(size_t index) const { return m_storage[index]; }
-    void put_direct(size_t index, Value value) { m_storage[index] = value; }
+    Value get_direct(size_t index) const { return m_named_properties[index]; }
+    void put_direct(size_t index, Value value) { m_named_properties[index] = value; }
 
     IndexedProperties const& indexed_properties() const { return m_indexed_properties; }
     IndexedProperties& indexed_properties() { return m_indexed_properties; }
@@ -337,10 +337,18 @@ private:
 
     Object* prototype() { return shape().prototype(); }
 
+    void ensure_named_storage_capacity(u32 needed);
+    bool named_storage_is_inline() const { return m_named_properties == const_cast<Object*>(this)->m_inline_named_storage; }
+
+public:
+    static constexpr u32 INLINE_NAMED_PROPERTY_CAPACITY = 2;
+
+private:
     GC::Ptr<Shape> m_shape;
-    Vector<Value> m_storage;
+    Value* m_named_properties { m_inline_named_storage };
     IndexedProperties m_indexed_properties;
     OwnPtr<Vector<PrivateElement>> m_private_elements; // [[PrivateElements]]
+    Value m_inline_named_storage[INLINE_NAMED_PROPERTY_CAPACITY] {};
 };
 
 #if !defined(AK_OS_WINDOWS)

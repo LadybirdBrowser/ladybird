@@ -37,7 +37,7 @@ int main()
     // Object layout
     outln("# Object layout");
     EMIT_OFFSET(OBJECT_SHAPE, Object, m_shape);
-    EMIT_OFFSET(OBJECT_STORAGE, Object, m_storage);
+    EMIT_OFFSET(OBJECT_NAMED_PROPERTIES, Object, m_named_properties);
     EMIT_OFFSET(OBJECT_INDEXED_PROPERTIES, Object, m_indexed_properties);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
 
@@ -110,7 +110,7 @@ int main()
     outln("\n# SimpleIndexedPropertyStorage layout");
     EMIT_OFFSET(SIMPLE_INDEXED_PROPERTY_STORAGE_PACKED_ELEMENTS, SimpleIndexedPropertyStorage, m_packed_elements);
 
-    // Vector<Value> layout (used for m_packed_elements and m_storage)
+    // Vector<Value> layout (used for m_packed_elements and bytecode)
     outln("\n# Vector<Value> layout");
     {
         Vector<Value> v;
@@ -120,9 +120,6 @@ int main()
         outln("const VECTOR_DATA = {}", vec_data);
         outln("const VECTOR_SIZE = {}", vec_size);
 
-        // Composite offsets for Object.m_storage data pointer
-        outln("const OBJECT_STORAGE_DATA = {}", offsetof(Object, m_storage) + vec_data);
-        outln("const OBJECT_STORAGE_SIZE = {}", offsetof(Object, m_storage) + vec_size);
         // Composite offsets for SimpleIndexedPropertyStorage.m_packed_elements data pointer
         outln("const SIMPLE_INDEXED_PROPERTY_STORAGE_PACKED_DATA = {}", offsetof(SimpleIndexedPropertyStorage, m_packed_elements) + vec_data);
         // Composite offset for Executable.bytecode data pointer
