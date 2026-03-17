@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<!-- Test: Viewport-relative CSS units in a detached document should not crash -->
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var div = doc.createElement('div');
+div.style.cssText = 'width:50vw;height:50vh;font-size:5vmin;margin:2vmax;';
+doc.body.appendChild(div);
+try { void getComputedStyle(div).width; } catch(e) {}
+try { void div.offsetWidth; } catch(e) {}
+try { void div.getBoundingClientRect(); } catch(e) {}
+</script>
+</body>

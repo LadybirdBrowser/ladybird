@@ -1355,7 +1355,7 @@ LogicalAliasMappingContext StyleComputer::compute_logical_alias_mapping_context(
 {
     auto normalize_value = [&](auto property_id, auto value) {
         if (!value || value->is_inherit() || value->is_unset()) {
-            if (auto const inheritance_parent = abstract_element.element_to_inherit_style_from(); inheritance_parent.has_value()) {
+            if (auto const inheritance_parent = abstract_element.element_to_inherit_style_from(); inheritance_parent.has_value() && inheritance_parent->computed_properties()) {
                 value = inheritance_parent->computed_properties()->property(property_id);
             } else {
                 value = property_initial_value(property_id);
@@ -1461,7 +1461,7 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
             auto line_height_font_metrics = Length::FontMetrics {
                 style.font_size(),
                 style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-                inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
+                (inheritance_parent.has_value() && inheritance_parent->computed_properties()) ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
             };
 
             m_cached_line_height_computation_context = {
@@ -2448,11 +2448,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<S
     // https://drafts.csswg.org/css-fonts/#font-size-prop
     // an absolute length
 
-    auto inherited_font_size = inheritance_parent.has_value()
+    auto inherited_font_size = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->font_size()
         : InitialValues::font_size();
 
-    auto inherited_math_depth = inheritance_parent.has_value()
+    auto inherited_math_depth = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->math_depth()
         : InitialValues::math_depth();
 
@@ -2537,7 +2537,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
     // a number, see below
 
-    auto inherited_font_weight = inheritance_parent.has_value()
+    auto inherited_font_weight = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->font_weight()
         : InitialValues::font_weight();
 
@@ -2800,11 +2800,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
 // https://w3c.github.io/mathml-core/#propdef-math-depth
 NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
-    auto inherited_math_depth = inheritance_parent.has_value()
+    auto inherited_math_depth = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->math_depth()
         : InitialValues::math_depth();
 
-    auto inherited_math_style = inheritance_parent.has_value()
+    auto inherited_math_style = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->math_style()
         : InitialValues::math_style();
 
