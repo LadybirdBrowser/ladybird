@@ -188,13 +188,15 @@ unsafe fn source_from_raw<'a>(source: *const u16, len: usize) -> Option<&'a [u16
 }
 
 /// Callback type for reporting parse errors to C++.
-type ParseErrorCallback = unsafe extern "C" fn(
-    ctx: *mut c_void,
-    message: *const u8,
-    message_len: usize,
-    line: u32,
-    column: u32,
-);
+pub type ParseErrorCallback = Option<
+    unsafe extern "C" fn(
+        ctx: *mut c_void,
+        message: *const u8,
+        message_len: usize,
+        line: u32,
+        column: u32,
+    ) -> (),
+>;
 
 /// Log parser and scope collector errors, returning true if any were found.
 fn check_errors(parser: &mut Parser) -> bool {
@@ -205,7 +207,7 @@ fn check_errors(parser: &mut Parser) -> bool {
 fn check_errors_with_callback(
     parser: &mut Parser,
     error_context: *mut c_void,
-    error_callback: Option<ParseErrorCallback>,
+    error_callback: ParseErrorCallback,
 ) -> bool {
     if parser.has_errors() {
         if let Some(cb) = error_callback {
@@ -492,7 +494,7 @@ pub unsafe extern "C" fn rust_parsed_program_has_errors(parsed: *const ParsedPro
 /// Report parse errors from a ParsedProgram via callback, then clear them.
 ///
 /// Calls `error_callback` for each error with the same signature as
-/// `RustParseErrorCallback`.
+/// `ParseErrorCallback`.
 ///
 /// # Safety
 /// - `parsed` must be a valid pointer from `rust_parse_program()`.
@@ -507,7 +509,7 @@ pub unsafe extern "C" fn rust_parsed_program_take_errors(
         let parsed = &mut *parsed;
         for err in parsed.errors.drain(..) {
             let msg = err.message.as_bytes();
-            error_callback(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
+            error_callback.unwrap()(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
         }
     }
 }
@@ -640,7 +642,7 @@ pub unsafe extern "C" fn rust_compile_script(
     dump_ast: bool,
     use_color: bool,
     error_context: *mut c_void,
-    error_callback: Option<ParseErrorCallback>,
+    error_callback: ParseErrorCallback,
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
     initial_line_number: usize,
@@ -665,7 +667,7 @@ pub unsafe extern "C" fn rust_compile_script(
 
             if rust_parsed_program_has_errors(parsed) {
                 if let Some(cb) = error_callback {
-                    rust_parsed_program_take_errors(parsed, error_context, cb);
+                    rust_parsed_program_take_errors(parsed, error_context, Some(cb));
                 }
                 rust_free_parsed_program(parsed);
                 return std::ptr::null_mut();
@@ -712,7 +714,7 @@ pub unsafe extern "C" fn rust_compile_eval(
     allow_super_constructor_call: bool,
     in_class_field_initializer: bool,
     error_context: *mut c_void,
-    error_callback: Option<ParseErrorCallback>,
+    error_callback: ParseErrorCallback,
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) -> *mut c_void {
@@ -818,7 +820,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
     source_code_ptr: *const c_void,
     function_kind: u8,
     error_context: *mut c_void,
-    error_callback: Option<ParseErrorCallback>,
+    error_callback: ParseErrorCallback,
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
 ) -> *mut c_void {
@@ -1362,7 +1364,7 @@ pub unsafe extern "C" fn rust_compile_module(
     dump_ast: bool,
     use_color: bool,
     error_context: *mut c_void,
-    error_callback: Option<ParseErrorCallback>,
+    error_callback: ParseErrorCallback,
     tla_executable_out: *mut *mut c_void,
     ast_dump_output: *mut *mut u8,
     ast_dump_output_len: *mut usize,
@@ -1380,7 +1382,7 @@ pub unsafe extern "C" fn rust_compile_module(
 
             if rust_parsed_program_has_errors(parsed) {
                 if let Some(cb) = error_callback {
-                    rust_parsed_program_take_errors(parsed, error_context, cb);
+                    rust_parsed_program_take_errors(parsed, error_context, Some(cb));
                 }
                 rust_free_parsed_program(parsed);
                 return std::ptr::null_mut();
