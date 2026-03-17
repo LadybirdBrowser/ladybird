@@ -7275,7 +7275,8 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         return m_cached_display_list;
 
     update_paint_and_hit_testing_properties_if_needed();
-    VERIFY(paintable());
+    if (!paintable())
+        return {};
 
     auto display_list = Painting::DisplayList::create(*paintable()->visual_context_tree());
     Painting::DisplayListRecorder display_list_recorder(display_list);

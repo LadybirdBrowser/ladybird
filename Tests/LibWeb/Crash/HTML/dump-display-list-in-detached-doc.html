@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<!-- Test: Dumping the display list of a detached document should not crash -->
+<body>
+<script>
+var iframe = document.createElement('iframe');
+document.body.appendChild(iframe);
+var win = iframe.contentWindow;
+iframe.remove();
+win.internals.dumpDisplayList();
+</script>
+</body>
