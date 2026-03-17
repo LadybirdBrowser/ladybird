@@ -2282,7 +2282,8 @@ void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserN
     if (user_involvement != UserNavigationInvolvement::BrowserUI) {
         // 1. Let navigation be navigable's active window's navigation API.
         auto active_window = this->active_window();
-        VERIFY(active_window);
+        if (!active_window)
+            return;
         auto navigation = active_window->navigation();
 
         // 2. Let destinationNavigationAPIState be navigable's active session history entry's navigation API state.
