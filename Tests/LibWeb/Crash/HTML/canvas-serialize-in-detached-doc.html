@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<!-- Test: Canvas serialization on a detached document should not crash -->
+<html class="test-wait">
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var canvas = doc.createElement('canvas');
+canvas.width = 100; canvas.height = 100;
+doc.body.appendChild(canvas);
+try { canvas.toDataURL(); } catch(e) {}
+try { canvas.toBlob(function(){}); } catch(e) {}
+try { createImageBitmap(canvas).catch(function(){}); } catch(e) {}
+try { var o = canvas.transferControlToOffscreen(); var c = o.getContext('2d'); if(c) c.fillRect(0,0,10,10); } catch(e) {}
+// Also test DOMParser-created canvas
+try { var p = new DOMParser(); var d = p.parseFromString('<canvas width=50 height=50></canvas>','text/html'); d.querySelector('canvas').toDataURL(); } catch(e) {}
+setTimeout(function() { document.documentElement.classList.remove('test-wait'); }, 200);
+</script>
+</body>

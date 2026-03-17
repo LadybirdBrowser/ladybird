@@ -313,7 +313,9 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
     auto size = bitmap_size_for_canvas();
     if (!surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        auto skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
+        RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+        if (auto nav = navigable())
+            skia_backend_context = nav->traversable_navigable()->skia_backend_context();
         surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 
@@ -391,7 +393,9 @@ RefPtr<Gfx::Bitmap> HTMLCanvasElement::get_bitmap_from_surface()
     auto surface = this->surface();
     if (auto const size = bitmap_size_for_canvas(); !surface && !size.is_empty()) {
         // If the context is not initialized yet, we need to allocate transparent surface for serialization
-        auto const skia_backend_context = navigable()->traversable_navigable()->skia_backend_context();
+        RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+        if (auto const nav = navigable())
+            skia_backend_context = nav->traversable_navigable()->skia_backend_context();
         surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
     }
 

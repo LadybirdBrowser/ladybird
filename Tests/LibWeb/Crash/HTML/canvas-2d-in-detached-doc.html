@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Test: Canvas 2D operations on a detached document should not crash -->
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var canvas = doc.createElement('canvas');
+canvas.width = 100; canvas.height = 100;
+doc.body.appendChild(canvas);
+var ctx = canvas.getContext('2d');
+if (ctx) {
+    try { ctx.fillRect(0, 0, 50, 50); } catch(e) {}
+    try { ctx.strokeRect(10, 10, 30, 30); } catch(e) {}
+    try { ctx.beginPath(); ctx.arc(50,50,20,0,Math.PI*2); ctx.fill(); } catch(e) {}
+    try { ctx.beginPath(); ctx.rect(0,0,50,50); ctx.clip(); } catch(e) {}
+    try { ctx.getImageData(0, 0, 10, 10); } catch(e) {}
+    try { ctx.putImageData(new ImageData(10, 10), 0, 0); } catch(e) {}
+    try { ctx.drawImage(canvas, 0, 0); } catch(e) {}
+    try { ctx.setTransform(2,0,0,2,0,0); ctx.fillRect(0,0,10,10); } catch(e) {}
+    try { var g = ctx.createLinearGradient(0,0,100,100); g.addColorStop(0,'red'); g.addColorStop(1,'blue'); ctx.fillStyle = g; ctx.fillRect(0,0,50,50); } catch(e) {}
+    try { var p = ctx.createPattern(canvas, 'repeat'); if(p) { ctx.fillStyle = p; ctx.fillRect(0,0,50,50); } } catch(e) {}
+    try { ctx.shadowColor = 'red'; ctx.shadowBlur = 10; ctx.fillRect(0,0,50,50); } catch(e) {}
+}
+</script>
+</body>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<!-- Test: Canvas text operations on a detached document should not crash -->
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var canvas = doc.createElement('canvas');
+canvas.width = 200; canvas.height = 200;
+doc.body.appendChild(canvas);
+var ctx = canvas.getContext('2d');
+if (ctx) {
+    try { ctx.font = '5vw sans-serif'; } catch(e) {}
+    try { ctx.font = '2em serif'; } catch(e) {}
+    try { ctx.measureText('hello'); } catch(e) {}
+    try { ctx.fillText('hello', 10, 50); } catch(e) {}
+    try { ctx.strokeText('hello', 10, 50); } catch(e) {}
+    try { ctx.letterSpacing = '2px'; ctx.fillText('test', 0, 50); } catch(e) {}
+}
+</script>
+</body>

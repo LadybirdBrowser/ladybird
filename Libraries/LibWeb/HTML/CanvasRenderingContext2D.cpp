@@ -248,7 +248,9 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
     auto color_type = m_context_attributes.alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
 
-    auto skia_backend_context = canvas_element().navigable()->traversable_navigable()->skia_backend_context();
+    RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
+    if (auto navigable = canvas_element().navigable())
+        skia_backend_context = navigable->traversable_navigable()->skia_backend_context();
     m_surface = Gfx::PaintingSurface::create_with_size(skia_backend_context, canvas_element().bitmap_size_for_canvas(), color_type, Gfx::AlphaType::Premultiplied);
     m_painter = nullptr;
 
@@ -279,6 +281,8 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
     auto& drawing_state = this->drawing_state();
 
     auto const& font_cascade_list = this->font_cascade_list();
+    if (!font_cascade_list)
+        return {};
     auto const& font = font_cascade_list->first();
     auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list,
         resolved_letter_spacing(drawing_state, canvas_element()));
@@ -710,7 +714,10 @@ GC::Ref<TextMetrics> CanvasRenderingContext2D::measure_text(Utf16String const& t
     auto prepared_text = prepare_text(text);
     auto metrics = TextMetrics::create(realm());
     // FIXME: Use the font that was used to create the glyphs in prepared_text.
-    auto const& font = font_cascade_list()->first();
+    auto fonts = font_cascade_list();
+    if (!fonts)
+        return metrics;
+    auto const& font = fonts->first();
     auto const& font_pixel_metrics = font.pixel_metrics();
     auto const ascent = font_pixel_metrics.ascent;
     auto const descent = font_pixel_metrics.descent;
@@ -791,7 +798,10 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
     auto replaced_text = builder.to_utf16_string();
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
-    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(),
+    auto fonts = font_cascade_list();
+    if (!fonts)
+        return {};
+    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *fonts,
         resolved_letter_spacing(drawing_state(), canvas_element()));
 
     // FIXME: 4. Let language be the target's language.
