@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<!-- Test: Blurring a detached shadow host with delegatesFocus should not crash -->
+<body>
+<script>
+var doc = document.implementation.createHTMLDocument('');
+var host = doc.createElement('div');
+host.tabIndex = 0;
+var shadow = host.attachShadow({ mode: 'open', delegatesFocus: true });
+var input = doc.createElement('input');
+shadow.appendChild(input);
+doc.body.appendChild(host);
+host.focus();
+input.focus();
+host.blur();
+</script>
+</body>
