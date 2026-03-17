@@ -1543,8 +1543,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(FlyString const
     } else if (name == HTML::AttributeNames::src) {
         handle_src_attribute(value.value_or({})).release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::alt) {
-        if (layout_node() && type_state() == TypeAttributeState::ImageButton)
-            did_update_alt_text(as<Layout::ImageBox>(*layout_node()));
+        if (unsafe_layout_node() && type_state() == TypeAttributeState::ImageButton)
+            did_update_alt_text(as<Layout::ImageBox>(*unsafe_layout_node()));
     } else if (name == HTML::AttributeNames::maxlength) {
         handle_maxlength_attribute();
     } else if (name == HTML::AttributeNames::multiple) {
