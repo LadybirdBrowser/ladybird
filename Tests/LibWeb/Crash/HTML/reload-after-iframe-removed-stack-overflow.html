@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<!-- Bug: Calling reload() on a removed iframe's location or navigation causes
+     infinite recursion / stack overflow in the navigation machinery. -->
+<body>
+<script>
+var iframe = document.createElement('iframe');
+document.body.appendChild(iframe);
+var loc = iframe.contentWindow.location;
+iframe.remove();
+loc.reload();
+</script>
+</body>
