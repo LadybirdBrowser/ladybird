@@ -243,10 +243,18 @@ static SkGradientShader::Interpolation to_skia_interpolation(CSS::ColorInterpola
                 interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kOKLab;
                 break;
             case CSS::RectangularColorSpace::DisplayP3:
-            case CSS::RectangularColorSpace::DisplayP3Linear:
+                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kDisplayP3;
+                break;
             case CSS::RectangularColorSpace::A98Rgb:
+                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kA98RGB;
+                break;
             case CSS::RectangularColorSpace::ProphotoRgb:
+                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kProphotoRGB;
+                break;
             case CSS::RectangularColorSpace::Rec2020:
+                interpolation.fColorSpace = SkGradientShader::Interpolation::ColorSpace::kRec2020;
+                break;
+            case CSS::RectangularColorSpace::DisplayP3Linear:
             case CSS::RectangularColorSpace::XyzD50:
             case CSS::RectangularColorSpace::XyzD65:
                 dbgln("FIXME: Unsupported gradient color space");
