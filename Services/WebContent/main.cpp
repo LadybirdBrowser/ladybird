@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Assertions.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
@@ -60,29 +61,32 @@
 #    include <signal.h>
 static void crash_signal_handler(int signo)
 {
-    char const* name;
-    switch (signo) {
-    case SIGSEGV:
-        name = "SIGSEGV";
-        break;
-    case SIGBUS:
-        name = "SIGBUS";
-        break;
-    case SIGFPE:
-        name = "SIGFPE";
-        break;
-    case SIGABRT:
-        name = "SIGABRT";
-        break;
-    case SIGILL:
-        name = "SIGILL";
-        break;
-    default:
-        name = "unknown";
-        break;
+    // If the signal comes from a verify/assert, we already printed a (filtered) stacktrace
+    if (!ak_verification_has_been_triggered) {
+        char const* name;
+        switch (signo) {
+        case SIGSEGV:
+            name = "SIGSEGV";
+            break;
+        case SIGBUS:
+            name = "SIGBUS";
+            break;
+        case SIGFPE:
+            name = "SIGFPE";
+            break;
+        case SIGABRT:
+            name = "SIGABRT";
+            break;
+        case SIGILL:
+            name = "SIGILL";
+            break;
+        default:
+            name = "unknown";
+            break;
+        }
+        warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
+        dump_backtrace(2, 100);
     }
-    warnln("\n\033[31;1mCRASH\033[0m: Received signal {} ({})", name, signo);
-    dump_backtrace(2, 100);
     exit(128 + signo);
 }
 

@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include <csignal>
+
+inline sig_atomic_t volatile ak_verification_has_been_triggered = false;
+
 // All the functions for stack traces are never inline as we want a consistent number of frames
 extern "C" __attribute__((noinline)) void dump_backtrace(unsigned frames_to_skip = 1, unsigned max_depth = 100);
 extern "C" bool ak_colorize_output(void);

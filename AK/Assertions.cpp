@@ -133,6 +133,7 @@ NEVER_INLINE void ak_trap(void)
     // Skip 3 frames to get to caller. That is dump_backtrace, ak_trap, and ak_verification_failed.
     dump_backtrace(3, 100);
 #endif
+    ak_verification_has_been_triggered = true;
     __builtin_trap();
 }
 
