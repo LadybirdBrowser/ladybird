@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<body>
+<script>
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+    const iframeLocation = iframe.contentWindow.location;
+    iframe.remove();
+    iframeLocation.reload();
+</script>
+</body>

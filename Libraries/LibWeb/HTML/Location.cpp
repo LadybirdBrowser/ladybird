@@ -539,7 +539,8 @@ void Location::reload() const
     // FIXME: 3. If document's origin is not same origin-domain with the entry settings object's origin, then throw a "SecurityError" DOMException.
 
     // 4. Reload document's node navigable.
-    document->navigable()->reload();
+    if (auto navigable = document->navigable())
+        navigable->reload();
 }
 
 // https://html.spec.whatwg.org/multipage/history.html#dom-location-replace
