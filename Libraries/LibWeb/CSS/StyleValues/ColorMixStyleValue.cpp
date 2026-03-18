@@ -9,17 +9,18 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create(Optional<ColorInterpolationMethod> interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
+ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
 {
-    return adopt_ref(*new (nothrow) ColorMixStyleValue(move(interpolation_method), move(first_component), move(second_component)));
+    return adopt_ref(*new (nothrow) ColorMixStyleValue(move(color_interpolation_method), move(first_component), move(second_component)));
 }
 
-ColorMixStyleValue::ColorMixStyleValue(Optional<ColorInterpolationMethod> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
+ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
     : ColorStyleValue(ColorType::ColorMix, ColorSyntax::Modern)
     , m_properties {
         .color_interpolation_method = move(color_interpolation_method),
@@ -119,14 +120,9 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
 
     builder.append("color-mix("sv);
 
-    if (auto const& interpolation = m_properties.color_interpolation_method; interpolation.has_value()) {
-        // NB: We're expected to skip the interpolation method if it's the default.
-        if (!interpolation->color_space.equals_ignoring_ascii_case("oklab"sv) || interpolation->hue_interpolation_method.has_value()) {
-            builder.appendff("in {}", interpolation->color_space);
-            if (interpolation->hue_interpolation_method.value_or(HueInterpolationMethod::Shorter) != HueInterpolationMethod::Shorter)
-                builder.appendff(" {} hue", CSS::to_string(*interpolation->hue_interpolation_method));
-            builder.append(", "sv);
-        }
+    if (m_properties.color_interpolation_method && m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method() != RectangularColorSpace::Oklab) {
+        m_properties.color_interpolation_method->serialize(builder, mode);
+        builder.append(", "sv);
     }
 
     m_properties.first_component.color->serialize(builder, mode);
@@ -216,6 +212,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
         .document = context.abstract_element.map([](auto& it) { return &it.document(); }).value_or(nullptr),
         .calculation_resolution_context = CalculationResolutionContext::from_computation_context(context),
     };
+    auto absolutized_color_interpolation_method = m_properties.color_interpolation_method ? ValueComparingRefPtr<StyleValue const> { m_properties.color_interpolation_method->absolutized(context) } : nullptr;
     auto absolutized_first_color = m_properties.first_component.color->absolutized(context);
     auto absolutized_second_color = m_properties.second_component.color->absolutized(context);
 
@@ -241,7 +238,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
         return *this;
 
     return ColorMixStyleValue::create(
-        m_properties.color_interpolation_method,
+        absolutized_color_interpolation_method,
         ColorMixComponent { .color = move(absolutized_first_color), .percentage = normalized_percentages.p1 },
         ColorMixComponent { .color = move(absolutized_second_color), .percentage = normalized_percentages.p2 });
 }

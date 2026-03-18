@@ -15,19 +15,13 @@ class ColorMixStyleValue final : public ColorStyleValue {
 public:
     virtual ~ColorMixStyleValue() override = default;
 
-    struct ColorInterpolationMethod {
-        String color_space;
-        Optional<HueInterpolationMethod> hue_interpolation_method;
-        bool operator==(ColorInterpolationMethod const&) const = default;
-    };
-
     struct ColorMixComponent {
         ValueComparingNonnullRefPtr<StyleValue const> color;
         Optional<PercentageOrCalculated> percentage;
         bool operator==(ColorMixComponent const&) const = default;
     };
 
-    static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(Optional<ColorInterpolationMethod>, ColorMixComponent first_component, ColorMixComponent second_component);
+    static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
     virtual bool equals(StyleValue const&) const override;
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
@@ -36,13 +30,13 @@ public:
 
 private:
     struct Properties {
-        Optional<ColorInterpolationMethod> color_interpolation_method;
+        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
         ColorMixComponent first_component;
         ColorMixComponent second_component;
         bool operator==(Properties const&) const = default;
     };
 
-    ColorMixStyleValue(Optional<ColorInterpolationMethod>, ColorMixComponent first_component, ColorMixComponent second_component);
+    ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
     struct PercentageNormalizationResult {
         Percentage p1;

@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    <style>
+        #foo {
+            color: color-mix(in foobar, red, blue);
+        }
+
+        #bar {
+            color: color-mix(in initial, red, blue);
+        }
+    </style>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            for (const rule of document.styleSheets[0].cssRules) {
+                println(rule.cssText);
+            }
+        });
+    </script>
+</html>
