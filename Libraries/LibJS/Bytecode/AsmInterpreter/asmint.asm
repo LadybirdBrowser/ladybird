@@ -1394,16 +1394,30 @@ handler PutByValue
     store64 [t0, 0], t1
     dispatch_next
 .ta_store_int32:
-    # t1 = NaN-boxed int32, extract low 32 bits into t0
-    mov t0, t1
-    and t0, 0xFFFFFFFF
+    # t1 = NaN-boxed int32, sign-extend it into t0
+    unbox_int32 t0, t1
     # Dispatch on kind (in t2)
     branch_any_eq t2, TYPED_ARRAY_KIND_INT32, TYPED_ARRAY_KIND_UINT32, .ta_put_int32
+    branch_eq t2, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_put_uint8_clamped
     branch_any_eq t2, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_INT8, .ta_put_uint8
     branch_any_eq t2, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
     jmp .try_typed_array_slow
 .ta_put_int32:
     store32 [t5, t4, 4], t0
+    dispatch_next
+.ta_put_uint8_clamped:
+    branch_negative t0, .ta_put_uint8_clamped_zero
+    mov t3, 255
+    branch_ge_unsigned t0, t3, .ta_put_uint8_clamped_max
+    store8 [t5, t4], t0
+    dispatch_next
+.ta_put_uint8_clamped_zero:
+    mov t0, 0
+    store8 [t5, t4], t0
+    dispatch_next
+.ta_put_uint8_clamped_max:
+    mov t0, 255
+    store8 [t5, t4], t0
     dispatch_next
 .ta_put_uint8:
     store8 [t5, t4], t0
@@ -1586,7 +1600,7 @@ handler GetByValue
     # Dispatch on kind
     load8 t0, [t3, TYPED_ARRAY_KIND]
     branch_eq t0, TYPED_ARRAY_KIND_INT32, .ta_int32
-    branch_eq t0, TYPED_ARRAY_KIND_UINT8, .ta_uint8
+    branch_any_eq t0, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_uint8
     branch_eq t0, TYPED_ARRAY_KIND_UINT16, .ta_uint16
     branch_eq t0, TYPED_ARRAY_KIND_INT8, .ta_int8
     branch_eq t0, TYPED_ARRAY_KIND_INT16, .ta_int16
