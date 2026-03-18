@@ -11,6 +11,7 @@
 
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/Painting/GradientPainting.h>
 
 namespace Web::CSS {
@@ -22,11 +23,11 @@ public:
         Ellipse
     };
 
-    static ValueComparingNonnullRefPtr<RadialGradientStyleValue const> create(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method)
+    static ValueComparingNonnullRefPtr<RadialGradientStyleValue const> create(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, RefPtr<StyleValue const> color_interpolation_method)
     {
         VERIFY(!color_stop_list.is_empty());
         bool any_non_legacy = color_stop_list.find_first_index_if([](auto const& stop) { return !stop.color_stop.color->is_keyword() && stop.color_stop.color->as_color().color_syntax() == ColorSyntax::Modern; }).has_value();
-        return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, interpolation_method, any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
+        return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, move(color_interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
@@ -41,12 +42,12 @@ public:
         return m_properties.color_stop_list;
     }
 
-    InterpolationMethod interpolation_method() const
+    ColorInterpolationMethodStyleValue::ColorInterpolationMethod interpolation_method() const
     {
-        if (m_properties.interpolation_method.has_value())
-            return m_properties.interpolation_method.value();
+        if (m_properties.color_interpolation_method)
+            return m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method();
 
-        return InterpolationMethod { .color_space = InterpolationMethod::default_color_space(m_properties.color_syntax) };
+        return ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
     }
 
     bool is_paintable() const override { return true; }
@@ -60,9 +61,9 @@ public:
     virtual ~RadialGradientStyleValue() override = default;
 
 private:
-    RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, Optional<InterpolationMethod> interpolation_method, ColorSyntax color_syntax)
+    RadialGradientStyleValue(EndingShape ending_shape, NonnullRefPtr<StyleValue const> size, ValueComparingNonnullRefPtr<PositionStyleValue const> position, Vector<ColorStopListElement> color_stop_list, GradientRepeating repeating, ValueComparingRefPtr<StyleValue const> color_interpolation_method, ColorSyntax color_syntax)
         : AbstractImageStyleValue(Type::RadialGradient)
-        , m_properties { .ending_shape = ending_shape, .size = move(size), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .interpolation_method = interpolation_method, .color_syntax = color_syntax }
+        , m_properties { .ending_shape = ending_shape, .size = move(size), .position = move(position), .color_stop_list = move(color_stop_list), .repeating = repeating, .color_interpolation_method = move(color_interpolation_method), .color_syntax = color_syntax }
     {
     }
 
@@ -72,7 +73,7 @@ private:
         ValueComparingNonnullRefPtr<PositionStyleValue const> position;
         Vector<ColorStopListElement> color_stop_list;
         GradientRepeating repeating;
-        Optional<InterpolationMethod> interpolation_method;
+        ValueComparingRefPtr<StyleValue const> color_interpolation_method;
         ColorSyntax color_syntax;
         bool operator==(Properties const&) const = default;
     } m_properties;

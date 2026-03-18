@@ -1,0 +1,1 @@
+#foo { background-image: linear-gradient(in display-p3-linear, red, blue); }

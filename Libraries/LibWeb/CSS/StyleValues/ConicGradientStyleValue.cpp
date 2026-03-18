@@ -22,7 +22,7 @@ void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMod
     builder.append("conic-gradient("sv);
     bool has_from_angle = m_properties.from_angle;
     bool has_at_position = !m_properties.position->is_center(mode);
-    bool has_color_space = m_properties.interpolation_method.has_value() && m_properties.interpolation_method.value().color_space != InterpolationMethod::default_color_space(m_properties.color_syntax);
+    bool has_color_space = m_properties.color_interpolation_method && m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method() != ColorInterpolationMethodStyleValue::default_color_interpolation_method(m_properties.color_syntax);
 
     if (has_from_angle) {
         builder.append("from "sv);
@@ -37,7 +37,7 @@ void ConicGradientStyleValue::serialize(StringBuilder& builder, SerializationMod
     if (has_color_space) {
         if (has_from_angle || has_at_position)
             builder.append(' ');
-        m_properties.interpolation_method.value().serialize(builder);
+        m_properties.color_interpolation_method->serialize(builder, mode);
     }
     if (has_from_angle || has_at_position || has_color_space)
         builder.append(", "sv);
@@ -77,7 +77,10 @@ ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutiz
     if (m_properties.from_angle)
         absolutized_from_angle = m_properties.from_angle->absolutized(context);
     ValueComparingNonnullRefPtr<PositionStyleValue const> absolutized_position = m_properties.position->absolutized(context)->as_position();
-    return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, m_properties.interpolation_method);
+
+    auto absolutized_color_interpolation_method = m_properties.color_interpolation_method ? ValueComparingRefPtr<StyleValue const> { m_properties.color_interpolation_method->absolutized(context) } : nullptr;
+
+    return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), m_properties.repeating, move(absolutized_color_interpolation_method));
 }
 
 bool ConicGradientStyleValue::equals(StyleValue const& other) const
