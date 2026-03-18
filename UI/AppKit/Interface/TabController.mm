@@ -46,6 +46,16 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     return result;
 }
 
+// NSSearchField does not provide an intrinsic width, which causes an ambiguous layout warning when the toolbar auto-
+// measures this view. This provides an initial fallback, which is overridden with an explicit width in windowDidResize.
+- (NSSize)intrinsicContentSize
+{
+    auto size = [super intrinsicContentSize];
+    if (size.width < 0)
+        size.width = 400;
+    return size;
+}
+
 @end
 
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
