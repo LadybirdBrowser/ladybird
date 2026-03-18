@@ -24,6 +24,7 @@
 
 #ifdef AK_OS_MACOS
 #    include <ports/SkFontMgr_mac_ct.h>
+#    include <ports/SkFontMgr_empty.h>
 #endif
 
 namespace Gfx {
@@ -72,6 +73,15 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
 {
     auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
     auto skia_typeface = font_manager().makeFromData(data, ttc_index);
+
+#ifdef AK_OS_MACOS
+    // The CoreText font manager does not support loading TTC faces with index > 0.
+    // Fall back to a FreeType-based font manager for these cases.
+    if (!skia_typeface && ttc_index > 0) {
+        static auto freetype_font_manager = SkFontMgr_New_Custom_Empty();
+        skia_typeface = freetype_font_manager->makeFromData(data, ttc_index);
+    }
+#endif
 
     if (!skia_typeface) {
         return Error::from_string_literal("Failed to load typeface from buffer");

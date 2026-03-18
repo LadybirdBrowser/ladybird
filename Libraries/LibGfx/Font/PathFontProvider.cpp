@@ -11,6 +11,8 @@
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 
+#include <harfbuzz/hb.h>
+
 namespace Gfx {
 
 PathFontProvider::PathFontProvider() = default;
@@ -32,12 +34,20 @@ void PathFontProvider::load_all_fonts_from_uri(StringView uri)
         auto uri = resource.uri();
         auto path = LexicalPath(uri.bytes_as_string_view());
         if (path.has_extension(".ttf"sv) || path.has_extension(".ttc"sv) || path.has_extension(".otf"sv)) {
-            if (auto font_or_error = Typeface::try_load_from_resource(resource); !font_or_error.is_error()) {
-                auto font = font_or_error.release_value();
-                auto& family = m_typeface_by_family.ensure(font->family(), [] {
-                    return Vector<NonnullRefPtr<Typeface>> {};
-                });
-                family.append(font);
+            unsigned face_count = 1;
+            if (path.has_extension(".ttc"sv)) {
+                auto* blob = hb_blob_create(reinterpret_cast<char const*>(resource.data().data()), resource.data().size(), HB_MEMORY_MODE_READONLY, nullptr, nullptr);
+                face_count = hb_face_count(blob);
+                hb_blob_destroy(blob);
+            }
+            for (unsigned i = 0; i < face_count; ++i) {
+                if (auto font_or_error = Typeface::try_load_from_resource(resource, i); !font_or_error.is_error()) {
+                    auto font = font_or_error.release_value();
+                    auto& family = m_typeface_by_family.ensure(font->family(), [] {
+                        return Vector<NonnullRefPtr<Typeface>> {};
+                    });
+                    family.append(font);
+                }
             }
         } else if (path.has_extension(".woff"sv)) {
             if (auto font_or_error = WOFF::try_load_from_resource(resource); !font_or_error.is_error()) {
