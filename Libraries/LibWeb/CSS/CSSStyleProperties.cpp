@@ -540,10 +540,19 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
         auto abstract_element = *owner_node();
 
-        // https://www.w3.org/TR/cssom-1/#dom-window-getcomputedstyle
-        // NB: This is a partial enforcement of step 5 ("If elt is connected, ...")
-        if (!abstract_element.element().is_connected())
+        // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
+        // NB: This is a partial enforcement of step 5:
+        // If [...] elt is connected, part of the flat tree, and its shadow-including root has a browsing context which
+        // either doesn't have a browsing context container, or whose browsing context container is being rendered.
+        auto& element = abstract_element.element();
+        if (!element.is_connected())
             return {};
+        auto browsing_context = element.shadow_including_root().document().browsing_context();
+        if (!browsing_context)
+            return {};
+        // FIXME: Check if the element is part of the flat tree.
+        // FIXME: Check that the browsing context either doesn't have a browsing context container, or that its
+        //        browsing context container is being rendered.
 
         // NB: We grab the layout node before deciding whether update_layout() is needed.
         //     For properties that don't need layout or a layout node (the else branch below),
