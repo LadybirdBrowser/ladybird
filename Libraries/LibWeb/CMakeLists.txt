@@ -243,6 +243,7 @@ set(SOURCES
     CSS/StyleValues/BorderRadiusRectStyleValue.cpp
     CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
+    CSS/StyleValues/ColorInterpolationMethodStyleValue.cpp
     CSS/StyleValues/ColorMixStyleValue.cpp
     CSS/StyleValues/ColorSchemeStyleValue.cpp
     CSS/StyleValues/ColorStyleValue.cpp

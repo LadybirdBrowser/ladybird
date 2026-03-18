@@ -231,6 +231,7 @@ class CalculationNode;
 class CascadedProperties;
 class CustomPropertyData;
 class Clip;
+class ColorInterpolationMethodStyleValue;
 class ColorMixStyleValue;
 class ColorSchemeStyleValue;
 class ColorFunctionStyleValue;

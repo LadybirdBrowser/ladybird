@@ -886,6 +886,20 @@
     "farthest-corner",
     "farthest-side"
   ],
+  "rectangular-color-space": [
+    "srgb",
+    "srgb-linear",
+    "display-p3",
+    "display-p3-linear",
+    "a98-rgb",
+    "prophoto-rgb",
+    "rec2020",
+    "lab",
+    "oklab",
+    "xyz",
+    "xyz-d50",
+    "xyz-d65"
+  ],
   "referrer-policy-modifier-value": [
     "no-referrer",
     "no-referrer-when-downgrade",

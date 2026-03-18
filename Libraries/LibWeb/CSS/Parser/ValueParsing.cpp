@@ -34,6 +34,7 @@
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
@@ -2196,6 +2197,57 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
         c2.release_nonnull(),
         c3.release_nonnull(),
         alpha.release_nonnull());
+}
+
+// https://drafts.csswg.org/css-color-5/#color-interpolation-method
+RefPtr<ColorInterpolationMethodStyleValue const> Parser::parse_color_interpolation_method_value(TokenStream<ComponentValue>& tokens)
+{
+    // <rectangular-color-space> = srgb | srgb-linear | display-p3 | display-p3-linear | a98-rgb | prophoto-rgb | rec2020 | lab | oklab | <xyz-space>
+    // <polar-color-space> = hsl | hwb | lch | oklch
+    // <custom-color-space> = <dashed-ident>
+    // <hue-interpolation-method> = [ shorter | longer | increasing | decreasing ] hue
+    // <color-interpolation-method> = in [ <rectangular-color-space> | <polar-color-space> <hue-interpolation-method>? | <custom-color-space> ]
+    auto transaction = tokens.begin_transaction();
+    tokens.discard_whitespace();
+    if (!tokens.consume_a_token().is_ident("in"sv))
+        return {};
+
+    tokens.discard_whitespace();
+
+    if (auto maybe_keyword_value = parse_keyword_value(tokens)) {
+        auto keyword = maybe_keyword_value->to_keyword();
+
+        // <rectangular-color-space>
+        if (auto rectangular_color_space = keyword_to_rectangular_color_space(keyword); rectangular_color_space.has_value()) {
+            if (rectangular_color_space == RectangularColorSpace::Xyz)
+                rectangular_color_space = RectangularColorSpace::XyzD65;
+            transaction.commit();
+            return ColorInterpolationMethodStyleValue::create(rectangular_color_space.release_value());
+        }
+
+        // <polar-color-space> <hue-interpolation-method>?
+        if (auto polar_color_space = keyword_to_polar_color_space(keyword); polar_color_space.has_value()) {
+            auto hue_interpolation_method = HueInterpolationMethod::Shorter;
+            tokens.discard_whitespace();
+            if (auto hue_interpolation_method_keyword = parse_keyword_value(tokens)) {
+                auto maybe_hue_interpolation_method = keyword_to_hue_interpolation_method(hue_interpolation_method_keyword->to_keyword());
+                if (!maybe_hue_interpolation_method.has_value())
+                    return {};
+
+                hue_interpolation_method = maybe_hue_interpolation_method.release_value();
+                tokens.discard_whitespace();
+                if (!tokens.consume_a_token().is_ident("hue"sv))
+                    return {};
+            }
+
+            transaction.commit();
+            return ColorInterpolationMethodStyleValue::create(ColorInterpolationMethodStyleValue::PolarColorInterpolationMethod { polar_color_space.release_value(), hue_interpolation_method });
+        }
+    }
+
+    // TODO: Support <custom-color-space> once we support @color-profile rules
+
+    return nullptr;
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix
