@@ -54,6 +54,7 @@ protected:
 private:
     [[nodiscard]] virtual bool is_paintable_with_lines() const final { return true; }
 
+    Optional<CSSPixelRect> fragment_bounds_for_hit_testing() const;
     Optional<PaintableFragment const&> fragment_at_position(DOM::Position const&) const;
     void paint_cursor(DisplayListRecordingContext&) const;
 

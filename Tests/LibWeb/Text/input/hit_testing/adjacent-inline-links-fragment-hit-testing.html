@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .link {
+        margin-left: 30px;
+    }
+
+    .icon {
+        display: inline-block;
+    }
+
+    .icon-a::before {
+        content: "@";
+    }
+
+    .icon-b::before {
+        content: "#";
+    }
+</style>
+
+<div class="links">
+    <a id="link-a" class="link" href="#"><span id="link-a-icon" class="icon icon-a"></span>Link One</a>
+    <a id="link-b" class="link" href="#"><span id="link-b-icon" class="icon icon-b"></span>Second Link</a>
+</div>
+
+<script>
+    test(() => {
+        const linkAIconRect = document.getElementById("link-a-icon").getBoundingClientRect();
+        const linkAIconHit = document.elementFromPoint(linkAIconRect.left + linkAIconRect.width / 2, linkAIconRect.top + linkAIconRect.height / 2);
+        println(linkAIconHit ? linkAIconHit.closest("a")?.id ?? (linkAIconHit.id || linkAIconHit.tagName) : "null");
+        const linkATextHit = document.elementFromPoint(linkAIconRect.right + 20, linkAIconRect.top + linkAIconRect.height / 2);
+        println(linkATextHit ? linkATextHit.closest("a")?.id ?? (linkATextHit.id || linkATextHit.tagName) : "null");
+
+        const linkBIconRect = document.getElementById("link-b-icon").getBoundingClientRect();
+        const linkBHit = document.elementFromPoint(linkBIconRect.left + linkBIconRect.width / 2, linkBIconRect.top + linkBIconRect.height / 2);
+        println(linkBHit ? linkBHit.closest("a")?.id ?? (linkBHit.id || linkBHit.tagName) : "null");
+    });
+</script>

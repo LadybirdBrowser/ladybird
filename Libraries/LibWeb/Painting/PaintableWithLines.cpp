@@ -57,6 +57,44 @@ PaintableWithLines::~PaintableWithLines()
 {
 }
 
+Optional<CSSPixelRect> PaintableWithLines::fragment_bounds_for_hit_testing() const
+{
+    if (!is<Layout::InlineNode>(layout_node()))
+        return {};
+
+    Optional<CSSPixelRect> fragment_bounds;
+    for (auto const& fragment : fragments()) {
+        auto fragment_rect = fragment.absolute_rect();
+        if (fragment_bounds.has_value())
+            fragment_bounds = fragment_bounds->united(fragment_rect);
+        else
+            fragment_bounds = fragment_rect;
+    }
+
+    if (!fragment_bounds.has_value())
+        return {};
+
+    // A pointer-events:none inline descendant should be skipped as a direct target, but a click in its box should
+    // still be able to fall back to this inline ancestor if no deeper hit-testable descendant matches first.
+    for_each_in_subtree_of_type<PaintableBox>([&](auto& paintable_box) {
+        if (!paintable_box.is_inline())
+            return TraversalDecision::Continue;
+        if (paintable_box.computed_values().visibility() != CSS::Visibility::Visible)
+            return TraversalDecision::Continue;
+        if (paintable_box.computed_values().pointer_events() != CSS::PointerEvents::None)
+            return TraversalDecision::Continue;
+        fragment_bounds = fragment_bounds->united(paintable_box.absolute_border_box_rect());
+        return TraversalDecision::Continue;
+    });
+
+    fragment_bounds->inflate(
+        box_model().padding.top + box_model().border.top,
+        box_model().padding.right + box_model().border.right,
+        box_model().padding.bottom + box_model().border.bottom,
+        box_model().padding.left + box_model().border.left);
+    return fragment_bounds;
+}
+
 void PaintableWithLines::reset_for_relayout()
 {
     PaintableBox::reset_for_relayout();
@@ -138,8 +176,9 @@ TraversalDecision PaintableWithLines::hit_test(CSSPixelPoint position, HitTestTy
             return TraversalDecision::Break;
     }
 
+    auto self_hit_rect = fragment_bounds_for_hit_testing().value_or(absolute_border_box_rect());
     if (!stacking_context() && (!layout_node().is_anonymous() || is_positioned())
-        && absolute_border_box_rect().contains(local_position.value())) {
+        && self_hit_rect.contains(local_position.value())) {
         if (callback(HitTestResult { .paintable = const_cast<PaintableWithLines&>(*this) }) == TraversalDecision::Break)
             return TraversalDecision::Break;
     }
