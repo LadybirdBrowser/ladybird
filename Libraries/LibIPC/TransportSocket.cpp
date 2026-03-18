@@ -77,6 +77,12 @@ void SendQueue::discard(size_t bytes_count, size_t fds_count)
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
     : m_socket(move(socket))
 {
+    // Disable the socket's built-in notifier. TransportSocket uses its own pipe-based notification mechanism on the IO
+    // thread, so this notifier is unused. Otherwise, when the socket reaches EOF, this notifier is disabled from the IO
+    // thread. In the Qt UI, this causes QSocketNotifier destruction to be deferred. If the socket is closed before the
+    // deferred destruction runs, Qt detects an invalid socket and prints a warning.
+    m_socket->set_notifications_enabled(false);
+
     (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_SNDBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
     (void)Core::System::setsockopt(m_socket->fd().value(), SOL_SOCKET, SO_RCVBUF, &SOCKET_BUFFER_SIZE, sizeof(SOCKET_BUFFER_SIZE));
 
