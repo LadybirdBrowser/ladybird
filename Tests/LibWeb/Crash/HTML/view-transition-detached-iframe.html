@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<!-- Test: View transitions on detached iframe documents should not crash -->
+<body>
+<script>
+// Case 1: startViewTransition on a document created via createHTMLDocument
+var detachedDoc = document.implementation.createHTMLDocument('');
+detachedDoc.startViewTransition(function() {});
+
+// Case 2: startViewTransition on an iframe document after iframe.remove()
+var iframe1 = document.createElement('iframe');
+document.body.appendChild(iframe1);
+var doc1 = iframe1.contentDocument;
+iframe1.remove();
+doc1.startViewTransition(function() {});
+
+// Case 3: startViewTransition then immediately remove iframe
+var iframe2 = document.createElement('iframe');
+iframe2.onload = function() {
+    var doc2 = iframe2.contentDocument;
+    doc2.startViewTransition(function() {});
+    iframe2.remove();
+};
+document.body.appendChild(iframe2);
+</script>
+</body>

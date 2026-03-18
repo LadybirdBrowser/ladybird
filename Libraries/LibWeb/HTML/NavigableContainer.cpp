@@ -298,6 +298,10 @@ void NavigableContainer::destroy_the_child_navigable()
         return;
     navigable->set_has_been_destroyed();
 
+    // AD-HOC: A detached iframe's document is hidden.
+    // https://github.com/w3c/csswg-drafts/issues/10264
+    navigable->active_document()->update_the_visibility_state(HTML::VisibilityState::Hidden);
+
     // AD-HOC: Clear the navigable's "is delaying load events" flag.
     //         This removes the DocumentLoadEventDelayer on the parent document that was
     //         created when the navigable started loading (navigate algorithm step 15).
