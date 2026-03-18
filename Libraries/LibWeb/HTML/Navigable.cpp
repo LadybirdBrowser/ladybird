@@ -2709,10 +2709,13 @@ void Navigable::inform_the_navigation_api_about_aborting_navigation()
         return;
 
     queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
+        // AD-HOC: The active window may have become null between when this task was queued and when it runs.
+        if (!active_window())
+            return;
+
         HTML::TemporaryExecutionContext execution_context { active_window()->realm() };
 
         // 2. Let navigation be navigable's active window's navigation API.
-        VERIFY(active_window());
         auto navigation = active_window()->navigation();
 
         // 3. If navigation's ongoing navigate event is null, then return.
