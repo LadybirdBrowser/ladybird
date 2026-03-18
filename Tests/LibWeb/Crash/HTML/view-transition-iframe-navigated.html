@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Test: View transitions during iframe navigation or removal after ready should not crash -->
+<body>
+<script>
+// Case 1: Navigate iframe during view transition callback
+var iframe1 = document.createElement('iframe');
+iframe1.onload = function() {
+    var doc1 = iframe1.contentDocument;
+    doc1.startViewTransition(function() {
+        iframe1.src = 'about:blank';
+    });
+};
+document.body.appendChild(iframe1);
+
+// Case 2: Remove iframe after transition is ready (animation phase)
+var iframe2 = document.createElement('iframe');
+iframe2.onload = function() {
+    var doc2 = iframe2.contentDocument;
+    var target = doc2.createElement('div');
+    target.style.viewTransitionName = 'target';
+    doc2.body.appendChild(target);
+
+    var transition = doc2.startViewTransition(function() {
+        target.textContent = 'after';
+    });
+    transition.ready.then(function() {
+        iframe2.remove();
+    });
+};
+document.body.appendChild(iframe2);
+</script>
+</body>

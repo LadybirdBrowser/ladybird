@@ -327,6 +327,12 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
     //    navigate away from it.
     VERIFY(!new_document->is_initial_about_blank());
 
+    // AD-HOC: The old document is no longer active, mark it as hidden.
+    // https://github.com/w3c/csswg-drafts/issues/10264
+    auto old_document = active_document();
+    if (old_document && old_document != new_document)
+        old_document->update_the_visibility_state(HTML::VisibilityState::Hidden);
+
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
 

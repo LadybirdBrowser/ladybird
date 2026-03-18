@@ -113,7 +113,9 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     auto traversable = parent_navigable->traversable_navigable();
 
     // AD-HOC: Let the initial about:blank document inherit the system visibility state from traversable.
-    document->update_the_visibility_state(traversable->system_visibility_state());
+    //         Set directly rather than via update_the_visibility_state() to avoid queuing
+    //         view transition page-visibility change steps for the initial state.
+    document->set_visibility_state(traversable->system_visibility_state());
 
     // 12. Append the following session history traversal steps to traversable:
     traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {

@@ -576,6 +576,7 @@ public:
     bool hidden() const;
     StringView visibility_state() const;
     HTML::VisibilityState visibility_state_value() const { return m_visibility_state; }
+    void set_visibility_state(HTML::VisibilityState state) { m_visibility_state = state; }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#update-the-visibility-state
     void update_the_visibility_state(HTML::VisibilityState);
