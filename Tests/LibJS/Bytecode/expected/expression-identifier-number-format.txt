@@ -3,8 +3,7 @@ $169c53c3 expression-identifier-number-format.js:1:1
   Blocks:    1
   Constants:
     [0] = Double(1.1e-32)
-    [1] = Double(1.1e-32)
-    [2] = Int32(42)
+    [1] = Int32(42)
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4

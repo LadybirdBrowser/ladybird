@@ -6,15 +6,11 @@ $68a257fc const-fold-exponentiation.js:1:1
     [1] = Int32(-1)
     [2] = Double(inf)
     [3] = Double(nan)
-    [4] = Double(inf)
-    [5] = Double(-inf)
-    [6] = Double(nan)
-    [7] = Double(inf)
-    [8] = Double(nan)
-    [9] = Int32(2)
-    [10] = Int32(10)
-    [11] = Int32(1024)
-    [12] = Undefined
+    [4] = Double(-inf)
+    [5] = Int32(2)
+    [6] = Int32(10)
+    [7] = Int32(1024)
+    [8] = Undefined
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4

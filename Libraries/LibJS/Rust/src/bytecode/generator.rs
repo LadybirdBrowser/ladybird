@@ -141,6 +141,7 @@ pub struct Generator {
     undefined_constant: Option<ScopedOperand>,
     empty_constant: Option<ScopedOperand>,
     int32_constants: HashMap<i32, ScopedOperand>,
+    double_constants: HashMap<u64, ScopedOperand>,
     string_constants: HashMap<Utf16String, ScopedOperand>,
 
     // --- String/identifier/property tables (with deduplication) ---
@@ -294,6 +295,7 @@ impl Generator {
             undefined_constant: None,
             empty_constant: None,
             int32_constants: HashMap::new(),
+            double_constants: HashMap::new(),
             string_constants: HashMap::new(),
             string_table: Vec::new(),
             string_table_index: HashMap::new(),
@@ -477,7 +479,14 @@ impl Generator {
             self.int32_constants.insert(as_i32, op.clone());
             return op;
         }
-        self.append_constant(ConstantValue::Number(value))
+        // Deduplicate double values by their bit representation
+        let as_bits = value.to_bits();
+        if let Some(op) = self.double_constants.get(&as_bits) {
+            return op.clone();
+        }
+        let op = self.append_constant(ConstantValue::Number(value));
+        self.double_constants.insert(as_bits, op.clone());
+        op
     }
 
     pub fn add_constant_boolean(&mut self, value: bool) -> ScopedOperand {
