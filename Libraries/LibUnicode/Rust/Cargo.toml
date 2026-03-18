@@ -11,3 +11,6 @@ crate-type = ["staticlib"]
 [dependencies]
 calendrical_calculations = "0.2"
 icu_calendar = { version = "2.1.1", features = ["compiled_data"] }
+
+[build-dependencies]
+cbindgen = "0.29"
