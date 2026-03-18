@@ -1,28 +1,57 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       NewObject dst:reg7
-[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-[  58]       End value:reg5
+$0b8784bc async-await-in-try-catch.js:9:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: Yield continuation_label:@10, value:Undefined
-[  10]    1: GetLexicalEnvironment dst:reg4
-[  18]       Jump target:@50
-[  20]    2: Catch dst:reg5
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:e~0, src:reg5
-[  40]    3: Yield value:Undefined
-[  50]    4: EnterObjectEnvironment dst:reg5, object:arg0
-[  60]       Mov dst:reg6, src:reg0
-[  70]       Await continuation_label:@80, argument:Int32(1)
-[  80]    5: Mov dst:reg6, src:reg0
-[  90]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-[  a0]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@b8, false_target:@c8
-[  b8]    6: SetLexicalEnvironment environment:reg4
-[  c0]       Jump target:@40
-[  c8]    7: SetLexicalEnvironment environment:reg4
-[  d0]       Throw src:reg8
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] NewObject dst:reg7
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  58] End value:reg5
+
+
+f$9cd82caf async-await-in-try-catch.js:2:5
+  Registers: 10
+  Blocks:    8
+  Locals:    e~0
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+
+block0:
+  [   0] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  10] GetLexicalEnvironment dst:reg4
+  [  18] Jump target:block4
+
+block2:
+  [  20] Catch dst:reg5
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] Mov dst:e~0, src:reg5
+
+block3:
+  [  40] Yield value:Undefined
+
+block4:
+  [  50] EnterObjectEnvironment dst:reg5, object:arg0
+  [  60] Mov dst:reg6, src:reg0
+  [  70] Await continuation_label:block5, argument:Int32(1)
+
+block5:
+  [  80] Mov dst:reg6, src:reg0
+  [  90] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  a0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
+
+block6:
+  [  b8] SetLexicalEnvironment environment:reg4
+  [  c0] Jump target:block3
+
+block7:
+  [  c8] SetLexicalEnvironment environment:reg4
+  [  d0] Throw src:reg8
 
 Exception handlers:
-    from   50 to   d8 handler   20
+  [  50 ..   d8] => handler block2

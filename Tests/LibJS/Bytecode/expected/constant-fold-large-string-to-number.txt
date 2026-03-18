@@ -1,7 +1,21 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:a, src:Double(18446744073709552000)
-[  20]       SetGlobal identifier:b, src:Double(18446744073709552000)
-[  38]       SetGlobal identifier:c, src:Double(18446744073709552000)
-[  50]       SetGlobal identifier:d, src:Double(18446744073709552000)
-[  68]       End value:Undefined
+$8ea0b7a6 constant-fold-large-string-to-number.js:1:1
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = String("0x10000000000000000")
+    [1] = Double(18446744073709552000)
+    [2] = String("0xFFFFFFFFFFFFFFFF")
+    [3] = Double(18446744073709552000)
+    [4] = String("0b10000000000000000000000000000000000000000000000000000000000000000")
+    [5] = Double(18446744073709552000)
+    [6] = String("0o2000000000000000000000")
+    [7] = Double(18446744073709552000)
+    [8] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `a`, src:Double(18446744073709552000)
+  [  20] SetGlobal `b`, src:Double(18446744073709552000)
+  [  38] SetGlobal `c`, src:Double(18446744073709552000)
+  [  50] SetGlobal `d`, src:Double(18446744073709552000)
+  [  68] End value:Undefined

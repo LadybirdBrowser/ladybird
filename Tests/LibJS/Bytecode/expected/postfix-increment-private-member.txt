@@ -1,27 +1,48 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       CreatePrivateEnvironment
-[  30]       AddPrivateName name:#c
-[  38]       SetLexicalEnvironment environment:reg4
-[  40]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("nextId")]
-[  68]       LeavePrivateEnvironment
-[  70]       InitializeLexicalBinding identifier:C, src:reg6
-[  88]       GetGlobal dst:reg7, identifier:C
-[  a0]       CallConstruct dst:reg6, callee:reg7, C
-[  b8]       GetById dst:reg7, base:reg6, property:nextId
-[  d8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
-[  f8]       End value:reg5
+$c73348dc postfix-increment-private-member.js:1:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = String("nextId")
+    [1] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] CreatePrivateEnvironment
+  [  30] AddPrivateName `#c`
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("nextId")]
+  [  68] LeavePrivateEnvironment
+  [  70] InitializeLexicalBinding `C`, src:reg6
+  [  88] GetGlobal dst:reg7, `C`
+  [  a0] CallConstruct dst:reg6, callee:reg7, C
+  [  b8] GetById dst:reg7, base:reg6, `nextId`
+  [  d8] Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
+  [  f8] End value:reg5
 
-JS bytecode executable "nextId"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetPrivateById dst:reg5, base:this, property:#c
-[  18]       PostfixIncrement dst:reg6, src:reg5
-[  28]       PutPrivateById base:this, property:#c, src:reg5
-[  38]       Add dst:reg5, lhs:String("id-"), rhs:reg6
-[  48]       Return value:reg5
+
+C$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+nextId$b6db6eed postfix-increment-private-member.js:4:9
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = String("id-")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetPrivateById dst:reg5, base:this, `#c`
+  [  18] PostfixIncrement dst:reg6, src:reg5
+  [  28] PutPrivateById base:this, `#c`, src:reg5
+  [  38] Add dst:reg5, lhs:String("id-"), rhs:reg6
+  [  48] Return value:reg5

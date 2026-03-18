@@ -1,21 +1,46 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:n, src:Int32(4)
-[  20]       Mov dst:reg5, src:Undefined
-[  30]       Jump target:@a8
-[  38]    1: SetGlobal identifier:depth, src:Int32(0)
-[  50]       Mov dst:reg6, src:Undefined
-[  60]       Jump target:@120
-[  68]    2: GetGlobal dst:reg6, identifier:n
-[  80]       Add dst:reg7, lhs:reg6, rhs:Int32(1)
-[  90]       SetGlobal identifier:n, src:reg7
-[  a8]    3: GetGlobal dst:reg6, identifier:n
-[  c0]       JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:@38, false_target:@d8
-[  d8]    4: End value:reg5
-[  e0]    5: GetGlobal dst:reg7, identifier:depth
-[  f8]       Add dst:reg8, lhs:reg7, rhs:Int32(2)
-[ 108]       SetGlobal identifier:depth, src:reg8
-[ 120]    6: GetGlobal dst:reg7, identifier:depth
-[ 138]       JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:@e0, false_target:@150
-[ 150]    7: Mov dst:reg5, src:reg6
-[ 160]       Jump target:@68
+$9814d5bc nested-for-loop-completion.js:1:1
+  Registers: 9
+  Blocks:    8
+  Constants:
+    [0] = Int32(4)
+    [1] = Undefined
+    [2] = Int32(7)
+    [3] = Int32(1)
+    [4] = Int32(0)
+    [5] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `n`, src:Int32(4)
+  [  20] Mov dst:reg5, src:Undefined
+  [  30] Jump target:block3
+
+block1:
+  [  38] SetGlobal `depth`, src:Int32(0)
+  [  50] Mov dst:reg6, src:Undefined
+  [  60] Jump target:block6
+
+block2:
+  [  68] GetGlobal dst:reg6, `n`
+  [  80] Add dst:reg7, lhs:reg6, rhs:Int32(1)
+  [  90] SetGlobal `n`, src:reg7
+
+block3:
+  [  a8] GetGlobal dst:reg6, `n`
+  [  c0] JumpLessThanEquals lhs:reg6, rhs:Int32(7), true_target:block1, false_target:block4
+
+block4:
+  [  d8] End value:reg5
+
+block5:
+  [  e0] GetGlobal dst:reg7, `depth`
+  [  f8] Add dst:reg8, lhs:reg7, rhs:Int32(2)
+  [ 108] SetGlobal `depth`, src:reg8
+
+block6:
+  [ 120] GetGlobal dst:reg7, `depth`
+  [ 138] JumpLessThanEquals lhs:reg7, rhs:Int32(0), true_target:block5, false_target:block7
+
+block7:
+  [ 150] Mov dst:reg5, src:reg6
+  [ 160] Jump target:block2

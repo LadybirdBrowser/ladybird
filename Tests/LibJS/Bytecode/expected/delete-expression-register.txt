@@ -1,15 +1,36 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-[  48]       End value:reg5
+$bfb1383b delete-expression-register.js:6:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateArguments dst:arguments~0, is_immutable:false
-[  18]       Mov3 dst1:x~1, src1:Undefined, dst2:x~1, src2:Bool(false), dst3:reg5, src3:x~1
-[  38]       JumpTrue condition:x~1, target:@68
-[  48]    1: DeleteByValue dst:reg6, base:arguments~0, property:Int32(0)
-[  58]       Mov dst:reg5, src:reg6
-[  68]    2: Mov dst:x~1, src:reg5
-[  78]       Return value:x~1
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  48] End value:reg5
+
+
+f$2bc22ddd delete-expression-register.js:3:7
+  Registers: 7
+  Blocks:    3
+  Locals:    arguments~0, x~1
+  Constants:
+    [0] = Undefined
+    [1] = Bool(false)
+    [2] = Int32(0)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateArguments dst:arguments~0, is_immutable:false
+  [  18] Mov3 dst1:x~1, src1:Undefined, dst2:x~1, src2:Bool(false), dst3:reg5, src3:x~1
+  [  38] JumpTrue condition:x~1, target:block2
+
+block1:
+  [  48] DeleteByValue dst:reg6, base:arguments~0, property:Int32(0)
+  [  58] Mov dst:reg5, src:reg6
+
+block2:
+  [  68] Mov dst:x~1, src:reg5
+  [  78] Return value:x~1

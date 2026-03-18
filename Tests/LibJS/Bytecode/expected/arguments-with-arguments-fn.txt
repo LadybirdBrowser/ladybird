@@ -1,13 +1,32 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  40]       End value:reg5
+$69cce752 arguments-with-arguments-fn.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@28
-[  18]    1: Mov dst:arg0, src:Int32(1)
-[  28]    2: Mov2 dst1:reg5, src1:Undefined, dst2:arguments~0, src2:reg5
-[  40]       NewFunction dst:arguments~0, shared_function_data_index:0
-[  58]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  40] End value:reg5
+
+
+f$811c9dc5
+  Registers: 6
+  Blocks:    3
+  Locals:    arguments~0
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+
+block1:
+  [  18] Mov dst:arg0, src:Int32(1)
+
+block2:
+  [  28] Mov2 dst1:reg5, src1:Undefined, dst2:arguments~0, src2:reg5
+  [  40] NewFunction dst:arguments~0, shared_function_data_index:0
+  [  58] End value:Undefined

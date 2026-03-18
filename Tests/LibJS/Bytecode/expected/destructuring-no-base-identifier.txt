@@ -1,17 +1,32 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewObject dst:reg5
-[  18]       SetGlobal identifier:x, src:reg5
-[  30]       NewPrimitiveArray dst:reg5, elements:[42]
-[  48]       Mov dst:reg6, src:Bool(false)
-[  58]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  70]       GetGlobal dst:reg10, identifier:x
-[  88]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[  a0]       JumpFalse condition:reg6, target:@c8
-[  b0]    1: Mov dst:reg11, src:Undefined
-[  c0]       Jump target:@c8
-[  c8]    2: PutById base:reg10, property:y, src:reg11, kind:Normal
-[  f0]       JumpFalse condition:reg6, target:@108
-[ 100]    3: End value:reg5
-[ 108]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 120]       End value:reg5
+$7861a666 destructuring-no-base-identifier.js:1:1
+  Registers: 12
+  Blocks:    5
+  Constants:
+    [0] = Bool(false)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewObject dst:reg5
+  [  18] SetGlobal `x`, src:reg5
+  [  30] NewPrimitiveArray dst:reg5, elements:[42]
+  [  48] Mov dst:reg6, src:Bool(false)
+  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  70] GetGlobal dst:reg10, `x`
+  [  88] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  a0] JumpFalse condition:reg6, target:block2
+
+block1:
+  [  b0] Mov dst:reg11, src:Undefined
+  [  c0] Jump target:block2
+
+block2:
+  [  c8] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [  f0] JumpFalse condition:reg6, target:block4
+
+block3:
+  [ 100] End value:reg5
+
+block4:
+  [ 108] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 120] End value:reg5

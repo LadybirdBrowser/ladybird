@@ -459,7 +459,7 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
                 lines.append("            if (!first_elem)")
                 lines.append('                list_builder.append(", "sv);')
                 lines.append("            first_elem = false;")
-                lines.append(f'            list_builder.appendff("{{}}", {f.name}[i]);')
+                lines.append(f'            list_builder.append(format_label(""sv, {f.name}[i], executable));')
                 lines.append("        }")
                 lines.append("        list_builder.append(']');")
                 lines.append("        append_piece(list_builder.to_byte_string());")
@@ -478,7 +478,7 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
                 lines.append("            if (!first_elem)")
                 lines.append('                list_builder.append(", "sv);')
                 lines.append("            first_elem = false;")
-                lines.append(f'            list_builder.appendff("{{}}", {f.name}[i].value());')
+                lines.append(f'            list_builder.append(format_label(""sv, {f.name}[i].value(), executable));')
                 lines.append("        }")
                 lines.append("        list_builder.append(']');")
                 lines.append("        append_piece(list_builder.to_byte_string());")
@@ -501,35 +501,64 @@ def generate_to_byte_string_impl(op: OpDef) -> str:
             continue
 
         if t == "Label":
-            lines.append(f'    append_piece(ByteString::formatted("{label}:{{}}", {f.name}));')
+            lines.append(f'    append_piece(format_label("{label}"sv, {f.name}, executable));')
             lines.append("")
             continue
 
         if t == "Optional<Label>":
             lines.append(f"    if ({f.name}.has_value())")
-            lines.append(f'        append_piece(ByteString::formatted("{label}:{{}}", {f.name}.value()));')
+            lines.append(f'        append_piece(format_label("{label}"sv, {f.name}.value(), executable));')
             lines.append("")
             continue
 
         if t == "PropertyKeyTableIndex":
             lines.append(
-                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.property_key_table->get({f.name})));'
+                f'    append_piece(ByteString::formatted("\\033[36m`{{}}`\\033[0m", executable.property_key_table->get({f.name})));'
             )
             lines.append("")
             continue
 
         if t == "IdentifierTableIndex":
             lines.append(
-                f'    append_piece(ByteString::formatted("{label}:{{}}", executable.identifier_table->get({f.name})));'
+                f'    append_piece(ByteString::formatted("\\033[36m`{{}}`\\033[0m", executable.identifier_table->get({f.name})));'
             )
             lines.append("")
             continue
 
         if t == "Optional<IdentifierTableIndex>":
+            # Find a property field in the same op to join with.
+            property_key_field = None
+            property_operand_field = None
+            for other in op.fields:
+                if other.type.strip() == "PropertyKeyTableIndex":
+                    property_key_field = other
+                    break
+                if other.type.strip() == "Operand" and other.name == "m_property":
+                    property_operand_field = other
+                    break
+
             lines.append(f"    if ({f.name}.has_value())")
-            lines.append(
-                f'        append_piece(ByteString::formatted("{label}:{{}}", executable.identifier_table->get({f.name}.value())));'
-            )
+            if property_key_field:
+                lines.append(
+                    f'        builder.appendff(" \\033[37;1m({{}}.{{}})\\033[0m", executable.identifier_table->get({f.name}.value()), executable.property_key_table->get({property_key_field.name}));'
+                )
+            elif property_operand_field:
+                lines.append("    {")
+                lines.append(
+                    f'        auto property_hint = format_operand(""sv, {property_operand_field.name}, executable);'
+                )
+                lines.append(
+                    f'        builder.appendff(" \\033[37;1m({{}}[\\033[0m{{}}\\033[37;1m])\\033[0m", executable.identifier_table->get({f.name}.value()), property_hint);'
+                )
+                lines.append("    }")
+            elif op.name == "GetLength":
+                lines.append(
+                    f'        builder.appendff(" \\033[37;1m({{}}.length)\\033[0m", executable.identifier_table->get({f.name}.value()));'
+                )
+            else:
+                lines.append(
+                    f'        builder.appendff(" \\033[37;1m({{}})\\033[0m", executable.identifier_table->get({f.name}.value()));'
+                )
             lines.append("")
             continue
 

@@ -1,20 +1,42 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test
-[  40]       End value:reg5
+$d99dc022 block-scoped-function-no-tdz.js:10:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = String("use strict")
+    [1] = Undefined
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:result~1, src:Undefined
-[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  28]       NewFunction dst:reg6, shared_function_data_index:0
-[  40]       Mov2 dst1:foo~0, src1:reg6, dst2:reg7, src2:foo~0
-[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, foo
-[  78]       Mov dst:result~1, src:reg6
-[  88]       SetLexicalEnvironment environment:reg4
-[  90]       Return value:result~1
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  40] End value:reg5
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:Int32(42)
+
+test$8f4c6018 block-scoped-function-no-tdz.js:3:5
+  Registers: 8
+  Blocks:    1
+  Locals:    foo~0, result~1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:result~1, src:Undefined
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  28] NewFunction dst:reg6, shared_function_data_index:0
+  [  40] Mov2 dst1:foo~0, src1:reg6, dst2:reg7, src2:foo~0
+  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, foo
+  [  78] Mov dst:result~1, src:reg6
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] Return value:result~1
+
+
+foo$48752efa block-scoped-function-no-tdz.js:5:26
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(42)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:Int32(42)

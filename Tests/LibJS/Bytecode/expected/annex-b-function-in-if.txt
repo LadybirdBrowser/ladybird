@@ -1,48 +1,84 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:annexBFunctionInIf
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-[  80]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a8]       GetGlobal dst:reg7, identifier:console
-[  c0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  e0]       GetGlobal dst:reg10, identifier:annexBFunctionInIf
-[  f8]       Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-[ 120]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 148]       End value:reg6
+$64717e3f annex-b-function-in-if.js:13:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Bool(true)
+    [2] = Bool(false)
 
-JS bytecode executable "annexBFunctionInIf"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
-[  18]       InitializeVariableBinding identifier:inner, src:Undefined
-[  30]       JumpFalse condition:arg0, target:@d0
-[  40]    1: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  50]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
-[  60]       NewFunction dst:reg6, shared_function_data_index:0
-[  78]       InitializeLexicalBinding identifier:inner, src:reg6
-[  90]       GetBinding dst:reg6, identifier:inner
-[  a8]       SetVariableBinding identifier:inner, src:reg6
-[  c0]       SetLexicalEnvironment environment:reg4
-[  c8]       Jump target:@158
-[  d0]    2: CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  e0]       CreateMutableBinding environment:reg5, identifier:inner, can_be_deleted:false
-[  f0]       NewFunction dst:reg6, shared_function_data_index:1
-[ 108]       InitializeLexicalBinding identifier:inner, src:reg6
-[ 120]       GetBinding dst:reg6, identifier:inner
-[ 138]       SetVariableBinding identifier:inner, src:reg6
-[ 150]       SetLexicalEnvironment environment:reg4
-[ 158]    3: GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:inner
-[ 170]       Call dst:reg5, callee:reg6, this_value:reg7, inner
-[ 190]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `annexBFunctionInIf`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a8] GetGlobal dst:reg7, `console`
+  [  c0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  e0] GetGlobal dst:reg10, `annexBFunctionInIf`
+  [  f8] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+  [ 120] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 148] End value:reg6
 
-JS bytecode executable "inner"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:String("true branch")
 
-JS bytecode executable "inner"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:String("false branch")
+annexBFunctionInIf$cf6b2161 annex-b-function-in-if.js:2:5
+  Registers: 8
+  Blocks:    4
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
+  [  18] InitializeVariableBinding `inner`, src:Undefined
+  [  30] JumpFalse condition:arg0, target:block2
+
+block1:
+  [  40] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  50] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  60] NewFunction dst:reg6, shared_function_data_index:0
+  [  78] InitializeLexicalBinding `inner`, src:reg6
+  [  90] GetBinding dst:reg6, `inner`
+  [  a8] SetVariableBinding `inner`, src:reg6
+  [  c0] SetLexicalEnvironment environment:reg4
+  [  c8] Jump target:block3
+
+block2:
+  [  d0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  e0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  f0] NewFunction dst:reg6, shared_function_data_index:1
+  [ 108] InitializeLexicalBinding `inner`, src:reg6
+  [ 120] GetBinding dst:reg6, `inner`
+  [ 138] SetVariableBinding `inner`, src:reg6
+  [ 150] SetLexicalEnvironment environment:reg4
+
+block3:
+  [ 158] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [ 170] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [ 190] Return value:reg5
+
+
+inner$b8316a64 annex-b-function-in-if.js:4:13
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = String("true branch")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:String("true branch")
+
+
+inner$1f25fd67 annex-b-function-in-if.js:8:13
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = String("false branch")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:String("false branch")
+
 
 "true branch"
 "false branch"

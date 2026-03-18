@@ -1,15 +1,29 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:outer
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, outer
-[  40]       End value:reg5
+$6cc1cfb5 eval-scope-optimization.js:12:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "outer"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:inner, is_immutable:false, is_global:false, is_strict:false
-[  18]       InitializeVariableBinding identifier:inner, src:Undefined
-[  30]       NewFunction dst:reg5, shared_function_data_index:0
-[  48]       SetVariableBinding identifier:inner, src:reg5
-[  60]       GetGlobal dst:reg6, identifier:Number
-[  78]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
-[  98]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `outer`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, outer
+  [  40] End value:reg5
+
+
+outer$6201e926 eval-scope-optimization.js:9:5
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(42)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
+  [  18] InitializeVariableBinding `inner`, src:Undefined
+  [  30] NewFunction dst:reg5, shared_function_data_index:0
+  [  48] SetVariableBinding `inner`, src:reg5
+  [  60] GetGlobal dst:reg6, `Number`
+  [  78] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+  [  98] Return value:reg5

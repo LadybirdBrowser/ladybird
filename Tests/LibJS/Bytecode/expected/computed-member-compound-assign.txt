@@ -1,29 +1,53 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:compound_computed
-[  20]       NewObject dst:reg7
-[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
-[  58]       GetGlobal dst:reg7, identifier:compound_then_assign
-[  70]       NewObject dst:reg8
-[  80]       InitObjectLiteralProperty object:reg8, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
-[  98]       CacheObjectShape object:reg8
-[  a8]       Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
-[  d0]       End value:reg6
+$b23ddabf computed-member-compound-assign.js:15:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = String("x")
+    [2] = Int32(1)
 
-JS bytecode executable "compound_computed"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:obj
-[  20]       Mov dst:reg6, src:arg1
-[  30]       Add dst:reg7, lhs:reg5, rhs:Int32(1)
-[  40]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-[  58]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `compound_computed`
+  [  20] NewObject dst:reg7
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
+  [  58] GetGlobal dst:reg7, `compound_then_assign`
+  [  70] NewObject dst:reg8
+  [  80] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  98] CacheObjectShape object:reg8
+  [  a8] Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
+  [  d0] End value:reg6
 
-JS bytecode executable "compound_then_assign"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:imag
-[  20]       Mov dst:reg6, src:arg1
-[  30]       Add dst:reg7, lhs:reg5, rhs:Int32(0)
-[  40]       PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-[  58]       Mov2 dst1:reg5, src1:arg0, dst2:reg6, src2:arg1
-[  70]       PutByValue base:reg5, property:reg6, src:arg1, kind:Normal, base_identifier:imag
-[  88]       End value:Undefined
+
+compound_computed$3d35f992 computed-member-compound-assign.js:7:14
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (obj[arg1])
+  [  20] Mov dst:reg6, src:arg1
+  [  30] Add dst:reg7, lhs:reg5, rhs:Int32(1)
+  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  58] End value:Undefined
+
+
+compound_then_assign$fda157e3 computed-member-compound-assign.js:11:13
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Int32(0)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (imag[arg1])
+  [  20] Mov dst:reg6, src:arg1
+  [  30] Add dst:reg7, lhs:reg5, rhs:Int32(0)
+  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  58] Mov2 dst1:reg5, src1:arg0, dst2:reg6, src2:arg1
+  [  70] PutByValue base:reg5, property:reg6, src:arg1, kind:Normal (imag[reg6])
+  [  88] End value:Undefined

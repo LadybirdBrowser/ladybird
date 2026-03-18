@@ -1,24 +1,51 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@b0
-[  10]    1: Catch dst:reg6
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov dst:reg5, src:Int32(1)
-[  30]    2: Mov2 dst1:reg9, src1:Undefined, dst2:reg9, src2:Int32(3)
-[  48]       JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@e8, false_target:@f0
-[  60]    3: Catch dst:reg7
-[  68]       SetLexicalEnvironment environment:reg4
-[  70]       Mov3 dst1:e~0, src1:reg7, dst2:reg8, src2:Undefined, dst3:reg8, src3:Int32(2)
-[  90]       Mov2 dst1:reg9, src1:reg8, dst2:reg5, src2:Int32(0)
-[  a8]       Jump target:@30
-[  b0]    4: Mov3 dst1:reg7, src1:Undefined, dst2:reg7, src2:Int32(1), dst3:reg8, src3:reg7
-[  d0]       Mov dst:reg5, src:Int32(0)
-[  e0]       Jump target:@30
-[  e8]    5: End value:reg8
-[  f0]    6: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@108, false_target:@110
-[ 108]    7: Return value:reg6
-[ 110]    8: Throw src:reg6
+$3a9dde7d try-catch-finally-register.js:1:1
+  Registers: 10
+  Blocks:    9
+  Locals:    e~0
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+    [2] = Int32(2)
+    [3] = Int32(0)
+    [4] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block4
+
+block1:
+  [  10] Catch dst:reg6
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov dst:reg5, src:Int32(1)
+
+block2:
+  [  30] Mov2 dst1:reg9, src1:Undefined, dst2:reg9, src2:Int32(3)
+  [  48] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block5, false_target:block6
+
+block3:
+  [  60] Catch dst:reg7
+  [  68] SetLexicalEnvironment environment:reg4
+  [  70] Mov3 dst1:e~0, src1:reg7, dst2:reg8, src2:Undefined, dst3:reg8, src3:Int32(2)
+  [  90] Mov2 dst1:reg9, src1:reg8, dst2:reg5, src2:Int32(0)
+  [  a8] Jump target:block2
+
+block4:
+  [  b0] Mov3 dst1:reg7, src1:Undefined, dst2:reg7, src2:Int32(1), dst3:reg8, src3:reg7
+  [  d0] Mov dst:reg5, src:Int32(0)
+  [  e0] Jump target:block2
+
+block5:
+  [  e8] End value:reg8
+
+block6:
+  [  f0] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block7, false_target:block8
+
+block7:
+  [ 108] Return value:reg6
+
+block8:
+  [ 110] Throw src:reg6
 
 Exception handlers:
-    from   60 to   b0 handler   10
-    from   b0 to   e8 handler   60
+  [  60 ..   b0] => handler block1
+  [  b0 ..   e8] => handler block3

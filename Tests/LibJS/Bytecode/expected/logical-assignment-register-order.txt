@@ -1,10 +1,20 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg5, identifier:value
-[  20]       JumpFalse condition:reg5, target:@78
-[  30]    1: NewFunction dst:reg6, shared_function_data_index:0, lhs_name:value
-[  48]       Mov dst:reg7, src:reg6
-[  58]       SetGlobal identifier:value, src:reg7
-[  70]       End value:reg7
-[  78]    2: Mov dst:reg7, src:reg5
-[  88]    3: End value:reg7
+$a061729d logical-assignment-register-order.js:2:7
+  Registers: 8
+  Blocks:    4
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg5, `value`
+  [  20] JumpFalse condition:reg5, target:block2
+
+block1:
+  [  30] NewFunction dst:reg6, shared_function_data_index:0 (value)
+  [  48] Mov dst:reg7, src:reg6
+  [  58] SetGlobal `value`, src:reg7
+  [  70] End value:reg7
+
+block2:
+  [  78] Mov dst:reg7, src:reg5
+
+block3:
+  [  88] End value:reg7

@@ -1,69 +1,131 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:array_destructuring_with_class_default
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
-[  40]       GetGlobal dst:reg7, identifier:object_destructuring_with_function_default
-[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
-[  78]       GetGlobal dst:reg7, identifier:setter_parameter_resolution
-[  90]       Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
-[  b0]       End value:reg5
+$6b0803e2 destructuring-assignment.js:28:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "array_destructuring_with_class_default"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:x~0, src:Undefined
-[  18]       NewArray dst:reg5, elements:[Undefined]
-[  30]       Mov dst:reg6, src:Bool(false)
-[  40]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  58]       IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[  70]       JumpFalse condition:reg6, target:@98
-[  80]    1: Mov dst:reg10, src:Undefined
-[  90]       Jump target:@98
-[  98]    2: JumpUndefined condition:reg10, true_target:@a8, false_target:@100
-[  a8]    3: CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0
-[  b8]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  c8]       SetLexicalEnvironment environment:reg4
-[  d0]       NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
-[  f0]       Mov dst:reg10, src:reg12
-[ 100]    4: Mov dst:x~0, src:reg10
-[ 110]       JumpFalse condition:reg6, target:@128
-[ 120]    5: Return value:x~0
-[ 128]    6: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 140]       Return value:x~0
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `array_destructuring_with_class_default`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
+  [  40] GetGlobal dst:reg7, `object_destructuring_with_function_default`
+  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
+  [  78] GetGlobal dst:reg7, `setter_parameter_resolution`
+  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
+  [  b0] End value:reg5
 
-JS bytecode executable "object_destructuring_with_function_default"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:x~0, src:Undefined
-[  18]       NewObject dst:reg5
-[  28]       ThrowIfNullish src:reg5
-[  30]       GetById dst:reg6, base:reg5, property:x
-[  50]       JumpUndefined condition:reg6, true_target:@60, false_target:@88
-[  60]    1: NewFunction dst:reg7, shared_function_data_index:0, lhs_name:x
-[  78]       Mov dst:reg6, src:reg7
-[  88]    2: Mov dst:x~0, src:reg6
-[  98]       Return value:x~0
 
-JS bytecode executable "setter_parameter_resolution"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:setValue, is_immutable:false, is_global:false, is_strict:false
-[  18]       InitializeVariableBinding identifier:setValue, src:Undefined
-[  30]       NewPrimitiveArray dst:reg5, elements:[23]
-[  48]       Mov dst:reg6, src:Bool(false)
-[  58]       GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-[  70]       NewObject dst:reg10
-[  80]       NewFunction dst:reg11, shared_function_data_index:0, lhs_name:set y, home_object:reg10
-[  98]       PutById base:reg10, property:y, src:reg11, kind:Setter
-[  c0]       IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-[  d8]       JumpFalse condition:reg6, target:@100
-[  e8]    1: Mov dst:reg11, src:Undefined
-[  f8]       Jump target:@100
-[ 100]    2: PutById base:reg10, property:y, src:reg11, kind:Normal
-[ 128]       JumpFalse condition:reg6, target:@158
-[ 138]    3: GetInitializedBinding dst:reg5, identifier:setValue
-[ 150]       Return value:reg5
-[ 158]    4: IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-[ 170]       Jump target:@138
+array_destructuring_with_class_default$c0397068 destructuring-assignment.js:6:10
+  Registers: 13
+  Blocks:    7
+  Locals:    x~0
+  Constants:
+    [0] = Undefined
+    [1] = Bool(false)
 
-JS bytecode executable "set y"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetLexicalBinding identifier:setValue, src:arg0
-[  20]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:x~0, src:Undefined
+  [  18] NewArray dst:reg5, elements:[Undefined]
+  [  30] Mov dst:reg6, src:Bool(false)
+  [  40] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  58] IteratorNextUnpack dst_value:reg10, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  70] JumpFalse condition:reg6, target:block2
+
+block1:
+  [  80] Mov dst:reg10, src:Undefined
+  [  90] Jump target:block2
+
+block2:
+  [  98] JumpUndefined condition:reg10, true_target:block3, false_target:block4
+
+block3:
+  [  a8] CreateLexicalEnvironment dst:reg11, parent:reg4, capacity:0
+  [  b8] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  c8] SetLexicalEnvironment environment:reg4
+  [  d0] NewClass dst:reg12, class_environment:reg11, class_blueprint_index:0
+  [  f0] Mov dst:reg10, src:reg12
+
+block4:
+  [ 100] Mov dst:x~0, src:reg10
+  [ 110] JumpFalse condition:reg6, target:block6
+
+block5:
+  [ 120] Return value:x~0
+
+block6:
+  [ 128] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 140] Return value:x~0
+
+
+object_destructuring_with_function_default$544c1fbd destructuring-assignment.js:12:12
+  Registers: 8
+  Blocks:    3
+  Locals:    x~0
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:x~0, src:Undefined
+  [  18] NewObject dst:reg5
+  [  28] ThrowIfNullish src:reg5
+  [  30] GetById dst:reg6, base:reg5, `x`
+  [  50] JumpUndefined condition:reg6, true_target:block1, false_target:block2
+
+block1:
+  [  60] NewFunction dst:reg7, shared_function_data_index:0 (x)
+  [  78] Mov dst:reg6, src:reg7
+
+block2:
+  [  88] Mov dst:x~0, src:reg6
+  [  98] Return value:x~0
+
+
+setter_parameter_resolution$75109441 destructuring-assignment.js:19:9
+  Registers: 12
+  Blocks:    5
+  Constants:
+    [0] = Undefined
+    [1] = Bool(false)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
+  [  18] InitializeVariableBinding `setValue`, src:Undefined
+  [  30] NewPrimitiveArray dst:reg5, elements:[23]
+  [  48] Mov dst:reg6, src:Bool(false)
+  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  70] NewObject dst:reg10
+  [  80] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
+  [  98] PutById base:reg10, `y`, src:reg11, kind:Setter
+  [  c0] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  d8] JumpFalse condition:reg6, target:block2
+
+block1:
+  [  e8] Mov dst:reg11, src:Undefined
+  [  f8] Jump target:block2
+
+block2:
+  [ 100] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [ 128] JumpFalse condition:reg6, target:block4
+
+block3:
+  [ 138] GetInitializedBinding dst:reg5, `setValue`
+  [ 150] Return value:reg5
+
+block4:
+  [ 158] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 170] Jump target:block3
+
+
+set y$f36f0033 destructuring-assignment.js:21:26
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetLexicalBinding `setValue`, src:arg0
+  [  20] End value:Undefined

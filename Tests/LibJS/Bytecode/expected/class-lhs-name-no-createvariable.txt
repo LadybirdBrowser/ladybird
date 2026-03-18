@@ -1,7 +1,14 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:x, element_keys:[element_keys:String("method")]
-[  48]       SetGlobal identifier:x, src:reg6
-[  60]       End value:Undefined
+$e092f884 class-lhs-name-no-createvariable.js:1:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = String("method")
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (x), element_keys:[element_keys:String("method")]
+  [  48] SetGlobal `x`, src:reg6
+  [  60] End value:Undefined

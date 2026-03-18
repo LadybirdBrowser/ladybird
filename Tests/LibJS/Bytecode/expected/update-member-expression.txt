@@ -1,23 +1,43 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:postfix_increment
-[  20]       NewObject dst:reg7
-[  30]       Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
-[  58]       GetGlobal dst:reg7, identifier:prefix_decrement
-[  70]       NewObject dst:reg8
-[  80]       Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
-[  a8]       End value:reg6
+$0c699965 update-member-expression.js:13:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "postfix_increment"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
-[  28]       PostfixIncrement dst:reg6, src:reg5
-[  38]       PutById base:arg0, property:count, src:reg5, kind:Normal
-[  60]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `postfix_increment`
+  [  20] NewObject dst:reg7
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
+  [  58] GetGlobal dst:reg7, `prefix_decrement`
+  [  70] NewObject dst:reg8
+  [  80] Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
+  [  a8] End value:reg6
 
-JS bytecode executable "prefix_decrement"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetById dst:reg5, base:arg0, property:count, base_identifier:obj
-[  28]       Decrement dst:reg5
-[  30]       PutById base:arg0, property:count, src:reg5, kind:Normal
-[  58]       End value:Undefined
+
+postfix_increment$8ce50e3d update-member-expression.js:6:14
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
+  [  28] PostfixIncrement dst:reg6, src:reg5
+  [  38] PutById base:arg0, `count`, src:reg5, kind:Normal
+  [  60] End value:Undefined
+
+
+prefix_decrement$41bc97a7 update-member-expression.js:10:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
+  [  28] Decrement dst:reg5
+  [  30] PutById base:arg0, `count`, src:reg5, kind:Normal
+  [  58] End value:Undefined

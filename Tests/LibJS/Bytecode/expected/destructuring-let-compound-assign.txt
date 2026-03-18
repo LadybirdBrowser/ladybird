@@ -1,20 +1,35 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       NewObject dst:reg7
-[  30]       NewObject dst:reg8
-[  40]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
-[  68]       End value:reg5
+$59a926ae destructuring-let-compound-assign.js:5:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ThrowIfNullish src:arg0
-[  10]       GetById dst:reg5, base:arg0, property:patchFlag
-[  30]       Mov dst:a~0, src:reg5
-[  40]       ThrowIfTDZ src:a~0
-[  48]       Mov dst:reg5, src:a~0
-[  58]       GetById dst:reg6, base:arg1, property:patchFlag, base_identifier:e
-[  78]       BitwiseAnd dst:reg7, lhs:Int32(16), rhs:reg6
-[  88]       BitwiseOr dst:reg6, lhs:reg5, rhs:reg7
-[  98]       Mov dst:a~0, src:reg6
-[  a8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] NewObject dst:reg7
+  [  30] NewObject dst:reg8
+  [  40] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+  [  68] End value:reg5
+
+
+f$0c16b60f destructuring-let-compound-assign.js:2:5
+  Registers: 8
+  Blocks:    1
+  Locals:    a~0
+  Constants:
+    [0] = Int32(16)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ThrowIfNullish src:arg0
+  [  10] GetById dst:reg5, base:arg0, `patchFlag`
+  [  30] Mov dst:a~0, src:reg5
+  [  40] ThrowIfTDZ src:a~0
+  [  48] Mov dst:reg5, src:a~0
+  [  58] GetById dst:reg6, base:arg1, `patchFlag` (e.patchFlag)
+  [  78] BitwiseAnd dst:reg7, lhs:Int32(16), rhs:reg6
+  [  88] BitwiseOr dst:reg6, lhs:reg5, rhs:reg7
+  [  98] Mov dst:a~0, src:reg6
+  [  a8] End value:Undefined

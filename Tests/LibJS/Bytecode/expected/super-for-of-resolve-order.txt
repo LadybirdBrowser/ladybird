@@ -1,36 +1,70 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
-[  50]       InitializeLexicalBinding identifier:C, src:reg6
-[  68]       GetGlobal dst:reg6, identifier:C
-[  80]       CallConstruct dst:reg5, callee:reg6, C
-[  98]       End value:reg5
+$7dae70db super-for-of-resolve-order.js:1:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewPrimitiveArray dst:reg5, elements:[1, 2]
-[  28]       GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
-[  40]       Jump target:@50
-[  48]    1: End value:Undefined
-[  50]    2: IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-[  68]       JumpIf condition:reg11, true_target:@48, false_target:@b0
-[  78]    3: Catch dst:reg9
-[  80]       SetLexicalEnvironment environment:reg4
-[  88]       Mov dst:reg5, src:Int32(1)
-[  98]    4: JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:@e8, false_target:@108
-[  b0]    5: ResolveThisBinding
-[  b8]       ResolveSuperBase dst:reg12
-[  c0]       PutByIdWithThis base:reg12, this_value:this, property:prop, src:reg10, kind:Normal
-[  e0]       Jump target:@50
-[  e8]    6: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-[ 100]       Throw src:reg9
-[ 108]    7: IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-[ 120]       JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@138, false_target:@140
-[ 138]    8: Return value:reg9
-[ 140]    9: Throw src:reg9
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+  [  50] InitializeLexicalBinding `C`, src:reg6
+  [  68] GetGlobal dst:reg6, `C`
+  [  80] CallConstruct dst:reg5, callee:reg6, C
+  [  98] End value:reg5
+
+
+C$f4d17d48 super-for-of-resolve-order.js:3:28
+  Registers: 13
+  Blocks:    10
+  Constants:
+    [0] = String("prop")
+    [1] = Int32(1)
+    [2] = Undefined
+    [3] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewPrimitiveArray dst:reg5, elements:[1, 2]
+  [  28] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
+  [  40] Jump target:block2
+
+block1:
+  [  48] End value:Undefined
+
+block2:
+  [  50] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  68] JumpIf condition:reg11, true_target:block1, false_target:block5
+
+block3:
+  [  78] Catch dst:reg9
+  [  80] SetLexicalEnvironment environment:reg4
+  [  88] Mov dst:reg5, src:Int32(1)
+
+block4:
+  [  98] JumpStrictlyEquals lhs:reg5, rhs:Int32(1), true_target:block6, false_target:block7
+
+block5:
+  [  b0] ResolveThisBinding
+  [  b8] ResolveSuperBase dst:reg12
+  [  c0] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
+  [  e0] Jump target:block2
+
+block6:
+  [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 100] Throw src:reg9
+
+block7:
+  [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 120] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block8, false_target:block9
+
+block8:
+  [ 138] Return value:reg9
+
+block9:
+  [ 140] Throw src:reg9
 
 Exception handlers:
-    from   b0 to   e8 handler   78
+  [  b0 ..   e8] => handler block3

@@ -1,7 +1,21 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:a, src:Int32(12345)
-[  20]       SetGlobal identifier:b, src:Int32(123450)
-[  38]       SetGlobal identifier:c, src:Int32(-42)
-[  50]       SetGlobal identifier:d, src:Int32(-6)
-[  68]       End value:Undefined
+$199ac30a constant-fold-string-to-number.js:1:1
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = String("12345")
+    [1] = Int32(12345)
+    [2] = Int32(10)
+    [3] = Int32(123450)
+    [4] = String("42")
+    [5] = Int32(-42)
+    [6] = String("5")
+    [7] = Int32(-6)
+    [8] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `a`, src:Int32(12345)
+  [  20] SetGlobal `b`, src:Int32(123450)
+  [  38] SetGlobal `c`, src:Int32(-42)
+  [  50] SetGlobal `d`, src:Int32(-6)
+  [  68] End value:Undefined

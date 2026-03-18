@@ -1,41 +1,70 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@40
-[  10]    1: Catch dst:reg5
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
-[  38]    2: Jump target:@e8
-[  40]    3: Mov dst:reg5, src:Undefined
-[  50]       GetGlobal dst:reg8, identifier:chained_computed_call
-[  68]       Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
-[  98]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-[  b0]       Jump target:@38
-[  b8]    4: Catch dst:reg5
-[  c0]       SetLexicalEnvironment environment:reg4
-[  c8]       Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
-[  e0]    5: End value:reg7
-[  e8]    6: Mov dst:reg5, src:Undefined
-[  f8]       GetGlobal dst:reg9, identifier:chained_dot_call
-[ 110]       Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
-[ 138]       Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
-[ 150]       End value:reg7
+$c0e94b43 chained-member-call.js:1:1
+  Registers: 10
+  Blocks:    7
+  Constants:
+    [0] = Undefined
+    [1] = Int32(0)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block3
+
+block1:
+  [  10] Catch dst:reg5
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
+
+block2:
+  [  38] Jump target:block6
+
+block3:
+  [  40] Mov dst:reg5, src:Undefined
+  [  50] GetGlobal dst:reg8, `chained_computed_call`
+  [  68] Call dst:reg6, callee:reg8, this_value:Undefined, chained_computed_call, arguments:[Int32(0), Int32(0), Int32(0)]
+  [  98] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [  b0] Jump target:block2
+
+block4:
+  [  b8] Catch dst:reg5
+  [  c0] SetLexicalEnvironment environment:reg4
+  [  c8] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
+
+block5:
+  [  e0] End value:reg7
+
+block6:
+  [  e8] Mov dst:reg5, src:Undefined
+  [  f8] GetGlobal dst:reg9, `chained_dot_call`
+  [ 110] Call dst:reg7, callee:reg9, this_value:Undefined, chained_dot_call, arguments:[Int32(0)]
+  [ 138] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+  [ 150] End value:reg7
 
 Exception handlers:
-    from   40 to   b8 handler   10
-    from   e8 to  158 handler   b8
+  [  40 ..   b8] => handler block1
+  [  e8 ..  158] => handler block4
 
-JS bytecode executable "chained_computed_call"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg6, base:arg0, property:arg1, base_identifier:a
-[  20]       GetByValue dst:reg7, base:reg6, property:arg2, base_identifier:a[j]
-[  38]       GetById dst:reg6, base:reg7, property:foo, base_identifier:a[j][k]
-[  58]       Call dst:reg5, callee:reg6, this_value:reg7, a[j][k].foo
-[  78]       Return value:reg5
 
-JS bytecode executable "chained_dot_call"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetById dst:reg6, base:arg0, property:b, base_identifier:a
-[  28]       GetById dst:reg7, base:reg6, property:c, base_identifier:a.b
-[  48]       GetById dst:reg6, base:reg7, property:bar, base_identifier:a.b.c
-[  68]       Call dst:reg5, callee:reg6, this_value:reg7, a.b.c.bar
-[  88]       Return value:reg5
+chained_computed_call$df45ff7f chained-member-call.js:5:5
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg6, base:arg0, property:arg1 (a[arg1])
+  [  20] GetByValue dst:reg7, base:reg6, property:arg2 (a[j][arg2])
+  [  38] GetById dst:reg6, base:reg7, `foo` (a[j][k].foo)
+  [  58] Call dst:reg5, callee:reg6, this_value:reg7, a[j][k].foo
+  [  78] Return value:reg5
+
+
+chained_dot_call$9501e458 chained-member-call.js:9:5
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetById dst:reg6, base:arg0, `b` (a.b)
+  [  28] GetById dst:reg7, base:reg6, `c` (a.b.c)
+  [  48] GetById dst:reg6, base:reg7, `bar` (a.b.c.bar)
+  [  68] Call dst:reg5, callee:reg6, this_value:reg7, a.b.c.bar
+  [  88] Return value:reg5

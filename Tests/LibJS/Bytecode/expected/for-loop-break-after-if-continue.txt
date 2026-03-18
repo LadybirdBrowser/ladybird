@@ -1,12 +1,34 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:bok
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
-[  48]       End value:reg5
+$1eaa9a1f for-loop-break-after-if-continue.js:11:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Bool(false)
 
-JS bytecode executable "bok"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]    1: JumpIf condition:arg0, true_target:@20, false_target:@28
-[  18]    2: End value:Undefined
-[  20]    3: Jump target:@8
-[  28]    4: Jump target:@18
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `bok`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
+  [  48] End value:reg5
+
+
+bok$e37018c9 for-loop-break-after-if-continue.js:6:9
+  Registers: 5
+  Blocks:    5
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+
+block1:
+  [   8] JumpIf condition:arg0, true_target:block3, false_target:block4
+
+block2:
+  [  18] End value:Undefined
+
+block3:
+  [  20] Jump target:block1
+
+block4:
+  [  28] Jump target:block2

@@ -1,43 +1,80 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test
-[  40]       InitializeLexicalBinding identifier:a, src:reg5
-[  58]       GetGlobal dst:reg6, identifier:console
-[  70]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  90]       GetGlobal dst:reg8, identifier:a
-[  a8]       GetById dst:reg9, base:reg8, property:x, base_identifier:a
-[  c8]       GetGlobal dst:reg8, identifier:a
-[  e0]       GetById dst:reg10, base:reg8, property:y, base_identifier:a
-[ 100]       GetGlobal dst:reg8, identifier:a
-[ 118]       GetById dst:reg11, base:reg8, property:z, base_identifier:a
-[ 138]       GetGlobal dst:reg8, identifier:a
-[ 150]       GetById dst:reg12, base:reg8, property:w, base_identifier:a
-[ 170]       GetGlobal dst:reg8, identifier:a
-[ 188]       GetById dst:reg13, base:reg8, property:s, base_identifier:a
-[ 1a8]       GetGlobal dst:reg8, identifier:a
-[ 1c0]       GetById dst:reg14, base:reg8, property:computed, base_identifier:a
-[ 1e0]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
-[ 218]       End value:reg5
+$b4f9525c class-literal-fields.js:12:1
+  Registers: 15
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
-[  68]       Mov dst:A~0, src:reg6
-[  78]       ThrowIfTDZ src:A~0
-[  80]       Mov dst:reg6, src:A~0
-[  90]       CallConstruct dst:reg5, callee:reg6, A
-[  a8]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  40] InitializeLexicalBinding `a`, src:reg5
+  [  58] GetGlobal dst:reg6, `console`
+  [  70] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  90] GetGlobal dst:reg8, `a`
+  [  a8] GetById dst:reg9, base:reg8, `x` (a.x)
+  [  c8] GetGlobal dst:reg8, `a`
+  [  e0] GetById dst:reg10, base:reg8, `y` (a.y)
+  [ 100] GetGlobal dst:reg8, `a`
+  [ 118] GetById dst:reg11, base:reg8, `z` (a.z)
+  [ 138] GetGlobal dst:reg8, `a`
+  [ 150] GetById dst:reg12, base:reg8, `w` (a.w)
+  [ 170] GetGlobal dst:reg8, `a`
+  [ 188] GetById dst:reg13, base:reg8, `s` (a.s)
+  [ 1a8] GetGlobal dst:reg8, `a`
+  [ 1c0] GetById dst:reg14, base:reg8, `computed` (a.computed)
+  [ 1e0] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg9, reg10, reg11, reg12, reg13, reg14]
+  [ 218] End value:reg5
 
-JS bytecode executable "A"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
 
-JS bytecode executable "field"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:Int32(3)
+test$657cc1d3 class-literal-fields.js:2:5
+  Registers: 7
+  Blocks:    1
+  Locals:    A~0
+  Constants:
+    [0] = String("x")
+    [1] = String("y")
+    [2] = String("z")
+    [3] = String("w")
+    [4] = String("s")
+    [5] = String("computed")
+    [6] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
+  [  68] Mov dst:A~0, src:reg6
+  [  78] ThrowIfTDZ src:A~0
+  [  80] Mov dst:reg6, src:A~0
+  [  90] CallConstruct dst:reg5, callee:reg6, A
+  [  a8] Return value:reg5
+
+
+A$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+field$4297853c class-literal-fields.js:8:22
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+    [2] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:Int32(3)
+
 
 42 -1 true null "hi" 3

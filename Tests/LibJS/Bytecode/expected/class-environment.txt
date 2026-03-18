@@ -1,32 +1,60 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:classWithName
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
-[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a0]       End value:reg5
+$5f9e2ffb class-environment.js:9:1
+  Registers: 10
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "classWithName"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:Foo, is_immutable:true, is_global:false, is_strict:false
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-[  58]       Mov dst:reg7, src:C~0
-[  68]       CallConstruct dst:reg6, callee:reg7, C
-[  80]       GetById dst:reg7, base:reg6, property:method
-[  a0]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-[  c0]       StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
-[  d0]       Return value:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `classWithName`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, classWithName
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] End value:reg5
 
-JS bytecode executable "Foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
 
-JS bytecode executable "method"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetBinding dst:reg5, identifier:Foo
-[  20]       Return value:reg5
+classWithName$8829de8e class-environment.js:2:13
+  Registers: 8
+  Blocks:    1
+  Locals:    C~0
+  Constants:
+    [0] = String("method")
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
+  [  58] Mov dst:reg7, src:C~0
+  [  68] CallConstruct dst:reg6, callee:reg7, C
+  [  80] GetById dst:reg7, base:reg6, `method`
+  [  a0] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+  [  c0] StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
+  [  d0] Return value:reg6
+
+
+Foo$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+method$e3fa2040 class-environment.js:4:13
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetBinding dst:reg5, `Foo`
+  [  20] Return value:reg5
+
 
 true

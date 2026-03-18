@@ -1,15 +1,29 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:add
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
-[  80]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a8]       End value:reg5
+$52070826 baseline.js:5:1
+  Registers: 10
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
 
-JS bytecode executable "add"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Add dst:reg5, lhs:arg0, rhs:arg1
-[  18]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `add`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
+  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a8] End value:reg5
+
+
+add$782c0096 baseline.js:2:5
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Add dst:reg5, lhs:arg0, rhs:arg1
+  [  18] Return value:reg5
+
 
 3

@@ -1,13 +1,28 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@58
-[  10]    1: Catch dst:reg5
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg6, src3:Int32(42)
-[  40]       Mov dst:reg7, src:reg6
-[  50]    2: End value:reg7
-[  58]    3: Mov dst:reg5, src:Undefined
-[  68]       Throw src:Null
+$f0f9cdaa try-catch-completion-ordering.js:1:1
+  Registers: 8
+  Blocks:    4
+  Locals:    e~0
+  Constants:
+    [0] = Undefined
+    [1] = Int32(42)
+    [2] = Null
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block3
+
+block1:
+  [  10] Catch dst:reg5
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg6, src3:Int32(42)
+  [  40] Mov dst:reg7, src:reg6
+
+block2:
+  [  50] End value:reg7
+
+block3:
+  [  58] Mov dst:reg5, src:Undefined
+  [  68] Throw src:Null
 
 Exception handlers:
-    from   58 to   70 handler   10
+  [  58 ..   70] => handler block1

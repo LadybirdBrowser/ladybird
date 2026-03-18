@@ -1,29 +1,55 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:twoLocals
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, twoLocals
-[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a0]       GetGlobal dst:reg7, identifier:console
-[  b8]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  d8]       GetGlobal dst:reg10, identifier:threeLocals
-[  f0]       Call dst:reg9, callee:reg10, this_value:Undefined, threeLocals
-[ 110]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 138]       End value:reg6
+$3add7786 mov-merging.js:14:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "twoLocals"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
-[  20]       Add dst:reg5, lhs:a~0, rhs:b~1
-[  30]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `twoLocals`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, twoLocals
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] GetGlobal dst:reg7, `console`
+  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d8] GetGlobal dst:reg10, `threeLocals`
+  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, threeLocals
+  [ 110] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 138] End value:reg6
 
-JS bytecode executable "threeLocals"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov3 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2), dst3:c~2, src3:Int32(3)
-[  28]       Add dst:reg5, lhs:a~0, rhs:b~1
-[  38]       Add dst:reg6, lhs:reg5, rhs:c~2
-[  48]       Return value:reg6
+
+twoLocals$37fee39e mov-merging.js:2:5
+  Registers: 6
+  Blocks:    1
+  Locals:    a~0, b~1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
+  [  20] Add dst:reg5, lhs:a~0, rhs:b~1
+  [  30] Return value:reg5
+
+
+threeLocals$ddb137e7 mov-merging.js:8:5
+  Registers: 7
+  Blocks:    1
+  Locals:    a~0, b~1, c~2
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+    [2] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov3 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2), dst3:c~2, src3:Int32(3)
+  [  28] Add dst:reg5, lhs:a~0, rhs:b~1
+  [  38] Add dst:reg6, lhs:reg5, rhs:c~2
+  [  48] Return value:reg6
+
 
 3
 6

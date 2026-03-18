@@ -1,32 +1,71 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       NewObject dst:reg7
-[  30]       InitObjectLiteralProperty object:reg7, property:x, src:Int32(1), shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg7
-[  58]       NewObject dst:reg8
-[  68]       InitObjectLiteralProperty object:reg8, property:y, src:Int32(2), shape_cache_index:1, property_slot:0
-[  80]       CacheObjectShape object:reg8
-[  90]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
-[  b8]       End value:reg5
+$115d56d4 generator-yield-call.js:9:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Yield continuation_label:@18, value:Undefined
-[  18]    1: GetById dst:reg8, base:arg0, property:x, base_identifier:a
-[  38]       Yield continuation_label:@48, value:reg8
-[  48]    2: Mov dst:reg5, src:reg0
-[  58]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[  68]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@80, false_target:@b0
-[  80]    3: GetById dst:reg8, base:arg1, property:y, base_identifier:b
-[  a0]       Yield continuation_label:@e0, value:reg8
-[  b0]    4: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@c8, false_target:@d0
-[  c8]    5: Throw src:reg7
-[  d0]    6: Yield value:reg7
-[  e0]    7: Mov dst:reg5, src:reg0
-[  f0]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[ 100]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@118, false_target:@128
-[ 118]    8: Yield value:Undefined
-[ 128]    9: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@140, false_target:@148
-[ 140]   10: Throw src:reg7
-[ 148]   11: Yield value:reg7
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] NewObject dst:reg7
+  [  30] InitObjectLiteralProperty object:reg7, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg7
+  [  58] NewObject dst:reg8
+  [  68] InitObjectLiteralProperty object:reg8, `y`, src:Int32(2), shape_cache_index:1, property_slot:0
+  [  80] CacheObjectShape object:reg8
+  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+  [  b8] End value:reg5
+
+
+f$21b59c1e generator-yield-call.js:6:5
+  Registers: 11
+  Blocks:    12
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(5)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  18] GetById dst:reg8, base:arg0, `x` (a.x)
+  [  38] Yield continuation_label:block2, value:reg8
+
+block2:
+  [  48] Mov dst:reg5, src:reg0
+  [  58] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  68] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+
+block3:
+  [  80] GetById dst:reg8, base:arg1, `y` (b.y)
+  [  a0] Yield continuation_label:block7, value:reg8
+
+block4:
+  [  b0] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
+
+block5:
+  [  c8] Throw src:reg7
+
+block6:
+  [  d0] Yield value:reg7
+
+block7:
+  [  e0] Mov dst:reg5, src:reg0
+  [  f0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 100] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block8, false_target:block9
+
+block8:
+  [ 118] Yield value:Undefined
+
+block9:
+  [ 128] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block10, false_target:block11
+
+block10:
+  [ 140] Throw src:reg7
+
+block11:
+  [ 148] Yield value:reg7

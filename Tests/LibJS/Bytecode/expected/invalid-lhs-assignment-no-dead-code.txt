@@ -1,27 +1,53 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@40
-[  10]    1: Catch dst:reg5
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
-[  38]    2: End value:reg6
-[  40]    3: Mov dst:reg5, src:Undefined
-[  50]       GetGlobal dst:reg8, identifier:f
-[  68]       NewFunction dst:reg9, shared_function_data_index:0
-[  80]       Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
-[  a8]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-[  c0]       End value:reg6
+$b4733eed invalid-lhs-assignment-no-dead-code.js:1:1
+  Registers: 10
+  Blocks:    4
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block3
+
+block1:
+  [  10] Catch dst:reg5
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
+
+block2:
+  [  38] End value:reg6
+
+block3:
+  [  40] Mov dst:reg5, src:Undefined
+  [  50] GetGlobal dst:reg8, `f`
+  [  68] NewFunction dst:reg9, shared_function_data_index:0
+  [  80] Call dst:reg6, callee:reg8, this_value:Undefined, f, arguments:[reg9]
+  [  a8] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [  c0] End value:reg6
 
 Exception handlers:
-    from   40 to   c8 handler   10
+  [  40 ..   c8] => handler block1
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:reg6, src:arg0
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, x
-[  38]       NewReferenceError dst:reg5, Invalid left-hand side in assignment
-[  48]       Throw src:reg5
 
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+f$36570247 invalid-lhs-assignment-no-dead-code.js:5:6
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:reg6, src:arg0
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, x
+  [  38] NewReferenceError dst:reg5, Invalid left-hand side in assignment
+  [  48] Throw src:reg5
+
+
+$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined

@@ -1,12 +1,43 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:a, src:BigInt(3n)
-[  20]       SetGlobal identifier:b, src:BigInt(7n)
-[  38]       SetGlobal identifier:c, src:BigInt(6n)
-[  50]       SetGlobal identifier:d, src:BigInt(3n)
-[  68]       SetGlobal identifier:e, src:BigInt(1n)
-[  80]       SetGlobal identifier:f, src:BigInt(8n)
-[  98]       SetGlobal identifier:g, src:Bool(true)
-[  b0]       SetGlobal identifier:h, src:Bool(true)
-[  c8]       SetGlobal identifier:i, src:BigInt(-2n)
-[  e0]       End value:Undefined
+$ab928610 bigint-constant-folding.js:1:1
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = BigInt(1n)
+    [1] = BigInt(2n)
+    [2] = BigInt(3n)
+    [3] = BigInt(10n)
+    [4] = BigInt(3n)
+    [5] = BigInt(7n)
+    [6] = BigInt(2n)
+    [7] = BigInt(3n)
+    [8] = BigInt(6n)
+    [9] = BigInt(10n)
+    [10] = BigInt(3n)
+    [11] = BigInt(3n)
+    [12] = BigInt(10n)
+    [13] = BigInt(3n)
+    [14] = BigInt(1n)
+    [15] = BigInt(2n)
+    [16] = BigInt(3n)
+    [17] = BigInt(8n)
+    [18] = BigInt(1n)
+    [19] = BigInt(1n)
+    [20] = Bool(true)
+    [21] = BigInt(1n)
+    [22] = Int32(1)
+    [23] = BigInt(1n)
+    [24] = BigInt(-2n)
+    [25] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `a`, src:BigInt(3n)
+  [  20] SetGlobal `b`, src:BigInt(7n)
+  [  38] SetGlobal `c`, src:BigInt(6n)
+  [  50] SetGlobal `d`, src:BigInt(3n)
+  [  68] SetGlobal `e`, src:BigInt(1n)
+  [  80] SetGlobal `f`, src:BigInt(8n)
+  [  98] SetGlobal `g`, src:Bool(true)
+  [  b0] SetGlobal `h`, src:Bool(true)
+  [  c8] SetGlobal `i`, src:BigInt(-2n)
+  [  e0] End value:Undefined

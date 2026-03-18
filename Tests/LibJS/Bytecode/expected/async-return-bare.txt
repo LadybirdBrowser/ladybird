@@ -1,10 +1,25 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  40]       End value:reg5
+$69cce752 async-return-bare.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: Yield continuation_label:@10, value:Undefined
-[  10]    1: GetLexicalEnvironment dst:reg4
-[  18]       Yield value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  40] End value:reg5
+
+
+f$e646074e async-return-bare.js:2:5
+  Registers: 5
+  Blocks:    2
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  10] GetLexicalEnvironment dst:reg4
+  [  18] Yield value:Undefined

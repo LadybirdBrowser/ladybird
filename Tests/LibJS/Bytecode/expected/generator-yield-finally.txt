@@ -1,47 +1,111 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  40]       End value:reg5
+$69cce752 generator-yield-finally.js:11:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Yield continuation_label:@18, value:Undefined
-[  18]    1: Jump target:@60
-[  20]    2: Catch dst:reg6
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:reg5, src:Int32(1)
-[  40]    3: Mov dst:reg10, src:reg1
-[  50]       Yield continuation_label:@188, value:Int32(3)
-[  60]    4: Yield continuation_label:@70, value:Int32(1)
-[  70]    5: Mov dst:reg7, src:reg0
-[  80]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-[  90]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@a8, false_target:@b8
-[  a8]    6: Yield continuation_label:@f8, value:Int32(2)
-[  b8]    7: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@d0, false_target:@d8
-[  d0]    8: Throw src:reg9
-[  d8]    9: Mov2 dst1:reg6, src1:reg9, dst2:reg5, src2:Int32(2)
-[  f0]       Jump target:@40
-[  f8]   10: Mov dst:reg7, src:reg0
-[ 108]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-[ 118]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@130, false_target:@148
-[ 130]   11: Mov dst:reg5, src:Int32(0)
-[ 140]       Jump target:@40
-[ 148]   12: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@160, false_target:@168
-[ 160]   13: Throw src:reg9
-[ 168]   14: Mov2 dst1:reg6, src1:reg9, dst2:reg5, src2:Int32(2)
-[ 180]       Jump target:@40
-[ 188]   15: Mov2 dst1:reg1, src1:reg10, dst2:reg7, src2:reg0
-[ 1a0]       GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
-[ 1b0]       JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:@1c8, false_target:@1e0
-[ 1c8]   16: JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:@210, false_target:@220
-[ 1e0]   17: JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:@1f8, false_target:@200
-[ 1f8]   18: Throw src:reg9
-[ 200]   19: Yield value:reg9
-[ 210]   20: Yield value:Undefined
-[ 220]   21: JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:@238, false_target:@248
-[ 238]   22: Yield value:reg6
-[ 248]   23: Throw src:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  40] End value:reg5
+
+
+f$f2967315 generator-yield-finally.js:4:5
+  Registers: 13
+  Blocks:    24
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(5)
+    [3] = Int32(2)
+    [4] = Int32(0)
+    [5] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  18] Jump target:block4
+
+block2:
+  [  20] Catch dst:reg6
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] Mov dst:reg5, src:Int32(1)
+
+block3:
+  [  40] Mov dst:reg10, src:reg1
+  [  50] Yield continuation_label:block15, value:Int32(3)
+
+block4:
+  [  60] Yield continuation_label:block5, value:Int32(1)
+
+block5:
+  [  70] Mov dst:reg7, src:reg0
+  [  80] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [  90] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block6, false_target:block7
+
+block6:
+  [  a8] Yield continuation_label:block10, value:Int32(2)
+
+block7:
+  [  b8] JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:block8, false_target:block9
+
+block8:
+  [  d0] Throw src:reg9
+
+block9:
+  [  d8] Mov2 dst1:reg6, src1:reg9, dst2:reg5, src2:Int32(2)
+  [  f0] Jump target:block3
+
+block10:
+  [  f8] Mov dst:reg7, src:reg0
+  [ 108] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [ 118] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block11, false_target:block12
+
+block11:
+  [ 130] Mov dst:reg5, src:Int32(0)
+  [ 140] Jump target:block3
+
+block12:
+  [ 148] JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:block13, false_target:block14
+
+block13:
+  [ 160] Throw src:reg9
+
+block14:
+  [ 168] Mov2 dst1:reg6, src1:reg9, dst2:reg5, src2:Int32(2)
+  [ 180] Jump target:block3
+
+block15:
+  [ 188] Mov2 dst1:reg1, src1:reg10, dst2:reg7, src2:reg0
+  [ 1a0] GetCompletionFields type_dst:reg8, value_dst:reg9, completion:reg7
+  [ 1b0] JumpStrictlyEquals lhs:reg8, rhs:Int32(1), true_target:block16, false_target:block17
+
+block16:
+  [ 1c8] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block20, false_target:block21
+
+block17:
+  [ 1e0] JumpStrictlyEquals lhs:reg8, rhs:Int32(5), true_target:block18, false_target:block19
+
+block18:
+  [ 1f8] Throw src:reg9
+
+block19:
+  [ 200] Yield value:reg9
+
+block20:
+  [ 210] Yield value:Undefined
+
+block21:
+  [ 220] JumpStrictlyEquals lhs:reg5, rhs:Int32(2), true_target:block22, false_target:block23
+
+block22:
+  [ 238] Yield value:reg6
+
+block23:
+  [ 248] Throw src:reg6
 
 Exception handlers:
-    from   60 to  188 handler   20
+  [  60 ..  188] => handler block2

@@ -1,15 +1,26 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  40]       End value:reg5
+$69cce752 class-computed-key.js:10:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:, is_immutable:true, is_global:false, is_strict:false
-[  28]       GetGlobal dst:reg6, identifier:Symbol
-[  40]       GetById dst:reg7, base:reg6, property:iterator, base_identifier:Symbol
-[  60]       SetLexicalEnvironment environment:reg4
-[  68]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg7]
-[  90]       Return value:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  40] End value:reg5
+
+
+f$7455d328 class-computed-key.js:4:5
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable ``, is_immutable:true, is_global:false, is_strict:false
+  [  28] GetGlobal dst:reg6, `Symbol`
+  [  40] GetById dst:reg7, base:reg6, `iterator` (Symbol.iterator)
+  [  60] SetLexicalEnvironment environment:reg4
+  [  68] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:reg7]
+  [  90] Return value:reg6

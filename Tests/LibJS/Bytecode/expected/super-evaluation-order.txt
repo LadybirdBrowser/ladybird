@@ -1,53 +1,90 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
-[  28]       GetGlobal dst:reg6, identifier:Object
-[  40]       SetLexicalEnvironment environment:reg4
-[  48]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
-[  78]       InitializeLexicalBinding identifier:A, src:reg7
-[  90]       GetGlobal dst:reg7, identifier:A
-[  a8]       CallConstruct dst:reg6, callee:reg7, A
-[  c0]       GetById dst:reg7, base:reg6, property:read
-[  e0]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.read
-[ 100]       GetGlobal dst:reg8, identifier:A
-[ 118]       CallConstruct dst:reg7, callee:reg8, A
-[ 130]       GetById dst:reg8, base:reg7, property:write
-[ 150]       Call dst:reg6, callee:reg8, this_value:reg7, <object>.write
-[ 170]       GetGlobal dst:reg8, identifier:A
-[ 188]       CallConstruct dst:reg7, callee:reg8, A
-[ 1a0]       GetById dst:reg8, base:reg7, property:update
-[ 1c0]       Call dst:reg5, callee:reg8, this_value:reg7, <object>.update
-[ 1e0]       End value:reg5
+$781e423f super-evaluation-order.js:1:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = String("read")
+    [1] = String("write")
+    [2] = String("update")
+    [3] = Undefined
 
-JS bytecode executable "A"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:args, is_immutable:false, is_global:false, is_strict:false
-[  18]       CreateRestParams dst:arg0, rest_index:0
-[  28]       InitializeLexicalBinding identifier:args, src:arg0
-[  40]       GetBinding dst:reg5, identifier:args
-[  58]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-[  68]       Return value:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  28] GetGlobal dst:reg6, `Object`
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
+  [  78] InitializeLexicalBinding `A`, src:reg7
+  [  90] GetGlobal dst:reg7, `A`
+  [  a8] CallConstruct dst:reg6, callee:reg7, A
+  [  c0] GetById dst:reg7, base:reg6, `read`
+  [  e0] Call dst:reg5, callee:reg7, this_value:reg6, <object>.read
+  [ 100] GetGlobal dst:reg8, `A`
+  [ 118] CallConstruct dst:reg7, callee:reg8, A
+  [ 130] GetById dst:reg8, base:reg7, `write`
+  [ 150] Call dst:reg6, callee:reg8, this_value:reg7, <object>.write
+  [ 170] GetGlobal dst:reg8, `A`
+  [ 188] CallConstruct dst:reg7, callee:reg8, A
+  [ 1a0] GetById dst:reg8, base:reg7, `update`
+  [ 1c0] Call dst:reg5, callee:reg8, this_value:reg7, <object>.update
+  [ 1e0] End value:reg5
 
-JS bytecode executable "read"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg5
-[  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
-[  38]       Return value:reg6
 
-JS bytecode executable "write"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg5
-[  18]       PutByIdWithThis base:reg5, this_value:this, property:x, src:Int32(42), kind:Normal
-[  38]       End value:Undefined
+A$3f156142 super-evaluation-order.js:1:1
+  Registers: 7
+  Blocks:    1
 
-JS bytecode executable "update"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg5
-[  18]       GetByIdWithThis dst:reg6, base:reg5, property:x, this_value:this
-[  38]       PostfixIncrement dst:reg7, src:reg6
-[  48]       PutByIdWithThis base:reg5, this_value:this, property:x, src:reg6, kind:Normal
-[  68]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
+  [  18] CreateRestParams dst:arg0, rest_index:0
+  [  28] InitializeLexicalBinding `args`, src:arg0
+  [  40] GetBinding dst:reg5, `args`
+  [  58] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  68] Return value:reg6
+
+
+read$2a1a7339 super-evaluation-order.js:3:9
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = String("x")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  38] Return value:reg6
+
+
+write$5b793bae super-evaluation-order.js:6:20
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = String("x")
+    [1] = Int32(42)
+    [2] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
+  [  38] End value:Undefined
+
+
+update$8ce50e3d super-evaluation-order.js:9:16
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  38] PostfixIncrement dst:reg7, src:reg6
+  [  48] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
+  [  68] End value:Undefined

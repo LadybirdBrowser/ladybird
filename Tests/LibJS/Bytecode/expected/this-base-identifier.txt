@@ -1,35 +1,65 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:get_from_this
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
-[  40]       GetGlobal dst:reg7, identifier:set_on_this
-[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
-[  78]       Jump target:@b0
-[  80]    1: Catch dst:reg5
-[  88]       SetLexicalEnvironment environment:reg4
-[  90]       Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
-[  a8]    2: End value:reg7
-[  b0]    3: Mov dst:reg5, src:Undefined
-[  c0]       GetGlobal dst:reg9, identifier:chained_this_access
-[  d8]       Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
-[  f8]       Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
-[ 110]       End value:reg7
+$3a924082 this-base-identifier.js:1:1
+  Registers: 10
+  Blocks:    4
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `get_from_this`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, get_from_this
+  [  40] GetGlobal dst:reg7, `set_on_this`
+  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, set_on_this
+  [  78] Jump target:block3
+
+block1:
+  [  80] Catch dst:reg5
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] Mov2 dst1:reg7, src1:Undefined, dst2:reg8, src2:reg7
+
+block2:
+  [  a8] End value:reg7
+
+block3:
+  [  b0] Mov dst:reg5, src:Undefined
+  [  c0] GetGlobal dst:reg9, `chained_this_access`
+  [  d8] Call dst:reg7, callee:reg9, this_value:Undefined, chained_this_access
+  [  f8] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+  [ 110] End value:reg7
 
 Exception handlers:
-    from   b0 to  118 handler   80
+  [  b0 ..  118] => handler block1
 
-JS bytecode executable "get_from_this"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetById dst:reg5, base:this, property:foo, base_identifier:this
-[  28]       Return value:reg5
 
-JS bytecode executable "set_on_this"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       PutById base:this, property:bar, src:Int32(1), kind:Normal, base_identifier:this
-[  30]       End value:Undefined
+get_from_this$4bb390c8 this-base-identifier.js:5:5
+  Registers: 6
+  Blocks:    1
 
-JS bytecode executable "chained_this_access"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetById dst:reg5, base:this, property:a, base_identifier:this
-[  28]       GetById dst:reg6, base:reg5, property:b, base_identifier:this.a
-[  48]       Return value:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetById dst:reg5, base:this, `foo` (this.foo)
+  [  28] Return value:reg5
+
+
+set_on_this$453a2d11 this-base-identifier.js:9:14
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] PutById base:this, `bar`, src:Int32(1), kind:Normal (this.bar)
+  [  30] End value:Undefined
+
+
+chained_this_access$48ebed63 this-base-identifier.js:13:5
+  Registers: 7
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetById dst:reg5, base:this, `a` (this.a)
+  [  28] GetById dst:reg6, base:reg5, `b` (this.a.b)
+  [  48] Return value:reg6

@@ -1,27 +1,49 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@48
-[  10]    1: Catch dst:reg5
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
-[  40]    2: End value:reg6
-[  48]    3: Mov dst:reg5, src:Undefined
-[  58]       NewFunction dst:reg8, shared_function_data_index:0
-[  70]       Call dst:reg6, callee:reg8, this_value:Undefined
-[  90]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-[  a8]       End value:reg6
+$97607366 using-declaration-non-local-env.js:1:1
+  Registers: 9
+  Blocks:    4
+  Locals:    e~0
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block3
+
+block1:
+  [  10] Catch dst:reg5
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
+
+block2:
+  [  40] End value:reg6
+
+block3:
+  [  48] Mov dst:reg5, src:Undefined
+  [  58] NewFunction dst:reg8, shared_function_data_index:0
+  [  70] Call dst:reg6, callee:reg8, this_value:Undefined
+  [  90] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [  a8] End value:reg6
 
 Exception handlers:
-    from   48 to   b0 handler   10
+  [  48 ..   b0] => handler block1
 
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateImmutableBinding environment:reg5, identifier:x, strict_binding:true
-[  28]       NewTypeError dst:reg6, TODO: UsingDeclaration
-[  38]       SetLexicalEnvironment environment:reg4
-[  40]       Throw src:reg6
-[  48]    1: NewFunction dst:reg7, shared_function_data_index:0
-[  60]       Call dst:reg6, callee:reg7, this_value:Undefined
-[  80]       SetLexicalEnvironment environment:reg4
-[  88]       End value:Undefined
+
+$21ba43fc using-declaration-non-local-env.js:1:21
+  Registers: 8
+  Blocks:    2
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateImmutableBinding environment:reg5, `x`, strict_binding:true
+  [  28] NewTypeError dst:reg6, TODO: UsingDeclaration
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] Throw src:reg6
+
+block1:
+  [  48] NewFunction dst:reg7, shared_function_data_index:0
+  [  60] Call dst:reg6, callee:reg7, this_value:Undefined
+  [  80] SetLexicalEnvironment environment:reg4
+  [  88] End value:Undefined

@@ -1,24 +1,53 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  40]       End value:reg5
+$69cce752 async-await.js:9:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "f"
-[   0]    0: Yield continuation_label:@10, value:Undefined
-[  10]    1: GetLexicalEnvironment dst:reg4
-[  18]       GetGlobal dst:reg6, identifier:Promise
-[  30]       GetById dst:reg7, base:reg6, property:resolve, base_identifier:Promise
-[  50]       Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-[  78]       Mov dst:reg6, src:reg0
-[  88]       Await continuation_label:@98, argument:reg5
-[  98]    2: Mov dst:reg6, src:reg0
-[  a8]       GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-[  b8]       JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:@d0, false_target:@e0
-[  d0]    3: Await continuation_label:@e8, argument:reg8
-[  e0]    4: Throw src:reg8
-[  e8]    5: Mov dst:reg5, src:reg0
-[  f8]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[ 108]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@120, false_target:@130
-[ 120]    6: Yield value:reg7
-[ 130]    7: Throw src:reg7
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  40] End value:reg5
+
+
+f$c9505126 async-await.js:7:5
+  Registers: 10
+  Blocks:    8
+  Constants:
+    [0] = Undefined
+    [1] = Int32(42)
+    [2] = Int32(1)
+
+block0:
+  [   0] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  10] GetLexicalEnvironment dst:reg4
+  [  18] GetGlobal dst:reg6, `Promise`
+  [  30] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
+  [  50] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
+  [  78] Mov dst:reg6, src:reg0
+  [  88] Await continuation_label:block2, argument:reg5
+
+block2:
+  [  98] Mov dst:reg6, src:reg0
+  [  a8] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  b8] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block3, false_target:block4
+
+block3:
+  [  d0] Await continuation_label:block5, argument:reg8
+
+block4:
+  [  e0] Throw src:reg8
+
+block5:
+  [  e8] Mov dst:reg5, src:reg0
+  [  f8] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 108] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block6, false_target:block7
+
+block6:
+  [ 120] Yield value:reg7
+
+block7:
+  [ 130] Throw src:reg7

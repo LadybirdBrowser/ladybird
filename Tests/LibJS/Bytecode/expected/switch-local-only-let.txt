@@ -1,33 +1,70 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:switchLocalOnly
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
-[  80]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a8]       GetGlobal dst:reg7, identifier:console
-[  c0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  e0]       GetGlobal dst:reg10, identifier:switchLocalOnly
-[  f8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
-[ 120]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 148]       GetGlobal dst:reg7, identifier:console
-[ 160]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[ 180]       GetGlobal dst:reg10, identifier:switchLocalOnly
-[ 198]       Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
-[ 1c0]       Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 1e8]       End value:reg5
+$a1c3db73 switch-local-only-let.js:15:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
 
-JS bytecode executable "switchLocalOnly"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]    1: JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:@40, false_target:@20
-[  20]    2: JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:@58, false_target:@38
-[  38]    3: Return value:Int32(0)
-[  40]    4: Mov dst:a~0, src:Int32(10)
-[  50]       Return value:a~0
-[  58]    5: Mov dst:b~1, src:Int32(20)
-[  68]       Return value:b~1
-[  70]    6: Return value:Int32(0)
-[  78]    7: End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `switchLocalOnly`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
+  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a8] GetGlobal dst:reg7, `console`
+  [  c0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  e0] GetGlobal dst:reg10, `switchLocalOnly`
+  [  f8] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
+  [ 120] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 148] GetGlobal dst:reg7, `console`
+  [ 160] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 180] GetGlobal dst:reg10, `switchLocalOnly`
+  [ 198] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
+  [ 1c0] Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 1e8] End value:reg5
+
+
+switchLocalOnly$c70bcd58 switch-local-only-let.js:4:5
+  Registers: 6
+  Blocks:    8
+  Locals:    a~0, b~1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+    [2] = Int32(10)
+    [3] = Int32(20)
+    [4] = Int32(0)
+    [5] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+
+block1:
+  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block4, false_target:block2
+
+block2:
+  [  20] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block5, false_target:block3
+
+block3:
+  [  38] Return value:Int32(0)
+
+block4:
+  [  40] Mov dst:a~0, src:Int32(10)
+  [  50] Return value:a~0
+
+block5:
+  [  58] Mov dst:b~1, src:Int32(20)
+  [  68] Return value:b~1
+
+block6:
+  [  70] Return value:Int32(0)
+
+block7:
+  [  78] End value:Undefined
+
 
 10
 20

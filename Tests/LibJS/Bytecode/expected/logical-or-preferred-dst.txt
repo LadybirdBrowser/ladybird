@@ -1,15 +1,42 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:blocked
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-[  48]       End value:reg5
+$2e768d79 logical-or-preferred-dst.js:11:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Bool(false)
 
-JS bytecode executable "blocked"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]    1: Mov dst:reg5, src:arg0
-[  18]       JumpIf condition:arg0, true_target:@40, false_target:@30
-[  28]    2: End value:Undefined
-[  30]    3: GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
-[  40]    4: JumpFalse condition:reg5, target:@58
-[  50]    5: Jump target:@8
-[  58]    6: Jump target:@28
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `blocked`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [  48] End value:reg5
+
+
+blocked$3d17db43 logical-or-preferred-dst.js:6:9
+  Registers: 6
+  Blocks:    7
+  Constants:
+    [0] = Int32(0)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+
+block1:
+  [   8] Mov dst:reg5, src:arg0
+  [  18] JumpIf condition:arg0, true_target:block4, false_target:block3
+
+block2:
+  [  28] End value:Undefined
+
+block3:
+  [  30] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+
+block4:
+  [  40] JumpFalse condition:reg5, target:block6
+
+block5:
+  [  50] Jump target:block1
+
+block6:
+  [  58] Jump target:block2

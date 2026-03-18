@@ -1,19 +1,42 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:foo
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
-[  40]       End value:reg5
+$e6445d4a eval-same-function.js:10:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateArguments is_immutable:false
-[  18]       GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, identifier:eval
-[  30]       CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
-[  58]       GetBinding dst:reg6, identifier:Number
-[  70]       CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
-[  90]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `foo`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  40] End value:reg5
 
-JS bytecode executable "eval"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetLexicalBinding identifier:x, src:Int32(1)
-[  20]       End value:Undefined
+
+foo$a4ff2c4f eval-same-function.js:6:9
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = String("var x = 1")
+    [1] = Undefined
+    [2] = Int32(42)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateArguments is_immutable:false
+  [  18] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
+  [  30] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
+  [  58] GetBinding dst:reg6, `Number`
+  [  70] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+  [  90] Return value:reg5
+
+
+eval$3c61584c line 1, column 1
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetLexicalBinding `x`, src:Int32(1)
+  [  20] End value:Undefined

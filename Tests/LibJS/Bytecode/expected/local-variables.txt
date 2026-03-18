@@ -1,25 +1,56 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:simple_let
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
-[  40]       GetGlobal dst:reg7, identifier:simple_const
-[  58]       Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
-[  78]       GetGlobal dst:reg7, identifier:multiple_locals
-[  90]       Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
-[  b0]       End value:reg5
+$3230d765 local-variables.js:20:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "simple_let"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:x~0, src:Int32(1)
-[  18]       Return value:x~0
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `simple_let`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
+  [  40] GetGlobal dst:reg7, `simple_const`
+  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
+  [  78] GetGlobal dst:reg7, `multiple_locals`
+  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
+  [  b0] End value:reg5
 
-JS bytecode executable "simple_const"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:y~0, src:Int32(2)
-[  18]       Return value:y~0
 
-JS bytecode executable "multiple_locals"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
-[  20]       Add dst:reg5, lhs:a~0, rhs:b~1
-[  30]       Return value:reg5
+simple_let$92bdb436 local-variables.js:5:5
+  Registers: 5
+  Blocks:    1
+  Locals:    x~0
+  Constants:
+    [0] = Int32(1)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:x~0, src:Int32(1)
+  [  18] Return value:x~0
+
+
+simple_const$0a9e10fd local-variables.js:10:5
+  Registers: 5
+  Blocks:    1
+  Locals:    y~0
+  Constants:
+    [0] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:y~0, src:Int32(2)
+  [  18] Return value:y~0
+
+
+multiple_locals$37fee39e local-variables.js:15:5
+  Registers: 6
+  Blocks:    1
+  Locals:    a~0, b~1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov2 dst1:a~0, src1:Int32(1), dst2:b~1, src2:Int32(2)
+  [  20] Add dst:reg5, lhs:a~0, rhs:b~1
+  [  30] Return value:reg5

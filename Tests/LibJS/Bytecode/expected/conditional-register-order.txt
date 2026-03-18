@@ -1,13 +1,33 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:foo
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
-[  40]       End value:reg5
+$e6445d4a conditional-register-order.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       JumpFalse condition:arg0, target:@30
-[  18]    1: Mov dst:reg5, src:Int32(1)
-[  28]       Return value:reg5
-[  30]    2: Mov dst:reg5, src:Int32(2)
-[  40]    3: Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `foo`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  40] End value:reg5
+
+
+foo$3dbe5650 conditional-register-order.js:2:5
+  Registers: 6
+  Blocks:    4
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] JumpFalse condition:arg0, target:block2
+
+block1:
+  [  18] Mov dst:reg5, src:Int32(1)
+  [  28] Return value:reg5
+
+block2:
+  [  30] Mov dst:reg5, src:Int32(2)
+
+block3:
+  [  40] Return value:reg5

@@ -1,14 +1,23 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:a, src:String("foo")
-[  20]       NewObject dst:reg5
-[  30]       InitObjectLiteralProperty object:reg5, property:foo, src:Int32(1), shape_cache_index:0, property_slot:0
-[  48]       InitObjectLiteralProperty object:reg5, property:bar, src:Int32(2), shape_cache_index:0, property_slot:1
-[  60]       CacheObjectShape object:reg5
-[  70]       ThrowIfNullish src:reg5
-[  78]       GetGlobal dst:reg7, identifier:a
-[  90]       GetByValue dst:reg6, base:reg5, property:reg7
-[  a8]       SetGlobal identifier:b, src:reg6
-[  c0]       CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
-[  e0]       SetGlobal identifier:rest, src:reg6
-[  f8]       End value:Undefined
+$28c626df object-rest-computed-key.js:1:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = String("foo")
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `a`, src:String("foo")
+  [  20] NewObject dst:reg5
+  [  30] InitObjectLiteralProperty object:reg5, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  48] InitObjectLiteralProperty object:reg5, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  60] CacheObjectShape object:reg5
+  [  70] ThrowIfNullish src:reg5
+  [  78] GetGlobal dst:reg7, `a`
+  [  90] GetByValue dst:reg6, base:reg5, property:reg7
+  [  a8] SetGlobal `b`, src:reg6
+  [  c0] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
+  [  e0] SetGlobal `rest`, src:reg6
+  [  f8] End value:Undefined

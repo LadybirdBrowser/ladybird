@@ -1,60 +1,110 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:throwInCatch
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
-[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a0]       GetGlobal dst:reg7, identifier:console
-[  b8]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  d8]       GetGlobal dst:reg10, identifier:throwInCatchWithLocals
-[  f0]       Call dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
-[ 110]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 138]       End value:reg6
+$b00b92b3 catch-scope-boundary.js:14:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "throwInCatch"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:result~2, src:String("bad")
-[  18]       Jump target:@88
-[  20]    1: Catch dst:reg5
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:e~1, src:reg5
-[  40]       Jump target:@78
-[  48]    2: Catch dst:reg6
-[  50]       SetLexicalEnvironment environment:reg4
-[  58]       Mov2 dst1:e2~0, src1:reg6, dst2:result~2, src2:String("good")
-[  70]    3: Return value:result~2
-[  78]    4: Throw src:Int32(2)
-[  80]    5: Return value:result~2
-[  88]    6: Throw src:Int32(1)
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `throwInCatch`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] GetGlobal dst:reg7, `console`
+  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d8] GetGlobal dst:reg10, `throwInCatchWithLocals`
+  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
+  [ 110] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 138] End value:reg6
+
+
+throwInCatch$ff1cead7 catch-scope-boundary.js:2:5
+  Registers: 7
+  Blocks:    7
+  Locals:    e2~0, e~1, result~2
+  Constants:
+    [0] = String("bad")
+    [1] = String("good")
+    [2] = Int32(2)
+    [3] = Int32(1)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:result~2, src:String("bad")
+  [  18] Jump target:block6
+
+block1:
+  [  20] Catch dst:reg5
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] Mov dst:e~1, src:reg5
+  [  40] Jump target:block4
+
+block2:
+  [  48] Catch dst:reg6
+  [  50] SetLexicalEnvironment environment:reg4
+  [  58] Mov2 dst1:e2~0, src1:reg6, dst2:result~2, src2:String("good")
+
+block3:
+  [  70] Return value:result~2
+
+block4:
+  [  78] Throw src:Int32(2)
+
+block5:
+  [  80] Return value:result~2
+
+block6:
+  [  88] Throw src:Int32(1)
 
 Exception handlers:
-    from   78 to   80 handler   48
-    from   88 to   90 handler   20
+  [  78 ..   80] => handler block2
+  [  88 ..   90] => handler block1
 
-JS bytecode executable "throwInCatchWithLocals"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:outerVar~3, src:String("outer")
-[  18]       Jump target:@c8
-[  20]    1: Catch dst:reg5
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       Mov dst:e~2, src:reg5
-[  40]       Add dst:catchLocal~1, lhs:String("local:"), rhs:e~2
-[  50]       Jump target:@c0
-[  58]    2: Catch dst:reg6
-[  60]       SetLexicalEnvironment environment:reg4
-[  68]       Mov dst:inner~0, src:reg6
-[  78]       Add dst:reg7, lhs:outerVar~3, rhs:String(",")
-[  88]       Add dst:reg8, lhs:reg7, rhs:catchLocal~1
-[  98]       Add dst:reg7, lhs:reg8, rhs:String(",")
-[  a8]       Add dst:reg8, lhs:reg7, rhs:inner~0
-[  b8]       Return value:reg8
-[  c0]    3: Throw src:String("second")
-[  c8]    4: Throw src:String("first")
+
+throwInCatchWithLocals$a73f2041 catch-scope-boundary.js:17:5
+  Registers: 9
+  Blocks:    5
+  Locals:    inner~0, catchLocal~1, e~2, outerVar~3
+  Constants:
+    [0] = String("outer")
+    [1] = String("local:")
+    [2] = String(",")
+    [3] = String("second")
+    [4] = String("first")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:outerVar~3, src:String("outer")
+  [  18] Jump target:block4
+
+block1:
+  [  20] Catch dst:reg5
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] Mov dst:e~2, src:reg5
+  [  40] Add dst:catchLocal~1, lhs:String("local:"), rhs:e~2
+  [  50] Jump target:block3
+
+block2:
+  [  58] Catch dst:reg6
+  [  60] SetLexicalEnvironment environment:reg4
+  [  68] Mov dst:inner~0, src:reg6
+  [  78] Add dst:reg7, lhs:outerVar~3, rhs:String(",")
+  [  88] Add dst:reg8, lhs:reg7, rhs:catchLocal~1
+  [  98] Add dst:reg7, lhs:reg8, rhs:String(",")
+  [  a8] Add dst:reg8, lhs:reg7, rhs:inner~0
+  [  b8] Return value:reg8
+
+block3:
+  [  c0] Throw src:String("second")
+
+block4:
+  [  c8] Throw src:String("first")
 
 Exception handlers:
-    from   c0 to   c8 handler   58
-    from   c8 to   d0 handler   20
+  [  c0 ..   c8] => handler block2
+  [  c8 ..   d0] => handler block1
+
 
 "good"
 "outer,local:first,second"

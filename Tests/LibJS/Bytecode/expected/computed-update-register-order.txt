@@ -1,21 +1,40 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
-[  50]       Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
-[  78]       End value:reg5
+$b70081a4 computed-update-register-order.js:8:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg5, base:arg0, property:Int32(3), base_identifier:c
-[  20]       Mov dst:reg6, src:Int32(3)
-[  30]       PostfixIncrement dst:reg7, src:reg5
-[  40]       PutByValue base:arg0, property:reg6, src:reg5, kind:Normal
-[  58]       GetGlobal dst:reg6, identifier:foo
-[  70]       Mov dst:reg7, src:arg0
-[  80]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-[  a8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  78] End value:reg5
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:arg0
+
+test$c6be6338 computed-update-register-order.js:5:9
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Int32(3)
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
+  [  20] Mov dst:reg6, src:Int32(3)
+  [  30] PostfixIncrement dst:reg7, src:reg5
+  [  40] PutByValue base:arg0, property:reg6, src:reg5, kind:Normal
+  [  58] GetGlobal dst:reg6, `foo`
+  [  70] Mov dst:reg7, src:arg0
+  [  80] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  a8] End value:Undefined
+
+
+foo$7176ad76 computed-update-register-order.js:2:5
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:arg0

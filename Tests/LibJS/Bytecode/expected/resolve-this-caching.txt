@@ -1,19 +1,37 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:foo
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, foo
-[  40]       End value:reg5
+$e6445d4a resolve-this-caching.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewFunction dst:reg6, shared_function_data_index:0
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined
-[  40]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `foo`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  40] End value:reg5
 
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       GetById dst:reg5, base:this, property:x, base_identifier:this
-[  30]       GetById dst:reg6, base:this, property:y, base_identifier:this
-[  50]       Add dst:reg7, lhs:reg5, rhs:reg6
-[  60]       Return value:reg7
+
+foo$2256967e resolve-this-caching.js:2:5
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewFunction dst:reg6, shared_function_data_index:0
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined
+  [  40] Return value:reg5
+
+
+$c9429add resolve-this-caching.js:2:13
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] GetById dst:reg5, base:this, `x` (this.x)
+  [  30] GetById dst:reg6, base:this, `y` (this.y)
+  [  50] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  60] Return value:reg7

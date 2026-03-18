@@ -1,19 +1,32 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       GetGlobal dst:reg6, identifier:Object
-[  40]       SetLexicalEnvironment environment:reg4
-[  48]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
-[  68]       InitializeLexicalBinding identifier:C, src:reg7
-[  80]       GetGlobal dst:reg6, identifier:C
-[  98]       CallConstruct dst:reg5, callee:reg6, C
-[  b0]       End value:reg5
+$477d99c6 super-call-spread-register-order.js:1:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateRestParams dst:arg0, rest_index:0
-[  18]       NewArray dst:reg5
-[  28]       ArrayAppend dst:reg5, src:arg0, is_spread:true
-[  38]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-[  48]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] GetGlobal dst:reg6, `Object`
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
+  [  68] InitializeLexicalBinding `C`, src:reg7
+  [  80] GetGlobal dst:reg6, `C`
+  [  98] CallConstruct dst:reg5, callee:reg6, C
+  [  b0] End value:reg5
+
+
+C$0ec9c92d super-call-spread-register-order.js:3:14
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateRestParams dst:arg0, rest_index:0
+  [  18] NewArray dst:reg5
+  [  28] ArrayAppend dst:reg5, src:arg0, is_spread:true
+  [  38] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  48] End value:Undefined

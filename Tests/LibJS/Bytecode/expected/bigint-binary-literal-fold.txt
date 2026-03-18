@@ -1,3 +1,11 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:BigInt(1n)
+$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = BigInt(3n)
+    [1] = BigInt(1n)
+    [2] = BigInt(1n)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:BigInt(1n)

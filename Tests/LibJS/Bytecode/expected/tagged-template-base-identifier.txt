@@ -1,16 +1,27 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewObject dst:reg5
-[  18]       NewFunction dst:reg6, shared_function_data_index:0, lhs_name:f
-[  30]       InitObjectLiteralProperty object:reg5, property:f, src:reg6, shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg5
-[  58]       SetGlobal identifier:obj, src:reg5
-[  70]       GetGlobal dst:reg5, identifier:obj
-[  88]       GetById dst:reg6, base:reg5, property:f, base_identifier:obj
-[  a8]       GetTemplateObject dst:reg7, strings:[String(""), String("")]
-[  c8]       Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
-[  f0]       End value:reg8
+$fe3e9770 tagged-template-base-identifier.js:1:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = String("")
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:this
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewObject dst:reg5
+  [  18] NewFunction dst:reg6, shared_function_data_index:0 (f)
+  [  30] InitObjectLiteralProperty object:reg5, `f`, src:reg6, shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg5
+  [  58] SetGlobal `obj`, src:reg5
+  [  70] GetGlobal dst:reg5, `obj`
+  [  88] GetById dst:reg6, base:reg5, `f` (obj.f)
+  [  a8] GetTemplateObject dst:reg7, strings:[String(""), String("")]
+  [  c8] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
+  [  f0] End value:reg8
+
+
+f$53c26a58 tagged-template-base-identifier.js:3:9
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:this

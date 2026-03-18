@@ -1,31 +1,56 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       NewObject dst:reg7
-[  30]       InitObjectLiteralProperty object:reg7, property:location, src:String("hello"), shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg7
-[  58]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-[  80]       End value:reg5
+$3dab9a19 assign-to-let-variable-tdz.js:12:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = String("hello")
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ThrowIfNullish src:arg0
-[  10]       GetById dst:reg5, base:arg0, property:location
-[  30]       Mov dst:a~0, src:reg5
-[  40]       ThrowIfTDZ src:a~0
-[  48]       Typeof dst:reg5, src:a~0
-[  58]       LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
-[  68]       Mov dst:reg5, src:reg6
-[  78]       JumpFalse condition:reg6, target:@100
-[  88]    1: GetGlobal dst:reg8, identifier:g
-[  a0]       ThrowIfTDZ src:a~0
-[  a8]       Mov dst:reg9, src:a~0
-[  b8]       Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
-[  e0]       ThrowIfTDZ src:a~0
-[  e8]       Mov2 dst1:a~0, src1:reg7, dst2:reg5, src2:reg7
-[ 100]    2: ThrowIfTDZ src:a~0
-[ 108]       Return value:a~0
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] NewObject dst:reg7
+  [  30] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg7
+  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  80] End value:reg5
 
-JS bytecode executable "g"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:arg0
+
+f$08c437ee assign-to-let-variable-tdz.js:7:5
+  Registers: 10
+  Blocks:    3
+  Locals:    a~0
+  Constants:
+    [0] = String("string")
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ThrowIfNullish src:arg0
+  [  10] GetById dst:reg5, base:arg0, `location`
+  [  30] Mov dst:a~0, src:reg5
+  [  40] ThrowIfTDZ src:a~0
+  [  48] Typeof dst:reg5, src:a~0
+  [  58] LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
+  [  68] Mov dst:reg5, src:reg6
+  [  78] JumpFalse condition:reg6, target:block2
+
+block1:
+  [  88] GetGlobal dst:reg8, `g`
+  [  a0] ThrowIfTDZ src:a~0
+  [  a8] Mov dst:reg9, src:a~0
+  [  b8] Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
+  [  e0] ThrowIfTDZ src:a~0
+  [  e8] Mov2 dst1:a~0, src1:reg7, dst2:reg5, src2:reg7
+
+block2:
+  [ 100] ThrowIfTDZ src:a~0
+  [ 108] Return value:a~0
+
+
+g$15d4d90c assign-to-let-variable-tdz.js:4:17
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:arg0

@@ -1,20 +1,34 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       NewObject dst:reg7
-[  30]       InitObjectLiteralProperty object:reg7, property:captured, src:Int32(1), shape_cache_index:0, property_slot:0
-[  48]       InitObjectLiteralProperty object:reg7, property:local, src:Int32(2), shape_cache_index:0, property_slot:1
-[  60]       CacheObjectShape object:reg7
-[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-[  98]       End value:reg5
+$34849cbe destructuring-param-no-param-expressions.js:10:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:captured, is_immutable:false, is_global:false, is_strict:false
-[  18]       ThrowIfNullish src:arg0
-[  20]       GetById dst:reg5, base:arg0, property:captured
-[  40]       InitializeLexicalBinding identifier:captured, src:reg5
-[  58]       GetById dst:reg5, base:arg0, property:local
-[  78]       Mov dst:local~0, src:reg5
-[  88]       NewFunction dst:reg5, shared_function_data_index:0
-[  a0]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] NewObject dst:reg7
+  [  30] InitObjectLiteralProperty object:reg7, `captured`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  48] InitObjectLiteralProperty object:reg7, `local`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  60] CacheObjectShape object:reg7
+  [  70] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  98] End value:reg5
+
+
+f$84013cfc destructuring-param-no-param-expressions.js:7:5
+  Registers: 6
+  Blocks:    1
+  Locals:    local~0
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
+  [  18] ThrowIfNullish src:arg0
+  [  20] GetById dst:reg5, base:arg0, `captured`
+  [  40] InitializeLexicalBinding `captured`, src:reg5
+  [  58] GetById dst:reg5, base:arg0, `local`
+  [  78] Mov dst:local~0, src:reg5
+  [  88] NewFunction dst:reg5, shared_function_data_index:0
+  [  a0] Return value:reg5

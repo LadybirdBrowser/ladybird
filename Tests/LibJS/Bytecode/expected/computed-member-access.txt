@@ -1,19 +1,38 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:computed_read
-[  20]       NewPrimitiveArray dst:reg7, elements:[1]
-[  38]       Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-[  60]       GetGlobal dst:reg7, identifier:computed_read_expression
-[  78]       NewPrimitiveArray dst:reg8, elements:[1]
-[  90]       Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
-[  b8]       End value:reg6
+$d6bbce15 computed-member-access.js:12:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(0)
 
-JS bytecode executable "computed_read"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg5, base:arg0, property:Int32(0), base_identifier:a
-[  20]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `computed_read`
+  [  20] NewPrimitiveArray dst:reg7, elements:[1]
+  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
+  [  60] GetGlobal dst:reg7, `computed_read_expression`
+  [  78] NewPrimitiveArray dst:reg8, elements:[1]
+  [  90] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
+  [  b8] End value:reg6
 
-JS bytecode executable "computed_read_expression"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetByValue dst:reg5, base:arg0, property:arg1, base_identifier:a
-[  20]       Return value:reg5
+
+computed_read$a6f67e31 computed-member-access.js:5:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Int32(0)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg5, base:arg0, property:Int32(0) (a[Int32(0)])
+  [  20] Return value:reg5
+
+
+computed_read_expression$adb2a228 computed-member-access.js:9:5
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (a[arg1])
+  [  20] Return value:reg5

@@ -1,17 +1,45 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:isect
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, isect
-[  40]       End value:reg5
+$b05eae7c var-hoisting-tdz.js:9:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "isect"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
-[  20]       Jump target:@38
-[  28]    1: PostfixIncrement dst:reg5, src:i~0
-[  38]    2: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@28, false_target:@50
-[  50]    3: Mov dst:i~0, src:Int32(0)
-[  60]       Jump target:@78
-[  68]    4: PostfixIncrement dst:reg5, src:i~0
-[  78]    5: JumpLessThan lhs:i~0, rhs:Int32(3), true_target:@68, false_target:@90
-[  90]    6: End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `isect`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  40] End value:reg5
+
+
+isect$3b32d4d0 var-hoisting-tdz.js:5:5
+  Registers: 6
+  Blocks:    7
+  Locals:    i~0
+  Constants:
+    [0] = Undefined
+    [1] = Int32(0)
+    [2] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+  [  20] Jump target:block2
+
+block1:
+  [  28] PostfixIncrement dst:reg5, src:i~0
+
+block2:
+  [  38] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block1, false_target:block3
+
+block3:
+  [  50] Mov dst:i~0, src:Int32(0)
+  [  60] Jump target:block5
+
+block4:
+  [  68] PostfixIncrement dst:reg5, src:i~0
+
+block5:
+  [  78] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block4, false_target:block6
+
+block6:
+  [  90] End value:Undefined

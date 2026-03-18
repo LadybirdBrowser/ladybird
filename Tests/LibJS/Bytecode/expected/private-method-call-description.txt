@@ -1,29 +1,55 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       CreatePrivateEnvironment
-[  30]       AddPrivateName name:#m
-[  38]       SetLexicalEnvironment environment:reg4
-[  40]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("call")]
-[  68]       LeavePrivateEnvironment
-[  70]       InitializeLexicalBinding identifier:C, src:reg6
-[  88]       GetGlobal dst:reg7, identifier:C
-[  a0]       CallConstruct dst:reg6, callee:reg7, C
-[  b8]       GetById dst:reg7, base:reg6, property:call
-[  d8]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.call
-[  f8]       End value:reg5
+$15b7a0d0 private-method-call-description.js:1:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = String("call")
+    [1] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] CreatePrivateEnvironment
+  [  30] AddPrivateName `#m`
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("call")]
+  [  68] LeavePrivateEnvironment
+  [  70] InitializeLexicalBinding `C`, src:reg6
+  [  88] GetGlobal dst:reg7, `C`
+  [  a0] CallConstruct dst:reg6, callee:reg7, C
+  [  b8] GetById dst:reg7, base:reg6, `call`
+  [  d8] Call dst:reg5, callee:reg7, this_value:reg6, <object>.call
+  [  f8] End value:reg5
 
-JS bytecode executable "call"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetPrivateById dst:reg6, base:this, property:#m
-[  18]       Call dst:reg5, callee:reg6, this_value:this, this.#m
-[  38]       Return value:reg5
 
-JS bytecode executable "#m"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:Int32(42)
+C$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+call$f617ed01 private-method-call-description.js:6:9
+  Registers: 7
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetPrivateById dst:reg6, base:this, `#m`
+  [  18] Call dst:reg5, callee:reg6, this_value:this, this.#m
+  [  38] Return value:reg5
+
+
+#m$52a40bc0 private-method-call-description.js:3:9
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Int32(42)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:Int32(42)

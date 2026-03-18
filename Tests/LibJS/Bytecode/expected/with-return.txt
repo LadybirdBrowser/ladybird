@@ -1,15 +1,29 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:with_return
-[  20]       NewObject dst:reg7
-[  30]       InitObjectLiteralProperty object:reg7, property:x, src:Int32(42), shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg7
-[  58]       Call dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
-[  80]       End value:reg5
+$e9ab2da1 with-return.js:10:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(42)
 
-JS bytecode executable "with_return"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       EnterObjectEnvironment dst:reg5, object:arg0
-[  18]       GetBinding dst:reg6, identifier:x
-[  30]       SetLexicalEnvironment environment:reg4
-[  38]       Return value:reg6
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `with_return`
+  [  20] NewObject dst:reg7
+  [  30] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg7
+  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
+  [  80] End value:reg5
+
+
+with_return$a3013274 with-return.js:5:5
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] EnterObjectEnvironment dst:reg5, object:arg0
+  [  18] GetBinding dst:reg6, `x`
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] Return value:reg6

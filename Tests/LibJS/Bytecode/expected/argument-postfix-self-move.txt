@@ -1,11 +1,23 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
-[  48]       End value:reg5
+$b08b32bb argument-postfix-self-move.js:5:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(10)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       PostfixDecrement dst:reg5, src:arg0
-[  18]       Mov dst:arg0, src:arg0
-[  28]       Return value:arg0
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
+  [  48] End value:reg5
+
+
+f$bfdb0dbf argument-postfix-self-move.js:2:6
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] PostfixDecrement dst:reg5, src:arg0
+  [  18] Mov dst:arg0, src:arg0
+  [  28] Return value:arg0

@@ -1,18 +1,39 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:C, element_keys:[element_keys:Int32(3)]
-[  48]       SetGlobal identifier:C, src:reg6
-[  60]       GetGlobal dst:reg6, identifier:C
-[  78]       CallConstruct dst:reg5, callee:reg6, C
-[  90]       End value:reg5
+$91a5a724 class-computed-field-lhs-name.js:1:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(2)
+    [2] = Int32(3)
+    [3] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (C), element_keys:[element_keys:Int32(3)]
+  [  48] SetGlobal `C`, src:reg6
+  [  60] GetGlobal dst:reg6, `C`
+  [  78] CallConstruct dst:reg5, callee:reg6, C
+  [  90] End value:reg5
 
-JS bytecode executable "field"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewFunction dst:reg5, shared_function_data_index:0
-[  20]       Return value:reg5
+
+C$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+field$d817cc70 class-computed-field-lhs-name.js:2:15
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewFunction dst:reg5, shared_function_data_index:0
+  [  20] Return value:reg5

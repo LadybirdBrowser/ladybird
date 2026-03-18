@@ -1,16 +1,32 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:assign_nested
-[  20]       NewObject dst:reg7
-[  30]       InitObjectLiteralProperty object:reg7, property:shader, src:Int32(1), shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg7
-[  58]       NewArray dst:reg8, elements:[reg7]
-[  70]       Call dst:reg5, callee:reg6, this_value:Undefined, assign_nested, arguments:[reg8, Int32(1)]
-[  98]       End value:reg5
+$4b4a3d70 nested-member-base-identifier.js:9:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
 
-JS bytecode executable "assign_nested"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Sub dst:reg5, lhs:arg1, rhs:Int32(1)
-[  18]       GetByValue dst:reg6, base:arg0, property:reg5, base_identifier:arr
-[  30]       PutById base:reg6, property:shader, src:Int32(0), kind:Normal, base_identifier:arr
-[  58]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `assign_nested`
+  [  20] NewObject dst:reg7
+  [  30] InitObjectLiteralProperty object:reg7, `shader`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg7
+  [  58] NewArray dst:reg8, elements:[reg7]
+  [  70] Call dst:reg5, callee:reg6, this_value:Undefined, assign_nested, arguments:[reg8, Int32(1)]
+  [  98] End value:reg5
+
+
+assign_nested$ab9ddddc nested-member-base-identifier.js:6:8
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Int32(0)
+    [2] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Sub dst:reg5, lhs:arg1, rhs:Int32(1)
+  [  18] GetByValue dst:reg6, base:arg0, property:reg5 (arr[reg5])
+  [  30] PutById base:reg6, `shader`, src:Int32(0), kind:Normal (arr.shader)
+  [  58] End value:Undefined

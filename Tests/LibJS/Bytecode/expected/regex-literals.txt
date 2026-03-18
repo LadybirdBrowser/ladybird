@@ -1,20 +1,33 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewRegExp dst:reg5, foo, 
-[  20]       InitializeLexicalBinding identifier:a, src:reg5
-[  38]       NewRegExp dst:reg5, bar, gi
-[  50]       InitializeLexicalBinding identifier:b, src:reg5
-[  68]       NewRegExp dst:reg5, baz, i
-[  80]       Add dst:reg6, lhs:Int32(1), rhs:reg5
-[  90]       InitializeLexicalBinding identifier:c, src:reg6
-[  a8]       GetGlobal dst:reg6, identifier:matchDigits
-[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, matchDigits, arguments:[String("abc123")]
-[  e8]       End value:reg5
+$b46fb5c4 regex-literals.js:2:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Int32(1)
+    [1] = Undefined
+    [2] = String("abc123")
 
-JS bytecode executable "matchDigits"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewRegExp dst:reg6, \d+, g
-[  20]       GetById dst:reg7, base:reg6, property:test
-[  40]       Mov dst:reg8, src:arg0
-[  50]       Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
-[  78]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewRegExp dst:reg5, foo, 
+  [  20] InitializeLexicalBinding `a`, src:reg5
+  [  38] NewRegExp dst:reg5, bar, gi
+  [  50] InitializeLexicalBinding `b`, src:reg5
+  [  68] NewRegExp dst:reg5, baz, i
+  [  80] Add dst:reg6, lhs:Int32(1), rhs:reg5
+  [  90] InitializeLexicalBinding `c`, src:reg6
+  [  a8] GetGlobal dst:reg6, `matchDigits`
+  [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, matchDigits, arguments:[String("abc123")]
+  [  e8] End value:reg5
+
+
+matchDigits$4cca49e8 regex-literals.js:8:5
+  Registers: 9
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewRegExp dst:reg6, \d+, g
+  [  20] GetById dst:reg7, base:reg6, `test`
+  [  40] Mov dst:reg8, src:arg0
+  [  50] Call dst:reg5, callee:reg7, this_value:reg6, <object>.test, arguments:[reg8]
+  [  78] Return value:reg5

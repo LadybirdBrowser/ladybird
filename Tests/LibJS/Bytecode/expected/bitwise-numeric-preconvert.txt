@@ -1,10 +1,24 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[Int32(1)]
-[  48]       End value:reg5
+$3063fdab bitwise-numeric-preconvert.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       RightShift dst:reg5, lhs:Int32(-2147483648), rhs:arg0
-[  18]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[Int32(1)]
+  [  48] End value:reg5
+
+
+test$355d3f01 bitwise-numeric-preconvert.js:2:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Int32(-2147483648)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] RightShift dst:reg5, lhs:Int32(-2147483648), rhs:arg0
+  [  18] Return value:reg5

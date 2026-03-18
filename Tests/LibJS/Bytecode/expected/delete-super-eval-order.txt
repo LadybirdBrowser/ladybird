@@ -1,34 +1,64 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:A, is_immutable:true, is_global:false, is_strict:false
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
-[  58]       InitializeLexicalBinding identifier:A, src:reg6
-[  70]       Jump target:@a8
-[  78]    1: Catch dst:reg5
-[  80]       SetLexicalEnvironment environment:reg4
-[  88]       Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
-[  a0]    2: End value:reg6
-[  a8]    3: Mov dst:reg5, src:Undefined
-[  b8]       GetGlobal dst:reg9, identifier:A
-[  d0]       CallConstruct dst:reg8, callee:reg9, A
-[  e8]       GetById dst:reg9, base:reg8, property:m
-[ 108]       Call dst:reg6, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
-[ 130]       Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
-[ 148]       End value:reg6
+$7867793e delete-super-eval-order.js:1:1
+  Registers: 10
+  Blocks:    4
+  Constants:
+    [0] = String("m")
+    [1] = Undefined
+    [2] = String("x")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:false
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("m")]
+  [  58] InitializeLexicalBinding `A`, src:reg6
+  [  70] Jump target:block3
+
+block1:
+  [  78] Catch dst:reg5
+  [  80] SetLexicalEnvironment environment:reg4
+  [  88] Mov2 dst1:reg6, src1:Undefined, dst2:reg7, src2:reg6
+
+block2:
+  [  a0] End value:reg6
+
+block3:
+  [  a8] Mov dst:reg5, src:Undefined
+  [  b8] GetGlobal dst:reg9, `A`
+  [  d0] CallConstruct dst:reg8, callee:reg9, A
+  [  e8] GetById dst:reg9, base:reg8, `m`
+  [ 108] Call dst:reg6, callee:reg9, this_value:reg8, <object>.m, arguments:[String("x")]
+  [ 130] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [ 148] End value:reg6
 
 Exception handlers:
-    from   a8 to  150 handler   78
+  [  a8 ..  150] => handler block1
 
-JS bytecode executable "A"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
 
-JS bytecode executable "m"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg5
-[  18]       NewReferenceError dst:reg6, Can't delete a property on 'super'
-[  28]       Throw src:reg6
-[  30]    1: End value:Undefined
+A$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+m$0f0a711c delete-super-eval-order.js:6:9
+  Registers: 7
+  Blocks:    2
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] NewReferenceError dst:reg6, Can't delete a property on 'super'
+  [  28] Throw src:reg6
+
+block1:
+  [  30] End value:Undefined

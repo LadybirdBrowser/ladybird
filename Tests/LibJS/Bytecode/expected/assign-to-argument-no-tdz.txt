@@ -1,10 +1,25 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
-[  48]       End value:reg5
+$a49ec34a assign-to-argument-no-tdz.js:11:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(0)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
-[  20]       Return value:arg0
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
+  [  48] End value:reg5
+
+
+f$71204352 assign-to-argument-no-tdz.js:6:5
+  Registers: 5
+  Blocks:    1
+  Locals:    y~0
+  Constants:
+    [0] = Int32(1)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
+  [  20] Return value:arg0

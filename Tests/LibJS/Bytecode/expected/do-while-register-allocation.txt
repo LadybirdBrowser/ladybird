@@ -1,26 +1,58 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test
-[  40]       End value:reg5
+$d99dc022 do-while-register-allocation.js:15:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
-[  20]       GetGlobal dst:reg6, identifier:foo
-[  38]       NewArray dst:reg7
-[  48]       Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-[  70]    1: GetGlobal dst:reg7, identifier:bar
-[  88]       Mov dst:reg8, src:i~0
-[  98]       Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
-[  c0]       PostfixIncrement dst:reg6, src:i~0
-[  d0]    2: JumpLessThan lhs:i~0, rhs:Int32(7), true_target:@70, false_target:@e8
-[  e8]    3: End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  40] End value:reg5
 
-JS bytecode executable "foo"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:arg0
 
-JS bytecode executable "bar"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Return value:arg0
+test$21b235ef do-while-register-allocation.js:9:5
+  Registers: 9
+  Blocks:    4
+  Locals:    i~0
+  Constants:
+    [0] = Undefined
+    [1] = Int32(0)
+    [2] = Int32(7)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+  [  20] GetGlobal dst:reg6, `foo`
+  [  38] NewArray dst:reg7
+  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+
+block1:
+  [  70] GetGlobal dst:reg7, `bar`
+  [  88] Mov dst:reg8, src:i~0
+  [  98] Call dst:reg6, callee:reg7, this_value:Undefined, bar, arguments:[reg8]
+  [  c0] PostfixIncrement dst:reg6, src:i~0
+
+block2:
+  [  d0] JumpLessThan lhs:i~0, rhs:Int32(7), true_target:block1, false_target:block3
+
+block3:
+  [  e8] End value:Undefined
+
+
+foo$7176ad76 do-while-register-allocation.js:2:5
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:arg0
+
+
+bar$7176ad76 do-while-register-allocation.js:5:5
+  Registers: 5
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Return value:arg0

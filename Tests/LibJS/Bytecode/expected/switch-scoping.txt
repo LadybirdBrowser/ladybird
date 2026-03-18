@@ -1,47 +1,90 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:switchWithBlockDecl
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
-[  80]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a8]       GetGlobal dst:reg7, identifier:console
-[  c0]       GetById dst:reg8, base:reg7, property:log, base_identifier:console
-[  e0]       GetGlobal dst:reg10, identifier:switchWithBlockDecl
-[  f8]       Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
-[ 120]       Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-[ 148]       End value:reg6
+$fc23251f switch-scoping.js:15:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
 
-JS bytecode executable "switchWithBlockDecl"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:result~0, src:Undefined
-[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  28]       CreateMutableBinding environment:reg5, identifier:a, can_be_deleted:false
-[  38]       CreateMutableBinding environment:reg5, identifier:b, can_be_deleted:false
-[  48]    1: JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:@80, false_target:@60
-[  60]    2: JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:@c8, false_target:@78
-[  78]    3: Jump target:@108
-[  80]    4: InitializeLexicalBinding identifier:a, src:String("one")
-[  98]       NewFunction dst:reg6, shared_function_data_index:0, lhs_name:result
-[  b0]       Mov dst:result~0, src:reg6
-[  c0]       Jump target:@108
-[  c8]    5: InitializeLexicalBinding identifier:b, src:String("two")
-[  e0]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:result
-[  f8]       Mov dst:result~0, src:reg6
-[ 108]    6: SetLexicalEnvironment environment:reg4
-[ 110]       Mov dst:reg6, src:result~0
-[ 120]       Call dst:reg5, callee:reg6, this_value:Undefined, result
-[ 140]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `switchWithBlockDecl`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
+  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a8] GetGlobal dst:reg7, `console`
+  [  c0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  e0] GetGlobal dst:reg10, `switchWithBlockDecl`
+  [  f8] Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
+  [ 120] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 148] End value:reg6
 
-JS bytecode executable "result"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetBinding dst:reg5, identifier:a
-[  20]       Return value:reg5
 
-JS bytecode executable "result"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetBinding dst:reg5, identifier:b
-[  20]       Return value:reg5
+switchWithBlockDecl$2b5ecfcd switch-scoping.js:2:5
+  Registers: 7
+  Blocks:    7
+  Locals:    result~0
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = String("one")
+    [4] = String("two")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:result~0, src:Undefined
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  28] CreateMutableBinding environment:reg5, `a`, can_be_deleted:false
+  [  38] CreateMutableBinding environment:reg5, `b`, can_be_deleted:false
+
+block1:
+  [  48] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block4, false_target:block2
+
+block2:
+  [  60] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block5, false_target:block3
+
+block3:
+  [  78] Jump target:block6
+
+block4:
+  [  80] InitializeLexicalBinding `a`, src:String("one")
+  [  98] NewFunction dst:reg6, shared_function_data_index:0 (result)
+  [  b0] Mov dst:result~0, src:reg6
+  [  c0] Jump target:block6
+
+block5:
+  [  c8] InitializeLexicalBinding `b`, src:String("two")
+  [  e0] NewFunction dst:reg6, shared_function_data_index:1 (result)
+  [  f8] Mov dst:result~0, src:reg6
+
+block6:
+  [ 108] SetLexicalEnvironment environment:reg4
+  [ 110] Mov dst:reg6, src:result~0
+  [ 120] Call dst:reg5, callee:reg6, this_value:Undefined, result
+  [ 140] Return value:reg5
+
+
+result$9ed940b6 switch-scoping.js:6:22
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetBinding dst:reg5, `a`
+  [  20] Return value:reg5
+
+
+result$78d6c64d switch-scoping.js:10:22
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetBinding dst:reg5, `b`
+  [  20] Return value:reg5
+
 
 "one"
 "two"

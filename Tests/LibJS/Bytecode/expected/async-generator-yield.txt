@@ -1,33 +1,80 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-[  48]       End value:reg5
+$bfb1383b async-generator-yield.js:7:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Yield continuation_label:@18, value:Undefined
-[  18]    1: Await continuation_label:@60, argument:arg0
-[  28]    2: Mov dst:reg5, src:reg0
-[  38]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[  48]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@168, false_target:@178
-[  60]    3: Mov dst:reg5, src:reg0
-[  70]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[  80]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@98, false_target:@a8
-[  98]    4: Yield continuation_label:@b0, value:reg7
-[  a8]    5: Throw src:reg7
-[  b0]    6: Mov dst:reg5, src:reg0
-[  c0]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[  d0]       JumpStrictlyInequals lhs:reg6, rhs:Int32(4), true_target:@28, false_target:@e8
-[  e8]    7: Await continuation_label:@f8, argument:reg7
-[  f8]    8: Mov dst:reg5, src:reg0
-[ 108]       GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-[ 118]       JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:@130, false_target:@148
-[ 130]    9: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@28, false_target:@150
-[ 148]   10: Throw src:reg7
-[ 150]   11: SetCompletionType completion:reg5
-[ 160]       Jump target:@28
-[ 168]   12: Yield value:Undefined
-[ 178]   13: JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:@190, false_target:@198
-[ 190]   14: Throw src:reg7
-[ 198]   15: Yield value:reg7
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  48] End value:reg5
+
+
+f$a4f936a8 async-generator-yield.js:5:5
+  Registers: 10
+  Blocks:    16
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(4)
+    [3] = Int32(5)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Yield continuation_label:block1, value:Undefined
+
+block1:
+  [  18] Await continuation_label:block3, argument:arg0
+
+block2:
+  [  28] Mov dst:reg5, src:reg0
+  [  38] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  48] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block12, false_target:block13
+
+block3:
+  [  60] Mov dst:reg5, src:reg0
+  [  70] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  80] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block4, false_target:block5
+
+block4:
+  [  98] Yield continuation_label:block6, value:reg7
+
+block5:
+  [  a8] Throw src:reg7
+
+block6:
+  [  b0] Mov dst:reg5, src:reg0
+  [  c0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  d0] JumpStrictlyInequals lhs:reg6, rhs:Int32(4), true_target:block2, false_target:block7
+
+block7:
+  [  e8] Await continuation_label:block8, argument:reg7
+
+block8:
+  [  f8] Mov dst:reg5, src:reg0
+  [ 108] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 118] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block9, false_target:block10
+
+block9:
+  [ 130] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block2, false_target:block11
+
+block10:
+  [ 148] Throw src:reg7
+
+block11:
+  [ 150] SetCompletionType completion:reg5
+  [ 160] Jump target:block2
+
+block12:
+  [ 168] Yield value:Undefined
+
+block13:
+  [ 178] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block14, false_target:block15
+
+block14:
+  [ 190] Throw src:reg7
+
+block15:
+  [ 198] Yield value:reg7

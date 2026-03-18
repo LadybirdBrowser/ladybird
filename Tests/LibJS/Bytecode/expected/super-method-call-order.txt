@@ -1,54 +1,82 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewObject dst:reg5
-[  18]       NewFunction dst:reg6, shared_function_data_index:0, lhs_name:m, home_object:reg5
-[  30]       InitObjectLiteralProperty object:reg5, property:m, src:reg6, shape_cache_index:0, property_slot:0
-[  48]       CacheObjectShape object:reg5
-[  58]       SetGlobal identifier:proto, src:reg5
-[  70]       NewObject dst:reg5
-[  80]       GetGlobal dst:reg6, identifier:proto
-[  98]       PutById base:reg5, property:__proto__, src:reg6, kind:Prototype
-[  c0]       NewFunction dst:reg6, shared_function_data_index:1, lhs_name:test, home_object:reg5
-[  d8]       PutById base:reg5, property:test, src:reg6, kind:Own
-[ 100]       NewFunction dst:reg6, shared_function_data_index:2, lhs_name:get x, home_object:reg5
-[ 118]       PutById base:reg5, property:x, src:reg6, kind:Getter
-[ 140]       NewFunction dst:reg6, shared_function_data_index:3, lhs_name:test2, home_object:reg5
-[ 158]       PutById base:reg5, property:test2, src:reg6, kind:Own
-[ 180]       SetGlobal identifier:obj, src:reg5
-[ 198]       GetGlobal dst:reg6, identifier:obj
-[ 1b0]       GetById dst:reg7, base:reg6, property:test, base_identifier:obj
-[ 1d0]       Call dst:reg5, callee:reg7, this_value:reg6, obj.test
-[ 1f0]       GetGlobal dst:reg6, identifier:obj
-[ 208]       GetById dst:reg7, base:reg6, property:x, base_identifier:obj
-[ 228]       GetGlobal dst:reg6, identifier:obj
-[ 240]       GetById dst:reg8, base:reg6, property:test2, base_identifier:obj
-[ 260]       Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
-[ 280]       End value:reg5
+$bc802664 super-method-call-order.js:1:1
+  Registers: 9
+  Blocks:    1
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg6
-[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
-[  58]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewObject dst:reg5
+  [  18] NewFunction dst:reg6, shared_function_data_index:0 (m), home_object:reg5
+  [  30] InitObjectLiteralProperty object:reg5, `m`, src:reg6, shape_cache_index:0, property_slot:0
+  [  48] CacheObjectShape object:reg5
+  [  58] SetGlobal `proto`, src:reg5
+  [  70] NewObject dst:reg5
+  [  80] GetGlobal dst:reg6, `proto`
+  [  98] PutById base:reg5, `__proto__`, src:reg6, kind:Prototype
+  [  c0] NewFunction dst:reg6, shared_function_data_index:1 (test), home_object:reg5
+  [  d8] PutById base:reg5, `test`, src:reg6, kind:Own
+  [ 100] NewFunction dst:reg6, shared_function_data_index:2 (get x), home_object:reg5
+  [ 118] PutById base:reg5, `x`, src:reg6, kind:Getter
+  [ 140] NewFunction dst:reg6, shared_function_data_index:3 (test2), home_object:reg5
+  [ 158] PutById base:reg5, `test2`, src:reg6, kind:Own
+  [ 180] SetGlobal `obj`, src:reg5
+  [ 198] GetGlobal dst:reg6, `obj`
+  [ 1b0] GetById dst:reg7, base:reg6, `test` (obj.test)
+  [ 1d0] Call dst:reg5, callee:reg7, this_value:reg6, obj.test
+  [ 1f0] GetGlobal dst:reg6, `obj`
+  [ 208] GetById dst:reg7, base:reg6, `x` (obj.x)
+  [ 228] GetGlobal dst:reg6, `obj`
+  [ 240] GetById dst:reg8, base:reg6, `test2` (obj.test2)
+  [ 260] Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
+  [ 280] End value:reg5
 
-JS bytecode executable "m"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
 
-JS bytecode executable "get x"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg6
-[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>.m
-[  58]       Return value:reg5
+test$6b58e3e5 super-method-call-order.js:5:9
+  Registers: 8
+  Blocks:    1
 
-JS bytecode executable "test2"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       ResolveThisBinding
-[  10]       ResolveSuperBase dst:reg6
-[  18]       GetByIdWithThis dst:reg7, base:reg6, property:m, this_value:this
-[  38]       Call dst:reg5, callee:reg7, this_value:this, <object>['m']
-[  58]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg6
+  [  18] GetByIdWithThis dst:reg7, base:reg6, `m`, this_value:this
+  [  38] Call dst:reg5, callee:reg7, this_value:this, <object>.m
+  [  58] Return value:reg5
+
+
+m$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+get x$6b58e3e5 super-method-call-order.js:8:9
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg6
+  [  18] GetByIdWithThis dst:reg7, base:reg6, `m`, this_value:this
+  [  38] Call dst:reg5, callee:reg7, this_value:this, <object>.m
+  [  58] Return value:reg5
+
+
+test2$d17f9e3d super-method-call-order.js:11:9
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = String("m")
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg6
+  [  18] GetByIdWithThis dst:reg7, base:reg6, `m`, this_value:this
+  [  38] Call dst:reg5, callee:reg7, this_value:this, <object>['m']
+  [  58] Return value:reg5

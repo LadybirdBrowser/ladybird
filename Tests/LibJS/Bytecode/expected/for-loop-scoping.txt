@@ -1,54 +1,90 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:console
-[  20]       GetById dst:reg7, base:reg6, property:log, base_identifier:console
-[  40]       GetGlobal dst:reg9, identifier:forLetClosure
-[  58]       Call dst:reg8, callee:reg9, this_value:Undefined, forLetClosure
-[  78]       Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-[  a0]       End value:reg5
+$5198286f for-loop-scoping.js:8:1
+  Registers: 10
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "forLetClosure"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewArray dst:fns~0
-[  18]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  28]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
-[  38]       InitializeLexicalBinding identifier:i, src:Int32(0)
-[  50]       GetBinding dst:reg6, identifier:i
-[  68]       SetLexicalEnvironment environment:reg4
-[  70]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  80]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
-[  90]       InitializeLexicalBinding identifier:i, src:reg6
-[  a8]       Jump target:@1b8
-[  b0]    1: GetById dst:reg7, base:fns~0, property:push, base_identifier:fns
-[  d0]       Mov dst:reg8, src:fns~0
-[  e0]       NewFunction dst:reg9, shared_function_data_index:0
-[  f8]       Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
-[ 120]       GetBinding dst:reg6, identifier:i
-[ 138]       SetLexicalEnvironment environment:reg4
-[ 140]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[ 150]       CreateVariable identifier:i, is_immutable:false, is_global:false, is_strict:false
-[ 160]       InitializeLexicalBinding identifier:i, src:reg6
-[ 178]    2: GetBinding dst:reg6, identifier:i
-[ 190]       PostfixIncrement dst:reg7, src:reg6
-[ 1a0]       SetLexicalBinding identifier:i, src:reg6
-[ 1b8]    3: GetBinding dst:reg6, identifier:i
-[ 1d0]       JumpLessThan lhs:reg6, rhs:Int32(3), true_target:@b0, false_target:@1e8
-[ 1e8]    4: SetLexicalEnvironment environment:reg4
-[ 1f0]       GetById dst:reg6, base:fns~0, property:map, base_identifier:fns
-[ 210]       Mov dst:reg7, src:fns~0
-[ 220]       NewFunction dst:reg8, shared_function_data_index:1
-[ 238]       Call dst:reg5, callee:reg6, this_value:reg7, fns.map, arguments:[reg8]
-[ 260]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `console`
+  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg9, `forLetClosure`
+  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, forLetClosure
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] End value:reg5
 
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Mov dst:reg6, src:arg0
-[  18]       Call dst:reg5, callee:reg6, this_value:Undefined, f
-[  38]       Return value:reg5
 
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetBinding dst:reg5, identifier:i
-[  20]       Return value:reg5
+forLetClosure$ab480781 for-loop-scoping.js:2:15
+  Registers: 10
+  Blocks:    5
+  Locals:    fns~0
+  Constants:
+    [0] = Int32(0)
+    [1] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewArray dst:fns~0
+  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  28] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  38] InitializeLexicalBinding `i`, src:Int32(0)
+  [  50] GetBinding dst:reg6, `i`
+  [  68] SetLexicalEnvironment environment:reg4
+  [  70] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  80] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [  90] InitializeLexicalBinding `i`, src:reg6
+  [  a8] Jump target:block3
+
+block1:
+  [  b0] GetById dst:reg7, base:fns~0, `push` (fns.push)
+  [  d0] Mov dst:reg8, src:fns~0
+  [  e0] NewFunction dst:reg9, shared_function_data_index:0
+  [  f8] Call dst:reg6, callee:reg7, this_value:reg8, fns.push, arguments:[reg9]
+  [ 120] GetBinding dst:reg6, `i`
+  [ 138] SetLexicalEnvironment environment:reg4
+  [ 140] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [ 150] CreateVariable `i`, is_immutable:false, is_global:false, is_strict:false
+  [ 160] InitializeLexicalBinding `i`, src:reg6
+
+block2:
+  [ 178] GetBinding dst:reg6, `i`
+  [ 190] PostfixIncrement dst:reg7, src:reg6
+  [ 1a0] SetLexicalBinding `i`, src:reg6
+
+block3:
+  [ 1b8] GetBinding dst:reg6, `i`
+  [ 1d0] JumpLessThan lhs:reg6, rhs:Int32(3), true_target:block1, false_target:block4
+
+block4:
+  [ 1e8] SetLexicalEnvironment environment:reg4
+  [ 1f0] GetById dst:reg6, base:fns~0, `map` (fns.map)
+  [ 210] Mov dst:reg7, src:fns~0
+  [ 220] NewFunction dst:reg8, shared_function_data_index:1
+  [ 238] Call dst:reg5, callee:reg6, this_value:reg7, fns.map, arguments:[reg8]
+  [ 260] Return value:reg5
+
+
+$a78bf47f for-loop-scoping.js:6:20
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Mov dst:reg6, src:arg0
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] Return value:reg5
+
+
+$ceed13fe for-loop-scoping.js:4:18
+  Registers: 6
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetBinding dst:reg5, `i`
+  [  20] Return value:reg5
+
 
 [ 0, 1, 2 ]

@@ -1,13 +1,27 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Mov dst:reg8, src:Int32(42)
-[  30]       NewArray dst:reg7, elements:[reg8]
-[  48]       NewPrimitiveArray dst:reg9, elements:[1]
-[  60]       ArrayAppend dst:reg7, src:reg9, is_spread:true
-[  70]       CallWithArgumentArray dst:reg5, callee:reg6, this_value:Undefined, arguments:reg7, f
-[  88]       End value:reg5
+$da4d2529 call-spread-register-order.js:2:1
+  Registers: 10
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(42)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Mov dst:reg8, src:Int32(42)
+  [  30] NewArray dst:reg7, elements:[reg8]
+  [  48] NewPrimitiveArray dst:reg9, elements:[1]
+  [  60] ArrayAppend dst:reg7, src:reg9, is_spread:true
+  [  70] CallWithArgumentArray dst:reg5, callee:reg6, this_value:Undefined, arguments:reg7, f
+  [  88] End value:reg5
+
+
+f$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined

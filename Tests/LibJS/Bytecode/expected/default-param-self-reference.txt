@@ -1,13 +1,32 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-[  48]       End value:reg5
+$bfb1383b default-param-self-reference.js:2:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       JumpUndefined condition:arg0, true_target:@18, false_target:@40
-[  18]    1: Mov dst:arg0, src:<Empty>
-[  28]       ThrowIfTDZ src:arg0
-[  30]       Mov dst:arg0, src:arg0
-[  40]    2: End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  48] End value:reg5
+
+
+f$e162c485 default-param-self-reference.js:1:16
+  Registers: 5
+  Blocks:    3
+  Constants:
+    [0] = <Empty>
+    [1] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+
+block1:
+  [  18] Mov dst:arg0, src:<Empty>
+  [  28] ThrowIfTDZ src:arg0
+  [  30] Mov dst:arg0, src:arg0
+
+block2:
+  [  40] End value:Undefined

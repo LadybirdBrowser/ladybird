@@ -1,17 +1,35 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:try_return
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, try_return
-[  40]       End value:reg5
+$31ad76ee try-catch-terminated.js:12:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "try_return"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       Jump target:@38
-[  10]    1: Catch dst:reg5
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       Mov dst:e~0, src:reg5
-[  30]       Return value:e~0
-[  38]    2: Throw src:Int32(1)
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `try_return`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, try_return
+  [  40] End value:reg5
+
+
+try_return$21828749 try-catch-terminated.js:5:5
+  Registers: 6
+  Blocks:    3
+  Locals:    e~0
+  Constants:
+    [0] = Int32(1)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] Jump target:block2
+
+block1:
+  [  10] Catch dst:reg5
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] Mov dst:e~0, src:reg5
+  [  30] Return value:e~0
+
+block2:
+  [  38] Throw src:Int32(1)
 
 Exception handlers:
-    from   38 to   40 handler   10
+  [  38 ..   40] => handler block1

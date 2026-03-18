@@ -1,23 +1,42 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       SetLexicalEnvironment environment:reg4
-[  30]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
-[  58]       InitializeLexicalBinding identifier:C, src:reg6
-[  70]       GetGlobal dst:reg6, identifier:C
-[  88]       CallConstruct dst:reg5, callee:reg6, C
-[  a0]       GetByValue dst:reg6, base:reg5, property:Int32(42)
-[  b8]       GetById dst:reg5, base:reg6, property:name, base_identifier:[42]
-[  d8]       End value:reg5
+$dffca61b numeric-class-field-name.js:1:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Int32(42)
+    [1] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] SetLexicalEnvironment environment:reg4
+  [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:Int32(42)]
+  [  58] InitializeLexicalBinding `C`, src:reg6
+  [  70] GetGlobal dst:reg6, `C`
+  [  88] CallConstruct dst:reg5, callee:reg6, C
+  [  a0] GetByValue dst:reg6, base:reg5, property:Int32(42)
+  [  b8] GetById dst:reg5, base:reg6, `name` ([42].name)
+  [  d8] End value:reg5
 
-JS bytecode executable "field"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       SetLexicalEnvironment environment:reg4
-[  20]       NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, lhs_name:42
-[  40]       Return value:reg6
+
+C$811c9dc5
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] End value:Undefined
+
+
+field$a798f2fd numeric-class-field-name.js:2:10
+  Registers: 7
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] SetLexicalEnvironment environment:reg4
+  [  20] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0 (42)
+  [  40] Return value:reg6

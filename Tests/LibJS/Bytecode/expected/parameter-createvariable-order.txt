@@ -1,28 +1,50 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:f
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
-[  50]       End value:reg5
+$6ef6ff9a parameter-createvariable-order.js:7:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
 
-JS bytecode executable "f"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateVariable identifier:a, is_immutable:false, is_global:false, is_strict:false
-[  18]       CreateVariable identifier:b, is_immutable:false, is_global:false, is_strict:false
-[  28]       CreateVariable identifier:c, is_immutable:false, is_global:false, is_strict:false
-[  38]       InitializeLexicalBinding identifier:a, src:arg0
-[  50]       InitializeLexicalBinding identifier:b, src:arg1
-[  68]       InitializeLexicalBinding identifier:c, src:arg2
-[  80]       Mov dst:inner~0, src:Undefined
-[  90]       NewFunction dst:reg5, shared_function_data_index:0, lhs_name:inner
-[  a8]       Mov2 dst1:inner~0, src1:reg5, dst2:reg6, src2:inner~0
-[  c0]       Call dst:reg5, callee:reg6, this_value:Undefined, inner
-[  e0]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `f`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  50] End value:reg5
 
-JS bytecode executable "inner"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetBinding dst:reg5, identifier:a
-[  20]       GetBinding dst:reg6, identifier:b
-[  38]       Add dst:reg7, lhs:reg5, rhs:reg6
-[  48]       GetBinding dst:reg5, identifier:c
-[  60]       Add dst:reg6, lhs:reg7, rhs:reg5
-[  70]       Return value:reg6
+
+f$40c96172 parameter-createvariable-order.js:2:5
+  Registers: 7
+  Blocks:    1
+  Locals:    inner~0
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [  18] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  28] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  38] InitializeLexicalBinding `a`, src:arg0
+  [  50] InitializeLexicalBinding `b`, src:arg1
+  [  68] InitializeLexicalBinding `c`, src:arg2
+  [  80] Mov dst:inner~0, src:Undefined
+  [  90] NewFunction dst:reg5, shared_function_data_index:0 (inner)
+  [  a8] Mov2 dst1:inner~0, src1:reg5, dst2:reg6, src2:inner~0
+  [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, inner
+  [  e0] Return value:reg5
+
+
+inner$350d7dbe parameter-createvariable-order.js:3:9
+  Registers: 8
+  Blocks:    1
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetBinding dst:reg5, `a`
+  [  20] GetBinding dst:reg6, `b`
+  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  48] GetBinding dst:reg5, `c`
+  [  60] Add dst:reg6, lhs:reg7, rhs:reg5
+  [  70] Return value:reg6

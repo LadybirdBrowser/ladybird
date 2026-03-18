@@ -1,16 +1,34 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       GetGlobal dst:reg6, identifier:test
-[  20]       Call dst:reg5, callee:reg6, this_value:Undefined, test
-[  40]       End value:reg5
+$d99dc022 numeric-index-object-literal.js:4:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "test"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewObject dst:reg5
-[  18]       ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
-[  28]       PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
-[  40]       ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
-[  50]       PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
-[  68]       ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
-[  78]       PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
-[  90]       Return value:reg5
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `test`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  40] End value:reg5
+
+
+test$9f6ed6e2 numeric-index-object-literal.js:2:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Int32(100)
+    [1] = Int32(1)
+    [2] = Int32(200)
+    [3] = Int32(2)
+    [4] = Int32(300)
+    [5] = Int32(3)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewObject dst:reg5
+  [  18] ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
+  [  28] PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
+  [  40] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
+  [  50] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
+  [  68] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
+  [  78] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
+  [  90] Return value:reg5

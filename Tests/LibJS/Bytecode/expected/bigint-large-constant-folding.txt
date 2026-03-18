@@ -1,6 +1,21 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       SetGlobal identifier:a, src:BigInt(337264356397531028994973048178108678400n)
-[  20]       SetGlobal identifier:b, src:BigInt(340282366920938463463374607431768211456n)
-[  38]       SetGlobal identifier:c, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
-[  50]       End value:Undefined
+$66877791 bigint-large-constant-folding.js:1:1
+  Registers: 5
+  Blocks:    1
+  Constants:
+    [0] = BigInt(18364758544493064720n)
+    [1] = BigInt(18364758544493064720n)
+    [2] = BigInt(337264356397531028994973048178108678400n)
+    [3] = BigInt(340282366920938463463374607431768211455n)
+    [4] = BigInt(1n)
+    [5] = BigInt(340282366920938463463374607431768211456n)
+    [6] = BigInt(18364758544493064720n)
+    [7] = BigInt(3n)
+    [8] = BigInt(6193778470904512180693671865081363252814433915244866048000n)
+    [9] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] SetGlobal `a`, src:BigInt(337264356397531028994973048178108678400n)
+  [  20] SetGlobal `b`, src:BigInt(340282366920938463463374607431768211456n)
+  [  38] SetGlobal `c`, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
+  [  50] End value:Undefined

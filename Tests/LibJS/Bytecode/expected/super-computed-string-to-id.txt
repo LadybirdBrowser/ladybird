@@ -1,20 +1,35 @@
-JS bytecode executable ""
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
-[  18]       CreateVariable identifier:C, is_immutable:true, is_global:false, is_strict:false
-[  28]       GetGlobal dst:reg6, identifier:Object
-[  40]       SetLexicalEnvironment environment:reg4
-[  48]       NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
-[  68]       InitializeLexicalBinding identifier:C, src:reg7
-[  80]       GetGlobal dst:reg6, identifier:C
-[  98]       CallConstruct dst:reg5, callee:reg6, C
-[  b0]       End value:reg5
+$dda9a222 super-computed-string-to-id.js:1:1
+  Registers: 8
+  Blocks:    1
+  Constants:
+    [0] = Undefined
 
-JS bytecode executable "C"
-[   0]    0: GetLexicalEnvironment dst:reg4
-[   8]       NewArray dst:reg5
-[  18]       SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-[  28]       ResolveThisBinding
-[  30]       ResolveSuperBase dst:reg5
-[  38]       PutByIdWithThis base:reg5, this_value:this, property:foo, src:Int32(1), kind:Normal
-[  58]       End value:Undefined
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  18] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:false
+  [  28] GetGlobal dst:reg6, `Object`
+  [  40] SetLexicalEnvironment environment:reg4
+  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
+  [  68] InitializeLexicalBinding `C`, src:reg7
+  [  80] GetGlobal dst:reg6, `C`
+  [  98] CallConstruct dst:reg5, callee:reg6, C
+  [  b0] End value:reg5
+
+
+C$851d2148 super-computed-string-to-id.js:3:14
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = String("foo")
+    [1] = Int32(1)
+    [2] = Undefined
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] NewArray dst:reg5
+  [  18] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  28] ResolveThisBinding
+  [  30] ResolveSuperBase dst:reg5
+  [  38] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  58] End value:Undefined
