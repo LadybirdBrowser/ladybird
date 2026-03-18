@@ -1,0 +1,24 @@
+$a08063d8 right-shift-by-zero.js:5:1
+  Registers: 7
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Double(1.5)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `foo`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[Double(1.5)]
+  [  48] End value:reg5
+
+
+foo$197906fe right-shift-by-zero.js:2:5
+  Registers: 6
+  Blocks:    1
+  Constants:
+    [0] = Int32(0)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] ToInt32 dst:reg5, value:arg0
+  [  18] Return value:reg5

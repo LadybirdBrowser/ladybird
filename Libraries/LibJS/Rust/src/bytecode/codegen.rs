@@ -2077,11 +2077,29 @@ fn emit_binary_op(
             lhs: lhs_op,
             rhs: rhs_op,
         }),
-        BinaryOp::RightShift => generator.emit(Instruction::RightShift {
-            dst: dst_op,
-            lhs: lhs_op,
-            rhs: rhs_op,
-        }),
+        BinaryOp::RightShift => {
+            // OPTIMIZATION: x >> 0 == ToInt32(x) (matches C++)
+            if let Some(ConstantValue::Number(n)) = generator.get_constant(rhs) {
+                if *n == 0.0 && n.is_sign_positive() {
+                    generator.emit(Instruction::ToInt32 {
+                        dst: dst_op,
+                        value: lhs_op,
+                    });
+                } else {
+                    generator.emit(Instruction::RightShift {
+                        dst: dst_op,
+                        lhs: lhs_op,
+                        rhs: rhs_op,
+                    });
+                }
+            } else {
+                generator.emit(Instruction::RightShift {
+                    dst: dst_op,
+                    lhs: lhs_op,
+                    rhs: rhs_op,
+                });
+            }
+        }
         BinaryOp::UnsignedRightShift => generator.emit(Instruction::UnsignedRightShift {
             dst: dst_op,
             lhs: lhs_op,
