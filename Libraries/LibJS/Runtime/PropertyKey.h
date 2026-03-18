@@ -179,7 +179,7 @@ public:
 
 private:
     friend Traits<PropertyKey>;
-    friend class Optional<PropertyKey>;
+    friend struct AK::SentinelOptionalTraits<PropertyKey>;
 
     enum class ShouldMakeEmptyOptional {
         Indeed,
@@ -242,99 +242,15 @@ struct Formatter<JS::PropertyKey> : Formatter<Utf16String> {
 };
 
 template<>
-class Optional<JS::PropertyKey> : public OptionalBase<JS::PropertyKey> {
-    template<typename U>
-    friend class Optional;
+struct SentinelOptionalTraits<JS::PropertyKey> {
+    static JS::PropertyKey sentinel_value() { return JS::PropertyKey { JS::PropertyKey::ShouldMakeEmptyOptional::Indeed }; }
+    static bool is_sentinel(JS::PropertyKey const& value) { return value.is_empty_optional(); }
+};
 
+template<>
+class Optional<JS::PropertyKey> : public SentinelOptional<JS::PropertyKey> {
 public:
-    using ValueType = JS::PropertyKey;
-
-    Optional() = default;
-
-    template<SameAs<OptionalNone> V>
-    Optional(V) { }
-
-    Optional(Optional<JS::PropertyKey> const& other)
-    {
-        if (other.has_value())
-            m_value = other.m_value;
-    }
-
-    Optional(Optional&& other)
-        : m_value(other.m_value)
-    {
-    }
-
-    template<typename U = JS::PropertyKey>
-    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, JS::PropertyKey>) Optional(U&& value)
-    requires(!IsSame<RemoveCVReference<U>, Optional<JS::PropertyKey>> && IsConstructible<JS::PropertyKey, U &&>)
-        : m_value(forward<U>(value))
-    {
-    }
-
-    template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
-    {
-        clear();
-        return *this;
-    }
-
-    Optional& operator=(Optional const& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    Optional& operator=(Optional&& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    void clear()
-    {
-        m_value = JS::PropertyKey { JS::PropertyKey::ShouldMakeEmptyOptional::Indeed };
-    }
-
-    [[nodiscard]] bool has_value() const
-    {
-        return !m_value.is_empty_optional();
-    }
-
-    [[nodiscard]] JS::PropertyKey& value() &
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] JS::PropertyKey const& value() const&
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] JS::PropertyKey value() &&
-    {
-        return release_value();
-    }
-
-    [[nodiscard]] JS::PropertyKey release_value()
-    {
-        VERIFY(has_value());
-        JS::PropertyKey released_value = m_value;
-        clear();
-        return released_value;
-    }
-
-private:
-    JS::PropertyKey m_value { JS::PropertyKey::ShouldMakeEmptyOptional::Indeed };
+    using SentinelOptional::SentinelOptional;
 };
 
 }

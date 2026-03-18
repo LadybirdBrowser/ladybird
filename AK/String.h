@@ -217,7 +217,7 @@ public:
 
 private:
     friend class ::AK::FlyString;
-    friend class Optional<String>;
+    friend struct SentinelOptionalTraits<String>;
 
     using ShortString = Detail::ShortString;
 
@@ -238,97 +238,15 @@ private:
 };
 
 template<>
-class Optional<String> : public OptionalBase<String> {
-    template<typename U>
-    friend class Optional;
+struct SentinelOptionalTraits<String> {
+    static constexpr String sentinel_value() { return String(nullptr); }
+    static constexpr bool is_sentinel(String const& value) { return value.is_invalid(); }
+};
 
+template<>
+class Optional<String> : public SentinelOptional<String> {
 public:
-    using ValueType = String;
-
-    constexpr Optional() = default;
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional(V) { }
-
-    constexpr Optional(Optional<String> const& other)
-    {
-        if (other.has_value())
-            m_value = other.m_value;
-    }
-
-    constexpr Optional(Optional&& other)
-        : m_value(move(other.m_value))
-    {
-    }
-
-    template<typename U = String>
-    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, String>) constexpr Optional(U&& value)
-    requires(!IsSame<RemoveCVReference<U>, Optional<String>> && IsConstructible<String, U &&>)
-        : m_value(forward<U>(value))
-    {
-    }
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional& operator=(V)
-    {
-        clear();
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional const& other)
-    {
-        if (this != &other) {
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional&& other)
-    {
-        if (this != &other) {
-            m_value = move(other.m_value);
-        }
-        return *this;
-    }
-
-    constexpr void clear()
-    {
-        m_value = String(nullptr);
-    }
-
-    [[nodiscard]] constexpr bool has_value() const
-    {
-        return !m_value.is_invalid();
-    }
-
-    [[nodiscard]] constexpr String& value() &
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr String const& value() const&
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr String value() &&
-    {
-        return release_value();
-    }
-
-    [[nodiscard]] constexpr String release_value()
-    {
-        VERIFY(has_value());
-        String released_value = move(m_value);
-        clear();
-        return released_value;
-    }
-
-private:
-    String m_value { nullptr };
+    using SentinelOptional::SentinelOptional;
 };
 
 template<>

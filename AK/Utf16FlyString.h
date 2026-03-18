@@ -136,12 +136,12 @@ public:
     [[nodiscard]] ALWAYS_INLINE size_t code_unit_offset_of(size_t code_point_offset) const { return m_data.code_unit_offset_of(code_point_offset); }
     [[nodiscard]] ALWAYS_INLINE size_t code_point_offset_of(size_t code_unit_offset) const { return m_data.code_point_offset_of(code_unit_offset); }
 
-    constexpr Utf16FlyString(Badge<Optional<Utf16FlyString>>, nullptr_t)
+    constexpr Utf16FlyString(Badge<SentinelOptionalTraits<Utf16FlyString>>, nullptr_t)
         : m_data(Badge<Utf16FlyString> {}, nullptr)
     {
     }
 
-    [[nodiscard]] constexpr bool is_invalid(Badge<Optional<Utf16FlyString>>) const { return m_data.raw({}) == 0; }
+    [[nodiscard]] constexpr bool is_invalid(Badge<SentinelOptionalTraits<Utf16FlyString>>) const { return m_data.raw({}) == 0; }
 
     // This is primarily interesting to unit tests.
     [[nodiscard]] static size_t number_of_utf16_fly_strings();
@@ -159,93 +159,15 @@ private:
 };
 
 template<>
-class Optional<Utf16FlyString> : public OptionalBase<Utf16FlyString> {
-    template<typename U>
-    friend class Optional;
+struct SentinelOptionalTraits<Utf16FlyString> {
+    static constexpr Utf16FlyString sentinel_value() { return Utf16FlyString({}, nullptr); }
+    static constexpr bool is_sentinel(Utf16FlyString const& value) { return value.is_invalid({}); }
+};
 
+template<>
+class Optional<Utf16FlyString> : public SentinelOptional<Utf16FlyString> {
 public:
-    using ValueType = Utf16FlyString;
-
-    constexpr Optional() = default;
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional(V) { }
-
-    constexpr Optional(Optional<Utf16FlyString> const& other)
-        : m_value(other.m_value)
-    {
-    }
-
-    constexpr Optional(Optional&& other)
-        : m_value(move(other.m_value))
-    {
-    }
-
-    template<typename U = Utf16FlyString>
-    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, Utf16FlyString>) constexpr Optional(U&& value)
-    requires(!IsSame<RemoveCVReference<U>, Optional<Utf16FlyString>> && IsConstructible<Utf16FlyString, U &&>)
-        : m_value(forward<U>(value))
-    {
-    }
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional& operator=(V)
-    {
-        clear();
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional const& other)
-    {
-        if (this != &other)
-            m_value = other.m_value;
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional&& other)
-    {
-        if (this != &other)
-            m_value = other.m_value;
-        return *this;
-    }
-
-    constexpr void clear()
-    {
-        m_value = empty_value;
-    }
-
-    [[nodiscard]] constexpr bool has_value() const
-    {
-        return !m_value.is_invalid({});
-    }
-
-    [[nodiscard]] constexpr Utf16FlyString& value() &
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr Utf16FlyString const& value() const&
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr Utf16FlyString value() &&
-    {
-        return release_value();
-    }
-
-    [[nodiscard]] constexpr Utf16FlyString release_value()
-    {
-        VERIFY(has_value());
-        return exchange(m_value, empty_value);
-    }
-
-private:
-    static constexpr Utf16FlyString empty_value { {}, nullptr };
-    Utf16FlyString m_value { empty_value };
+    using SentinelOptional::SentinelOptional;
 };
 
 template<>

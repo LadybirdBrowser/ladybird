@@ -9,6 +9,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/FlyString.h>
+#include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Vector.h>
@@ -660,5 +661,68 @@ TEST_CASE(flystring_specialization)
 
     {
         EXPECT_EQ((Optional<FlyString> {}).value_or("fallback_value"_fly_string), "fallback_value"sv);
+    }
+}
+
+struct SentinelInt {
+    u32 value { 0 };
+    static constexpr u32 invalid = NumericLimits<u32>::max();
+    bool is_valid() const { return value != invalid; }
+};
+
+template<>
+struct AK::SentinelOptionalTraits<SentinelInt> {
+    static constexpr SentinelInt sentinel_value() { return { SentinelInt::invalid }; }
+    static constexpr bool is_sentinel(SentinelInt const& v) { return !v.is_valid(); }
+};
+
+template<>
+class AK::Optional<SentinelInt> : public SentinelOptional<SentinelInt> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+TEST_CASE(sentinel_optional)
+{
+    static_assert(sizeof(Optional<SentinelInt>) == sizeof(SentinelInt));
+    static_assert(sizeof(Optional<FlyString>) == sizeof(FlyString));
+    static_assert(sizeof(Optional<String>) == sizeof(String));
+
+    {
+        Optional<SentinelInt> empty;
+        EXPECT(!empty.has_value());
+
+        Optional<SentinelInt> with_value { SentinelInt { 42 } };
+        EXPECT(with_value.has_value());
+        EXPECT_EQ(with_value->value, 42u);
+
+        with_value = {};
+        EXPECT(!with_value.has_value());
+    }
+
+    {
+        Optional<SentinelInt> a { SentinelInt { 7 } };
+        Optional<SentinelInt> b = a;
+        EXPECT(b.has_value());
+        EXPECT_EQ(b->value, 7u);
+
+        Optional<SentinelInt> c = move(a);
+        EXPECT(c.has_value());
+        EXPECT_EQ(c->value, 7u);
+    }
+
+    {
+        Optional<SentinelInt> opt { SentinelInt { 5 } };
+        auto released = opt.release_value();
+        EXPECT_EQ(released.value, 5u);
+        EXPECT(!opt.has_value());
+    }
+
+    {
+        Optional<SentinelInt> opt;
+        EXPECT_EQ(opt.value_or(SentinelInt { 99 }).value, 99u);
+
+        opt = SentinelInt { 10 };
+        EXPECT_EQ(opt.value_or(SentinelInt { 99 }).value, 10u);
     }
 }

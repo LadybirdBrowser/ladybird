@@ -99,99 +99,15 @@ struct Traits<JS::Utf16String> : public DefaultTraits<JS::Utf16String> {
 };
 
 template<>
-class Optional<JS::Utf16String> : public OptionalBase<JS::Utf16String> {
-    template<typename U>
-    friend class Optional;
+struct SentinelOptionalTraits<JS::Utf16String> {
+    static JS::Utf16String sentinel_value() { return JS::Utf16String::invalid(); }
+    static bool is_sentinel(JS::Utf16String const& value) { return !value.is_valid(); }
+};
 
+template<>
+class Optional<JS::Utf16String> : public SentinelOptional<JS::Utf16String> {
 public:
-    using ValueType = JS::Utf16String;
-
-    Optional() = default;
-
-    template<SameAs<OptionalNone> V>
-    Optional(V) { }
-
-    Optional(Optional<JS::Utf16String> const& other)
-    {
-        if (other.has_value())
-            m_value = other.m_value;
-    }
-
-    Optional(Optional&& other)
-        : m_value(other.m_value)
-    {
-    }
-
-    template<typename U = JS::Utf16String>
-    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, JS::Utf16String>) Optional(U&& value)
-    requires(!IsSame<RemoveCVReference<U>, Optional<JS::Utf16String>> && IsConstructible<JS::Utf16String, U &&>)
-        : m_value(forward<U>(value))
-    {
-    }
-
-    template<SameAs<OptionalNone> V>
-    Optional& operator=(V)
-    {
-        clear();
-        return *this;
-    }
-
-    Optional& operator=(Optional const& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    Optional& operator=(Optional&& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    void clear()
-    {
-        m_value = JS::Utf16String::invalid();
-    }
-
-    [[nodiscard]] bool has_value() const
-    {
-        return m_value.is_valid();
-    }
-
-    [[nodiscard]] JS::Utf16String& value() &
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] JS::Utf16String const& value() const&
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] JS::Utf16String value() &&
-    {
-        return release_value();
-    }
-
-    [[nodiscard]] JS::Utf16String release_value()
-    {
-        VERIFY(has_value());
-        JS::Utf16String released_value = m_value;
-        clear();
-        return released_value;
-    }
-
-private:
-    JS::Utf16String m_value { JS::Utf16String::invalid() };
+    using SentinelOptional::SentinelOptional;
 };
 
 }

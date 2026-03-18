@@ -608,99 +608,15 @@ namespace AK {
 static_assert(sizeof(JS::Value) == sizeof(double));
 
 template<>
-class Optional<JS::Value> : public OptionalBase<JS::Value> {
-    template<typename U>
-    friend class Optional;
+struct SentinelOptionalTraits<JS::Value> {
+    static constexpr JS::Value sentinel_value() { return JS::js_special_empty_value(); }
+    static constexpr bool is_sentinel(JS::Value const& value) { return value.is_special_empty_value(); }
+};
 
+template<>
+class Optional<JS::Value> : public SentinelOptional<JS::Value> {
 public:
-    using ValueType = JS::Value;
-
-    constexpr Optional() = default;
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional(V) { }
-
-    constexpr Optional(Optional<JS::Value> const& other)
-    {
-        if (other.has_value())
-            m_value = other.m_value;
-    }
-
-    constexpr Optional(Optional&& other)
-        : m_value(other.m_value)
-    {
-    }
-
-    template<typename U = JS::Value>
-    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
-    explicit(!IsConvertible<U&&, JS::Value>) constexpr Optional(U&& value)
-    requires(!IsSame<RemoveCVReference<U>, Optional<JS::Value>> && IsConstructible<JS::Value, U &&>)
-        : m_value(forward<U>(value))
-    {
-    }
-
-    template<SameAs<OptionalNone> V>
-    constexpr Optional& operator=(V)
-    {
-        clear();
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional const& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    constexpr Optional& operator=(Optional&& other)
-    {
-        if (this != &other) {
-            clear();
-            m_value = other.m_value;
-        }
-        return *this;
-    }
-
-    constexpr void clear()
-    {
-        m_value = JS::js_special_empty_value();
-    }
-
-    [[nodiscard]] constexpr bool has_value() const
-    {
-        return !m_value.is_special_empty_value();
-    }
-
-    [[nodiscard]] constexpr JS::Value& value() &
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr JS::Value const& value() const&
-    {
-        VERIFY(has_value());
-        return m_value;
-    }
-
-    [[nodiscard]] constexpr JS::Value value() &&
-    {
-        return release_value();
-    }
-
-    [[nodiscard]] constexpr JS::Value release_value()
-    {
-        VERIFY(has_value());
-        JS::Value released_value = m_value;
-        clear();
-        return released_value;
-    }
-
-private:
-    JS::Value m_value { JS::js_special_empty_value() };
+    using SentinelOptional::SentinelOptional;
 };
 
 }
