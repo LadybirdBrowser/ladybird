@@ -166,6 +166,10 @@
 //!
 //! All FP operations use scalar doubles (`ft0`-`ft3`).
 //!
+//! - `loadf32 dst, [base, offset]` -- Load a 32-bit float into an FP
+//!   register.
+//! - `storef32 [base, offset], src` -- Store a 32-bit float from an FP
+//!   register.
 //! - `fp_add dst, src` -- `dst += src`
 //! - `fp_sub dst, src` -- `dst -= src`
 //! - `fp_mul dst, src` -- `dst *= src`
@@ -174,6 +178,8 @@
 //! - `fp_floor dst, src` -- Round toward negative infinity.
 //! - `fp_ceil dst, src` -- Round toward positive infinity.
 //! - `fp_mov dst, src` -- Bitwise move between integer and FP registers.
+//! - `float_to_double dst, src` -- Convert float32 to double.
+//! - `double_to_float dst, src` -- Convert double to float32.
 //! - `int_to_double fpr, gpr` -- Convert signed int64 to double.
 //! - `double_to_int32 dst, fpr, fail_label` -- Truncate double to int32
 //!   with strict round-trip check. Branches to `fail_label` if the value

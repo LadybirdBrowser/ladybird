@@ -1382,7 +1382,8 @@ handler PutByValue
     # Check if source is int32
     extract_tag t0, t1
     branch_eq t0, INT32_TAG, .ta_store_int32
-    # Non-int32 value: only handle Float64Array with double source
+    # Non-int32 value: only handle float typed arrays with double sources
+    branch_eq t2, TYPED_ARRAY_KIND_FLOAT32, .ta_store_float32
     branch_ne t2, TYPED_ARRAY_KIND_FLOAT64, .try_typed_array_slow
     # Compute store address before check_is_double clobbers t4
     mov t0, t4
@@ -1393,17 +1394,35 @@ handler PutByValue
     # Float64Array: store raw double bits
     store64 [t0, 0], t1
     dispatch_next
+.ta_store_float32:
+    mov t0, t4
+    shl t0, 2
+    add t0, t5
+    check_is_double t1, .try_typed_array_slow
+    fp_mov ft0, t1
+    double_to_float ft0, ft0
+    storef32 [t0, 0], ft0
+    dispatch_next
 .ta_store_int32:
     # t1 = NaN-boxed int32, sign-extend it into t0
     unbox_int32 t0, t1
     # Dispatch on kind (in t2)
     branch_any_eq t2, TYPED_ARRAY_KIND_INT32, TYPED_ARRAY_KIND_UINT32, .ta_put_int32
+    branch_eq t2, TYPED_ARRAY_KIND_FLOAT32, .ta_put_float32
     branch_eq t2, TYPED_ARRAY_KIND_UINT8_CLAMPED, .ta_put_uint8_clamped
     branch_any_eq t2, TYPED_ARRAY_KIND_UINT8, TYPED_ARRAY_KIND_INT8, .ta_put_uint8
     branch_any_eq t2, TYPED_ARRAY_KIND_UINT16, TYPED_ARRAY_KIND_INT16, .ta_put_uint16
     jmp .try_typed_array_slow
 .ta_put_int32:
     store32 [t5, t4, 4], t0
+    dispatch_next
+.ta_put_float32:
+    int_to_double ft0, t0
+    double_to_float ft0, ft0
+    mov t3, t4
+    shl t3, 2
+    add t3, t5
+    storef32 [t3, 0], ft0
     dispatch_next
 .ta_put_uint8_clamped:
     branch_negative t0, .ta_put_uint8_clamped_zero
@@ -1605,6 +1624,7 @@ handler GetByValue
     branch_eq t0, TYPED_ARRAY_KIND_INT8, .ta_int8
     branch_eq t0, TYPED_ARRAY_KIND_INT16, .ta_int16
     branch_eq t0, TYPED_ARRAY_KIND_UINT32, .ta_uint32
+    branch_eq t0, TYPED_ARRAY_KIND_FLOAT32, .ta_float32
     branch_eq t0, TYPED_ARRAY_KIND_FLOAT64, .ta_float64
     jmp .try_typed_array_slow
 .ta_int32:
@@ -1626,6 +1646,18 @@ handler GetByValue
     add t0, t4
     load16s t0, [t5, t0]
     jmp .ta_box_int32
+.ta_float32:
+    mov t0, t4
+    shl t0, 2
+    add t0, t5
+    loadf32 ft0, [t0, 0]
+    float_to_double ft0, ft0
+    fp_mov t1, ft0
+    mov t3, NEGATIVE_ZERO
+    branch_eq t1, t3, .ta_f64_as_double
+    double_to_int32 t0, ft0, .ta_f64_as_double
+    branch_nonzero t0, .ta_f64_as_int
+    jmp .ta_f64_as_int
 .ta_float64:
     # index * 8 for f64 elements
     mov t0, t4

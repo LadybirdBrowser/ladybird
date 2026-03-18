@@ -866,6 +866,14 @@ fn to_w_reg(reg: &str) -> String {
     }
 }
 
+fn to_s_reg(reg: &str) -> String {
+    if let Some(n) = reg.strip_prefix('d') {
+        format!("s{n}")
+    } else {
+        reg.to_string()
+    }
+}
+
 fn emit_instruction(
     out: &mut String,
     insn: &AsmInstruction,
@@ -1116,6 +1124,17 @@ fn emit_instruction(
             }
         }
 
+        // loadf32 dst_fpr, [base, offset]
+        "loadf32" => {
+            if insn.operands.len() >= 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let mem_str = resolve_op(&insn.operands[1], handler, program);
+                if let Some(mem) = parse_mem(&mem_str) {
+                    emit_mem_load(out, &to_s_reg(&dst), &mem, 4, false);
+                }
+            }
+        }
+
         // load32 dst_reg, [base, offset]
         "load32" => {
             if insn.operands.len() >= 2 {
@@ -1172,6 +1191,17 @@ fn emit_instruction(
                 if let Some(mem) = parse_mem(&mem_str) {
                     let wdst = to_w_reg(&dst);
                     emit_mem_load(out, &wdst, &mem, 2, true);
+                }
+            }
+        }
+
+        // storef32 [base, offset], src_fpr
+        "storef32" => {
+            if insn.operands.len() >= 2 {
+                let mem_str = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                if let Some(mem) = parse_mem(&mem_str) {
+                    emit_mem_store(out, &to_s_reg(&src), &mem, 4);
                 }
             }
         }
@@ -1740,6 +1770,22 @@ fn emit_instruction(
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 w!(out, "    scvtf {dst}, {src}");
+            }
+        }
+
+        "float_to_double" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    fcvt {dst}, {}", to_s_reg(&src));
+            }
+        }
+
+        "double_to_float" => {
+            if insn.operands.len() == 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    fcvt {}, {src}", to_s_reg(&dst));
             }
         }
 

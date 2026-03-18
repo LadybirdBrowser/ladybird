@@ -601,6 +601,24 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             w!(out, "    cvtsi2sd {}", ops.join(", "));
         }
 
+        "float_to_double" => {
+            let ops: Vec<String> = insn
+                .operands
+                .iter()
+                .map(|o| resolve_op(o, handler, program))
+                .collect();
+            w!(out, "    cvtss2sd {}", ops.join(", "));
+        }
+
+        "double_to_float" => {
+            let ops: Vec<String> = insn
+                .operands
+                .iter()
+                .map(|o| resolve_op(o, handler, program))
+                .collect();
+            w!(out, "    cvtsd2ss {}", ops.join(", "));
+        }
+
         // canonicalize_nan dst_gpr, src_fpr
         // If src is NaN, write CANON_NAN_BITS to dst. Otherwise bitwise-copy src to dst.
         // Uses a cold fixup block to keep the movabs off the hot path, since NaN
@@ -698,6 +716,15 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        // loadf32 dst_fpr, [base, offset] - Load 32-bit float from memory
+        "loadf32" => {
+            if insn.operands.len() >= 2 {
+                let dst = resolve_op(&insn.operands[0], handler, program);
+                let mem = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    movss {dst}, DWORD PTR {mem}");
+            }
+        }
+
         // load32 dst_reg, [base, offset] - Load 32-bit value (zero-extended to 64-bit)
         "load32" => {
             if insn.operands.len() >= 2 {
@@ -745,6 +772,15 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
                 let dst32 = to_32bit_reg(&dst);
                 let mem = resolve_op(&insn.operands[1], handler, program);
                 w!(out, "    movsx {dst32}, WORD PTR {mem}");
+            }
+        }
+
+        // storef32 [base, offset], src_fpr - Store 32-bit float to memory
+        "storef32" => {
+            if insn.operands.len() >= 2 {
+                let mem = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
+                w!(out, "    movss DWORD PTR {mem}, {src}");
             }
         }
 
