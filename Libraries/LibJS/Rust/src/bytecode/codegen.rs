@@ -47,7 +47,7 @@ use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
-use super::ffi::LiteralValueKind;
+use super::ffi::{LiteralValueKind, WellKnownSymbolKind};
 use super::generator::{
     BlockBoundaryType, ConstantValue, FinallyContext, Generator, ScopedOperand, choose_dst,
     constant_to_boolean, parse_bigint,
@@ -3134,11 +3134,18 @@ fn try_generate_builtin_constant(
         return None;
     }
     if *name == utf16!("SYMBOL_ITERATOR") {
-        let value = unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, 0) };
+        let value = unsafe {
+            super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolIterator)
+        };
         return Some(generator.add_constant_raw_value(value));
     }
     if *name == utf16!("SYMBOL_ASYNC_ITERATOR") {
-        let value = unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, 1) };
+        let value = unsafe {
+            super::ffi::get_well_known_symbol(
+                generator.vm_ptr,
+                WellKnownSymbolKind::SymbolAsyncIterator,
+            )
+        };
         return Some(generator.add_constant_raw_value(value));
     }
     if *name == utf16!("MAX_ARRAY_LIKE_INDEX") {

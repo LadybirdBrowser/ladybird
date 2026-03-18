@@ -14,7 +14,7 @@ sys_includes = ["stdint.h", "stddef.h"]
 usize_is_size_t = true
 
 [export]
-include = ["ConstantTag", "LiteralValueKind"]
+include = ["ConstantTag", "LiteralValueKind", "WellKnownSymbolKind"]
 
 [export.mangle]
 rename_types = "PascalCase"

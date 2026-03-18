@@ -116,6 +116,14 @@ pub enum LiteralValueKind {
     String = 5,
 }
 
+/// Well-known symbol IDs for get_well_known_symbol()
+/// Used to retrieve well known symbols as opaque Values from C++.
+#[repr(u8)]
+pub enum WellKnownSymbolKind {
+    SymbolIterator = 0,
+    SymbolAsyncIterator = 1,
+}
+
 /// Class element descriptor for ClassBlueprint creation
 /// (C++ `BytecodeFactory::ClassElementData`).
 #[repr(C)]
@@ -270,8 +278,7 @@ unsafe extern "C" {
     pub fn rust_number_to_utf16(value: f64, buffer: *mut u16, buffer_len: usize) -> usize;
 
     // Get a well-known symbol as an opaque Value.
-    // symbol_id: 0 = Symbol.iterator, 1 = Symbol.asyncIterator
-    pub fn get_well_known_symbol(vm_ptr: *mut c_void, symbol_id: u32) -> u64;
+    pub fn get_well_known_symbol(vm_ptr: *mut c_void, symbol_id: WellKnownSymbolKind) -> u64;
 
     // Get an intrinsic abstract operation function as an opaque Value.
     // name/name_len is the function name (e.g. "GetMethod").

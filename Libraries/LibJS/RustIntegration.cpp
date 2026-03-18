@@ -1335,15 +1335,15 @@ extern "C" size_t rust_format_double(double value, uint8_t* buffer, size_t buffe
     return len;
 }
 
-extern "C" uint64_t get_well_known_symbol(void* vm_ptr, uint32_t symbol_id)
+extern "C" uint64_t get_well_known_symbol(void* vm_ptr, WellKnownSymbolKind symbol_id)
 {
     auto& vm = *static_cast<JS::VM*>(vm_ptr);
     JS::Value value;
     switch (symbol_id) {
-    case 0:
+    case WellKnownSymbolKind::SymbolIterator:
         value = vm.well_known_symbol_iterator();
         break;
-    case 1:
+    case WellKnownSymbolKind::SymbolAsyncIterator:
         value = vm.well_known_symbol_async_iterator();
         break;
     default:
