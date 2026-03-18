@@ -337,16 +337,11 @@ public:
 
     [[nodiscard]] ALWAYS_INLINE constexpr bool has_value() const { return m_has_value; }
 
-    [[nodiscard]] ALWAYS_INLINE constexpr T& value() &
+    template<typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr auto& value(this Self& self)
     {
-        VERIFY(m_has_value);
-        return m_storage;
-    }
-
-    [[nodiscard]] ALWAYS_INLINE constexpr T const& value() const&
-    {
-        VERIFY(m_has_value);
-        return m_storage;
+        VERIFY(self.m_has_value);
+        return self.m_storage;
     }
 
     [[nodiscard]] ALWAYS_INLINE constexpr T value() &&
@@ -363,16 +358,11 @@ public:
         return released_value;
     }
 
-    [[nodiscard]] ALWAYS_INLINE constexpr T& unchecked_value() &
+    template<typename Self>
+    [[nodiscard]] ALWAYS_INLINE constexpr auto& unchecked_value(this Self& self)
     {
-        ASSERT(m_has_value);
-        return m_storage;
-    }
-
-    [[nodiscard]] ALWAYS_INLINE constexpr T const& unchecked_value() const&
-    {
-        ASSERT(m_has_value);
-        return m_storage;
+        ASSERT(self.m_has_value);
+        return self.m_storage;
     }
 
 private:
@@ -621,31 +611,16 @@ public:
         return *m_pointer;
     }
 
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper)
+    template<typename Self, typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
+    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(this Self&& self, F&& mapper)
     {
         if constexpr (IsErrorOr) {
-            if (m_pointer != nullptr)
-                return OptionalType { TRY(mapper(value())) };
+            if (self.m_pointer != nullptr)
+                return OptionalType { TRY(mapper(forward<Self>(self).value())) };
             return OptionalType {};
         } else {
-            if (m_pointer != nullptr)
-                return OptionalType { mapper(value()) };
-
-            return OptionalType {};
-        }
-    }
-
-    template<typename F, typename MappedType = decltype(declval<F>()(declval<T&>())), auto IsErrorOr = IsSpecializationOf<MappedType, ErrorOr>, typename OptionalType = Optional<ConditionallyResultType<IsErrorOr, MappedType>>>
-    ALWAYS_INLINE constexpr Conditional<IsErrorOr, ErrorOr<OptionalType>, OptionalType> map(F&& mapper) const
-    {
-        if constexpr (IsErrorOr) {
-            if (m_pointer != nullptr)
-                return OptionalType { TRY(mapper(value())) };
-            return OptionalType {};
-        } else {
-            if (m_pointer != nullptr)
-                return OptionalType { mapper(value()) };
+            if (self.m_pointer != nullptr)
+                return OptionalType { mapper(forward<Self>(self).value()) };
 
             return OptionalType {};
         }
