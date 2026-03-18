@@ -25,34 +25,34 @@ public:
     };
 
     Reference(BaseType type, PropertyKey name, Strict strict)
-        : m_base_type(type)
-        , m_name(move(name))
+        : m_name(move(name))
+        , m_base_type(type)
         , m_strict(strict)
     {
     }
 
     Reference(Value base, PropertyKey name, Optional<Value> this_value, Strict strict)
-        : m_base_type(BaseType::Value)
+        : m_name(move(name))
         , m_base_value(base)
-        , m_name(move(name))
         , m_this_value(this_value)
+        , m_base_type(BaseType::Value)
         , m_strict(strict)
     {
     }
 
     Reference(Environment& base, Utf16FlyString referenced_name, Strict strict, Optional<EnvironmentCoordinate> environment_coordinate = {})
-        : m_base_type(BaseType::Environment)
+        : m_name(move(referenced_name))
         , m_base_environment(&base)
-        , m_name(move(referenced_name))
-        , m_strict(strict)
         , m_environment_coordinate(move(environment_coordinate))
+        , m_base_type(BaseType::Environment)
+        , m_strict(strict)
     {
     }
 
     Reference(Value base, PrivateName name)
-        : m_base_type(BaseType::Value)
+        : m_name(move(name))
         , m_base_value(base)
-        , m_name(move(name))
+        , m_base_type(BaseType::Value)
         , m_strict(Strict::Yes)
     {
     }
@@ -140,16 +140,15 @@ public:
 private:
     Completion throw_reference_error(VM&) const;
 
-    BaseType m_base_type { BaseType::Unresolvable };
+    Variant<PropertyKey, PrivateName> m_name;
     union {
         Value m_base_value {};
         mutable Environment* m_base_environment;
     };
-    Variant<PropertyKey, PrivateName> m_name;
     Optional<Value> m_this_value;
-    Strict m_strict { Strict::No };
-
     Optional<EnvironmentCoordinate> m_environment_coordinate;
+    BaseType m_base_type { BaseType::Unresolvable };
+    Strict m_strict { Strict::No };
 };
 
 }
