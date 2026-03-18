@@ -1233,21 +1233,21 @@ extern "C" void* rust_create_class_blueprint(
             desc.shared_function_data_index = elem.shared_function_data_index.value;
         desc.has_initializer = elem.has_initializer;
         switch (elem.literal_value_kind) {
-        case 0: // none
+        case LiteralValueKind::None:
             break;
-        case 1: // number
+        case LiteralValueKind::Number:
             desc.literal_value = JS::Value(elem.literal_value_number);
             break;
-        case 2: // boolean true
+        case LiteralValueKind::BooleanTrue:
             desc.literal_value = JS::Value(true);
             break;
-        case 3: // boolean false
+        case LiteralValueKind::BooleanFalse:
             desc.literal_value = JS::Value(false);
             break;
-        case 4: // null
+        case LiteralValueKind::Null:
             desc.literal_value = JS::js_null();
             break;
-        case 5: { // string
+        case LiteralValueKind::String: {
             auto& vm = *static_cast<JS::VM*>(vm_ptr);
             auto str_view = Utf16View(reinterpret_cast<char16_t const*>(elem.literal_value_string), elem.literal_value_string_len);
             desc.literal_value = JS::Value(JS::PrimitiveString::create(vm, str_view));

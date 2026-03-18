@@ -105,6 +105,17 @@ impl From<Option<u32>> for FFIOptionalU32 {
     }
 }
 
+/// Literal value kind for class field initializers
+#[repr(u8)]
+pub enum LiteralValueKind {
+    None = 0,
+    Number = 1,
+    BooleanTrue = 2,
+    BooleanFalse = 3,
+    Null = 4,
+    String = 5,
+}
+
 /// Class element descriptor for ClassBlueprint creation
 /// (C++ `BytecodeFactory::ClassElementData`).
 #[repr(C)]
@@ -116,7 +127,7 @@ pub struct FFIClassElement {
     pub private_identifier_len: usize,
     pub shared_function_data_index: FFIOptionalU32,
     pub has_initializer: bool,
-    pub literal_value_kind: u8, // LiteralValueKind
+    pub literal_value_kind: LiteralValueKind,
     pub literal_value_number: f64,
     pub literal_value_string: *const u16,
     pub literal_value_string_len: usize,

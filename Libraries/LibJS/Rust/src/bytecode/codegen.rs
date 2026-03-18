@@ -47,6 +47,7 @@ use crate::ast::*;
 use crate::lexer::ch;
 use crate::u32_from_usize;
 
+use super::ffi::LiteralValueKind;
 use super::generator::{
     BlockBoundaryType, ConstantValue, FinallyContext, Generator, ScopedOperand, choose_dst,
     constant_to_boolean, parse_bigint,
@@ -1267,18 +1268,6 @@ enum ClassElementKind {
 enum IteratorHint {
     Sync = 0,
     Async = 1,
-}
-
-/// Literal value kind for class field initializers
-/// (ABI-compatible).
-#[repr(u8)]
-enum LiteralValueKind {
-    None = 0,
-    Number = 1,
-    BooleanTrue = 2,
-    BooleanFalse = 3,
-    Null = 4,
-    String = 5,
 }
 
 /// Like generate_await but uses caller-provided completion registers.
@@ -6040,7 +6029,7 @@ fn generate_class_expression(
                     private_identifier_len: priv_len,
                     shared_function_data_index: sfd_index,
                     has_initializer: false,
-                    literal_value_kind: LiteralValueKind::None as u8,
+                    literal_value_kind: LiteralValueKind::None,
                     literal_value_number: 0.0,
                     literal_value_string: std::ptr::null(),
                     literal_value_string_len: 0,
@@ -6054,7 +6043,7 @@ fn generate_class_expression(
                 // Detect literal initializers and store the value directly,
                 // avoiding function creation for simple cases like x = 0.
                 // This matches C++ ASTCodegen.cpp behavior.
-                let mut literal_value_kind = LiteralValueKind::None as u8;
+                let mut literal_value_kind = LiteralValueKind::None;
                 let mut literal_value_number: f64 = 0.0;
                 let mut literal_value_string = Utf16String::new();
                 let mut sfd_index = super::ffi::FFIOptionalU32::none();
@@ -6062,30 +6051,30 @@ fn generate_class_expression(
                 if let Some(init_expression) = initializer {
                     let is_literal = match &init_expression.inner {
                         ExpressionKind::NumericLiteral(n) => {
-                            literal_value_kind = LiteralValueKind::Number as u8;
+                            literal_value_kind = LiteralValueKind::Number;
                             literal_value_number = *n;
                             true
                         }
                         ExpressionKind::BooleanLiteral(b) => {
                             literal_value_kind = if *b {
-                                LiteralValueKind::BooleanTrue as u8
+                                LiteralValueKind::BooleanTrue
                             } else {
-                                LiteralValueKind::BooleanFalse as u8
+                                LiteralValueKind::BooleanFalse
                             };
                             true
                         }
                         ExpressionKind::NullLiteral => {
-                            literal_value_kind = LiteralValueKind::Null as u8;
+                            literal_value_kind = LiteralValueKind::Null;
                             true
                         }
                         ExpressionKind::StringLiteral(s) => {
-                            literal_value_kind = LiteralValueKind::String as u8;
+                            literal_value_kind = LiteralValueKind::String;
                             literal_value_string = s.clone();
                             true
                         }
                         ExpressionKind::Unary { op, operand } if *op == UnaryOp::Minus => {
                             if let ExpressionKind::NumericLiteral(n) = &operand.inner {
-                                literal_value_kind = LiteralValueKind::Number as u8;
+                                literal_value_kind = LiteralValueKind::Number;
                                 literal_value_number = -n;
                                 true
                             } else {
@@ -6231,7 +6220,7 @@ fn generate_class_expression(
                     private_identifier_len: 0,
                     shared_function_data_index: sfd_index,
                     has_initializer: false,
-                    literal_value_kind: LiteralValueKind::None as u8,
+                    literal_value_kind: LiteralValueKind::None,
                     literal_value_number: 0.0,
                     literal_value_string: std::ptr::null(),
                     literal_value_string_len: 0,
