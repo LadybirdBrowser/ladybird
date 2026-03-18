@@ -109,7 +109,7 @@ void SVGSVGElement::attribute_changed(FlyString const& name, Optional<String> co
     }
 }
 
-void SVGSVGElement::children_changed(ChildrenChangedMetadata const*)
+void SVGSVGElement::children_changed(ChildrenChangedMetadata const&)
 {
     // FIXME: Add support for all types of SVG fragment identifier.
     //        See: https://svgwg.org/svg2-draft/linking.html#LinksIntoSVG

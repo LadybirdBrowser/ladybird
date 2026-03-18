@@ -34,7 +34,7 @@ void HTMLStyleElement::visit_edges(Cell::Visitor& visitor)
     visit_style_element_edges(visitor);
 }
 
-void HTMLStyleElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLStyleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
     update_a_style_block();

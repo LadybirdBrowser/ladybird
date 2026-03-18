@@ -403,11 +403,11 @@ bool HTMLSelectElement::can_skip_children_changed_selectedness_update(ChildrenCh
     return false;
 }
 
-void HTMLSelectElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLSelectElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
-    if (metadata && can_skip_children_changed_selectedness_update(*metadata))
+    if (can_skip_children_changed_selectedness_update(metadata))
         return;
 
     update_cached_list_of_options();

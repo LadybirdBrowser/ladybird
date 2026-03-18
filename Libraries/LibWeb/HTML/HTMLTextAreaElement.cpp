@@ -393,7 +393,7 @@ void HTMLTextAreaElement::update_placeholder_visibility()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-textarea-element:children-changed-steps
-void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLTextAreaElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 

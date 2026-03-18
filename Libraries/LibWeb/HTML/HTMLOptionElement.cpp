@@ -349,7 +349,7 @@ void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
     update_nearest_select_element();
 }
 
-void HTMLOptionElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLOptionElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 

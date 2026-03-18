@@ -1597,7 +1597,7 @@ void Element::moved_from(GC::Ptr<Node> old_parent)
     Base::moved_from(old_parent);
 }
 
-void Element::children_changed(ChildrenChangedMetadata const* metadata)
+void Element::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Node::children_changed(metadata);
     set_needs_style_update(true);

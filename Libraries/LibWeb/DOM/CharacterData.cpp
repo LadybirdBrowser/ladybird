@@ -121,8 +121,10 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
     }
 
     // 12. If node’s parent is non-null, then run the children changed steps for node’s parent.
-    if (parent())
-        parent()->children_changed(nullptr);
+    if (auto* parent = this->parent()) {
+        ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Mutation, *this };
+        parent->children_changed(metadata);
+    }
 
     // OPTIMIZATION: If the characters are the same, we can skip the remainder of this function.
     if (m_data == old_data)

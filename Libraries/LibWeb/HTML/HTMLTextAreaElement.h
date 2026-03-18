@@ -73,7 +73,7 @@ public:
     virtual void form_associated_element_was_inserted() override;
     virtual void form_associated_element_attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
 
     // https://www.w3.org/TR/html-aria/#el-textarea
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::textbox; }

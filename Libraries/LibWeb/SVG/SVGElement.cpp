@@ -223,7 +223,7 @@ void SVGElement::inserted()
     update_use_elements_that_reference_this();
 }
 
-void SVGElement::children_changed(ChildrenChangedMetadata const* metadata)
+void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 

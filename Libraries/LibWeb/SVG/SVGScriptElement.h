@@ -27,7 +27,7 @@ public:
     void set_source_line_number(Badge<HTML::HTMLParser>, size_t source_line_number) { m_source_line_number = source_line_number; }
 
     virtual void inserted() override;
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
 protected:

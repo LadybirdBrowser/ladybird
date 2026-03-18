@@ -25,7 +25,7 @@ private:
 
     virtual bool is_html_title_element() const override { return true; }
     virtual void initialize(JS::Realm&) override;
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
 };
 
 }

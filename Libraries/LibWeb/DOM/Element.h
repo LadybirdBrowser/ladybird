@@ -587,7 +587,7 @@ protected:
     virtual void removed_from(Node* old_parent, Node& old_root) override;
     virtual void moved_from(GC::Ptr<Node> old_parent) override;
 
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual i32 default_tab_index_value() const;
 
     // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext

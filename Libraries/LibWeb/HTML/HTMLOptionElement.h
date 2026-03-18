@@ -64,7 +64,7 @@ private:
 
     virtual void inserted() override;
     virtual void removed_from(Node* old_parent, Node& old_root) override;
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
 
     void ask_for_a_reset();
     void update_selection_label();

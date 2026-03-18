@@ -140,7 +140,7 @@ private:
 
     virtual void computed_properties_changed() override;
 
-    virtual void children_changed(ChildrenChangedMetadata const*) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
     bool can_skip_children_changed_selectedness_update(ChildrenChangedMetadata const& metadata) const;
 
     void update_cached_list_of_options() const;

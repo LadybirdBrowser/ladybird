@@ -298,7 +298,7 @@ public:
         GC::Ref<Node> node;
     };
     // FIXME: It would be good if we could always provide this metadata for use in optimizations.
-    virtual void children_changed(ChildrenChangedMetadata const*) { }
+    virtual void children_changed(ChildrenChangedMetadata const&) { }
 
     virtual void adopted_from(Document&) { }
     virtual WebIDL::ExceptionOr<void> cloned(Node&, bool) const { return {}; }

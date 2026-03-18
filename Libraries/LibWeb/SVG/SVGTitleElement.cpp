@@ -30,7 +30,7 @@ GC::Ptr<Layout::Node> SVGTitleElement::create_layout_node(GC::Ref<CSS::ComputedP
     return nullptr;
 }
 
-void SVGTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
+void SVGTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 

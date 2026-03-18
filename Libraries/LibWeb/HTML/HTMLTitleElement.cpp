@@ -27,7 +27,7 @@ void HTMLTitleElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
-void HTMLTitleElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     HTMLElement::children_changed(metadata);
     auto navigable = this->navigable();

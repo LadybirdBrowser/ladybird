@@ -56,7 +56,7 @@ void SVGScriptElement::inserted()
     process_the_script_element();
 }
 
-void SVGScriptElement::children_changed(ChildrenChangedMetadata const* metadata)
+void SVGScriptElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
     if (m_parser_inserted)

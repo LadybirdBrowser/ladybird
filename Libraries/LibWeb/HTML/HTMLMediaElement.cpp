@@ -876,7 +876,7 @@ private:
 
 GC_DEFINE_ALLOCATOR(SourceElementSelector);
 
-void HTMLMediaElement::children_changed(ChildrenChangedMetadata const* metadata)
+void HTMLMediaElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
