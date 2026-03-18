@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/ArrayBufferConstructor.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/TypedArray.h>
 
 namespace JS {
 
@@ -248,6 +249,21 @@ ThrowCompletionOr<ArrayBuffer*> array_buffer_copy_and_detach(VM& vm, ArrayBuffer
 
     // 16. Return newBuffer.
     return new_buffer;
+}
+
+void ArrayBuffer::detach_buffer()
+{
+    for (auto& view : m_cached_views) {
+        if (view.viewed_array_buffer() == this)
+            view.set_cached_data_ptr(nullptr);
+    }
+    m_cached_views.clear();
+    m_data_block.byte_buffer = Empty {};
+}
+
+void ArrayBuffer::register_cached_typed_array_view(TypedArrayBase& view)
+{
+    m_cached_views.set(view);
 }
 
 // 25.1.3.5 DetachArrayBuffer ( arrayBuffer [ , key ] ), https://tc39.es/ecma262/#sec-detacharraybuffer

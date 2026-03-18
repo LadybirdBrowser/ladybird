@@ -42,10 +42,25 @@ public:
     ContentType content_type() const { return m_content_type; }
     ArrayBuffer* viewed_array_buffer() const { return m_viewed_array_buffer; }
 
+    // Cached raw pointer: viewed_array_buffer->buffer().data() + byte_offset.
+    // nullptr means "not cached, use slow path". This avoids chasing through
+    // ArrayBuffer -> DataBlock -> Variant -> ByteBuffer -> inline/outline on every access.
+    u8* cached_data_ptr() const { return m_data; }
+    void set_cached_data_ptr(u8* ptr) { m_data = ptr; }
+
     void set_array_length(ByteLength length) { m_array_length = move(length); }
     void set_byte_length(ByteLength length) { m_byte_length = move(length); }
-    void set_byte_offset(u32 offset) { m_byte_offset = offset; }
-    void set_viewed_array_buffer(ArrayBuffer* array_buffer) { m_viewed_array_buffer = array_buffer; }
+    void set_byte_offset(u32 offset)
+    {
+        m_byte_offset = offset;
+        update_cached_data_ptr();
+    }
+
+    void set_viewed_array_buffer(ArrayBuffer* array_buffer)
+    {
+        m_viewed_array_buffer = array_buffer;
+        update_cached_data_ptr();
+    }
 
     [[nodiscard]] Kind kind() const { return m_kind; }
 
@@ -74,6 +89,17 @@ protected:
         set_is_typed_array();
     }
 
+    void update_cached_data_ptr()
+    {
+        if (!m_viewed_array_buffer || m_viewed_array_buffer->is_detached() || !m_viewed_array_buffer->is_fixed_length()) {
+            m_data = nullptr;
+            return;
+        }
+
+        m_viewed_array_buffer->register_cached_typed_array_view(*this);
+        m_data = m_viewed_array_buffer->buffer().data() + m_byte_offset;
+    }
+
     u32 m_element_size { 0 };
     ByteLength m_array_length { 0 };
     ByteLength m_byte_length { 0 };
@@ -81,6 +107,7 @@ protected:
     ContentType m_content_type { ContentType::Number };
     Kind m_kind {};
     GC::Ptr<ArrayBuffer> m_viewed_array_buffer;
+    u8* m_data { nullptr };
 
 private:
     virtual bool is_typed_array_base() const final { return true; }
@@ -505,7 +532,7 @@ protected:
         : TypedArrayBase(prototype, kind, sizeof(UnderlyingBufferDataType))
     {
         VERIFY(!Checked<u32>::multiplication_would_overflow(array_length, sizeof(UnderlyingBufferDataType)));
-        m_viewed_array_buffer = &array_buffer;
+        set_viewed_array_buffer(&array_buffer);
         if (array_length)
             VERIFY(!data().is_null());
         m_array_length = array_length;

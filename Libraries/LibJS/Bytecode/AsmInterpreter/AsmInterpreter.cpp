@@ -1011,12 +1011,7 @@ i64 asm_try_get_by_value_typed_array(Interpreter* interp, u32 pc)
     auto& typed_array = static_cast<TypedArrayBase&>(object);
     auto index = static_cast<u32>(property.as_i32());
 
-    // Check not detached
-    auto* buffer = typed_array.viewed_array_buffer();
-    if (buffer->is_detached()) [[unlikely]]
-        return 1;
-
-    // Fast path: fixed-length typed array
+    // Fast path: fixed-length typed array with cached data pointer
     auto const& array_length = typed_array.array_length();
     if (array_length.is_auto()) [[unlikely]]
         return 1;
@@ -1027,8 +1022,13 @@ i64 asm_try_get_by_value_typed_array(Interpreter* interp, u32 pc)
         return 0;
     }
 
-    auto byte_offset = typed_array.byte_offset();
-    auto const* data = buffer->buffer().data() + byte_offset;
+    if (!is_valid_integer_index(typed_array, CanonicalIndex { CanonicalIndex::Type::Index, index })) [[unlikely]] {
+        interp->set(insn.dst(), js_undefined());
+        return 0;
+    }
+
+    auto* buffer = typed_array.viewed_array_buffer();
+    auto const* data = buffer->buffer().data() + typed_array.byte_offset();
 
     Value result;
     switch (typed_array.kind()) {
@@ -1087,10 +1087,6 @@ i64 asm_try_put_by_value_typed_array(Interpreter* interp, u32 pc)
     auto& typed_array = static_cast<TypedArrayBase&>(object);
     auto index = static_cast<u32>(property.as_i32());
 
-    auto* buffer = typed_array.viewed_array_buffer();
-    if (buffer->is_detached()) [[unlikely]]
-        return 1;
-
     auto const& array_length = typed_array.array_length();
     if (array_length.is_auto()) [[unlikely]]
         return 1;
@@ -1098,8 +1094,11 @@ i64 asm_try_put_by_value_typed_array(Interpreter* interp, u32 pc)
     if (index >= array_length.length()) [[unlikely]]
         return 0;
 
-    auto byte_offset = typed_array.byte_offset();
-    auto* data = buffer->buffer().data() + byte_offset;
+    if (!is_valid_integer_index(typed_array, CanonicalIndex { CanonicalIndex::Type::Index, index })) [[unlikely]]
+        return 0;
+
+    auto* buffer = typed_array.viewed_array_buffer();
+    auto* data = buffer->buffer().data() + typed_array.byte_offset();
     auto value = interp->get(insn.src());
 
     if (value.is_int32()) {

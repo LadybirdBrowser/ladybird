@@ -199,7 +199,7 @@ int main()
     EMIT_OFFSET(TYPED_ARRAY_ARRAY_LENGTH, TypedArrayBase, m_array_length);
     EMIT_OFFSET(TYPED_ARRAY_BYTE_OFFSET, TypedArrayBase, m_byte_offset);
     EMIT_OFFSET(TYPED_ARRAY_KIND, TypedArrayBase, m_kind);
-    EMIT_OFFSET(TYPED_ARRAY_VIEWED_BUFFER, TypedArrayBase, m_viewed_array_buffer);
+    EMIT_OFFSET(TYPED_ARRAY_CACHED_DATA_PTR, TypedArrayBase, m_data);
 
     // ByteLength (Variant<Auto, Detached, u32>) layout
     outln("\n# ByteLength layout");
@@ -212,42 +212,6 @@ int main()
         // Variant<Auto, Detached, u32> stores m_data[4] then m_index (u8)
         outln("const TYPED_ARRAY_ARRAY_LENGTH_VALUE = {}", ta_al);     // u32 data at start
         outln("const TYPED_ARRAY_ARRAY_LENGTH_INDEX = {}", ta_al + 4); // index byte after 4 bytes of data
-    }
-
-    // ArrayBuffer layout
-    outln("\n# ArrayBuffer layout");
-    EMIT_OFFSET(ARRAY_BUFFER_DATA_BLOCK, ArrayBuffer, m_data_block);
-    {
-        auto ab_data_block = offsetof(ArrayBuffer, m_data_block);
-        auto db_byte_buffer = offsetof(DataBlock, byte_buffer);
-        outln("const ARRAY_BUFFER_BYTE_BUFFER = {}", ab_data_block + db_byte_buffer);
-        outln("const ARRAY_BUFFER_BYTE_BUFFER_OFFSET = {}", ab_data_block + db_byte_buffer);
-        // Find the actual offset of the Variant index byte by creating a known variant
-        // and scanning for the index value.
-        {
-            decltype(DataBlock::byte_buffer) v_empty;              // index = 0 (Empty)
-            decltype(DataBlock::byte_buffer) v_bb = ByteBuffer {}; // index = 1 (ByteBuffer)
-            auto const* p0 = reinterpret_cast<u8 const*>(&v_empty);
-            auto const* p1 = reinterpret_cast<u8 const*>(&v_bb);
-            size_t index_offset = 0;
-            for (size_t i = sizeof(v_empty); i-- > 0;) {
-                if (p0[i] == 0 && p1[i] == 1) {
-                    index_offset = i;
-                    break;
-                }
-            }
-            outln("const ARRAY_BUFFER_BYTE_BUFFER_VARIANT_INDEX = {}", ab_data_block + db_byte_buffer + index_offset);
-        }
-        outln("const ARRAY_BUFFER_BYTE_BUFFER_BYTEBUFFER_INDEX = 1");
-        auto bb_start = ab_data_block + db_byte_buffer;
-        outln("const ARRAY_BUFFER_BYTE_BUFFER_INLINE = {}", bb_start + offsetof(ByteBuffer, m_inline));
-        outln("const ARRAY_BUFFER_BYTE_BUFFER_OUTLINE_POINTER = {}", bb_start); // m_outline_buffer at offset 0 in union
-    }
-
-    // ArrayBuffer: check if buffer is fixed-length (not resizable)
-    {
-        outln("const ARRAY_BUFFER_IS_FIXED_LENGTH_OFFSET = {}",
-            offsetof(ArrayBuffer, m_data_block) + sizeof(DataBlock) + sizeof(size_t));
     }
 
     // TypedArrayBase::Kind enum values

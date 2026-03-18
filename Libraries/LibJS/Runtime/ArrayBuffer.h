@@ -9,6 +9,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Function.h>
 #include <AK/Variant.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Completion.h>
@@ -16,6 +17,8 @@
 #include <LibJS/Runtime/Object.h>
 
 namespace JS {
+
+class TypedArrayBase;
 
 struct ClampedU8 {
 };
@@ -94,7 +97,8 @@ public:
     Value detach_key() const { return m_detach_key; }
     void set_detach_key(Value detach_key) { m_detach_key = detach_key; }
 
-    void detach_buffer() { m_data_block.byte_buffer = Empty {}; }
+    void detach_buffer();
+    void register_cached_typed_array_view(TypedArrayBase&);
 
     // 25.1.3.4 IsDetachedBuffer ( arrayBuffer ), https://tc39.es/ecma262/#sec-isdetachedbuffer
     bool is_detached() const
@@ -154,6 +158,7 @@ private:
 
     DataBlock m_data_block;
     Optional<size_t> m_max_byte_length;
+    GC::WeakHashSet<TypedArrayBase> m_cached_views;
 
     // The various detach related members of ArrayBuffer are not used by any ECMA262 functionality,
     // but are required to be available for the use of various harnesses like the Test262 test runner.

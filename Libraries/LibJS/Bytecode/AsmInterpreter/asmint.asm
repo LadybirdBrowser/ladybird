@@ -1366,35 +1366,14 @@ handler PutByValue
     dispatch_next
 .try_typed_array:
     # t3 = Object*, t4 = index (u32, non-negative)
-    # Check array_length variant holds a u32 (index byte == 2)
-    load8 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_INDEX]
-    branch_ne t0, BYTE_LENGTH_U32_INDEX, .try_typed_array_slow
-    # Load array length, check index in bounds
-    load32 t5, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
-    branch_ge_unsigned t4, t5, .slow
-    # Load ArrayBuffer* from m_viewed_array_buffer
-    load64 t0, [t3, TYPED_ARRAY_VIEWED_BUFFER]
-    # Check buffer is fixed-length (not resizable)
-    # ARRAY_BUFFER_IS_FIXED_LENGTH_OFFSET points to Optional<size_t>::m_has_value
-    # If has_value is true, the buffer has a max_byte_length (= resizable)
-    load8 t5, [t0, ARRAY_BUFFER_IS_FIXED_LENGTH_OFFSET]
-    branch_nonzero t5, .slow
-    # Check ArrayBuffer Variant index == 1 (ByteBuffer, not detached/empty)
-    load8 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_VARIANT_INDEX]
-    branch_ne t5, ARRAY_BUFFER_BYTE_BUFFER_BYTEBUFFER_INDEX, .try_typed_array_slow
-    # Check if ByteBuffer is using inline or outline storage
-    load8 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_INLINE]
-    branch_nonzero t5, .ta_inline_buffer
-    # Outline: load the m_outline_buffer pointer
-    load64 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_OUTLINE_POINTER]
-    jmp .ta_have_data_ptr
-.ta_inline_buffer:
-    # Inline: data is at the start of the ByteBuffer (within Variant data)
-    lea t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_OFFSET]
-.ta_have_data_ptr:
-    # Add byte_offset
-    load32 t0, [t3, TYPED_ARRAY_BYTE_OFFSET]
-    add t5, t0
+    # Load cached data pointer (pre-computed: buffer.data() + byte_offset)
+    # nullptr means uncached -> C++ helper will resolve the access.
+    load64 t5, [t3, TYPED_ARRAY_CACHED_DATA_PTR]
+    branch_zero t5, .try_typed_array_slow
+    # Cached pointers only exist for fixed-length typed arrays, so array_length
+    # is known to hold a concrete u32 value here.
+    load32 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
+    branch_ge_unsigned t4, t0, .slow
     # t5 = data base pointer, t4 = index
     # Load kind into t2 before load_operand clobbers t0
     load8 t2, [t3, TYPED_ARRAY_KIND]
@@ -1595,36 +1574,14 @@ handler GetByValue
     dispatch_next
 .try_typed_array:
     # t3 = Object*, t4 = index (u32, non-negative)
-    # Check array_length variant holds a u32 (index byte == 2)
-    load8 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_INDEX]
-    branch_ne t0, BYTE_LENGTH_U32_INDEX, .try_typed_array_slow
-    # Load array length, check index in bounds
-    load32 t5, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
-    branch_ge_unsigned t4, t5, .try_typed_array_slow
-    # Load ArrayBuffer* from m_viewed_array_buffer
-    load64 t0, [t3, TYPED_ARRAY_VIEWED_BUFFER]
-    # Check buffer is fixed-length (not resizable)
-    # ARRAY_BUFFER_IS_FIXED_LENGTH_OFFSET points to Optional<size_t>::m_has_value
-    # If has_value is true, the buffer has a max_byte_length (= resizable)
-    load8 t5, [t0, ARRAY_BUFFER_IS_FIXED_LENGTH_OFFSET]
-    branch_nonzero t5, .slow
-    # Check ArrayBuffer Variant index == 1 (ByteBuffer, not detached/empty)
-    load8 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_VARIANT_INDEX]
-    branch_ne t5, ARRAY_BUFFER_BYTE_BUFFER_BYTEBUFFER_INDEX, .try_typed_array_slow
-    # Load data pointer from ByteBuffer
-    # Check if ByteBuffer is using inline or outline storage
-    load8 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_INLINE]
-    branch_nonzero t5, .ta_inline_buffer
-    # Outline: load the m_outline_buffer pointer
-    load64 t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_OUTLINE_POINTER]
-    jmp .ta_have_data_ptr
-.ta_inline_buffer:
-    # Inline: data is at the start of the ByteBuffer (within Variant data)
-    lea t5, [t0, ARRAY_BUFFER_BYTE_BUFFER_OFFSET]
-.ta_have_data_ptr:
-    # Add byte_offset
-    load32 t0, [t3, TYPED_ARRAY_BYTE_OFFSET]
-    add t5, t0
+    # Load cached data pointer (pre-computed: buffer.data() + byte_offset)
+    # nullptr means uncached -> C++ helper will resolve the access.
+    load64 t5, [t3, TYPED_ARRAY_CACHED_DATA_PTR]
+    branch_zero t5, .try_typed_array_slow
+    # Cached pointers only exist for fixed-length typed arrays, so array_length
+    # is known to hold a concrete u32 value here.
+    load32 t0, [t3, TYPED_ARRAY_ARRAY_LENGTH_VALUE]
+    branch_ge_unsigned t4, t0, .try_typed_array_slow
     # t5 = data base pointer, t4 = index
     # Dispatch on kind
     load8 t0, [t3, TYPED_ARRAY_KIND]
