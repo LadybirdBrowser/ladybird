@@ -1,0 +1,17 @@
+<!doctype html>
+<title>onvisibilitychange attribute is a proper event handler</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<script>
+var ast = new async_test("onvisibilitychange attribute is a proper event handler");
+var iframe = document.createElement("iframe");
+iframe.srcdoc = "<script>onload = function() { parent.startTest(); }<\/script>";
+function startTest() {
+  iframe.contentWindow.document.onvisibilitychange = ast.step_func(function() {
+    ast.done();
+  });
+  iframe.parentNode.removeChild(iframe);
+}
+document.body.appendChild(iframe);
+</script>
