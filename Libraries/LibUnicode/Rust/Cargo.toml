@@ -14,3 +14,6 @@ icu_calendar = { version = "2.1.1", features = ["compiled_data"] }
 
 [build-dependencies]
 cbindgen = "0.29"
+
+[lints]
+workspace = true

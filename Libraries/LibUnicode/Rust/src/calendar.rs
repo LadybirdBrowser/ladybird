@@ -629,7 +629,7 @@ fn year_contains_month_code_impl(
         months.iter().any(|m| m.month_code == month_code)
     } else {
         matches!(
-            Date::try_new_from_codes(None, arithmetic_year, month_code, 1, calendar.clone()),
+            Date::try_new_from_codes(None, arithmetic_year, month_code, 1, calendar),
             Ok(date) if date.month().standard_code == month_code
         )
     };
