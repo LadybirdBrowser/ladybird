@@ -1,0 +1,3 @@
+initial style=display: none; display=none position=absolute width=100% left=0px top=40px
+after-display-empty style=(none) display=none position=absolute width=100% left=0px top=40px
+after-display-block style=display: block; display=block position=absolute width=500px left=0px top=40px

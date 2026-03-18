@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+#container {
+    position: relative;
+    width: 500px;
+}
+
+#target {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 40px;
+    width: 100%;
+}
+</style>
+<div id="container">
+    <div id="target" style="display: none;">content</div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function snapshot(label) {
+        const cs = getComputedStyle(target);
+        println(
+            `${label} style=${target.getAttribute("style") || "(none)"} display=${cs.display} position=${cs.position} width=${cs.width} left=${cs.left} top=${cs.top}`
+        );
+    }
+
+    test(() => {
+        snapshot("initial");
+        target.style.display = "";
+        snapshot("after-display-empty");
+        target.style.display = "block";
+        snapshot("after-display-block");
+    });
+</script>

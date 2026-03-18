@@ -1725,6 +1725,20 @@ GC::Ref<ComputedProperties> StyleComputer::compute_style(DOM::AbstractElement ab
     return *compute_style_impl(abstract_element, ComputeStyleMode::Normal, did_change_custom_properties, style_scope);
 }
 
+GC::Ref<ComputedProperties> StyleComputer::compute_style_with_seeded_ancestors(DOM::AbstractElement abstract_element)
+{
+    for (auto parent = abstract_element.parent_element(); parent; parent = parent->parent_element()) {
+        push_ancestor(*parent);
+    }
+
+    ScopeGuard pop_ancestors = [&] {
+        for (auto parent = abstract_element.parent_element(); parent; parent = parent->parent_element())
+            pop_ancestor(*parent);
+    };
+
+    return compute_style(abstract_element);
+}
+
 GC::Ptr<ComputedProperties> StyleComputer::compute_pseudo_element_style_if_needed(DOM::AbstractElement abstract_element, Optional<bool&> did_change_custom_properties) const
 {
     auto& style_scope = abstract_element.style_scope();

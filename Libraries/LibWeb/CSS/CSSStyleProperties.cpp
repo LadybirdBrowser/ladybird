@@ -589,7 +589,10 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
         }
 
         if (!layout_node) {
-            auto style = abstract_element.document().style_computer().compute_style(abstract_element);
+            // Seed the ancestor chain before this one-off style computation, so
+            // ancestor-dependent selectors still match for no `layout_node`
+            // queries (for example `.outer .inner .target`).
+            auto style = abstract_element.document().style_computer().compute_style_with_seeded_ancestors(abstract_element);
             return StyleProperty {
                 .property_id = property_id,
                 .value = style->property(property_id),
