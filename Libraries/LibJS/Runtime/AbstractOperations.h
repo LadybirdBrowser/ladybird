@@ -113,8 +113,6 @@ struct EvalDeclarationData {
         bool is_constant { false };
     };
     Vector<LexicalBinding> lexical_bindings;
-
-    static EvalDeclarationData create(VM&, Program const&, bool strict);
 };
 
 ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, EvalDeclarationData&, Environment* variable_environment, Environment* lexical_environment, PrivateEnvironment* private_environment, bool strict);

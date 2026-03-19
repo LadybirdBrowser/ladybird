@@ -54,11 +54,6 @@ public:
     [[nodiscard]] bool is_module_wrapper() const { return shared_data().m_is_module_wrapper; }
     void set_is_module_wrapper(bool b) { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_module_wrapper = b; }
 
-    Statement const& ecmascript_code() const
-    {
-        VERIFY(shared_data().m_ecmascript_code);
-        return *shared_data().m_ecmascript_code;
-    }
     [[nodiscard]] u32 formal_parameter_count() const { return shared_data().m_formal_parameter_count; }
     [[nodiscard]] ReadonlySpan<Utf16FlyString> parameter_names_for_mapped_arguments() const { return shared_data().m_parameter_names_for_mapped_arguments; }
 

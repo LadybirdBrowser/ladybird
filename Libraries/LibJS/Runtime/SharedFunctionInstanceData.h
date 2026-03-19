@@ -6,12 +6,9 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <AK/RefPtr.h>
 #include <LibGC/Cell.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
-#include <LibJS/FunctionParsingInsights.h>
 #include <LibJS/LocalVariable.h>
 #include <LibJS/Runtime/FunctionKind.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
@@ -45,8 +42,6 @@ enum class ConstructorKind : u8 {
     Derived,
 };
 
-class FunctionNode;
-
 class JS_API SharedFunctionInstanceData final : public GC::Cell {
     GC_CELL(SharedFunctionInstanceData, GC::Cell);
     GC_DECLARE_ALLOCATOR(SharedFunctionInstanceData);
@@ -56,25 +51,6 @@ public:
     virtual ~SharedFunctionInstanceData() override;
     virtual void finalize() override;
 
-    static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&);
-    static GC::Ref<SharedFunctionInstanceData> create_for_function_node(VM&, FunctionNode const&, Utf16FlyString name);
-
-    SharedFunctionInstanceData(
-        VM& vm,
-        FunctionKind,
-        Utf16FlyString name,
-        i32 function_length,
-        NonnullRefPtr<FunctionParameters const>,
-        NonnullRefPtr<Statement const> ecmascript_code,
-        Utf16View source_text,
-        bool strict,
-        bool is_arrow_function,
-        FunctionParsingInsights const&,
-        Vector<LocalVariable> local_variables_names);
-
-    // NB: Constructor for the Rust pipeline. Takes pre-computed metadata
-    //     instead of a C++ AST. FDI fields are populated later during
-    //     lazy compilation by rust_compile_function.
     SharedFunctionInstanceData(
         VM& vm,
         FunctionKind,
@@ -88,9 +64,6 @@ public:
         void* rust_function_ast);
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
-
-    RefPtr<FunctionParameters const> m_formal_parameters; // [[FormalParameters]]
-    RefPtr<Statement const> m_ecmascript_code;            // [[ECMAScriptCode]]
 
     Utf16FlyString m_name;
 
