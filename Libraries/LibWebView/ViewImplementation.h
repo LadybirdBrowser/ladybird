@@ -110,6 +110,7 @@ public:
 
     void inspect_dom_tree();
     void inspect_accessibility_tree();
+    void request_accessibility_tree();
     void get_hovered_node_id();
 
     void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
@@ -220,6 +221,7 @@ public:
     Function<void(JsonObject)> on_received_dom_tree;
     Function<void(DOMNodeProperties)> on_received_dom_node_properties;
     Function<void(JsonObject)> on_received_accessibility_tree;
+    Function<void(Vector<AccessibilityNodeData>)> on_accessibility_tree_received;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;

@@ -41,6 +41,7 @@
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWebView/Forward.h>
 
 namespace Web::DOM {
 
@@ -111,6 +112,7 @@ enum class InvalidateLayoutTreeReason {
     X(HTMLInputElementWidth)                 \
     X(HTMLLabelElementActivationBehavior)    \
     X(HostedDocumentBeforePaint)             \
+    X(InspectAccessibilityTree)              \
     X(InspectDOMTree)                        \
     X(InternalsHitTest)                      \
     X(MediaQueryListMatches)                 \
@@ -744,6 +746,7 @@ public:
     void did_stop_being_active_document_in_navigable();
 
     String dump_accessibility_tree_as_json();
+    Vector<WebView::AccessibilityNodeData> build_accessibility_node_data();
 
     void make_active();
 

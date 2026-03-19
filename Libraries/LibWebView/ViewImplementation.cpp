@@ -373,6 +373,11 @@ void ViewImplementation::inspect_accessibility_tree()
     client().async_inspect_accessibility_tree(page_id());
 }
 
+void ViewImplementation::request_accessibility_tree()
+{
+    client().async_request_accessibility_tree(page_id());
+}
+
 void ViewImplementation::get_hovered_node_id()
 {
     client().async_get_hovered_node_id(page_id());

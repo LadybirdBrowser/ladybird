@@ -55,6 +55,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWebView/AccessibilityNodeData.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -620,6 +621,16 @@ void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)
     }
 }
 
+void ConnectionFromClient::request_accessibility_tree(u64 page_id)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        if (auto* doc = page->page().top_level_browsing_context().active_document()) {
+            doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+            async_did_get_accessibility_tree(page_id, doc->build_accessibility_node_data());
+        }
+    }
+}
+
 void ConnectionFromClient::get_hovered_node_id(u64 page_id)
 {
     auto page = this->page(page_id);
@@ -1059,6 +1070,70 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_stacking_context_tree(page->page(), builder);
+    }
+
+    if (has_flag(type, WebView::PageInfoType::AccessibilityTree)) {
+        if (!builder.is_empty())
+            builder.append("\n"sv);
+        auto* doc = page->page().top_level_browsing_context().active_document();
+        if (doc) {
+            doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+            auto nodes = doc->build_accessibility_node_data();
+
+            HashMap<i64, WebView::AccessibilityNodeData const*> node_map;
+            i64 root_id = -1;
+            for (auto const& node : nodes) {
+                node_map.set(node.id, &node);
+                if (node.parent_id == -1)
+                    root_id = node.id;
+            }
+
+            Function<void(i64, int)> dump_node = [&](i64 id, int depth) {
+                auto const* node = node_map.get(id).value_or(nullptr);
+                if (!node)
+                    return;
+
+                for (int i = 0; i < depth; ++i)
+                    builder.append("  "sv);
+
+                builder.append(node->role.bytes_as_string_view());
+
+                if (!node->name.is_empty()) {
+                    builder.append(" name=\""sv);
+                    builder.append(node->name.bytes_as_string_view());
+                    builder.append("\""sv);
+                }
+
+                if (!node->description.is_empty()) {
+                    builder.append(" description=\""sv);
+                    builder.append(node->description.bytes_as_string_view());
+                    builder.append("\""sv);
+                }
+
+                if (!node->value.is_empty()) {
+                    builder.append(" value=\""sv);
+                    builder.append(node->value.bytes_as_string_view());
+                    builder.append("\""sv);
+                }
+
+                if (node->heading_level > 0)
+                    builder.appendff(" level={}", node->heading_level);
+
+                if (node->is_focused)
+                    builder.append(" focused"sv);
+
+                if (node->is_disabled)
+                    builder.append(" disabled"sv);
+
+                builder.append("\n"sv);
+
+                for (auto child_id : node->child_ids)
+                    dump_node(child_id, depth + 1);
+            };
+
+            if (root_id != -1)
+                dump_node(root_id, 0);
+        }
     }
 
     if (has_flag(type, WebView::PageInfoType::GCGraph)) {

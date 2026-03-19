@@ -16,6 +16,7 @@ enum class PageInfoType {
     PaintTree = 1 << 3,
     GCGraph = 1 << 4,
     StackingContextTree = 1 << 5,
+    AccessibilityTree = 1 << 6,
 };
 
 AK_ENUM_BITWISE_OPERATORS(PageInfoType);

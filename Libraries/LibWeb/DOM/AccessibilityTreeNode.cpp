@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
 
@@ -70,6 +72,54 @@ void AccessibilityTreeNode::serialize_tree_as_json(JsonObjectSerializer<StringBu
             MUST(child_object.finish());
         }
         MUST(node_children.finish());
+    }
+}
+
+void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const& document, i64 parent_id) const
+{
+    WebView::AccessibilityNodeData node_data;
+    node_data.parent_id = parent_id;
+
+    if (value()->is_element()) {
+        auto const& element = static_cast<DOM::Element const&>(*value());
+
+        node_data.id = static_cast<i64>(element.unique_id().value());
+        auto role = element.role_or_default();
+        if (role.has_value() && !ARIA::is_abstract_role(*role))
+            node_data.role = MUST(String::from_utf8(ARIA::role_name(*role)));
+
+        node_data.name = MUST(element.accessible_name(document));
+        node_data.description = MUST(element.accessible_description(document));
+        node_data.bounds = element.get_bounding_client_rect().to_type<int>();
+
+        if (auto level = element.aria_level(); level.has_value()) {
+            if (auto parsed = level->bytes_as_string_view().to_number<i32>(); parsed.has_value())
+                node_data.heading_level = *parsed;
+        }
+
+        if (document.active_element() == &element)
+            node_data.is_focused = true;
+    } else if (value()->is_text()) {
+        auto const& text_node = static_cast<DOM::Text const&>(*value());
+        node_data.id = static_cast<i64>(text_node.unique_id().value());
+        node_data.role = "text leaf"_string;
+        node_data.name = text_node.data().to_utf8();
+    }
+
+    auto my_id = node_data.id;
+
+    for (auto const& child : children()) {
+        if (child->value()->is_uninteresting_whitespace_node())
+            continue;
+        node_data.child_ids.append(static_cast<i64>(child->value()->unique_id().value()));
+    }
+
+    out.append(move(node_data));
+
+    for (auto const& child : children()) {
+        if (child->value()->is_uninteresting_whitespace_node())
+            continue;
+        child->serialize_tree_as_node_data(out, document, my_id);
     }
 }
 

@@ -1,0 +1,27 @@
+document
+  generic focused
+    navigation name="Main navigation"
+      text leaf name="
+        "
+      link name="Home"
+        text leaf name="Home"
+      text leaf name="
+    "
+    main
+      heading name="Content" level=2
+        text leaf name="Content"
+      form name="Search"
+        text leaf name="
+            "
+        textbox name="Search query"
+        text leaf name="
+            "
+        button name="Search"
+          text leaf name="Search"
+        text leaf name="
+        "
+      list
+        listitem
+          text leaf name="Item one"
+        listitem
+          text leaf name="Item two"

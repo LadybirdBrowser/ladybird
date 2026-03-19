@@ -1,6 +1,8 @@
 include(fontconfig)
 
 set(SOURCES
+    AccessibilityNodeData.cpp
+    AccessibilityTreeManager.cpp
     Application.cpp
     Attribute.cpp
     Autocomplete.cpp

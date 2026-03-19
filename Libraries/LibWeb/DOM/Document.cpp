@@ -212,6 +212,7 @@
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/ObservableArray.h>
 #include <LibWeb/XPath/XPath.h>
+#include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
 
@@ -5060,6 +5061,25 @@ String Document::dump_accessibility_tree_as_json()
 
     MUST(json.finish());
     return MUST(builder.to_string());
+}
+
+Vector<WebView::AccessibilityNodeData> Document::build_accessibility_node_data()
+{
+    Vector<WebView::AccessibilityNodeData> nodes;
+    auto accessibility_tree = AccessibilityTreeNode::create(this, nullptr);
+    build_accessibility_tree(*&accessibility_tree);
+
+    if (accessibility_tree->value()) {
+        accessibility_tree->serialize_tree_as_node_data(nodes, *this);
+    } else {
+        // Empty document: synthesize a root document node.
+        WebView::AccessibilityNodeData root;
+        root.id = static_cast<i64>(unique_id().value());
+        root.role = "document"_string;
+        nodes.append(move(root));
+    }
+
+    return nodes;
 }
 
 // https://dom.spec.whatwg.org/#dom-document-createattribute

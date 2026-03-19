@@ -85,6 +85,7 @@ private:
     virtual void clear_inspected_dom_node(u64 page_id) override;
     virtual void highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
+    virtual void request_accessibility_tree(u64 page_id) override;
     virtual void get_hovered_node_id(u64 page_id) override;
 
     virtual void list_style_sheets(u64 page_id) override;
