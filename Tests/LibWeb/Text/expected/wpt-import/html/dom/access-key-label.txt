@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Returns non empty string when accesskey is valid
+Pass	Returns empty string when accesskey is invalid

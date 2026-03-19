@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>accessKeyLabel attribute</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<script>
+function createButtonWithAccessKey(accessKey) {
+    const button = document.createElement('button');
+    button.setAttribute('accesskey', accessKey);
+    return button;
+}
+
+// The modifiers are not the same across all browser vendors.
+// Therefore, the test uses non empty.
+test(() => {
+    const element = createButtonWithAccessKey('b');
+    assert_not_equals(element.accessKeyLabel, '');
+}, 'Returns non empty string when accesskey is valid');
+
+test(() => {
+    const element = createButtonWithAccessKey('s 0');
+    assert_equals(element.accessKeyLabel, '');
+}, 'Returns empty string when accesskey is invalid');
+</script>
+</body>
+</html>
