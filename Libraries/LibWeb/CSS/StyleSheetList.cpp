@@ -137,6 +137,8 @@ void StyleSheetList::add_sheet(CSSStyleSheet& sheet)
 {
     sheet.add_owning_document_or_shadow_root(document_or_shadow_root());
 
+    sheet.load_pending_image_resources(document());
+
     if (m_sheets.is_empty()) {
         // This is the first sheet, append it to the list.
         m_sheets.append(sheet);

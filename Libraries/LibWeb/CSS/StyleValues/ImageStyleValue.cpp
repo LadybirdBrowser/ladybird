@@ -195,6 +195,9 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
 {
     Base::set_style_sheet(style_sheet);
     m_style_sheet = style_sheet;
+
+    if (m_style_sheet)
+        m_style_sheet->register_pending_image_value(*this);
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(ComputationContext const&) const

@@ -29,6 +29,9 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
             return WebIDL::NotAllowedError::create(document_or_shadow_root.realm(), "Sharing a StyleSheet between documents is not allowed."_utf16);
 
         style_sheet->add_owning_document_or_shadow_root(document_or_shadow_root);
+
+        style_sheet->load_pending_image_resources(document_or_shadow_root.document());
+
         auto& style_scope = document_or_shadow_root.is_shadow_root() ? as<DOM::ShadowRoot>(document_or_shadow_root).style_scope() : document_or_shadow_root.document().style_scope();
         style_scope.invalidate_rule_cache();
         document_or_shadow_root.invalidate_style(DOM::StyleInvalidationReason::AdoptedStyleSheetsList);

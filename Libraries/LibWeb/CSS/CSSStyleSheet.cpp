@@ -383,6 +383,15 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
     return nullptr;
 }
 
+void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
+{
+    auto pending = move(m_pending_image_values);
+    for (auto const& weak_image_value : pending) {
+        if (auto* image_value = weak_image_value.ptr())
+            image_value->load_any_resources(document);
+    }
+}
+
 bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document)
 {
     bool any_media_queries_changed_match_state = false;

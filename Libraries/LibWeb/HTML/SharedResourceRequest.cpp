@@ -110,6 +110,7 @@ void SharedResourceRequest::fetch_resource(JS::Realm& realm, GC::Ref<Fetch::Infr
     };
 
     m_state = State::Fetching;
+    m_load_event_delayer.emplace(*m_document);
 
     auto fetch_controller = Fetch::Fetching::fetch(
         realm,
@@ -205,6 +206,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
 void SharedResourceRequest::handle_failed_fetch()
 {
     m_state = State::Failed;
+    m_load_event_delayer.clear();
     for (auto& callback : m_callbacks) {
         if (callback.on_fail)
             callback.on_fail->function()();
@@ -215,6 +217,7 @@ void SharedResourceRequest::handle_failed_fetch()
 void SharedResourceRequest::handle_successful_resource_load()
 {
     m_state = State::Finished;
+    m_load_event_delayer.clear();
     for (auto& callback : m_callbacks) {
         if (callback.on_finish)
             callback.on_finish->function()();

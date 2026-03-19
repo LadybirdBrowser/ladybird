@@ -10,6 +10,7 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -71,6 +72,8 @@ private:
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
 
     GC::Ptr<DOM::Document> m_document;
+
+    Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 };
 
 }

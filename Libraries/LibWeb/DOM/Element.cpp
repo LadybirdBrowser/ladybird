@@ -34,11 +34,13 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StylePropertyMap.h>
+#include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -4198,6 +4200,22 @@ Element::Directionality Element::parent_directionality() const
     return Directionality::Ltr;
 }
 
+static void prefetch_inline_style_image_resources(CSS::CSSStyleProperties const& inline_style, Document& document)
+{
+    auto load_image_if_needed = [&](CSS::StyleValue const& value) {
+        if (value.is_abstract_image())
+            const_cast<CSS::AbstractImageStyleValue&>(value.as_abstract_image()).load_any_resources(document);
+    };
+    for (auto const& property : inline_style.properties()) {
+        if (property.value->is_value_list()) {
+            for (auto const& item : property.value->as_value_list().values())
+                load_image_if_needed(*item);
+        } else {
+            load_image_if_needed(*property.value);
+        }
+    }
+}
+
 // https://dom.spec.whatwg.org/#concept-element-attributes-change-ext
 void Element::attribute_changed(FlyString const& local_name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
 {
@@ -4278,6 +4296,7 @@ void Element::attribute_changed(FlyString const& local_name, Optional<String> co
         if (!m_inline_style)
             m_inline_style = CSS::CSSStyleProperties::create_element_inline_style({ *this }, {}, {});
         m_inline_style->set_declarations_from_text(value.value_or(""_string));
+        prefetch_inline_style_image_resources(*m_inline_style, document());
         set_needs_style_update(true);
     } else if (local_name == HTML::AttributeNames::dir) {
         // https://html.spec.whatwg.org/multipage/dom.html#attr-dir

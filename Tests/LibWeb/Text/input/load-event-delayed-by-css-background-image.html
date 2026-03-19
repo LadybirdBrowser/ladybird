@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+var echoPort = internals.getEchoServerPort();
+var baseURL = `http://127.0.0.1:${echoPort}`;
+var xhr = new XMLHttpRequest();
+xhr.open("POST", `${baseURL}/echo`, false);
+xhr.setRequestHeader("Content-Type", "application/json");
+xhr.send(JSON.stringify({
+    method: "GET",
+    path: "/delayed-green.png",
+    status: 200,
+    headers: {"Content-Type": "image/png", "Cache-Control": "no-store"},
+    body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
+    body_encoding: "base64",
+    delay_ms: 500
+}));
+</script>
+<style>
+#target {
+    width: 100px;
+    height: 100px;
+    background-color: red;
+    background-image: url("/delayed-green.png");
+    background-size: cover;
+}
+</style>
+<div id="target"></div>
+<script>
+asyncTest((done) => {
+    window.addEventListener("load", () => {
+        let loadTime = performance.now();
+        println(`Load event delayed by at least 400ms: ${loadTime >= 400}`);
+
+        let entries = performance.getEntriesByType("resource");
+        let imageEntry = entries.find(e => e.name.includes("delayed-green"));
+        println(`Image resource entry exists: ${imageEntry !== undefined}`);
+        println(`Image loaded before load event: ${imageEntry !== undefined && imageEntry.responseEnd <= loadTime}`);
+        done();
+    });
+});
+</script>
