@@ -375,3 +375,19 @@ private:
 };
 
 }
+
+namespace AK {
+
+template<>
+struct SentinelOptionalTraits<Web::HTML::HTMLToken> {
+    static Web::HTML::HTMLToken sentinel_value() { return {}; }
+    static bool is_sentinel(Web::HTML::HTMLToken const& value) { return value.type() == Web::HTML::HTMLToken::Type::Invalid; }
+};
+
+template<>
+class Optional<Web::HTML::HTMLToken> : public SentinelOptional<Web::HTML::HTMLToken> {
+public:
+    using SentinelOptional::SentinelOptional;
+};
+
+}
