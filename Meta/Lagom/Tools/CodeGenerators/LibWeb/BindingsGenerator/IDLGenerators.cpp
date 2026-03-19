@@ -3796,7 +3796,7 @@ void @class_name@::initialize(JS::Realm& realm)
         }
     }
 
-    if (interface.has_unscopable_member) {
+    if (interface.has_unscopable_member && generate_unforgeables == GenerateUnforgeables::No) {
         generator.append(R"~~~(
     auto unscopable_object = JS::Object::create(realm, nullptr);
 )~~~");
@@ -4077,7 +4077,7 @@ void @class_name@::initialize(JS::Realm& realm)
             maplike_generator.appendln("    @define_native_function@(realm, vm.names.clear, clear, 0, default_attributes);");
     }
 
-    if (interface.has_unscopable_member) {
+    if (interface.has_unscopable_member && generate_unforgeables == GenerateUnforgeables::No) {
         generator.append(R"~~~(
     @define_direct_property@(vm.well_known_symbol_unscopables(), unscopable_object, JS::Attribute::Configurable);
 )~~~");

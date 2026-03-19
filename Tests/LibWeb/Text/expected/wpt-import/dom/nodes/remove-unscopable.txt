@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	before() should be unscopable
+Pass	after() should be unscopable
+Pass	replaceWith() should be unscopable
+Pass	remove() should be unscopable
+Pass	prepend() should be unscopable
+Pass	append() should be unscopable
