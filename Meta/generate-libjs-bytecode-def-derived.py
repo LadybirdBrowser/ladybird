@@ -224,13 +224,7 @@ def generate_class(op: OpDef) -> str:
         span_param = mname_to_param(af.name)
         span_param_for_array[af.name] = span_param
 
-        elem_t = af.type.strip()
-        if elem_t == "Operand":
-            span_elem_type = "ScopedOperand"
-        elif elem_t == "Optional<Operand>":
-            span_elem_type = "Optional<ScopedOperand>"
-        else:
-            span_elem_type = af.type
+        span_elem_type = af.type
 
         ctor_params.append(f"ReadonlySpan<{span_elem_type}> {span_param}")
 
@@ -666,7 +660,6 @@ def generate_op_h(ops: List[OpDef]) -> str:
 #include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Bytecode/RegexTable.h>
 #include <LibJS/Bytecode/Register.h>
-#include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Bytecode/StringTable.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/Environment.h>
