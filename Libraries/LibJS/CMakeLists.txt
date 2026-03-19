@@ -28,7 +28,6 @@ set(SOURCES
     Module.cpp
     Parser.cpp
     ParserError.cpp
-    PipelineComparison.cpp
     Print.cpp
     RustIntegration.cpp
     Runtime/AbstractOperations.cpp

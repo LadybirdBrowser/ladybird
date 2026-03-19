@@ -11,17 +11,12 @@
 #    include <AK/Utf16String.h>
 #    include <AK/Utf16View.h>
 #    include <LibGC/DeferGC.h>
-#    include <LibJS/AST.h>
 #    include <LibJS/Bytecode/ClassBlueprint.h>
 #    include <LibJS/Bytecode/Executable.h>
-#    include <LibJS/Bytecode/Generator.h>
 #    include <LibJS/Bytecode/IdentifierTable.h>
 #    include <LibJS/Bytecode/PropertyKeyTable.h>
 #    include <LibJS/Bytecode/RegexTable.h>
 #    include <LibJS/Bytecode/StringTable.h>
-#    include <LibJS/Lexer.h>
-#    include <LibJS/Parser.h>
-#    include <LibJS/PipelineComparison.h>
 #    include <LibJS/Runtime/BigInt.h>
 #    include <LibJS/Runtime/Intrinsics.h>
 #    include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
@@ -46,13 +41,6 @@ static bool rust_pipeline_enabled()
 {
     static bool const enabled = getenv("LIBJS_CPP") == nullptr;
     return enabled;
-}
-
-static void pair_shared_function_data(Bytecode::Executable& rust_executable, Bytecode::Executable& cpp_executable)
-{
-    VERIFY(rust_executable.shared_function_data.size() == cpp_executable.shared_function_data.size());
-    for (size_t i = 0; i < rust_executable.shared_function_data.size(); ++i)
-        rust_executable.shared_function_data[i]->m_cpp_comparison_sfd = cpp_executable.shared_function_data[i];
 }
 
 static Utf16FlyString utf16_fly_from(uint16_t const* data, size_t len)
@@ -363,12 +351,12 @@ static void collect_builtin_function(void* ctx, void* sfd_ptr, uint16_t const*, 
 
 bool rust_pipeline_available()
 {
-    return rust_pipeline_enabled() && !compare_pipelines_enabled();
+    return rust_pipeline_enabled();
 }
 
 ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset)
 {
-    if (!rust_pipeline_enabled() && !compare_pipelines_enabled())
+    if (!rust_pipeline_enabled())
         return nullptr;
 
     return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
@@ -405,8 +393,7 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(Parsed
 
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView source_text, Realm& realm, StringView filename, size_t line_number_offset)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto source_code = SourceCode::create(
@@ -416,57 +403,9 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_script(StringView so
     auto const* source_ptr = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
 
-    // Parse (no GC interaction).
     auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Script), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 
-    // Pipeline comparison needs the AST dump before compilation consumes the ParsedProgram.
-    String rust_ast_owned;
-    if (compare_pipelines && parsed && !rust_parsed_program_has_errors(parsed)) {
-        u8 const* rust_ast_data = nullptr;
-        size_t rust_ast_len = 0;
-        rust_parsed_program_ast_dump(parsed, &rust_ast_data, &rust_ast_len);
-        rust_ast_owned = MUST(String::from_utf8({ rust_ast_data, rust_ast_len }));
-    }
-
-    // Compile (handles regex compilation, error checking, and codegen).
-    auto result = compile_parsed_script(parsed, source_code, realm);
-    if (!result.has_value() || result->is_error())
-        return result;
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = rust_ast_owned.bytes_as_string_view();
-
-        auto parser = Parser(Lexer(source_code, line_number_offset));
-        auto cpp_program = parser.parse_program();
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, filename);
-
-            if (!cpp_program->is_strict_mode()) {
-                HashTable<Utf16FlyString> lexical_names;
-                MUST(cpp_program->for_each_lexically_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-                    lexical_names.set(identifier.string());
-                    return {};
-                }));
-                MUST(cpp_program->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
-                    if (!lexical_names.contains(function_declaration.name()))
-                        function_declaration.set_should_do_additional_annexB_steps();
-                    return {};
-                }));
-            }
-
-            auto& rust_executable = *result->value().executable;
-            auto cpp_executable = Bytecode::Generator::generate_from_ast_node(realm.vm(), *cpp_program, {});
-            auto rust_bytecode_dump = rust_executable.dump_to_string();
-            auto cpp_bytecode_dump = cpp_executable->dump_to_string();
-            compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
-
-            pair_shared_function_data(rust_executable, *cpp_executable);
-        }
-    }
-
-    return result;
+    return compile_parsed_script(parsed, source_code, realm);
 }
 
 Optional<Result<EvalResult, String>> compile_eval(
@@ -474,8 +413,7 @@ Optional<Result<EvalResult, String>> compile_eval(
     CallerMode strict_caller, bool in_function, bool in_method,
     bool in_derived_constructor, bool in_class_field_initializer)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto source_code = SourceCode::create({}, code_string.utf16_string());
@@ -486,64 +424,15 @@ Optional<Result<EvalResult, String>> compile_eval(
     EvalGdiBuilder builder;
     String parse_error;
 
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_eval(source_ptr, length, &vm, source_code.ptr(), &builder,
         strict_caller == CallerMode::Strict,
         in_function, in_method, in_derived_constructor, in_class_field_initializer,
-        &parse_error, collect_single_parse_error, rust_ast_data_ptr, rust_ast_len_ptr);
+        &parse_error, collect_single_parse_error, nullptr, nullptr);
 
-    if (!exec_ptr) {
-        if (rust_ast_data)
-            rust_free_string(rust_ast_data, rust_ast_len);
+    if (!exec_ptr)
         return parse_error;
-    }
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
-
-        Parser::EvalInitialState initial_state {
-            .in_eval_function_context = in_function,
-            .allow_super_property_lookup = in_method,
-            .allow_super_constructor_call = in_derived_constructor,
-            .in_class_field_initializer = in_class_field_initializer,
-        };
-        Parser parser(Lexer(source_code), Program::Type::Script, move(initial_state));
-        auto cpp_program = parser.parse_program(strict_caller == CallerMode::Strict);
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, "eval"sv);
-
-            if (!cpp_program->is_strict_mode()) {
-                HashTable<Utf16FlyString> lexical_names;
-                MUST(cpp_program->for_each_lexically_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-                    lexical_names.set(identifier.string());
-                    return {};
-                }));
-                MUST(cpp_program->for_each_function_hoistable_with_annexB_extension([&](FunctionDeclaration& function_declaration) -> ThrowCompletionOr<void> {
-                    if (!lexical_names.contains(function_declaration.name()))
-                        function_declaration.set_should_do_additional_annexB_steps();
-                    return {};
-                }));
-            }
-
-            auto& rust_executable = *static_cast<Bytecode::Executable*>(exec_ptr);
-            auto cpp_executable = Bytecode::Generator::generate_from_ast_node(vm, *cpp_program, {});
-            auto rust_bytecode_dump = rust_executable.dump_to_string();
-            auto cpp_bytecode_dump = cpp_executable->dump_to_string();
-            compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, "eval"sv, cpp_ast_dump);
-
-            pair_shared_function_data(rust_executable, *cpp_executable);
-        }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
-    }
 
     builder.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     builder.executable->name = "eval"_utf16_fly_string;
@@ -560,8 +449,7 @@ Optional<Result<EvalResult, String>> compile_eval(
 Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     PrimitiveString& source_text, VM& vm)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto source_code = SourceCode::create({}, source_text.utf16_string());
@@ -572,44 +460,14 @@ Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
     EvalGdiBuilder builder;
     String parse_error;
 
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     auto const* source_ptr = source_code->utf16_data();
 
     void* exec_ptr = rust_compile_eval(source_ptr, length, &vm, source_code.ptr(), &builder,
         false, false, false, false, false,
-        &parse_error, collect_single_parse_error, rust_ast_data_ptr, rust_ast_len_ptr);
+        &parse_error, collect_single_parse_error, nullptr, nullptr);
 
-    if (!exec_ptr) {
-        if (rust_ast_data)
-            rust_free_string(rust_ast_data, rust_ast_len);
+    if (!exec_ptr)
         return parse_error;
-    }
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
-
-        auto parser = Parser(Lexer(source_code), Program::Type::Script, Parser::EvalInitialState {});
-        auto cpp_program = parser.parse_program();
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, "ShadowRealmEval"sv);
-
-            auto& rust_executable = *static_cast<Bytecode::Executable*>(exec_ptr);
-            auto cpp_executable = Bytecode::Generator::generate_from_ast_node(vm, *cpp_program, {});
-            auto rust_bytecode_dump = rust_executable.dump_to_string();
-            auto cpp_bytecode_dump = cpp_executable->dump_to_string();
-            compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, "ShadowRealmEval"sv, cpp_ast_dump);
-
-            pair_shared_function_data(rust_executable, *cpp_executable);
-        }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
-    }
 
     builder.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     builder.executable->name = "ShadowRealmEval"_utf16_fly_string;
@@ -679,62 +537,23 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
 
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto source_code = SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text));
 
-    // Parse (no GC interaction).
     auto const* source_ptr = source_code->utf16_data();
     auto length = source_code->length_in_code_units();
     auto* parsed = rust_parse_program(source_ptr, length, static_cast<u8>(ProgramType::Module), 0, g_dump_ast, g_dump_ast_use_color);
 
-    // Pipeline comparison needs the AST dump before compilation consumes the ParsedProgram.
-    String rust_ast_owned;
-    if (compare_pipelines && parsed && !rust_parsed_program_has_errors(parsed)) {
-        u8 const* rust_ast_data = nullptr;
-        size_t rust_ast_len = 0;
-        rust_parsed_program_ast_dump(parsed, &rust_ast_data, &rust_ast_len);
-        rust_ast_owned = MUST(String::from_utf8({ rust_ast_data, rust_ast_len }));
-    }
-
-    // Compile (handles regex compilation, error checking, and codegen).
-    auto result = compile_parsed_module(parsed, source_code, realm);
-    if (!result.has_value() || result->is_error())
-        return result;
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = rust_ast_owned.bytes_as_string_view();
-
-        auto parser = Parser(Lexer(source_code), Program::Type::Module);
-        auto cpp_program = parser.parse_program();
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, filename);
-
-            if (!result->value().tla_shared_data) {
-                auto& rust_executable = *result->value().executable;
-                auto cpp_executable = Bytecode::Generator::generate_from_ast_node(realm.vm(), *cpp_program, {});
-                auto rust_bytecode_dump = rust_executable.dump_to_string();
-                auto cpp_bytecode_dump = cpp_executable->dump_to_string();
-                compare_pipeline_bytecode(rust_bytecode_dump, cpp_bytecode_dump, filename, cpp_ast_dump);
-
-                pair_shared_function_data(rust_executable, *cpp_executable);
-            }
-        }
-    }
-
-    return result;
+    return compile_parsed_module(parsed, source_code, realm);
 }
 
 Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
     VM& vm, StringView source_text, StringView parameters_string, StringView body_parse_string,
     FunctionKind kind)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto source_code = SourceCode::create({}, Utf16String::from_utf8(source_text));
@@ -763,11 +582,6 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
     GC::DeferGC defer_gc(vm.heap());
     String parse_error;
 
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     void* sfd_ptr = rust_compile_dynamic_function(
         full_data, full_length,
         params_data, params_utf16.utf16_view().length_in_code_units(),
@@ -775,28 +589,10 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
         &vm, source_code.ptr(),
         static_cast<u8>(kind),
         &parse_error, collect_single_parse_error,
-        rust_ast_data_ptr, rust_ast_len_ptr);
+        nullptr, nullptr);
 
-    if (!sfd_ptr) {
-        if (rust_ast_data)
-            rust_free_string(rust_ast_data, rust_ast_len);
+    if (!sfd_ptr)
         return parse_error;
-    }
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
-
-        auto source_parser = Parser(Lexer(source_code));
-        source_parser.set_is_dynamic_function();
-        auto cpp_program = source_parser.parse_program();
-
-        if (!source_parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, "new Function"sv);
-        }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
-    }
 
     auto& function_data = *static_cast<SharedFunctionInstanceData*>(sfd_ptr);
     function_data.m_source_text_owner = Utf16String::from_utf8(source_text);
@@ -808,8 +604,7 @@ Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_fu
 Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
     unsigned char const* script_text, VM& vm)
 {
-    bool const compare_pipelines = compare_pipelines_enabled();
-    if (!rust_pipeline_enabled() && !compare_pipelines)
+    if (!rust_pipeline_enabled())
         return {};
 
     auto script_text_as_utf16 = Utf16String::from_utf8_without_validation({ script_text, strlen(reinterpret_cast<char const*>(script_text)) });
@@ -820,32 +615,12 @@ Optional<Vector<GC::Root<SharedFunctionInstanceData>>> compile_builtin_file(
 
     GC::DeferGC defer_gc(vm.heap());
 
-    u8* rust_ast_data = nullptr;
-    size_t rust_ast_len = 0;
-    u8** rust_ast_data_ptr = compare_pipelines ? &rust_ast_data : nullptr;
-    size_t* rust_ast_len_ptr = compare_pipelines ? &rust_ast_len : nullptr;
-
     Vector<GC::Root<SharedFunctionInstanceData>> shared_data_list;
 
     auto const* source_ptr = code->utf16_data();
 
     rust_compile_builtin_file(source_ptr, length, &vm, code.ptr(), &shared_data_list, collect_builtin_function,
-        rust_ast_data_ptr, rust_ast_len_ptr);
-
-    if (compare_pipelines) {
-        auto rust_ast_dump = StringView { rust_ast_data, rust_ast_len };
-
-        auto lexer = Lexer { code };
-        auto parser = Parser { move(lexer) };
-        auto cpp_program = parser.parse_program(true);
-
-        if (!parser.has_errors()) {
-            auto cpp_ast_dump = cpp_program->dump_to_string();
-            compare_pipeline_asts(rust_ast_dump, cpp_ast_dump, "BuiltinFile"sv);
-        }
-
-        rust_free_string(rust_ast_data, rust_ast_len);
-    }
+        nullptr, nullptr);
 
     return shared_data_list;
 }
@@ -867,24 +642,6 @@ GC::Ptr<Bytecode::Executable> compile_function(VM& vm, SharedFunctionInstanceDat
         shared_data.m_rust_function_ast,
         builtin_abstract_operations_enabled));
     shared_data.m_rust_function_ast = nullptr;
-
-    if (exec && shared_data.m_cpp_comparison_sfd) {
-        auto cpp_executable = Bytecode::Generator::generate_from_function(vm, *shared_data.m_cpp_comparison_sfd,
-            builtin_abstract_operations_enabled
-                ? Bytecode::BuiltinAbstractOperationsEnabled::Yes
-                : Bytecode::BuiltinAbstractOperationsEnabled::No);
-
-        auto rust_dump = exec->dump_to_string();
-        auto cpp_dump = cpp_executable->dump_to_string();
-        auto context = MUST(String::formatted("function {}", shared_data.m_name));
-        String ast_dump;
-        if (shared_data.m_cpp_comparison_sfd->m_ecmascript_code
-            && !is<ClassFieldInitializerStatement>(*shared_data.m_cpp_comparison_sfd->m_ecmascript_code))
-            ast_dump = shared_data.m_cpp_comparison_sfd->m_ecmascript_code->dump_to_string();
-        compare_pipeline_bytecode(rust_dump, cpp_dump, context, ast_dump);
-
-        pair_shared_function_data(*exec, *cpp_executable);
-    }
 
     return exec;
 }

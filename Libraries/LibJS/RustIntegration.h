@@ -84,7 +84,6 @@ struct ModuleResult {
 };
 
 // Check if the Rust pipeline is available for off-thread parsing.
-// Returns false when LIBJS_CPP=1 or LIBJS_COMPARE_PIPELINES=1.
 JS_API bool rust_pipeline_available();
 
 // Parse a program (script or module) without GC interaction. Thread-safe.
