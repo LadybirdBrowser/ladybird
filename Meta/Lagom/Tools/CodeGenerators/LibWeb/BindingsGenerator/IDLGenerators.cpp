@@ -519,7 +519,7 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
 )~~~");
         }
     } else {
-        bool may_be_null = !optional_default_value.has_value() || parameter.type->is_nullable() || optional_default_value.value() == "null";
+        bool may_be_null = !optional_default_value.has_value() || optional_default_value.value() == "null";
         if (may_be_null) {
             scoped_generator.append(R"~~~(
     Optional<@string_type@> @cpp_name@;
@@ -1077,7 +1077,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 
                 generate_to_cpp(dictionary_generator, member, member_property_value_name, "", member_value_name, interface, member.extended_attributes.contains("LegacyNullToEmptyString"), !member.required, member.default_value);
 
-                bool may_be_null = !optional_default_value.has_value() || parameter.type->is_nullable() || optional_default_value.value() == "null";
+                bool may_be_null = !optional_default_value.has_value() || optional_default_value.value() == "null";
 
                 // Required dictionary members cannot be null.
                 may_be_null &= !member.required && !member.default_value.has_value();
