@@ -1,5 +1,4 @@
 document
-  text leaf name="Basic structure"
   generic focused
     heading name="Main Heading" level=1
       text leaf name="Main Heading"

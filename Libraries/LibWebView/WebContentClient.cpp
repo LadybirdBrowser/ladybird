@@ -368,6 +368,14 @@ void WebContentClient::did_get_accessibility_tree(u64 page_id, Vector<WebView::A
     }
 }
 
+void WebContentClient::did_accessibility_focus_change(u64 page_id, i64 focused_node_id)
+{
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (view->on_accessibility_focus_changed)
+            view->on_accessibility_focus_changed(focused_node_id);
+    }
+}
+
 void WebContentClient::did_get_hovered_node_id(u64 page_id, Web::UniqueNodeID node_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {

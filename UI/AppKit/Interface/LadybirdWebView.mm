@@ -21,6 +21,10 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Utilities/Conversions.h>
 
+// Private AppKit function that tells VoiceOver focus has changed.
+// VoiceOver then queries the app for the focused element.
+extern "C" void NSAccessibilityHandleFocusChanged();
+
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
@@ -357,18 +361,34 @@ struct HideCursor {
         [self->m_accessibility_elements removeAllObjects];
         NSAccessibilityPostNotification(self, NSAccessibilityLayoutChangedNotification);
 
-        // Post load-complete notification on the web area so VoiceOver
-        // knows the page is ready and starts auto-reading.
-        auto const* root = self->m_accessibility_manager->root();
-        if (root) {
-            id web_area = [self accessibilityElementForNodeID:root->id];
-            NSAccessibilityPostNotification(web_area, @"AXLoadComplete");
-        }
+        // Post AXLoadComplete on the view (not the web area element).
+        // WebKit posts this from the UIProcess on the NSView ancestor.
+        NSAccessibilityPostNotification(
+            NSAccessibilityUnignoredAncestor(self),
+            @"AXLoadComplete");
 
-        // Also post focus notification on the first meaningful element.
-        id focused = [self accessibilityFocusedUIElement];
-        if (focused && focused != self)
-            NSAccessibilityPostNotification(focused, NSAccessibilityFocusedUIElementChangedNotification);
+        // Tell VoiceOver focus changed -- this system call is what
+        // triggers VoiceOver to query the focused element and start reading.
+        NSAccessibilityHandleFocusChanged();
+    };
+
+    m_web_view_bridge->on_accessibility_focus_changed = [weak_self](i64 node_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self->m_accessibility_manager->is_empty()) {
+            return;
+        }
+        // Update the focused flag in the tree.
+        // For now, clear old focus and set new focus.
+        // (A proper implementation would track the old focused ID.)
+        self->m_accessibility_manager->set_focused_node(node_id);
+
+        // Tell VoiceOver focus changed.
+        NSAccessibilityHandleFocusChanged();
+        id focused_element = [self accessibilityElementForNodeID:node_id];
+        if (focused_element) {
+            NSAccessibilityPostNotification(focused_element,
+                NSAccessibilityFocusedUIElementChangedNotification);
+        }
     };
 
     m_web_view_bridge->on_url_change = [weak_self](auto const& url) {
@@ -1420,6 +1440,48 @@ struct HideCursor {
     m_web_view_bridge->enqueue_input_event(move(pinch_event));
 }
 
+#pragma mark - Accessibility parameterized attributes
+
+- (NSArray*)accessibilityParameterizedAttributeNames
+{
+    return @[
+        @"AXUIElementsForSearchPredicate",
+        @"AXUIElementCountForSearchPredicate",
+        @"AXIndexForChildUIElement",
+        @"AXNextTextMarkerForTextMarker",
+        @"AXPreviousTextMarkerForTextMarker",
+        @"AXUIElementForTextMarker",
+        @"AXTextMarkerRangeForUIElement",
+        @"AXLengthForTextMarkerRange",
+        @"AXStringForTextMarkerRange",
+        @"AXAttributedStringForTextMarkerRange",
+        @"AXTextMarkerForPosition",
+    ];
+}
+
+- (id)accessibilityAttributeValue:(NSString*)attribute forParameter:(id)parameter
+{
+    if ([attribute isEqualToString:@"AXIndexForChildUIElement"]) {
+        // Return the index of the child element in our children array
+        NSArray* children = [self accessibilityChildren];
+        NSUInteger idx = [children indexOfObjectIdenticalTo:parameter];
+        if (idx != NSNotFound)
+            return @(idx);
+        return nil;
+    }
+
+    // Delegate text marker queries to the web area root element
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return nil;
+
+    id rootElement = [self accessibilityElementForNodeID:root->id];
+    if ([rootElement respondsToSelector:@selector(accessibilityAttributeValue:forParameter:)])
+        return [rootElement accessibilityAttributeValue:attribute forParameter:parameter];
+
+    return nil;
+}
+
 #pragma mark - Accessibility
 
 - (BOOL)isAccessibilityElement
@@ -1429,7 +1491,7 @@ struct HideCursor {
 
 - (NSAccessibilityRole)accessibilityRole
 {
-    return NSAccessibilityGroupRole;
+    return NSAccessibilityScrollAreaRole;
 }
 
 - (NSArray*)accessibilityChildren
@@ -1460,10 +1522,30 @@ struct HideCursor {
     };
 
     auto const* hit = m_accessibility_manager->hit_test(content_point);
+    if (!hit)
+        return self;
+
+    // Walk up past ignored elements (unnamed generic/paragraph).
+    while (hit) {
+        auto role = hit->role.bytes_as_string_view();
+        bool ignored = (role == "generic"sv && hit->name.is_empty())
+            || (role == "paragraph"sv && hit->name.is_empty());
+        if (!ignored)
+            break;
+        if (hit->parent_id == -1)
+            return self;
+        hit = m_accessibility_manager->node(hit->parent_id);
+    }
+
     if (hit)
         return [self accessibilityElementForNodeID:hit->id];
 
     return self;
+}
+
+- (NSArray*)accessibilityChildrenInNavigationOrder
+{
+    return [self accessibilityChildren];
 }
 
 - (id)accessibilityFocusedUIElement
