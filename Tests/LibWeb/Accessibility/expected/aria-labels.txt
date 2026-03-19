@@ -1,0 +1,15 @@
+document
+  generic focused
+    button name="Close dialog"
+      text leaf name="X"
+    region name="Search results"
+      paragraph
+        text leaf name="No results found."
+    link name="Go to homepage"
+      text leaf name="Home"
+    searchbox name="Search the site"
+    generic name=" Important Section"
+      heading name="Important Section" level=2
+        text leaf name="Important Section"
+      paragraph
+        text leaf name="Content here."

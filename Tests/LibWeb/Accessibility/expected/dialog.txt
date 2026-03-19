@@ -1,0 +1,16 @@
+document
+  generic focused
+    dialog name="Confirmation"
+      heading name="Are you sure?" level=2
+        text leaf name="Are you sure?"
+      paragraph
+        text leaf name="This action cannot be undone."
+      button name="Confirm"
+        text leaf name="Confirm"
+      button name="Cancel"
+        text leaf name="Cancel"
+    alertdialog name="Error"
+      paragraph
+        text leaf name="Something went wrong."
+      button name="Dismiss"
+        text leaf name="Dismiss"

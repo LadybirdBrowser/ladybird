@@ -10,6 +10,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
@@ -108,8 +109,20 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
     auto my_id = node_data.id;
 
+    auto should_skip_child = [](AccessibilityTreeNode const& child) -> bool {
+        if (child.value()->is_uninteresting_whitespace_node())
+            return true;
+        if (child.value()->is_text()) {
+            for (auto* ancestor = child.value()->parent(); ancestor; ancestor = ancestor->parent()) {
+                if (is<HTML::HTMLHeadElement>(*ancestor))
+                    return true;
+            }
+        }
+        return false;
+    };
+
     for (auto const& child : children()) {
-        if (child->value()->is_uninteresting_whitespace_node())
+        if (should_skip_child(*child))
             continue;
         node_data.child_ids.append(static_cast<i64>(child->value()->unique_id().value()));
     }
@@ -117,7 +130,7 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
     out.append(move(node_data));
 
     for (auto const& child : children()) {
-        if (child->value()->is_uninteresting_whitespace_node())
+        if (should_skip_child(*child))
             continue;
         child->serialize_tree_as_node_data(out, document, my_id);
     }

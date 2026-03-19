@@ -20,6 +20,7 @@ public:
     AccessibilityNodeData const* node(i64 id) const;
     AccessibilityNodeData const* root() const;
     AccessibilityNodeData const* hit_test(Gfx::IntPoint point) const;
+    void set_focused_node(i64 node_id);
 
     bool is_empty() const { return m_nodes.is_empty(); }
 

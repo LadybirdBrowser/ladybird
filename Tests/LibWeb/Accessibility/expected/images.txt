@@ -1,0 +1,6 @@
+document
+  generic focused
+    image name="A scenic mountain view"
+    figure
+      image name="Sales chart"
+      text leaf name="Quarterly sales"

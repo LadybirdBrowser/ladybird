@@ -2888,6 +2888,9 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     m_active_element = element;
 
+    if (m_active_element)
+        page().client().page_did_change_active_element(m_active_element->unique_id());
+
     set_needs_repaint();
 }
 

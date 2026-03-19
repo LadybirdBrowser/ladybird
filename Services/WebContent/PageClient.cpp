@@ -364,6 +364,11 @@ void PageClient::page_did_finish_loading(URL::URL const& url)
     client().async_did_finish_loading(m_id, url);
 }
 
+void PageClient::page_did_change_active_element(Web::UniqueNodeID node_id)
+{
+    client().async_did_accessibility_focus_change(m_id, static_cast<i64>(node_id.value()));
+}
+
 void PageClient::page_did_finish_test(String const& text)
 {
     client().async_did_finish_test(m_id, text);

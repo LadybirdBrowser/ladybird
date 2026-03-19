@@ -43,6 +43,12 @@ AccessibilityNodeData const* AccessibilityTreeManager::hit_test(Gfx::IntPoint po
     return hit_test_recursive(m_root_id, point);
 }
 
+void AccessibilityTreeManager::set_focused_node(i64 node_id)
+{
+    for (auto& [id, node] : m_nodes)
+        node.is_focused = (id == node_id);
+}
+
 AccessibilityNodeData const* AccessibilityTreeManager::hit_test_recursive(i64 node_id, Gfx::IntPoint point) const
 {
     auto const* current = node(node_id);
