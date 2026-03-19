@@ -21,6 +21,12 @@ namespace Media::Matroska {
 class SampleIterator;
 class Streamer;
 
+enum class ElementIterationDecision : u8 {
+    Continue,
+    BreakHere,
+    BreakAtEnd,
+};
+
 struct TrackCuePoint {
     AK::Duration timestamp;
     CueTrackPosition position;
@@ -38,6 +44,14 @@ public:
     static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<MediaStreamCursor> const&);
 
     static bool is_matroska_or_webm(NonnullRefPtr<MediaStreamCursor> const&);
+
+    static DecoderErrorOr<size_t> parse_master_element(Streamer&, StringView element_name, Function<DecoderErrorOr<ElementIterationDecision>(u64)> element_consumer);
+    static DecoderErrorOr<EBMLHeader> parse_ebml_header(Streamer&, ElementIterationDecision complete_decision = ElementIterationDecision::BreakAtEnd);
+    static DecoderErrorOr<SegmentInformation> parse_segment_information_element(Streamer&);
+    static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer&);
+    static DecoderErrorOr<Cluster> parse_cluster_element(Streamer&, u64 timestamp_scale);
+    static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
+    static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
 
     Optional<AK::Duration> duration() { return m_segment_information.duration(); }
 
@@ -120,7 +134,7 @@ private:
     Optional<Cluster> m_current_cluster;
 };
 
-class Streamer {
+class MEDIA_API Streamer {
 public:
     Streamer(NonnullRefPtr<MediaStreamCursor> const& stream_cursor);
     ~Streamer();
