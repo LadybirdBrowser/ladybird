@@ -83,6 +83,19 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (!self)
             return;
 
+        for (auto const& existing_track : self->m_video_tracks) {
+            if (video_tracks.contains_slow(existing_track)) {
+                self->on_unsupported_format_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate video track found"sv));
+                return;
+            }
+        }
+        for (auto const& existing_track : self->m_audio_tracks) {
+            if (audio_tracks.contains_slow(existing_track)) {
+                self->on_unsupported_format_error(DecoderError::with_description(DecoderErrorCategory::Invalid, "Duplicate audio track found"sv));
+                return;
+            }
+        }
+
         auto first_new_video_index = self->m_video_tracks.size();
         auto first_new_audio_index = self->m_audio_tracks.size();
 
