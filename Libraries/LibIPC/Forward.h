@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/Platform.h>
 
 namespace IPC {
 
@@ -19,6 +20,17 @@ class MessageBuffer;
 class File;
 class Stub;
 class TransportHandle;
+
+#if defined(AK_OS_MACOS)
+class TransportMachPort;
+using Transport = TransportMachPort;
+#elif !defined(AK_OS_WINDOWS)
+class TransportSocket;
+using Transport = TransportSocket;
+#else
+class TransportSocketWindows;
+using Transport = TransportSocketWindows;
+#endif
 
 template<typename T>
 ErrorOr<void> encode(Encoder&, T const&);

@@ -30,7 +30,12 @@ public:
 
     bool is_initialized();
 
-    Function<void(pid_t, Core::MachPort)> on_receive_child_mach_port;
+    struct ChildMachPortRegistration {
+        pid_t pid { -1 };
+        Core::MachPort child_port;
+        Core::MachPort reply_port;
+    };
+    Function<void(ChildMachPortRegistration)> on_receive_child_mach_port;
     struct BackingStoresMessage {
         pid_t pid { -1 };
         u64 page_id { 0 };

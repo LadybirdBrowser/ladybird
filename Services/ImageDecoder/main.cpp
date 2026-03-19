@@ -13,10 +13,6 @@
 #include <LibIPC/SingleServer.h>
 #include <LibMain/Main.h>
 
-#if defined(AK_OS_MACOS)
-#    include <LibCore/Platform/ProcessStatisticsMach.h>
-#endif
-
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     AK::set_rich_debug_enabled(true);
@@ -34,12 +30,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Core::EventLoop event_loop;
 
-#if defined(AK_OS_MACOS)
-    if (!mach_server_name.is_empty())
-        Core::Platform::register_with_mach_server(mach_server_name);
-#endif
-
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>());
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<ImageDecoder::ConnectionFromClient>(mach_server_name));
 
     return event_loop.exec();
 }

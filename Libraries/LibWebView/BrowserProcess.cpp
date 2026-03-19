@@ -9,6 +9,7 @@
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/ConnectionToServer.h>
+#include <LibIPC/Transport.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/URL.h>
@@ -47,9 +48,9 @@ ErrorOr<BrowserProcess::ProcessDisposition> BrowserProcess::connect(Vector<ByteS
 
 ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, Vector<ByteString> const& raw_urls, NewWindow new_window)
 {
-    // TODO: Mach IPC
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
-    auto client = UIProcessClient::construct(make<IPC::Transport>(move(socket)));
+    auto transport = TRY(IPC::Transport::from_socket(move(socket)));
+    auto client = UIProcessClient::construct(move(transport));
 
     switch (new_window) {
     case NewWindow::Yes:
@@ -67,14 +68,19 @@ ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, V
 
 ErrorOr<void> BrowserProcess::connect_as_server(ByteString const& socket_path)
 {
-    // TODO: Mach IPC
     auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
     m_local_server = Core::LocalServer::construct();
     TRY(m_local_server->take_over_fd(socket_fd));
 
     m_local_server->on_accept = [this](auto client_socket) {
-        accept_transport(make<IPC::Transport>(move(client_socket)));
+        auto transport = IPC::Transport::from_socket(move(client_socket));
+        if (transport.is_error()) {
+            dbgln("Failed to create IPC transport for UIProcess client: {}", transport.error());
+            return;
+        }
+
+        accept_transport(transport.release_value());
     };
 
     return {};

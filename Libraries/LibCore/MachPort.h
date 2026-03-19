@@ -85,6 +85,6 @@ private:
     mach_port_t m_port { MACH_PORT_NULL };
 };
 
-Error mach_error_to_error(kern_return_t error);
+CORE_API Error mach_error_to_error(kern_return_t error);
 
 }

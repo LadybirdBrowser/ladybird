@@ -20,6 +20,11 @@
 
 namespace IPC {
 
+ErrorOr<NonnullOwnPtr<TransportSocket>> TransportSocket::from_socket(NonnullOwnPtr<Core::LocalSocket> socket)
+{
+    return make<TransportSocket>(move(socket));
+}
+
 ErrorOr<TransportSocket::Paired> TransportSocket::create_paired()
 {
     int fds[2] {};

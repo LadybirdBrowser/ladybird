@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <AK/Assertions.h>
 #include <AK/MemoryStream.h>
 #include <AK/Vector.h>
 #include <LibIPC/Decoder.h>
@@ -29,17 +30,19 @@ public:
     template<typename T>
     void encode(T const& value)
     {
+        VERIFY(!m_buffer_has_been_taken);
         MUST(m_encoder.encode(value));
     }
 
     void append(SerializationRecord&&);
     void extend(Vector<TransferDataEncoder>);
 
-    IPC::MessageBuffer const& buffer() const { return m_buffer; }
-    IPC::MessageBuffer take_buffer() { return move(m_buffer); }
+    IPC::MessageBuffer const& buffer() const;
+    IPC::MessageBuffer take_buffer() const;
 
 private:
-    IPC::MessageBuffer m_buffer;
+    mutable IPC::MessageBuffer m_buffer;
+    mutable bool m_buffer_has_been_taken { false };
     IPC::Encoder m_encoder;
 };
 

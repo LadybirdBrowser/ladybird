@@ -8,6 +8,11 @@
 
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
+#include <AK/Platform.h>
+
+#if defined(AK_OS_MACOS)
+#    include <LibCore/MachPort.h>
+#endif
 
 namespace IPC {
 
@@ -21,11 +26,22 @@ public:
     ~Attachment();
 
     static Attachment from_fd(int fd);
-    ErrorOr<Attachment> clone() const;
     int to_fd();
 
+#if defined(AK_OS_MACOS)
+    static Attachment from_mach_port(Core::MachPort, Core::MachPort::MessageRight);
+    Core::MachPort const& mach_port() const { return m_port; }
+    Core::MachPort::MessageRight message_right() const { return m_message_right; }
+    Core::MachPort release_mach_port();
+#endif
+
 private:
+#if defined(AK_OS_MACOS)
+    Core::MachPort m_port;
+    Core::MachPort::MessageRight m_message_right { Core::MachPort::MessageRight::MoveSend };
+#else
     int m_fd { -1 };
+#endif
 };
 
 }

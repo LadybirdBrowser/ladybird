@@ -1292,15 +1292,28 @@ TransferDataEncoder::TransferDataEncoder(IPC::MessageBuffer&& buffer)
 {
 }
 
+IPC::MessageBuffer const& TransferDataEncoder::buffer() const
+{
+    return m_buffer;
+}
+
+IPC::MessageBuffer TransferDataEncoder::take_buffer() const
+{
+    VERIFY(!m_buffer_has_been_taken);
+    m_buffer_has_been_taken = true;
+    return move(m_buffer);
+}
+
 void TransferDataEncoder::append(SerializationRecord&& record)
 {
+    VERIFY(!m_buffer_has_been_taken);
     MUST(m_buffer.append_data(record.data(), record.size()));
 }
 
 void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)
 {
     for (auto& data_holder : data_holders)
-        MUST(m_buffer.extend(move(data_holder.m_buffer)));
+        MUST(m_buffer.extend(data_holder.take_buffer()));
 }
 
 TransferDataDecoder::TransferDataDecoder(SerializationRecord const& record)
@@ -1337,12 +1350,14 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::TransferDataEncoder const& data_holder)
 {
-    TRY(encoder.encode(data_holder.buffer().data()));
+    auto buffer = data_holder.take_buffer();
+    auto data = buffer.take_data();
+    auto attachments = buffer.take_attachments();
 
-    auto const& attachments = data_holder.buffer().attachments();
+    TRY(encoder.encode(data));
     TRY(encoder.encode(static_cast<u32>(attachments.size())));
-    for (auto const& attachment : attachments)
-        TRY(encoder.append_attachment(TRY(attachment.clone())));
+    for (auto& attachment : attachments)
+        TRY(encoder.append_attachment(move(attachment)));
 
     return {};
 }

@@ -14,10 +14,7 @@
 
 #include <LibCore/Export.h>
 #include <LibCore/Platform/ProcessStatistics.h>
-#include <mach/mach.h>
 
 namespace Core::Platform {
-
-CORE_API MachPort register_with_mach_server(ByteString const& server_name);
 
 }

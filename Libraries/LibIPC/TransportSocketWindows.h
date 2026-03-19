@@ -24,6 +24,7 @@ public:
         TransportHandle remote_handle;
     };
     static ErrorOr<Paired> create_paired();
+    static ErrorOr<NonnullOwnPtr<TransportSocketWindows>> from_socket(NonnullOwnPtr<Core::LocalSocket> socket);
 
     explicit TransportSocketWindows(NonnullOwnPtr<Core::LocalSocket> socket);
 

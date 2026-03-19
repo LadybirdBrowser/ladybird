@@ -192,6 +192,11 @@ ErrorOr<NonnullRefPtr<Web::HTML::WebWorkerClient>> launch_web_worker_process(Web
         VERIFY_NOT_REACHED();
     }
 
+    if (auto server = mach_server_name(); server.has_value()) {
+        arguments.append("--mach-server-name"sv);
+        arguments.append(server.value());
+    }
+
     // Propogate this process-wide setting to the child process also.
     if (URL::file_scheme_urls_have_tuple_origins())
         arguments.append("--tuple-file-origins"sv);

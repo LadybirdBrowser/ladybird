@@ -31,6 +31,10 @@
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageJar.h>
 
+#if defined(AK_OS_MACOS)
+#    include <LibIPC/TransportBootstrapMach.h>
+#endif
+
 namespace WebView {
 
 struct ApplicationSettingsObserver;
@@ -58,6 +62,9 @@ public:
     static StorageJar& storage_jar() { return *the().m_storage_jar; }
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
+#if defined(AK_OS_MACOS)
+    static IPC::TransportBootstrapMachServer& transport_bootstrap_server() { return the().m_transport_bootstrap_server; }
+#endif
 
     ErrorOr<NonnullRefPtr<WebContentClient>> launch_web_content_process(ViewImplementation&);
 
@@ -262,6 +269,7 @@ private:
 
 #if defined(AK_OS_MACOS)
     OwnPtr<MachPortServer> m_mach_port_server;
+    IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
 #endif
 
     OwnPtr<DevTools::DevToolsServer> m_devtools;

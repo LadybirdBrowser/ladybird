@@ -60,7 +60,23 @@ struct ReceivedMachMessage {
     } body;
 };
 
+struct MessageWithIPCChannelPorts {
+    mach_msg_header_t header;
+    mach_msg_body_t body;
+    mach_msg_port_descriptor_t receive_port;
+    mach_msg_port_descriptor_t send_port;
+};
+
+struct ReceivedIPCChannelPortsMessage {
+    mach_msg_header_t header;
+    mach_msg_body_t body;
+    mach_msg_port_descriptor_t receive_port;
+    mach_msg_port_descriptor_t send_port;
+    mach_msg_trailer_t trailer;
+};
+
 static constexpr mach_msg_id_t SELF_TASK_PORT_MESSAGE_ID = 0x1234CAFE;
 static constexpr mach_msg_id_t BACKING_STORE_IOSURFACES_MESSAGE_ID = 0x1234CAFF;
+static constexpr mach_msg_id_t IPC_CHANNEL_PORTS_MESSAGE_ID = 0x4950C002;
 
 }

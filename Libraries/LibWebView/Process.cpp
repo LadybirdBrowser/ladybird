@@ -14,6 +14,11 @@
 
 #include <fcntl.h>
 
+#if defined(AK_OS_MACOS)
+#    include <LibIPC/TransportBootstrapMach.h>
+#    include <LibWebView/Application.h>
+#endif
+
 #if defined(AK_OS_WINDOWS)
 #    include <AK/ScopeGuard.h>
 #    include <AK/Windows.h>
@@ -36,20 +41,6 @@ Process::~Process()
 
 ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(Core::ProcessSpawnOptions const& options, bool capture_output)
 {
-    // TODO: Mach IPC
-
-    int socket_fds[2] {};
-    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
-
-    ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(socket_fds[0])); } };
-    ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(socket_fds[1])); } };
-
-    // Note: Core::System::socketpair creates inheritable sockets both on Linux and Windows unless SOCK_CLOEXEC is specified.
-    TRY(Core::System::set_close_on_exec(socket_fds[0], true));
-
-    auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
-    TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
-
     // Set up pipes for stdout/stderr capture if requested
     ProcessOutputCapture output_capture;
     Array<int, 2> stdout_pipe {};
@@ -72,7 +63,38 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
         spawn_options.file_actions.append(Core::FileAction::CloseFile { .fd = stderr_pipe[1] });
     }
 
+#if defined(AK_OS_MACOS)
+    auto port_a_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto port_a_send = TRY(port_a_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+    auto port_b_recv = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto port_b_send = TRY(port_b_recv.insert_right(Core::MachPort::MessageRight::MakeSend));
+
     auto process = TRY(Core::Process::spawn(spawn_options));
+
+    Application::transport_bootstrap_server().register_pending_transport(process.pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });
+
+    auto transport = make<IPC::Transport>(move(port_a_recv), move(port_b_send));
+#else
+    int socket_fds[2] {};
+    TRY(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, socket_fds));
+
+    ArmedScopeGuard guard_fd_0 { [&] { MUST(Core::System::close(socket_fds[0])); } };
+    ArmedScopeGuard guard_fd_1 { [&] { MUST(Core::System::close(socket_fds[1])); } };
+
+    // Note: Core::System::socketpair creates inheritable sockets both on Linux and Windows unless SOCK_CLOEXEC is specified.
+    TRY(Core::System::set_close_on_exec(socket_fds[0], true));
+
+    auto takeover_string = MUST(String::formatted("{}:{}", options.name, socket_fds[1]));
+    TRY(Core::Environment::set("SOCKET_TAKEOVER"sv, takeover_string, Core::Environment::Overwrite::Yes));
+
+    auto process = TRY(Core::Process::spawn(spawn_options));
+
+    auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
+    guard_fd_0.disarm();
+    TRY(ipc_socket->set_blocking(true));
+
+    auto transport = make<IPC::Transport>(move(ipc_socket));
+#endif
 
     if (capture_output) {
         // Close write ends in parent
@@ -84,11 +106,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
         output_capture.stderr_file = TRY(Core::File::adopt_fd(stderr_pipe[0], Core::File::OpenMode::Read));
     }
 
-    auto ipc_socket = TRY(Core::LocalSocket::adopt_fd(socket_fds[0]));
-    guard_fd_0.disarm();
-    TRY(ipc_socket->set_blocking(true));
-
-    return ProcessAndIPCTransport { move(process), make<IPC::Transport>(move(ipc_socket)), move(output_capture) };
+    return ProcessAndIPCTransport { move(process), move(transport), move(output_capture) };
 }
 
 ErrorOr<Optional<pid_t>> Process::get_process_pid(StringView process_name, StringView pid_path)

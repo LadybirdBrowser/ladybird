@@ -20,10 +20,6 @@
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 
-#if defined(AK_OS_MACOS)
-#    include <LibCore/Platform/ProcessStatisticsMach.h>
-#endif
-
 namespace RequestServer {
 
 OwnPtr<ResourceSubstitutionMap> g_resource_substitution_map;
@@ -82,11 +78,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::register_signal(SIGTERM, handle_signal);
 #endif
 
-#if defined(AK_OS_MACOS)
-    if (!mach_server_name.is_empty())
-        Core::Platform::register_with_mach_server(mach_server_name);
-#endif
-
     Optional<HTTP::DiskCache> disk_cache;
 
     if (http_disk_cache_mode != "disabled"sv) {
@@ -111,6 +102,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     RequestServer::ConnectionFromClient::ConnectionMap connections;
 
     auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>(
+        mach_server_name,
         RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes, connections, disk_cache));
 
     return event_loop.exec();

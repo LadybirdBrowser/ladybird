@@ -11,8 +11,10 @@
 #include <AK/HashMap.h>
 #include <AK/JsonObject.h>
 #include <LibCore/LocalServer.h>
+#include <LibCore/Socket.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
+#include <LibIPC/Transport.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/WebDriver/Proxy.h>
 #include <LibWeb/WebDriver/TimeoutsConfiguration.h>
@@ -202,6 +204,8 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
 {
 #if defined(AK_OS_WINDOWS)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");
+#elif defined(AK_OS_MACOS)
+    static_assert(IsSame<IPC::Transport, IPC::TransportMachPort>, "Need to handle other IPC transports here");
 #else
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 #endif
@@ -214,7 +218,12 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
     server->listen(*m_web_content_socket_path);
 
     server->on_accept = [this, promise](auto client_socket) {
-        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(make<IPC::Transport>(move(client_socket))));
+        auto maybe_transport = IPC::Transport::from_socket(move(client_socket));
+        if (maybe_transport.is_error()) {
+            promise->resolve(maybe_transport.release_error());
+            return;
+        }
+        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(maybe_transport.release_value()));
         if (maybe_connection.is_error()) {
             promise->resolve(maybe_connection.release_error());
             return;

@@ -14,8 +14,10 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/File.h>
+#include <LibCore/Socket.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/Transport.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/ComputedProperties.h>
@@ -194,8 +196,6 @@ static bool fire_an_event(FlyString const& name, Optional<Web::DOM::Element&> ta
 
 ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path)
 {
-    // TODO: Mach IPC and Windows IPC
-
     dbgln_if(WEBDRIVER_DEBUG, "Trying to connect to {}", webdriver_ipc_path);
     auto socket = TRY(Core::LocalSocket::connect(webdriver_ipc_path));
 
@@ -203,7 +203,8 @@ ErrorOr<NonnullRefPtr<WebDriverConnection>> WebDriverConnection::connect(Web::Pa
     page_client.page().set_should_block_pop_ups(false);
 
     dbgln_if(WEBDRIVER_DEBUG, "Connected to WebDriver");
-    auto connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(make<IPC::Transport>(move(socket)), page_client)));
+    auto transport = TRY(IPC::Transport::from_socket(move(socket)));
+    auto connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WebDriverConnection(move(transport), page_client)));
     connection->async_did_set_window_handle(page_client.page().top_level_traversable()->window_handle());
     return connection;
 }

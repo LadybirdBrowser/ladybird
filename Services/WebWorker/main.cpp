@@ -11,6 +11,7 @@
 #include <LibCrypto/OpenSSLForward.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibIPC/SingleServer.h>
+#include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibMain/Main.h>
@@ -49,6 +50,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     StringView serenity_resource_root;
     StringView worker_type_string;
+    StringView mach_server_name;
     Vector<ByteString> certificates;
     bool expose_experimental_interfaces = false;
     bool enable_http_memory_cache = false;
@@ -62,6 +64,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(worker_type_string, "Type of WebWorker to start (dedicated, shared, or service)", "type", 't', "type");
+    args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(file_origins_are_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
 
     args_parser.parse(arguments);
@@ -91,7 +94,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Bindings::initialize_main_thread_vm(worker_type);
 
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>());
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<WebWorker::ConnectionFromClient>(mach_server_name));
 
     auto& heap = Web::Bindings::main_thread_vm().heap();
     client->on_request_server_connection = [&heap](auto const& handle) {
