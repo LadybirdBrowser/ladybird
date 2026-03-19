@@ -1003,8 +1003,13 @@ ErrorOr<void> Formatter<char>::format(FormatBuilder& builder, char value)
 {
     if (m_mode == Mode::Binary || m_mode == Mode::BinaryUppercase || m_mode == Mode::Decimal || m_mode == Mode::Octal || m_mode == Mode::Hexadecimal || m_mode == Mode::HexadecimalUppercase) {
         // Trick: signed char != char. (Sometimes weird features are actually helpful.)
-        Formatter<signed char> formatter { *this };
-        return formatter.format(builder, static_cast<signed char>(value));
+        if constexpr (IsSigned<char>) {
+            Formatter<signed char> formatter { *this };
+            return formatter.format(builder, static_cast<signed char>(value));
+        } else {
+            Formatter<unsigned char> formatter { *this };
+            return formatter.format(builder, static_cast<unsigned char>(value));
+        }
     } else {
         Formatter<StringView> formatter { *this };
         return formatter.format(builder, { &value, 1 });

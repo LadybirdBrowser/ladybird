@@ -225,6 +225,17 @@ struct AK::Formatter<B> : Formatter<StringView> {
     }
 };
 
+TEST_CASE(format_character_as_integer)
+{
+    EXPECT_EQ(ByteString::formatted("{:x}", 'A'), "41");
+
+    if constexpr (IsSigned<char>) {
+        EXPECT_EQ(ByteString::formatted("{:x}", '\x86'), "-7a");
+    } else {
+        EXPECT_EQ(ByteString::formatted("{:x}", '\x86'), "86");
+    }
+}
+
 TEST_CASE(format_if_supported)
 {
     EXPECT_EQ(ByteString::formatted("{}", FormatIfSupported { A {} }), "?");
