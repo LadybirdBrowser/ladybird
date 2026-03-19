@@ -2622,6 +2622,39 @@ NonnullRefPtr<FunctionParameters const> Parser::parse_formal_parameters(int& fun
     }
     if (parse_options & FunctionNodeParseOptions::IsSetterFunction && parameters.is_empty())
         syntax_error("Setter function must have one argument"_string);
+
+    // Check for duplicate bound names across all parameters.
+    // Per spec, duplicates are not allowed when the parameter list is non-simple
+    // (contains binding patterns, default values, or rest), or in strict mode, or in arrow functions.
+    bool is_simple_parameter_list = !has_default_parameter && !has_rest_parameter;
+    if (is_simple_parameter_list) {
+        for (auto const& param : parameters) {
+            if (param.binding.has<NonnullRefPtr<BindingPattern const>>()) {
+                is_simple_parameter_list = false;
+                break;
+            }
+        }
+    }
+    if (!is_simple_parameter_list || m_state.strict_mode || (parse_options & FunctionNodeParseOptions::IsArrowFunction)) {
+        HashTable<Utf16FlyString> seen_names;
+        for (auto const& param : parameters) {
+            auto check_duplicate = [&](Identifier const& identifier) {
+                auto result = seen_names.set(identifier.string(), AK::HashSetExistingEntryBehavior::Keep);
+                if (result == HashSetResult::KeptExistingEntry)
+                    syntax_error(MUST(String::formatted("Duplicate parameter '{}' not allowed", identifier.string())));
+            };
+            param.binding.visit(
+                [&](Identifier const& identifier) {
+                    check_duplicate(identifier);
+                },
+                [&](NonnullRefPtr<BindingPattern const> const& pattern) {
+                    MUST(pattern->for_each_bound_identifier([&](Identifier const& identifier) {
+                        check_duplicate(identifier);
+                    }));
+                });
+        }
+    }
+
     // If we're parsing the parameters standalone, e.g. via CreateDynamicFunction, we must have reached EOF here.
     // Otherwise, we need a closing parenthesis (which is consumed elsewhere). If we get neither, it's an error.
     if (!match(TokenType::Eof) && !match(TokenType::ParenClose))

@@ -28,7 +28,11 @@ describe("parsing", () => {
     });
 
     test("multiple destructuring parameters with rest parameters 2", () => {
-        expect(`function testFunction({ bar, ...a }, { bar, ...b }) { }`).toEval();
+        expect(`function testFunction({ bar, ...a }, { baz, ...b }) { }`).toEval();
+    });
+
+    test("duplicate names across destructuring parameters are not allowed", () => {
+        expect(`function testFunction({ bar, ...a }, { bar, ...b }) { }`).not.toEval();
     });
 
     test("multiple destructuring parameters, array patterns", () => {
@@ -106,7 +110,7 @@ describe("evaluating", () => {
     });
 
     test("multiple destructuring parameters with rest parameters 2", () => {
-        function testFunction({ bar, ...a }, { bar, ...b }) {
+        function testFunction({ bar, ...a }, { baz, ...b }) {
             return a.foo + b.foo;
         }
 

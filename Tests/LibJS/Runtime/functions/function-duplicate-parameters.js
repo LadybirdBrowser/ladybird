@@ -42,4 +42,19 @@ test("syntax errors", () => {
     expect(`
         const foo = (bar, bar = 1) => {};
     `).not.toEval();
+
+    // Duplicate across destructuring parameters
+    expect(`
+        function foo({ bar }, { bar }) {}
+    `).not.toEval();
+
+    // Duplicate between identifier and destructuring parameter
+    expect(`
+        function foo(bar, { bar }) {}
+    `).not.toEval();
+
+    // Duplicate between destructuring and identifier parameter
+    expect(`
+        function foo({ bar }, bar) {}
+    `).not.toEval();
 });
