@@ -88,7 +88,8 @@ public:
     Function<void(AK::Duration)> on_duration_change;
     Function<void(DecoderError&&)> on_error;
 
-    void add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const&);
+    void add_media_source(NonnullRefPtr<MediaStream> const&);
+    void add_media_source(NonnullRefPtr<Demuxer> const&);
 
     WeakPlaybackManager weak();
 
@@ -120,7 +121,8 @@ private:
     VideoTrackData& get_video_data_for_track(Track const&);
     AudioTrackData& get_audio_data_for_track(Track const&);
 
-    static DecoderErrorOr<void> prepare_playback_from_media_data(WeakPlaybackManager const&, NonnullRefPtr<IncrementallyPopulatedStream>, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
+    static DecoderErrorOr<NonnullRefPtr<Demuxer>> create_demuxer_for_stream(NonnullRefPtr<MediaStream> const&);
+    static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, NonnullRefPtr<Core::WeakEventLoopReference> const&);
 
     template<typename T, typename... Args>
     void replace_state_handler(Args&&... args);

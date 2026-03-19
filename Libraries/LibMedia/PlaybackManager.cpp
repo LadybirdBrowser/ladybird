@@ -16,19 +16,21 @@
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Thread.h>
+#include <LibThreading/ThreadPool.h>
 
 #include "PlaybackManager.h"
 
 namespace Media {
 
-DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlaybackManager const& self, NonnullRefPtr<IncrementallyPopulatedStream> stream, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
+DecoderErrorOr<NonnullRefPtr<Demuxer>> PlaybackManager::create_demuxer_for_stream(NonnullRefPtr<MediaStream> const& stream)
 {
-    auto demuxer = TRY([&] -> DecoderErrorOr<NonnullRefPtr<Demuxer>> {
-        if (Matroska::Reader::is_matroska_or_webm(stream->create_cursor()))
-            return Matroska::MatroskaDemuxer::from_stream(stream);
-        return FFmpeg::FFmpegDemuxer::from_stream(stream);
-    }());
+    if (Matroska::Reader::is_matroska_or_webm(stream->create_cursor()))
+        return Matroska::MatroskaDemuxer::from_stream(stream);
+    return FFmpeg::FFmpegDemuxer::from_stream(stream);
+}
 
+DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlaybackManager const& self, NonnullRefPtr<Demuxer> const& demuxer, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference)
+{
     // Create the video tracks and their data providers.
     auto all_video_tracks = TRY(demuxer->get_tracks_for_type(TrackType::Video));
 
@@ -141,25 +143,47 @@ PlaybackManager::~PlaybackManager()
     m_weak_link->revoke({});
 }
 
-void PlaybackManager::add_media_source(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
+static void handle_media_init_error(WeakPlaybackManager self, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference, DecoderError error)
 {
-    auto thread = Threading::Thread::construct("Media Init"sv, [self = weak(), stream = stream, main_thread_event_loop_reference = Core::EventLoop::current_weak()] mutable -> int {
-        auto maybe_error = prepare_playback_from_media_data(self, stream, main_thread_event_loop_reference);
-        if (maybe_error.is_error()) {
-            auto main_thread_event_loop = main_thread_event_loop_reference->take();
-            main_thread_event_loop->deferred_invoke([self = move(self), error = maybe_error.release_error()] mutable {
-                if (!self)
-                    return;
-                if (self->on_unsupported_format_error)
-                    self->on_unsupported_format_error(move(error));
-            });
-            return 0;
-        }
-        return 0;
+    auto main_thread_event_loop = main_thread_event_loop_reference->take();
+    if (!main_thread_event_loop)
+        return;
+    main_thread_event_loop->deferred_invoke([self = move(self), error = move(error)] mutable {
+        if (!self)
+            return;
+        if (self->on_unsupported_format_error)
+            self->on_unsupported_format_error(move(error));
     });
+}
 
-    thread->start();
-    thread->detach();
+void PlaybackManager::add_media_source(NonnullRefPtr<MediaStream> const& stream)
+{
+    auto self = weak();
+    auto main_thread_event_loop_reference = Core::EventLoop::current_weak();
+
+    Threading::ThreadPool::the().submit([self = move(self), stream, main_thread_event_loop_reference = move(main_thread_event_loop_reference)] mutable {
+        auto demuxer_or_error = create_demuxer_for_stream(stream);
+        if (demuxer_or_error.is_error()) {
+            handle_media_init_error(move(self), move(main_thread_event_loop_reference), demuxer_or_error.release_error());
+            return;
+        }
+
+        auto maybe_error = prepare_playback_from_demuxer(self, demuxer_or_error.release_value(), main_thread_event_loop_reference);
+        if (maybe_error.is_error())
+            handle_media_init_error(move(self), move(main_thread_event_loop_reference), maybe_error.release_error());
+    });
+}
+
+void PlaybackManager::add_media_source(NonnullRefPtr<Demuxer> const& demuxer)
+{
+    auto self = weak();
+    auto main_thread_event_loop_reference = Core::EventLoop::current_weak();
+
+    Threading::ThreadPool::the().submit([self = move(self), demuxer, main_thread_event_loop_reference = move(main_thread_event_loop_reference)] mutable {
+        auto maybe_error = prepare_playback_from_demuxer(self, demuxer, main_thread_event_loop_reference);
+        if (maybe_error.is_error())
+            handle_media_init_error(move(self), move(main_thread_event_loop_reference), maybe_error.release_error());
+    });
 }
 
 WeakPlaybackManager PlaybackManager::weak()
