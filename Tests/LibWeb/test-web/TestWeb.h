@@ -58,6 +58,7 @@ struct Test {
     size_t total_runs { 1 };
 
     String text {};
+    bool did_start_test { false };
     bool did_finish_test { false };
     bool did_finish_loading { false };
     bool did_check_variants { false };

@@ -738,9 +738,6 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
 static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -919,7 +916,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static ErrorOr<void> dump_screenshot_to_file(Gfx::Bitmap const& bitmap, StringView path)
@@ -961,9 +957,6 @@ static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap co
 static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
 
     auto handle_completed_test = [&view, &context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -1066,15 +1059,11 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, test_index]() {
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -1177,12 +1166,23 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
     };
 
     view.load(url);
-    test.timeout_timer->start();
 }
 
 static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app)
 {
     s_current_test_index_by_view.set(&view, test_index);
+
+    auto& test = context.tests[test_index];
+    auto timeout_in_milliseconds = app.per_test_timeout_in_seconds * 1000;
+
+    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
+        auto& test = context.tests[test_index];
+        if (!test.did_start_test)
+            dbgln("Timeout during pre-navigation for {}, WebContent process may be unresponsive", test.relative_path);
+
+        view.on_test_complete({ test_index, TestResult::Timeout });
+    });
+    test.timeout_timer->start();
 
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -1201,6 +1201,8 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
 
     promise->when_resolved([&view, test_index, &app, &context](auto) {
         auto& test = context.tests[test_index];
+        test.did_start_test = true;
+
         auto real_path = MUST(FileSystem::real_path(test.input_path));
         auto headers_path = ByteString::formatted("{}.headers", real_path);
 
