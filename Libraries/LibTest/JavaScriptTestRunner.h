@@ -393,8 +393,11 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
 
     auto file_script = parse_script(test_path, *realm);
     JS::ThrowCompletionOr<JS::Value> top_level_result { JS::js_undefined() };
-    if (file_script.is_error())
+    if (file_script.is_error()) {
+        m_counts.suites_failed++;
+        m_counts.files_total++;
         return { test_path, file_script.error() };
+    }
     g_vm->push_execution_context(global_execution_context);
     top_level_result = g_vm->bytecode_interpreter().run(file_script.value());
     g_vm->pop_execution_context();
