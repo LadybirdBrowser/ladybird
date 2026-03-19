@@ -10,9 +10,6 @@
 #include <AK/Debug.h>
 #include <AK/Function.h>
 #include <LibGC/DeferGC.h>
-#include <LibJS/AST.h>
-#include <LibJS/Bytecode/BasicBlock.h>
-#include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -49,83 +46,6 @@ static GC::Ref<Object> prototype_for_function_kind(Realm& realm, FunctionKind ki
         return realm.intrinsics().async_generator_function_prototype();
     }
     VERIFY_NOT_REACHED();
-}
-
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Utf16String source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
-{
-    auto prototype = prototype_for_function_kind(realm, kind);
-
-    auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
-        realm.vm(),
-        kind,
-        move(name),
-        function_length,
-        *parameters,
-        ecmascript_code,
-        Utf16View {},
-        is_strict,
-        is_arrow_function,
-        parsing_insights,
-        move(local_variables_names));
-
-    shared_data->m_class_field_initializer_name = move(class_field_initializer_name);
-
-    shared_data->m_source_text_owner = move(source_text);
-    shared_data->m_source_text = shared_data->m_source_text_owner.utf16_view();
-
-    return realm.create<ECMAScriptFunctionObject>(
-        move(shared_data),
-        parent_environment,
-        private_environment,
-        *prototype);
-}
-
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Utf16View source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
-{
-    auto prototype = prototype_for_function_kind(realm, kind);
-
-    auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
-        realm.vm(),
-        kind,
-        move(name),
-        function_length,
-        *parameters,
-        ecmascript_code,
-        source_text,
-        is_strict,
-        is_arrow_function,
-        parsing_insights,
-        move(local_variables_names));
-
-    shared_data->m_class_field_initializer_name = move(class_field_initializer_name);
-
-    return realm.create<ECMAScriptFunctionObject>(
-        move(shared_data),
-        parent_environment,
-        private_environment,
-        *prototype);
-}
-
-GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create(Realm& realm, Utf16FlyString name, Object& prototype, Utf16View source_text, Statement const& ecmascript_code, NonnullRefPtr<FunctionParameters const> parameters, i32 function_length, Vector<LocalVariable> local_variables_names, Environment* parent_environment, PrivateEnvironment* private_environment, FunctionKind kind, bool is_strict, FunctionParsingInsights parsing_insights, bool is_arrow_function, Variant<PropertyKey, PrivateName, Empty> class_field_initializer_name)
-{
-    auto shared_data = realm.heap().allocate<SharedFunctionInstanceData>(
-        realm.vm(),
-        kind,
-        move(name),
-        function_length,
-        *parameters,
-        ecmascript_code,
-        source_text,
-        is_strict,
-        is_arrow_function,
-        parsing_insights,
-        move(local_variables_names));
-    shared_data->m_class_field_initializer_name = move(class_field_initializer_name);
-    return realm.create<ECMAScriptFunctionObject>(
-        move(shared_data),
-        parent_environment,
-        private_environment,
-        prototype);
 }
 
 GC::Ref<ECMAScriptFunctionObject> ECMAScriptFunctionObject::create_from_function_data(
@@ -538,17 +458,11 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
         // a. Let acAsyncContext be the running execution context.
 
         // b. If asyncBody is a Parse Node, then
-        if constexpr (!IsSame<T, GC::Function<Completion()>>) {
-            // i. Let result be Completion(Evaluation of asyncBody).
-            auto executable = Bytecode::compile(vm, async_body, FunctionKind::Async, "AsyncBlockStart"_utf16_fly_string);
-            result = vm.bytecode_interpreter().run_executable(vm.running_execution_context(), *executable, {});
-        }
+        //    i. Let result be Completion(Evaluation of asyncBody).
         // c. Else,
-        else {
-            // i. Assert: asyncBody is an Abstract Closure with no parameters.
-            // ii. Let result be asyncBody().
-            result = async_body.function()();
-        }
+        //    i. Assert: asyncBody is an Abstract Closure with no parameters.
+        //    ii. Let result be asyncBody().
+        result = async_body.function()();
         // d. Assert: If we return here, the async function either threw an exception or performed an implicit or explicit return; all awaiting is done.
         // e. Remove acAsyncContext from the execution context stack and restore the execution context that is at the top of the execution context stack as the running execution context.
         vm.pop_execution_context();
