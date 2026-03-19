@@ -186,8 +186,10 @@
 //!   is fractional, out of i32 range, or NaN. No modular reduction.
 //! - `js_to_int32 dst, fpr, fail_label` -- Convert double to int32 using
 //!   JS ToInt32 semantics. With FEAT_JSCVT (ARMv8.3), uses `fjcvtzs` and
-//!   never branches. Without, truncates and branches to `fail_label` if
-//!   the value doesn't round-trip (fractional, out of range, NaN).
+//!   never branches. On success, the low 32 bits hold the result and the
+//!   upper 32 bits are cleared so callers can use `box_int32_clean`.
+//!   Without FEAT_JSCVT, truncates and branches to `fail_label` if the
+//!   value doesn't round-trip (fractional, out of range, NaN).
 //! - `canonicalize_nan dst_gpr, src_fpr` -- Bitwise-copy `src_fpr` to
 //!   `dst_gpr`, but if the value is NaN, write `CANON_NAN_BITS` instead.
 //!   JS requires all NaN values to be canonicalized in Value storage.

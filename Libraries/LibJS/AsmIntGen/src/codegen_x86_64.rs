@@ -499,16 +499,20 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         // js_to_int32 dst, src_fpr, fail_label
         // Truncate double to int64. cvttsd2si returns 0x8000000000000000 on
         // overflow/NaN, which we detect and branch to the slow path.
+        // On success, zero-extend the low 32 bits so callers can use
+        // box_int32_clean directly.
         // Clobbers rcx (t1).
         "js_to_int32" => {
             if insn.operands.len() >= 3 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
+                let dst32 = to_32bit_reg(&dst);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 let fail = resolve_label(&insn.operands[2], handler);
                 w!(out, "    cvttsd2si {dst}, {src}");
                 w!(out, "    mov rcx, 0x8000000000000000");
                 w!(out, "    cmp {dst}, rcx");
                 w!(out, "    je {fail}");
+                w!(out, "    mov {dst32}, {dst32}");
             }
         }
 

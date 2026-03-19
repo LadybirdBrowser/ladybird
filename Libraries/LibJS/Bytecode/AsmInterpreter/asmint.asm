@@ -1299,14 +1299,14 @@ handler ToInt32
     # Without: truncate + round-trip check, slow path on mismatch.
     fp_mov ft0, t1
     js_to_int32 t2, ft0, .slow
-    box_int32 t3, t2
-    store_operand m_dst, t3
+    box_int32_clean t2, t2
+    store_operand m_dst, t2
     dispatch_next
 .try_boolean:
     branch_ne t2, BOOLEAN_TAG, .slow
     # Convert boolean to int32: false -> 0, true -> 1
     and t1, 1
-    box_int32 t1, t1
+    box_int32_clean t1, t1
     store_operand m_dst, t1
     dispatch_next
 .slow:

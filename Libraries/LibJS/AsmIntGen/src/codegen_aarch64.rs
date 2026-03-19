@@ -1007,11 +1007,13 @@ fn emit_instruction(
                 if program.has_jscvt {
                     // ARMv8.3 FEAT_JSCVT: single instruction, handles all
                     // cases (fractional, overflow, NaN) per JS semantics.
+                    // Writing the W register also clears the upper 32 bits.
                     w!(out, "    fjcvtzs {wdst}, {src}");
                 } else {
                     // Portable fallback: truncate and round-trip check.
                     // Values that don't survive (fractional, out of i32
-                    // range, NaN) fall through to the slow path.
+                    // range, NaN) fall through to the slow path. Writing
+                    // the W register also clears the upper 32 bits.
                     let fail = resolve_label(&insn.operands[2], handler);
                     w!(out, "    fcvtzs {wdst}, {src}");
                     w!(out, "    scvtf d16, {wdst}");
