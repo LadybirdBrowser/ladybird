@@ -10,6 +10,7 @@
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
+#include <LibJS/ModuleEntry.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 
 namespace JS {

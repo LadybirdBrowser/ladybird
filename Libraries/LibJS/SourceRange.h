@@ -24,7 +24,7 @@ struct JS_API SourceRange {
     Position start;
     Position end;
 
-    ByteString filename() const;
+    ByteString filename() const { return code->filename().to_byte_string(); }
 };
 
 struct UnrealizedSourceRange {

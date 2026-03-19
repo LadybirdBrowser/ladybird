@@ -9,7 +9,6 @@
 #include <AK/HashTable.h>
 #include <AK/TemporaryChange.h>
 #include <LibGC/RootHashMap.h>
-#include <LibJS/AST.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Bytecode/FormatOperand.h>

@@ -28,8 +28,6 @@
 
 namespace JS {
 
-class FunctionDeclaration;
-
 GC::Ref<DeclarativeEnvironment> new_declarative_environment(Environment&);
 JS_API GC::Ref<ObjectEnvironment> new_object_environment(Object&, bool is_with_environment, Environment*);
 GC::Ref<FunctionEnvironment> new_function_environment(ECMAScriptFunctionObject&, Object* new_target);
@@ -106,7 +104,6 @@ struct EvalDeclarationData {
     Vector<Utf16FlyString> var_scoped_names;
 
     Vector<Utf16FlyString> annex_b_candidate_names;
-    Vector<NonnullRefPtr<FunctionDeclaration>> annex_b_function_declarations;
 
     struct LexicalBinding {
         Utf16FlyString name;

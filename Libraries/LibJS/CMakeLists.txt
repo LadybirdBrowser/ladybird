@@ -1,11 +1,8 @@
 include(libjs_generators)
 
 set(SOURCES
-    AST.cpp
-    ASTDump.cpp
     Bytecode/AsmInterpreter/AsmInterpreter.cpp
     Bytecode/BasicBlock.cpp
-    Bytecode/Builtins.cpp
     Bytecode/Executable.cpp
     Bytecode/IdentifierTable.cpp
     Bytecode/Instruction.cpp

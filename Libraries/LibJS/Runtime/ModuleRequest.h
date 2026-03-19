@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/QuickSort.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
@@ -38,7 +39,17 @@ struct ModuleRequest {
     {
     }
 
-    ModuleRequest(Utf16FlyString specifier, Vector<ImportAttribute> attributes);
+    ModuleRequest(Utf16FlyString specifier, Vector<ImportAttribute> attrs)
+        : module_specifier(move(specifier))
+        , attributes(move(attrs))
+    {
+        // 16.2.2.4 Static Semantics: WithClauseToAttributes, https://tc39.es/ecma262/#sec-withclausetoattributes
+        // 2. Sort attributes according to the lexicographic order of their [[Key]] field, treating the value of each such
+        //    field as a sequence of UTF-16 code unit values.
+        quick_sort(this->attributes, [](ImportAttribute const& lhs, ImportAttribute const& rhs) {
+            return lhs.key < rhs.key;
+        });
+    }
 
     void add_attribute(Utf16String key, Utf16String value)
     {

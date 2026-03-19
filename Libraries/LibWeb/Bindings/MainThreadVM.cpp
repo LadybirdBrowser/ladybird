@@ -9,7 +9,6 @@
  */
 
 #include <LibGC/DeferGC.h>
-#include <LibJS/AST.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Environment.h>

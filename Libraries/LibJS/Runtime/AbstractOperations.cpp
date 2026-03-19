@@ -952,8 +952,6 @@ ThrowCompletionOr<void> eval_declaration_instantiation(VM& vm, EvalDeclarationDa
             //     iii. Let fobj be ! benv.GetBindingValue(F, false).
             //     iv. Perform ? genv.SetMutableBinding(F, fobj, false).
             //     v. Return unused.
-            if (i < data.annex_b_function_declarations.size())
-                data.annex_b_function_declarations[i]->set_should_do_additional_annexB_steps();
         }
     }
 
