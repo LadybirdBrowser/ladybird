@@ -204,11 +204,7 @@ struct TestMetadata {
 
 static ErrorOr<void, TestError> run_test(StringView source, StringView filepath, TestMetadata const& metadata)
 {
-    if (s_parse_only || (metadata.is_negative && metadata.phase == NegativePhase::ParseOrEarly && metadata.program_type != JS::RustIntegration::ProgramType::Module)) {
-        // Creating the vm and interpreter is heavy so we just parse directly here.
-        // We can also skip if we know the test is supposed to fail during parse
-        // time. Unfortunately the phases of modules are not as clear and thus we
-        // only do this for scripts. See also the comment at the end of verify_test.
+    if (s_parse_only) {
         return parse_only_check(source, metadata.program_type);
     }
 
