@@ -7,14 +7,10 @@
 
 #include <AK/Enumerate.h>
 #include <AK/StringView.h>
-#include <LibCore/Environment.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibJS/RustIntegration.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <LibUnicode/TimeZone.h>
 
@@ -22,76 +18,12 @@ TEST_ROOT("Tests/LibJS/Runtime");
 
 TESTJS_PROGRAM_FLAG(test262_parser_tests, "Run test262 parser tests", "test262-parser-tests", 0);
 
-enum class ParserMode {
-    Auto,
-    Rust,
-    Cpp,
-};
-
-static ParserMode configured_parser_mode()
+TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
 {
-    static ParserMode const mode = [] {
-        auto configured_mode = Core::Environment::get("LIBJS_TEST_PARSER_MODE"sv);
-        if (!configured_mode.has_value())
-            return ParserMode::Auto;
-
-        auto configured = *configured_mode;
-        if (configured.equals_ignoring_ascii_case("rust"sv))
-            return ParserMode::Rust;
-        if (configured.equals_ignoring_ascii_case("cpp"sv))
-            return ParserMode::Cpp;
-        if (configured.equals_ignoring_ascii_case("auto"sv))
-            return ParserMode::Auto;
-        return ParserMode::Auto;
-    }();
-    return mode;
-}
-
-static JS::ThrowCompletionOr<bool> parse_with_cpp_mode(JS::VM& vm)
-{
-    auto source = TRY(vm.argument(0).to_utf16_string(vm));
-    auto parser = JS::Parser(JS::Lexer(JS::SourceCode::create({}, source)));
-    (void)parser.parse_program();
-    return !parser.has_errors();
-}
-
-static JS::ThrowCompletionOr<bool> parse_with_rust_mode(JS::VM& vm)
-{
-    if (!JS::RustIntegration::rust_pipeline_available())
-        return false;
-
     auto& realm = *vm.current_realm();
     auto source = TRY(vm.argument(0).to_string(vm));
     auto script = JS::Script::parse(source, realm);
-    return !script.is_error();
-}
-
-TESTJS_GLOBAL_FUNCTION(can_parse_source, canParseSource)
-{
-    switch (configured_parser_mode()) {
-    case ParserMode::Rust:
-        return JS::Value(TRY(parse_with_rust_mode(vm)));
-    case ParserMode::Cpp:
-        return JS::Value(TRY(parse_with_cpp_mode(vm)));
-    case ParserMode::Auto: {
-        auto& realm = *vm.current_realm();
-        auto source = TRY(vm.argument(0).to_string(vm));
-        auto script = JS::Script::parse(source, realm);
-        return JS::Value(!script.is_error());
-    }
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
-TESTJS_GLOBAL_FUNCTION(can_parse_source_with_rust, canParseSourceWithRust)
-{
-    return JS::Value(TRY(parse_with_rust_mode(vm)));
-}
-
-TESTJS_GLOBAL_FUNCTION(can_parse_source_with_cpp, canParseSourceWithCpp)
-{
-    return JS::Value(TRY(parse_with_cpp_mode(vm)));
+    return JS::Value(!script.is_error());
 }
 
 // Based on $262.evalScript
