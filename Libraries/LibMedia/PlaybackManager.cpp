@@ -83,18 +83,24 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (!self)
             return;
 
+        auto first_new_video_index = self->m_video_tracks.size();
+        auto first_new_audio_index = self->m_audio_tracks.size();
+
         self->m_video_tracks.extend(move(video_tracks));
         self->m_video_track_datas.extend(move(video_track_datas));
         self->m_audio_tracks.extend(move(audio_tracks));
         self->m_audio_track_datas.extend(move(audio_track_datas));
-        self->m_preferred_video_track = preferred_video_track;
-        self->m_preferred_audio_track = preferred_audio_track;
+
+        if (!self->m_preferred_video_track.has_value())
+            self->m_preferred_video_track = preferred_video_track;
+        if (!self->m_preferred_audio_track.has_value())
+            self->m_preferred_audio_track = preferred_audio_track;
 
         self->check_for_duration_change(duration);
 
         self->set_up_data_providers();
 
-        if (!self->m_audio_tracks.is_empty()) {
+        if (!self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
             self->m_audio_sink = MUST(AudioMixingSink::try_create());
             self->set_time_provider(make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*self->m_audio_sink));
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
@@ -111,10 +117,10 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         }
 
         if (self->on_track_added) {
-            for (auto const& audio_track : self->m_audio_tracks)
-                self->on_track_added(TrackType::Audio, audio_track);
-            for (auto const& video_track : self->m_video_tracks)
-                self->on_track_added(TrackType::Video, video_track);
+            for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
+                self->on_track_added(TrackType::Audio, self->m_audio_tracks[i]);
+            for (size_t i = first_new_video_index; i < self->m_video_tracks.size(); i++)
+                self->on_track_added(TrackType::Video, self->m_video_tracks[i]);
         }
 
         if (self->on_metadata_parsed)
