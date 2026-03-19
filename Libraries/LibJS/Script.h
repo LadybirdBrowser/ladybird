@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/HashTable.h>
-#include <AK/NonnullRefPtr.h>
 #include <AK/Utf16FlyString.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
@@ -20,8 +19,6 @@ namespace JS {
 
 JS_API extern bool g_dump_ast;
 JS_API extern bool g_dump_ast_use_color;
-
-class FunctionDeclaration;
 
 namespace FFI {
 
@@ -60,7 +57,6 @@ public:
     static Result<GC::Ref<Script>, Vector<ParserError>> create_from_parsed(FFI::ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm&, HostDefined* = nullptr);
 
     Realm& realm() { return *m_realm; }
-    Program const* parse_node() const { return m_parse_node; }
     Vector<LoadedModuleRequest>& loaded_modules() { return m_loaded_modules; }
     Vector<LoadedModuleRequest> const& loaded_modules() const { return m_loaded_modules; }
 
@@ -68,11 +64,8 @@ public:
     StringView filename() const LIFETIME_BOUND { return m_filename; }
 
     Bytecode::Executable* cached_executable() const { return m_executable; }
-    void cache_executable(Bytecode::Executable& executable) const { m_executable = &executable; }
 
     ThrowCompletionOr<void> global_declaration_instantiation(VM&, GlobalEnvironment&);
-
-    void drop_ast();
 
     // Pre-computed global declaration instantiation data.
     // These are extracted from the AST at parse time so that GDI can run
@@ -87,13 +80,11 @@ public:
     };
 
 private:
-    Script(Realm&, StringView filename, RefPtr<Program>, HostDefined*);
     Script(Realm&, StringView filename, RustIntegration::ScriptResult&&, HostDefined*);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<Realm> m_realm;                       // [[Realm]]
-    RefPtr<Program> m_parse_node;                 // [[ECMAScriptCode]]
     Vector<LoadedModuleRequest> m_loaded_modules; // [[LoadedModules]]
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
@@ -104,7 +95,6 @@ private:
     HashTable<Utf16FlyString> m_declared_function_names;
     Vector<Utf16FlyString> m_var_scoped_names;
     Vector<Utf16FlyString> m_annex_b_candidate_names;
-    Vector<NonnullRefPtr<FunctionDeclaration>> m_annex_b_function_declarations;
     Vector<LexicalBinding> m_lexical_bindings;
     bool m_is_strict_mode { false };
 

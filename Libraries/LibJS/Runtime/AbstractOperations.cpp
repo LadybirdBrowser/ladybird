@@ -9,10 +9,8 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Utf16View.h>
-#include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/ModuleLoading.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/ArgumentsObject.h>
@@ -674,51 +672,15 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     //     g. If inDerivedConstructor is false, and body Contains SuperCall, throw a SyntaxError exception.
     //     h. If inClassFieldInitializer is true, and ContainsArguments of body is true, throw a SyntaxError exception.
 
-    GC::Ptr<Bytecode::Executable> executable;
-    bool strict_eval = false;
-    EvalDeclarationData eval_declaration_data;
-
     auto rust_compilation = RustIntegration::compile_eval(*code_string, vm, strict_caller, in_function, in_method, in_derived_constructor, in_class_field_initializer);
-    if (rust_compilation.has_value()) {
-        if (rust_compilation->is_error())
-            return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
-        auto& eval_result = rust_compilation->value();
-        executable = eval_result.executable;
-        strict_eval = eval_result.is_strict_mode;
-        eval_declaration_data = move(eval_result.declaration_data);
-    }
-
-    RefPtr<Program> cpp_program;
-
-    if (!executable) {
-        Parser::EvalInitialState initial_state {
-            .in_eval_function_context = in_function,
-            .allow_super_property_lookup = in_method,
-            .allow_super_constructor_call = in_derived_constructor,
-            .in_class_field_initializer = in_class_field_initializer,
-        };
-
-        Parser parser(Lexer(SourceCode::create({}, code_string->utf16_string())), Program::Type::Script, move(initial_state));
-        cpp_program = parser.parse_program(strict_caller == CallerMode::Strict);
-
-        //     b. If script is a List of errors, throw a SyntaxError exception.
-        if (parser.has_errors()) {
-            auto& error = parser.errors()[0];
-            return vm.throw_completion<SyntaxError>(error.to_string());
-        }
-
-        // 14. If strictCaller is true, let strictEval be true.
-        if (strict_caller == CallerMode::Strict)
-            strict_eval = true;
-        // 15. Else, let strictEval be IsStrict of script.
-        else
-            strict_eval = cpp_program->is_strict_mode();
-
-        eval_declaration_data = EvalDeclarationData::create(vm, *cpp_program, strict_eval);
-
-        // NB: Bytecode compilation is deferred until after EvalDeclarationInstantiation,
-        //     which sets annex B flags on AST nodes that affect codegen.
-    }
+    if (!rust_compilation.has_value())
+        return vm.throw_completion<SyntaxError>("Failed to compile eval code"_string);
+    if (rust_compilation->is_error())
+        return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
+    auto& eval_result = rust_compilation->value();
+    auto executable = eval_result.executable;
+    auto strict_eval = eval_result.is_strict_mode;
+    auto eval_declaration_data = move(eval_result.declaration_data);
 
     // 16. Let runningContext be the running execution context.
     // 17. NOTE: If direct is true, runningContext will be the execution context that performed the direct eval. If direct is false, runningContext will be the execution context for the invocation of the eval function.
@@ -770,12 +732,6 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
     // 30. Let result be Completion(EvalDeclarationInstantiation(body, varEnv, lexEnv, privateEnv, strictEval)).
     TRY(eval_declaration_instantiation(vm, eval_declaration_data, variable_environment, lexical_environment, private_environment, strict_eval));
 
-    // Compile C++ AST after EDI, since EDI sets annex B flags on AST nodes.
-    if (cpp_program) {
-        executable = Bytecode::Generator::generate_from_ast_node(vm, *cpp_program, {});
-        executable->name = "eval"_utf16_fly_string;
-    }
-
     if (Bytecode::g_dump_bytecode)
         executable->dump();
 
@@ -815,16 +771,16 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
         stack.deallocate(stack_mark);
     };
 
-    Optional<Value> eval_result;
+    Optional<Value> result;
 
-    eval_result = TRY(vm.bytecode_interpreter().run_executable(*eval_context, *executable, {}));
+    result = TRY(vm.bytecode_interpreter().run_executable(*eval_context, *executable, {}));
 
     // 32. If result.[[Type]] is normal and result.[[Value]] is empty, then
     //     a. Set result to NormalCompletion(undefined).
     // NOTE: Step 33 and 34 is handled by `pop_guard` above.
     // 35. Return ? result.
     // NOTE: Step 35 is also performed with each use of `TRY` above.
-    return eval_result.value_or(js_undefined());
+    return result.value_or(js_undefined());
 }
 
 EvalDeclarationData EvalDeclarationData::create(VM& vm, Program const& program, bool strict)

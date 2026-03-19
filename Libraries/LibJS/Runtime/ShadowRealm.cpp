@@ -6,8 +6,6 @@
 
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
@@ -124,48 +122,15 @@ ThrowCompletionOr<Value> perform_shadow_realm_eval(VM& vm, Value source, Realm& 
 
     // 2. Perform the following substeps in an implementation-defined order, possibly interleaving parsing and error detection:
 
-    GC::Ptr<Bytecode::Executable> executable;
-    bool strict_eval = false;
-    EvalDeclarationData eval_declaration_data;
-
     auto rust_compilation = RustIntegration::compile_shadow_realm_eval(*source_text, vm);
-    if (rust_compilation.has_value()) {
-        if (rust_compilation->is_error())
-            return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
-        auto& eval_result = rust_compilation->value();
-        executable = eval_result.executable;
-        strict_eval = eval_result.is_strict_mode;
-        eval_declaration_data = move(eval_result.declaration_data);
-    }
-
-    if (!executable) {
-        // a. Let script be ParseText(StringToCodePoints(sourceText), Script).
-        auto parser = Parser(Lexer(SourceCode::create({}, source_text->utf16_string())), Program::Type::Script, Parser::EvalInitialState {});
-        auto program = parser.parse_program();
-
-        // b. If script is a List of errors, throw a SyntaxError exception.
-        if (parser.has_errors()) {
-            auto& error = parser.errors()[0];
-            return vm.throw_completion<SyntaxError>(error.to_string());
-        }
-
-        // c. If script Contains ScriptBody is false, return undefined.
-        if (program->children().is_empty())
-            return js_undefined();
-
-        // d. Let body be the ScriptBody of script.
-        // e. If body Contains NewTarget is true, throw a SyntaxError exception.
-        // f. If body Contains SuperProperty is true, throw a SyntaxError exception.
-        // g. If body Contains SuperCall is true, throw a SyntaxError exception.
-        // FIXME: Implement these, we probably need a generic way of scanning the AST for certain nodes.
-
-        // 3. Let strictEval be IsStrict of script.
-        strict_eval = program->is_strict_mode();
-
-        eval_declaration_data = EvalDeclarationData::create(vm, program, strict_eval);
-
-        executable = Bytecode::compile(vm, program, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
-    }
+    if (!rust_compilation.has_value())
+        return vm.throw_completion<SyntaxError>("Failed to compile ShadowRealm eval code"_string);
+    if (rust_compilation->is_error())
+        return vm.throw_completion<SyntaxError>(rust_compilation->release_error());
+    auto& compilation_result = rust_compilation->value();
+    auto executable = compilation_result.executable;
+    auto strict_eval = compilation_result.is_strict_mode;
+    auto eval_declaration_data = move(compilation_result.declaration_data);
 
     // 4. Let runningContext be the running execution context.
     // 5. If runningContext is not already suspended, suspend runningContext.

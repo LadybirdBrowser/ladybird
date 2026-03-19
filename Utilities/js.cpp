@@ -195,10 +195,6 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
 
     JS::ThrowCompletionOr<JS::Value> result { JS::js_undefined() };
 
-    auto dump_ast = [&](auto const& node) {
-        node.dump({ .prefix = {}, .use_color = !s_strip_ansi });
-    };
-
     if (!s_as_module) {
         auto script_or_error = JS::Script::parse(source, realm, source_name);
         if (script_or_error.is_error()) {
@@ -214,8 +210,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
             auto script = script_or_error.release_value();
-            if (s_dump_ast && script->parse_node())
-                dump_ast(*script->parse_node());
+
             if (!parse_only)
                 result = vm.bytecode_interpreter().run(*script);
         }
@@ -234,8 +229,6 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             result = vm.throw_completion<JS::SyntaxError>(move(error_string));
         } else {
             auto module = module_or_error.release_value();
-            if (s_dump_ast && module->parse_node())
-                dump_ast(*module->parse_node());
             if (!parse_only)
                 result = vm.bytecode_interpreter().run(*module);
         }

@@ -9,7 +9,6 @@
 #include <AK/QuickSort.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
@@ -24,149 +23,6 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(SourceTextModule);
-
-// 16.2.2.4 Static Semantics: WithClauseToAttributes, https://tc39.es/ecma262/#sec-withclausetoattributes
-static Vector<ImportAttribute> with_clause_to_assertions(Vector<ImportAttribute> const& source_attributes)
-{
-    // WithClause : with { WithEntries ,opt }
-    // 1. Let attributes be WithClauseToAttributes of WithEntries.
-    Vector<ImportAttribute> attributes;
-
-    // AssertEntries : AssertionKey : StringLiteral
-    // AssertEntries : AssertionKey : StringLiteral , WithEntries
-
-    for (auto const& attribute : source_attributes) {
-        // 1. Let key be the PropName of AttributeKey.
-        // 2. Let entry be the ImportAttribute Record { [[Key]]: key, [[Value]]: SV of StringLiteral }.
-        // 3. Return « entry ».
-        attributes.empend(attribute);
-    }
-
-    // 2. Sort attributes according to the lexicographic order of their [[Key]] field, treating the value of each such
-    //    field as a sequence of UTF-16 code unit values. NOTE: This sorting is observable only in that hosts are
-    //    prohibited from changing behaviour based on the order in which attributes are enumerated.
-    // NOTE: The sorting is done in construction of the ModuleRequest object.
-
-    // 3. Return attributes.
-    return attributes;
-}
-
-// 16.2.1.4 Static Semantics: ModuleRequests, https://tc39.es/ecma262/#sec-static-semantics-modulerequests
-static Vector<ModuleRequest> module_requests(Program& program)
-{
-    // A List of all the ModuleSpecifier strings used by the module represented by this record to request the importation of a module.
-    // NOTE: The List is source text occurrence ordered!
-    struct RequestedModuleAndSourceIndex {
-        u32 source_offset { 0 };
-        ModuleRequest const* module_request { nullptr };
-    };
-
-    Vector<RequestedModuleAndSourceIndex> requested_modules_with_indices;
-
-    for (auto const& import_statement : program.imports())
-        requested_modules_with_indices.empend(import_statement->start_offset(), &import_statement->module_request());
-
-    for (auto const& export_statement : program.exports()) {
-        for (auto const& export_entry : export_statement->entries()) {
-            if (!export_entry.is_module_request())
-                continue;
-            requested_modules_with_indices.empend(export_statement->start_offset(), &export_statement->module_request());
-        }
-    }
-
-    // NOTE: The List is source code occurrence ordered. https://tc39.es/ecma262/#table-cyclic-module-fields
-    quick_sort(requested_modules_with_indices, [&](RequestedModuleAndSourceIndex const& lhs, RequestedModuleAndSourceIndex const& rhs) {
-        return lhs.source_offset < rhs.source_offset;
-    });
-
-    Vector<ModuleRequest> requested_modules_in_source_order;
-    requested_modules_in_source_order.ensure_capacity(requested_modules_with_indices.size());
-
-    for (auto const& module : requested_modules_with_indices) {
-        if (module.module_request->attributes.is_empty()) {
-            // ImportDeclaration : import ImportClause FromClause ;
-            // ExportDeclaration : export ExportFromClause FromClause ;
-
-            // 1. Let specifier be SV of FromClause.
-            // 2. Return a List whose sole element is the ModuleRequest Record { [[Specifer]]: specifier, [[Attributes]]: « » }.
-            requested_modules_in_source_order.empend(module.module_request->module_specifier);
-        } else {
-            // ImportDeclaration : import ImportClause FromClause WithClause ;
-            // ExportDeclaration : export ExportFromClause FromClause WithClause ;
-
-            // 1. Let specifier be the SV of FromClause.
-            // 2. Let attributes be WithClauseToAttributes of WithClause.
-            auto attributes = with_clause_to_assertions(module.module_request->attributes);
-
-            // NOTE: We have to modify the attributes in place because else it might keep unsupported ones.
-            const_cast<ModuleRequest*>(module.module_request)->attributes = move(attributes);
-
-            // 3. Return a List whose sole element is the ModuleRequest Record { [[Specifier]]: specifier, [[Attributes]]: attributes }.
-            requested_modules_in_source_order.empend(module.module_request->module_specifier, module.module_request->attributes);
-        }
-    }
-
-    return requested_modules_in_source_order;
-}
-
-SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await, NonnullRefPtr<Program> body, Vector<ModuleRequest> requested_modules,
-    Vector<ImportEntry> import_entries, Vector<ExportEntry> local_export_entries,
-    Vector<ExportEntry> indirect_export_entries, Vector<ExportEntry> star_export_entries,
-    Optional<Utf16FlyString> default_export_binding_name)
-    : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
-    , m_ecmascript_code(move(body))
-    , m_execution_context(ExecutionContext::create(0, 0, 0))
-    , m_import_entries(move(import_entries))
-    , m_local_export_entries(move(local_export_entries))
-    , m_indirect_export_entries(move(indirect_export_entries))
-    , m_star_export_entries(move(star_export_entries))
-    , m_default_export_binding_name(move(default_export_binding_name))
-{
-    auto& vm = realm.vm();
-
-    // Pre-compute var declared names (initialize_environment step 21).
-    MUST(m_ecmascript_code->for_each_var_declared_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-        m_var_declared_names.append(identifier.string());
-        return {};
-    }));
-
-    // Pre-compute lexical bindings and functions to initialize (initialize_environment step 24).
-    MUST(m_ecmascript_code->for_each_lexically_scoped_declaration([&](Declaration const& declaration) {
-        return declaration.for_each_bound_identifier([&](Identifier const& identifier) -> ThrowCompletionOr<void> {
-            LexicalBinding binding;
-            binding.name = identifier.string();
-            binding.is_constant = declaration.is_constant_declaration();
-
-            if (declaration.is_function_declaration()) {
-                VERIFY(is<FunctionDeclaration>(declaration));
-                auto const& function_declaration = static_cast<FunctionDeclaration const&>(declaration);
-                auto shared_data = SharedFunctionInstanceData::create_for_function_node(vm, function_declaration);
-                if (function_declaration.name() == ExportStatement::local_name_for_default)
-                    shared_data->m_name = "default"_utf16_fly_string;
-                binding.function_index = static_cast<i32>(m_functions_to_initialize.size());
-                m_functions_to_initialize.append({ *shared_data, shared_data->m_name });
-            }
-
-            m_lexical_bindings.append(move(binding));
-            return {};
-        });
-    }));
-
-    // For TLA modules, pre-create the SharedFunctionInstanceData for the
-    // async wrapper function so that execute_module() doesn't need the AST.
-    if (has_top_level_await) {
-        FunctionParsingInsights parsing_insights;
-        parsing_insights.uses_this_from_environment = true;
-        parsing_insights.uses_this = true;
-        m_tla_shared_data = vm.heap().allocate<SharedFunctionInstanceData>(
-            vm, FunctionKind::Async,
-            "module code with top-level await"_utf16_fly_string,
-            0, FunctionParameters::empty(), *m_ecmascript_code,
-            Utf16View {}, true, false, parsing_insights, Vector<LocalVariable> {});
-        m_tla_shared_data->m_is_module_wrapper = true;
-        m_ecmascript_code = nullptr;
-    }
-}
 
 SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::HostDefined* host_defined, bool has_top_level_await,
     Vector<ModuleRequest> requested_modules, Vector<ImportEntry> import_entries,
@@ -231,155 +87,24 @@ Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse_f
 Result<GC::Ref<SourceTextModule>, Vector<ParserError>> SourceTextModule::parse(StringView source_text, Realm& realm, StringView filename, Script::HostDefined* host_defined)
 {
     auto rust_result = RustIntegration::compile_module(source_text, realm, filename);
-    if (rust_result.has_value()) {
-        if (rust_result->is_error())
-            return rust_result->release_error();
-        auto& module_result = rust_result->value();
-        Vector<FunctionToInitialize> functions_to_initialize;
-        functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
-        for (auto& f : module_result.functions_to_initialize)
-            functions_to_initialize.append({ *f.shared_data, move(f.name) });
-        return realm.heap().allocate<SourceTextModule>(
-            realm, filename, host_defined, module_result.has_top_level_await,
-            move(module_result.requested_modules), move(module_result.import_entries),
-            move(module_result.local_export_entries), move(module_result.indirect_export_entries),
-            move(module_result.star_export_entries), move(module_result.default_export_binding_name),
-            move(module_result.var_declared_names), move(module_result.lexical_bindings),
-            move(functions_to_initialize),
-            module_result.executable.ptr(), module_result.tla_shared_data.ptr());
-    }
+    if (!rust_result.has_value())
+        return Vector<ParserError> {};
+    if (rust_result->is_error())
+        return rust_result->release_error();
 
-    // 1. Let body be ParseText(sourceText, Module).
-    auto parser = Parser(Lexer(SourceCode::create(String::from_utf8(filename).release_value_but_fixme_should_propagate_errors(), Utf16String::from_utf8(source_text))), Program::Type::Module);
-    auto body = parser.parse_program();
-
-    // 2. If body is a List of errors, return body.
-    if (parser.has_errors())
-        return parser.errors();
-
-    // 3. Let requestedModules be the ModuleRequests of body.
-    auto requested_modules = module_requests(*body);
-
-    // 4. Let importEntries be ImportEntries of body.
-    Vector<ImportEntry> import_entries;
-    for (auto const& import_statement : body->imports())
-        import_entries.extend(import_statement->entries());
-
-    // 5. Let importedBoundNames be ImportedLocalNames(importEntries).
-    // NOTE: Since we have to potentially extract the import entry we just use importEntries
-    //       In the future it might be an optimization to have a set/map of string to speed up the search.
-
-    // 6. Let indirectExportEntries be a new empty List.
-    Vector<ExportEntry> indirect_export_entries;
-
-    // 7. Let localExportEntries be a new empty List.
-    Vector<ExportEntry> local_export_entries;
-
-    // 8. Let starExportEntries be a new empty List.
-    Vector<ExportEntry> star_export_entries;
-
-    // NOTE: Not in the spec but makes it easier to find the default.
-    Optional<Utf16FlyString> default_export_binding_name;
-
-    // 9. Let exportEntries be ExportEntries of body.
-    // 10. For each ExportEntry Record ee of exportEntries, do
-    for (auto const& export_statement : body->exports()) {
-        if (export_statement->is_default_export()) {
-            VERIFY(!default_export_binding_name.has_value());
-            VERIFY(export_statement->entries().size() == 1);
-            VERIFY(export_statement->has_statement());
-
-            auto const& entry = export_statement->entries()[0];
-            VERIFY(entry.kind == ExportEntry::Kind::NamedExport);
-            VERIFY(!entry.is_module_request());
-            VERIFY(import_entries.find_if(
-                                     [&](ImportEntry const& import_entry) {
-                                         return import_entry.local_name == entry.local_or_import_name;
-                                     })
-                    .is_end());
-
-            // Extract the binding name if the default export is a non-declaration statement.
-            if (!is<Declaration>(export_statement->statement()))
-                default_export_binding_name = entry.local_or_import_name.value();
-        }
-
-        for (auto const& export_entry : export_statement->entries()) {
-            // Special case, export {} from "module" should add "module" to
-            // required_modules but not any import or export so skip here.
-            if (export_entry.kind == ExportEntry::Kind::EmptyNamedExport) {
-                VERIFY(export_statement->entries().size() == 1);
-                break;
-            }
-
-            // a. If ee.[[ModuleRequest]] is null, then
-            if (!export_entry.is_module_request()) {
-
-                auto in_imported_bound_names = import_entries.find_if(
-                    [&](ImportEntry const& import_entry) {
-                        return import_entry.local_name == export_entry.local_or_import_name;
-                    });
-
-                // i. If ee.[[LocalName]] is not an element of importedBoundNames, then
-                if (in_imported_bound_names.is_end()) {
-                    // 1. Append ee to localExportEntries.
-                    local_export_entries.empend(export_entry);
-                }
-                // ii. Else,
-                else {
-                    // 1. Let ie be the element of importEntries whose [[LocalName]] is the same as ee.[[LocalName]].
-                    auto& import_entry = *in_imported_bound_names;
-
-                    // 2. If ie.[[ImportName]] is NAMESPACE-OBJECT, then
-                    if (import_entry.is_namespace()) {
-                        // a. NOTE: This is a re-export of an imported module namespace object.
-                        // b. Append ee to localExportEntries.
-                        local_export_entries.empend(export_entry);
-                    }
-                    // 3. Else,
-                    else {
-                        // a. NOTE: This is a re-export of a single name.
-                        // b. Append the ExportEntry Record { [[ModuleRequest]]: ie.[[ModuleRequest]], [[ImportName]]: ie.[[ImportName]], [[LocalName]]: null, [[ExportName]]: ee.[[ExportName]] } to indirectExportEntries.
-                        indirect_export_entries.empend(ExportEntry::indirect_export_entry(import_entry.module_request(), export_entry.export_name, import_entry.import_name));
-                    }
-                }
-            }
-            // b. Else if ee.[[ImportName]] is all-but-default, then
-            else if (export_entry.kind == ExportEntry::Kind::ModuleRequestAllButDefault) {
-                // i. Assert: ee.[[ExportName]] is null.
-                VERIFY(!export_entry.export_name.has_value());
-                // ii. Append ee to starExportEntries.
-                star_export_entries.empend(export_entry);
-            }
-            // c. Else,
-            else {
-                // i. Append ee to indirectExportEntries.
-                indirect_export_entries.empend(export_entry);
-            }
-        }
-    }
-
-    // 11. Let async be body Contains await.
-    bool async = body->has_top_level_await();
-
-    // 12. Return Source Text Module Record {
-    //          [[Realm]]: realm, [[Environment]]: empty, [[Namespace]]: empty, [[CycleRoot]]: empty, [[HasTLA]]: async,
-    //          [[AsyncEvaluation]]: false, [[TopLevelCapability]]: empty, [[AsyncParentModules]]: « »,
-    //          [[PendingAsyncDependencies]]: empty, [[Status]]: unlinked, [[EvaluationError]]: empty,
-    //          [[HostDefined]]: hostDefined, [[ECMAScriptCode]]: body, [[Context]]: empty, [[ImportMeta]]: empty,
-    //          [[RequestedModules]]: requestedModules, [[ImportEntries]]: importEntries, [[LocalExportEntries]]: localExportEntries,
-    //          [[IndirectExportEntries]]: indirectExportEntries, [[StarExportEntries]]: starExportEntries, [[DFSIndex]]: empty, [[DFSAncestorIndex]]: empty }.
+    auto& module_result = rust_result->value();
+    Vector<FunctionToInitialize> functions_to_initialize;
+    functions_to_initialize.ensure_capacity(module_result.functions_to_initialize.size());
+    for (auto& f : module_result.functions_to_initialize)
+        functions_to_initialize.append({ *f.shared_data, move(f.name) });
     return realm.heap().allocate<SourceTextModule>(
-        realm,
-        filename,
-        host_defined,
-        async,
-        move(body),
-        move(requested_modules),
-        move(import_entries),
-        move(local_export_entries),
-        move(indirect_export_entries),
-        move(star_export_entries),
-        move(default_export_binding_name));
+        realm, filename, host_defined, module_result.has_top_level_await,
+        move(module_result.requested_modules), move(module_result.import_entries),
+        move(module_result.local_export_entries), move(module_result.indirect_export_entries),
+        move(module_result.star_export_entries), move(module_result.default_export_binding_name),
+        move(module_result.var_declared_names), move(module_result.lexical_bindings),
+        move(functions_to_initialize),
+        module_result.executable.ptr(), module_result.tla_shared_data.ptr());
 }
 
 // 16.2.1.7.2.1 GetExportedNames ( [ exportStarSet ] ), https://tc39.es/ecma262/#sec-getexportednames
@@ -775,10 +500,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
 {
     dbgln_if(JS_MODULE_DEBUG, "[JS MODULE] SourceTextModule::execute_module({}, PromiseCapability @ {})", filename(), capability.ptr());
 
-    if (!m_has_top_level_await && !m_executable) {
-        m_executable = Bytecode::compile(vm, *m_ecmascript_code, FunctionKind::Normal, "ShadowRealmEval"_utf16_fly_string);
-        m_ecmascript_code = nullptr;
-    }
+    VERIFY(m_has_top_level_await || m_executable);
 
     u32 registers_and_locals_count = 0;
     u32 constants_count = 0;
