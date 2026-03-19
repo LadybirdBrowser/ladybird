@@ -735,7 +735,7 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     context.total_tests += variants.size() - 1;
 }
 
-static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
 {
     auto test_index = test.index;
 
@@ -909,12 +909,6 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         };
     }
 
-    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
-        auto& test = context.tests[test_index];
-        if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
-    };
-
     view.load(url);
 }
 
@@ -954,7 +948,7 @@ static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap co
     return {};
 }
 
-static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
 {
     auto test_index = test.index;
 
@@ -1052,16 +1046,10 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         view.load(URL::Parser::basic_parse(reference_to_load).release_value());
     };
 
-    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
-        auto& test = context.tests[test_index];
-        if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
-    };
-
     view.load(url);
 }
 
-static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
+static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
 {
     auto test_index = test.index;
 
@@ -1159,12 +1147,6 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
         });
     };
 
-    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
-        auto& test = context.tests[test_index];
-        if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(milliseconds);
-    };
-
     view.load(url);
 }
 
@@ -1183,6 +1165,12 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         view.on_test_complete({ test_index, TestResult::Timeout });
     });
     test.timeout_timer->start();
+
+    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+        auto& test = context.tests[test_index];
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+    };
 
     // Clear the current document.
     // FIXME: Implement a debug-request to do this more thoroughly.
@@ -1227,13 +1215,13 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         case TestMode::Crash:
         case TestMode::Text:
         case TestMode::Layout:
-            run_dump_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
+            run_dump_test(view, context, test, *url);
             return;
         case TestMode::Ref:
-            run_ref_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
+            run_ref_test(view, context, test, *url);
             return;
         case TestMode::Screenshot:
-            run_screenshot_test(view, context, test, *url, app.per_test_timeout_in_seconds * 1000);
+            run_screenshot_test(view, context, test, *url);
             return;
         }
 
