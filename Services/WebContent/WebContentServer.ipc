@@ -57,6 +57,7 @@ endpoint WebContentServer
     clear_inspected_dom_node(u64 page_id) =|
     highlight_dom_node(u64 page_id, Web::UniqueNodeID node_id, Optional<Web::CSS::PseudoElement> pseudo_element) =|
     inspect_accessibility_tree(u64 page_id) =|
+    request_accessibility_tree(u64 page_id) =|
     get_hovered_node_id(u64 page_id) =|
 
     js_console_input(u64 page_id, String js_source) =|

@@ -25,6 +25,7 @@ class ViewImplementation;
 class WebContentClient;
 class WebUI;
 
+struct AccessibilityNodeData;
 struct Attribute;
 struct AutocompleteEngine;
 struct BookmarkItem;

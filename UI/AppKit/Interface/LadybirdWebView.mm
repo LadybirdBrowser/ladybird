@@ -8,10 +8,12 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/Application.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
+#import <Interface/LadybirdAccessibilityElement.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
 #import <Metal/Metal.h>
@@ -23,8 +25,8 @@
 #    error "This project requires ARC"
 #endif
 
-// Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
-// we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
+// Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure we only call [NSCursor
+// hide] once and to ensure that we do call [NSCursor unhide].
 // https://developer.apple.com/documentation/appkit/nscursor#1651301
 struct HideCursor {
     HideCursor()
@@ -52,6 +54,9 @@ struct HideCursor {
 {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
 
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    NSMutableDictionary<NSNumber*, LadybirdAccessibilityElement*>* m_accessibility_elements;
+
     Optional<HideCursor> m_hidden_cursor;
 
     id<MTLDevice> m_metal_device;
@@ -73,9 +78,9 @@ struct HideCursor {
 @property (nonatomic, strong) NSAlert* dialog;
 @property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
 
-// NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So
-// when we dispatch the event for a second time after WebContent has had a chance to handle it, we must track that
-// event ourselves to prevent indefinitely repeating the event.
+// NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So when
+// we dispatch the event for a second time after WebContent has had a chance to handle it, we must track that event
+// ourselves to prevent indefinitely repeating the event.
 @property (nonatomic, strong) NSEvent* event_being_redispatched;
 
 // To handle key events after dead key processing, we need to hold onto the originating key-down event.
@@ -132,6 +137,10 @@ struct HideCursor {
         auto maximum_frames_per_second = [[NSScreen mainScreen] maximumFramesPerSecond];
 
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second));
+
+        m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+        m_accessibility_elements = [NSMutableDictionary dictionary];
+
         [self setWebViewCallbacks];
 
         self.page_context_menu = Ladybird::create_context_menu(self, [self view].page_context_menu());
@@ -273,8 +282,8 @@ struct HideCursor {
 
 - (void)setWebViewCallbacks
 {
-    // We need to make sure that these callbacks don't cause reference cycles.
-    // By default, capturing self will copy a strong reference to self in ARC.
+    // We need to make sure that these callbacks don't cause reference cycles. By default, capturing self will copy a
+    // strong reference to self in ARC.
     __weak LadybirdWebView* weak_self = self;
 
     m_web_view_bridge->on_ready_to_paint = [weak_self]() {
@@ -336,6 +345,29 @@ struct HideCursor {
             return;
         }
         [self.observer onLoadFinish:url];
+        self->m_web_view_bridge->request_accessibility_tree();
+    };
+
+    m_web_view_bridge->on_accessibility_tree_received = [weak_self](auto nodes) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        self->m_accessibility_manager->update_tree(move(nodes));
+        [self->m_accessibility_elements removeAllObjects];
+        NSAccessibilityPostNotification(self, NSAccessibilityLayoutChangedNotification);
+
+        // Post load-complete notification on the web area so VoiceOver knows the page is ready and starts auto-reading.
+        auto const* root = self->m_accessibility_manager->root();
+        if (root) {
+            id web_area = [self accessibilityElementForNodeID:root->id];
+            NSAccessibilityPostNotification(web_area, @"AXLoadComplete");
+        }
+
+        // Also post focus notification on the first meaningful element.
+        id focused = [self accessibilityFocusedUIElement];
+        if (focused && focused != self)
+            NSAccessibilityPostNotification(focused, NSAccessibilityFocusedUIElementChangedNotification);
     };
 
     m_web_view_bridge->on_url_change = [weak_self](auto const& url) {
@@ -1048,9 +1080,9 @@ struct HideCursor {
 
     auto* provider = CGDataProviderCreateWithData(nil, bitmap->scanline_u8(0), bitmap->size_in_bytes(), nil);
 
-    // Ideally, this would be NSBitmapImageRep, but the equivalent factory initWithBitmapDataPlanes: does
-    // not seem to actually respect endianness. We need NSBitmapFormatThirtyTwoBitLittleEndian, but the
-    // resulting image is always big endian. CGImageCreate actually does respect the endianness.
+    // Ideally, this would be NSBitmapImageRep, but the equivalent factory initWithBitmapDataPlanes: does not seem to
+    // actually respect endianness. We need NSBitmapFormatThirtyTwoBitLittleEndian, but the resulting image is always
+    // big endian. CGImageCreate actually does respect the endianness.
     auto* bitmap_image = CGImageCreate(
         bitmap_size.width(),
         bitmap_size.height(),
@@ -1094,8 +1126,8 @@ struct HideCursor {
 
 - (BOOL)isFlipped
 {
-    // The origin of a NSScrollView is the lower-left corner, with the y-axis extending upwards. Instead,
-    // we want the origin to be the top-left corner, with the y-axis extending downward.
+    // The origin of a NSScrollView is the lower-left corner, with the y-axis extending upwards. Instead, we want the
+    // origin to be the top-left corner, with the y-axis extending downward.
     return YES;
 }
 
@@ -1388,6 +1420,119 @@ struct HideCursor {
     pinch_event.position = Ladybird::ns_point_to_gfx_point(point).to_type<Web::DevicePixels>() * m_web_view_bridge->device_pixel_ratio();
     pinch_event.scale_delta = scale_delta;
     m_web_view_bridge->enqueue_input_event(move(pinch_event));
+}
+
+#pragma mark - Accessibility
+
+- (BOOL)isAccessibilityElement
+{
+    return YES;
+}
+
+- (NSAccessibilityRole)accessibilityRole
+{
+    return NSAccessibilityGroupRole;
+}
+
+- (NSArray*)accessibilityChildren
+{
+    if (m_accessibility_manager->is_empty())
+        return @[];
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return @[];
+
+    id root_element = [self accessibilityElementForNodeID:root->id];
+    if (!root_element)
+        return @[];
+
+    return @[ root_element ];
+}
+
+- (id)accessibilityHitTest:(NSPoint)point
+{
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    NSRect view_rect = [self accessibilityViewRectForScreenPoint:point];
+    auto content_point = Gfx::IntPoint {
+        static_cast<int>(view_rect.origin.x),
+        static_cast<int>(view_rect.origin.y)
+    };
+
+    auto const* hit = m_accessibility_manager->hit_test(content_point);
+    if (hit)
+        return [self accessibilityElementForNodeID:hit->id];
+
+    return self;
+}
+
+- (id)accessibilityFocusedUIElement
+{
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return self;
+
+    // BFS to find the focused node, or the first non-generic element.
+    id first_meaningful = nil;
+    Vector<i64> queue;
+    queue.append(root->id);
+    while (!queue.is_empty()) {
+        auto id = queue.take_first();
+        auto const* node = m_accessibility_manager->node(id);
+        if (!node)
+            continue;
+        if (node->is_focused && node->role.bytes_as_string_view() != "generic"sv)
+            return [self accessibilityElementForNodeID:id];
+        if (!first_meaningful) {
+            auto role = node->role.bytes_as_string_view();
+            if (role != "generic"sv && role != "document"sv && role != "text leaf"sv)
+                first_meaningful = [self accessibilityElementForNodeID:id];
+        }
+        for (auto child_id : node->child_ids)
+            queue.append(child_id);
+    }
+
+    return first_meaningful ? first_meaningful : self;
+}
+
+- (id)accessibilityElementForNodeID:(int64_t)nodeID
+{
+    NSNumber* key = @(nodeID);
+    LadybirdAccessibilityElement* existing = m_accessibility_elements[key];
+    if (existing)
+        return existing;
+
+    auto const* data = m_accessibility_manager->node(nodeID);
+    if (!data)
+        return nil;
+
+    auto* element = [[LadybirdAccessibilityElement alloc] initWithNodeID:nodeID
+                                                                 manager:m_accessibility_manager.ptr()
+                                                                 webView:self];
+    m_accessibility_elements[key] = element;
+    return element;
+}
+
+- (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect
+{
+    // The bounds from WebContent are in CSS pixels, which equal points on macOS. No device pixel ratio scaling needed
+    // -- convertRect works in points.
+    NSRect window_rect = [self convertRect:viewRect toView:nil];
+    return [self.window convertRectToScreen:window_rect];
+}
+
+- (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint
+{
+    // Convert screen point to view content coordinates (CSS pixels = points).
+    NSRect screen_rect = NSMakeRect(screenPoint.x, screenPoint.y, 0, 0);
+    NSRect window_rect = [self.window convertRectFromScreen:screen_rect];
+    NSPoint view_point = [self convertPoint:window_rect.origin fromView:nil];
+    return NSMakeRect(view_point.x, view_point.y, 0, 0);
 }
 
 @end

@@ -71,4 +71,9 @@
 
 - (void)requestClose;
 
+// Accessibility support
+- (id)accessibilityElementForNodeID:(int64_t)nodeID;
+- (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect;
+- (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint;
+
 @end

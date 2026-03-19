@@ -1,0 +1,11 @@
+document
+  text leaf name="Basic structure"
+  generic focused
+    heading name="Main Heading" level=1
+      text leaf name="Main Heading"
+    paragraph
+      text leaf name="A paragraph of text."
+    link name="A link"
+      text leaf name="A link"
+    button name="Click me"
+      text leaf name="Click me"

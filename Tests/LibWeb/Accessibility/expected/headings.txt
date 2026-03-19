@@ -1,0 +1,16 @@
+document
+  generic focused
+    heading name="Level 1" level=1
+      text leaf name="Level 1"
+    heading name="Level 2" level=2
+      text leaf name="Level 2"
+    heading name="Level 3" level=3
+      text leaf name="Level 3"
+    heading name="Level 4" level=4
+      text leaf name="Level 4"
+    heading name="Level 5" level=5
+      text leaf name="Level 5"
+    heading name="Level 6" level=6
+      text leaf name="Level 6"
+    heading name="ARIA heading" level=3
+      text leaf name="ARIA heading"

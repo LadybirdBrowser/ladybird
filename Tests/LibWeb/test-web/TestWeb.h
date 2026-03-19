@@ -21,6 +21,7 @@
 namespace TestWeb {
 
 enum class TestMode {
+    Accessibility,
     Layout,
     Text,
     Ref,
