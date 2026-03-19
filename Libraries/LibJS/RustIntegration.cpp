@@ -351,6 +351,16 @@ ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units,
     return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 }
 
+bool parsed_program_has_errors(ParsedProgram const* parsed)
+{
+    return rust_parsed_program_has_errors(const_cast<ParsedProgram*>(parsed));
+}
+
+void free_parsed_program(ParsedProgram* parsed)
+{
+    rust_free_parsed_program(parsed);
+}
+
 Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)

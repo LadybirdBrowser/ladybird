@@ -16,12 +16,13 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
-#include <LibJS/Parser.h>
+#include <LibJS/Lexer.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/JSONObject.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/Script.h>

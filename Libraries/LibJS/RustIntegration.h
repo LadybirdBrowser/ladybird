@@ -87,8 +87,13 @@ struct ModuleResult {
 JS_API bool rust_pipeline_available();
 
 // Parse a program (script or module) without GC interaction. Thread-safe.
-// Returns nullptr if Rust is not available.
 JS_API FFI::ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);
+
+// Check if a parsed program has errors. Does not consume the program.
+JS_API bool parsed_program_has_errors(FFI::ParsedProgram const*);
+
+// Free a parsed program without compiling it.
+JS_API void free_parsed_program(FFI::ParsedProgram*);
 
 // Compile a previously parsed script. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.

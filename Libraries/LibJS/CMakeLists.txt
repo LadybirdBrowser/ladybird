@@ -23,7 +23,6 @@ set(SOURCES
     Heap/Cell.cpp
     Lexer.cpp
     Module.cpp
-    Parser.cpp
     ParserError.cpp
     Print.cpp
     RustIntegration.cpp
@@ -264,7 +263,6 @@ set(SOURCES
     Runtime/WeakSetPrototype.cpp
     Runtime/WrapForValidIteratorPrototype.cpp
     Runtime/WrappedFunction.cpp
-    ScopeCollector.cpp
     Script.cpp
     SourceCode.cpp
     SourceTextModule.cpp
