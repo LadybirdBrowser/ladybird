@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import http.server
 import json
 import os
@@ -28,6 +29,7 @@ class Echo:
     status: int
     headers: Dict[str, str]
     body: Optional[str]
+    body_encoding: str
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
@@ -41,6 +43,7 @@ class Echo:
             and self.path == other.path
             and self.status == other.status
             and self.body == other.body
+            and self.body_encoding == other.body_encoding
             and self.delay_ms == other.delay_ms
             and self.headers == other.headers
             and self.reason_phrase == other.reason_phrase
@@ -97,6 +100,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo.path = data.get("path", None)
             echo.status = data.get("status", None)
             echo.body = data.get("body", None)
+            echo.body_encoding = data.get("body_encoding", "raw")
             echo.delay_ms = data.get("delay_ms", None)
             echo.headers = data.get("headers", {})
             echo.reason_phrase = data.get("reason_phrase", None)
@@ -109,6 +113,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 echo.method is None
                 or echo.path is None
                 or echo.status is None
+                or echo.body_encoding not in ("raw", "base64")
                 or (echo.body is not None and "$HEADERS" not in echo.body and echo.reflect_headers_in_body)
                 or is_using_reserved_path
             ):
@@ -246,7 +251,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     response_body = response_body[int(start) :]
 
-            self.wfile.write(response_body.encode("utf-8"))
+            if echo.body_encoding == "base64":
+                self.wfile.write(base64.b64decode(response_body))
+            else:
+                self.wfile.write(response_body.encode("utf-8"))
         else:
             self.send_error(404, f"Echo response not found for {key}")
 
