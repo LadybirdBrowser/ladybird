@@ -6,8 +6,6 @@
  */
 
 #include <LibGC/Root.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/AggregateErrorConstructor.h>
 #include <LibJS/Runtime/AggregateErrorPrototype.h>
@@ -210,24 +208,8 @@ GC::Ref<Intrinsics> Intrinsics::create(Realm& realm)
 static Vector<GC::Root<SharedFunctionInstanceData>> parse_builtin_file(unsigned char const* script_text, VM& vm)
 {
     auto rust_compilation = RustIntegration::compile_builtin_file(script_text, vm);
-    if (rust_compilation.has_value())
-        return move(rust_compilation.value());
-
-    auto script_text_as_utf16 = Utf16String::from_utf8_without_validation({ script_text, strlen(reinterpret_cast<char const*>(script_text)) });
-    auto code = SourceCode::create("BuiltinFile"_string, move(script_text_as_utf16));
-
-    auto lexer = Lexer { move(code) };
-    auto parser = Parser { move(lexer) };
-    VERIFY(!parser.has_errors());
-    auto program = parser.parse_program(true);
-
-    Vector<GC::Root<SharedFunctionInstanceData>> shared_data_list;
-    for (auto const& child : program->children()) {
-        if (auto const* function_declaration = as_if<FunctionDeclaration>(*child))
-            shared_data_list.append(SharedFunctionInstanceData::create_for_function_node(vm, *function_declaration));
-    }
-
-    return shared_data_list;
+    VERIFY(rust_compilation.has_value());
+    return move(rust_compilation.value());
 }
 
 void Intrinsics::initialize_intrinsics(Realm& realm)

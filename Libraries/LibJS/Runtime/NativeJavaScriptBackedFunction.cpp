@@ -5,8 +5,6 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibJS/Bytecode/BuiltinAbstractOperationsEnabled.h>
-#include <LibJS/Bytecode/Generator.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
 #include <LibJS/Runtime/AsyncGenerator.h>
@@ -100,14 +98,11 @@ Bytecode::Executable& NativeJavaScriptBackedFunction::bytecode_executable()
     auto& executable = m_shared_function_instance_data->m_executable;
     if (!executable) {
         auto rust_executable = RustIntegration::compile_function(vm(), *m_shared_function_instance_data, true);
-        if (rust_executable) {
-            executable = rust_executable;
-            executable->name = m_shared_function_instance_data->m_name;
-            if (Bytecode::g_dump_bytecode)
-                executable->dump();
-        } else {
-            executable = Bytecode::compile(vm(), m_shared_function_instance_data, Bytecode::BuiltinAbstractOperationsEnabled::Yes);
-        }
+        VERIFY(rust_executable);
+        executable = rust_executable;
+        executable->name = m_shared_function_instance_data->m_name;
+        if (Bytecode::g_dump_bytecode)
+            executable->dump();
         m_shared_function_instance_data->clear_compile_inputs();
     }
 

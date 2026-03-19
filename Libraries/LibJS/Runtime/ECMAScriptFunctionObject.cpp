@@ -221,16 +221,11 @@ void ECMAScriptFunctionObject::get_stack_frame_size(size_t& registers_and_locals
     auto& executable = shared_data().m_executable;
     if (!executable) {
         auto rust_executable = RustIntegration::compile_function(vm(), *m_shared_data, false);
-        if (rust_executable) {
-            executable = rust_executable;
-            executable->name = m_shared_data->m_name;
-            if (Bytecode::g_dump_bytecode)
-                executable->dump();
-        } else if (is_module_wrapper()) {
-            executable = Bytecode::compile(vm(), ecmascript_code(), kind(), name());
-        } else {
-            executable = Bytecode::compile(vm(), shared_data(), Bytecode::BuiltinAbstractOperationsEnabled::No);
-        }
+        VERIFY(rust_executable);
+        executable = rust_executable;
+        executable->name = m_shared_data->m_name;
+        if (Bytecode::g_dump_bytecode)
+            executable->dump();
         m_shared_data->clear_compile_inputs();
     }
     registers_and_locals_count = executable->registers_and_locals_count;
@@ -598,9 +593,6 @@ void async_block_start(VM& vm, T const& async_body, PromiseCapability const& pro
 
     // 8. Return unused.
 }
-
-template void async_block_start(VM&, NonnullRefPtr<Statement const> const& async_body, PromiseCapability const&, ExecutionContext&);
-template void async_function_start(VM&, PromiseCapability const&, NonnullRefPtr<Statement const> const& async_function_body);
 
 template void async_block_start(VM&, GC::Function<Completion()> const& async_body, PromiseCapability const&, ExecutionContext&);
 template void async_function_start(VM&, PromiseCapability const&, GC::Function<Completion()> const& async_function_body);

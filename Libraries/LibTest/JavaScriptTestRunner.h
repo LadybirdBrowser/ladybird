@@ -20,12 +20,13 @@
 #include <LibCore/DirIterator.h>
 #include <LibCore/File.h>
 #include <LibJS/Bytecode/Interpreter.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
+#include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JSONObject.h>
+#include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/Runtime/WeakMap.h>
 #include <LibJS/Runtime/WeakSet.h>
 #include <LibJS/Script.h>

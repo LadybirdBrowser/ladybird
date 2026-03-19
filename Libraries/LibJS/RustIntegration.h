@@ -118,9 +118,9 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(FFI::P
 // Compile a module. Returns nullopt if Rust is not available.
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_module(StringView source_text, Realm& realm, StringView filename);
 
-// Compile a dynamic function (new Function()). Returns nullopt if Rust is not available.
+// Compile a dynamic function (new Function()).
 // On success, returns a SharedFunctionInstanceData with source_text set.
-Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
+JS_API Optional<Result<GC::Ref<SharedFunctionInstanceData>, String>> compile_dynamic_function(
     VM& vm, StringView source_text, StringView parameters_string, StringView body_parse_string,
     FunctionKind kind);
 

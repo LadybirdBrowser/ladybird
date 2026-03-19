@@ -154,9 +154,9 @@ TESTJS_RUN_FILE_FUNCTION(ByteString const& test_file, JS::Realm& realm, JS::Exec
     else
         return Test::JS::RunFileHookResult::SkipFile;
 
-    auto program_type = path.basename().ends_with(".module.js"sv) ? JS::Program::Type::Module : JS::Program::Type::Script;
+    bool const is_module = path.basename().ends_with(".module.js"sv);
     bool parse_succeeded = false;
-    if (program_type == JS::Program::Type::Module)
+    if (is_module)
         parse_succeeded = !Test::JS::parse_module(test_file, realm).is_error();
     else
         parse_succeeded = !Test::JS::parse_script(test_file, realm).is_error();

@@ -9,8 +9,6 @@
 #include <AK/StringView.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Forward.h>
-#include <LibJS/Lexer.h>
-#include <LibJS/Parser.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <errno.h>
 
