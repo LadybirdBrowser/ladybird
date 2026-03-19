@@ -201,7 +201,7 @@ StringView SourceHighlighterClient::class_for_token(u64 token_type) const
     };
 
     auto class_for_js_token = [](u64 token_type) {
-        auto category = JS::Token::category(static_cast<JS::TokenType>(token_type));
+        auto category = JS::token_category_from_packed(token_type);
         switch (category) {
         case JS::TokenCategory::Invalid:
             return "invalid"sv;

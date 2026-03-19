@@ -6,16 +6,21 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/Palette.h>
-#include <LibJS/Lexer.h>
+#include <LibJS/SourceCode.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
 
+#ifdef ENABLE_RUST
+#    include <LibJS/RustFFI.h>
+#endif
+
 namespace JS {
 
-static Gfx::TextAttributes style_for_token_type(Gfx::Palette const& palette, TokenType type)
+static Gfx::TextAttributes style_for_token_category(Gfx::Palette const& palette, TokenCategory category)
 {
-    switch (Token::category(type)) {
+    switch (category) {
     case TokenCategory::Invalid:
         return { palette.syntax_comment() };
     case TokenCategory::Number:
@@ -39,8 +44,7 @@ static Gfx::TextAttributes style_for_token_type(Gfx::Palette const& palette, Tok
 
 bool SyntaxHighlighter::is_identifier(u64 token) const
 {
-    auto js_token = static_cast<TokenType>(static_cast<size_t>(token));
-    return js_token == TokenType::Identifier;
+    return token_type_from_packed(token) == TokenType::Identifier;
 }
 
 bool SyntaxHighlighter::is_navigatable([[maybe_unused]] u64 token) const
@@ -48,80 +52,103 @@ bool SyntaxHighlighter::is_navigatable([[maybe_unused]] u64 token) const
     return false;
 }
 
+struct RehighlightState {
+    Gfx::Palette const& palette;
+    Vector<Syntax::TextDocumentSpan>& spans;
+    Vector<Syntax::TextDocumentFoldingRegion>& folding_regions;
+    u16 const* source;
+    Syntax::TextPosition position { 0, 0 };
+
+    struct FoldStart {
+        Syntax::TextRange range;
+    };
+    Vector<FoldStart> folding_region_starts;
+};
+
+static void advance_position(Syntax::TextPosition& position, u16 const* source, u32 start, u32 len)
+{
+    for (u32 i = 0; i < len; ++i) {
+        if (source[start + i] == '\n') {
+            position.set_line(position.line() + 1);
+            position.set_column(0);
+        } else {
+            position.set_column(position.column() + 1);
+        }
+    }
+}
+
+static void on_token(void* ctx, FFI::FFIToken const* ffi_token)
+{
+    auto& state = *static_cast<RehighlightState*>(ctx);
+    auto token_type = static_cast<TokenType>(ffi_token->token_type);
+    auto category = static_cast<TokenCategory>(ffi_token->category);
+
+    // Emit trivia span
+    if (ffi_token->trivia_length > 0) {
+        auto trivia_start = state.position;
+        advance_position(state.position, state.source, ffi_token->trivia_offset, ffi_token->trivia_length);
+        Syntax::TextDocumentSpan span;
+        span.range.set_start(trivia_start);
+        span.range.set_end({ state.position.line(), state.position.column() });
+        span.attributes = style_for_token_category(state.palette, TokenCategory::Trivia);
+        span.is_skippable = true;
+        span.data = pack_token_data(TokenType::Trivia, TokenCategory::Trivia);
+        state.spans.append(span);
+    }
+
+    // Emit token span
+    auto token_start = state.position;
+    if (ffi_token->length > 0) {
+        advance_position(state.position, state.source, ffi_token->offset, ffi_token->length);
+        Syntax::TextDocumentSpan span;
+        span.range.set_start(token_start);
+        span.range.set_end({ state.position.line(), state.position.column() });
+        span.attributes = style_for_token_category(state.palette, category);
+        span.is_skippable = false;
+        span.data = pack_token_data(token_type, category);
+        state.spans.append(span);
+    }
+
+    // Track folding regions for {} blocks
+    if (token_type == TokenType::CurlyOpen) {
+        state.folding_region_starts.append({ .range = { token_start, state.position } });
+    } else if (token_type == TokenType::CurlyClose) {
+        if (!state.folding_region_starts.is_empty()) {
+            auto curly_open = state.folding_region_starts.take_last();
+            Syntax::TextDocumentFoldingRegion region;
+            region.range.set_start(curly_open.range.end());
+            region.range.set_end(token_start);
+            state.folding_regions.append(region);
+        }
+    }
+}
+
 void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
-
-    Lexer lexer(SourceCode::create({}, Utf16String::from_utf8(text)));
+    auto source_utf16 = Utf16String::from_utf8(text);
+    auto source_code = SourceCode::create({}, move(source_utf16));
+    auto const* source_data = source_code->utf16_data();
+    auto source_len = source_code->length_in_code_units();
 
     Vector<Syntax::TextDocumentSpan> spans;
     Vector<Syntax::TextDocumentFoldingRegion> folding_regions;
-    Syntax::TextPosition position { 0, 0 };
-    Syntax::TextPosition start { 0, 0 };
 
-    auto advance_position = [&position](u32 code_point) {
-        if (code_point == '\n') {
-            position.set_line(position.line() + 1);
-            position.set_column(0);
-        } else
-            position.set_column(position.column() + 1);
+    RehighlightState state {
+        .palette = palette,
+        .spans = spans,
+        .folding_regions = folding_regions,
+        .source = source_data,
+        .position = {},
+        .folding_region_starts = {},
     };
 
-    auto append_token = [&](Utf16View const& str, Token const& token, bool is_trivia) {
-        if (str.is_empty())
-            return;
-
-        start = position;
-        for (auto code_point : str)
-            advance_position(code_point);
-
-        Syntax::TextDocumentSpan span;
-        span.range.set_start(start);
-        span.range.set_end({ position.line(), position.column() });
-        auto type = is_trivia ? TokenType::Trivia : token.type();
-        span.attributes = style_for_token_type(palette, type);
-        span.is_skippable = is_trivia;
-        span.data = static_cast<u64>(type);
-        spans.append(span);
-
-        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{}{} @ '{}' {}:{} - {}:{}",
-            token.name(),
-            is_trivia ? " (trivia)" : "",
-            token.value(),
-            span.range.start().line(), span.range.start().column(),
-            span.range.end().line(), span.range.end().column());
-    };
-
-    struct TokenData {
-        Token token;
-        Syntax::TextRange range;
-    };
-    Vector<TokenData> folding_region_start_tokens;
-
-    bool was_eof = false;
-    for (auto token = lexer.next(); !was_eof; token = lexer.next()) {
-        append_token(token.trivia(), token, true);
-
-        auto token_start_position = position;
-        append_token(token.value(), token, false);
-
-        if (token.type() == TokenType::Eof)
-            was_eof = true;
-
-        // Create folding regions for {} blocks
-        if (token.type() == TokenType::CurlyOpen) {
-            folding_region_start_tokens.append({ .token = token,
-                .range = { token_start_position, position } });
-        } else if (token.type() == TokenType::CurlyClose) {
-            if (!folding_region_start_tokens.is_empty()) {
-                auto curly_open = folding_region_start_tokens.take_last();
-                Syntax::TextDocumentFoldingRegion region;
-                region.range.set_start(curly_open.range.end());
-                region.range.set_end(token_start_position);
-                folding_regions.append(region);
-            }
-        }
-    }
+#ifdef ENABLE_RUST
+    FFI::rust_tokenize(source_data, source_len, &state,
+        [](void* ctx, FFI::FFIToken const* token) { on_token(ctx, token); });
+#else
+    (void)source_len;
+#endif
 
     m_client->do_set_spans(move(spans));
     m_client->do_set_folding_regions(move(folding_regions));
@@ -136,9 +163,9 @@ Vector<Syntax::Highlighter::MatchingTokenPair> SyntaxHighlighter::matching_token
 {
     static Vector<Syntax::Highlighter::MatchingTokenPair> pairs;
     if (pairs.is_empty()) {
-        pairs.append({ static_cast<u64>(TokenType::CurlyOpen), static_cast<u64>(TokenType::CurlyClose) });
-        pairs.append({ static_cast<u64>(TokenType::ParenOpen), static_cast<u64>(TokenType::ParenClose) });
-        pairs.append({ static_cast<u64>(TokenType::BracketOpen), static_cast<u64>(TokenType::BracketClose) });
+        pairs.append({ pack_token_data(TokenType::CurlyOpen, TokenCategory::Punctuation), pack_token_data(TokenType::CurlyClose, TokenCategory::Punctuation) });
+        pairs.append({ pack_token_data(TokenType::ParenOpen, TokenCategory::Punctuation), pack_token_data(TokenType::ParenClose, TokenCategory::Punctuation) });
+        pairs.append({ pack_token_data(TokenType::BracketOpen, TokenCategory::Punctuation), pack_token_data(TokenType::BracketClose, TokenCategory::Punctuation) });
     }
     return pairs;
 }

@@ -7,6 +7,7 @@
 //! Token types and Token struct for the lexer.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(C)]
 pub enum TokenCategory {
     Invalid,
     Trivia,
@@ -25,6 +26,7 @@ pub enum TokenCategory {
 macro_rules! define_tokens {
     ( $( $variant:ident => $category:ident ),* $(,)? ) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[repr(C)]
         pub enum TokenType {
             $( $variant, )*
         }

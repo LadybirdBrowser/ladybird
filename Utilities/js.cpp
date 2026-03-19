@@ -16,7 +16,6 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
-#include <LibJS/Lexer.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -25,8 +24,11 @@
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
+#include <LibJS/RustFFI.h>
 #include <LibJS/Script.h>
+#include <LibJS/SourceCode.h>
 #include <LibJS/SourceTextModule.h>
+#include <LibJS/Token.h>
 #include <LibMain/Main.h>
 #include <LibTextCodec/Decoder.h>
 #include <signal.h>
@@ -509,7 +511,8 @@ static ErrorOr<String> read_next_piece()
 
         piece.append(line);
         piece.append('\n');
-        auto lexer = JS::Lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
+
+        auto source_code = JS::SourceCode::create({}, Utf16String::from_utf8(line));
 
         enum {
             NotInLabelOrObjectKey,
@@ -517,38 +520,45 @@ static ErrorOr<String> read_next_piece()
             InLabelOrObjectKey
         } label_state { NotInLabelOrObjectKey };
 
-        for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
-            switch (token.type()) {
-            case JS::TokenType::BracketOpen:
-            case JS::TokenType::CurlyOpen:
-            case JS::TokenType::ParenOpen:
-                label_state = NotInLabelOrObjectKey;
-                s_repl_line_level++;
-                break;
-            case JS::TokenType::BracketClose:
-            case JS::TokenType::CurlyClose:
-            case JS::TokenType::ParenClose:
-                label_state = NotInLabelOrObjectKey;
-                s_repl_line_level--;
-                break;
+        struct BracketState {
+            decltype(label_state)* label;
+            int* level;
+        } bracket_state { &label_state, &s_repl_line_level };
 
-            case JS::TokenType::Identifier:
-            case JS::TokenType::StringLiteral:
-                if (label_state == NotInLabelOrObjectKey)
-                    label_state = InLabelOrObjectKeyIdentifier;
-                else
-                    label_state = NotInLabelOrObjectKey;
-                break;
-            case JS::TokenType::Colon:
-                if (label_state == InLabelOrObjectKeyIdentifier)
-                    label_state = InLabelOrObjectKey;
-                else
-                    label_state = NotInLabelOrObjectKey;
-                break;
-            default:
-                break;
-            }
-        }
+        JS::FFI::rust_tokenize(source_code->utf16_data(), source_code->length_in_code_units(), &bracket_state,
+            [](void* ctx, JS::FFI::FFIToken const* tok) {
+                auto& state = *static_cast<BracketState*>(ctx);
+                auto type = static_cast<JS::TokenType>(tok->token_type);
+                switch (type) {
+                case JS::TokenType::BracketOpen:
+                case JS::TokenType::CurlyOpen:
+                case JS::TokenType::ParenOpen:
+                    *state.label = NotInLabelOrObjectKey;
+                    (*state.level)++;
+                    break;
+                case JS::TokenType::BracketClose:
+                case JS::TokenType::CurlyClose:
+                case JS::TokenType::ParenClose:
+                    *state.label = NotInLabelOrObjectKey;
+                    (*state.level)--;
+                    break;
+                case JS::TokenType::Identifier:
+                case JS::TokenType::StringLiteral:
+                    if (*state.label == NotInLabelOrObjectKey)
+                        *state.label = InLabelOrObjectKeyIdentifier;
+                    else
+                        *state.label = NotInLabelOrObjectKey;
+                    break;
+                case JS::TokenType::Colon:
+                    if (*state.label == InLabelOrObjectKeyIdentifier)
+                        *state.label = InLabelOrObjectKey;
+                    else
+                        *state.label = NotInLabelOrObjectKey;
+                    break;
+                default:
+                    break;
+                }
+            });
 
         if (label_state == InLabelOrObjectKey) {
             // If there's a label or object literal key at the end of this line,
@@ -618,63 +628,69 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
         size_t open_indents = s_repl_line_level;
 
         auto line = editor.line();
-        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
-        bool indenters_starting_line = true;
-        for (JS::Token token = lexer.next(); token.type() != JS::TokenType::Eof; token = lexer.next()) {
-            auto length = token.value().length_in_code_units();
-            auto start = token.offset();
-            auto end = start + length;
-            if (indenters_starting_line) {
-                if (token.type() != JS::TokenType::ParenClose && token.type() != JS::TokenType::BracketClose && token.type() != JS::TokenType::CurlyClose) {
-                    indenters_starting_line = false;
-                } else {
-                    --open_indents;
-                }
-            }
+        auto source_code = JS::SourceCode::create({}, Utf16String::from_utf8(line));
 
-            switch (token.category()) {
-            case JS::TokenCategory::Invalid:
-                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Red), Line::Style::Underline });
-                break;
-            case JS::TokenCategory::Number:
-                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Magenta) });
-                break;
-            case JS::TokenCategory::String:
-                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Green), Line::Style::Bold });
-                break;
-            case JS::TokenCategory::Punctuation:
-                break;
-            case JS::TokenCategory::Operator:
-                break;
-            case JS::TokenCategory::Keyword:
-                switch (token.type()) {
-                case JS::TokenType::BoolLiteral:
-                case JS::TokenType::NullLiteral:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Yellow), Line::Style::Bold });
+        struct HighlightState {
+            decltype(stylize)* stylize_fn;
+            size_t* open_indents;
+            bool indenters_starting_line { true };
+        } highlight_state { &stylize, &open_indents };
+
+        JS::FFI::rust_tokenize(source_code->utf16_data(), source_code->length_in_code_units(), &highlight_state,
+            [](void* ctx, JS::FFI::FFIToken const* tok) {
+                auto& state = *static_cast<HighlightState*>(ctx);
+                auto type = static_cast<JS::TokenType>(tok->token_type);
+                auto category = static_cast<JS::TokenCategory>(tok->category);
+                auto start = static_cast<size_t>(tok->offset);
+                auto end = start + tok->length;
+                if (type == JS::TokenType::Eof)
+                    return;
+
+                if (state.indenters_starting_line) {
+                    if (type != JS::TokenType::ParenClose && type != JS::TokenType::BracketClose && type != JS::TokenType::CurlyClose)
+                        state.indenters_starting_line = false;
+                    else
+                        --(*state.open_indents);
+                }
+
+                switch (category) {
+                case JS::TokenCategory::Invalid:
+                    (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Red), Line::Style::Underline });
+                    break;
+                case JS::TokenCategory::Number:
+                    (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Magenta) });
+                    break;
+                case JS::TokenCategory::String:
+                    (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Green), Line::Style::Bold });
+                    break;
+                case JS::TokenCategory::Punctuation:
+                case JS::TokenCategory::Operator:
+                    break;
+                case JS::TokenCategory::Keyword:
+                    if (type == JS::TokenType::BoolLiteral || type == JS::TokenType::NullLiteral)
+                        (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Yellow), Line::Style::Bold });
+                    else
+                        (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Blue), Line::Style::Bold });
+                    break;
+                case JS::TokenCategory::ControlKeyword:
+                    (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Cyan), Line::Style::Italic });
+                    break;
+                case JS::TokenCategory::Identifier:
+                    (*state.stylize_fn)({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::White), Line::Style::Bold });
                     break;
                 default:
-                    stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Blue), Line::Style::Bold });
                     break;
                 }
-                break;
-            case JS::TokenCategory::ControlKeyword:
-                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::Cyan), Line::Style::Italic });
-                break;
-            case JS::TokenCategory::Identifier:
-                stylize({ start, end, Line::Span::CodepointOriented }, { Line::Style::Foreground(Line::Style::XtermColor::White), Line::Style::Bold });
-                break;
-            default:
-                break;
-            }
-        }
+            });
 
         editor.set_prompt(prompt_for_level(open_indents).release_value_but_fixme_should_propagate_errors().to_byte_string());
     };
 
     auto complete = [&realm, &global_environment](Line::Editor const& editor) -> Vector<Line::CompletionSuggestion> {
         auto line = editor.line(editor.cursor());
+        auto source_code = JS::SourceCode::create({}, Utf16String::from_utf8(line));
+        auto const& code_view = source_code->code_view();
 
-        JS::Lexer lexer(JS::SourceCode::create({}, Utf16String::from_utf8(line)));
         enum {
             Initial,
             CompleteVariable,
@@ -684,6 +700,15 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
 
         Utf16FlyString variable_name;
         Utf16FlyString property_name;
+        bool last_token_has_trivia = false;
+
+        struct CompleteState {
+            decltype(mode)* current_mode;
+            Utf16FlyString* variable_name;
+            Utf16FlyString* property_name;
+            bool* last_token_has_trivia;
+            Utf16View const* code_view;
+        } complete_state { &mode, &variable_name, &property_name, &last_token_has_trivia, &code_view };
 
         // we're only going to complete either
         //    - <N>
@@ -691,45 +716,48 @@ static ErrorOr<int> run_repl(bool gc_on_every_allocation, bool syntax_highlight)
         //    - <N>.<P>
         //        where N is the complete name of a variable and
         //        P is part of the name of one of its properties
-        auto js_token = lexer.next();
-        for (; js_token.type() != JS::TokenType::Eof; js_token = lexer.next()) {
-            switch (mode) {
-            case CompleteVariable:
-                switch (js_token.type()) {
-                case JS::TokenType::Period:
-                    // ...<name> <dot>
-                    mode = CompleteNullProperty;
-                    break;
-                default:
-                    // not a dot, reset back to initial
-                    mode = Initial;
-                    break;
+        JS::FFI::rust_tokenize(source_code->utf16_data(), source_code->length_in_code_units(), &complete_state,
+            [](void* ctx, JS::FFI::FFIToken const* tok) {
+                auto& s = *static_cast<CompleteState*>(ctx);
+                auto type = static_cast<JS::TokenType>(tok->token_type);
+                auto category = static_cast<JS::TokenCategory>(tok->category);
+                if (type == JS::TokenType::Eof) {
+                    *s.last_token_has_trivia = tok->trivia_length > 0;
+                    return;
                 }
-                break;
-            case CompleteNullProperty:
-                if (js_token.is_identifier_name()) {
-                    // ...<name> <dot> <name>
-                    mode = CompleteProperty;
-                    property_name = js_token.fly_string_value();
-                } else {
-                    mode = Initial;
-                }
-                break;
-            case CompleteProperty:
-                // something came after the property access, reset to initial
-            case Initial:
-                if (js_token.type() == JS::TokenType::Identifier) {
-                    // ...<name>...
-                    mode = CompleteVariable;
-                    variable_name = js_token.fly_string_value();
-                } else {
-                    mode = Initial;
-                }
-                break;
-            }
-        }
 
-        bool last_token_has_trivia = !js_token.trivia().is_empty();
+                auto token_value = [&]() {
+                    return Utf16FlyString::from_utf16(s.code_view->substring_view(tok->offset, tok->length));
+                };
+                bool is_identifier_name = type != JS::TokenType::PrivateIdentifier
+                    && (category == JS::TokenCategory::Identifier || category == JS::TokenCategory::Keyword || category == JS::TokenCategory::ControlKeyword);
+
+                switch (*s.current_mode) {
+                case CompleteVariable:
+                    if (type == JS::TokenType::Period)
+                        *s.current_mode = CompleteNullProperty;
+                    else
+                        *s.current_mode = Initial;
+                    break;
+                case CompleteNullProperty:
+                    if (is_identifier_name) {
+                        *s.current_mode = CompleteProperty;
+                        *s.property_name = token_value();
+                    } else {
+                        *s.current_mode = Initial;
+                    }
+                    break;
+                case CompleteProperty:
+                case Initial:
+                    if (type == JS::TokenType::Identifier) {
+                        *s.current_mode = CompleteVariable;
+                        *s.variable_name = token_value();
+                    } else {
+                        *s.current_mode = Initial;
+                    }
+                    break;
+                }
+            });
 
         if (mode == CompleteNullProperty) {
             mode = CompleteProperty;

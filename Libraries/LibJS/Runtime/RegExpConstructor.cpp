@@ -6,14 +6,34 @@
 
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
-#include <LibJS/Lexer.h>
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibUnicode/CharacterTypes.h>
 
 namespace JS {
+
+static bool is_syntax_character(u32 code_point)
+{
+    static constexpr auto syntax_characters = "^$\\.*+?()[]{}|"sv;
+    return is_ascii(code_point) && syntax_characters.contains(static_cast<char>(code_point));
+}
+
+static bool is_whitespace(u32 code_point)
+{
+    if (is_ascii_space(code_point))
+        return true;
+    if (code_point == 0x00A0 || code_point == 0xFEFF)
+        return true;
+    return Unicode::code_point_has_space_separator_general_category(code_point);
+}
+
+static bool is_line_terminator(u32 code_point)
+{
+    return code_point == '\n' || code_point == '\r' || code_point == 0x2028 || code_point == 0x2029;
+}
 
 GC_DEFINE_ALLOCATOR(RegExpConstructor);
 
@@ -164,7 +184,7 @@ static String encode_for_regexp_escape(u32 code_point)
     });
 
     // 1. If c is matched by SyntaxCharacter or c is U+002F (SOLIDUS), then
-    if (JS::is_syntax_character(code_point) || code_point == '/') {
+    if (is_syntax_character(code_point) || code_point == '/') {
         // a. Return the string-concatenation of 0x005C (REVERSE SOLIDUS) and UTF16EncodeCodePoint(c).
         return MUST(String::formatted("\\{}", String::from_code_point(code_point)));
     }
@@ -186,7 +206,7 @@ static String encode_for_regexp_escape(u32 code_point)
 
     // 5. If toEscape contains c, c is matched by either WhiteSpace or LineTerminator, or c has the same numeric value
     //    as a leading surrogate or trailing surrogate, then
-    if (to_escape.contains(code_point) || JS::is_whitespace(code_point) || JS::is_line_terminator(code_point) || is_unicode_surrogate(code_point)) {
+    if (to_escape.contains(code_point) || is_whitespace(code_point) || is_line_terminator(code_point) || is_unicode_surrogate(code_point)) {
         // a. Let cNum be the numeric value of c.
         // b. If cNum ≤ 0xFF, then
         if (code_point <= 0xFF) {

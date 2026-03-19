@@ -18,7 +18,6 @@ set(SOURCES
     Contrib/Test262/IsHTMLDDA.cpp
     CyclicModule.cpp
     Heap/Cell.cpp
-    Lexer.cpp
     Module.cpp
     ParserError.cpp
     Print.cpp
@@ -265,7 +264,6 @@ set(SOURCES
     SourceTextModule.cpp
     SyntaxHighlighter.cpp
     SyntheticModule.cpp
-    Token.cpp
 )
 
 generate_bytecode_def_derived()
