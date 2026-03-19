@@ -70,8 +70,6 @@ inline size_t builtin_argument_count(Builtin value)
     VERIFY_NOT_REACHED();
 }
 
-Optional<Builtin> get_builtin(MemberExpression const& expression);
-
 }
 
 namespace AK {

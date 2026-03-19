@@ -309,8 +309,8 @@ ThrowCompletionOr<Optional<Value>> iterator_step_value(VM& vm, IteratorRecordImp
 // 7.4.13 AsyncIteratorClose ( iteratorRecord, completion ), https://tc39.es/ecma262/#sec-asynciteratorclose
 // NOTE: These only differ in that async awaits the inner value after the call.
 // NB: AsyncIteratorClose is not implemented here. It is inlined as bytecode
-//     in ASTCodegen.cpp, using the Await bytecode op to yield naturally instead
-//     of spinning the event loop synchronously.
+//     by the codegen, using the Await bytecode op to yield naturally instead of
+//     spinning the event loop synchronously.
 static Completion iterator_close_impl(VM& vm, IteratorRecordImpl const& iterator_record, Completion completion)
 {
     // 1. Assert: Type(iteratorRecord.[[Iterator]]) is Object.

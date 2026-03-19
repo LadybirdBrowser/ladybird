@@ -9,7 +9,6 @@
 #include <AK/Badge.h>
 #include <AK/String.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/ScopedOperand.h>
 #include <LibJS/Forward.h>
 
 namespace JS::Bytecode {

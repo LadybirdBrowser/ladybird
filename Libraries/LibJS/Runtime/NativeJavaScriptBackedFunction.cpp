@@ -84,8 +84,7 @@ ThrowCompletionOr<Value> NativeJavaScriptBackedFunction::call()
 
     auto generator_object = GeneratorObject::create(realm, result, GC::Ref { *this }, vm.running_execution_context().copy());
 
-    // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
-    //       See AwaitExpression::generate_bytecode() for the transformation.
+    // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
     if (kind == FunctionKind::Async)
         return AsyncFunctionDriverWrapper::create(realm, generator_object);
 

@@ -527,8 +527,7 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
 
     auto generator_object = GeneratorObject::create(*context.realm, result, GC::Ref { *this }, context.copy());
 
-    // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise
-    //       See AwaitExpression::generate_bytecode() for the transformation.
+    // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
     if (kind() == FunctionKind::Async)
         return AsyncFunctionDriverWrapper::create(*context.realm, generator_object);
 
