@@ -1391,10 +1391,6 @@ void Navigable::populate_session_history_entry_document(
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, received_navigation_params = move(received_navigation_params), navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing]() mutable {
-            // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-            if (has_been_destroyed())
-                return;
-
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
             if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
                 if (completion_steps) {
@@ -1871,7 +1867,6 @@ void Navigable::begin_navigation(NavigateParams params)
 
         // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
         queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
-            VERIFY(this->active_document());
             this->active_document()->abort_a_document_and_its_descendants();
         }));
 

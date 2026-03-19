@@ -683,8 +683,6 @@ public:
 
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
 
-    [[nodiscard]] bool has_been_browsing_context_associated() const { return m_has_been_browsing_context_associated; }
-
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document
     void destroy();
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#destroy-a-document-and-its-descendants
@@ -1125,8 +1123,6 @@ private:
 
     bool m_has_been_destroyed { false };
     bool m_has_fired_document_became_inactive { false };
-
-    bool m_has_been_browsing_context_associated { false };
 
     String m_source;
 

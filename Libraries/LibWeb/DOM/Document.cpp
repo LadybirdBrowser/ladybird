@@ -4532,9 +4532,7 @@ void Document::destroy()
         return task.document() == this;
     });
 
-    // AD-HOC: Mark this document as destroyed. This makes any tasks scheduled for this document in the
-    //         future immediately runnable instead of blocking on the document becoming fully active.
-    //         This is important because otherwise those tasks will get stuck in the task queue forever.
+    // AD-HOC: Mark this document as destroyed so we can remove tasks from the queue that will never be able to run.
     m_has_been_destroyed = true;
 
     // 8. Set document's browsing context to null.
@@ -4744,8 +4742,6 @@ GC::Ptr<HTML::HTMLParser> Document::active_parser()
 
 void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_context)
 {
-    if (browsing_context)
-        m_has_been_browsing_context_associated = true;
     m_browsing_context = browsing_context;
 }
 
