@@ -209,6 +209,17 @@ static bool is_javascript_builtin(Type const& type)
     return types.span().contains_slow(type.name());
 }
 
+static ByteString cpp_type_name(Type const& type)
+{
+    if (libweb_interface_namespaces.span().contains_slow(type.name())) {
+        // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
+        return ByteString::formatted("{}::{}", type.name(), type.name());
+    }
+    if (is_javascript_builtin(type))
+        return ByteString::formatted("JS::{}", type.name());
+    return type.name();
+}
+
 static Interface const* callback_interface_for_type(Interface const& interface, Type const& type)
 {
     auto const* referenced_interface = interface.referenced_interface(type.name());
@@ -763,19 +774,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto const& type = parameter.type;
     scoped_generator.set("parameter.type.name", type->name());
 
-    if (!libweb_interface_namespaces.span().contains_slow(type->name())) {
-        if (is_javascript_builtin(type))
-            scoped_generator.set("parameter.type.name.normalized", ByteString::formatted("JS::{}", type->name()));
-        else
-            scoped_generator.set("parameter.type.name.normalized", type->name());
-    } else {
-        // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
-        StringBuilder builder;
-        builder.append(type->name());
-        builder.append("::"sv);
-        builder.append(type->name());
-        scoped_generator.set("parameter.type.name.normalized", builder.to_byte_string());
-    }
+    scoped_generator.set("parameter.type.name.normalized", cpp_type_name(*type));
 
     scoped_generator.set("parameter.name", parameter.name);
 
@@ -1995,19 +1994,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
     if (optional_uses_value_access)
         value_non_optional = ByteString::formatted("{}.value()", value);
     scoped_generator.set("value_non_optional", value_non_optional);
-    if (!libweb_interface_namespaces.span().contains_slow(type.name())) {
-        if (is_javascript_builtin(type))
-            scoped_generator.set("type", ByteString::formatted("JS::{}", type.name()));
-        else
-            scoped_generator.set("type", type.name());
-    } else {
-        // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
-        StringBuilder builder;
-        builder.append(type.name());
-        builder.append("::"sv);
-        builder.append(type.name());
-        scoped_generator.set("type", builder.to_byte_string());
-    }
+    scoped_generator.set("type", cpp_type_name(type));
     scoped_generator.set("result_expression", result_expression);
     scoped_generator.set("recursion_depth", ByteString::number(recursion_depth));
     scoped_generator.set("iteration_index", ByteString::number(iteration_index));
