@@ -68,11 +68,12 @@ size_t Storage::length() const
 Optional<String> Storage::key(size_t index)
 {
     // 1. If index is greater than or equal to this's map's size, then return null.
-    if (index >= m_storage_bottle->size())
-        return {};
-
     // 2. Let keys be the result of running get the keys on this's map.
+    // NB: We combine these steps so we don't have to do two IPC calls and cause a race condition if the storage bottle
+    //     changes size between them.
     auto keys = m_storage_bottle->keys();
+    if (index >= keys.size())
+        return {};
 
     // 3. Return keys[index].
     return keys[index];
