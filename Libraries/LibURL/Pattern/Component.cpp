@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2025-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -285,8 +285,8 @@ Component::Result Component::create_match_result(String const& input, regex::Reg
     OrderedHashMap<String, Variant<String, Empty>> groups;
 
     // 4. Let index be 1.
-    // 5. While index is less than Get(execResult, "length"):
-    for (size_t index = 1; index <= exec_result.n_capture_groups; ++index) {
+    // 5. While index is less than or equal to component’s group name list’s size:
+    for (size_t index = 1; index <= group_name_list.size(); ++index) {
         auto const& capture = exec_result.capture_group_matches[0][index - 1];
 
         // 1. Let name be component’s group name list[index − 1].

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 354 tests
+Found 367 tests
 
-354 Pass
+367 Pass
 Pass	Loading data...
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/bar"}]
 Pass	Pattern: [{"pathname":"/foo/bar"}] Inputs: [{"pathname":"/foo/ba"}]
@@ -357,3 +357,16 @@ Pass	Pattern: [{"pathname":"/([[a-z]--a])"}] Inputs: [{"pathname":"/a"}]
 Pass	Pattern: [{"pathname":"/([[a-z]--a])"}] Inputs: [{"pathname":"/z"}]
 Pass	Pattern: [{"pathname":"/([\\d&&[0-1]])"}] Inputs: [{"pathname":"/0"}]
 Pass	Pattern: [{"pathname":"/([\\d&&[0-1]])"}] Inputs: [{"pathname":"/3"}]
+Pass	Pattern: [{"protocol":"http","hostname":"example.com/ignoredpath"}] Inputs: ["http://example.com/"]
+Pass	Pattern: [{"protocol":"http","hostname":"example.com\\?ignoredsearch"}] Inputs: ["http://example.com/"]
+Pass	Pattern: [{"protocol":"http","hostname":"example.com#ignoredhash"}] Inputs: ["http://example.com/"]
+Pass	Pattern: ["https://www.example.com/*"] Inputs: ["https://www.example.com/x"]
+Pass	Pattern: ["https://www.example.com/*"] Inputs: ["https://www.example.com/xyz"]
+Pass	Pattern: ["https://www.example.com/*"] Inputs: ["https://www.example.com/example"]
+Pass	Pattern: ["https://www.example.com/*"] Inputs: ["https://www.example.com/text"]
+Pass	Pattern: ["https://www.example.com/*"] Inputs: ["https://www.example.com/path/with/x"]
+Pass	Pattern: [{"hostname":":domain(.*)"}] Inputs: [{"hostname":"localhost"}]
+Pass	Pattern: ["((?R)):"] Inputs: undefined
+Pass	Pattern: ["(\\H):"] Inputs: undefined
+Pass	Pattern: [{"pathname":"/:foo((?<x>a))"}] Inputs: [{"pathname":"/a"}]
+Pass	Pattern: [{"pathname":"/foo/(bar(?<x>baz))"}] Inputs: [{"pathname":"/foo/barbaz"}]
