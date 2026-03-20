@@ -745,7 +745,6 @@ impl Parser<'_> {
             | TokenType::ExclamationMarkEquals
             | TokenType::EqualsEqualsEquals
             | TokenType::ExclamationMarkEqualsEquals
-            | TokenType::In
             | TokenType::Instanceof => {
                 let op = token_to_binary_op(tt);
                 self.consume();
@@ -759,6 +758,34 @@ impl Parser<'_> {
                         start,
                         ExpressionKind::Binary {
                             op,
+                            lhs: Box::new(lhs),
+                            rhs: Box::new(rhs),
+                        },
+                    ),
+                    ForbiddenTokens::none(),
+                )
+            }
+
+            TokenType::In => {
+                let is_private_in = matches!(&lhs.inner, ExpressionKind::PrivateIdentifier(_));
+                self.consume();
+                let rhs = self.parse_expression(
+                    min_precedence,
+                    Self::operator_associativity(tt),
+                    forbidden,
+                );
+                if is_private_in
+                    && let ExpressionKind::Function(fn_id) = &rhs.inner
+                    && self.function_table.get(*fn_id).is_arrow_function
+                {
+                    self.syntax_error("Arrow function is not allowed as the right-hand side of a private 'in' expression");
+                }
+
+                (
+                    self.expression(
+                        start,
+                        ExpressionKind::Binary {
+                            op: BinaryOp::In,
                             lhs: Box::new(lhs),
                             rhs: Box::new(rhs),
                         },

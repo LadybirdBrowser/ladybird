@@ -108,6 +108,65 @@ test("private identifier not followed by 'in' throws", () => {
     expect(`class A { #field = 2; method() { return #field in 1; }}`).toEval();
 });
 
+test("private identifier followed by 'in' with invalid grammar throws", () => {
+    expect(`
+class C {
+  #field;
+
+  constructor() {
+    #field in () => {};
+  }
+}
+    `).not.toEval();
+
+    expect(`
+class C {
+  #field;
+
+  constructor() {
+    #field in #field in this;
+  }
+}
+    `).not.toEval();
+
+    expect(`
+class C {
+  #field;
+
+  *gen() {
+    #field in yield;
+  }
+}
+    `).not.toEval();
+
+    expect(`
+class C {
+  #field;
+
+  *gen() {
+    #field in yield this;
+  }
+}
+    `).not.toEval();
+});
+
+test("private identifier followed by 'in' with parenthesized yield is valid", () => {
+    class C {
+        #field = 42;
+
+        *gen(obj) {
+            return #field in (yield obj);
+        }
+    }
+
+    const c = new C();
+    const it = c.gen({ "#field": true });
+    it.next();
+    const result = it.next(c);
+    expect(result.value).toBe(true);
+    expect(result.done).toBe(true);
+});
+
 test("cannot have static and non static field with the same description", () => {
     expect("class A { static #simple; #simple; }").not.toEval();
 });
