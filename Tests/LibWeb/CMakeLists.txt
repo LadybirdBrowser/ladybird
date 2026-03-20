@@ -11,6 +11,7 @@ set(TEST_SOURCES
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
+    TestSourceHighlighter.cpp
     TestStrings.cpp
 )
 
@@ -20,5 +21,6 @@ endforeach()
 
 target_link_libraries(TestContentFilter PRIVATE LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)
+target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 
 add_subdirectory("test-web")

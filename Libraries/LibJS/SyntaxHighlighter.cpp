@@ -139,7 +139,7 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         .spans = spans,
         .folding_regions = folding_regions,
         .source = source_data,
-        .position = {},
+        .position = { 0, 0 },
         .folding_region_starts = {},
     };
 
