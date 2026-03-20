@@ -1307,7 +1307,12 @@ impl Parser<'_> {
                 }
                 let token = self.consume();
                 let value = Utf16String::from(self.token_value(&token));
-                self.check_identifier_name_for_assignment_validity(&value, false);
+                // Skip validity check for arrow functions; arrow parameter
+                // parsing is speculative and errors would abort the parse.
+                // The check runs after the arrow is confirmed instead.
+                if !is_arrow {
+                    self.check_identifier_name_for_assignment_validity(&value, false);
+                }
                 let id = Rc::new(Identifier::new(
                     self.range_from(formal_parameters_start),
                     value.clone(),

@@ -856,8 +856,11 @@ impl Parser<'_> {
 
                     // Register synthesized identifiers with the scope collector so
                     // they get resolved as locals during analyze().
-                    for (name, id) in self.pattern_bound_names.drain(..) {
-                        self.scope_collector.register_identifier(id, &name, None);
+                    let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
+                    for (name, id) in &bound_names {
+                        self.check_identifier_name_for_assignment_validity(name, false);
+                        self.scope_collector
+                            .register_identifier(id.clone(), name, None);
                     }
                     self.pattern_bound_names = saved_bound_names;
                     self.consume();
@@ -2457,8 +2460,12 @@ impl Parser<'_> {
             self.scope_collector.close_scope();
             self.pattern_bound_names = saved_pattern_bound_names;
 
-            if has_use_strict || fn_kind != FunctionKind::Normal {
-                self.check_parameters_post_body(&parameter_info, has_use_strict, fn_kind);
+            if has_use_strict || fn_kind != FunctionKind::Normal || self.flags.strict_mode {
+                self.check_parameters_post_body(
+                    &parameter_info,
+                    has_use_strict || self.flags.strict_mode,
+                    fn_kind,
+                );
             }
 
             self.flags.await_expression_is_valid = saved_await_body;
@@ -2504,6 +2511,10 @@ impl Parser<'_> {
 
             self.scope_collector.close_scope();
             self.pattern_bound_names = saved_pattern_bound_names;
+
+            if self.flags.strict_mode || fn_kind != FunctionKind::Normal {
+                self.check_parameters_post_body(&parameter_info, self.flags.strict_mode, fn_kind);
+            }
 
             self.flags.await_expression_is_valid = saved_await_body;
             self.flags.in_class_static_init_block = saved_static_init;

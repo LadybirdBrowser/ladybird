@@ -979,8 +979,11 @@ impl Parser<'_> {
                 {
                     let pattern = self.synthesize_binding_pattern(init_start);
 
-                    for (name, id) in self.pattern_bound_names.drain(..) {
-                        self.scope_collector.register_identifier(id, &name, None);
+                    let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
+                    for (name, id) in &bound_names {
+                        self.check_identifier_name_for_assignment_validity(name, false);
+                        self.scope_collector
+                            .register_identifier(id.clone(), name, None);
                     }
                     ForInOfLhs::Pattern(pattern)
                 } else {
