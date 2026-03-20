@@ -1770,6 +1770,22 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     PseudoClassBitmap attempted_pseudo_class_matches;
     auto matching_rule_set = build_matching_rule_set(abstract_element, attempted_pseudo_class_matches, did_match_any_pseudo_element_rules, mode, style_scope);
 
+    if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
+        // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
+
+        // Some pseudo-elements are generated regardless of CSS rules, so we need to compute their styles even when no
+        // rules matched.
+        auto has_implicit_style = first_is_one_of(*abstract_element.pseudo_element(),
+            PseudoElement::DetailsContent,
+            PseudoElement::FileSelectorButton,
+            PseudoElement::Marker,
+            PseudoElement::Placeholder);
+
+        // Bail if no pseudo-element rules matched.
+        if (!did_match_any_pseudo_element_rules && !has_implicit_style)
+            return {};
+    }
+
     auto old_custom_property_data = abstract_element.custom_property_data();
 
     // Resolve all the CSS custom properties ("variables") for this element:
@@ -1812,20 +1828,6 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     abstract_element.set_cascaded_properties(cascaded_properties);
 
     if (mode == ComputeStyleMode::CreatePseudoElementStyleIfNeeded) {
-        // NOTE: If we're computing style for a pseudo-element, we look for a number of reasons to bail early.
-
-        // Some pseudo-elements are generated regardless of CSS rules, so we need to compute their styles even when no
-        // rules matched.
-        auto has_implicit_style = first_is_one_of(*abstract_element.pseudo_element(),
-            PseudoElement::DetailsContent,
-            PseudoElement::FileSelectorButton,
-            PseudoElement::Marker,
-            PseudoElement::Placeholder);
-
-        // Bail if no pseudo-element rules matched.
-        if (!did_match_any_pseudo_element_rules && !has_implicit_style)
-            return {};
-
         // Bail if no pseudo-element would be generated due to...
         // - content: none
         // - content: normal (for ::before and ::after)
