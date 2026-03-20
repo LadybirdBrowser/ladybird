@@ -449,6 +449,8 @@ RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentVa
             return StringStyleValue::create(peek.token().string());
         }
 
+        // AD-HOC: We allow all <ident>'s rather than just <custom-ident>, although we check below that the whole value
+        //         isn't a CSS-wide keyword, see https://github.com/w3c/csswg-drafts/issues/13692
         if (peek.is(Token::Type::Ident)) {
             auto ident = tokens.consume_a_token().token().ident();
             parts.append(ident.to_string());
