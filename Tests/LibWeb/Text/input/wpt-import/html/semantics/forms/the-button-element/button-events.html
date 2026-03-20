@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>HTML Test: Button - events</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#the-button-element">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<div id="log"></div>
+<form name="fm1" style="display:none">
+  <button id="btn">BUTTON</button>
+  <button id="menu_btn" type="menu" menu="menu">MENU BUTTON</button>
+</form>
+<script>
+
+var btn = document.getElementById("btn"),
+    menu_btn = document.getElementById("menu_btn"),
+    t1 = async_test("The submit event must be fired when click a button in submit status"),
+    t2 = async_test("The reset event must be fired when click a button in reset status");
+    t3 = async_test("type=button shouldn't trigger submit or reset events");
+    t4 = async_test("Switching from type=button to type=submit should submit the form");
+    t5 = async_test("Switching from type=button to type=reset should reset the form");
+    t6 = async_test("Innermost button should submit its form");
+    t7 = async_test("Innermost button should reset its form");
+    t8 = async_test("Anchor inside a button should be prevent button activation");
+    t9 = async_test("input type=submit inside a button should be prevent button activation");
+
+document.forms.fm1.onsubmit = t1.step_func(function (evt) {
+  evt.preventDefault();
+  assert_true(evt.isTrusted, "The isTrusted attribute of the submit event should be true.");
+  assert_true(evt.bubbles, "The bubbles attribute of the submit event should be true.");
+  assert_true(evt.cancelable, "The cancelable attribute of the submit event should be true.");
+  assert_true(evt instanceof Event, "The submit event is an instance of Event interface.");
+  t1.done();
+});
+
+document.forms.fm1.onreset = t2.step_func(function (evt) {
+  assert_true(evt.isTrusted, "The isTrusted attribute of the reset event should be true.");
+  assert_true(evt.bubbles, "The bubbles attribute of the reset event should be true.");
+  assert_true(evt.cancelable, "The cancelable attribute of the reset event should be true.");
+  assert_true(evt instanceof Event, "The reset event is an instance of Event interface.");
+  t2.done();
+});
+
+t1.step(function () {
+  btn.type = "submit";
+  assert_equals(btn.type, "submit", "The button type should be 'submit'.");
+  btn.click();
+});
+
+t2.step(function () {
+  btn.type = "reset";
+  assert_equals(btn.type, "reset", "The button type should be 'reset'.");
+  btn.click();
+});
+
+t3.step(function () {
+  btn.type = "button";
+  assert_equals(btn.type, "button", "The button type should be 'button'.");
+  document.forms.fm1.onsubmit = t3.step_func(function (evt) {
+    assert_unreached("type=button shouldn't trigger submission.");
+  });
+  document.forms.fm1.onreset = t3.step_func(function (evt) {
+    assert_unreached("type=button shouldn't reset the form.");
+  });
+  btn.click();
+  t3.done();
+});
+
+t4.step(function () {
+  btn.type = "button";
+  btn.onclick = function() { btn.type = "submit"; }
+  document.forms.fm1.onsubmit = t4.step_func(function (evt) {
+    evt.preventDefault();
+    assert_equals(btn.type, "submit", "The button type should be 'submit'.");
+    t4.done();
+  });
+  btn.click();
+});
+
+t5.step(function () {
+  btn.type = "button";
+  btn.onclick = function() { btn.type = "reset"; }
+  document.forms.fm1.onreset = t5.step_func(function (evt) {
+    evt.preventDefault();
+    assert_equals(btn.type, "reset", "The button type should be 'reset'.");
+    t5.done();
+  });
+  btn.click();
+});
+
+t6.step(function () {
+  btn.type = "submit";
+  btn.innerHTML = "";
+  var fm2 = document.createElement("form");
+  var btn2 = document.createElement("button");
+  btn2.type = "submit";
+  fm2.appendChild(btn2);
+  btn.appendChild(fm2);
+  assert_true(document.forms.fm1.contains(fm2), "Should have nested forms");
+
+  function submitListener(evt) {
+    evt.preventDefault();
+    assert_equals(evt.target, fm2, "Innermost form should have got the submit event");
+  };
+  window.addEventListener("submit", submitListener, true);
+  btn2.click();
+  window.removeEventListener("submit", submitListener, true);
+  t6.done();
+});
+
+t7.step(function () {
+  btn.type = "reset";
+  btn.innerHTML = "";
+  var fm2 = document.createElement("form");
+  var btn2 = document.createElement("button");
+  btn2.type = "reset";
+  fm2.appendChild(btn2);
+  btn.appendChild(fm2);
+  assert_true(document.forms.fm1.contains(fm2), "Should have nested forms");
+
+  function resetListener(evt) {
+    evt.currentTarget.removeEventListener(evt.type, resetListener, true);
+    evt.preventDefault();
+    assert_equals(evt.target, fm2, "Innermost form should have got the reset event");
+    t7.done();
+  };
+  window.addEventListener("reset", resetListener, true);
+  btn2.click();
+});
+
+t8.step(function () {
+  btn.type = "submit";
+  btn.innerHTML = "";
+  var a = document.createElement("a");
+  a.href = "#";
+  btn.appendChild(a);
+  document.forms.fm1.onsubmit = t8.step_func(function (evt) {
+    assert_unreached("type=button shouldn't trigger submission.");
+  });
+
+  a.click();
+  t8.done();
+});
+
+t9.step(function () {
+  btn.type = "submit";
+  btn.innerHTML = "";
+  var fm2 = document.createElement("form");
+  var btn2 = document.createElement("input");
+  btn2.type = "submit";
+  fm2.appendChild(btn2);
+  btn.appendChild(fm2);
+  assert_true(document.forms.fm1.contains(fm2), "Should have nested forms");
+
+  function submitListener(evt) {
+    evt.preventDefault();
+    assert_equals(evt.target, fm2, "Innermost form should have got the submit event");
+  };
+
+  window.addEventListener("submit", submitListener, true);
+  btn2.click();
+  window.removeEventListener("submit", submitListener, true);
+  t9.done();
+});
+
+</script>

@@ -1,0 +1,14 @@
+Harness status: OK
+
+Found 9 tests
+
+9 Pass
+Pass	The submit event must be fired when click a button in submit status
+Pass	The reset event must be fired when click a button in reset status
+Pass	type=button shouldn't trigger submit or reset events
+Pass	Switching from type=button to type=submit should submit the form
+Pass	Switching from type=button to type=reset should reset the form
+Pass	Innermost button should submit its form
+Pass	Innermost button should reset its form
+Pass	Anchor inside a button should be prevent button activation
+Pass	input type=submit inside a button should be prevent button activation
