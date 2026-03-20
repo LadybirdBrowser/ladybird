@@ -1337,16 +1337,13 @@ namespace IPC {
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::TransferDataEncoder const& data_holder)
 {
-    Vector<IPC::File> files;
-    files.ensure_capacity(data_holder.buffer().attachments().size());
-
-    for (auto& attachment : data_holder.buffer().attachments()) {
-        int fd = const_cast<Attachment&>(attachment).to_fd();
-        files.unchecked_append(IPC::File::adopt_fd(fd));
-    }
-
     TRY(encoder.encode(data_holder.buffer().data()));
-    TRY(encoder.encode(files));
+
+    auto const& attachments = data_holder.buffer().attachments();
+    TRY(encoder.encode(static_cast<u32>(attachments.size())));
+    for (auto const& attachment : attachments)
+        TRY(encoder.append_attachment(TRY(attachment.clone())));
+
     return {};
 }
 
@@ -1354,13 +1351,12 @@ template<>
 ErrorOr<Web::HTML::TransferDataEncoder> decode(Decoder& decoder)
 {
     auto data = TRY(decoder.decode<Web::HTML::SerializationRecord>());
-    auto files = TRY(decoder.decode<Vector<IPC::File>>());
+    auto attachment_count = TRY(decoder.decode<u32>());
 
     Vector<Attachment> attachments;
-    attachments.ensure_capacity(files.size());
-
-    for (auto& file : files)
-        attachments.unchecked_append(Attachment::from_fd(file.take_fd()));
+    TRY(attachments.try_ensure_capacity(attachment_count));
+    for (u32 i = 0; i < attachment_count; ++i)
+        attachments.unchecked_append(TRY(decoder.attachments().try_dequeue()));
 
     IPC::MessageBuffer buffer { move(data), move(attachments) };
     return Web::HTML::TransferDataEncoder { move(buffer) };

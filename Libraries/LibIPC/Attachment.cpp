@@ -37,6 +37,12 @@ Attachment Attachment::from_fd(int fd)
     return attachment;
 }
 
+ErrorOr<Attachment> Attachment::clone() const
+{
+    VERIFY(m_fd != -1);
+    return from_fd(TRY(Core::System::dup(m_fd)));
+}
+
 int Attachment::to_fd()
 {
     return exchange(m_fd, -1);

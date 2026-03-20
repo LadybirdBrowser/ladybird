@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Error.h>
 #include <AK/Noncopyable.h>
 
 namespace IPC {
@@ -20,6 +21,7 @@ public:
     ~Attachment();
 
     static Attachment from_fd(int fd);
+    ErrorOr<Attachment> clone() const;
     int to_fd();
 
 private:
