@@ -6,6 +6,7 @@
 
 //! Statement parsing: if, for, while, switch, try, etc.
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use crate::ast::*;
@@ -439,10 +440,13 @@ impl Parser<'_> {
                 }
                 if self.for_loop_declaration_has_init {
                     // https://tc39.es/ecma262/#sec-initializers-in-forin-statement-heads
-                    // Annex B: In sloppy mode, a single `var` with an initializer is permitted.
-                    if !(self.for_loop_declaration_is_var
-                        && self.for_loop_declaration_count == 1
-                        && !self.flags.strict_mode)
+                    // Annex B: In sloppy mode, a single `var` with a simple
+                    // BindingIdentifier and an initializer is permitted.
+                    // Binding patterns with initializers are never allowed.
+                    if !self.for_loop_declaration_is_var
+                        || self.for_loop_declaration_count != 1
+                        || self.flags.strict_mode
+                        || self.for_loop_declaration_is_pattern
                     {
                         self.syntax_error("Variable initializer not allowed in for..in/of");
                     }
@@ -754,6 +758,20 @@ impl Parser<'_> {
                     .iter()
                     .map(|(n, _)| n.clone())
                     .collect();
+                // https://tc39.es/ecma262/#sec-try-statement-static-semantics-early-errors
+                // It is a Syntax Error if BoundNames of CatchParameter
+                // contains any duplicate elements.
+                {
+                    let mut seen: HashSet<&[u16]> = HashSet::new();
+                    for name in &names_to_check {
+                        if !seen.insert(name.as_slice()) {
+                            let name_str = String::from_utf16_lossy(name);
+                            self.syntax_error(&format!(
+                                "Duplicate binding '{name_str}' in catch parameter"
+                            ));
+                        }
+                    }
+                }
                 for name in &names_to_check {
                     self.check_identifier_name_for_assignment_validity(name, false);
                 }
@@ -795,8 +813,24 @@ impl Parser<'_> {
             None
         };
 
+        // Store catch parameter names so that lexical and function
+        // declarations in the body can be checked for redeclaration.
+        let saved_catch_names = std::mem::take(&mut self.catch_parameter_names);
+        match &parameter {
+            Some(CatchBinding::Identifier(id)) => {
+                self.catch_parameter_names.push(id.name.clone());
+            }
+            Some(CatchBinding::BindingPattern(_)) => {
+                for (name, _) in &self.pattern_bound_names {
+                    self.catch_parameter_names.push(name.clone());
+                }
+            }
+            None => {}
+        }
+
         let body = self.parse_block_statement();
 
+        self.catch_parameter_names = saved_catch_names;
         self.scope_collector.close_scope();
 
         CatchClause {

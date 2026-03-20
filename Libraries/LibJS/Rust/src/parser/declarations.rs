@@ -164,6 +164,7 @@ impl Parser<'_> {
                     );
                     self.scope_collector
                         .register_identifier(id.clone(), &value, Some(kind));
+                    self.check_catch_parameter_conflict(&value);
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
@@ -217,6 +218,7 @@ impl Parser<'_> {
                     for (name, id) in &bound_names {
                         self.scope_collector
                             .register_identifier(id.clone(), name, None);
+                        self.check_catch_parameter_conflict(name);
                     }
                 }
 
@@ -265,6 +267,9 @@ impl Parser<'_> {
             self.for_loop_declaration_count = declarators.len();
             self.for_loop_declaration_has_init = any_init;
             self.for_loop_declaration_is_var = kind == DeclarationKind::Var;
+            self.for_loop_declaration_is_pattern = declarators
+                .iter()
+                .any(|d| matches!(d.target, VariableDeclaratorTarget::BindingPattern(_)));
         }
 
         self.statement(
@@ -410,6 +415,7 @@ impl Parser<'_> {
             declaration_line,
             declaration_column,
         );
+        self.check_catch_parameter_conflict(&fn_name);
 
         let fn_name_for_scope = if fn_name.is_empty() {
             None
