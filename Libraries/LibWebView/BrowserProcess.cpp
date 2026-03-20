@@ -6,7 +6,7 @@
 
 #include <AK/ByteString.h>
 #include <LibCore/Process.h>
-#include <LibCore/StandardPaths.h>
+#include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibWebView/Application.h>
@@ -51,15 +51,18 @@ ErrorOr<void> BrowserProcess::connect_as_client(ByteString const& socket_path, V
     auto socket = TRY(Core::LocalSocket::connect(socket_path));
     auto client = UIProcessClient::construct(make<IPC::Transport>(move(socket)));
 
-    if (new_window == NewWindow::Yes) {
+    switch (new_window) {
+    case NewWindow::Yes:
         if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewWindow>(raw_urls))
             dbgln("Failed to send CreateNewWindow message to UIProcess");
-    } else {
+        return {};
+    case NewWindow::No:
         if (!client->send_sync_but_allow_failure<Messages::UIProcessServer::CreateNewTab>(raw_urls))
             dbgln("Failed to send CreateNewTab message to UIProcess");
+        return {};
     }
 
-    return {};
+    VERIFY_NOT_REACHED();
 }
 
 ErrorOr<void> BrowserProcess::connect_as_server(ByteString const& socket_path)
@@ -67,24 +70,28 @@ ErrorOr<void> BrowserProcess::connect_as_server(ByteString const& socket_path)
     // TODO: Mach IPC
     auto socket_fd = TRY(Process::create_ipc_socket(socket_path));
     m_socket_path = socket_path;
-    auto local_server = Core::LocalServer::construct();
-    TRY(local_server->take_over_fd(socket_fd));
+    m_local_server = Core::LocalServer::construct();
+    TRY(m_local_server->take_over_fd(socket_fd));
 
-    m_server_connection = TRY(IPC::MultiServer<UIProcessConnectionFromClient>::try_create(move(local_server)));
-
-    m_server_connection->on_new_client = [this](auto& client) {
-        client.on_new_tab = [this](auto raw_urls) {
-            if (this->on_new_tab)
-                this->on_new_tab(raw_urls);
-        };
-
-        client.on_new_window = [this](auto raw_urls) {
-            if (this->on_new_window)
-                this->on_new_window(raw_urls);
-        };
+    m_local_server->on_accept = [this](auto client_socket) {
+        accept_transport(make<IPC::Transport>(move(client_socket)));
     };
 
     return {};
+}
+
+void BrowserProcess::accept_transport(NonnullOwnPtr<IPC::Transport> transport)
+{
+    auto client = UIProcessConnectionFromClient::construct(move(transport), ++m_next_client_id);
+    client->on_new_tab = [this](auto raw_urls) {
+        if (this->on_new_tab)
+            this->on_new_tab(raw_urls);
+    };
+
+    client->on_new_window = [this](auto raw_urls) {
+        if (this->on_new_window)
+            this->on_new_window(raw_urls);
+    };
 }
 
 BrowserProcess::~BrowserProcess()
