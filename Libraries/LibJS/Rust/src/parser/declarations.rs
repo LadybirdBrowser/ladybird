@@ -536,12 +536,14 @@ impl Parser<'_> {
         let saved_field_init = self.flags.in_class_field_initializer;
         let saved_allow_super_call = self.flags.allow_super_constructor_call;
         let saved_allow_super_lookup = self.flags.allow_super_property_lookup;
+        let saved_new_target = self.flags.new_target_is_valid;
         self.flags.in_generator_function_context = is_generator;
         self.flags.await_expression_is_valid = is_async;
         self.flags.in_class_static_init_block = false;
         self.flags.in_class_field_initializer = false;
         self.flags.allow_super_constructor_call = false;
         self.flags.allow_super_property_lookup = false;
+        self.flags.new_target_is_valid = true;
 
         // Save pattern_bound_names so that destructuring patterns in the
         // function body don't steal names from an outer binding context.
@@ -563,6 +565,7 @@ impl Parser<'_> {
 
         self.flags.in_class_static_init_block = saved_static_init;
         self.flags.in_class_field_initializer = saved_field_init;
+        self.flags.new_target_is_valid = saved_new_target;
 
         if name.is_some() {
             self.check_identifier_name_for_assignment_validity(fn_name, has_use_strict);
@@ -884,6 +887,7 @@ impl Parser<'_> {
                 self.flags.in_class_field_initializer = true;
                 self.flags.in_class_static_init_block = true;
                 self.flags.allow_super_property_lookup = true;
+                self.flags.new_target_is_valid = true;
                 self.scope_collector.open_static_init_scope(None);
                 let children = self.parse_statement_list(false);
                 self.flags = saved_flags;

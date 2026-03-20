@@ -1208,10 +1208,7 @@ impl Parser<'_> {
             // It is a Syntax Error if NewTarget is not enclosed, directly or indirectly
             // (but not crossing function or class static initialization block boundaries),
             // within a FunctionBody, ConciseBody, ClassStaticBlock, or ClassBody.
-            if !self.flags.in_function_context
-                && !self.in_eval_function_context
-                && !self.flags.in_class_static_init_block
-            {
+            if !self.flags.new_target_is_valid && !self.in_eval_function_context {
                 self.syntax_error("'new.target' not allowed outside of a function");
             }
             if self.scope_collector.has_current_scope() {
@@ -2550,6 +2547,7 @@ impl Parser<'_> {
         let saved_field_init = self.flags.in_class_field_initializer;
         let saved_allow_super_call = self.flags.allow_super_constructor_call;
         let saved_allow_super_lookup = self.flags.allow_super_property_lookup;
+        let saved_new_target = self.flags.new_target_is_valid;
         self.flags.in_generator_function_context = is_generator;
         self.flags.await_expression_is_valid = is_async;
         self.flags.in_class_static_init_block = false;
@@ -2557,6 +2555,7 @@ impl Parser<'_> {
         self.flags.allow_super_constructor_call =
             method_kind == MethodKind::Constructor && self.class_has_super_class;
         self.flags.allow_super_property_lookup = true;
+        self.flags.new_target_is_valid = true;
 
         // Save pattern_bound_names so that destructuring patterns in the
         // method body don't steal names from an outer binding context.
@@ -2589,6 +2588,7 @@ impl Parser<'_> {
 
         self.flags.in_class_static_init_block = saved_static_init;
         self.flags.in_class_field_initializer = saved_field_init;
+        self.flags.new_target_is_valid = saved_new_target;
 
         if has_use_strict || fn_kind != FunctionKind::Normal {
             self.check_parameters_post_body(&parsed.parameter_info, has_use_strict, fn_kind);

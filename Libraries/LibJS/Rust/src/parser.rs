@@ -195,6 +195,10 @@ pub(crate) struct ParserFlags {
     pub string_legacy_octal_escape_sequence_in_scope: bool,
     pub in_class_field_initializer: bool,
     pub in_class_static_init_block: bool,
+    /// True inside non-arrow function bodies and class static init blocks.
+    /// Arrow functions inherit this flag rather than setting it, since they
+    /// don't have their own `new.target` binding.
+    pub new_target_is_valid: bool,
     pub function_might_need_arguments_object: bool,
     pub previous_token_was_period: bool,
     /// Set during property key parsing to suppress eval/arguments check.
