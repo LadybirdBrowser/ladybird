@@ -231,25 +231,54 @@
 
         .mode-badge {
             font-family: var(--font-mono);
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
             background: var(--bg-tertiary);
             color: var(--text-secondary);
+            border: 1px solid var(--border-primary);
         }
 
         .test-name {
-            flex: 1;
             font-family: var(--font-mono);
             font-size: 13px;
             color: var(--text-primary);
             word-break: break-all;
         }
 
+        .copy-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 27px;
+            height: 27px;
+            padding: 0;
+            line-height: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .copy-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent-blue);
+        }
+
+        .copy-btn.copied {
+            color: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+
         .expand-icon {
             color: var(--text-muted);
             transition: transform 0.2s ease;
             font-size: 12px;
+            margin-left: auto;
         }
 
         .test-item.expanded .expand-icon {
@@ -561,6 +590,9 @@
     </div>
     <script src="results.js"></script>
     <script>
+        const copySvg = '<svg width="14" height="14" viewBox="-1 -1 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h2.5"/></svg>';
+        const checkSvg = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5 6.5-7"/></svg>';
+
         let currentIndex = -1;
         let testElements = [];
 
@@ -617,6 +649,7 @@
                             <span class="result-badge ${test.result}">${test.result}</span>
                             <span class="mode-badge">${test.mode}</span>
                             <span class="test-name">${test.name}</span>
+                            <button class="copy-btn" onclick="copyTestName(event, this, '${test.name}')" title="Copy test path">${copySvg}</button>
                             <span class="expand-icon">&#9654;</span>
                         </div>
                         <div class="test-content">
@@ -653,6 +686,18 @@
             ).join('');
 
             return { bar, tabs };
+        }
+
+        function copyTestName(event, btn, name) {
+            event.stopPropagation();
+            navigator.clipboard.writeText(name).then(function() {
+                btn.innerHTML = checkSvg;
+                btn.classList.add('copied');
+                setTimeout(function() {
+                    btn.innerHTML = copySvg;
+                    btn.classList.remove('copied');
+                }, 1500);
+            });
         }
 
         function toggleTest(testId) {
