@@ -8115,4 +8115,20 @@ void Document::exit_pointer_lock()
     dbgln("FIXME: exit_pointer_lock()");
 }
 
+Optional<CSS::SelectorList> const* Document::cached_query_selector_result(String const& selector_text) const
+{
+    auto it = m_selector_query_cache.find(selector_text);
+    if (it == m_selector_query_cache.end())
+        return nullptr;
+    return &it->value;
+}
+
+void Document::cache_query_selector_result(String selector_text, Optional<CSS::SelectorList> result)
+{
+    if (m_selector_query_cache.size() >= max_selector_query_cache_size)
+        m_selector_query_cache.remove(m_selector_query_cache.begin());
+
+    m_selector_query_cache.set(move(selector_text), move(result));
+}
+
 }

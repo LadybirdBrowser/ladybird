@@ -51,25 +51,45 @@ enum class ReturnMatches {
 static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_match_a_selectors_string(ParentNode& node, StringView selector_text, ReturnMatches return_matches)
 {
     // To scope-match a selectors string selectors against a node, run these steps:
-    // 1. Let s be the result of parse a selector selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { node.document() }, selector_text);
+    auto& document = node.document();
+    auto selector_text_string = MUST(String::from_utf8(selector_text));
 
-    // 2. If s is failure, then throw a "SyntaxError" DOMException.
-    if (!maybe_selectors.has_value())
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
+    CSS::SelectorList const* selectors_ptr = nullptr;
 
-    auto selectors = maybe_selectors.value();
+    // Check the document’s parsed selector cache first.
+    if (auto const* cached = document.cached_query_selector_result(selector_text_string)) {
+        // 2. If s is failure, then throw a "SyntaxError" DOMException.
+        if (!cached->has_value())
+            return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
+        selectors_ptr = &cached->value();
+    } else {
+        // 1. Let s be the result of parse a selector selectors.
+        auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { document }, selector_text);
 
-    // "Note: Support for namespaces within selectors is not planned and will not be added."
-    if (contains_named_namespace(selectors))
-        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
+        // "Note: Support for namespaces within selectors is not planned and will not be added."
+        if (maybe_selectors.has_value() && contains_named_namespace(maybe_selectors.value()))
+            maybe_selectors.clear();
+
+        document.cache_query_selector_result(selector_text_string, move(maybe_selectors));
+
+        auto const* cached_after_insert = document.cached_query_selector_result(selector_text_string);
+        VERIFY(cached_after_insert);
+
+        // 2. If s is failure, then throw a "SyntaxError" DOMException.
+        if (!cached_after_insert->has_value())
+            return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
+
+        selectors_ptr = &cached_after_insert->value();
+    }
+
+    auto const& selectors = *selectors_ptr;
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     GC::Ptr<Element> single_result;
     Vector<GC::Root<Node>> results;
     // FIXME: This should be shadow-including. https://drafts.csswg.org/selectors-4/#match-a-selector-against-a-tree
     node.for_each_in_subtree_of_type<Element>([&](auto& element) {
-        for (auto& selector : selectors) {
+        for (auto const& selector : selectors) {
             SelectorEngine::MatchContext context;
             if (SelectorEngine::matches(selector, element, nullptr, context, {}, node)) {
                 if (return_matches == ReturnMatches::First) {
