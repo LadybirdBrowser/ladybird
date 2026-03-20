@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2020-2023, Linus Groh <linusg@serenityos.org>
- * Copyright (c) 2022-2024, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2022-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -529,7 +529,11 @@ double utc_time(double time)
         // b. Let possibleInstants be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, isoDateTime).
         auto possible_instants = get_named_time_zone_epoch_nanoseconds(system_time_zone_identifier, iso_date_time);
 
-        // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to a time zone rule change) or skipped local time at a positive time zone transition (e.g. when the daylight saving time starts or the time zone offset is increased due to a time zone rule change), t is interpreted using the time zone offset before the transition.
+        // c. NOTE: The following steps ensure that when t represents local time repeating multiple times at a negative
+        //    time zone transition (e.g. when the daylight saving time ends or the time zone offset is decreased due to
+        //    a time zone rule change) or skipped local time at a positive time zone transition (e.g. when the daylight
+        //    saving time starts or the time zone offset is increased due to a time zone rule change), t is interpreted
+        //    using the time zone offset before the transition.
         Crypto::SignedBigInteger disambiguated_instant;
 
         // d. If possibleInstants is not empty, then
@@ -539,13 +543,22 @@ double utc_time(double time)
         }
         // e. Else,
         else {
-            // i. NOTE: t represents a local time skipped at a positive time zone transition (e.g. due to daylight saving time starting or a time zone rule change increasing the UTC offset).
-            // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, TimeValueToISODateTimeRecord(tBefore)), where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e., tBefore represents the last local time before the transition).
-            // iii. Let disambiguatedInstant be the last element of possibleInstantsBefore.
+            // i. NOTE: t represents a local time skipped at a positive time zone transition (e.g. due to daylight
+            //    saving time starting or a time zone rule change increasing the UTC offset).
 
-            // FIXME: This branch currently cannot be reached with our implementation, because LibUnicode does not handle skipped time points.
-            //        When GetNamedTimeZoneEpochNanoseconds is updated to use a LibUnicode API which does handle them, implement these steps.
-            VERIFY_NOT_REACHED();
+            // ii. Let possibleInstantsBefore be GetNamedTimeZoneEpochNanoseconds(systemTimeZoneIdentifier, TimeValueToISODateTimeRecord(tBefore)),
+            //     where tBefore is the largest integral Number < t for which possibleInstantsBefore is not empty (i.e.,
+            //     tBefore represents the last local time before the transition).
+            // NB: We implement this by finding the next UTC offset transition after one day before the skipped time,
+            //     which is guaranteed to be before the gap. The last valid instant before the transition is one
+            //     nanosecond before the transition instant.
+            auto epoch_nanoseconds = get_utc_epoch_nanoseconds(iso_date_time);
+            auto day_before = epoch_nanoseconds.minus(Temporal::NANOSECONDS_PER_DAY);
+            auto transition = Temporal::get_named_time_zone_next_transition(system_time_zone_identifier, day_before);
+            VERIFY(transition.has_value());
+
+            // iii. Let disambiguatedInstant be the last element of possibleInstantsBefore.
+            disambiguated_instant = transition->minus(1_bigint);
         }
 
         // f. Let offsetNs be GetNamedTimeZoneOffsetNanoseconds(systemTimeZoneIdentifier, disambiguatedInstant).

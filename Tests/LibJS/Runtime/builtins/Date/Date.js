@@ -85,3 +85,17 @@ test("tuple constructor overflow", () => {
     expect(date.getMilliseconds()).toBe(655);
     expect(date.getDay()).toBe(4);
 });
+
+test("time zone gap", () => {
+    const originalTimeZone = setTimeZone("Europe/London");
+
+    const date = new Date(2026, 2, 29, 1, 30, 0);
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(2);
+    expect(date.getDate()).toBe(29);
+    expect(date.getHours()).toBe(2); // Jumps one hour ahead.
+    expect(date.getMinutes()).toBe(30);
+    expect(date.getSeconds()).toBe(0);
+
+    setTimeZone(originalTimeZone);
+});
