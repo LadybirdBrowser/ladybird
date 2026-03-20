@@ -140,13 +140,13 @@
     };
 
     const expiresTest = () => {
-        let expiry = new Date(Date.now() + 1000);
+        let expiry = new Date(Date.now() + 3000);
         expiry = expiry.toUTCString();
 
         document.cookie = `cookie-expires=value; expires=${expiry}`;
         printCookies("Expires (before expiration)");
 
-        internals.expireCookiesWithTimeOffset(2);
+        internals.expireCookiesWithTimeOffset(4);
         printCookies("Expires (after expiration)");
     };
 
