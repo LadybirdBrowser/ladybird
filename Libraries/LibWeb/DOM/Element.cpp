@@ -3415,10 +3415,13 @@ void Element::set_cascaded_properties(Optional<CSS::PseudoElement> pseudo_elemen
     if (pseudo_element.has_value()) {
         if (pseudo_element.value() >= CSS::PseudoElement::KnownPseudoElementCount)
             return;
-        ensure_pseudo_element(pseudo_element.value()).set_cascaded_properties(cascaded_properties);
-    } else {
-        m_cascaded_properties = cascaded_properties;
+        if (cascaded_properties)
+            ensure_pseudo_element(pseudo_element.value()).set_cascaded_properties(cascaded_properties);
+        else if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
+            existing_pseudo_element->set_cascaded_properties({});
+        return;
     }
+    m_cascaded_properties = cascaded_properties;
 }
 
 GC::Ptr<CSS::ComputedProperties> Element::computed_properties(Optional<CSS::PseudoElement> pseudo_element_type)
@@ -3446,7 +3449,10 @@ void Element::set_computed_properties(Optional<CSS::PseudoElement> pseudo_elemen
     if (pseudo_element_type.has_value()) {
         if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(*pseudo_element_type))
             return;
-        ensure_pseudo_element(*pseudo_element_type).set_computed_properties(style);
+        if (style)
+            ensure_pseudo_element(*pseudo_element_type).set_computed_properties(style);
+        else if (auto existing_pseudo_element = get_pseudo_element(*pseudo_element_type); existing_pseudo_element.has_value())
+            existing_pseudo_element->set_computed_properties({});
         return;
     }
     m_computed_properties = style;
@@ -3477,11 +3483,10 @@ PseudoElement& Element::ensure_pseudo_element(CSS::PseudoElement type) const
     VERIFY(CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(type));
 
     if (!m_pseudo_element_data->get(type).has_value()) {
-        if (is_pseudo_element_root(type)) {
+        if (is_pseudo_element_root(type))
             m_pseudo_element_data->set(type, heap().allocate<PseudoElementTreeNode>());
-        } else {
+        else
             m_pseudo_element_data->set(type, heap().allocate<PseudoElement>());
-        }
     }
 
     return *(m_pseudo_element_data->get(type).value());
@@ -3494,11 +3499,13 @@ void Element::set_custom_property_data(Optional<CSS::PseudoElement> pseudo_eleme
         return;
     }
 
-    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value())) {
+    if (!CSS::Selector::PseudoElementSelector::is_known_pseudo_element_type(pseudo_element.value()))
         return;
-    }
 
-    ensure_pseudo_element(pseudo_element.value()).set_custom_property_data(move(data));
+    if (data)
+        ensure_pseudo_element(pseudo_element.value()).set_custom_property_data(move(data));
+    else if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
+        existing_pseudo_element->set_custom_property_data({});
 }
 
 RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS::PseudoElement> pseudo_element) const
