@@ -8933,6 +8933,52 @@ fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Opti
     }
 }
 
+#[derive(Clone, Copy)]
+enum NonDecimalRadix {
+    Binary,
+    Octal,
+    Hexadecimal,
+}
+
+impl NonDecimalRadix {
+    fn as_u32(self) -> u32 {
+        match self {
+            Self::Binary => 2,
+            Self::Octal => 8,
+            Self::Hexadecimal => 16,
+        }
+    }
+}
+
+fn strip_non_decimal_prefix(text: &str) -> Option<(NonDecimalRadix, &str)> {
+    // Detect an ASCII non-decimal prefix without slicing at a UTF-8-invalid boundary.
+    // Empty suffixes ("0x", "0o", "0b") remain invalid and are rejected here.
+    // Callers validate suffix digits before delegating conversion to numeric parsers.
+    if let Some(rest) = text.strip_prefix("0b").or_else(|| text.strip_prefix("0B")) {
+        return (!rest.is_empty()).then_some((NonDecimalRadix::Binary, rest));
+    }
+    if let Some(rest) = text.strip_prefix("0o").or_else(|| text.strip_prefix("0O")) {
+        return (!rest.is_empty()).then_some((NonDecimalRadix::Octal, rest));
+    }
+    if let Some(rest) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
+        return (!rest.is_empty()).then_some((NonDecimalRadix::Hexadecimal, rest));
+    }
+    None
+}
+
+fn is_valid_non_decimal_digits(text: &str, radix: NonDecimalRadix) -> bool {
+    // Keep this JS-specific precheck even though parse_bytes() also validates:
+    // num-bigint accepts forms that are invalid in JS StringToNumber/StringToBigInt
+    // non-decimal parsing (for example a leading '+' and '_' separators).
+    // strip_non_decimal_prefix() guarantees that this suffix is non-empty.
+    debug_assert!(!text.is_empty());
+    match radix {
+        NonDecimalRadix::Binary => text.bytes().all(|b| matches!(b, b'0' | b'1')),
+        NonDecimalRadix::Octal => text.bytes().all(|b| matches!(b, b'0'..=b'7')),
+        NonDecimalRadix::Hexadecimal => text.bytes().all(|b| b.is_ascii_hexdigit()),
+    }
+}
+
 /// Implements StringToBigInt per https://tc39.es/ecma262/#sec-stringtobigint.
 /// Trims whitespace, handles optional sign (decimal only), and handles
 /// 0b/0o/0x prefixes. Returns None if the string is not a valid
@@ -8947,14 +8993,12 @@ fn string_to_bigint(s: &Utf16String) -> Option<BigInt> {
         return Some(BigInt::from(0));
     }
     // Check for non-decimal prefixes (no sign allowed).
-    if s_trimmed.len() > 2 {
-        let (prefix, rest) = s_trimmed.split_at(2);
-        match prefix {
-            "0b" | "0B" => return BigInt::parse_bytes(rest.as_bytes(), 2),
-            "0o" | "0O" => return BigInt::parse_bytes(rest.as_bytes(), 8),
-            "0x" | "0X" => return BigInt::parse_bytes(rest.as_bytes(), 16),
-            _ => {}
+    if let Some((radix, rest)) = strip_non_decimal_prefix(s_trimmed) {
+        if !is_valid_non_decimal_digits(rest, radix) {
+            return None;
         }
+        // Convert validated suffix digits using the parser.
+        return BigInt::parse_bytes(rest.as_bytes(), radix.as_u32());
     }
     // Decimal with optional sign. Only allow digits (no dots, no exponents).
     let (is_negative, digits) = if let Some(rest) = s_trimmed.strip_prefix('-') {
@@ -9097,32 +9141,12 @@ fn string_to_number(s: &Utf16String) -> f64 {
     if trimmed == "-Infinity" {
         return f64::NEG_INFINITY;
     }
-    if trimmed.len() > 2 {
-        let (prefix, rest) = trimmed.split_at(2);
-        match prefix {
-            "0b" | "0B" => {
-                return if rest.bytes().all(|b| b == b'0' || b == b'1') {
-                    bigint_string_to_f64(rest, 2)
-                } else {
-                    f64::NAN
-                };
-            }
-            "0o" | "0O" => {
-                return if rest.bytes().all(|b| b.is_ascii_digit() && b < b'8') {
-                    bigint_string_to_f64(rest, 8)
-                } else {
-                    f64::NAN
-                };
-            }
-            "0x" | "0X" => {
-                return if rest.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    bigint_string_to_f64(rest, 16)
-                } else {
-                    f64::NAN
-                };
-            }
-            _ => {}
+    if let Some((radix, rest)) = strip_non_decimal_prefix(trimmed) {
+        if !is_valid_non_decimal_digits(rest, radix) {
+            return f64::NAN;
         }
+        // Convert validated suffix digits using the parser.
+        return bigint_string_to_f64(rest, radix.as_u32());
     }
     if !trimmed.bytes().all(|b| {
         b.is_ascii_digit() || b == b'.' || b == b'e' || b == b'E' || b == b'+' || b == b'-'
