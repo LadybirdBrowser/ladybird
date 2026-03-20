@@ -458,3 +458,28 @@ TEST_CASE(seeking)
         EXPECT(block_exact_100.only_keyframes());
     }
 }
+
+TEST_CASE(opus_frame_duration)
+{
+    auto file = MUST(Core::File::open("./vp9_in_webm.webm"sv, Core::File::OpenMode::Read));
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
+    auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+
+    u64 audio_track = 0;
+    MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Audio, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
+        audio_track = track_entry.track_number();
+        return IterationDecision::Break;
+    }));
+    EXPECT_NE(audio_track, 0u);
+
+    auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), audio_track));
+
+    // WebM files typically don't specify a default frame duration. However, we parse the Opus frame header
+    // to get the duration, so the reader should return durations of 20ms.
+    auto expected_duration = AK::Duration::from_milliseconds(20);
+    for (int i = 0; i < 5; i++) {
+        auto block = MUST(iterator.next_block());
+        VERIFY(block.duration().has_value());
+        EXPECT_EQ(block.duration().value(), expected_duration);
+    }
+}

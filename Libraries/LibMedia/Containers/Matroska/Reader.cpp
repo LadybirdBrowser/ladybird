@@ -784,6 +784,56 @@ static void set_block_duration_to_default(Block& block, TrackBlockContext const&
         block.set_duration(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(context.default_duration)));
 }
 
+static DecoderErrorOr<void> maybe_parse_opus_frame_duration(Streamer& streamer, Block& block, TrackBlockContext const& context)
+{
+    if (block.lacing() != Block::Lacing::None)
+        return {};
+    if (codec_id_from_matroska_id_string(context.codec_id) != CodecID::Opus)
+        return {};
+    if (block.data_size() == 0)
+        return DecoderError::corrupted("Opus frame is too small"sv);
+
+    // https://datatracker.ietf.org/doc/html/rfc6716#section-3.1
+    auto toc_byte = TRY(streamer.read_octet());
+    auto configuration_number = (toc_byte >> 3) & 0b1'1111;
+    auto packet_code = toc_byte & 0b11;
+    // clang-format off
+    constexpr Array frame_durations = {
+            10000, 20000, 40000, 60000, // SILK-only NB
+            10000, 20000, 40000, 60000, // SILK-only MB
+            10000, 20000, 40000, 60000, // SILK-only WB
+            10000, 20000,               // Hybrid SWB
+            10000, 20000,               // Hybrid FB
+            2500,  5000,  10000, 20000, // CELT-only NB
+            2500,  5000,  10000, 20000, // CELT-only WB
+            2500,  5000,  10000, 20000, // CELT-only SWB
+            2500,  5000,  10000, 20000, // CELT-only FB
+    };
+    // clang-format on
+
+    auto frame_duration = frame_durations[configuration_number];
+    auto block_duration = TRY([&] -> DecoderErrorOr<int> {
+        switch (packet_code) {
+        case 0:
+            return frame_duration;
+        case 1:
+        case 2:
+            return frame_duration * 2;
+        case 3: {
+            if (block.data_size() == 1)
+                return DecoderError::corrupted("Opus frame is too small"sv);
+            auto frame_count_byte = TRY(streamer.read_octet());
+            auto frame_count = frame_count_byte & 0b11'1111;
+            return frame_duration * frame_count;
+        }
+        default:
+            VERIFY_NOT_REACHED();
+        }
+    }());
+    block.set_duration(AK::Duration::from_microseconds(block_duration));
+    return {};
+}
+
 DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const& contexts)
 {
     Block block;
@@ -809,6 +859,8 @@ DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duratio
     if (maybe_context.has_value()) {
         auto const& context = maybe_context.value();
         block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, context, timestamp_offset));
+
+        TRY(maybe_parse_opus_frame_duration(streamer, block, context));
 
         set_block_duration_to_default(block, context);
     }
@@ -843,6 +895,7 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
             auto data_position = streamer.position();
             auto data_size = content_end - data_position;
             block.set_data(data_position, data_size);
+
             TRY(streamer.seek_to_position(content_end));
             parsed_a_block = true;
             break;
@@ -869,8 +922,13 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
             if (context.timestamp_scale != 1)
                 duration_nanoseconds = AK::clamp_to<i64>(static_cast<double>(duration_nanoseconds) * context.timestamp_scale);
             block.set_duration(AK::Duration::from_nanoseconds(duration_nanoseconds));
-        } else {
+        } else if (context.default_duration != 0) {
             set_block_duration_to_default(block, context);
+        } else {
+            auto position_after_block_group = streamer.position();
+            TRY(streamer.seek_to_position(block.data_position()));
+            TRY(maybe_parse_opus_frame_duration(streamer, block, context));
+            TRY(streamer.seek_to_position(position_after_block_group));
         }
     }
 
