@@ -202,13 +202,21 @@ impl Parser<'_> {
         // falsely flagging parameter names like `function f(arguments)`.
         if let ExpressionKind::Identifier(ref id) = expression.inner
             && id.name == utf16!("arguments")
-            && !self.flags.strict_mode
-            && !self
-                .scope_collector
-                .has_declaration_in_current_function(&id.name)
         {
-            self.scope_collector
-                .set_contains_access_to_arguments_object_in_non_strict_mode();
+            // https://tc39.es/ecma262/#sec-class-static-initialization-blocks
+            // It is a Syntax Error if ContainsArguments of ClassStaticBlockBody is true.
+            if self.flags.in_class_static_init_block {
+                self.syntax_error(
+                    "'arguments' is not allowed in class static initialization blocks",
+                );
+            } else if !self.flags.strict_mode
+                && !self
+                    .scope_collector
+                    .has_declaration_in_current_function(&id.name)
+            {
+                self.scope_collector
+                    .set_contains_access_to_arguments_object_in_non_strict_mode();
+            }
         }
 
         if !should_continue {
@@ -918,6 +926,12 @@ impl Parser<'_> {
             TokenType::Period => {
                 self.consume();
                 if self.match_token(TokenType::PrivateIdentifier) {
+                    // https://tc39.es/ecma262/#sec-static-semantics-early-errors
+                    // It is a Syntax Error if MemberExpression is SuperProperty
+                    // and the PrivateIdentifier is present.
+                    if matches!(lhs.inner, ExpressionKind::Super) {
+                        self.syntax_error("Cannot access private field or method via 'super'");
+                    }
                     // C++ uses rule_start (period position) for property identifiers.
                     let id = self.parse_private_identifier(start);
                     let property = self.expression(start, ExpressionKind::PrivateIdentifier(id));
@@ -1635,6 +1649,10 @@ impl Parser<'_> {
         // async modifier requires a method (must have parens)
         if is_async {
             self.syntax_error("Expected function after async keyword");
+        }
+        // Generator shorthand requires a method body.
+        if is_generator {
+            self.syntax_error("Expected method after generator star");
         }
 
         if is_getter || is_setter {

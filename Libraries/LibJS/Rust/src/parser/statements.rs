@@ -269,7 +269,13 @@ impl Parser<'_> {
         let predicate = self.parse_expression_any();
         self.consume_token(TokenType::ParenClose);
 
-        let consequent = if !self.flags.strict_mode && self.match_token(TokenType::Function) {
+        // https://tc39.es/ecma262/#sec-functiondeclarations-in-ifstatement-statement-clauses
+        // Annex B allows FunctionDeclarations (but NOT GeneratorDeclarations) in
+        // IfStatement bodies in sloppy mode.
+        let consequent = if !self.flags.strict_mode
+            && self.match_token(TokenType::Function)
+            && self.next_token().token_type != TokenType::Asterisk
+        {
             self.parse_function_declaration_as_block_statement(start)
         } else {
             self.parse_statement(false)
@@ -277,7 +283,10 @@ impl Parser<'_> {
 
         let alternate = if self.match_token(TokenType::Else) {
             self.consume();
-            if !self.flags.strict_mode && self.match_token(TokenType::Function) {
+            if !self.flags.strict_mode
+                && self.match_token(TokenType::Function)
+                && self.next_token().token_type != TokenType::Asterisk
+            {
                 Some(Box::new(
                     self.parse_function_declaration_as_block_statement(start),
                 ))
@@ -819,6 +828,14 @@ impl Parser<'_> {
         self.discard_saved_state();
         self.consume(); // consume :
 
+        // https://tc39.es/ecma262/#sec-labelled-statements
+        // LabelIdentifier : Identifier (not ReservedWord)
+        // `true`, `false`, and `null` are reserved words and cannot be labels.
+        if token.token_type == TokenType::BoolLiteral || token.token_type == TokenType::NullLiteral
+        {
+            self.syntax_error("Reserved word cannot be used as a label");
+        }
+
         if self.flags.strict_mode
             && (label == utf16!("let") || crate::parser::is_strict_reserved_word(&label))
         {
@@ -827,8 +844,12 @@ impl Parser<'_> {
         if self.flags.in_generator_function_context && label == utf16!("yield") {
             self.syntax_error("'yield' label is not allowed in generator function context");
         }
-        if self.flags.await_expression_is_valid && label == utf16!("await") {
-            self.syntax_error("'await' label is not allowed in async function context");
+        if (self.flags.await_expression_is_valid
+            || self.flags.in_class_static_init_block
+            || self.program_type == crate::parser::ProgramType::Module)
+            && label == utf16!("await")
+        {
+            self.syntax_error("'await' is not allowed as a label in this context");
         }
 
         if self.labels_in_scope.contains_key(label.as_slice()) {

@@ -1081,6 +1081,13 @@ impl Parser<'_> {
                 }
             }
 
+            // https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
+            // It is a Syntax Error if PropName of MethodDefinition is "constructor"
+            // and SpecialMethod of MethodDefinition is true (getter/setter).
+            if !is_static && (is_getter || is_setter) && key_value.as_deref() == Some(ctor_name) {
+                self.syntax_error("Class constructor may not be an accessor");
+            }
+
             let method_kind = if is_constructor {
                 MethodKind::Constructor
             } else if is_getter {
