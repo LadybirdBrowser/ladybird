@@ -27,7 +27,7 @@ static bool contains_named_namespace(CSS::SelectorList const& selectors)
 {
     for (auto const& selector : selectors) {
         for (auto const& compound_selector : selector->compound_selectors()) {
-            for (auto simple_selector : compound_selector.simple_selectors) {
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
                 if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
                     if (simple_selector.qualified_name().namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
                         return true;
