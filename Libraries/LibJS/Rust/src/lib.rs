@@ -904,6 +904,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                 };
                 let mut parser = Parser::new(body_slice, ProgramType::Script);
                 parser.flags.in_function_context = true;
+                parser.flags.new_target_is_valid = true;
                 match kind {
                     ast::FunctionKind::Async | ast::FunctionKind::AsyncGenerator => {
                         parser.flags.await_expression_is_valid = true;

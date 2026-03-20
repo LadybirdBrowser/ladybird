@@ -311,10 +311,6 @@ pub struct Parser<'a> {
     /// re-attempt inner positions during grouping expression re-parse.
     arrow_function_failed_positions: HashSet<usize>,
 
-    /// Catch parameter names used to detect redeclarations in catch body.
-    /// Set while parsing a catch clause body, empty otherwise.
-    catch_parameter_names: Vec<Utf16String>,
-
     /// Regex literals whose compilation is deferred until after parsing.
     deferred_regexes: Vec<DeferredRegex>,
 }
@@ -364,7 +360,6 @@ impl<'a> Parser<'a> {
             scope_collector: ScopeCollector::new(),
             exported_names: HashSet::new(),
             function_table: FunctionTable::new(),
-            catch_parameter_names: Vec::new(),
             arrow_function_failed_positions: HashSet::new(),
             deferred_regexes: Vec::new(),
         }
@@ -870,20 +865,6 @@ impl<'a> Parser<'a> {
             && (self.flags.in_class_static_init_block || self.program_type == ProgramType::Module)
         {
             self.syntax_error("'await' is not allowed as an identifier in this context");
-        }
-    }
-
-    /// Check if a name conflicts with a catch clause parameter.
-    /// https://tc39.es/ecma262/#sec-try-statement-static-semantics-early-errors
-    pub(crate) fn check_catch_parameter_conflict(&mut self, name: &[u16]) {
-        for catch_name in &self.catch_parameter_names {
-            if catch_name.as_slice() == name {
-                let name_str = String::from_utf16_lossy(name);
-                self.syntax_error(&format!(
-                    "Identifier '{name_str}' already declared as catch parameter"
-                ));
-                return;
-            }
         }
     }
 

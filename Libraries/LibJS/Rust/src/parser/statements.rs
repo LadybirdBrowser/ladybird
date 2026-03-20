@@ -813,24 +813,70 @@ impl Parser<'_> {
             None
         };
 
-        // Store catch parameter names so that lexical and function
-        // declarations in the body can be checked for redeclaration.
-        let saved_catch_names = std::mem::take(&mut self.catch_parameter_names);
-        match &parameter {
-            Some(CatchBinding::Identifier(id)) => {
-                self.catch_parameter_names.push(id.name.clone());
-            }
-            Some(CatchBinding::BindingPattern(_)) => {
-                for (name, _) in &self.pattern_bound_names {
-                    self.catch_parameter_names.push(name.clone());
-                }
-            }
-            None => {}
-        }
+        // Collect catch parameter names for post-body validation.
+        let catch_names: Vec<Utf16String> = match &parameter {
+            Some(CatchBinding::Identifier(id)) => vec![id.name.clone()],
+            Some(CatchBinding::BindingPattern(_)) => self
+                .pattern_bound_names
+                .iter()
+                .map(|(n, _)| n.clone())
+                .collect(),
+            None => Vec::new(),
+        };
 
         let body = self.parse_block_statement();
 
-        self.catch_parameter_names = saved_catch_names;
+        // https://tc39.es/ecma262/#sec-try-statement-static-semantics-early-errors
+        // It is a Syntax Error if any element of the BoundNames of
+        // CatchParameter also occurs in the LexicallyDeclaredNames of Block.
+        if !catch_names.is_empty()
+            && let StatementKind::Block(ref scope) = body.inner
+        {
+            for child in &scope.borrow().children {
+                match &child.inner {
+                    StatementKind::VariableDeclaration { kind, declarations }
+                        if *kind != DeclarationKind::Var =>
+                    {
+                        for decl in declarations {
+                            if let VariableDeclaratorTarget::Identifier(ref id) = decl.target {
+                                for cn in &catch_names {
+                                    if cn.as_slice() == id.name.as_slice() {
+                                        let n = String::from_utf16_lossy(cn);
+                                        self.syntax_error(&format!(
+                                            "Identifier '{n}' already declared as catch parameter"
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    StatementKind::FunctionDeclaration { name: Some(id), .. } => {
+                        for cn in &catch_names {
+                            if cn.as_slice() == id.name.as_slice() {
+                                let n = String::from_utf16_lossy(cn);
+                                self.syntax_error(&format!(
+                                    "Identifier '{n}' already declared as catch parameter"
+                                ));
+                            }
+                        }
+                    }
+                    StatementKind::ClassDeclaration(data) => {
+                        if let Some(ref id) = data.name {
+                            for cn in &catch_names {
+                                if cn.as_slice() == id.name.as_slice() {
+                                    let n = String::from_utf16_lossy(cn);
+                                    self.syntax_error(&format!(
+                                        "Identifier '{n}' already declared as catch parameter"
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         self.scope_collector.close_scope();
 
         CatchClause {

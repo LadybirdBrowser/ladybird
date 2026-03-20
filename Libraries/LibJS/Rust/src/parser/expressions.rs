@@ -2597,13 +2597,16 @@ impl Parser<'_> {
         self.scope_collector.close_scope();
         self.pattern_bound_names = saved_pattern_bound_names;
 
-        self.flags.in_class_static_init_block = saved_static_init;
-        self.flags.in_class_field_initializer = saved_field_init;
-        self.flags.new_target_is_valid = saved_new_target;
-
+        // Check parameters before restoring flags so that the method's
+        // context is used (e.g. in_class_static_init_block must remain
+        // false to allow `await` as a parameter name in generators).
         if has_use_strict || fn_kind != FunctionKind::Normal {
             self.check_parameters_post_body(&parsed.parameter_info, has_use_strict, fn_kind);
         }
+
+        self.flags.in_class_static_init_block = saved_static_init;
+        self.flags.in_class_field_initializer = saved_field_init;
+        self.flags.new_target_is_valid = saved_new_target;
 
         insights.might_need_arguments_object = self.flags.function_might_need_arguments_object;
         self.flags.function_might_need_arguments_object = saved_might_need_arguments;
