@@ -15,6 +15,7 @@ set(AK_TEST_SOURCES
     TestByteString.cpp
     TestCharacterTypes.cpp
     TestChecked.cpp
+    TestSaturatingMath.cpp
     TestCircularBuffer.cpp
     TestCircularQueue.cpp
     TestDemangle.cpp
