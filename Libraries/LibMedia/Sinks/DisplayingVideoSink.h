@@ -29,6 +29,8 @@ public:
     DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&);
     virtual ~DisplayingVideoSink() override;
 
+    void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
+
     virtual void set_provider(Track const&, RefPtr<VideoDataProvider> const&) override;
     RefPtr<VideoDataProvider> provider(Track const&) const override;
 

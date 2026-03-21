@@ -24,6 +24,11 @@ DisplayingVideoSink::DisplayingVideoSink(NonnullRefPtr<MediaTimeProvider> const&
 
 DisplayingVideoSink::~DisplayingVideoSink() = default;
 
+void DisplayingVideoSink::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
+{
+    m_time_provider = provider;
+}
+
 void DisplayingVideoSink::verify_track(Track const& track) const
 {
     if (m_provider == nullptr)

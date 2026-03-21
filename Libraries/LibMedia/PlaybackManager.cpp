@@ -94,11 +94,13 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlayb
 
         if (!self->m_audio_tracks.is_empty()) {
             self->m_audio_sink = MUST(AudioMixingSink::try_create());
-        }
-
-        if (auto audio_sink = self->m_audio_sink) {
-            VERIFY(self->current_time().is_zero());
-            self->m_time_provider = make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*audio_sink);
+            self->set_time_provider(make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*self->m_audio_sink));
+            self->m_audio_sink->on_audio_output_error = [self](Error&& error) {
+                if (!self)
+                    return;
+                dbgln("Audio output initialization failed with error: {}", error);
+                self->disable_audio();
+            };
         }
 
         if (self->on_track_added) {
@@ -215,6 +217,30 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
         on_error(move(error));
 }
 
+void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
+{
+    auto time = current_time();
+    dbgln("set time to {}, playing? {}", time, is_playing());
+    provider->set_time(time);
+    m_time_provider = provider;
+    for (auto& track_data : m_video_track_datas) {
+        if (!track_data.display)
+            continue;
+        track_data.display->set_time_provider(provider);
+    }
+    if (is_playing())
+        provider->resume();
+}
+
+void PlaybackManager::disable_audio()
+{
+    m_audio_sink = nullptr;
+    set_time_provider(make_ref_counted<GenericTimeProvider>());
+
+    for (auto const& track : m_audio_tracks)
+        track_stopped_buffering(track);
+}
+
 PlaybackManager::VideoTrackData& PlaybackManager::get_video_data_for_track(Track const& track)
 {
     for (auto& track_data : m_video_track_datas) {
@@ -260,6 +286,8 @@ PlaybackManager::AudioTrackData& PlaybackManager::get_audio_data_for_track(Track
 
 void PlaybackManager::enable_an_audio_track(Track const& track)
 {
+    if (!m_audio_sink)
+        return;
     auto& track_data = get_audio_data_for_track(track);
     auto had_provider = m_audio_sink->provider(track) != nullptr;
     m_audio_sink->set_provider(track, track_data.provider);
@@ -270,6 +298,8 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
 {
+    if (!m_audio_sink)
+        return;
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.provider == m_audio_sink->provider(track));
     m_audio_sink->set_provider(track, nullptr);

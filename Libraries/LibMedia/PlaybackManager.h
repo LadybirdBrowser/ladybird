@@ -107,6 +107,9 @@ private:
 
     PlaybackManager();
 
+    void set_time_provider(NonnullRefPtr<MediaTimeProvider> const&);
+    void disable_audio();
+
     void set_up_data_providers();
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);

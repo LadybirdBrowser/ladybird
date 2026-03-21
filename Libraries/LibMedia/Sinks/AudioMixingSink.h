@@ -42,6 +42,8 @@ public:
 
     void set_volume(double);
 
+    Function<void(Error&&)> on_audio_output_error;
+
 private:
     static constexpr size_t MAX_BLOCK_COUNT = 16;
 
