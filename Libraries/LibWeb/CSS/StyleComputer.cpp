@@ -323,8 +323,12 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             add_rules_from_cache(*rule_cache);
     }
 
-    if (auto assigned_slot = abstract_element.element().assigned_slot_internal()) {
-        if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(assigned_slot->root())) {
+    // Walk up the slot chain for nested slots. An element can be assigned to a slot
+    // which is itself assigned to another slot in a parent shadow root. The ::slotted()
+    // pseudo-element matches elements assigned "after flattening", so we must collect
+    // slotted rules from every shadow root in the chain.
+    for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
+        if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot->root())) {
             if (auto const* rule_cache = rule_cache_for_cascade_origin(cascade_origin, qualified_layer_name, slot_shadow_root)) {
                 add_rules_to_run(rule_cache->slotted_rules);
             }
@@ -377,16 +381,25 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             // For ::slotted() matching, slot should be used as a subject instead of element,
             // while element itself is saved in matching context, so selector engine could
             // switch back to it when matching inside ::slotted() argument.
-            auto const& slot = *abstract_element.element().assigned_slot_internal();
+            // For nested slots, find the slot that lives in the same shadow root as the rule.
+            GC::Ptr<HTML::HTMLSlotElement const> matching_slot;
+            for (GC::Ptr<HTML::HTMLSlotElement const> slot = abstract_element.element().assigned_slot_internal(); slot; slot = slot->assigned_slot_internal()) {
+                if (as_if<DOM::ShadowRoot>(slot->root()) == rule_root) {
+                    matching_slot = slot;
+                    break;
+                }
+            }
+            if (!matching_slot)
+                continue;
             context.slotted_element = &abstract_element.element();
-            context.subject = &slot;
+            context.subject = matching_slot;
             // The slot lives inside a shadow tree. Derive the shadow host from the
             // slot's containing shadow root so that combinators like
             // `:host ::slotted(...)` can traverse from the slot to the shadow host.
             GC::Ptr<DOM::Element const> slot_shadow_host;
-            if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot.root()))
+            if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(matching_slot->root()))
                 slot_shadow_host = slot_shadow_root->host();
-            if (!SelectorEngine::matches(selector, slot, slot_shadow_host, context, PseudoElement::Slotted))
+            if (!SelectorEngine::matches(selector, *matching_slot, slot_shadow_host, context, PseudoElement::Slotted))
                 continue;
         } else if (!SelectorEngine::matches(selector, abstract_element.element(), shadow_host_to_use, context, abstract_element.pseudo_element()))
             continue;

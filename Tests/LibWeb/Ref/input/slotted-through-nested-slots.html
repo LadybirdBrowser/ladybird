@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/slotted-through-nested-slots-ref.html">
+<p>Test passes if you see a green box below.</p>
+<style>
+  * { margin: 0; padding: 0; }
+</style>
+<outer-host>
+  <div slot="content" class="item">FAIL</div>
+</outer-host>
+<script>
+// outer-host has a shadow DOM that contains inner-host.
+// inner-host has a shadow DOM with a ::slotted() rule.
+// The <div> is slotted through: outer-host's slot -> inner-host's slot.
+let outerRoot = document.querySelector('outer-host').attachShadow({ mode: 'open' });
+outerRoot.innerHTML = `
+  <inner-host>
+    <slot name="content"></slot>
+  </inner-host>
+`;
+
+let innerRoot = outerRoot.querySelector('inner-host').attachShadow({ mode: 'open' });
+innerRoot.innerHTML = `
+  <style>
+    .container ::slotted(.item) {
+      width: 100px;
+      height: 100px;
+      background: green;
+      color: green;
+    }
+  </style>
+  <div class="container">
+    <slot></slot>
+  </div>
+`;
+</script>
