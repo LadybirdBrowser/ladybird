@@ -1,5 +1,5 @@
 linear at 0.25: 50px
 linear at 0.5: 100px
 ease at 0.25 is NOT linear: true
-ease at 0.5: 160.484375px
-per-keyframe linear at 0.25: 81.703125px
+ease at 0.5: 100px
+per-keyframe linear at 0.25: 50px

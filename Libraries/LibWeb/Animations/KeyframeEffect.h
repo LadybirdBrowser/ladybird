@@ -70,6 +70,7 @@ public:
             // before they are applied to an element
             HashMap<CSS::PropertyID, Variant<UseInitial, NonnullRefPtr<CSS::StyleValue const>>> properties {};
             Bindings::CompositeOperationOrAuto composite { Bindings::CompositeOperationOrAuto::Auto };
+            Optional<CSS::EasingFunction> easing {};
         };
         RedBlackTree<u64, ResolvedKeyFrame> keyframes_by_key;
     };

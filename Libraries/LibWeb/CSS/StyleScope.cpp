@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Page/Page.h>
 
@@ -300,6 +301,18 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                 auto key = static_cast<u64>(keyframe.key().value() * Animations::KeyframeEffect::AnimationKeyFrameKeyScaleFactor);
                 auto const& keyframe_style = *keyframe.style();
                 for (auto const& it : keyframe_style.properties()) {
+                    if (it.property_id == PropertyID::AnimationTimingFunction) {
+                        // animation-timing-function is a list property, but inside @keyframes only
+                        // a single value is meaningful.
+                        if (it.value->is_value_list()) {
+                            auto const& list = it.value->as_value_list();
+                            if (list.size() > 0)
+                                resolved_keyframe.easing = EasingFunction::from_style_value(list.value_at(0, false));
+                        } else {
+                            resolved_keyframe.easing = EasingFunction::from_style_value(*it.value);
+                        }
+                        continue;
+                    }
                     if (it.property_id == PropertyID::AnimationComposition) {
                         auto composition_str = it.value->to_string(SerializationMode::Normal);
                         AnimationComposition composition = AnimationComposition::Replace;

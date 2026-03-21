@@ -634,6 +634,16 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
 
     auto progress_in_keyframe = (progress - keyframe_start) / static_cast<double>(keyframe_end - keyframe_start);
 
+    // https://drafts.csswg.org/css-animations-1/#animation-timing-function
+    // Apply the per-keyframe easing to the interval progress. The easing on a keyframe applies to the
+    // interval from that keyframe to the next. If the keyframe doesn't specify an easing, use the
+    // animation's default easing (from the animation-timing-function property).
+    if (keyframe_values.easing.has_value()) {
+        progress_in_keyframe = keyframe_values.easing->evaluate_at(progress_in_keyframe, false);
+    } else if (animation->is_css_animation()) {
+        progress_in_keyframe = static_cast<CSSAnimation const&>(*animation).default_easing().evaluate_at(progress_in_keyframe, false);
+    }
+
     if constexpr (LIBWEB_CSS_ANIMATION_DEBUG) {
         auto valid_properties = keyframe_values.properties.size();
         dbgln("Animation {} contains {} properties to interpolate, progress = {}%", animation->id(), valid_properties, progress_in_keyframe * 100);

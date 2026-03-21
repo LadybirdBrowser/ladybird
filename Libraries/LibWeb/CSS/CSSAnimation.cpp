@@ -105,7 +105,9 @@ void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties 
     // Timing properties may also be updated due to a style change. Any change to a CSS animation property that affects
     // timing requires rerunning the procedure to normalize specified timing.
     effect.normalize_specified_timing();
-    effect.set_timing_function(animation_properties.timing_function);
+    // NB: animation-timing-function is applied per-keyframe, not as the effect-level timing function.
+    //     The effect-level timing function remains linear.
+    m_default_easing = animation_properties.timing_function;
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
     effect.set_composite(Animations::css_animation_composition_to_bindings_composite_operation(animation_properties.composition));
