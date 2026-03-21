@@ -879,10 +879,19 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         animation->apply_css_properties(animation_properties);
 
-        if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, {})) {
-            if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
-                effect->set_key_frame_set(keyframe_set.value());
-        }
+        auto find_keyframes = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, shadow_root)) {
+                if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
+                    return keyframe_set.value();
+            }
+            return {};
+        };
+
+        // Look up @keyframes in the element's shadow root first, then fall back to the document-level rules.
+        if (auto shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root()))
+            effect->set_key_frame_set(find_keyframes(shadow_root));
+        if (!effect->key_frame_set())
+            effect->set_key_frame_set(find_keyframes(nullptr));
 
         effect->set_target(abstract_element);
         abstract_element.set_has_css_defined_animations();
