@@ -70,24 +70,28 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             del self._extra_headers
         super().end_headers()
 
-    def do_GET(self):
+    def _serve_static_request(self):
         if self.path.startswith("/static/"):
             # Remove "/static/" prefix and use built-in method
             self.path = self.path[7:]
 
-            # Check for a .headers file alongside the requested file
-            file_path = self.translate_path(self.path)
-            headers_path = file_path + ".headers"
-            if os.path.isfile(headers_path):
-                self._extra_headers = []
-                with open(headers_path) as f:
-                    for line in f:
-                        line = line.strip()
-                        if ":" in line:
-                            key, _, value = line.partition(":")
-                            self._extra_headers.append((key.strip(), value.strip()))
+        # Check for a .headers file alongside the requested file
+        file_path = self.translate_path(self.path)
+        headers_path = file_path + ".headers"
+        if os.path.isfile(headers_path):
+            self._extra_headers = []
+            with open(headers_path) as f:
+                for line in f:
+                    line = line.strip()
+                    if ":" in line:
+                        key, _, value = line.partition(":")
+                        self._extra_headers.append((key.strip(), value.strip()))
 
-            return super().do_GET()
+        super().do_GET()
+
+    def do_GET(self):
+        if self.path.startswith("/static/"):
+            self._serve_static_request()
         else:
             self.handle_echo()
 
