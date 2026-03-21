@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<style>
+@keyframes move {
+    0% { left: 0px; }
+    50% { left: 100px; }
+    100% { left: 200px; }
+}
+@keyframes move-with-easing {
+    0% { left: 0px; animation-timing-function: linear; }
+    50% { left: 100px; animation-timing-function: ease-in; }
+    100% { left: 200px; }
+}
+</style>
+<div id="target-linear" style="position: absolute;"></div>
+<div id="target-ease" style="position: absolute;"></div>
+<div id="target-per-keyframe" style="position: absolute;"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Test 1: animation-timing-function: linear should produce linear progress.
+        const linearEl = document.getElementById("target-linear");
+        linearEl.style.animation = "move 1s linear forwards";
+        const linearAnim = linearEl.getAnimations()[0];
+        linearAnim.pause();
+
+        linearAnim.currentTime = 250;
+        println("linear at 0.25: " + getComputedStyle(linearEl).left);
+
+        linearAnim.currentTime = 500;
+        println("linear at 0.5: " + getComputedStyle(linearEl).left);
+
+        // Test 2: animation-timing-function: ease should produce eased progress
+        // per keyframe interval, NOT as an effect-level easing.
+        // With ease, at 25% of a keyframe interval (250ms into a 500ms interval),
+        // the progress should be ~36.5% due to cubic-bezier(0.25, 0.1, 0.25, 1),
+        // NOT 25% (linear) and NOT the global ease at 25% overall progress.
+        const easeEl = document.getElementById("target-ease");
+        easeEl.style.animation = "move 1s ease forwards";
+        const easeAnim = easeEl.getAnimations()[0];
+        easeAnim.pause();
+
+        easeAnim.currentTime = 250;
+        const easeAt025 = parseFloat(getComputedStyle(easeEl).left);
+        // ease at 0.5 interval progress (halfway through first interval 0-50%)
+        // ease(0.5) ~= 0.8 with cubic-bezier(0.25, 0.1, 0.25, 1)
+        // So left should be ~0.8 * 100 = ~80px, NOT 50px (linear)
+        println("ease at 0.25 is NOT linear: " + (Math.abs(easeAt025 - 25) > 5));
+
+        easeAnim.currentTime = 500;
+        const easeAt050 = parseFloat(getComputedStyle(easeEl).left);
+        // At 50% overall, we're at the boundary of the 0%-50% keyframe.
+        // Progress within the 0-50% interval is 1.0, so ease(1.0) = 1.0.
+        println("ease at 0.5: " + getComputedStyle(easeEl).left);
+
+        // Test 3: per-keyframe animation-timing-function overrides the default.
+        const perKeyEl = document.getElementById("target-per-keyframe");
+        perKeyEl.style.animation = "move-with-easing 1s ease forwards";
+        const perKeyAnim = perKeyEl.getAnimations()[0];
+        perKeyAnim.pause();
+
+        // The first interval (0-50%) uses linear (from the keyframe), not ease.
+        perKeyAnim.currentTime = 250;
+        const perKeyAt025 = parseFloat(getComputedStyle(perKeyEl).left);
+        // linear at 0.5 of interval = 50% of 100px = 50px
+        println("per-keyframe linear at 0.25: " + getComputedStyle(perKeyEl).left);
+    });
+</script>
