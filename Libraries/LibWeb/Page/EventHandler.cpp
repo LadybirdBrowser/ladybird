@@ -1345,8 +1345,10 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
         if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, buttons, modifiers](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
                 return event_handler.handle_mousemove(position, screen_position, buttons, modifiers);
             });
-            result.has_value())
+            result.has_value()) {
+            clear_cursor.disarm();
             return result.value();
+        }
 
         auto pointer_events = paintable->computed_values().pointer_events();
         // FIXME: Handle other values for pointer-events.
