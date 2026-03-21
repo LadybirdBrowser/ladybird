@@ -24,13 +24,13 @@ subVector$1525553e computed-compound-assign-register-reuse.js:5:13
 block0:
   [   0] GetLexicalEnvironment dst:reg4
   [   8] GetByValue dst:reg5, base:arg0, property:Int32(0) (self[Int32(0)])
-  [  20] Mov dst:reg6, src:Int32(0)
-  [  30] GetByValue dst:reg7, base:arg1, property:Int32(0) (v[Int32(0)])
-  [  48] Sub dst:reg8, lhs:reg5, rhs:reg7
-  [  58] PutByValue base:arg0, property:reg6, src:reg8, kind:Normal
-  [  70] GetByValue dst:reg5, base:arg0, property:Int32(1) (self[Int32(1)])
-  [  88] Mov dst:reg6, src:Int32(1)
-  [  98] GetByValue dst:reg7, base:arg1, property:Int32(1) (v[Int32(1)])
-  [  b0] Sub dst:reg8, lhs:reg5, rhs:reg7
-  [  c0] PutByValue base:arg0, property:reg6, src:reg8, kind:Normal
-  [  d8] End value:Undefined
+  [  20] Mov2 dst1:reg6, src1:Int32(0), dst2:reg7, src2:arg1
+  [  38] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
+  [  50] Sub dst:reg7, lhs:reg5, rhs:reg8
+  [  60] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  78] GetByValue dst:reg5, base:arg0, property:Int32(1) (self[Int32(1)])
+  [  90] Mov2 dst1:reg6, src1:Int32(1), dst2:reg7, src2:arg1
+  [  a8] GetByValue dst:reg8, base:reg7, property:Int32(1) (v[Int32(1)])
+  [  c0] Sub dst:reg7, lhs:reg5, rhs:reg8
+  [  d0] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  e8] End value:Undefined

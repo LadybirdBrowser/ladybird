@@ -22,15 +22,16 @@ block0:
 
 
 get_string_prop$fa843635 computed-string-to-ById.js:5:5
-  Registers: 6
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = String("hello")
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg5, base:arg0, `hello` (o.hello)
-  [  28] Return value:reg5
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetById dst:reg6, base:reg5, `hello` (o.hello)
+  [  38] Return value:reg6
 
 
 set_string_prop$5b793bae computed-string-to-ById.js:8:16
@@ -49,24 +50,26 @@ block0:
 
 
 get_index_prop$f6a04ecf computed-string-to-ById.js:11:5
-  Registers: 6
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = String("0")
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:String("0") (o[String("0")])
-  [  20] Return value:reg5
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue dst:reg6, base:reg5, property:String("0") (o[String("0")])
+  [  30] Return value:reg6
 
 
 get_length_prop$2983fb9b computed-string-to-ById.js:14:5
-  Registers: 6
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = String("length")
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetLength dst:reg5, base:arg0 (o.length)
-  [  20] Return value:reg5
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetLength dst:reg6, base:reg5 (o.length)
+  [  30] Return value:reg6

@@ -13,7 +13,7 @@ block0:
 
 
 test$c1ed08de if-else-register-lifetime.js:2:5
-  Registers: 12
+  Registers: 13
   Blocks:    12
   Locals:    a~0, i~1, j~2
   Constants:
@@ -59,19 +59,20 @@ block8:
   [ 120] Jump target:block2
 
 block9:
-  [ 128] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
-  [ 140] Add dst:reg8, lhs:i~1, rhs:j~2
-  [ 150] GetByValue dst:reg9, base:arg0, property:reg8 (x[reg8])
-  [ 168] PutByValue base:reg6, property:reg7, src:reg9, kind:Normal (x[reg7])
-  [ 180] Jump target:block11
+  [ 128] Mov3 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2, dst3:reg8, src3:arg0
+  [ 148] Add dst:reg9, lhs:i~1, rhs:j~2
+  [ 158] GetByValue dst:reg10, base:reg8, property:reg9 (x[reg9])
+  [ 170] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
+  [ 188] Jump target:block11
 
 block10:
-  [ 188] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
-  [ 1a0] GetGlobal dst:reg9, `parseInt`
-  [ 1b8] Sub dst:reg10, lhs:j~2, rhs:Int32(3)
-  [ 1c8] GetByValue dst:reg11, base:arg0, property:reg10 (x[reg10])
-  [ 1e0] Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg11, Int32(1)]
-  [ 208] PutByValue base:reg6, property:reg7, src:reg8, kind:Normal (x[reg7])
+  [ 190] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
+  [ 1a8] GetGlobal dst:reg9, `parseInt`
+  [ 1c0] Mov dst:reg10, src:arg0
+  [ 1d0] Sub dst:reg11, lhs:j~2, rhs:Int32(3)
+  [ 1e0] GetByValue dst:reg12, base:reg10, property:reg11 (x[reg11])
+  [ 1f8] Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
+  [ 220] PutByValue base:reg6, property:reg7, src:reg8, kind:Normal (x[reg7])
 
 block11:
-  [ 220] Jump target:block6
+  [ 238] Jump target:block6

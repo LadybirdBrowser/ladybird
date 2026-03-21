@@ -27,9 +27,9 @@ block0:
   [  10] GetById dst:reg5, base:arg0, `patchFlag`
   [  30] Mov dst:a~0, src:reg5
   [  40] ThrowIfTDZ src:a~0
-  [  48] Mov dst:reg5, src:a~0
-  [  58] GetById dst:reg6, base:arg1, `patchFlag` (e.patchFlag)
-  [  78] BitwiseAnd dst:reg7, lhs:Int32(16), rhs:reg6
-  [  88] BitwiseOr dst:reg6, lhs:reg5, rhs:reg7
-  [  98] Mov dst:a~0, src:reg6
-  [  a8] End value:Undefined
+  [  48] Mov2 dst1:reg5, src1:a~0, dst2:reg6, src2:arg1
+  [  60] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
+  [  80] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
+  [  90] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
+  [  a0] Mov dst:a~0, src:reg7
+  [  b0] End value:Undefined

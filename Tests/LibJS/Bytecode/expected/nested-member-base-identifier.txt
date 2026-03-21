@@ -17,7 +17,7 @@ block0:
 
 
 assign_nested$ab9ddddc nested-member-base-identifier.js:6:8
-  Registers: 7
+  Registers: 8
   Blocks:    1
   Constants:
     [0] = Int32(1)
@@ -26,7 +26,8 @@ assign_nested$ab9ddddc nested-member-base-identifier.js:6:8
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] Sub dst:reg5, lhs:arg1, rhs:Int32(1)
-  [  18] GetByValue dst:reg6, base:arg0, property:reg5 (arr[reg5])
-  [  30] PutById base:reg6, `shader`, src:Int32(0), kind:Normal (arr.shader)
-  [  58] End value:Undefined
+  [   8] Mov dst:reg5, src:arg0
+  [  18] Sub dst:reg6, lhs:arg1, rhs:Int32(1)
+  [  28] GetByValue dst:reg7, base:reg5, property:reg6 (arr[reg6])
+  [  40] PutById base:reg7, `shader`, src:Int32(0), kind:Normal (arr.shader)
+  [  68] End value:Undefined

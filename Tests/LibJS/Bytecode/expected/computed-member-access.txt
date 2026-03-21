@@ -17,22 +17,24 @@ block0:
 
 
 computed_read$a6f67e31 computed-member-access.js:5:5
-  Registers: 6
+  Registers: 7
   Blocks:    1
   Constants:
     [0] = Int32(0)
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:Int32(0) (a[Int32(0)])
-  [  20] Return value:reg5
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
+  [  30] Return value:reg6
 
 
 computed_read_expression$adb2a228 computed-member-access.js:9:5
-  Registers: 6
+  Registers: 7
   Blocks:    1
 
 block0:
   [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (a[arg1])
-  [  20] Return value:reg5
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
+  [  30] Return value:reg6

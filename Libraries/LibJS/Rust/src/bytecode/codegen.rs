@@ -767,6 +767,7 @@ fn generate_member_expression(
         return Some(dst);
     }
     let obj = generate_expression(object, generator, None)?;
+    let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
     let base_id = intern_base_identifier(generator, object);
     if computed {
         let property = generate_expression(property, generator, None)?;

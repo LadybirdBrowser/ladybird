@@ -103,3 +103,11 @@ test("evaluation order for binary operators (LHS reassigns)", () => {
     let result = foo(2);
     expect(result).toBe(10);
 });
+
+test("evaluation order for member expression", () => {
+    function foo(obj, key) {
+        return obj[(obj = key)];
+    }
+    let result = foo({ asdf: 42 }, "asdf");
+    expect(result).toBe(42);
+});

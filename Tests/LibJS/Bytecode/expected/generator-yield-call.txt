@@ -32,40 +32,42 @@ block0:
   [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  18] GetById dst:reg8, base:arg0, `x` (a.x)
-  [  38] Yield continuation_label:block2, value:reg8
+  [  18] Mov dst:reg8, src:arg0
+  [  28] GetById dst:reg9, base:reg8, `x` (a.x)
+  [  48] Yield continuation_label:block2, value:reg9
 
 block2:
-  [  48] Mov dst:reg5, src:reg0
-  [  58] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  68] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
+  [  58] Mov dst:reg5, src:reg0
+  [  68] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  78] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
-  [  80] GetById dst:reg8, base:arg1, `y` (b.y)
-  [  a0] Yield continuation_label:block7, value:reg8
+  [  90] Mov dst:reg8, src:arg1
+  [  a0] GetById dst:reg9, base:reg8, `y` (b.y)
+  [  c0] Yield continuation_label:block7, value:reg9
 
 block4:
-  [  b0] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
+  [  d0] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block5, false_target:block6
 
 block5:
-  [  c8] Throw src:reg7
+  [  e8] Throw src:reg7
 
 block6:
-  [  d0] Yield value:reg7
+  [  f0] Yield value:reg7
 
 block7:
-  [  e0] Mov dst:reg5, src:reg0
-  [  f0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 100] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block8, false_target:block9
+  [ 100] Mov dst:reg5, src:reg0
+  [ 110] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 120] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block8, false_target:block9
 
 block8:
-  [ 118] Yield value:Undefined
+  [ 138] Yield value:Undefined
 
 block9:
-  [ 128] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block10, false_target:block11
+  [ 148] JumpStrictlyEquals lhs:reg6, rhs:Int32(5), true_target:block10, false_target:block11
 
 block10:
-  [ 140] Throw src:reg7
+  [ 160] Throw src:reg7
 
 block11:
-  [ 148] Yield value:reg7
+  [ 168] Yield value:reg7
