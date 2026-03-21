@@ -75,5 +75,6 @@
 - (id)accessibilityElementForNodeID:(int64_t)nodeID;
 - (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect;
 - (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint;
+- (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID;
 
 @end

@@ -1615,4 +1615,10 @@ struct HideCursor {
     return NSMakeRect(view_point.x, view_point.y, 0, 0);
 }
 
+- (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID
+{
+    auto action_string = MUST(String::from_utf8(StringView { [action UTF8String], strlen([action UTF8String]) }));
+    m_web_view_bridge->perform_accessibility_action(nodeID, move(action_string));
+}
+
 @end

@@ -38,6 +38,7 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -627,6 +628,25 @@ void ConnectionFromClient::request_accessibility_tree(u64 page_id)
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
             async_did_get_accessibility_tree(page_id, doc->build_accessibility_node_data());
+        }
+    }
+}
+
+void ConnectionFromClient::perform_accessibility_action(u64 page_id, i64 node_id, String action)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        auto* node = Web::DOM::Node::from_unique_id(Web::UniqueNodeID(node_id));
+        if (!node || !node->is_element())
+            return;
+
+        auto& element = static_cast<Web::DOM::Element&>(*node);
+
+        if (action == "press"sv || action == "click"sv) {
+            if (auto* html_element = as_if<Web::HTML::HTMLElement>(element))
+                html_element->click();
+        } else if (action == "focus"sv) {
+            if (element.is_focusable())
+                Web::HTML::run_focusing_steps(&element);
         }
     }
 }

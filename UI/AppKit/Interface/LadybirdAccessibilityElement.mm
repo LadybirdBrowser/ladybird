@@ -657,7 +657,8 @@ static NSString* nsStringFromAK(AK::String const& string)
 
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString*)attribute
 {
-    // Phase 3: handle setting focus, values, etc.
+    if ([attribute isEqualToString:NSAccessibilityFocusedAttribute] && [value boolValue])
+        [_webView performAccessibilityAction:@"focus" forNodeID:_nodeID];
 }
 
 - (NSArray*)accessibilityActionNames
@@ -681,7 +682,8 @@ static NSString* nsStringFromAK(AK::String const& string)
 
 - (void)accessibilityPerformAction:(NSString*)action
 {
-    // Phase 3: handle press, increment, decrement, etc.
+    if ([action isEqualToString:NSAccessibilityPressAction])
+        [_webView performAccessibilityAction:@"press" forNodeID:_nodeID];
 }
 
 - (id)accessibilityHitTest:(NSPoint)screenPoint

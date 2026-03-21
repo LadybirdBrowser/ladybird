@@ -111,6 +111,7 @@ public:
     void inspect_dom_tree();
     void inspect_accessibility_tree();
     void request_accessibility_tree();
+    void perform_accessibility_action(i64 node_id, String action);
     void get_hovered_node_id();
 
     void inspect_dom_node(Web::UniqueNodeID node_id, DOMNodeProperties::Type, Optional<Web::CSS::PseudoElement> pseudo_element);
