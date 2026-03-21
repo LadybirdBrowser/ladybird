@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/SVGCircleElementPrototype.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
@@ -59,27 +61,36 @@ void SVGCircleElement::apply_presentational_hints(GC::Ref<CSS::CascadedPropertie
         cascaded_properties->set_property_from_presentational_hint(CSS::PropertyID::R, r_value.release_nonnull());
 }
 
-static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
+static float viewport_size_diagonal(CSSPixelSize viewport_size)
 {
-    if (viewport_size.width() == viewport_size.height())
-        return viewport_size.width();
-    return sqrt(((viewport_size.width() * viewport_size.width()) + (viewport_size.height() * viewport_size.height())) / 2);
+    float w = viewport_size.width().to_float();
+    float h = viewport_size.height().to_float();
+    if (w == h)
+        return w;
+    return AK::sqrt(((w * w) + (h * h)) / 2);
+}
+
+void SVGCircleElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
+{
+    Base::attribute_changed(name, old_value, value, namespace_);
+
+    if (name == SVG::AttributeNames::cx) {
+        m_center_x = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    } else if (name == SVG::AttributeNames::cy) {
+        m_center_y = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    } else if (name == SVG::AttributeNames::r) {
+        m_radius = AttributeParser::parse_number_percentage(value.value_or(String {}));
+    }
 }
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
-    // NB: Called during SVG layout.
-    auto node = unsafe_layout_node();
-    if (!node) {
-        dbgln("FIXME: Null layout node in SVGCircleElement::get_path");
-        return {};
-    }
+    float viewport_w = viewport_size.width().to_float();
+    float viewport_h = viewport_size.height().to_float();
 
-    auto cx = float(node->computed_values().cx().to_px(*node, viewport_size.width()));
-    auto cy = float(node->computed_values().cy().to_px(*node, viewport_size.height()));
-    // Percentages refer to the normalized diagonal of the current SVG viewport
-    // (see Units: https://svgwg.org/svg2-draft/coords.html#Units)
-    auto r = float(node->computed_values().r().to_px(*node, normalized_diagonal_length(viewport_size)));
+    float cx = m_center_x.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_w);
+    float cy = m_center_y.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_h);
+    float r = m_radius.value_or(NumberPercentage::create_number(0)).resolve_relative_to(viewport_size_diagonal(viewport_size));
 
     // A zero radius disables rendering.
     if (r == 0)

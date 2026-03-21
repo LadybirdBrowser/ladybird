@@ -21,6 +21,8 @@ public:
     virtual bool is_presentational_hint(FlyString const&) const override;
     virtual void apply_presentational_hints(GC::Ref<CSS::CascadedProperties>) const override;
 
+    virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
+
     virtual Gfx::Path get_path(CSSPixelSize viewport_size) override;
 
     GC::Ref<SVGAnimatedLength> cx() const;
@@ -31,6 +33,10 @@ private:
     SVGCircleElement(DOM::Document&, DOM::QualifiedName);
 
     virtual void initialize(JS::Realm&) override;
+
+    Optional<NumberPercentage> m_center_x;
+    Optional<NumberPercentage> m_center_y;
+    Optional<NumberPercentage> m_radius;
 };
 
 }
