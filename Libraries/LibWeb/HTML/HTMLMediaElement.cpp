@@ -1488,15 +1488,6 @@ void HTMLMediaElement::on_metadata_parsed()
 
     // 6. Set the readyState attribute to HAVE_METADATA.
     set_ready_state(ReadyState::HaveMetadata);
-    // NOTE: The spec does not say exactly when to update the readyState attribute. Rather, it describes what
-    //       each step requires, and leaves it up to the user agent to determine when those requirements are
-    //       reached: https://html.spec.whatwg.org/multipage/media.html#ready-states
-    //
-    //       Since we fetch the entire response at once, if we reach here with successfully decoded video
-    //       metadata, we have satisfied the HAVE_ENOUGH_DATA requirements. This logic will of course need
-    //       to change if we fetch or process the media data in smaller chunks.
-    if (m_ready_state == ReadyState::HaveMetadata)
-        set_ready_state(ReadyState::HaveEnoughData);
 
     // 7. Let jumped be false.
     [[maybe_unused]] auto jumped = false;
@@ -1696,6 +1687,9 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
 // https://html.spec.whatwg.org/multipage/media.html#ready-states:media-element-3
 void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 {
+    if (m_ready_state == ready_state)
+        return;
+
     ScopeGuard guard { [&] {
         m_ready_state = ready_state;
         upon_has_ended_playback_possibly_changed();
@@ -1816,10 +1810,31 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 
 void HTMLMediaElement::on_playback_manager_state_change()
 {
-    if (!m_playback_manager)
-        return;
-    if (seeking() && m_playback_manager->state() != Media::PlaybackState::Seeking)
+    VERIFY(m_playback_manager);
+    auto state = m_playback_manager->state();
+    if (seeking() && state != Media::PlaybackState::Seeking)
         finish_seeking_element();
+
+    // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
+    //     events are fired. This ensures that readyState has a deterministic value in those events.
+    queue_a_media_element_task(GC::weak_callback(*this, [manager = m_playback_manager.ptr(), state = m_playback_manager->state()](auto& self) {
+        // https://html.spec.whatwg.org/multipage/media.html#ready-states
+        if (self.m_fetch_data && self.m_ready_state >= ReadyState::HaveMetadata) {
+            // FIXME: Some of these conditions should depend on the amount of data loaded by IncrementallyPopulatedStream
+            //        instead, especially HAVE_ENOUGH_DATA.
+            if (state == Media::PlaybackState::Buffering) {
+                if (self.m_ready_state >= ReadyState::HaveFutureData)
+                    self.set_ready_state(ReadyState::HaveCurrentData);
+            } else {
+                if (self.m_ready_state == ReadyState::HaveMetadata)
+                    self.set_ready_state(ReadyState::HaveCurrentData);
+                if (self.m_ready_state == ReadyState::HaveCurrentData)
+                    self.set_ready_state(ReadyState::HaveFutureData);
+                if (self.m_ready_state == ReadyState::HaveFutureData)
+                    self.set_ready_state(ReadyState::HaveEnoughData);
+            }
+        }
+    }));
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#internal-play-steps
