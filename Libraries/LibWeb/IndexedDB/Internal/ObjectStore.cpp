@@ -123,7 +123,7 @@ bool ObjectStore::has_record_with_key(GC::Ref<Key> key)
     }) != nullptr;
 }
 
-void ObjectStore::store_a_record(ObjectStoreRecord const& record)
+void ObjectStore::store_a_record(ObjectStoreRecord record)
 {
     if (m_mutation_log)
         m_mutation_log->note_record_stored(record.key);
@@ -139,7 +139,7 @@ void ObjectStore::store_a_record(ObjectStoreRecord const& record)
         else
             hi = mid;
     }
-    m_records.insert(lo, record);
+    m_records.insert(lo, move(record));
 }
 
 u64 ObjectStore::count_records_in_range(GC::Ref<IDBKeyRange> range)

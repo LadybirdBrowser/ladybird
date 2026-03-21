@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/OwnPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
@@ -17,7 +18,23 @@ namespace Web::IndexedDB {
 // https://w3c.github.io/IndexedDB/#object-store-record
 struct ObjectStoreRecord {
     GC::Ref<Key> key;
-    HTML::SerializationRecord value;
+    OwnPtr<HTML::SerializationRecord> value;
+
+    ObjectStoreRecord(GC::Ref<Key> key, NonnullOwnPtr<HTML::SerializationRecord> value)
+        : key(key)
+        , value(move(value))
+    {
+    }
+
+    ObjectStoreRecord(ObjectStoreRecord const& other)
+        : key(other.key)
+        , value(make<HTML::SerializationRecord>(*other.value))
+    {
+    }
+
+    ObjectStoreRecord(ObjectStoreRecord&&) = default;
+    ObjectStoreRecord& operator=(ObjectStoreRecord&&) = default;
+    ObjectStoreRecord& operator=(ObjectStoreRecord const&) = delete;
 };
 
 // https://w3c.github.io/IndexedDB/#index-list-of-records

@@ -1477,11 +1477,8 @@ WebIDL::ExceptionOr<GC::Ptr<Key>> store_a_record_into_an_object_store(JS::Realm&
 
     // 4. Store a record in store containing key as its key and ! StructuredSerializeForStorage(value) as its value.
     //    The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    ObjectStoreRecord record = {
-        .key = *key,
-        .value = MUST(HTML::structured_serialize_for_storage(realm.vm(), value)),
-    };
-    store->store_a_record(record);
+    ObjectStoreRecord record { *key, make<HTML::SerializationRecord>(MUST(HTML::structured_serialize_for_storage(realm.vm(), value))) };
+    store->store_a_record(move(record));
 
     // 5. For each index which references store:
     for (auto const& [name, index] : store->index_set()) {
@@ -1607,7 +1604,7 @@ WebIDL::ExceptionOr<JS::Value> retrieve_a_value_from_an_object_store(JS::Realm& 
         return JS::js_undefined();
 
     // 3. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
-    auto serialized = record->value;
+    auto const& serialized = *record->value;
 
     // 4. Return ! StructuredDeserialize(serialized, targetRealm).
     return MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
@@ -1940,11 +1937,11 @@ GC::Ptr<IDBCursor> iterate_a_cursor(JS::Realm& realm, GC::Ref<IDBCursor> cursor,
     if (!cursor->key_only()) {
 
         // 1. Let serialized be found record’s value if source is an object store, or found record’s referenced value otherwise.
-        auto serialized = source.visit(
-            [&](GC::Ref<ObjectStore>) {
-                return found_record.get<ObjectStoreRecord>().value;
+        auto const& serialized = source.visit(
+            [&](GC::Ref<ObjectStore>) -> HTML::SerializationRecord const& {
+                return *found_record.get<ObjectStoreRecord>().value;
             },
-            [&](GC::Ref<Index> index) {
+            [&](GC::Ref<Index> index) -> HTML::SerializationRecord const& {
                 return index->referenced_value(found_record.get<IndexRecord>());
             });
 
@@ -2006,7 +2003,7 @@ GC::Ref<JS::Array> retrieve_multiple_values_from_an_object_store(JS::Realm& real
         auto& record = records[i];
 
         // 1. Let serialized be record’s value. If an error occurs while reading the value from the underlying storage, return a newly created "NotReadableError" DOMException.
-        auto serialized = record.value;
+        auto const& serialized = *record.value;
 
         // 2. Let entry be ! StructuredDeserialize(serialized, targetRealm).
         auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
@@ -2057,7 +2054,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
         }
         case RecordKind::Value: {
             // 1. Let serialized be record’s value.
-            auto serialized = record.value;
+            auto const& serialized = *record.value;
 
             // 2. Let value be ! StructuredDeserialize(serialized, targetRealm).
             auto entry = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));
@@ -2071,7 +2068,7 @@ GC::Ref<JS::Array> retrieve_multiple_items_from_an_object_store(JS::Realm& realm
             auto key = record.key;
 
             // 2. Let serialized be record’s value.
-            auto serialized = record.value;
+            auto const& serialized = *record.value;
 
             // 3. Let value be ! StructuredDeserialize(serialized, targetRealm).
             auto value = MUST(HTML::structured_deserialize(realm.vm(), serialized, realm));

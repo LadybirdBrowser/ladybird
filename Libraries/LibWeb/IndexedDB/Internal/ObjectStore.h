@@ -51,7 +51,7 @@ public:
 
     void remove_records_in_range(GC::Ref<IDBKeyRange> range);
     bool has_record_with_key(GC::Ref<Key> key);
-    void store_a_record(ObjectStoreRecord const& record);
+    void store_a_record(ObjectStoreRecord record);
     void remove_record_with_key(GC::Ref<Key> key);
     u64 count_records_in_range(GC::Ref<IDBKeyRange> range);
     Optional<ObjectStoreRecord&> first_in_range(GC::Ref<IDBKeyRange> range);

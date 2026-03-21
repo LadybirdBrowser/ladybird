@@ -47,7 +47,7 @@ public:
     void remove_record(IndexRecord const& record);
     void remove_records_with_value_in_range(GC::Ref<IDBKeyRange> range);
 
-    HTML::SerializationRecord referenced_value(IndexRecord const& index_record) const;
+    HTML::SerializationRecord const& referenced_value(IndexRecord const& index_record) const;
 
 protected:
     virtual void visit_edges(Visitor&) override;
