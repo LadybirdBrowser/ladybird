@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <AK/QuickSort.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
@@ -95,12 +94,19 @@ void ObjectStore::store_a_record(ObjectStoreRecord const& record)
     if (m_mutation_log)
         m_mutation_log->note_record_stored(record.key);
 
-    m_records.append(record);
 
     // NOTE: The record is stored in the object store’s list of records such that the list is sorted according to the key of the records in ascending order.
-    AK::quick_sort(m_records, [](auto const& a, auto const& b) {
-        return Key::compare_two_keys(a.key, b.key) < 0;
-    });
+    //       We use binary search to find the correct insertion position.
+    size_t lo = 0;
+    size_t hi = m_records.size();
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (Key::compare_two_keys(m_records[mid].key, record.key) < 0)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    m_records.insert(lo, record);
 }
 
 u64 ObjectStore::count_records_in_range(GC::Ref<IDBKeyRange> range)
