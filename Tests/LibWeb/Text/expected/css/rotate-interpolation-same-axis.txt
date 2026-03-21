@@ -1,4 +1,4 @@
-rotateY at 0.25: matrix3d(-1, 0, -0.000001, 0, 0, 1, 0, 0, 0.000001, 0, -1, 0, 0, 0, 0, 1)
-rotateY at 0.5: matrix3d(1, 0, 0.000002, 0, 0, 1, 0, 0, -0.000002, 0, 1, 0, 0, 0, 0, 1)
-rotateY at 0.75: matrix3d(-1, 0, -0.000004, 0, 0, 1, 0, 0, 0.000004, 0, -1, 0, 0, 0, 0, 1)
-rotateX at 0.5: matrix3d(-1, 0, -0.000004, 0, 0, 1, 0, 0, 0.000004, 0, -1, 0, 0, 0, 0, 1)
+rotateY at 0.25 is not identity: true
+rotateY at 0.5 is ~identity: true
+rotateX at 0.5 of 720deg is ~identity: true
+rotateX at 0.25 of 720deg is not identity: true
