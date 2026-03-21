@@ -380,7 +380,13 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             auto const& slot = *abstract_element.element().assigned_slot_internal();
             context.slotted_element = &abstract_element.element();
             context.subject = &slot;
-            if (!SelectorEngine::matches(selector, slot, shadow_host_to_use, context, PseudoElement::Slotted))
+            // The slot lives inside a shadow tree. Derive the shadow host from the
+            // slot's containing shadow root so that combinators like
+            // `:host ::slotted(...)` can traverse from the slot to the shadow host.
+            GC::Ptr<DOM::Element const> slot_shadow_host;
+            if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(slot.root()))
+                slot_shadow_host = slot_shadow_root->host();
+            if (!SelectorEngine::matches(selector, slot, slot_shadow_host, context, PseudoElement::Slotted))
                 continue;
         } else if (!SelectorEngine::matches(selector, abstract_element.element(), shadow_host_to_use, context, abstract_element.pseudo_element()))
             continue;

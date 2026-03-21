@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/host-slotted-selector-styling-ref.html">
+<p>Test passes if you see a green box below.</p>
+<div id="host"><div>FAIL</div></div>
+<script>
+    let root = host.attachShadow({ mode: "open" });
+    root.innerHTML = `
+        <style>
+            ::slotted(div) { width: 100px; height: 100px; background: red; color: red; }
+            :host ::slotted(div) { background: green; color: green; }
+        </style>
+        <slot></slot>
+    `;
+</script>
