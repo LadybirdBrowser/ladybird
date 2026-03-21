@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/trailing-whitespace-trim-with-letter-spacing-ref.html">
+<style>
+  * { margin: 0; padding: 0; }
+  .flex { display: flex; flex-direction: row; gap: 0.5rem; width: auto; }
+  p { letter-spacing: -0.03em; }
+</style>
+<p>Test passes if text does not wrap in either case below.</p>
+<div style="width: 900px; display: flex; justify-content: center; padding-inline: 6rem;">
+  <div class="flex">
+    <p>
+      Protect your device against accidents for up to 4 years with Microsoft Complete.
+    </p>
+    <span>Learn more</span>
+  </div>
+</div>

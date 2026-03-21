@@ -111,7 +111,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
             break;
 
         auto const& font = last_fragment->glyph_run() ? last_fragment->glyph_run()->font() : last_fragment->layout_node().first_available_font();
-        int last_character_width = font.glyph_width(last_character);
+        CSSPixels last_character_width = CSSPixels(font.glyph_width(last_character)) + last_fragment->layout_node().computed_values().letter_spacing();
         whitespace_width += last_character_width;
         trailing_whitespace_width += last_character_width;
         if (should_remove == RemoveTrailingWhitespace::Yes) {
