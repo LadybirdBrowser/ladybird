@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+  * { margin: 0; padding: 0; }
+  .container { display: inline-block; }
+  button {
+    position: relative;
+    padding: 10px 30px 10px 10px;
+    border: 1px solid black;
+    background: lightblue;
+    font-size: 15px;
+    width: 100%;
+  }
+  .chevron {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    font-size: 10px;
+    color: green;
+  }
+</style>
+<p>Test passes if the green "v" is to the right of "Menu", not below it.</p>
+<div class="container">
+  <button><span>Menu</span><span class="chevron">v</span></button>
+</div>

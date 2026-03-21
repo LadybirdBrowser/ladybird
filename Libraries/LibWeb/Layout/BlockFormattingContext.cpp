@@ -752,7 +752,20 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (m_layout_mode == LayoutMode::Normal) {
             auto& box_state = m_state.get_mutable(box);
             StaticPositionRect static_position;
-            static_position.rect = { { 0, m_y_offset_of_current_block_container.value() }, { 0, 0 } };
+            auto static_position_y = m_y_offset_of_current_block_container.value();
+            // FIXME: This is a heuristic approximation. Ideally, originally-inline abspos
+            //        elements would have their static position determined by the IFC that
+            //        laid out the surrounding inline content, but our architecture currently
+            //        routes all abspos elements through the BFC as block-level children.
+            //        When the previous sibling is the anonymous wrapper that contains the
+            //        inline content this element would have been part of, use that wrapper's
+            //        y-offset as a rough approximation of the correct static position.
+            if (box.display_before_box_type_transformation().is_inline_outside()) {
+                if (auto const* sibling = as_if<NodeWithStyle>(box.previous_sibling());
+                    sibling && sibling->is_anonymous() && sibling->children_are_inline())
+                    static_position_y = m_state.get(*sibling).offset.y();
+            }
+            static_position.rect = { { 0, static_position_y }, { 0, 0 } };
             box_state.set_static_position_rect(static_position);
         }
         return;
