@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+
+        const style = document.createElement("style");
+        style.textContent = `
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+            .loader {
+                display: block;
+                width: 48px;
+                height: 48px;
+                animation: spin 1s linear infinite;
+            }
+        `;
+        shadow.appendChild(style);
+
+        const loader = document.createElement("span");
+        loader.className = "loader";
+        shadow.appendChild(loader);
+
+        // Force style computation.
+        const animations = loader.getAnimations();
+        println("animations: " + animations.length);
+        if (animations.length > 0) {
+            const anim = animations[0];
+            anim.pause();
+            anim.currentTime = 250;
+            println("at 0.25: " + getComputedStyle(loader).transform);
+            anim.currentTime = 500;
+            println("at 0.5: " + getComputedStyle(loader).transform);
+        }
+    });
+</script>

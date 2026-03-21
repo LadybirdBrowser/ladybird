@@ -1,0 +1,3 @@
+animations: 1
+at 0.25: none
+at 0.5: none
