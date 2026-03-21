@@ -693,13 +693,13 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> CShakeParams::from_value(J
     VERIFY(value.is_object());
     auto& object = value.as_object();
 
-    if (!MUST(object.has_property("length"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "length");
+    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
     }
 
-    auto const length_value = TRY(object.get("length"_utf16_fly_string));
+    auto const output_length = TRY(object.get("outputLength"_utf16_fly_string));
 
-    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
+    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, output_length, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     auto const function_name = TRY(get_optional_buffer_source(vm, object, "functionName"_utf16_fly_string));
 
@@ -9747,8 +9747,8 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> CShake::digest(AlgorithmParams con
 {
     auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
 
-    // 1. Let length be the length member of normalizedAlgorithm.
-    auto const& length = normalized_algorithm.length;
+    // 1. Let outputLength be the outputLength member of normalizedAlgorithm.
+    auto const& output_length = normalized_algorithm.output_length;
 
     // 2. Let functionName be the functionName member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& function_name = normalized_algorithm.function_name;
@@ -9768,12 +9768,12 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> CShake::digest(AlgorithmParams con
 
     // 4. Let result be the result of performing the cSHAKE128/cSHAKE256 function defined in Section 3 of [NIST-SP800-185]
     // using message as the X input parameter,
-    // length as the L input parameter,
+    // outputLength as the L input parameter,
     // functionName as the N input parameter,
     // and customization as the S input parameter.
     auto maybe_result = algorithm.digest(
         data,
-        length,
+        output_length,
         customization.map([](auto const& value) { return value.span(); }),
         function_name.map([](auto const& value) { return value.span(); }));
 
