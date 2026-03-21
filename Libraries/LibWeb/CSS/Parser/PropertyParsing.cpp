@@ -2355,6 +2355,9 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
 
         auto transaction = tokens.begin_transaction();
         while (tokens.has_next_token()) {
+            tokens.discard_whitespace();
+            if (!tokens.has_next_token())
+                break;
             if (auto value = parse_keyword_value(tokens)) {
                 auto keyword = value->to_keyword();
                 if (keyword == Keyword::ListItem) {
@@ -2395,8 +2398,16 @@ RefPtr<StyleValue const> Parser::parse_display_value(TokenStream<ComponentValue>
         return Display { outside.value_or(DisplayOutside::Block), inside.value_or(DisplayInside::Flow), list_item };
     };
 
+    // Count non-whitespace tokens to decide between single and multi-component parsing.
+    // This is needed because var() substitution can leave trailing whitespace tokens.
+    size_t non_whitespace_token_count = 0;
+    for (size_t i = 0; i < tokens.remaining_token_count(); ++i) {
+        if (!tokens.peek_token(i).is(Token::Type::Whitespace))
+            ++non_whitespace_token_count;
+    }
+
     Optional<Display> display;
-    if (tokens.remaining_token_count() == 1)
+    if (non_whitespace_token_count == 1)
         display = parse_single_component_display(tokens);
     else
         display = parse_multi_component_display(tokens);
