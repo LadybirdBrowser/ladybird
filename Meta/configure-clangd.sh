@@ -33,13 +33,13 @@ fi
 build_type=""
 case $2 in
     Debug)
-        build_type="-debug"
+        build_type="debug"
         ;;
     default)
-        build_type=""
+        build_type="release"
         ;;
     Sanitizer)
-        build_type="-sanitizers"
+        build_type="sanitizers"
         ;;
     *)
         echo "Invalid build configuration specified: $2"
@@ -47,4 +47,4 @@ case $2 in
         exit 1
 esac
 
-sed -i '' "s/\(^[  ]*CompilationDatabase:\).*$/\1 Build\/ladybird${build_type}/" "$clangd_file_path"
+sed -i '' "s/\(^[  ]*CompilationDatabase:\).*$/\1 Build\/${build_type}/" "$clangd_file_path"
