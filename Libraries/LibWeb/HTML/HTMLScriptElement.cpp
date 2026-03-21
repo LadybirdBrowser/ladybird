@@ -204,10 +204,8 @@ void HTMLScriptElement::execute_script()
 void HTMLScriptElement::prepare_script()
 {
     // 1. If el's already started is true, then return.
-    if (m_already_started) {
-        dbgln("HTMLScriptElement: Refusing to run script because it has already started.");
+    if (m_already_started)
         return;
-    }
 
     // 2. Let parser document be el's parser document.
     GC::Ptr<DOM::Document> parser_document = m_parser_document;
