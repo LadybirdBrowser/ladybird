@@ -1,0 +1,42 @@
+document
+  generic focused
+    banner
+      navigation name="Primary"
+        list
+          listitem
+            link name="Home"
+              text leaf name="Home"
+          listitem
+            link name="About"
+              text leaf name="About"
+    main
+      article
+        sectionheader
+          heading name="Article Title" level=1
+            text leaf name="Article Title"
+          paragraph
+            text leaf name="By Author Name"
+        region name="Introduction"
+          paragraph
+            text leaf name="Intro paragraph."
+        region name="Details"
+          heading name="Details heading" level=2
+            text leaf name="Details heading"
+          paragraph
+            text leaf name="Details paragraph."
+          complementary name="Related"
+            heading name="Related items" level=3
+              text leaf name="Related items"
+            list
+              listitem
+                link name="Related 1"
+                  text leaf name="Related 1"
+              listitem
+                link name="Related 2"
+                  text leaf name="Related 2"
+        sectionfooter
+          paragraph
+            text leaf name="Article footer."
+    contentinfo
+      paragraph
+        text leaf name="Site footer."

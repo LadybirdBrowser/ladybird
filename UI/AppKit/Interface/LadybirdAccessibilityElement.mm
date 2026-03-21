@@ -237,9 +237,41 @@ static NSString* nsStringFromAK(AK::String const& string)
         ]];
     });
 
+    static NSArray* tableAttributes = nil;
+    static NSArray* rowAttributes = nil;
+    static NSArray* cellAttributes = nil;
+    static dispatch_once_t tableOnce;
+    dispatch_once(&tableOnce, ^{
+        tableAttributes = [baseAttributes arrayByAddingObjectsFromArray:@[
+            NSAccessibilityRowsAttribute,
+            NSAccessibilityColumnsAttribute,
+            NSAccessibilityVisibleRowsAttribute,
+            NSAccessibilityVisibleColumnsAttribute,
+            NSAccessibilityHeaderAttribute,
+            @"AXColumnCount",
+            @"AXRowCount",
+        ]];
+        rowAttributes = [baseAttributes arrayByAddingObjectsFromArray:@[
+            NSAccessibilityIndexAttribute,
+        ]];
+        cellAttributes = [baseAttributes arrayByAddingObjectsFromArray:@[
+            @"AXRowIndexRange",
+            @"AXColumnIndexRange",
+        ]];
+    });
+
     auto const* data = [self nodeData];
-    if (data && data->role.bytes_as_string_view() == "document"sv)
-        return documentAttributes;
+    if (data) {
+        auto role_sv = data->role.bytes_as_string_view();
+        if (role_sv == "document"sv)
+            return documentAttributes;
+        if (role_sv == "table"sv)
+            return tableAttributes;
+        if (role_sv == "row"sv)
+            return rowAttributes;
+        if (role_sv == "cell"sv || role_sv == "gridcell"sv || role_sv == "columnheader"sv || role_sv == "rowheader"sv)
+            return cellAttributes;
+    }
     return baseAttributes;
 }
 
@@ -441,6 +473,33 @@ static NSString* nsStringFromAK(AK::String const& string)
         return data->is_disabled ? @NO : @YES;
     }
 
+    // Table attributes
+    if ([attribute isEqualToString:@"AXColumnCount"] || [attribute isEqualToString:@"AXRowCount"]
+        || [attribute isEqualToString:NSAccessibilityRowsAttribute]
+        || [attribute isEqualToString:NSAccessibilityColumnsAttribute]
+        || [attribute isEqualToString:NSAccessibilityVisibleRowsAttribute]
+        || [attribute isEqualToString:NSAccessibilityVisibleColumnsAttribute]
+        || [attribute isEqualToString:NSAccessibilityHeaderAttribute]) {
+        if (!data || data->role.bytes_as_string_view() != "table"sv)
+            return nil;
+        return [self tableAttributeValue:attribute];
+    }
+
+    if ([attribute isEqualToString:NSAccessibilityIndexAttribute]) {
+        if (!data || data->role.bytes_as_string_view() != "row"sv)
+            return nil;
+        return [self rowIndex];
+    }
+
+    if ([attribute isEqualToString:@"AXRowIndexRange"] || [attribute isEqualToString:@"AXColumnIndexRange"]) {
+        if (!data)
+            return nil;
+        auto role_sv = data->role.bytes_as_string_view();
+        if (role_sv != "cell"sv && role_sv != "gridcell"sv && role_sv != "columnheader"sv && role_sv != "rowheader"sv)
+            return nil;
+        return [self cellAttributeValue:attribute];
+    }
+
     return nil;
 }
 
@@ -467,6 +526,155 @@ static NSString* nsStringFromAK(AK::String const& string)
                 [result addObject:child_element];
         }
     }
+}
+
+#pragma mark - Table helpers
+
+- (id)tableAttributeValue:(NSString*)attribute
+{
+    auto const* data = [self nodeData];
+    if (!data)
+        return nil;
+
+    // Collect rows from rowgroup children (or direct row children)
+    NSMutableArray* rows = [NSMutableArray array];
+    int maxColumns = 0;
+
+    for (auto child_id : data->child_ids) {
+        auto const* child = _manager->node(child_id);
+        if (!child)
+            continue;
+        auto child_role = child->role.bytes_as_string_view();
+        if (child_role == "row"sv) {
+            [rows addObject:[_webView accessibilityElementForNodeID:child_id]];
+            maxColumns = MAX(maxColumns, (int)child->child_ids.size());
+        } else if (child_role == "rowgroup"sv) {
+            for (auto gc_id : child->child_ids) {
+                auto const* gc = _manager->node(gc_id);
+                if (gc && gc->role.bytes_as_string_view() == "row"sv) {
+                    [rows addObject:[_webView accessibilityElementForNodeID:gc_id]];
+                    maxColumns = MAX(maxColumns, (int)gc->child_ids.size());
+                }
+            }
+        }
+    }
+
+    if ([attribute isEqualToString:@"AXRowCount"])
+        return @([rows count]);
+    if ([attribute isEqualToString:@"AXColumnCount"])
+        return @(maxColumns);
+    if ([attribute isEqualToString:NSAccessibilityRowsAttribute]
+        || [attribute isEqualToString:NSAccessibilityVisibleRowsAttribute])
+        return rows;
+    if ([attribute isEqualToString:NSAccessibilityColumnsAttribute]
+        || [attribute isEqualToString:NSAccessibilityVisibleColumnsAttribute])
+        return @[];
+    if ([attribute isEqualToString:NSAccessibilityHeaderAttribute]) {
+        // Return the first rowgroup if it contains columnheaders
+        for (auto child_id : data->child_ids) {
+            auto const* child = _manager->node(child_id);
+            if (!child || child->role.bytes_as_string_view() != "rowgroup"sv)
+                continue;
+            for (auto gc_id : child->child_ids) {
+                auto const* gc = _manager->node(gc_id);
+                if (!gc || gc->role.bytes_as_string_view() != "row"sv)
+                    continue;
+                for (auto cell_id : gc->child_ids) {
+                    auto const* cell = _manager->node(cell_id);
+                    if (cell && cell->role.bytes_as_string_view() == "columnheader"sv)
+                        return [_webView accessibilityElementForNodeID:gc_id];
+                }
+            }
+            break;
+        }
+        return nil;
+    }
+    return nil;
+}
+
+- (NSNumber*)rowIndex
+{
+    auto const* data = [self nodeData];
+    if (!data)
+        return @0;
+
+    // Find this row among all rows in the parent table
+    // Walk up to find the table
+    i64 table_id = -1;
+    i64 ancestor_id = data->parent_id;
+    while (ancestor_id != -1) {
+        auto const* ancestor = _manager->node(ancestor_id);
+        if (!ancestor)
+            break;
+        if (ancestor->role.bytes_as_string_view() == "table"sv) {
+            table_id = ancestor_id;
+            break;
+        }
+        ancestor_id = ancestor->parent_id;
+    }
+
+    if (table_id == -1)
+        return @0;
+
+    auto const* table = _manager->node(table_id);
+    if (!table)
+        return @0;
+
+    int index = 0;
+    for (auto child_id : table->child_ids) {
+        auto const* child = _manager->node(child_id);
+        if (!child)
+            continue;
+        if (child->role.bytes_as_string_view() == "row"sv) {
+            if (child->id == data->id)
+                return @(index);
+            index++;
+        } else if (child->role.bytes_as_string_view() == "rowgroup"sv) {
+            for (auto gc_id : child->child_ids) {
+                auto const* gc = _manager->node(gc_id);
+                if (gc && gc->role.bytes_as_string_view() == "row"sv) {
+                    if (gc->id == data->id)
+                        return @(index);
+                    index++;
+                }
+            }
+        }
+    }
+    return @0;
+}
+
+- (id)cellAttributeValue:(NSString*)attribute
+{
+    auto const* data = [self nodeData];
+    if (!data)
+        return nil;
+
+    // Find column index: position among siblings in the row
+    auto const* row = _manager->node(data->parent_id);
+    if (!row)
+        return nil;
+
+    int col_index = 0;
+    for (auto sibling_id : row->child_ids) {
+        if (sibling_id == data->id)
+            break;
+        col_index++;
+    }
+
+    if ([attribute isEqualToString:@"AXColumnIndexRange"])
+        return [NSValue valueWithRange:NSMakeRange(col_index, 1)];
+
+    if ([attribute isEqualToString:@"AXRowIndexRange"]) {
+        // Find the row index by walking up to the table
+        auto const* row_data = _manager->node(data->parent_id);
+        if (!row_data)
+            return [NSValue valueWithRange:NSMakeRange(0, 1)];
+        LadybirdAccessibilityElement* rowElement = [_webView accessibilityElementForNodeID:row_data->id];
+        int row_index = [[rowElement rowIndex] intValue];
+        return [NSValue valueWithRange:NSMakeRange(row_index, 1)];
+    }
+
+    return nil;
 }
 
 - (NSArray*)accessibilityParameterizedAttributeNames
