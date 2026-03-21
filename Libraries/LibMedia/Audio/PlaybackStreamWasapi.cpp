@@ -50,13 +50,6 @@ using namespace Microsoft::WRL;
         }                                                                                  \
     })
 
-#define TRY_HR(expression)                                                        \
-    ({                                                                            \
-        AK_IGNORE_DIAGNOSTIC("-Wshadow", HRESULT&& _temporary_hr = (expression)); \
-        if (FAILED(_temporary_hr)) [[unlikely]]                                   \
-            return Error::from_windows_error(_temporary_hr);                      \
-    })
-
 // GUID for the playback session. That way all render streams have a single volume slider in the OS interface
 constexpr GUID PlaybackSessionGUID = { // 22f2ca89-210a-492c-a0aa-f25b1d2f33a1
     0x22f2ca89,
@@ -158,9 +151,9 @@ PlaybackStreamWASAPI::~PlaybackStreamWASAPI()
     SetEvent(m_state->buffer_event);
 }
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&& specification_callback, AudioDataRequestCallback&& data_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_callback)
 {
-    return PlaybackStreamWASAPI::create(initial_output_state, target_latency_ms, move(specification_callback), move(data_callback));
+    return PlaybackStreamWASAPI::create(initial_output_state, target_latency_ms, move(data_callback));
 }
 
 static void print_audio_format(WAVEFORMATEXTENSIBLE& format)
@@ -228,8 +221,19 @@ static ErrorOr<ChannelMap> convert_bitmask_to_channel_map(u32 channel_bitmask)
     return ChannelMap { channels };
 }
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState initial_output_state, u32, SampleSpecificationCallback&& sample_specification_callback, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamWASAPI::create(OutputState initial_output_state, u32, AudioDataRequestCallback&& data_request_callback)
 {
+    auto promise = CreatePromise::construct();
+
+#define TRY_HR(expression)                                                        \
+    ({                                                                            \
+        AK_IGNORE_DIAGNOSTIC("-Wshadow", HRESULT&& _temporary_hr = (expression)); \
+        if (FAILED(_temporary_hr)) [[unlikely]] {                                 \
+            promise->reject(Error::from_windows_error(_temporary_hr));            \
+            return promise;                                                       \
+        }                                                                         \
+    })
+
     HRESULT hr;
     if (!s_com_uninitializer.initialized) {
         TRY_HR(CoInitializeEx(NULL, COINIT_MULTITHREADED));
@@ -257,10 +261,6 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     VERIFY(popcount(device_format->dwChannelMask) == device_format->Format.nChannels);
     auto channels = device_format->Format.nChannels;
 
-    ChannelMap channel_map = MUST(convert_bitmask_to_channel_map(device_format->dwChannelMask));
-
-    sample_specification_callback(SampleSpecification { device_format->Format.nSamplesPerSec, channel_map });
-
     // Set up a 32bit float pcm stream with whatever sample rate and channels we were given.
 
     auto block_align = channels * sizeof(float);
@@ -279,8 +279,10 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
 
     WAVEFORMATEXTENSIBLE* closest_match;
     hr = state->audio_client->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &state->wave_format.Format, reinterpret_cast<WAVEFORMATEX**>(&closest_match));
-    if (FAILED(hr))
-        return Error::from_windows_error(hr);
+    if (FAILED(hr)) {
+        promise->reject(Error::from_windows_error(hr));
+        return promise;
+    }
     if (hr == S_FALSE) {
         dbgln("Audio format not supported. Current format:\n");
         print_audio_format(state->wave_format);
@@ -300,8 +302,10 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     TRY_HR(state->audio_client->GetService(IID_PPV_ARGS(&state->clock)));
 
     state->buffer_event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (!state->buffer_event)
-        return Error::from_windows_error(hr);
+    if (!state->buffer_event) {
+        promise->reject(Error::from_windows_error(hr));
+        return promise;
+    }
 
     TRY_HR(state->audio_client->SetEventHandle(state->buffer_event));
     TRY_HR(state->clock->GetFrequency(&state->audio_client_clock_frequency));
@@ -319,7 +323,17 @@ ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamWASAPI::create(OutputState 
     audio_thread->start();
     audio_thread->detach();
 
-    return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamWASAPI(move(state))));
+    auto stream = adopt_ref(*new PlaybackStreamWASAPI(move(state)));
+    promise->resolve(stream);
+    return promise;
+
+#undef TRY_HR
+}
+
+SampleSpecification PlaybackStreamWASAPI::sample_specification() const
+{
+    auto channel_map = MUST(convert_bitmask_to_channel_map(m_state->wave_format.dwChannelMask));
+    return SampleSpecification { m_state->wave_format.Format.nSamplesPerSec, channel_map };
 }
 
 int PlaybackStreamWASAPI::AudioState::render_thread_loop(PlaybackStreamWASAPI::AudioState& state)

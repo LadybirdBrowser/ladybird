@@ -18,7 +18,9 @@ class AudioState;
 
 class PlaybackStreamAudioUnit final : public PlaybackStream {
 public:
-    static ErrorOr<NonnullRefPtr<PlaybackStream>> create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&&, AudioDataRequestCallback&&);
+    static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&&);
+
+    virtual SampleSpecification sample_specification() const override;
 
     virtual void set_underrun_callback(Function<void()>) override;
 

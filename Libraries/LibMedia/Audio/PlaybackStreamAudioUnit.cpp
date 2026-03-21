@@ -158,7 +158,7 @@ static void check_audio_channel_layout_size(AudioChannelLayout& layout, u32 size
 
 class AudioState : public RefCounted<AudioState> {
 public:
-    static ErrorOr<NonnullRefPtr<AudioState>> create(PlaybackStream::SampleSpecificationCallback sample_specification_callback, PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
+    static ErrorOr<NonnullRefPtr<AudioState>> create(PlaybackStream::AudioDataRequestCallback data_request_callback, OutputState initial_output_state)
     {
         auto state = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) AudioState(move(data_request_callback), initial_output_state)));
 
@@ -183,8 +183,6 @@ public:
         check_audio_channel_layout_size(*layout, layout.size());
         auto channel_map = TRY(audio_channel_layout_to_channel_map(*layout));
         state->m_sample_specification = SampleSpecification(static_cast<u32>(description->mSampleRate), channel_map);
-
-        sample_specification_callback(state->m_sample_specification);
 
         AURenderCallbackStruct callbackStruct;
         callbackStruct.inputProc = &AudioState::on_audio_unit_buffer_request;
@@ -216,6 +214,8 @@ public:
         m_task_queue.append(move(task));
         m_task_queue_is_empty = false;
     }
+
+    SampleSpecification const& sample_specification() const { return m_sample_specification; }
 
     AK::Duration last_sample_time() const
     {
@@ -319,15 +319,23 @@ private:
     Atomic<i64> m_last_sample_time { 0 };
 };
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&& sample_specification_callback, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&& data_request_callback)
 {
-    return PlaybackStreamAudioUnit::create(initial_output_state, target_latency_ms, move(sample_specification_callback), move(data_request_callback));
+    return PlaybackStreamAudioUnit::create(initial_output_state, target_latency_ms, move(data_request_callback));
 }
 
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStreamAudioUnit::create(OutputState initial_output_state, u32, SampleSpecificationCallback&& sample_specification_callback, AudioDataRequestCallback&& data_request_callback)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamAudioUnit::create(OutputState initial_output_state, u32, AudioDataRequestCallback&& data_request_callback)
 {
-    auto state = TRY(AudioState::create(move(sample_specification_callback), move(data_request_callback), initial_output_state));
-    return TRY(adopt_nonnull_ref_or_enomem(new (nothrow) PlaybackStreamAudioUnit(move(state))));
+    auto promise = CreatePromise::construct();
+    auto state_or_error = AudioState::create(move(data_request_callback), initial_output_state);
+    if (state_or_error.is_error()) {
+        promise->reject(state_or_error.release_error());
+        return promise;
+    }
+    auto state = state_or_error.release_value();
+    auto stream = adopt_ref(*new PlaybackStreamAudioUnit(move(state)));
+    promise->resolve(stream);
+    return promise;
 }
 
 PlaybackStreamAudioUnit::PlaybackStreamAudioUnit(NonnullRefPtr<AudioState> impl)
@@ -336,6 +344,11 @@ PlaybackStreamAudioUnit::PlaybackStreamAudioUnit(NonnullRefPtr<AudioState> impl)
 }
 
 PlaybackStreamAudioUnit::~PlaybackStreamAudioUnit() = default;
+
+SampleSpecification PlaybackStreamAudioUnit::sample_specification() const
+{
+    return m_state->sample_specification();
+}
 
 void PlaybackStreamAudioUnit::set_underrun_callback(Function<void()>)
 {

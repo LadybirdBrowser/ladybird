@@ -82,6 +82,7 @@ private:
 
     Threading::Mutex m_mutex;
     Threading::ConditionVariable m_wait_condition { m_mutex };
+    bool m_creating_playback_stream { false };
     RefPtr<Audio::PlaybackStream> m_playback_stream;
     Audio::SampleSpecification m_sample_specification;
     bool m_playing { false };

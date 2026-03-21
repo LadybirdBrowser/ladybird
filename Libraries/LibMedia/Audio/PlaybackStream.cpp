@@ -9,12 +9,14 @@
 namespace Audio {
 
 #if !defined(AK_OS_WINDOWS)
-ErrorOr<NonnullRefPtr<PlaybackStream>> __attribute__((weak)) PlaybackStream::create(OutputState, u32, SampleSpecificationCallback&&, AudioDataRequestCallback&&)
+NonnullRefPtr<PlaybackStream::CreatePromise> __attribute__((weak)) PlaybackStream::create(OutputState, u32, AudioDataRequestCallback&&)
 #else
-ErrorOr<NonnullRefPtr<PlaybackStream>> PlaybackStream::create(OutputState, u32, SampleSpecificationCallback&&, AudioDataRequestCallback&&)
+NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState, u32, AudioDataRequestCallback&&)
 #endif
 {
-    return Error::from_string_literal("Audio output is not available for this platform");
+    auto promise = CreatePromise::construct();
+    promise->reject(Error::from_string_literal("Audio output is not available for this platform"));
+    return promise;
 }
 
 }

@@ -14,7 +14,9 @@ namespace Audio {
 
 class PlaybackStreamWASAPI final : public PlaybackStream {
 public:
-    static ErrorOr<NonnullRefPtr<PlaybackStream>> create(OutputState initial_output_state, u32 target_latency_ms, SampleSpecificationCallback&&, AudioDataRequestCallback&&);
+    static NonnullRefPtr<CreatePromise> create(OutputState initial_output_state, u32 target_latency_ms, AudioDataRequestCallback&&);
+
+    virtual SampleSpecification sample_specification() const override;
 
     // The overrun callback must be realtime safe. The buffer size might be small.
     virtual void set_underrun_callback(Function<void()>) override;

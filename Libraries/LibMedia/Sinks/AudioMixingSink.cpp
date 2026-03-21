@@ -24,6 +24,12 @@ AudioMixingSink::AudioMixingSink(AudioMixingSinkWeakReference& weak_ref)
     : m_main_thread_event_loop(Core::EventLoop::current())
     , m_weak_self(weak_ref)
 {
+    m_main_thread_event_loop.deferred_invoke([weak_self = m_weak_self] {
+        auto self = weak_self->take_strong();
+        if (!self)
+            return;
+        self->create_playback_stream();
+    });
 }
 
 AudioMixingSink::~AudioMixingSink()
@@ -37,8 +43,6 @@ void AudioMixingSink::set_provider(Track const& track, RefPtr<AudioDataProvider>
     m_track_mixing_datas.remove(track);
     if (provider == nullptr)
         return;
-
-    create_playback_stream();
 
     // The provider must have its output sample specification set before it starts decoding, or
     // we'll drop some samples due to a mismatch.
@@ -59,25 +63,11 @@ RefPtr<AudioDataProvider> AudioMixingSink::provider(Track const& track) const
 
 void AudioMixingSink::create_playback_stream()
 {
-    if (m_playback_stream != nullptr)
+    if (m_playback_stream != nullptr || m_creating_playback_stream)
         return;
 
-    auto sample_specification_callback = [weak_self = m_weak_self](Audio::SampleSpecification sample_specification) {
-        auto self = weak_self->take_strong();
-        if (!self)
-            return;
+    m_creating_playback_stream = true;
 
-        Threading::MutexLocker locker { self->m_mutex };
-        self->m_sample_specification = sample_specification;
-
-        for (auto& [track, track_data] : self->m_track_mixing_datas) {
-            track_data.provider->set_output_sample_specification(sample_specification);
-            track_data.provider->start();
-        }
-
-        if (self->m_playing)
-            self->resume();
-    };
     auto data_callback = [weak_self = m_weak_self](Span<float> buffer) -> ReadonlySpan<float> {
         auto self = weak_self->take_strong();
         if (!self)
@@ -86,14 +76,39 @@ void AudioMixingSink::create_playback_stream()
     };
     constexpr u32 target_latency_ms = 100;
 
-    auto stream_or_error = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(sample_specification_callback), move(data_callback));
+    auto promise = Audio::PlaybackStream::create(Audio::OutputState::Suspended, target_latency_ms, move(data_callback));
 
-    if (!stream_or_error.is_error()) {
-        m_playback_stream = stream_or_error.value();
-        set_volume(m_volume);
-    } else {
-        dbgln("Failed to create playback stream: {}", stream_or_error.error());
-    }
+    promise->when_resolved([weak_self = m_weak_self](auto& stream) {
+        auto self = weak_self->take_strong();
+        if (!self)
+            return;
+
+        self->m_creating_playback_stream = false;
+        self->m_playback_stream = stream;
+        self->set_volume(self->m_volume);
+        if (self->m_temporary_time.has_value())
+            self->set_time(self->m_temporary_time.value());
+
+        Threading::MutexLocker locker { self->m_mutex };
+        self->m_sample_specification = stream->sample_specification();
+
+        for (auto& [track, track_data] : self->m_track_mixing_datas) {
+            track_data.provider->set_output_sample_specification(self->m_sample_specification);
+            track_data.provider->start();
+        }
+
+        if (self->m_playing)
+            self->resume();
+    });
+
+    promise->when_rejected([weak_self = m_weak_self](auto& error) {
+        auto self = weak_self->take_strong();
+        if (!self)
+            return;
+
+        self->m_creating_playback_stream = false;
+        dbgln("Failed to create playback stream: {}", error);
+    });
 }
 
 ReadonlySpan<float> AudioMixingSink::write_audio_data_to_playback_stream(Span<float> buffer)
@@ -267,6 +282,9 @@ void AudioMixingSink::set_time(AK::Duration time)
     }
 
     m_temporary_time = time;
+
+    if (!m_playback_stream)
+        return;
     m_playback_stream->drain_buffer_and_suspend()
         ->when_resolved([weak_self = m_weak_self, &playback_stream = *m_playback_stream]() {
             auto self = weak_self->take_strong();
