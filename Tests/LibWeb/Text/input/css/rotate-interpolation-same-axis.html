@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<div id="target" style="position: absolute;"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const el = document.getElementById("target");
+
+        // rotateY(0deg) to rotateY(3600deg) should interpolate the angle numerically,
+        // not via quaternion slerp (which would see 3600deg as equivalent to 0deg).
+        const anim = el.animate([
+            { transform: "rotateY(0deg)" },
+            { transform: "rotateY(3600deg)" },
+        ], 1000);
+        anim.pause();
+
+        anim.currentTime = 250;
+        println("rotateY at 0.25: " + getComputedStyle(el).transform);
+
+        anim.currentTime = 500;
+        println("rotateY at 0.5: " + getComputedStyle(el).transform);
+
+        anim.currentTime = 750;
+        println("rotateY at 0.75: " + getComputedStyle(el).transform);
+
+        // Same test for rotateX.
+        const anim2 = el.animate([
+            { transform: "rotateX(0deg)" },
+            { transform: "rotateX(720deg)" },
+        ], 1000);
+        anim2.pause();
+
+        anim2.currentTime = 500;
+        println("rotateX at 0.5: " + getComputedStyle(el).transform);
+    });
+</script>

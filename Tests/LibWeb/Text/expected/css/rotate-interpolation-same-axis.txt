@@ -1,0 +1,4 @@
+rotateY at 0.25: matrix(1, 0, 0, 1, 0, 0)
+rotateY at 0.5: matrix(1, 0, 0, 1, 0, 0)
+rotateY at 0.75: matrix(1, 0, 0, 1, 0, 0)
+rotateX at 0.5: matrix(1, 0, 0, 1, 0, 0)
