@@ -52,8 +52,8 @@ ViewImplementation::ViewImplementation()
     initialize_context_menus();
 
     m_repeated_crash_timer = Core::Timer::create_single_shot(1000, [this] {
-        // Reset the "crashing a lot" counter after 1 second in case we just
-        // happen to be visiting crashy websites a lot.
+        // Reset the "crashing a lot" counter after 1 second in case we just happen to be visiting crashy websites a
+        // lot.
         this->m_crash_count = 0;
     });
 
@@ -254,8 +254,8 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentClient>
     if (event_result == Web::EventResult::Handled)
         return;
 
-    // Here we handle events that were not consumed or cancelled by the WebContent. Propagate the event back
-    // to the concrete view implementation.
+    // Here we handle events that were not consumed or cancelled by the WebContent. Propagate the event back to the
+    // concrete view implementation.
     event.visit(
         [this](Web::KeyEvent const& event) {
             if (on_finish_handling_key_event)
@@ -372,6 +372,11 @@ void ViewImplementation::inspect_accessibility_tree()
 void ViewImplementation::request_accessibility_tree()
 {
     client().async_request_accessibility_tree(page_id());
+}
+
+void ViewImplementation::perform_accessibility_action(i64 node_id, String action)
+{
+    client().async_perform_accessibility_action(page_id(), node_id, move(action));
 }
 
 void ViewImplementation::get_hovered_node_id()
@@ -674,8 +679,8 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
             m_repeated_crash_timer->stop();
             return;
         }
-        // In headless mode, always respawn - tests need a working WebContent for each test.
-        // Reset the crash count so we can continue running tests.
+        // In headless mode, always respawn - tests need a working WebContent for each test. Reset the crash count so we
+        // can continue running tests.
         m_crash_count = 0;
     }
     m_repeated_crash_timer->restart();
@@ -780,8 +785,8 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     auto promise = Core::Promise<LexicalPath>::construct();
 
     if (m_pending_screenshot) {
-        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
-        // to allow spamming screenshot requests for some reason.
+        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need to allow spamming
+        // screenshot requests for some reason.
         promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
         return promise;
     }
@@ -818,8 +823,8 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_scre
     auto promise = Core::Promise<LexicalPath>::construct();
 
     if (m_pending_screenshot) {
-        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
-        // to allow spamming screenshot requests for some reason.
+        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need to allow spamming
+        // screenshot requests for some reason.
         promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
         return promise;
     }
