@@ -43,9 +43,15 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         ScopedCornerRadiusClip corner_clip { context, clip_rect, normalized_border_radii_data(ShrinkRadiiForBorders::Yes) };
 
         auto const& navigable_container = this->navigable_container();
-        auto const* hosted_document = navigable_container.content_document_without_origin_check();
+        auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
         if (!hosted_document)
             return;
+
+        // NB: The hosted document's layout may have been invalidated during the parent
+        //     document's layout (e.g., via viewport size changes in did_set_content_size).
+        //     Ensure it is up to date before painting.
+        hosted_document->update_layout(DOM::UpdateLayoutReason::HostedDocumentBeforePaint);
+
         auto const* hosted_paint_tree = hosted_document->paintable();
         if (!hosted_paint_tree)
             return;
@@ -57,7 +63,7 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         HTML::PaintConfig paint_config;
         paint_config.paint_overlay = context.should_paint_overlay();
         paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
-        auto display_list = const_cast<DOM::Document*>(hosted_document)->record_display_list(paint_config);
+        auto display_list = hosted_document->record_display_list(paint_config);
         context.display_list_recorder().paint_nested_display_list(display_list, context.enclosing_device_rect(absolute_rect).to_type<int>());
 
         context.display_list_recorder().restore();

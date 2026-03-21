@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- Test: Creating a new iframe during a rAF callback means its content document
+     is NOT in the event loop's docs list for the current rendering update.
+     When the parent's layout sizes the iframe, it invalidates the child's layout
+     via did_set_content_size -> set_viewport_size -> set_needs_layout_update.
+     Since the child is not in docs, its layout is never re-updated before painting,
+     which would hit VERIFICATION FAILED in Node::paintable(). -->
+<html class="test-wait">
+<body>
+<script>
+    // Force initial layout.
+    document.body.offsetHeight;
+
+    requestAnimationFrame(() => {
+        // Create a new iframe during the rAF callback. Its content document
+        // is created and registered but is NOT in the docs list (which was
+        // built at the start of update_the_rendering).
+        const frame = document.createElement("iframe");
+        frame.style.width = "100px";
+        frame.style.height = "100px";
+        document.body.appendChild(frame);
+
+        // Write content and force layout on the child document so it gets a paintable.
+        frame.contentDocument.body.innerHTML = "<div style='width:50px;height:50px;background:blue'></div>";
+        frame.contentDocument.body.offsetHeight;
+
+        // Resize the iframe. During parent layout, did_set_content_size will
+        // call set_viewport_size on the child navigable, invalidating the
+        // child document's layout. Since the child is not in docs, it won't
+        // be re-laid-out before painting.
+        frame.style.width = "300px";
+        frame.style.height = "300px";
+
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        });
+    });
+</script>
+</body>
+</html>
