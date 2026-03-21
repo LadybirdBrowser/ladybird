@@ -13,8 +13,12 @@ import threading
 import time
 import urllib.parse
 
+from types import SimpleNamespace
+from typing import Any
+from typing import Callable
 from typing import Dict
 from typing import Optional
+from typing import cast
 
 """
 Description:
@@ -73,6 +77,55 @@ unblock_events: Dict[str, threading.Event] = {}
 WEBSOCKET_ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 
+class WPTContext:
+    def __init__(self, wpt_directory):
+        vendored_tools_root = os.path.join(wpt_directory, "_wpttools")
+
+        for path in (wpt_directory, vendored_tools_root):
+            sys.path.insert(0, path)
+
+        import _wpttools as vendored_tools
+        import localpaths
+
+        # Make the copied tree behave like the upstream `tools` package so
+        # vendored modules can keep importing `tools.*` and `localpaths`.
+        cast(Any, vendored_tools).localpaths = localpaths
+        sys.modules["tools"] = vendored_tools
+        sys.modules["tools.localpaths"] = localpaths
+        sys.modules["localpaths"] = localpaths
+        localpaths.repo_root = os.path.abspath(wpt_directory)
+
+        from wptserve.handlers import FileHandler
+        from wptserve.handlers import python_script_handler
+        from wptserve.request import Request
+        from wptserve.request import Server
+        from wptserve.response import Response
+        from wptserve.stash import Stash
+        from wptserve.stash import start_server as start_stash_server
+        from wptserve.utils import HTTPException
+
+        cast(Any, Server).config = SimpleNamespace(logging={"suppress_handler_traceback": False})
+
+        self.request_class = Request
+        self.response_class = Response
+        self.file_handler_class = FileHandler
+        self.python_script_handler = python_script_handler
+        self.http_exception = HTTPException
+        self.stash_class = Stash
+        self.stash_manager, self.stash_address, self.stash_authkey = start_stash_server()
+
+    def close(self):
+        self.stash_manager.shutdown()
+
+
+class TestHTTPServer(socketserver.ThreadingTCPServer):
+    scheme: str
+    router: SimpleNamespace
+    wpt: WPTContext
+    wpt_file_handler: Callable[[Any, Any], Any]
+    static_file_handler: Callable[[Any, Any], Any]
+
+
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
     wpt_directory: str
@@ -80,75 +133,133 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *arguments, **kwargs):
         super().__init__(*arguments, directory=self.static_directory, **kwargs)
 
+    def _test_server(self):
+        return cast(TestHTTPServer, self.server)
+
     def end_headers(self):
-        if hasattr(self, "_extra_headers"):
+        extra_headers = getattr(self, "_extra_headers", None)
+        if extra_headers is not None:
             self._sending_extra_headers = True
-            for key, value in self._extra_headers:
+            for key, value in extra_headers:
                 self.send_header(key, value)
             self._sending_extra_headers = False
-            del self._extra_headers
-            del self._extra_header_names
+            delattr(self, "_extra_headers")
+            delattr(self, "_extra_header_names")
         super().end_headers()
 
     def send_header(self, keyword, value):
         # Headers from .headers files override headers created by SimpleHTTPRequestHandler.
+        extra_header_names = getattr(self, "_extra_header_names", None)
         if (
-            hasattr(self, "_extra_header_names")
+            extra_header_names is not None
             and not getattr(self, "_sending_extra_headers", False)
-            and keyword.lower() in self._extra_header_names
+            and keyword.lower() in extra_header_names
         ):
             return
         super().send_header(keyword, value)
 
-    def _serve_static_request(self):
+    def _request_target(self):
         if self.path.startswith("/static/"):
             # Explicit /static/ URLs continue to serve files from the general test root.
-            self.directory = self.static_directory
-            self.path = self.path[7:]
+            return self.static_directory, self.path[7:]
+
+        # All other non-echo URLs are served from the imported WPT tree.
+        # This lets absolute WPT paths like /html/... resolve through the test server.
+        return self.wpt_directory, self.path
+
+    def _serve_wpt_python_script(self):
+        self.directory, self.path = self._request_target()
+        server = self._test_server()
+        server.router.doc_root = self.directory
+
+        request, response = self._create_wpt_request_response()
+
+        try:
+            server.wpt.python_script_handler(request, response)
+        except server.wpt.http_exception as exception:
+            response.set_error(exception.code, exception)
+        except Exception as exception:
+            response.set_error(500, exception)
+
+        if not response.writer.content_written:
+            response.write()
+        if response.close_connection:
+            self.close_connection = True
+        request.close()
+
+    def _create_wpt_request_response(self):
+        server = self._test_server()
+        request = server.wpt.request_class(self)
+        request.server._stash = server.wpt.stash_class(
+            request.url_parts.path,
+            server.wpt.stash_address,
+            server.wpt.stash_authkey,
+        )
+        response = server.wpt.response_class(self, request)
+        return request, response
+
+    def _serve_wpt_file_request(self):
+        self.directory, _ = self._request_target()
+        server = self._test_server()
+        server.router.doc_root = self.directory
+
+        request, response = self._create_wpt_request_response()
+
+        if self.path.startswith("/static/"):
+            handler = server.static_file_handler
         else:
-            # All other non-echo URLs are served from the imported WPT tree.
-            # This lets absolute WPT paths like /html/... resolve through the test server.
-            self.directory = self.wpt_directory
+            handler = server.wpt_file_handler
 
-        file_path = self.translate_path(self.path)
-        headers_path = file_path + ".headers"
+        try:
+            handler(request, response)
+        except server.wpt.http_exception as exception:
+            response.set_error(exception.code, exception)
+        except Exception as exception:
+            response.set_error(500, exception)
 
-        if os.path.isfile(headers_path):
-            self._extra_headers = []
-            self._extra_header_names = set()
-            with open(headers_path) as f:
-                for line in f:
-                    line = line.strip()
-                    if ":" in line:
-                        key, _, value = line.partition(":")
-                        self._extra_headers.append((key.strip(), value.strip()))
-                        self._extra_header_names.add(key.strip().lower())
+        if not response.writer.content_written:
+            response.write()
+        if response.close_connection:
+            self.close_connection = True
+        request.close()
 
-        super().do_GET()
+    def _serve_static_request(self):
+        self._serve_wpt_file_request()
 
     def do_GET(self):
         if self.headers.get("Upgrade", "").lower() == "websocket":
             self._serve_websocket_echo()
             return
-        if self.path.startswith("/unblock/"):
+
+        request_path = self.path.partition("?")[0]
+
+        if request_path.startswith("/unblock/"):
             self._serve_unblock()
-        elif self.path.startswith("/echo"):
+        elif request_path.startswith("/echo"):
             self.handle_echo()
-        elif self.path.startswith("/recorded-request-headers/"):
+        elif request_path.startswith("/recorded-request-headers/"):
             self._serve_recorded_request_headers()
+        elif request_path.endswith(".py"):
+            self._serve_wpt_python_script()
         else:
             self._serve_static_request()
 
     def do_POST(self):
-        if self.path == "/echo":
+        request_path = self.path.partition("?")[0]
+
+        if request_path == "/echo":
             self._register_echo()
-        elif self.path.startswith("/static/"):
-            self.send_error(405, "Method Not Allowed")
-        else:
+        elif request_path.startswith("/echo/"):
             self.handle_echo()
+        elif request_path.endswith(".py"):
+            self._serve_wpt_python_script()
+        else:
+            self.send_error(405, "Method Not Allowed")
 
     def do_OPTIONS(self):
-        if self.path.startswith("/echo"):
+        request_path = self.path.partition("?")[0]
+
+        if request_path.startswith("/echo"):
             # Requests with "credentials=include" cannot have "Access-Control-Allow-Origin=*". If the test registered
             # an OPTIONS echo, return the headers that it specified.
             key = f"OPTIONS {self.path}"
@@ -243,7 +354,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
 
     def _serve_unblock(self):
-        token = urllib.parse.unquote(self.path[len("/unblock/") :])
+        token = urllib.parse.unquote(self.path.partition("?")[0][len("/unblock/") :])
         event = unblock_events.setdefault(token, threading.Event())
         event.set()
         self.send_response(204)
@@ -384,8 +495,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.wfile.write(response_body_bytes)
 
     def do_other(self):
-        if self.path.startswith("/echo"):
+        request_path = self.path.partition("?")[0]
+
+        if request_path.startswith("/echo"):
             self.handle_echo()
+        elif request_path.endswith(".py"):
+            self._serve_wpt_python_script()
         else:
             self.send_error(405, "Method Not Allowed")
 
@@ -500,8 +615,16 @@ def start_server(port, static_directory):
     TestHTTPRequestHandler.wpt_directory = os.path.join(
         TestHTTPRequestHandler.static_directory, "Text", "input", "wpt-import"
     )
-    httpd = socketserver.ThreadingTCPServer(("127.0.0.1", port), TestHTTPRequestHandler)
+    httpd = TestHTTPServer(("127.0.0.1", port), TestHTTPRequestHandler)
     httpd.daemon_threads = True
+    httpd.scheme = "http"
+    httpd.router = SimpleNamespace(doc_root=TestHTTPRequestHandler.wpt_directory)
+    httpd.wpt = WPTContext(TestHTTPRequestHandler.wpt_directory)
+    httpd.wpt_file_handler = httpd.wpt.file_handler_class(base_path=TestHTTPRequestHandler.wpt_directory)
+    httpd.static_file_handler = httpd.wpt.file_handler_class(
+        base_path=TestHTTPRequestHandler.static_directory,
+        url_base="/static/",
+    )
 
     print(httpd.socket.getsockname()[1])
     sys.stdout.flush()
@@ -511,6 +634,7 @@ def start_server(port, static_directory):
     except KeyboardInterrupt:
         pass
     finally:
+        httpd.wpt.close()
         httpd.server_close()
 
 
