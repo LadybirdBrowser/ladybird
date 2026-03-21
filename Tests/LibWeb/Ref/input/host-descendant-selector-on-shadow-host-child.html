@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/host-descendant-selector-on-shadow-host-child-ref.html">
+<style>
+  * { margin: 0; padding: 0; }
+</style>
+<p>Test passes if you see a green box below.</p>
+<outer-host active>
+  <div slot="content">FAIL</div>
+</outer-host>
+<script>
+// When a child inside a shadow DOM is itself a shadow host,
+// rules from the parent shadow DOM using :host([attr]) .child
+// must still match the child element for combinator traversal.
+let outerRoot = document.querySelector('outer-host').attachShadow({ mode: 'open' });
+outerRoot.innerHTML = `
+  <style>
+    .child { display: block; background: red; width: 100px; height: 100px; color: red; }
+    :host([active]) .child { background: green; color: green; }
+  </style>
+  <inner-host class="child">
+    <slot name="content"></slot>
+  </inner-host>
+`;
+
+let innerRoot = outerRoot.querySelector('inner-host').attachShadow({ mode: 'open' });
+innerRoot.innerHTML = `<slot></slot>`;
+</script>

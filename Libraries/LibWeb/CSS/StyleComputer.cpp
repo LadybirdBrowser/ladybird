@@ -355,13 +355,15 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
     matching_rules.ensure_capacity(rules_to_run.size());
 
     for (auto const& rule_to_run : rules_to_run) {
-        // NOTE: When matching an element against a rule from outside the shadow root's style scope,
-        //       we have to pass in null for the shadow host, otherwise combinator traversal will
-        //       be confined to the element itself (since it refuses to cross the shadow boundary).
+        // NOTE: When matching an element that is itself a shadow host against a rule from
+        //       outside its own shadow root, we must not use the element as the shadow host
+        //       for traversal (which would confine traversal to the element itself).
+        //       Instead, use the rule's shadow root's host, so that combinators can traverse
+        //       up to the enclosing shadow host (e.g. for `:host(...) .descendant` selectors).
         auto rule_root = rule_to_run.shadow_root;
         auto shadow_host_to_use = shadow_host;
         if (abstract_element.element().is_shadow_host() && rule_root != abstract_element.element().shadow_root())
-            shadow_host_to_use = nullptr;
+            shadow_host_to_use = rule_root ? rule_root->host() : nullptr;
 
         auto const& selector = rule_to_run.selector;
 
