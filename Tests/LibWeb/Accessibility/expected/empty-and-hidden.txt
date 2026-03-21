@@ -1,0 +1,15 @@
+document
+  generic focused
+    generic
+      text leaf name="Visible content"
+    text leaf name="Hidden by CSS"
+    text leaf name="Hidden by ARIA"
+    text leaf name="Hidden by attribute"
+    generic
+    paragraph
+    generic
+      text leaf name="Visible span"
+    generic
+      text leaf name="Invisible but takes space"
+    button name="After hidden content"
+      text leaf name="After hidden content"
