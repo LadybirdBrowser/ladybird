@@ -123,10 +123,45 @@ ReadonlySpan<float> AudioMixingSink::write_audio_data_to_playback_stream(Span<fl
 
     Threading::MutexLocker mixing_data_locker { m_mutex };
     auto buffer_start = m_next_sample_to_write.load();
+    auto samples_end = buffer_start + static_cast<i64>(sample_count);
+
+    auto buffering = false;
+    for (auto& [track, track_data] : m_track_mixing_datas) {
+        if (!track_data.provider->is_blocked())
+            continue;
+        auto available_end = track_data.provider->queue_end_sample();
+        if (available_end < samples_end) {
+            samples_end = available_end;
+            buffering = true;
+        }
+    }
+
+    for (auto& [track, track_data] : m_track_mixing_datas) {
+        if (!buffering) {
+            track_data.buffering = false;
+        } else {
+            if (!track_data.provider->is_blocked())
+                continue;
+            if (track_data.buffering)
+                continue;
+            track_data.buffering = true;
+
+            m_main_thread_event_loop.deferred_invoke([weak_self = m_weak_self, track] {
+                auto self = weak_self->take_strong();
+                if (self && self->on_start_buffering)
+                    self->on_start_buffering(track);
+            });
+        }
+    }
+
+    sample_count = max(samples_end - buffer_start, 0);
+    auto write_size = sample_count * channel_count;
+
+    if (sample_count == 0)
+        return buffer;
 
     for (auto& [track, track_data] : m_track_mixing_datas) {
         auto next_sample = buffer_start;
-        auto samples_end = next_sample + static_cast<i64>(sample_count);
 
         auto go_to_next_block = [&] {
             auto new_block = track_data.provider->retrieve_block();
@@ -172,13 +207,13 @@ ReadonlySpan<float> AudioMixingSink::write_audio_data_to_playback_stream(Span<fl
 
             VERIFY(next_sample >= buffer_start);
             auto index_in_buffer = static_cast<size_t>((next_sample - buffer_start) * channel_count);
-            VERIFY(index_in_buffer < buffer.size());
+            VERIFY(index_in_buffer < write_size);
 
             VERIFY(current_block.data_count() >= index_in_block);
             auto write_count = current_block.data_count() - index_in_block;
-            write_count = min(write_count, buffer.size() - index_in_buffer);
+            write_count = min(write_count, write_size - index_in_buffer);
             VERIFY(write_count > 0);
-            VERIFY(index_in_buffer + write_count <= buffer.size());
+            VERIFY(index_in_buffer + write_count <= write_size);
             VERIFY(write_count % channel_count == 0);
 
             for (size_t i = 0; i < write_count; i++)

@@ -8,6 +8,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
+#include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
@@ -111,6 +112,8 @@ private:
     void disable_audio();
 
     void set_up_data_providers();
+    void track_started_buffering(Track const&);
+    void track_stopped_buffering(Track const&);
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
@@ -140,6 +143,8 @@ private:
     Optional<Track> m_preferred_audio_track;
 
     AK::Duration m_duration;
+
+    HashTable<Track> m_tracks_still_buffering;
 
     bool m_is_in_error_state { false };
 };

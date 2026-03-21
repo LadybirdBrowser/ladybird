@@ -7,7 +7,7 @@
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
-#include <LibMedia/PlaybackStates/PausedStateHandler.h>
+#include <LibMedia/PlaybackStates/BufferingStateHandler.h>
 #include <LibMedia/Providers/AudioDataProvider.h>
 #include <LibMedia/Providers/GenericTimeProvider.h>
 #include <LibMedia/Providers/VideoDataProvider.h>
@@ -101,6 +101,11 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlayb
                 dbgln("Audio output initialization failed with error: {}", error);
                 self->disable_audio();
             };
+            self->m_audio_sink->on_start_buffering = [self](Track const& track) {
+                if (!self)
+                    return;
+                self->track_started_buffering(track);
+            };
         }
 
         if (self->on_track_added) {
@@ -120,7 +125,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_media_data(WeakPlayb
 NonnullOwnPtr<PlaybackManager> PlaybackManager::create()
 {
     auto playback_manager = adopt_own(*new (nothrow) PlaybackManager());
-    playback_manager->m_handler = make<PausedStateHandler>(*playback_manager, RESUMING_SUSPEND_TIMEOUT_MS);
+    playback_manager->m_handler = make<BufferingStateHandler>(*playback_manager, false);
     playback_manager->m_handler->on_enter();
     return playback_manager;
 }
@@ -165,9 +170,14 @@ WeakPlaybackManager PlaybackManager::weak()
 void PlaybackManager::set_up_data_providers()
 {
     for (auto const& video_track_data : m_video_track_datas) {
-        video_track_data.provider->set_error_handler([self = weak()](DecoderError&& error) {
+        auto track = video_track_data.track;
+        video_track_data.provider->set_error_handler([self = weak(), track](DecoderError&& error) {
             if (!self)
                 return;
+            if (error.category() == DecoderErrorCategory::EndOfStream) {
+                self->track_stopped_buffering(track);
+                return;
+            }
             self->dispatch_error(move(error));
         });
         video_track_data.provider->set_duration_change_handler([self = weak()](AK::Duration time) {
@@ -175,17 +185,22 @@ void PlaybackManager::set_up_data_providers()
                 return;
             self->check_for_duration_change(time);
         });
-        video_track_data.provider->set_frames_queue_is_full_handler([self = weak()] {
+        video_track_data.provider->set_frames_queue_is_full_handler([self = weak(), track] {
             if (!self)
                 return;
-            self->m_handler->exit_buffering();
+            self->track_stopped_buffering(track);
         });
     }
 
     for (auto const& audio_track_data : m_audio_track_datas) {
-        audio_track_data.provider->set_error_handler([self = weak()](DecoderError&& error) {
+        auto track = audio_track_data.track;
+        audio_track_data.provider->set_error_handler([self = weak(), track](DecoderError&& error) {
             if (!self)
                 return;
+            if (error.category() == DecoderErrorCategory::EndOfStream) {
+                self->track_stopped_buffering(track);
+                return;
+            }
             self->dispatch_error(move(error));
         });
         audio_track_data.provider->set_duration_change_handler([self = weak()](AK::Duration time) {
@@ -193,7 +208,28 @@ void PlaybackManager::set_up_data_providers()
                 return;
             self->check_for_duration_change(time);
         });
+        audio_track_data.provider->set_queue_is_full_handler([self = weak(), track] {
+            if (!self)
+                return;
+            self->track_stopped_buffering(track);
+        });
     }
+}
+
+void PlaybackManager::track_started_buffering(Track const& track)
+{
+    bool was_buffering = !m_tracks_still_buffering.is_empty();
+    m_tracks_still_buffering.set(track);
+    if (!was_buffering)
+        m_handler->enter_buffering();
+}
+
+void PlaybackManager::track_stopped_buffering(Track const& track)
+{
+    bool was_buffering = !m_tracks_still_buffering.is_empty();
+    m_tracks_still_buffering.remove(track);
+    if (was_buffering && m_tracks_still_buffering.is_empty())
+        m_handler->exit_buffering();
 }
 
 void PlaybackManager::check_for_duration_change(AK::Duration duration)
@@ -207,8 +243,7 @@ void PlaybackManager::check_for_duration_change(AK::Duration duration)
 
 void PlaybackManager::dispatch_error(DecoderError&& error)
 {
-    if (error.category() == DecoderErrorCategory::EndOfStream)
-        return;
+    VERIFY(error.category() != DecoderErrorCategory::EndOfStream);
 
     if (m_is_in_error_state)
         return;
@@ -257,9 +292,10 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
     if (track_data.display == nullptr) {
         track_data.display = MUST(Media::DisplayingVideoSink::try_create(m_time_provider));
         track_data.display->set_provider(track, track_data.provider);
-        track_data.display->m_on_start_buffering = [this] {
-            m_handler->enter_buffering();
+        track_data.display->m_on_start_buffering = [this, track] {
+            track_started_buffering(track);
         };
+        m_tracks_still_buffering.set(track);
         m_handler->on_track_enabled(track);
     }
 
@@ -272,6 +308,7 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
     auto& track_data = get_video_data_for_track(track);
     track_data.display->set_provider(track, nullptr);
     track_data.display = nullptr;
+    track_stopped_buffering(track);
 }
 
 PlaybackManager::AudioTrackData& PlaybackManager::get_audio_data_for_track(Track const& track)
@@ -292,6 +329,7 @@ void PlaybackManager::enable_an_audio_track(Track const& track)
     auto had_provider = m_audio_sink->provider(track) != nullptr;
     m_audio_sink->set_provider(track, track_data.provider);
     if (!had_provider) {
+        m_tracks_still_buffering.set(track);
         m_handler->on_track_enabled(track);
     }
 }
@@ -303,6 +341,7 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     auto& track_data = get_audio_data_for_track(track);
     VERIFY(track_data.provider == m_audio_sink->provider(track));
     m_audio_sink->set_provider(track, nullptr);
+    track_stopped_buffering(track);
 }
 
 void PlaybackManager::play()

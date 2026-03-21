@@ -43,6 +43,7 @@ public:
     void set_volume(double);
 
     Function<void(Error&&)> on_audio_output_error;
+    Function<void(Track const&)> on_start_buffering;
 
 private:
     static constexpr size_t MAX_BLOCK_COUNT = 16;
@@ -74,6 +75,7 @@ private:
 
         NonnullRefPtr<AudioDataProvider> provider;
         AudioBlock current_block;
+        bool buffering { false };
     };
 
     void create_playback_stream();

@@ -64,6 +64,11 @@ void AudioDataProvider::set_duration_change_handler(BlockEndTimeHandler&& handle
     m_thread_data->set_duration_change_handler(move(handler));
 }
 
+void AudioDataProvider::set_queue_is_full_handler(QueueIsFullHandler&& handler)
+{
+    m_thread_data->set_queue_is_full_handler(move(handler));
+}
+
 void AudioDataProvider::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
     m_thread_data->set_output_sample_specification(sample_specification);
@@ -89,6 +94,27 @@ void AudioDataProvider::seek(AK::Duration timestamp, SeekCompletionHandler&& com
     m_thread_data->seek(timestamp, move(completion_handler));
 }
 
+bool AudioDataProvider::is_blocked() const
+{
+    return m_thread_data->is_blocked();
+}
+
+i64 AudioDataProvider::queue_end_sample() const
+{
+    return m_thread_data->queue_end_sample();
+}
+
+bool AudioDataProvider::ThreadData::is_blocked() const
+{
+    return m_demuxer->is_read_blocked_for_track(m_track);
+}
+
+i64 AudioDataProvider::ThreadData::queue_end_sample() const
+{
+    auto locker = take_lock();
+    return m_queue_end_sample;
+}
+
 AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
@@ -108,6 +134,11 @@ void AudioDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
 void AudioDataProvider::ThreadData::set_duration_change_handler(BlockEndTimeHandler&& handler)
 {
     m_duration_change_handler = move(handler);
+}
+
+void AudioDataProvider::ThreadData::set_queue_is_full_handler(QueueIsFullHandler&& handler)
+{
+    m_queue_is_full_handler = move(handler);
 }
 
 void AudioDataProvider::ThreadData::set_output_sample_specification(Audio::SampleSpecification sample_specification)
@@ -201,7 +232,7 @@ bool AudioDataProvider::ThreadData::handle_suspension()
         if (m_requested_state != RequestedState::Suspended)
             return false;
 
-        m_queue.clear();
+        clear_queue();
         m_decoder.clear();
         m_decoder_needs_keyframe_next_seek = true;
 
@@ -263,12 +294,19 @@ void AudioDataProvider::ThreadData::dispatch_block_end_time(AudioBlock const& bl
     });
 }
 
+void AudioDataProvider::ThreadData::clear_queue()
+{
+    m_queue.clear();
+    m_queue_end_sample = 0;
+}
+
 void AudioDataProvider::ThreadData::queue_block(AudioBlock&& block)
 {
     // FIXME: Specify trailing samples in the demuxer, and drop them here or in the audio decoder implementation.
 
     VERIFY(!block.is_empty());
     dispatch_block_end_time(block);
+    m_queue_end_sample = block.end_timestamp_in_samples();
     m_queue.enqueue(move(block));
     VERIFY(!m_queue.tail().is_empty());
 }
@@ -334,7 +372,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
         m_is_in_error_state = true;
         {
             auto locker = take_lock();
-            m_queue.clear();
+            clear_queue();
             process_seek_on_main_thread(seek_id,
                 [error = move(error)](auto& self) mutable {
                     self->dispatch_error(move(error));
@@ -408,7 +446,7 @@ bool AudioDataProvider::ThreadData::handle_seek()
 
                 if (current_block.timestamp() > timestamp) {
                     auto locker = take_lock();
-                    m_queue.clear();
+                    clear_queue();
 
                     if (!last_block.is_empty())
                         queue_block(move(last_block));
@@ -477,6 +515,12 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }();
 
         while (queue_size >= m_queue_max_size) {
+            if (m_queue_is_full_handler) {
+                invoke_on_main_thread([](auto const& self) {
+                    self->m_queue_is_full_handler();
+                });
+            }
+
             if (handle_seek())
                 return;
 
