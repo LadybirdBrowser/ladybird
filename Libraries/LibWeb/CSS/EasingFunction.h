@@ -29,14 +29,6 @@ struct CubicBezierEasingFunction {
     double y2;
     String stringified;
 
-    struct CachedSample {
-        double x;
-        double y;
-        double t;
-    };
-
-    mutable Vector<CachedSample> m_cached_x_samples {};
-
     double evaluate_at(double input_progress, bool before_flag) const;
 };
 

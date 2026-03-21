@@ -5,7 +5,7 @@
  */
 
 #include "EasingFunction.h"
-#include <AK/BinarySearch.h>
+#include <AK/Math.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -122,53 +122,47 @@ double CubicBezierEasingFunction::evaluate_at(double input_progress, bool) const
     // Note: The spec does not specify the precise algorithm for calculating values in the range [0, 1]:
     //       "The evaluation of this curve is covered in many sources such as [FUND-COMP-GRAPHICS]."
 
-    auto x = input_progress;
+    // We use Newton-Raphson iteration to solve for the parameter t where x(t) = input_progress,
+    // then return y(t). Falls back to bisection when Newton-Raphson doesn't converge.
 
-    auto solve = [&](auto t) {
-        auto x = cubic_bezier_at(x1, x2, t);
-        auto y = cubic_bezier_at(y1, y2, t);
-        return CachedSample { x, y, t };
+    constexpr static auto cubic_bezier_derivative_at = [](double x1, double x2, double t) {
+        auto a = 1.0 - 3.0 * x2 + 3.0 * x1;
+        auto b = 3.0 * x2 - 6.0 * x1;
+        auto c = 3.0 * x1;
+        return 3.0 * a * t * t + 2.0 * b * t + c;
     };
 
-    if (m_cached_x_samples.is_empty())
-        m_cached_x_samples.append(solve(0.));
+    constexpr double epsilon = 1e-7;
+    auto x = input_progress;
 
-    size_t nearby_index = 0;
-    if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-            if (x - sample.x >= NumericLimits<double>::epsilon())
-                return 1;
-            if (x - sample.x <= NumericLimits<double>::epsilon())
-                return -1;
-            return 0;
-        }))
-        return found->y;
-
-    if (nearby_index == m_cached_x_samples.size() || nearby_index + 1 == m_cached_x_samples.size()) {
-        // Produce more samples until we have enough.
-        auto last_t = m_cached_x_samples.last().t;
-        auto last_x = m_cached_x_samples.last().x;
-        while (last_x <= x && last_t < 1.0) {
-            last_t += 1. / 60.;
-            auto solution = solve(last_t);
-            m_cached_x_samples.append(solution);
-            last_x = solution.x;
-        }
-
-        if (auto found = binary_search(m_cached_x_samples, x, &nearby_index, [](auto x, auto& sample) {
-                if (x - sample.x >= NumericLimits<double>::epsilon())
-                    return 1;
-                if (x - sample.x <= NumericLimits<double>::epsilon())
-                    return -1;
-                return 0;
-            }))
-            return found->y;
+    // Newton-Raphson iteration.
+    auto t = x;
+    for (int i = 0; i < 8; ++i) {
+        auto x_at_t = cubic_bezier_at(x1, x2, t) - x;
+        if (AK::fabs(x_at_t) < epsilon)
+            return cubic_bezier_at(y1, y2, t);
+        auto dx = cubic_bezier_derivative_at(x1, x2, t);
+        if (AK::fabs(dx) < 1e-12)
+            break;
+        t -= x_at_t / dx;
     }
 
-    // We have two samples on either side of the x value we want, so we can linearly interpolate between them.
-    auto& sample1 = m_cached_x_samples[nearby_index];
-    auto& sample2 = m_cached_x_samples[nearby_index + 1];
-    auto factor = (x - sample1.x) / (sample2.x - sample1.x);
-    return sample1.y + factor * (sample2.y - sample1.y);
+    // Bisection fallback.
+    double lo = 0.0;
+    double hi = 1.0;
+    t = x;
+    for (int i = 0; i < 64; ++i) {
+        auto x_at_t = cubic_bezier_at(x1, x2, t);
+        if (AK::fabs(x_at_t - x) < epsilon)
+            return cubic_bezier_at(y1, y2, t);
+        if (x > x_at_t)
+            lo = t;
+        else
+            hi = t;
+        t = (lo + hi) / 2.0;
+    }
+
+    return cubic_bezier_at(y1, y2, t);
 }
 
 // https://www.w3.org/TR/css-easing-1/#step-easing-algo
