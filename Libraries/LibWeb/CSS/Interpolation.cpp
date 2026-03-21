@@ -484,6 +484,34 @@ static RefPtr<StyleValue const> interpolate_rotate(DOM::Element& element, Calcul
         return AxisAngle { axis, angle };
     };
 
+    // https://drafts.csswg.org/css-transforms-2/#interpolation-of-transform-functions
+    // If the normalized vectors are equal, or if one of the angles is zero, interpolate the angle
+    // numerically and use the rotation vector of the non-zero angle (or (0, 0, 1) if both are zero).
+    auto epsilon = 1e-5f;
+    auto from_axis_normalized = from_axis.length() > epsilon ? from_axis.normalized() : FloatVector3 { 0, 0, 1 };
+    auto to_axis_normalized = to_axis.length() > epsilon ? to_axis.normalized() : FloatVector3 { 0, 0, 1 };
+    bool axes_are_equal = (from_axis_normalized - to_axis_normalized).length() < epsilon;
+    if (axes_are_equal || from_angle == 0.f || to_angle == 0.f) {
+        auto result_angle = from_angle + (to_angle - from_angle) * delta;
+        FloatVector3 result_axis = { 0, 0, 1 };
+        if (to_angle != 0.f)
+            result_axis = to_axis_normalized;
+        else if (from_angle != 0.f)
+            result_axis = from_axis_normalized;
+
+        auto interpolated_x_axis = NumberStyleValue::create(result_axis.x());
+        auto interpolated_y_axis = NumberStyleValue::create(result_axis.y());
+        auto interpolated_z_axis = NumberStyleValue::create(result_axis.z());
+        auto interpolated_angle = AngleStyleValue::create(Angle::make_degrees(AK::to_degrees(result_angle)));
+
+        return TransformationStyleValue::create(
+            PropertyID::Rotate,
+            TransformFunction::Rotate3d,
+            { interpolated_x_axis, interpolated_y_axis, interpolated_z_axis, interpolated_angle });
+    }
+
+    // If the normalized vectors are not equal and both rotation angles are non-zero, convert to
+    // 4x4 matrices and interpolate as defined in Interpolation of Matrices.
     auto from_quaternion = from_axis_angle(from_axis, from_angle);
     auto to_quaternion = from_axis_angle(to_axis, to_angle);
 
