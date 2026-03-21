@@ -63,13 +63,13 @@ public:
     //
     // Note that in order for the current frame to change based on the media time, users must call
     // DisplayingVideoSink::update(). It is recommended to drive this off of vertical sync.
-    NonnullRefPtr<DisplayingVideoSink> get_or_create_the_displaying_video_sink_for_track(Track const& track);
+    NonnullRefPtr<DisplayingVideoSink> get_or_create_the_displaying_video_sink_for_track(Track const&);
     // Removes the DisplayingVideoSink for the specified track. This will prevent the sink from
     // retrieving any subsequent frames from the decoder.
-    void remove_the_displaying_video_sink_for_track(Track const& track);
+    void remove_the_displaying_video_sink_for_track(Track const&);
 
-    void enable_an_audio_track(Track const& track);
-    void disable_an_audio_track(Track const& track);
+    void enable_an_audio_track(Track const&);
+    void disable_an_audio_track(Track const&);
 
     void play();
     void pause();
@@ -111,8 +111,8 @@ private:
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
-    VideoTrackData& get_video_data_for_track(Track const& track);
-    AudioTrackData& get_audio_data_for_track(Track const& track);
+    VideoTrackData& get_video_data_for_track(Track const&);
+    AudioTrackData& get_audio_data_for_track(Track const&);
 
     static DecoderErrorOr<void> prepare_playback_from_media_data(WeakPlaybackManager const&, NonnullRefPtr<IncrementallyPopulatedStream>, NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop_reference);
 
