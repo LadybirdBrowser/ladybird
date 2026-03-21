@@ -7,6 +7,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/HashMap.h>
 #include <LibGC/RootHashMap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -111,7 +112,9 @@ LayoutState::UsedValues const* LayoutState::try_get(Node const& node) const
 }
 
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
-static CSSPixelRect measure_scrollable_overflow(Box const& box)
+using ContainedBoxesMap = HashMap<Box const*, Vector<Box const*>>;
+
+static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const& contained_boxes_map)
 {
     if (!box.paintable_box())
         return {};
@@ -138,52 +141,48 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box)
     // - The border boxes of all boxes for which it is the containing block and whose border boxes are positioned not
     //   wholly in the negative scrollable overflow region,
     //   FIXME: accounting for transforms by projecting each box onto the plane of the element that establishes its 3D rendering context. [CSS3-TRANSFORMS]
-    box.for_each_in_subtree_of_type<Box>([&box, &scrollable_overflow_rect, &content_overflow_rect](Box const& child) {
-        if (!child.paintable_box())
-            return TraversalDecision::Continue;
+    if (auto it = contained_boxes_map.find(&box); it != contained_boxes_map.end()) {
+        for (auto const* child_ptr : it->value) {
+            auto const& child = *child_ptr;
 
-        if (child.containing_block() != &box)
-            return TraversalDecision::Continue;
+            // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
+            // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
+            //      cannot be scrolled to and will not print.
+            // FIXME: Properly establish the fixed positioning containing block for `position: fixed`
+            if (child.is_fixed_position())
+                continue;
 
-        // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
-        // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
-        //      cannot be scrolled to and will not print.
-        // FIXME: Properly establish the fixed positioning containing block for `position: fixed`
-        if (child.is_fixed_position())
-            return TraversalDecision::Continue;
+            auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
-        auto child_border_box = child.paintable_box()->absolute_border_box_rect();
+            // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
+            if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
+                continue;
 
-        // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
-        if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
-            return TraversalDecision::Continue;
+            // Border boxes with zero area do not affect the scrollable overflow area.
+            if (!child_border_box.is_empty()) {
+                scrollable_overflow_rect.unite(child_border_box);
+                content_overflow_rect.unite(child_border_box);
+            }
 
-        // Border boxes with zero area do not affect the scrollable overflow area.
-        if (!child_border_box.is_empty()) {
-            scrollable_overflow_rect.unite(child_border_box);
-            content_overflow_rect.unite(child_border_box);
-        }
+            // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
+            //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
+            //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
+            //   contain property).
+            // Scrollable overflow is already clipped by the contain property.
+            if (child.has_layout_containment() || child.has_paint_containment())
+                continue;
 
-        // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
-        //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
-        //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
-        //   contain property).
-        // Scrollable overflow is already clipped by the contain property.
-        if (child.has_layout_containment() || child.has_paint_containment())
-            return TraversalDecision::Continue;
-
-        if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
-            auto child_scrollable_overflow = measure_scrollable_overflow(child);
-            if (!child_scrollable_overflow.is_empty()) {
-                if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
-                    scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
-                if (child.computed_values().overflow_y() == CSS::Overflow::Visible)
-                    scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
+            if (child.computed_values().overflow_x() == CSS::Overflow::Visible || child.computed_values().overflow_y() == CSS::Overflow::Visible) {
+                auto child_scrollable_overflow = measure_scrollable_overflow(child, contained_boxes_map);
+                if (!child_scrollable_overflow.is_empty()) {
+                    if (child.computed_values().overflow_x() == CSS::Overflow::Visible)
+                        scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
+                    if (child.computed_values().overflow_y() == CSS::Overflow::Visible)
+                        scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
+                }
             }
         }
-
-        return TraversalDecision::Continue;
-    });
+    }
 
     // FIXME: - The margin areas of grid item and flex item boxes for which the box establishes a containing block.
 
@@ -523,12 +522,22 @@ void LayoutState::commit(Box& root)
         paintable_with_lines->set_content_size(size);
     }
 
+    // Build a map from each containing block to the boxes it contains.
+    ContainedBoxesMap contained_boxes_map;
+    m_used_values_store.for_each([&](UsedValues& used_values) {
+        auto const* box = as_if<Box>(used_values.node());
+        if (!box || !box->paintable_box())
+            return;
+        if (auto containing_block = box->containing_block())
+            contained_boxes_map.ensure(containing_block.ptr()).append(box);
+    });
+
     // Measure overflow in scroll containers.
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto const* box = as_if<Box>(used_values.node());
         if (!box)
             return;
-        measure_scrollable_overflow(*box);
+        measure_scrollable_overflow(*box, contained_boxes_map);
 
         // The scroll offset can become invalid if the scrollable overflow rectangle has changed after layout.
         // For example, if the scroll container has been scrolled to the very end and is then resized to become larger
