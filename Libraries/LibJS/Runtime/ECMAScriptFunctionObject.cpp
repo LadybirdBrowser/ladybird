@@ -524,9 +524,9 @@ ThrowCompletionOr<Value> ECMAScriptFunctionObject::ordinary_call_evaluate_body(V
         return result;
 
     if (kind() == FunctionKind::AsyncGenerator)
-        return AsyncGenerator::create(*context.realm, GC::Ref { *this }, context.copy());
+        return AsyncGenerator::create(*context.realm, result, GC::Ref { *this }, context.copy());
 
-    auto generator_object = GeneratorObject::create(*context.realm, GC::Ref { *this }, context.copy());
+    auto generator_object = GeneratorObject::create(*context.realm, result, GC::Ref { *this }, context.copy());
 
     // NOTE: Async functions are entirely transformed to generator functions, and wrapped in a custom driver that returns a promise.
     if (kind() == FunctionKind::Async)

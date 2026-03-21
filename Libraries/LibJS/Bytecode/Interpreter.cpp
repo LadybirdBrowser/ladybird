@@ -30,6 +30,7 @@
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Environment.h>
 #include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GeneratorResult.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
@@ -92,13 +93,10 @@ Interpreter::~Interpreter() = default;
 
 ALWAYS_INLINE Value Interpreter::do_yield(Value value, Optional<Label> continuation)
 {
-    auto& context = running_execution_context();
-    if (continuation.has_value())
-        context.yield_continuation = continuation->address();
-    else
-        context.yield_continuation = ExecutionContext::no_yield_continuation;
-    context.yield_is_await = false;
-    return value;
+    // FIXME: If we get a pointer, which is not accurately representable as a double
+    //        will cause this to explode
+    auto continuation_value = continuation.has_value() ? Value(continuation->address()) : js_null();
+    return vm().heap().allocate<GeneratorResult>(value, continuation_value, false).ptr();
 }
 
 // 16.1.6 ScriptEvaluation ( scriptRecord ), https://tc39.es/ecma262/#sec-runtime-semantics-scriptevaluation
@@ -163,7 +161,7 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
     // 13. If result.[[Type]] is normal, then
     if (executable && result.type() == Completion::Type::Normal) {
         // a. Set result to Completion(Evaluation of script).
-        result = run_executable(*script_context, *executable, 0, {});
+        result = run_executable(*script_context, *executable, {}, {});
 
         // b. If result is a normal completion and result.[[Value]] is empty, then
         if (result.type() == Completion::Type::Normal && result.value().is_special_empty_value()) {
@@ -823,7 +821,7 @@ DeclarativeEnvironment& Interpreter::global_declarative_environment()
     return realm().global_declarative_environment();
 }
 
-ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, u32 entry_point)
+ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, Executable& executable, Optional<size_t> entry_point)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {}", &executable);
 
@@ -849,7 +847,7 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
             executable.constants.data(),
             count * sizeof(Value));
 
-    run_bytecode(entry_point);
+    run_bytecode(entry_point.value_or(0));
 
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {}", context.executable);
 
@@ -3091,10 +3089,11 @@ void Yield::execute_impl(Bytecode::Interpreter& interpreter) const
 void Await::execute_impl(Bytecode::Interpreter& interpreter) const
 {
     auto yielded_value = interpreter.get(m_argument).is_special_empty_value() ? js_undefined() : interpreter.get(m_argument);
-    auto& context = interpreter.running_execution_context();
-    context.yield_continuation = m_continuation_label.address();
-    context.yield_is_await = true;
-    interpreter.do_return(yielded_value);
+    // FIXME: If we get a pointer, which is not accurately representable as a double
+    //        will cause this to explode
+    auto continuation_value = Value(m_continuation_label.address());
+    auto result = interpreter.vm().heap().allocate<GeneratorResult>(yielded_value, continuation_value, true);
+    interpreter.do_return(result);
 }
 
 ThrowCompletionOr<void> GetByValue::execute_impl(Bytecode::Interpreter& interpreter) const

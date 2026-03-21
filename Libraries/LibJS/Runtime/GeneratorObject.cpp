@@ -9,6 +9,7 @@
 #include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
+#include <LibJS/Runtime/GeneratorResult.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
@@ -17,7 +18,7 @@ namespace JS {
 
 GC_DEFINE_ALLOCATOR(GeneratorObject);
 
-GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>> generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
+GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Value initial_value, Variant<GC::Ref<ECMAScriptFunctionObject>, GC::Ref<NativeJavaScriptBackedFunction>> generating_function, NonnullOwnPtr<ExecutionContext> execution_context)
 {
     auto& vm = realm.vm();
     // This is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
@@ -55,7 +56,7 @@ GC::Ref<GeneratorObject> GeneratorObject::create(Realm& realm, Variant<GC::Ref<E
 
     auto object = realm.create<GeneratorObject>(realm, generating_function_prototype_object, move(execution_context));
     object->m_generating_executable = generating_executable;
-    object->m_yield_continuation = object->m_execution_context->yield_continuation;
+    object->m_previous_value = initial_value;
     return object;
 }
 
@@ -70,6 +71,7 @@ void GeneratorObject::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_generating_executable);
+    visitor.visit(m_previous_value);
     m_execution_context->visit_edges(visitor);
 }
 
@@ -102,17 +104,32 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
 {
     // Loosely based on step 4 of https://tc39.es/ecma262/#sec-generatorstart mixed with https://tc39.es/ecma262/#sec-generatoryield at the end.
 
+    auto generated_value = [](Value value) -> Value {
+        if (value.is_cell() && value.as_cell().is_generator_result())
+            return static_cast<GeneratorResult const&>(value.as_cell()).result();
+        return value.is_special_empty_value() ? js_undefined() : value;
+    };
+
+    auto generated_continuation = [&](Value value) -> Optional<size_t> {
+        if (value.is_cell() && value.as_cell().is_generator_result()) {
+            auto number_value = static_cast<GeneratorResult const&>(value.as_cell()).continuation();
+            if (number_value.is_null())
+                return {};
+            return static_cast<u64>(number_value.as_double());
+        }
+        return {};
+    };
+
     auto completion_cell = heap().allocate<CompletionCell>(completion);
 
     auto& bytecode_interpreter = vm.bytecode_interpreter();
 
+    auto const next_block = generated_continuation(m_previous_value);
+
     // We should never enter `execute` again after the generator is complete.
-    VERIFY(m_yield_continuation != ExecutionContext::no_yield_continuation);
+    VERIFY(next_block.has_value());
 
-    // Clear yield state so that a normal return (no yield) is detected as done.
-    m_execution_context->yield_continuation = ExecutionContext::no_yield_continuation;
-
-    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, completion_cell);
+    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_executable, next_block, completion_cell);
 
     vm.pop_execution_context();
 
@@ -121,17 +138,12 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
         m_generator_state = GeneratorState::Completed;
         return result_value.throw_completion();
     }
-
-    auto value = result_value.release_value();
-    if (value.is_special_empty_value())
-        value = js_undefined();
-
-    m_yield_continuation = m_execution_context->yield_continuation;
-    bool done = m_yield_continuation == ExecutionContext::no_yield_continuation;
+    m_previous_value = result_value.release_value();
+    bool done = !generated_continuation(m_previous_value).has_value();
 
     m_generator_state = done ? GeneratorState::Completed : GeneratorState::SuspendedYield;
 
-    return IterationResult(value, done);
+    return IterationResult(generated_value(m_previous_value), done);
 }
 
 // 27.5.3.3 GeneratorResume ( generator, value, generatorBrand ), https://tc39.es/ecma262/#sec-generatorresume
