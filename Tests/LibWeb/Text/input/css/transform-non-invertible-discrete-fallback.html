@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<div id="target" style="width: 100px; height: 100px;"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // matrix3d with a zero Z-scale produces a non-invertible (singular) matrix.
+        // Per spec, when one of the matrices for interpolation is non-invertible,
+        // the animation must fall back to discrete interpolation.
+        const anim = target.animate([
+            { transform: "matrix3d(2,0,0,0, 0,2,0,0, 0,0,0,0, 0,0,0,1)" },
+            { transform: "scale(1)" },
+        ], 1000);
+        anim.pause();
+
+        // At progress < 0.5, discrete interpolation should use the "from" value.
+        anim.currentTime = 200;
+        const at02 = getComputedStyle(target).transform;
+        println("at 0.2: " + at02);
+
+        // At progress >= 0.5, discrete interpolation should use the "to" value.
+        anim.currentTime = 800;
+        const at08 = getComputedStyle(target).transform;
+        println("at 0.8: " + at08);
+    });
+</script>
