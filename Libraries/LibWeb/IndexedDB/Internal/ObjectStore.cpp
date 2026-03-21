@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/BinarySearch.h>
 #include <AK/Math.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/MutationLog.h>
@@ -82,11 +83,9 @@ void ObjectStore::remove_record_with_key(GC::Ref<Key> key)
 
 bool ObjectStore::has_record_with_key(GC::Ref<Key> key)
 {
-    auto index = m_records.find_if([&key](auto const& record) {
-        return Key::equals(key, record.key);
-    });
-
-    return index != m_records.end();
+    return binary_search(m_records, key, nullptr, [](auto const& needle, auto const& record) -> int {
+        return Key::compare_two_keys(needle, record.key);
+    }) != nullptr;
 }
 
 void ObjectStore::store_a_record(ObjectStoreRecord const& record)
