@@ -2680,8 +2680,12 @@ CSSPixels GridFormattingContext::calculate_minimum_contribution(GridItem const& 
             return calculate_min_content_contribution(item, dimension);
         if (minimum_size.is_max_content())
             return calculate_max_content_contribution(item, dimension);
-        auto containing_block_size = containing_block_size_for_item(item, dimension);
-        return item.add_margin_box_sizes(minimum_size.to_px(grid_container(), containing_block_size), dimension);
+        CSSPixels inner_minimum_size;
+        if (dimension == GridDimension::Column)
+            inner_minimum_size = calculate_inner_width(item.box, item.available_space().width, minimum_size);
+        else
+            inner_minimum_size = calculate_inner_height(item.box, item.available_space(), minimum_size);
+        return item.add_margin_box_sizes(inner_minimum_size, dimension);
     }
 
     return calculate_min_content_contribution(item, dimension);
