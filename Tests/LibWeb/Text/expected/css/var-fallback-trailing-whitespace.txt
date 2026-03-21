@@ -1,0 +1,8 @@
+display no-space: flex
+display trailing-space: inline
+display extra-spaces: inline
+display multi: inline
+color: rgb(255, 0, 0)
+position: absolute
+visibility: hidden
+nested-var: inline

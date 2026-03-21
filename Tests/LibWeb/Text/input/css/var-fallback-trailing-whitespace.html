@@ -1,0 +1,41 @@
+<!doctype html>
+<style>
+    /* display property with various whitespace in fallback */
+    #display-no-space { display: var(--undefined, flex); }
+    #display-trailing-space { display: var(--undefined, flex ); }
+    #display-extra-spaces { display: var(--undefined,  flex  ); }
+
+    /* multi-keyword display with trailing whitespace */
+    #display-multi { display: var(--undefined, inline flex ); }
+
+    /* other properties with trailing whitespace in fallback */
+    #color { color: var(--undefined, red ); }
+    #position { position: var(--undefined, absolute ); }
+    #visibility { visibility: var(--undefined, hidden ); }
+
+    /* nested var with trailing whitespace */
+    #nested-var { display: var(--undefined, var(--also-undefined, grid )); }
+</style>
+<div id="display-no-space"></div>
+<div id="display-trailing-space"></div>
+<div id="display-extra-spaces"></div>
+<div id="display-multi"></div>
+<div id="color"></div>
+<div id="position"></div>
+<div id="visibility"></div>
+<div id="nested-var"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const cs = (id) => getComputedStyle(document.getElementById(id));
+
+        println(`display no-space: ${cs("display-no-space").display}`);
+        println(`display trailing-space: ${cs("display-trailing-space").display}`);
+        println(`display extra-spaces: ${cs("display-extra-spaces").display}`);
+        println(`display multi: ${cs("display-multi").display}`);
+        println(`color: ${cs("color").color}`);
+        println(`position: ${cs("position").position}`);
+        println(`visibility: ${cs("visibility").visibility}`);
+        println(`nested-var: ${cs("nested-var").display}`);
+    });
+</script>
