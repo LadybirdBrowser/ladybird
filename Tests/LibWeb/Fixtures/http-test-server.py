@@ -195,81 +195,82 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         set_invalid_cookie = "X-Ladybird-Set-Invalid-Cookie" in self.headers
 
-        if key in echo_store:
-            echo = echo_store[key]
-
-            if echo.close_connection:
-                self.connection.shutdown(socket.SHUT_WR)
-                self.connection.close()
-                return
-
-            response_headers = echo.headers.copy()
-
-            if echo.delay_ms is not None:
-                time.sleep(echo.delay_ms / 1000)
-
-            if send_not_modified:
-                self.send_response(304)
-            else:
-                self.send_response_only(echo.status, echo.reason_phrase)
-
-                if is_revalidation_request:
-                    # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
-                    response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
-                elif send_incomplete_response:
-                    # We emulate an incomplete response by advertising a 10KB file, but only sending 2KB.
-                    response_headers["Content-Length"] = str(10 * 1024)
-
-            if set_invalid_cookie:
-                response_headers["Set-Cookie"] = "invalid=foo; Domain=\xc3\xa9\x6c\xc3\xa8\x76\x65\xff"
-
-            # Set only the headers defined in the echo definition
-            if response_headers:
-                for header, value in response_headers.items():
-                    self.send_header(header, value)
-                self.end_headers()
-
-            if send_not_modified:
-                return
-
-            if send_incomplete_response:
-                self.wfile.write(b"a" * (2 * 1024))
-                self.wfile.flush()
-
-                self.connection.shutdown(socket.SHUT_WR)
-                self.connection.close()
-                return
-
-            if echo.reflect_headers_in_body:
-                headers = {}
-                for key in self.headers.keys():
-                    headers[key] = self.headers.get_all(key)
-                headers = json.dumps(headers)
-                response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
-            else:
-                response_body = echo.body or ""
-
-            # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
-            #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
-            if "Range" in self.headers:
-                range_value = self.headers["Range"].strip()
-                assert range_value.startswith("bytes=")
-                assert range_value.count("-") == 1
-
-                range_value = range_value[len("bytes=") :]
-                start, end = range_value.split("-")
-
-                if end:
-                    response_body = response_body[int(start) : min(int(end), len(response_body))]
-                else:
-                    response_body = response_body[int(start) :]
-
-            if echo.body_encoding == "base64":
-                self.wfile.write(base64.b64decode(response_body))
-            else:
-                self.wfile.write(response_body.encode("utf-8"))
-        else:
+        if key not in echo_store:
             self.send_error(404, f"Echo response not found for {key}")
+            return
+
+        echo = echo_store[key]
+
+        if echo.close_connection:
+            self.connection.shutdown(socket.SHUT_WR)
+            self.connection.close()
+            return
+
+        response_headers = echo.headers.copy()
+
+        if echo.delay_ms is not None:
+            time.sleep(echo.delay_ms / 1000)
+
+        if send_not_modified:
+            self.send_response(304)
+        else:
+            self.send_response_only(echo.status, echo.reason_phrase)
+
+            if is_revalidation_request:
+                # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
+                response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
+            elif send_incomplete_response:
+                # We emulate an incomplete response by advertising a 10KB file, but only sending 2KB.
+                response_headers["Content-Length"] = str(10 * 1024)
+
+        if set_invalid_cookie:
+            response_headers["Set-Cookie"] = "invalid=foo; Domain=\xc3\xa9\x6c\xc3\xa8\x76\x65\xff"
+
+        # Set only the headers defined in the echo definition
+        if response_headers:
+            for header, value in response_headers.items():
+                self.send_header(header, value)
+            self.end_headers()
+
+        if send_not_modified:
+            return
+
+        if send_incomplete_response:
+            self.wfile.write(b"a" * (2 * 1024))
+            self.wfile.flush()
+
+            self.connection.shutdown(socket.SHUT_WR)
+            self.connection.close()
+            return
+
+        if echo.reflect_headers_in_body:
+            headers = {}
+            for key in self.headers.keys():
+                headers[key] = self.headers.get_all(key)
+            headers = json.dumps(headers)
+            response_body = echo.body.replace("$HEADERS", headers) if echo.body else headers
+        else:
+            response_body = echo.body or ""
+
+        # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
+        #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
+        if "Range" in self.headers:
+            range_value = self.headers["Range"].strip()
+            assert range_value.startswith("bytes=")
+            assert range_value.count("-") == 1
+
+            range_value = range_value[len("bytes=") :]
+            start, end = range_value.split("-")
+
+            if end:
+                response_body = response_body[int(start) : min(int(end), len(response_body))]
+            else:
+                response_body = response_body[int(start) :]
+
+        if echo.body_encoding == "base64":
+            self.wfile.write(base64.b64decode(response_body))
+        else:
+            self.wfile.write(response_body.encode("utf-8"))
 
     def do_other(self):
         if self.path.startswith("/static/"):
