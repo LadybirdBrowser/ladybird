@@ -59,6 +59,7 @@ echo_store: Dict[str, Echo] = {}
 
 class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     static_directory: str
+    wpt_directory: str
 
     def __init__(self, *arguments, **kwargs):
         super().__init__(*arguments, directory=self.static_directory, **kwargs)
@@ -72,12 +73,17 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _serve_static_request(self):
         if self.path.startswith("/static/"):
-            # Remove "/static/" prefix and use built-in method
+            # Explicit /static/ URLs continue to serve files from the general test root.
+            self.directory = self.static_directory
             self.path = self.path[7:]
+        else:
+            # All other non-echo URLs are served from the imported WPT tree.
+            # This lets absolute WPT paths like /html/... resolve through the test server.
+            self.directory = self.wpt_directory
 
-        # Check for a .headers file alongside the requested file
         file_path = self.translate_path(self.path)
         headers_path = file_path + ".headers"
+
         if os.path.isfile(headers_path):
             self._extra_headers = []
             with open(headers_path) as f:
@@ -90,10 +96,10 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_GET(self):
-        if self.path.startswith("/static/"):
-            self._serve_static_request()
-        else:
+        if self.path.startswith("/echo"):
             self.handle_echo()
+        else:
+            self._serve_static_request()
 
     def do_POST(self):
         if self.path == "/echo":
@@ -140,7 +146,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
         echo.close_connection = data.get("close_connection", False)
 
-        is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
+        is_invalid_echo_path = echo.path is None or not echo.path.startswith("/echo/")
 
         # Return 400: Bad Request if invalid params are given or a reserved path is given
         if (
@@ -149,7 +155,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             or echo.status is None
             or echo.body_encoding not in ("raw", "base64")
             or (echo.body is not None and "$HEADERS" not in echo.body and echo.reflect_headers_in_body)
-            or is_using_reserved_path
+            or is_invalid_echo_path
         ):
             self.send_response(400)
             self.send_header("Content-Type", "text/plain")
@@ -277,14 +283,17 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(response_body.encode("utf-8"))
 
     def do_other(self):
-        if self.path.startswith("/static/"):
-            self.send_error(405, "Method Not Allowed")
-        else:
+        if self.path.startswith("/echo"):
             self.handle_echo()
+        else:
+            self.send_error(405, "Method Not Allowed")
 
 
 def start_server(port, static_directory):
     TestHTTPRequestHandler.static_directory = os.path.abspath(static_directory)
+    TestHTTPRequestHandler.wpt_directory = os.path.join(
+        TestHTTPRequestHandler.static_directory, "Text", "input", "wpt-import"
+    )
     httpd = socketserver.TCPServer(("127.0.0.1", port), TestHTTPRequestHandler)
 
     print(httpd.socket.getsockname()[1])

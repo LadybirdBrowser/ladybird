@@ -6,7 +6,7 @@ xhr.open("POST", "/echo", false);
 xhr.setRequestHeader("Content-Type", "application/json");
 xhr.send(JSON.stringify({
     method: "GET",
-    path: "/delayed-green-adopted.png",
+    path: "/echo/delayed-green-adopted.png",
     status: 200,
     headers: {"Content-Type": "image/png", "Cache-Control": "no-store"},
     body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
@@ -15,7 +15,7 @@ xhr.send(JSON.stringify({
 }));
 
 var sheet = new CSSStyleSheet();
-sheet.replaceSync(`#target { background-image: url("/delayed-green-adopted.png"); }`);
+sheet.replaceSync(`#target { background-image: url("/echo/delayed-green-adopted.png"); }`);
 document.adoptedStyleSheets = [sheet];
 </script>
 <div id="target"></div>

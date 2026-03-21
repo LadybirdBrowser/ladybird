@@ -6,7 +6,7 @@ xhr.open("POST", "/echo", false);
 xhr.setRequestHeader("Content-Type", "application/json");
 xhr.send(JSON.stringify({
     method: "GET",
-    path: "/delayed-green.png",
+    path: "/echo/delayed-green.png",
     status: 200,
     headers: {"Content-Type": "image/png", "Cache-Control": "no-store"},
     body: "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAD0lEQVR4nGNgaGAAIQgFAA4OAgFhGn2EAAAAAElFTkSuQmCC",
@@ -19,7 +19,7 @@ xhr.send(JSON.stringify({
     width: 100px;
     height: 100px;
     background-color: red;
-    background-image: url("/delayed-green.png");
+    background-image: url("/echo/delayed-green.png");
     background-size: cover;
 }
 </style>

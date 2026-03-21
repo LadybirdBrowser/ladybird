@@ -1,1 +1,1 @@
-Got referrer: http://localhost/worker-referrer/worker.js
+Got referrer: http://localhost/echo/worker-referrer/worker.js

@@ -107,17 +107,18 @@ class HTTPTestServer {
         this.baseURL = baseURL;
     }
     async createEcho(method, path, options) {
+        const echoPath = `/echo${path}`;
         const result = await fetch(`${this.baseURL}/echo`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ ...options, method, path }),
+            body: JSON.stringify({ ...options, method, path: echoPath }),
         });
         if (!result.ok) {
             throw new Error("Error creating echo: " + result.statusText);
         }
-        return `${this.baseURL}${path}`;
+        return `${this.baseURL}${echoPath}`;
     }
     getStaticURL(path) {
         return `${this.baseURL}/static/${path}`;
