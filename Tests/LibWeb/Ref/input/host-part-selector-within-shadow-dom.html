@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/host-part-selector-within-shadow-dom-ref.html">
+<style>* { margin: 0; }</style>
+<p>Test passes if you see two equal-sized green and blue boxes below.</p>
+<my-card></my-card>
+<script>
+  let root = document.querySelector('my-card').attachShadow({ mode: 'open' });
+  root.innerHTML = `
+    <style>
+      :host {
+        display: flex;
+        flex-direction: column;
+        height: 200px;
+        width: 200px;
+      }
+      :host::part(top) { flex: 1; background: green; }
+      :host::part(bottom) { flex: 1; background: blue; }
+    </style>
+    <div part="top"></div>
+    <div part="bottom"></div>
+  `;
+</script>

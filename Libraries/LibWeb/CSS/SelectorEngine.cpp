@@ -1204,10 +1204,17 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
             element_for_compound_matching = *context.part_owning_parent;
             context.part_owning_parent = nullptr;
             // Also have to update the shadow host we're using.
-            if (auto shadow_root = element_for_compound_matching->containing_shadow_root()) {
-                shadow_host = shadow_root->host();
-            } else {
-                shadow_host = nullptr;
+            // If the rule comes from the element's own shadow root, we're matching
+            // :host::part() from within the shadow DOM's own stylesheet.
+            // Keep shadow_host as-is so that :host can match.
+            auto is_internal_part = context.rule_shadow_root
+                && context.rule_shadow_root == element_for_compound_matching->shadow_root();
+            if (!is_internal_part) {
+                if (auto shadow_root = element_for_compound_matching->containing_shadow_root()) {
+                    shadow_host = shadow_root->host();
+                } else {
+                    shadow_host = nullptr;
+                }
             }
         }
     }

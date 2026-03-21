@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	:host::part has correct cascading behavior
+1 Pass
+Pass	:host::part has correct cascading behavior
