@@ -2,14 +2,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: not-inline
       Box <article> at [8,8] [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [GFC] children: not-inline
-        BlockContainer <div> at [375,-284] [367+0+0 50 0+0+367] [-292+0+0 784 0+0+-292] [BFC] children: inline
+        BlockContainer <div> at [375,83] [367+0+0 50 0+0+367] [75+0+0 50 0+0+75] [BFC] children: inline
           TextNode <#text> (not painted)
 
 ViewportPaintable (Viewport<#document>) [0,0 800x600]
   PaintableWithLines (BlockContainer<HTML>) [0,0 800x216]
     PaintableWithLines (BlockContainer<BODY>) [8,8 784x200]
       PaintableBox (Box<ARTICLE>) [8,8 784x200]
-        PaintableWithLines (BlockContainer<DIV>) [375,-284 50x784]
+        PaintableWithLines (BlockContainer<DIV>) [375,83 50x50]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x216] [children: 0] (z-index: auto)
