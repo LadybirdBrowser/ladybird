@@ -232,10 +232,8 @@ void HTMLScriptElement::prepare_script()
     }
 
     // 8. If el is not connected, then return.
-    if (!is_connected()) {
-        dbgln("HTMLScriptElement: Refusing to run script because the element is not connected.");
+    if (!is_connected())
         return;
-    }
 
     // 9. If any of the following are true:
     //    - el has a type attribute whose value is the empty string;
