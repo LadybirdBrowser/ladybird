@@ -1688,6 +1688,11 @@ void StyleComputer::transform_box_type_if_needed(ComputedProperties& style, DOM:
             new_display = Display { DisplayInternal::TableCell };
     }
 
+    // https://www.w3.org/TR/CSS2/visuren.html#dis-pos-flo
+    // If 'position' has the value 'absolute' or 'fixed', [...] 'float' is set to 'none'
+    if (style.position() == Positioning::Absolute || style.position() == Positioning::Fixed)
+        style.set_property(PropertyID::Float, KeywordStyleValue::create(Keyword::None));
+
     switch (required_box_type_transformation(style, abstract_element)) {
     case BoxTypeTransformation::None:
         break;

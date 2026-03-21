@@ -1,0 +1,2 @@
+float: none
+position: absolute

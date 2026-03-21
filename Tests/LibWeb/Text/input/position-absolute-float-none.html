@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+  .box { float: left; position: absolute; }
+</style>
+<div class="box" id="test">test</div>
+<script>
+  asyncTest(async (done) => {
+    let box = document.getElementById('test');
+    let cs = getComputedStyle(box);
+    println(`float: ${cs.float}`);
+    println(`position: ${cs.position}`);
+    done();
+  });
+</script>
