@@ -1019,7 +1019,7 @@ static StyleValueVector matrix_to_style_value_vector(FloatMatrix4x4 const& matri
 
 // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
 RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, CalculationContext const& calculation_context,
-    StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete)
+    StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     // * If both Va and Vb are none:
     //   * Vresult is none.
@@ -1308,14 +1308,12 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     if (auto* paintable = as_if<Painting::PaintableBox>(element.unsafe_paintable()))
         paintable_box = *paintable;
 
-    auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) {
+    auto post_multiply_remaining_transformations = [&paintable_box](size_t start_index, Vector<NonnullRefPtr<TransformationStyleValue const>> const& transformations) -> Optional<FloatMatrix4x4> {
         FloatMatrix4x4 result = FloatMatrix4x4::identity();
         for (auto index = start_index; index < transformations.size(); ++index) {
             auto transformation_matrix = transformations[index]->to_matrix(paintable_box);
-            if (transformation_matrix.is_error()) {
-                dbgln("Unable to interpret a transformation's matrix; bailing out of interpolation.");
-                break;
-            }
+            if (transformation_matrix.is_error())
+                return {};
             result = result * transformation_matrix.value();
         }
         return result;
@@ -1323,13 +1321,18 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     auto from_matrix = post_multiply_remaining_transformations(index, from_transformations);
     auto to_matrix = post_multiply_remaining_transformations(index, to_transformations);
 
-    auto maybe_interpolated_matrix = interpolate_matrices(from_matrix, to_matrix, delta);
-    if (maybe_interpolated_matrix.has_value()) {
-        result.append(TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d,
-            matrix_to_style_value_vector(maybe_interpolated_matrix.release_value())));
-    } else {
-        dbgln("Unable to interpolate matrices.");
-    }
+    // https://drafts.csswg.org/css-transforms-1/#interpolation-of-transforms
+    // If one of the matrices for interpolation is non-invertible, the used animation function must
+    // fall-back to a discrete animation according to the rules of the respective animation specification.
+    if (!from_matrix.has_value() || !to_matrix.has_value())
+        return interpolate_discrete(from, to, delta, allow_discrete);
+
+    auto maybe_interpolated_matrix = interpolate_matrices(from_matrix.value(), to_matrix.value(), delta);
+    if (!maybe_interpolated_matrix.has_value())
+        return interpolate_discrete(from, to, delta, allow_discrete);
+
+    result.append(TransformationStyleValue::create(PropertyID::Transform, TransformFunction::Matrix3d,
+        matrix_to_style_value_vector(maybe_interpolated_matrix.release_value())));
 
     return StyleValueList::create(move(result), StyleValueList::Separator::Space);
 }
