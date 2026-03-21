@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            const anim = foo.animate([{ opacity: "var(--nonexistent)" }, { opacity: "1" }], 1000);
+            anim.pause();
+            anim.currentTime = 500;
+            println(getComputedStyle(foo).opacity);
+        });
+    </script>
+</html>

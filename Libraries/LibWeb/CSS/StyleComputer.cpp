@@ -711,6 +711,14 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
             if (style_value->is_unresolved())
                 style_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property_id), style_value->as_unresolved());
 
+            // https://drafts.csswg.org/css-values-5/#invalid-at-computed-value-time
+            // When substitution results in a guaranteed-invalid value, treat it as unset
+            // (i.e. inherit for inherited properties, initial for non-inherited properties).
+            if (style_value->is_guaranteed_invalid()) {
+                specified_values.set(property_id, nullptr);
+                continue;
+            }
+
             for_each_property_expanding_shorthands(property_id, *style_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
                 auto physical_longhand_id = map_logical_alias_to_physical_property(longhand_id, LogicalAliasMappingContext { computed_properties.writing_mode(), computed_properties.direction() });
                 auto physical_longhand_id_bitmap_index = to_underlying(physical_longhand_id) - to_underlying(first_longhand_property_id);
