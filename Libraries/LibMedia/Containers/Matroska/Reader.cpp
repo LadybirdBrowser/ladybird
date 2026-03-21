@@ -10,6 +10,7 @@
 #include <AK/IntegralMath.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
+#include <AK/SaturatingMath.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
 #include <LibMedia/CodecID.h>
@@ -757,12 +758,12 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     //     of that track. To get the timestamp in nanoseconds of the first frame in a Block or
     //     SimpleBlock, the formula becomes:
     //         `( ( Cluster\Timestamp + ( block timestamp * TrackTimestampScale ) ) * TimestampScale ) - CodecDelay`
-    Checked<i64> timestamp_offset_in_cluster_offset = AK::clamp_to<i64>(static_cast<double>(timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
-    timestamp_offset_in_cluster_offset.saturating_sub(AK::clamp_to<i64>(track.codec_delay()));
+    auto timestamp_offset_in_cluster_offset = AK::clamp_to<i64>(static_cast<double>(timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
+    timestamp_offset_in_cluster_offset = saturating_sub(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(track.codec_delay()));
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
-    timestamp_offset_in_cluster_offset.saturating_add(AK::clamp_to<i64>(track.timestamp_offset()));
-    return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset.value());
+    timestamp_offset_in_cluster_offset = saturating_add(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(track.timestamp_offset()));
+    return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset);
 }
 
 DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
@@ -904,7 +905,7 @@ static DecoderErrorOr<Block> parse_block_group(Streamer& streamer, AK::Duration 
         }
         case BLOCK_DURATION_ID: {
             auto duration = TRY(streamer.read_u64());
-            auto duration_nanoseconds = Checked<i64>::saturating_mul(duration, segment_timestamp_scale);
+            auto duration_nanoseconds = saturating_mul(AK::clamp_to<i64>(duration), AK::clamp_to<i64>(segment_timestamp_scale));
             if (track.timestamp_scale() != 1)
                 duration_nanoseconds = AK::clamp_to<i64>(static_cast<double>(duration_nanoseconds) * track.timestamp_scale());
             block.set_duration(AK::Duration::from_nanoseconds(duration_nanoseconds));

@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/Math.h>
+#include <AK/SaturatingMath.h>
 #include <AK/Traits.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Rect.h>
@@ -159,12 +160,12 @@ public:
 
     constexpr CSSPixels& operator++()
     {
-        m_value = Checked<int>::saturating_add(m_value, fixed_point_denominator);
+        m_value = saturating_add(m_value, fixed_point_denominator);
         return *this;
     }
     constexpr CSSPixels& operator--()
     {
-        m_value = Checked<int>::saturating_sub(m_value, fixed_point_denominator);
+        m_value = saturating_sub(m_value, fixed_point_denominator);
         return *this;
     }
 
@@ -182,12 +183,12 @@ public:
 
     constexpr CSSPixels operator+(CSSPixels const& other) const
     {
-        return from_raw(Checked<int>::saturating_add(raw_value(), other.raw_value()));
+        return from_raw(saturating_add(raw_value(), other.raw_value()));
     }
 
     constexpr CSSPixels operator-(CSSPixels const& other) const
     {
-        return from_raw(Checked<int>::saturating_sub(raw_value(), other.raw_value()));
+        return from_raw(saturating_sub(raw_value(), other.raw_value()));
     }
 
     constexpr CSSPixels operator*(CSSPixels const& other) const
@@ -203,11 +204,11 @@ public:
             // If any bit after was 1 as well
             if (value & (radix_mask >> 1u)) {
                 // We need to round away from 0
-                int_value = Checked<int>::saturating_add(int_value, 1);
+                int_value = saturating_add(int_value, 1);
             } else {
                 // Otherwise we round to the next even value
                 // Which means we add the least significant bit of the raw integer value
-                int_value = Checked<int>::saturating_add(int_value, int_value & 1);
+                int_value = saturating_add(int_value, int_value & 1);
             }
         }
 

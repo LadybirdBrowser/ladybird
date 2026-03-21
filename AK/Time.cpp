@@ -8,6 +8,7 @@
 #include <AK/Checked.h>
 #include <AK/DateConstants.h>
 #include <AK/GenericLexer.h>
+#include <AK/SaturatingMath.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Time.h>
@@ -227,13 +228,13 @@ i64 Duration::to_time_units(u32 numerator, u32 denominator) const
     VERIFY(numerator != 0);
     VERIFY(denominator != 0);
 
-    auto seconds_product = Checked<i64>::saturating_mul(m_seconds, denominator);
+    auto seconds_product = saturating_mul(m_seconds, static_cast<i64>(denominator));
     auto time_units = seconds_product / numerator;
     auto remainder = seconds_product % numerator;
 
     auto remainder_in_nanoseconds = remainder * 1'000'000'000;
     auto rounding_half = static_cast<i64>(numerator) * 500'000'000;
-    time_units = Checked<i64>::saturating_add(time_units, ((static_cast<i64>(m_nanoseconds) * denominator + remainder_in_nanoseconds + rounding_half) / numerator) / 1'000'000'000);
+    time_units = saturating_add(time_units, ((static_cast<i64>(m_nanoseconds) * denominator + remainder_in_nanoseconds + rounding_half) / numerator) / 1'000'000'000);
 
     return time_units;
 }
@@ -342,9 +343,9 @@ ErrorOr<void> Formatter<Duration>::format(FormatBuilder& builder, Duration value
 
     size_t integer_align_width = 0;
     if (align == FormatBuilder::Align::Right)
-        integer_align_width = Checked<size_t>::saturating_sub(align_width, non_integer_width);
+        integer_align_width = saturating_sub(align_width, non_integer_width);
     else if (align == FormatBuilder::Align::Center)
-        integer_align_width = integer_width + Checked<size_t>::saturating_sub(align_width, total_width) / 2;
+        integer_align_width = integer_width + saturating_sub(align_width, total_width) / 2;
     TRY(builder.put_u64(seconds, base, false, upper_case, m_zero_pad, m_use_separator, FormatBuilder::Align::Right, integer_align_width, m_fill, m_sign_mode, is_negative));
 
     if (nanoseconds_to_precision != 0) {
@@ -360,7 +361,7 @@ ErrorOr<void> Formatter<Duration>::format(FormatBuilder& builder, Duration value
         TRY(builder.builder().try_append('s'));
 
     if (align_width > 0 && align != FormatBuilder::Align::Right) {
-        auto padding_width = Checked<size_t>::saturating_sub(align_width, max(integer_width, integer_align_width) + non_integer_width);
+        auto padding_width = saturating_sub(align_width, max(integer_width, integer_align_width) + non_integer_width);
         TRY(builder.builder().try_append_repeated(m_fill, padding_width));
     }
 

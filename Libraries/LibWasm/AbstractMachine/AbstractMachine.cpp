@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <AK/SaturatingMath.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
@@ -364,10 +365,9 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         if (!table_instance || !elem_instance)
             return InstantiationError { "Invalid element referenced by active element segment" };
 
-        Checked<size_t> total_size = elem_instance->references().size();
-        total_size.saturating_add(d);
+        auto total_size = saturating_add(elem_instance->references().size(), static_cast<size_t>(d));
 
-        if (total_size.value() > table_instance->elements().size())
+        if (total_size > table_instance->elements().size())
             return InstantiationError { "Table instantiation out of bounds" };
 
         size_t i = 0;

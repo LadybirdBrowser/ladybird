@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/SaturatingMath.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/CountersSet.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -73,7 +74,7 @@ void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const
     if (auto existing_counter = last_counter_with_name(name); existing_counter.has_value()) {
         // FIXME: How should we handle existing counters with no value? Can that happen?
         VERIFY(existing_counter->value.has_value());
-        existing_counter->value->saturating_add(amount.value());
+        *existing_counter->value = saturating_add(*existing_counter->value, amount);
         return;
     }
 
@@ -81,7 +82,7 @@ void CountersSet::increment_a_counter(FlyString name, DOM::AbstractElement const
     // a new counter of the given name with a starting value of 0 before setting or incrementing its value.
     // https://drafts.csswg.org/css-lists-3/#valdef-counter-set-counter-name-integer
     auto& counter = instantiate_a_counter(name, element, false, 0);
-    counter.value->saturating_add(amount.value());
+    counter.value = saturating_add(*counter.value, amount);
 }
 
 Optional<Counter&> CountersSet::last_counter_with_name(FlyString const& name)

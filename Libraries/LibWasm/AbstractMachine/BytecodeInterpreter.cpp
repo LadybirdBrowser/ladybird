@@ -15,6 +15,7 @@
 #include <AK/QuickSort.h>
 #include <AK/RedBlackTree.h>
 #include <AK/SIMDExtras.h>
+#include <AK/SaturatingMath.h>
 #include <AK/ScopedValueRollback.h>
 #include <AK/Time.h>
 #include <LibCore/File.h>
@@ -2447,10 +2448,8 @@ HANDLE_INSTRUCTION(memory_copy)
     auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<i32>();
     auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<i32>();
 
-    Checked<size_t> source_position = source_offset;
-    source_position.saturating_add(count);
-    Checked<size_t> destination_position = destination_offset;
-    destination_position.saturating_add(count);
+    auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
+    auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
     TRAP_IN_LOOP_IF_NOT(source_position <= source_instance->data().size());
     TRAP_IN_LOOP_IF_NOT(destination_position <= destination_instance->data().size());
 
@@ -2488,10 +2487,8 @@ HANDLE_INSTRUCTION(memory_init)
     auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
     auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
 
-    Checked<size_t> source_position = source_offset;
-    source_position.saturating_add(count);
-    Checked<size_t> destination_position = destination_offset;
-    destination_position.saturating_add(count);
+    auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
+    auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
     TRAP_IN_LOOP_IF_NOT(source_position <= data.data().size());
     TRAP_IN_LOOP_IF_NOT(destination_position <= memory->data().size());
 
@@ -2566,10 +2563,8 @@ HANDLE_INSTRUCTION(table_copy)
     auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
     auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
 
-    Checked<size_t> source_position = source_offset;
-    source_position.saturating_add(count);
-    Checked<size_t> destination_position = destination_offset;
-    destination_position.saturating_add(count);
+    auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
+    auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
     TRAP_IN_LOOP_IF_NOT(source_position <= source_instance->elements().size());
     TRAP_IN_LOOP_IF_NOT(destination_position <= destination_instance->elements().size());
 

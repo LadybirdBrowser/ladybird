@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <AK/Checked.h>
 #include <AK/FlyString.h>
 #include <AK/Optional.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -17,8 +16,7 @@ namespace Web::CSS {
 // "UAs may have implementation-specific limits on the maximum or minimum value of a counter.
 // If a counter reset, set, or increment would push the value outside of that range, the value
 // must be clamped to that range." - https://drafts.csswg.org/css-lists-3/#auto-numbering
-// So, we use a Checked<i32> and saturating addition/subtraction.
-using CounterValue = Checked<i32>;
+using CounterValue = i32;
 
 // https://drafts.csswg.org/css-lists-3/#counter
 struct Counter {

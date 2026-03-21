@@ -8,6 +8,7 @@
 
 #include <AK/FixedArray.h>
 #include <AK/Math.h>
+#include <AK/SaturatingMath.h>
 #include <AK/Time.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 
@@ -20,7 +21,7 @@ public:
     Audio::SampleSpecification const& sample_specification() const { return m_sample_specification; }
     AK::Duration timestamp() const { return m_timestamp; }
     i64 timestamp_in_samples() const { return m_timestamp_in_samples; }
-    i64 end_timestamp_in_samples() const { return Checked<i64>::saturating_add(m_timestamp_in_samples, AK::clamp_to<i64>(sample_count())); }
+    i64 end_timestamp_in_samples() const { return saturating_add(m_timestamp_in_samples, AK::clamp_to<i64>(sample_count())); }
     AK::Duration end_timestamp() const { return AK::Duration::from_time_units(end_timestamp_in_samples(), 1, sample_rate()); }
     Data& data() { return m_data; }
     Data const& data() const { return m_data; }

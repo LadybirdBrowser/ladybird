@@ -212,46 +212,6 @@ public:
         m_value = initial - m_value;
     }
 
-    constexpr void saturating_sub(T other)
-    {
-        sub(other);
-        // Depending on whether other was positive or negative, we have to saturate to min or max.
-        if (m_overflow && other <= 0)
-            m_value = NumericLimits<T>::max();
-        else if (m_overflow)
-            m_value = NumericLimits<T>::min();
-        m_overflow = false;
-    }
-
-    constexpr void saturating_add(T other)
-    {
-        add(other);
-        // Depending on whether other was positive or negative, we have to saturate to max or min.
-        if (m_overflow && other >= 0)
-            m_value = NumericLimits<T>::max();
-        else if (m_overflow)
-            m_value = NumericLimits<T>::min();
-        m_overflow = false;
-    }
-
-    constexpr void saturating_mul(T other)
-    {
-        // Figure out if the result is positive, negative or zero beforehand.
-        auto either_is_zero = this->m_value == 0 || other == 0;
-        auto result_is_positive = (this->m_value > 0) == (other > 0);
-
-        mul(other);
-        if (m_overflow) {
-            if (either_is_zero)
-                m_value = 0;
-            else if (result_is_positive)
-                m_value = NumericLimits<T>::max();
-            else
-                m_value = NumericLimits<T>::min();
-        }
-        m_overflow = false;
-    }
-
     constexpr Checked& operator+=(Checked const& other)
     {
         m_overflow |= other.m_overflow;
@@ -372,30 +332,6 @@ public:
         T result;
         return __builtin_sub_overflow(u, v, &result);
 #endif
-    }
-
-    template<typename U, typename V>
-    static constexpr T saturating_add(U a, V b)
-    {
-        Checked checked { a };
-        checked.saturating_add(b);
-        return checked.value();
-    }
-
-    template<typename U, typename V>
-    static constexpr T saturating_sub(U a, V b)
-    {
-        Checked checked { a };
-        checked.saturating_sub(b);
-        return checked.value();
-    }
-
-    template<typename U, typename V>
-    static constexpr T saturating_mul(U a, V b)
-    {
-        Checked checked { a };
-        checked.saturating_mul(b);
-        return checked.value();
     }
 
     template<typename U, typename V>
