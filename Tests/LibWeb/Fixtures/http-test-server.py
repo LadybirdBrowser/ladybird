@@ -93,69 +93,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == "/echo":
-            content_length = int(self.headers["Content-Length"])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode("utf-8"))
-
-            echo = Echo()
-            echo.method = data.get("method", None)
-            echo.path = data.get("path", None)
-            echo.status = data.get("status", None)
-            echo.body = data.get("body", None)
-            echo.body_encoding = data.get("body_encoding", "raw")
-            echo.delay_ms = data.get("delay_ms", None)
-            echo.headers = data.get("headers", {})
-            echo.reason_phrase = data.get("reason_phrase", None)
-            echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
-            echo.close_connection = data.get("close_connection", False)
-
-            is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
-
-            # Return 400: Bad Request if invalid params are given or a reserved path is given
-            if (
-                echo.method is None
-                or echo.path is None
-                or echo.status is None
-                or echo.body_encoding not in ("raw", "base64")
-                or (echo.body is not None and "$HEADERS" not in echo.body and echo.reflect_headers_in_body)
-                or is_using_reserved_path
-            ):
-                self.send_response(400)
-                self.send_header("Content-Type", "text/plain")
-                self.end_headers()
-                return
-
-            # Return 409: Conflict if the method+path combination already exists
-            key = f"{echo.method} {echo.path}"
-            if key in echo_store and echo_store[key] != echo:
-                self.send_response(409)
-                self.send_header("Content-Type", "text/plain")
-                self.end_headers()
-                message = (
-                    "Echo already exists for method+path, but with a different definition.\n"
-                    f"key: {key}\n"
-                    "Hint: Use a unique path per test run (or keep the same definition).\n"
-                )
-                self.wfile.write(message.encode("utf-8"))
-                return
-
-            echo_store[key] = echo
-
-            host = self.headers.get("host", "localhost")
-            path = echo.path.lstrip("/")
-            fetch_url = f"http://{host}/{path}"
-
-            # The params to use on the client when making a request to the newly created echo endpoint
-            fetch_config = {
-                "method": echo.method,
-                "url": fetch_url,
-            }
-
-            self.send_response(201)
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
+            self._register_echo()
         elif self.path.startswith("/static/"):
             self.send_error(405, "Method Not Allowed")
         else:
@@ -179,6 +117,72 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_DELETE(self):
         self.do_other()
+
+    def _register_echo(self):
+        """Handle a request to register an echo server handler"""
+        content_length = int(self.headers["Content-Length"])
+        post_data = self.rfile.read(content_length)
+        data = json.loads(post_data.decode("utf-8"))
+
+        echo = Echo()
+        echo.method = data.get("method", None)
+        echo.path = data.get("path", None)
+        echo.status = data.get("status", None)
+        echo.body = data.get("body", None)
+        echo.body_encoding = data.get("body_encoding", "raw")
+        echo.delay_ms = data.get("delay_ms", None)
+        echo.headers = data.get("headers", {})
+        echo.reason_phrase = data.get("reason_phrase", None)
+        echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
+        echo.close_connection = data.get("close_connection", False)
+
+        is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
+
+        # Return 400: Bad Request if invalid params are given or a reserved path is given
+        if (
+            echo.method is None
+            or echo.path is None
+            or echo.status is None
+            or echo.body_encoding not in ("raw", "base64")
+            or (echo.body is not None and "$HEADERS" not in echo.body and echo.reflect_headers_in_body)
+            or is_using_reserved_path
+        ):
+            self.send_response(400)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            return
+
+        # Return 409: Conflict if the method+path combination already exists
+        key = f"{echo.method} {echo.path}"
+        if key in echo_store and echo_store[key] != echo:
+            self.send_response(409)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            message = (
+                "Echo already exists for method+path, but with a different definition.\n"
+                f"key: {key}\n"
+                "Hint: Use a unique path per test run (or keep the same definition).\n"
+            )
+            self.wfile.write(message.encode("utf-8"))
+            return
+
+        echo_store[key] = echo
+
+        host = self.headers.get("host", "localhost")
+        path = echo.path.lstrip("/")
+        fetch_url = f"http://{host}/{path}"
+
+        # The params to use on the client when making a request to the newly created echo endpoint
+        fetch_config = {
+            "method": echo.method,
+            "url": fetch_url,
+        }
+
+        self.send_response(201)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(fetch_config).encode("utf-8"))
 
     def handle_echo(self):
         method = self.command.upper()
