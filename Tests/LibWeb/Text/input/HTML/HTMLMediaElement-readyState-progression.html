@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    function logEvent(name) {
+        let entry = `${name}: readyState=${video.readyState}`;
+        if (name === "durationchange")
+            entry += ` duration=${video.duration}`;
+        println(entry);
+    }
+
+    for (const name of [
+        "loadstart", "durationchange", "loadedmetadata",
+        "loadeddata", "canplay", "canplaythrough",
+    ]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+
+    asyncTest(done => {
+        video.addEventListener("canplaythrough", () => done());
+        video.src = "../../../Assets/test-webm.webm";
+    });
+</script>

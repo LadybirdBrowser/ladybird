@@ -1,0 +1,6 @@
+loadstart: readyState=0
+durationchange: readyState=4 duration=12.043
+loadedmetadata: readyState=4
+loadeddata: readyState=4
+canplay: readyState=4
+canplaythrough: readyState=4
