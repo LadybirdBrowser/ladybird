@@ -15,7 +15,12 @@ lines-between-types = 1
 
 [tool.pyright]
 pythonVersion = "3.9"
-extraPaths = ["Meta"]
+extraPaths = [
+    "Meta",
+    "Tests/LibWeb/Text/input/wpt-import",
+    "Tests/LibWeb/Text/input/wpt-import/_wpttools",
+    "Tests/LibWeb/Text/input/wpt-import/_wpttools/wptserve",
+]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
