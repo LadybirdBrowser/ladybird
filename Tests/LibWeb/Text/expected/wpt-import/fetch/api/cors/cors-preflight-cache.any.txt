@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 2 tests
+
+1 Pass
+1 Fail
+Fail	CORS preflight cache reuses explicit header entries
+Pass	CORS preflight cache does not reuse wildcard header entries for Authorization
