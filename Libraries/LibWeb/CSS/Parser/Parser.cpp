@@ -729,43 +729,50 @@ Vector<RuleOrListOfDeclarations> Parser::consume_a_blocks_contents(TokenStream<T
 
         // anything else
         {
-            // Mark input.
-            input.mark();
-
-            // Consume a declaration from input, with nested set to true.
-            // If a declaration was returned, append it to decls, and discard a mark from input.
-            if (auto declaration = consume_a_declaration(input, Nested::Yes); declaration.has_value()) {
-                declarations.append(declaration.release_value());
-                input.discard_a_mark();
+            // OPTIMIZATION: Look ahead to determine if this can be a declaration (ident whitespace* ':').
+            //               If not, skip straight to qualified rule parsing, avoiding the expensive
+            //               mark/restore cycle and consume_the_remnants_of_a_bad_declaration.
+            bool could_be_declaration = false;
+            if (token.is(Token::Type::Ident)) {
+                size_t lookahead = 1;
+                while (input.peek_token(lookahead).is(Token::Type::Whitespace))
+                    ++lookahead;
+                could_be_declaration = input.peek_token(lookahead).is(Token::Type::Colon);
             }
 
-            // Otherwise, restore a mark from input, then consume a qualified rule from input,
-            // with nested set to true, and <semicolon-token> as the stop token.
-            else {
-                input.restore_a_mark();
-                consume_a_qualified_rule(input, Token::Type::Semicolon, Nested::Yes).visit(
-                    // -> If nothing was returned
-                    [](Empty&) {
-                        // Do nothing
-                    },
-                    // -> If an invalid rule error was returned
-                    [&](InvalidRuleError&) {
-                        // If decls is not empty, append decls to rules, and set decls to a fresh empty list of declarations. (Otherwise, do nothing.)
-                        if (!declarations.is_empty()) {
-                            rules.append(move(declarations));
-                            declarations = {};
-                        }
-                    },
-                    // -> If a rule was returned
-                    [&](QualifiedRule rule) {
-                        // If decls is not empty, append decls to rules, and set decls to a fresh empty list of declarations.
-                        if (!declarations.is_empty()) {
-                            rules.append(move(declarations));
-                            declarations = {};
-                        }
-                        // Append the rule to rules.
-                        rules.append({ move(rule) });
-                    });
+            auto flush_declarations = [&] {
+                if (!declarations.is_empty()) {
+                    rules.append(move(declarations));
+                    declarations = {};
+                }
+            };
+
+            auto consume_qualified_rule = [&] {
+                consume_a_qualified_rule(input, Token::Type::Semicolon, Nested::Yes).visit([](Empty&) {}, [&](InvalidRuleError&) { flush_declarations(); }, [&](QualifiedRule rule) {
+                        flush_declarations();
+                        rules.append({ move(rule) }); });
+            };
+
+            if (could_be_declaration) {
+                // Mark input.
+                input.mark();
+
+                // Consume a declaration from input, with nested set to true.
+                // If a declaration was returned, append it to decls, and discard a mark from input.
+                if (auto declaration = consume_a_declaration(input, Nested::Yes); declaration.has_value()) {
+                    declarations.append(declaration.release_value());
+                    input.discard_a_mark();
+                }
+
+                // Otherwise, restore a mark from input, then consume a qualified rule from input,
+                // with nested set to true, and <semicolon-token> as the stop token.
+                else {
+                    input.restore_a_mark();
+                    consume_qualified_rule();
+                }
+            } else {
+                // Not a declaration, go straight to qualified rule parsing.
+                consume_qualified_rule();
             }
         }
     }
