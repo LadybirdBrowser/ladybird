@@ -272,8 +272,8 @@ fn generate_expression_inner(
         }
 
         // === Assignment ===
-        ExpressionKind::Assignment { op, lhs, rhs } => {
-            generate_assignment_expression(generator, *op, lhs, rhs, preferred_dst)
+        ExpressionKind::Assignment(data) => {
+            generate_assignment_expression(generator, data.op, &data.lhs, &data.rhs, preferred_dst)
         }
 
         // === Template literals ===

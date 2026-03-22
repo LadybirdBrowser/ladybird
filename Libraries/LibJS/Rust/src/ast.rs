@@ -300,12 +300,12 @@ impl FunctionTable {
             ExpressionKind::Update(data) => {
                 self.collect_from_expression(&data.argument, result);
             }
-            ExpressionKind::Assignment { lhs, rhs, .. } => {
-                match lhs {
+            ExpressionKind::Assignment(data) => {
+                match &data.lhs {
                     AssignmentLhs::Expression(expr) => self.collect_from_expression(expr, result),
                     AssignmentLhs::Pattern(pat) => self.collect_from_pattern(pat, result),
                 }
-                self.collect_from_expression(rhs, result);
+                self.collect_from_expression(&data.rhs, result);
             }
             ExpressionKind::Conditional {
                 test,
@@ -1344,6 +1344,13 @@ pub struct UpdateExprData {
     pub prefixed: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct AssignmentExprData {
+    pub op: AssignmentOp,
+    pub lhs: AssignmentLhs,
+    pub rhs: Box<Expression>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1370,11 +1377,7 @@ pub enum ExpressionKind {
         operand: Box<Expression>,
     },
     Update(Box<UpdateExprData>),
-    Assignment {
-        op: AssignmentOp,
-        lhs: AssignmentLhs,
-        rhs: Box<Expression>,
-    },
+    Assignment(Box<AssignmentExprData>),
     Conditional {
         test: Box<Expression>,
         consequent: Box<Expression>,

@@ -787,14 +787,14 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_expression(&data.argument, &child_state(state, true));
         }
 
-        ExpressionKind::Assignment { op, lhs, rhs } => {
+        ExpressionKind::Assignment(data) => {
             dump_node!(
                 state,
                 "AssignmentExpression",
                 &expression.range,
-                color_op(state, assignment_op_to_string(*op))
+                color_op(state, assignment_op_to_string(data.op))
             );
-            match lhs {
+            match &data.lhs {
                 AssignmentLhs::Expression(expression) => {
                     dump_expression(expression, &child_state(state, false));
                 }
@@ -802,7 +802,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
                     dump_binding_pattern(pattern, &child_state(state, false), state);
                 }
             }
-            dump_expression(rhs, &child_state(state, true));
+            dump_expression(&data.rhs, &child_state(state, true));
         }
 
         ExpressionKind::Conditional {

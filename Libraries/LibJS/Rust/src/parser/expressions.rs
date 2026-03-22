@@ -895,11 +895,11 @@ impl Parser<'_> {
                     return (
                         self.expression(
                             start,
-                            ExpressionKind::Assignment {
+                            ExpressionKind::Assignment(Box::new(AssignmentExprData {
                                 op,
                                 lhs: AssignmentLhs::Pattern(binding_pattern),
                                 rhs: Box::new(rhs),
-                            },
+                            })),
                         ),
                         ForbiddenTokens::none(),
                     );
@@ -921,11 +921,11 @@ impl Parser<'_> {
                 (
                     self.expression(
                         start,
-                        ExpressionKind::Assignment {
+                        ExpressionKind::Assignment(Box::new(AssignmentExprData {
                             op,
                             lhs: AssignmentLhs::Expression(Box::new(lhs)),
                             rhs: Box::new(rhs),
-                        },
+                        })),
                     ),
                     ForbiddenTokens::none(),
                 )
