@@ -15,6 +15,7 @@ namespace WebView {
 class Action;
 class Application;
 class Autocomplete;
+class BookmarkStore;
 class CookieJar;
 class Menu;
 class OutOfProcessWebView;
