@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
 #include <LibGfx/ShapeFeature.h>
 #include <LibWeb/Forward.h>
-
-#pragma once
 
 namespace Web::CSS {
 

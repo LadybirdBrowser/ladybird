@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <AK/HashTable.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
-
-#pragma once
 
 namespace GC {
 

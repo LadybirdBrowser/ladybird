@@ -8,6 +8,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -17,8 +19,6 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
-
-#pragma once
 
 namespace Web::CSS {
 

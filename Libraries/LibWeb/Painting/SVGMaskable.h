@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <LibGfx/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/PixelUnits.h>
-
-#pragma once
 
 namespace Web::Painting {
 

@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#pragma once
+
 #include <AK/HashMap.h>
 #include <AK/QuickSort.h>
 #include <AK/Vector.h>
 #include <LibGfx/FourCC.h>
-
-#pragma once
 
 namespace Gfx {
 
