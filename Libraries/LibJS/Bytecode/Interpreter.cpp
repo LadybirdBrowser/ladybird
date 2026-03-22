@@ -2094,7 +2094,8 @@ void CacheObjectShape::execute_impl(Bytecode::Interpreter& interpreter) const
     auto& cache = *bit_cast<ObjectShapeCache*>(m_cache);
     if (!cache.shape) {
         auto& object = interpreter.get(m_object).as_object();
-        cache.shape = &object.shape();
+        if (!object.shape().is_dictionary())
+            cache.shape = &object.shape();
     }
 }
 
