@@ -368,10 +368,10 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::DoWhile {
+            StatementKind::DoWhile(Box::new(WhileStatementData {
                 test: Box::new(test),
                 body: Box::new(body),
-            },
+            })),
         )
     }
 

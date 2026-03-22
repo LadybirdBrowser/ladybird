@@ -166,9 +166,9 @@ impl FunctionTable {
                 self.collect_from_expression(&data.test, result);
                 self.collect_from_statement(&data.body, result);
             }
-            StatementKind::DoWhile { test, body } => {
-                self.collect_from_statement(body, result);
-                self.collect_from_expression(test, result);
+            StatementKind::DoWhile(data) => {
+                self.collect_from_statement(&data.body, result);
+                self.collect_from_expression(&data.test, result);
             }
             StatementKind::For {
                 init,
@@ -1488,10 +1488,7 @@ pub enum StatementKind {
     // Control flow
     If(Box<IfStatementData>),
     While(Box<WhileStatementData>),
-    DoWhile {
-        test: Box<Expression>,
-        body: Box<Statement>,
-    },
+    DoWhile(Box<WhileStatementData>),
     For {
         init: Option<ForInit>,
         test: Option<Box<Expression>>,

@@ -412,10 +412,10 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_labeled_statement("body", &data.body, true, state);
         }
 
-        StatementKind::DoWhile { test, body } => {
+        StatementKind::DoWhile(data) => {
             dump_node!(state, "DoWhileStatement", &statement.range);
-            dump_labeled_statement("body", body, false, state);
-            dump_labeled_expression("test", test, true, state);
+            dump_labeled_statement("body", &data.body, false, state);
+            dump_labeled_expression("test", &data.test, true, state);
         }
 
         StatementKind::For {
