@@ -142,8 +142,8 @@ fn generate_expression_inner(
         }
 
         // === Binary ===
-        ExpressionKind::Binary { op, lhs, rhs } => {
-            generate_binary_expression(generator, *op, lhs, rhs, preferred_dst)
+        ExpressionKind::Binary(data) => {
+            generate_binary_expression(generator, data.op, &data.lhs, &data.rhs, preferred_dst)
         }
 
         // === Logical (short-circuit) ===
@@ -466,8 +466,9 @@ fn might_contain_assignment_expression(expression: &Expression) -> bool {
         | ExpressionKind::NullLiteral
         | ExpressionKind::Identifier(_) => false,
         ExpressionKind::Unary { op: _, operand } => might_contain_assignment_expression(operand),
-        ExpressionKind::Binary { op: _, lhs, rhs } => {
-            might_contain_assignment_expression(lhs) || might_contain_assignment_expression(rhs)
+        ExpressionKind::Binary(data) => {
+            might_contain_assignment_expression(&data.lhs)
+                || might_contain_assignment_expression(&data.rhs)
         }
         ExpressionKind::Member {
             object,

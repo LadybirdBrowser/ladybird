@@ -744,15 +744,15 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             );
         }
 
-        ExpressionKind::Binary { op, lhs, rhs } => {
+        ExpressionKind::Binary(data) => {
             dump_node!(
                 state,
                 "BinaryExpression",
                 &expression.range,
-                color_op(state, binary_op_to_string(*op))
+                color_op(state, binary_op_to_string(data.op))
             );
-            dump_expression(lhs, &child_state(state, false));
-            dump_expression(rhs, &child_state(state, true));
+            dump_expression(&data.lhs, &child_state(state, false));
+            dump_expression(&data.rhs, &child_state(state, true));
         }
 
         ExpressionKind::Logical { op, lhs, rhs } => {

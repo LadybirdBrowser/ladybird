@@ -286,7 +286,11 @@ impl FunctionTable {
             ExpressionKind::Class(class_data) => {
                 self.collect_from_class(class_data, result);
             }
-            ExpressionKind::Binary { lhs, rhs, .. } | ExpressionKind::Logical { lhs, rhs, .. } => {
+            ExpressionKind::Binary(data) => {
+                self.collect_from_expression(&data.lhs, result);
+                self.collect_from_expression(&data.rhs, result);
+            }
+            ExpressionKind::Logical { lhs, rhs, .. } => {
                 self.collect_from_expression(lhs, result);
                 self.collect_from_expression(rhs, result);
             }
@@ -1316,6 +1320,17 @@ pub struct VarToInit {
 }
 
 // =============================================================================
+// Expression data structs (boxed variants)
+// =============================================================================
+
+#[derive(Clone, Debug)]
+pub struct BinaryExprData {
+    pub op: BinaryOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+// =============================================================================
 // Expression enum
 // =============================================================================
 
@@ -1334,11 +1349,7 @@ pub enum ExpressionKind {
     PrivateIdentifier(Box<PrivateIdentifier>),
 
     // Operators
-    Binary {
-        op: BinaryOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
+    Binary(Box<BinaryExprData>),
     Logical {
         op: LogicalOp,
         lhs: Box<Expression>,
