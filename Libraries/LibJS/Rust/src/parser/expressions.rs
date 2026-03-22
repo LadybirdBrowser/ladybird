@@ -2013,10 +2013,10 @@ impl Parser<'_> {
             let template = self.parse_template_literal(true);
             expression = self.expression(
                 tag_start,
-                ExpressionKind::TaggedTemplateLiteral {
+                ExpressionKind::TaggedTemplateLiteral(Box::new(TaggedTemplateData {
                     tag: Box::new(expression),
                     template_literal: Box::new(template),
-                },
+                })),
             );
         }
         expression

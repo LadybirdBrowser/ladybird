@@ -286,13 +286,10 @@ fn generate_expression_inner(
         }
 
         // === Tagged template literals ===
-        ExpressionKind::TaggedTemplateLiteral {
-            tag,
-            template_literal,
-        } => Some(generate_tagged_template_literal(
+        ExpressionKind::TaggedTemplateLiteral(data) => Some(generate_tagged_template_literal(
             generator,
-            tag,
-            template_literal,
+            &data.tag,
+            &data.template_literal,
             preferred_dst,
         )),
 

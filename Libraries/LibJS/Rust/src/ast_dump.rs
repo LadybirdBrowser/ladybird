@@ -974,13 +974,10 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             }
         }
 
-        ExpressionKind::TaggedTemplateLiteral {
-            tag,
-            template_literal,
-        } => {
+        ExpressionKind::TaggedTemplateLiteral(data) => {
             dump_node!(state, "TaggedTemplateLiteral", &expression.range);
-            dump_labeled_expression("tag", tag, false, state);
-            dump_labeled_expression("template", template_literal, true, state);
+            dump_labeled_expression("tag", &data.tag, false, state);
+            dump_labeled_expression("template", &data.template_literal, true, state);
         }
 
         ExpressionKind::MetaProperty(meta_type) => {

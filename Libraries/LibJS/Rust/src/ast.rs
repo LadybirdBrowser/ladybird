@@ -370,12 +370,9 @@ impl FunctionTable {
                     self.collect_from_expression(expr, result);
                 }
             }
-            ExpressionKind::TaggedTemplateLiteral {
-                tag,
-                template_literal,
-            } => {
-                self.collect_from_expression(tag, result);
-                self.collect_from_expression(template_literal, result);
+            ExpressionKind::TaggedTemplateLiteral(data) => {
+                self.collect_from_expression(&data.tag, result);
+                self.collect_from_expression(&data.template_literal, result);
             }
             ExpressionKind::Yield { argument, .. } => {
                 if let Some(expr) = argument {
@@ -1365,6 +1362,12 @@ pub struct OptionalChainData {
     pub references: Vec<OptionalChainReference>,
 }
 
+#[derive(Clone, Debug)]
+pub struct TaggedTemplateData {
+    pub tag: Box<Expression>,
+    pub template_literal: Box<Expression>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1423,10 +1426,7 @@ pub enum ExpressionKind {
 
     // Templates
     TemplateLiteral(Box<TemplateLiteralData>),
-    TaggedTemplateLiteral {
-        tag: Box<Expression>,
-        template_literal: Box<Expression>,
-    },
+    TaggedTemplateLiteral(Box<TaggedTemplateData>),
 
     // Meta
     MetaProperty(MetaPropertyType),
