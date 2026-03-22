@@ -114,8 +114,8 @@ bool FontFaceSet::delete_(GC::Root<FontFace> face)
 
     // 4. If font is present in the FontFaceSet’s [[LoadingFonts]] list, remove it.
     //    If font was the last item in that list (and so the list is now empty), switch the FontFaceSet to loaded.
-    m_loading_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
-    if (m_loading_fonts.is_empty())
+    bool was_in_loading_fonts = m_loading_fonts.remove_all_matching([face](auto const& entry) { return entry == face; });
+    if (was_in_loading_fonts && m_loading_fonts.is_empty())
         switch_to_loaded();
 
     return deleted;
