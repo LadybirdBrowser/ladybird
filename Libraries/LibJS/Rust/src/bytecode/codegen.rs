@@ -147,8 +147,8 @@ fn generate_expression_inner(
         }
 
         // === Logical (short-circuit) ===
-        ExpressionKind::Logical { op, lhs, rhs } => {
-            generate_logical(generator, *op, lhs, rhs, preferred_dst)
+        ExpressionKind::Logical(data) => {
+            generate_logical(generator, data.op, &data.lhs, &data.rhs, preferred_dst)
         }
 
         // === Conditional (ternary) ===

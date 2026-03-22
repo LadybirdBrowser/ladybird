@@ -290,9 +290,9 @@ impl FunctionTable {
                 self.collect_from_expression(&data.lhs, result);
                 self.collect_from_expression(&data.rhs, result);
             }
-            ExpressionKind::Logical { lhs, rhs, .. } => {
-                self.collect_from_expression(lhs, result);
-                self.collect_from_expression(rhs, result);
+            ExpressionKind::Logical(data) => {
+                self.collect_from_expression(&data.lhs, result);
+                self.collect_from_expression(&data.rhs, result);
             }
             ExpressionKind::Unary { operand, .. } => {
                 self.collect_from_expression(operand, result);
@@ -1330,6 +1330,13 @@ pub struct BinaryExprData {
     pub rhs: Box<Expression>,
 }
 
+#[derive(Clone, Debug)]
+pub struct LogicalExprData {
+    pub op: LogicalOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1350,11 +1357,7 @@ pub enum ExpressionKind {
 
     // Operators
     Binary(Box<BinaryExprData>),
-    Logical {
-        op: LogicalOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
+    Logical(Box<LogicalExprData>),
     Unary {
         op: UnaryOp,
         operand: Box<Expression>,

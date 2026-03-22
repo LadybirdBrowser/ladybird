@@ -755,15 +755,15 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_expression(&data.rhs, &child_state(state, true));
         }
 
-        ExpressionKind::Logical { op, lhs, rhs } => {
+        ExpressionKind::Logical(data) => {
             dump_node!(
                 state,
                 "LogicalExpression",
                 &expression.range,
-                color_op(state, logical_op_to_string(*op))
+                color_op(state, logical_op_to_string(data.op))
             );
-            dump_expression(lhs, &child_state(state, false));
-            dump_expression(rhs, &child_state(state, true));
+            dump_expression(&data.lhs, &child_state(state, false));
+            dump_expression(&data.rhs, &child_state(state, true));
         }
 
         ExpressionKind::Unary { op, operand } => {
