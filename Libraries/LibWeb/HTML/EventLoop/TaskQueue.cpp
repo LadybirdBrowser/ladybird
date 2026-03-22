@@ -52,8 +52,7 @@ GC::Ptr<Task> TaskQueue::take_first_runnable()
         if (m_tasks[i]->is_runnable())
             return m_tasks.take(i);
 
-        // A non-runnable task with a destroyed document will never become runnable again; remove it.
-        if (m_tasks[i]->document() && m_tasks[i]->document()->has_been_destroyed()) {
+        if (m_tasks[i]->is_permanently_unrunnable()) {
             m_tasks.remove(i);
             continue;
         }
@@ -90,6 +89,11 @@ GC::RootVector<GC::Ref<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML:
 
     for (size_t i = 0; i < m_tasks.size();) {
         auto& task = m_tasks.at(i);
+
+        if (task->is_permanently_unrunnable()) {
+            m_tasks.remove(i);
+            continue;
+        }
 
         if (filter(*task)) {
             matching_tasks.append(task);

@@ -104,6 +104,7 @@ public:
     DOM::Document const* document() const;
 
     bool is_runnable() const;
+    bool is_permanently_unrunnable() const;
 
 private:
     Task(Source, GC::Ptr<DOM::Document const>, GC::Ref<GC::Function<void()>> steps);

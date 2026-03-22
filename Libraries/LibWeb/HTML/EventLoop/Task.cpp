@@ -54,6 +54,11 @@ bool Task::is_runnable() const
     return !m_document || m_document->is_fully_active();
 }
 
+bool Task::is_permanently_unrunnable() const
+{
+    return m_document && m_document->has_been_destroyed();
+}
+
 DOM::Document const* Task::document() const
 {
     return m_document.ptr();
