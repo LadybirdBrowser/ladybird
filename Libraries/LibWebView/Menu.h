@@ -36,6 +36,11 @@ enum class ActionID {
     TakeVisibleScreenshot,
     TakeFullScreenshot,
 
+    ToggleBookmark,
+    ToggleBookmarkViaToolbar,
+    ToggleBookmarksBar,
+    BookmarkItem,
+
     OpenAboutPage,
     OpenProcessesPage,
     OpenSettingsPage,
@@ -187,6 +192,9 @@ public:
     void add_action(NonnullRefPtr<Action> action);
     void add_submenu(NonnullRefPtr<Menu> submenu) { m_items.append(move(submenu)); }
     void add_separator() { m_items.append(Separator {}); }
+
+    size_t size() const { return m_items.size(); }
+    void shrink(size_t size) { m_items.shrink(size); }
 
     StringView title() const { return action_text_to_string_view(m_title); }
 

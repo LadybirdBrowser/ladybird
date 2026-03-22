@@ -15,6 +15,7 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
@@ -96,6 +97,31 @@ u64 ViewImplementation::page_id() const
     return m_client_state.page_index;
 }
 
+void ViewImplementation::set_url(URL::URL url)
+{
+    if (m_url == url)
+        return;
+
+    m_url = move(url);
+    update_bookmark_action();
+}
+
+void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const& favicon)
+{
+    m_favicon_base64_png.clear();
+
+    if (auto favicon_png = Gfx::PNGWriter::encode(favicon); !favicon_png.is_error()) {
+        if (auto favicon_base64_png = encode_base64(favicon_png.value().bytes()); !favicon_base64_png.is_error())
+            m_favicon_base64_png = favicon_base64_png.release_value();
+    }
+
+    if (m_favicon_base64_png.has_value())
+        Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
+
+    if (on_favicon_change)
+        on_favicon_change(favicon);
+}
+
 void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL const& url)
 {
     if (m_client_state.client) {
@@ -153,7 +179,7 @@ void ViewImplementation::set_system_visibility_state(Web::HTML::VisibilityState 
 
 void ViewImplementation::load(URL::URL const& url)
 {
-    m_url = url;
+    set_url(url);
     client().async_load_url(page_id(), url);
 }
 
@@ -739,6 +765,21 @@ void ViewImplementation::global_privacy_control_changed()
     client().async_set_enable_global_privacy_control(page_id(), global_privacy_control == GlobalPrivacyControl::Yes);
 }
 
+void ViewImplementation::bookmarks_changed()
+{
+    update_bookmark_action();
+}
+
+void ViewImplementation::update_bookmark_action()
+{
+    Application::the().update_bookmark_action_for_current_web_view();
+
+    auto is_bookmarked = Application::bookmark_store().is_bookmarked(url());
+
+    m_toggle_bookmark_action->set_tooltip(is_bookmarked ? "Remove bookmark"sv : "Bookmark this page"sv);
+    m_toggle_bookmark_action->set_engaged(is_bookmarked);
+}
+
 static ErrorOr<LexicalPath> save_screenshot(Gfx::Bitmap const* bitmap)
 {
     if (!bitmap)
@@ -884,6 +925,16 @@ void ViewImplementation::initialize_context_menus()
     });
     m_navigate_back_action->set_enabled(false);
     m_navigate_forward_action->set_enabled(false);
+
+    m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmarkViaToolbar, [this]() {
+        auto& bookmark_store = Application::bookmark_store();
+
+        if (auto bookmark = bookmark_store.find_bookmark_by_url(url()); bookmark.has_value())
+            bookmark_store.remove_item(bookmark->id);
+        else
+            bookmark_store.add_bookmark(url(), title().to_utf8(), favicon_base64_png());
+    });
+    update_bookmark_action();
 
     m_reset_zoom_action = Action::create("100%"sv, ActionID::ResetZoomViaToolbar, [this]() {
         reset_zoom();

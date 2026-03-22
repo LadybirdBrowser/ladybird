@@ -36,7 +36,12 @@ namespace WebView {
 
 Application* Application::s_the = nullptr;
 
-struct ApplicationSettingsObserver : public SettingsObserver {
+struct ApplicationSettingsObserver final : public SettingsObserver {
+    virtual void show_bookmarks_bar_changed() override
+    {
+        Application::the().show_bookmarks_bar_changed({});
+    }
+
     virtual void browsing_data_settings_changed() override
     {
         auto const& browsing_data_settings = Application::settings().browsing_data_settings();
@@ -60,8 +65,16 @@ struct ApplicationSettingsObserver : public SettingsObserver {
     }
 };
 
+struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
+    virtual void bookmarks_changed() override
+    {
+        Application::the().bookmarks_changed({});
+    }
+};
+
 Application::Application(Optional<ByteString> ladybird_binary_path)
     : m_settings(Settings::create({}))
+    , m_bookmark_store(BookmarkStore::create({}))
 {
     VERIFY(!s_the);
     s_the = this;
@@ -71,8 +84,9 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 
 Application::~Application()
 {
-    // Explicitly delete the settings observer first, as the observer destructor will refer to Application::the().
+    // Explicitly delete the observers first, as the observer destructors will refer to Application::the().
     m_settings_observer.clear();
+    m_bookmark_store_observer.clear();
 
     s_the = nullptr;
 }
@@ -412,6 +426,7 @@ void Application::launch_spare_web_content_process()
 ErrorOr<void> Application::launch_services()
 {
     m_settings_observer = make<ApplicationSettingsObserver>();
+    m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
     m_process_manager = make<ProcessManager>();
     m_process_manager->on_process_exited = [this](Process&& process) {
@@ -911,6 +926,31 @@ void Application::initialize_actions()
     m_motion_menu->add_action(Action::create_checkable("No Preference"sv, ActionID::PreferredMotion, set_motion(Web::CSS::PreferredMotion::NoPreference)));
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
+    m_bookmarks_menu = Menu::create("Bookmarks"sv);
+
+    m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmark, [this]() {
+        auto view = active_web_view();
+        if (!view.has_value())
+            return;
+
+        if (auto bookmark = m_bookmark_store.find_bookmark_by_url(view->url()); bookmark.has_value())
+            m_bookmark_store.remove_item(bookmark->id);
+        else
+            m_bookmark_store.add_bookmark(view->url(), view->title().to_utf8(), view->favicon_base64_png());
+    });
+    m_bookmarks_menu->add_action(*m_toggle_bookmark_action);
+    update_bookmark_action_for_current_web_view();
+
+    m_toggle_bookmark_bar_action = Action::create("Toggle Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
+        m_settings.set_show_bookmarks_bar(!m_settings.show_bookmarks_bar());
+    });
+    m_bookmarks_menu->add_action(*m_toggle_bookmark_bar_action);
+    update_bookmarks_bar_action();
+
+    m_bookmarks_menu->add_separator();
+    m_bookmarks_menu_static_size = m_bookmarks_menu->size();
+    create_bookmark_menu_items();
+
     m_inspect_menu = Menu::create("Inspect"sv);
 
     m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
@@ -1007,6 +1047,66 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     view.debug_request("spoof-user-agent"sv, m_user_agent_string);
     view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
+}
+
+void Application::update_bookmark_action_for_current_web_view()
+{
+    auto view = active_web_view();
+    auto is_bookmarked = view.has_value() && m_bookmark_store.is_bookmarked(view->url());
+
+    m_toggle_bookmark_action->set_text(is_bookmarked ? "Remove Bookmark"sv : "Add Bookmark"sv);
+    m_toggle_bookmark_action->set_engaged(is_bookmarked);
+}
+
+void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
+{
+    m_bookmarks_menu->shrink(m_bookmarks_menu_static_size);
+    create_bookmark_menu_items();
+    rebuild_bookmarks_menu();
+}
+
+void Application::update_bookmarks_bar_action()
+{
+    m_toggle_bookmark_bar_action->set_text(m_settings.show_bookmarks_bar() ? "Hide Bookmark Bar"sv : "Show Bookmark Bar"sv);
+}
+
+void Application::show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>)
+{
+    update_bookmarks_bar_action();
+    update_bookmarks_bar_display(m_settings.show_bookmarks_bar());
+}
+
+void Application::create_bookmark_menu_items(Menu* menu, Vector<BookmarkItem> const* items)
+{
+    if (!menu) {
+        menu = m_bookmarks_menu;
+        items = &m_bookmark_store.root_items();
+    }
+
+    for (auto const& item : *items) {
+        item.data.visit(
+            [&](BookmarkItem::Bookmark const& bookmark) {
+                auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url]() {
+                    if (auto view = active_web_view(); view.has_value())
+                        view->load(url);
+                });
+
+                action->set_base64_png_icon(bookmark.favicon_base64_png);
+                action->set_tooltip(bookmark.url.serialize());
+
+                menu->add_action(move(action));
+            },
+            [&](BookmarkItem::Folder const& folder) {
+                auto submenu = folder.title.has_value()
+                    ? Menu::create_group(*folder.title)
+                    : Menu::create_group("(no title)"sv);
+
+                create_bookmark_menu_items(submenu, &folder.children);
+                submenu->set_render_group_icon(true);
+
+                menu->add_submenu(move(submenu));
+            });
+    }
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()

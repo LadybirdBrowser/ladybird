@@ -523,10 +523,8 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
         return;
     }
 
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (view->on_favicon_change)
-            view->on_favicon_change(*favicon.bitmap());
-    }
+    if (auto view = view_for_page_id(page_id); view.has_value())
+        view->set_favicon({}, *favicon.bitmap());
 }
 
 void WebContentClient::did_request_document_cookie_version_index(u64 page_id, i64 document_id, String domain)

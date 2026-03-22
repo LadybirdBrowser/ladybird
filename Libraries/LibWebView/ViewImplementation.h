@@ -32,6 +32,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/SharedBackingStore.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
@@ -40,7 +41,9 @@
 
 namespace WebView {
 
-class WEBVIEW_API ViewImplementation : public SettingsObserver {
+class WEBVIEW_API ViewImplementation
+    : public SettingsObserver
+    , public BookmarkStoreObserver {
     friend class WebContentClient;
 
 public:
@@ -51,11 +54,14 @@ public:
 
     u64 view_id() const { return m_view_id; }
 
-    void set_url(Badge<WebContentClient>, URL::URL url) { m_url = move(url); }
+    void set_url(Badge<WebContentClient>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
 
     void set_title(Badge<WebContentClient>, Utf16String title) { m_title = move(title); }
     Utf16String const& title() const { return m_title; }
+
+    void set_favicon(Badge<WebContentClient>, Gfx::Bitmap const&);
+    Optional<String> const& favicon_base64_png() const { return m_favicon_base64_png; }
 
     String const& handle() const { return m_client_state.client_handle; }
 
@@ -260,6 +266,7 @@ public:
 
     Action& navigate_back_action() { return *m_navigate_back_action; }
     Action& navigate_forward_action() { return *m_navigate_forward_action; }
+    Action& toggle_bookmark_action() { return *m_toggle_bookmark_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
@@ -276,6 +283,8 @@ protected:
     WebContentClient& client();
     WebContentClient const& client() const;
     u64 page_id() const;
+
+    void set_url(URL::URL);
 
     virtual void update_zoom();
 
@@ -297,6 +306,9 @@ protected:
     virtual void languages_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void global_privacy_control_changed() override;
+
+    virtual void bookmarks_changed() override;
+    void update_bookmark_action();
 
     void initialize_context_menus();
 
@@ -320,6 +332,7 @@ protected:
 
     URL::URL m_url;
     Utf16String m_title;
+    Optional<String> m_favicon_base64_png;
 
     double m_zoom_level { 1.0 };
     double m_device_pixel_ratio { 1.0 };
@@ -332,6 +345,8 @@ protected:
 
     RefPtr<Action> m_navigate_back_action;
     RefPtr<Action> m_navigate_forward_action;
+
+    RefPtr<Action> m_toggle_bookmark_action;
 
     RefPtr<Action> m_reset_zoom_action;
 
