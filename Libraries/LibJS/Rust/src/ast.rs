@@ -1509,7 +1509,7 @@ pub enum StatementKind {
 
     // Module
     Import(Box<ImportStatementData>),
-    Export(ExportStatementData),
+    Export(Box<ExportStatementData>),
 
     // Special
     ClassFieldInitializer {

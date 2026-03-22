@@ -2116,12 +2116,12 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::Export(ExportStatementData {
+            StatementKind::Export(Box::new(ExportStatementData {
                 statement,
                 entries,
                 is_default_export: is_default,
                 module_request,
-            }),
+            })),
         )
     }
 
