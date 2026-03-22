@@ -1751,13 +1751,13 @@ impl Parser<'_> {
             self.consume_or_insert_semicolon();
             return self.statement(
                 start,
-                StatementKind::Import(ImportStatementData {
+                StatementKind::Import(Box::new(ImportStatementData {
                     module_request: ModuleRequest {
                         module_specifier,
                         attributes,
                     },
                     entries: Vec::new(),
-                }),
+                })),
             );
         }
 
@@ -1879,13 +1879,13 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::Import(ImportStatementData {
+            StatementKind::Import(Box::new(ImportStatementData {
                 module_request: ModuleRequest {
                     module_specifier,
                     attributes,
                 },
                 entries,
-            }),
+            })),
         )
     }
 

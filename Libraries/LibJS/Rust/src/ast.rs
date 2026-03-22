@@ -1508,7 +1508,7 @@ pub enum StatementKind {
     ErrorDeclaration,
 
     // Module
-    Import(ImportStatementData),
+    Import(Box<ImportStatementData>),
     Export(ExportStatementData),
 
     // Special
