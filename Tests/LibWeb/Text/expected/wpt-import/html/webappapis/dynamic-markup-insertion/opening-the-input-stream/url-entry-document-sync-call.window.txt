@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	document.open() changes document's URL to the entry global object's associate document's (sync call)
+Pass	document.write() changes document's URL to the entry global object's associate document's (sync call)
+Pass	document.writeln() changes document's URL to the entry global object's associate document's (sync call)

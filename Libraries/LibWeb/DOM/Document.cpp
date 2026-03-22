@@ -847,7 +847,8 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
         if (&entry_document != this)
             new_url.set_fragment({});
 
-        // FIXME: 3. Run the URL and history update steps with document and newURL.
+        // 3. Run the URL and history update steps with document and newURL.
+        HTML::perform_url_and_history_update_steps(*this, move(new_url));
     }
 
     // 13. Set document's is initial about:blank to false.
