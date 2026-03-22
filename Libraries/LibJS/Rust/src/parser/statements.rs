@@ -609,10 +609,10 @@ impl Parser<'_> {
         self.scope_collector.close_scope();
         self.statement(
             start,
-            StatementKind::With {
+            StatementKind::With(Box::new(WithStatementData {
                 object: Box::new(object),
                 body: Box::new(body),
-            },
+            })),
         )
     }
 

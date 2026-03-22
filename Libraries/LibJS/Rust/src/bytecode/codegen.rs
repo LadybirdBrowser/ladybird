@@ -1063,8 +1063,8 @@ pub fn generate_statement(
         }
 
         // === With ===
-        StatementKind::With { object, body } => {
-            let obj = generate_expression(object, generator, None)?;
+        StatementKind::With(data) => {
+            let obj = generate_expression(&data.object, generator, None)?;
             let object_environment = generator.allocate_register();
             generator.emit(Instruction::EnterObjectEnvironment {
                 dst: object_environment.operand(),
@@ -1075,7 +1075,7 @@ pub fn generate_statement(
                 .push(object_environment);
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
-            let result = generate_statement(body, generator, preferred_dst);
+            let result = generate_statement(&data.body, generator, preferred_dst);
 
             generator.end_variable_scope();
             // Per spec 13.11.7 step 10: if body completion value is empty,

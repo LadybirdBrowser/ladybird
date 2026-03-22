@@ -468,10 +468,10 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::With { object, body } => {
+        StatementKind::With(data) => {
             dump_node!(state, "WithStatement", &statement.range);
-            dump_labeled_expression("object", object, false, state);
-            dump_labeled_statement("body", body, true, state);
+            dump_labeled_expression("object", &data.object, false, state);
+            dump_labeled_statement("body", &data.body, true, state);
         }
 
         StatementKind::Labelled { label, item } => {

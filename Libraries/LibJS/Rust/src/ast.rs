@@ -205,9 +205,9 @@ impl FunctionTable {
                     }
                 }
             }
-            StatementKind::With { object, body } => {
-                self.collect_from_expression(object, result);
-                self.collect_from_statement(body, result);
+            StatementKind::With(data) => {
+                self.collect_from_expression(&data.object, result);
+                self.collect_from_statement(&data.body, result);
             }
             StatementKind::Labelled { item, .. } => {
                 self.collect_from_statement(item, result);
@@ -1476,6 +1476,12 @@ pub struct ForInOfStatementData {
     pub body: Box<Statement>,
 }
 
+#[derive(Clone, Debug)]
+pub struct WithStatementData {
+    pub object: Box<Expression>,
+    pub body: Box<Statement>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1503,10 +1509,7 @@ pub enum StatementKind {
     For(Box<ForStatementData>),
     ForInOf(Box<ForInOfStatementData>),
     Switch(Box<SwitchStatementData>),
-    With {
-        object: Box<Expression>,
-        body: Box<Statement>,
-    },
+    With(Box<WithStatementData>),
     Labelled {
         label: Utf16String,
         item: Box<Statement>,
