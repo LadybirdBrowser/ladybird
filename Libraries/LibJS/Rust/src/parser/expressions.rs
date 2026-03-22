@@ -1574,7 +1574,7 @@ impl Parser<'_> {
         }
 
         self.consume_token(TokenType::CurlyClose);
-        self.expression(start, ExpressionKind::Object(properties))
+        self.expression(start, ExpressionKind::Object(Box::new(properties)))
     }
 
     fn parse_object_property(&mut self, obj_start: Position) -> ObjectProperty {

@@ -360,7 +360,7 @@ impl FunctionTable {
                 }
             }
             ExpressionKind::Object(properties) => {
-                for prop in properties {
+                for prop in properties.iter() {
                     self.collect_from_expression(&prop.key, result);
                     if let Some(ref val) = prop.value {
                         self.collect_from_expression(val, result);
@@ -1396,7 +1396,7 @@ pub enum ExpressionKind {
 
     // Collections
     Array(Box<Vec<Option<Expression>>>),
-    Object(Vec<ObjectProperty>),
+    Object(Box<Vec<ObjectProperty>>),
 
     // Templates
     TemplateLiteral(Box<TemplateLiteralData>),
