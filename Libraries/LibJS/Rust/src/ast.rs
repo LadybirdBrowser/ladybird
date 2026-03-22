@@ -1399,7 +1399,7 @@ pub enum ExpressionKind {
     Object(Vec<ObjectProperty>),
 
     // Templates
-    TemplateLiteral(TemplateLiteralData),
+    TemplateLiteral(Box<TemplateLiteralData>),
     TaggedTemplateLiteral {
         tag: Box<Expression>,
         template_literal: Box<Expression>,
