@@ -307,14 +307,10 @@ impl FunctionTable {
                 }
                 self.collect_from_expression(&data.rhs, result);
             }
-            ExpressionKind::Conditional {
-                test,
-                consequent,
-                alternate,
-            } => {
-                self.collect_from_expression(test, result);
-                self.collect_from_expression(consequent, result);
-                self.collect_from_expression(alternate, result);
+            ExpressionKind::Conditional(data) => {
+                self.collect_from_expression(&data.test, result);
+                self.collect_from_expression(&data.consequent, result);
+                self.collect_from_expression(&data.alternate, result);
             }
             ExpressionKind::Sequence(exprs) => {
                 for expr in exprs.iter() {
@@ -1351,6 +1347,13 @@ pub struct AssignmentExprData {
     pub rhs: Box<Expression>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ConditionalExprData {
+    pub test: Box<Expression>,
+    pub consequent: Box<Expression>,
+    pub alternate: Box<Expression>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1378,11 +1381,7 @@ pub enum ExpressionKind {
     },
     Update(Box<UpdateExprData>),
     Assignment(Box<AssignmentExprData>),
-    Conditional {
-        test: Box<Expression>,
-        consequent: Box<Expression>,
-        alternate: Box<Expression>,
-    },
+    Conditional(Box<ConditionalExprData>),
     Sequence(Box<Vec<Expression>>),
 
     // Member access

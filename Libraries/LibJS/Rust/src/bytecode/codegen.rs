@@ -152,11 +152,13 @@ fn generate_expression_inner(
         }
 
         // === Conditional (ternary) ===
-        ExpressionKind::Conditional {
-            test,
-            consequent,
-            alternate,
-        } => generate_conditional(generator, test, consequent, alternate, preferred_dst),
+        ExpressionKind::Conditional(data) => generate_conditional(
+            generator,
+            &data.test,
+            &data.consequent,
+            &data.alternate,
+            preferred_dst,
+        ),
 
         // === Sequence ===
         ExpressionKind::Sequence(expressions) => {

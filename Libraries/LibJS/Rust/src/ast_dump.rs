@@ -805,15 +805,11 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_expression(&data.rhs, &child_state(state, true));
         }
 
-        ExpressionKind::Conditional {
-            test,
-            consequent,
-            alternate,
-        } => {
+        ExpressionKind::Conditional(data) => {
             dump_node!(state, "ConditionalExpression", &expression.range);
-            dump_labeled_expression("test", test, false, state);
-            dump_labeled_expression("consequent", consequent, false, state);
-            dump_labeled_expression("alternate", alternate, true, state);
+            dump_labeled_expression("test", &data.test, false, state);
+            dump_labeled_expression("consequent", &data.consequent, false, state);
+            dump_labeled_expression("alternate", &data.alternate, true, state);
         }
 
         ExpressionKind::Sequence(expressions) => {
