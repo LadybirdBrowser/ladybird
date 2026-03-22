@@ -1488,7 +1488,7 @@ pub enum StatementKind {
     },
     Return(Option<Box<Expression>>),
     Throw(Box<Expression>),
-    Try(TryStatementData),
+    Try(Box<TryStatementData>),
 
     // Declarations
     VariableDeclaration {

@@ -728,11 +728,11 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::Try(TryStatementData {
+            StatementKind::Try(Box::new(TryStatementData {
                 block: Box::new(block),
                 handler,
                 finalizer,
-            }),
+            })),
         )
     }
 
