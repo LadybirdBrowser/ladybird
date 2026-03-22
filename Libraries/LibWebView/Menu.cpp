@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,21 +8,21 @@
 
 namespace WebView {
 
-NonnullRefPtr<Action> Action::create(Variant<StringView, String> text, ActionID id, Function<void()> action)
+NonnullRefPtr<Action> Action::create(ActionText text, ActionID id, Function<void()> action)
 {
     return adopt_ref(*new Action { move(text), id, move(action) });
 }
 
-NonnullRefPtr<Action> Action::create_checkable(Variant<StringView, String> text, ActionID id, Function<void()> action)
+NonnullRefPtr<Action> Action::create_checkable(ActionText text, ActionID id, Function<void()> action)
 {
     auto checkable = create(move(text), id, move(action));
     checkable->m_checked = false;
     return checkable;
 }
 
-void Action::set_text(Variant<StringView, String> text)
+void Action::set_text(ActionText text)
 {
-    if (text.visit([&](auto const& text) { return text == this->text(); }))
+    if (action_text_to_string_view(text) == this->text())
         return;
     m_text = move(text);
 
@@ -30,11 +30,11 @@ void Action::set_text(Variant<StringView, String> text)
         observer->on_text_changed(*this);
 }
 
-void Action::set_tooltip(StringView tooltip)
+void Action::set_tooltip(ActionText tooltip)
 {
-    if (m_tooltip == tooltip)
+    if (m_tooltip.has_value() && action_text_to_string_view(tooltip) == this->tooltip())
         return;
-    m_tooltip = tooltip;
+    m_tooltip = move(tooltip);
 
     for (auto& observer : m_observers)
         observer->on_tooltip_changed(*this);
@@ -104,14 +104,14 @@ void Action::remove_observer(Observer const& observer)
     });
 }
 
-NonnullRefPtr<Menu> Menu::create(StringView name)
+NonnullRefPtr<Menu> Menu::create(ActionText title)
 {
-    return adopt_ref(*new Menu { name });
+    return adopt_ref(*new Menu { move(title) });
 }
 
-NonnullRefPtr<Menu> Menu::create_group(StringView name)
+NonnullRefPtr<Menu> Menu::create_group(ActionText title)
 {
-    auto menu = create(name);
+    auto menu = create(move(title));
     menu->m_is_group = true;
     return menu;
 }
