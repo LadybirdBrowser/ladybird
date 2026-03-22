@@ -256,6 +256,9 @@ static void add_items_to_menu(NSMenu* menu, Span<WebView::Menu::MenuItem> menu_i
                                                  keyEquivalent:@""];
                 [item setSubmenu:application_submenu];
 
+                if (submenu->render_group_icon())
+                    set_control_image(item, @"folder");
+
                 [menu addItem:item];
             },
             [&](WebView::Separator) {

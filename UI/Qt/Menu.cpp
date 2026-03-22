@@ -255,6 +255,9 @@ static void add_items_to_menu(QMenu& menu, QWidget& parent, Span<WebView::Menu::
                 auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &menu);
                 add_items_to_menu(*qsubmenu, parent, submenu->items());
 
+                if (submenu->render_group_icon())
+                    qsubmenu->setIcon(create_tvg_icon_with_theme_colors("folder", parent.palette()));
+
                 menu.addMenu(qsubmenu);
             },
             [&](WebView::Separator) {

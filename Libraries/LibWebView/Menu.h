@@ -184,6 +184,9 @@ public:
     Span<MenuItem> items() { return m_items; }
     ReadonlySpan<MenuItem> items() const { return m_items; }
 
+    void set_render_group_icon(bool render_group_icon) { m_render_group_icon = render_group_icon; }
+    bool render_group_icon() const { return m_render_group_icon; }
+
     template<typename Callback>
     void for_each_action(Callback const& callback)
     {
@@ -207,6 +210,7 @@ private:
     Vector<MenuItem> m_items;
 
     bool m_is_group { false };
+    bool m_render_group_icon { false };
 };
 
 }
