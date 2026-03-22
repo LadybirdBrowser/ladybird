@@ -1,2 +1,2 @@
-no-margin: ratio=0.1875
+no-margin: ratio=0.2
 with-margin: ratio=1

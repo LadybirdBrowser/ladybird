@@ -381,8 +381,8 @@ public:
     constexpr CSSPixels numerator() const { return m_numerator; }
     constexpr CSSPixels denominator() const { return m_denominator; }
 
-    float to_float() const { return CSSPixels(*this).to_float(); }
-    double to_double() const { return CSSPixels(*this).to_double(); }
+    float to_float() const { return m_numerator.to_float() / m_denominator.to_float(); }
+    double to_double() const { return m_numerator.to_double() / m_denominator.to_double(); }
     int to_int() const { return CSSPixels(*this).to_int(); }
     bool might_be_saturated() const { return CSSPixels(*this).might_be_saturated(); }
 
