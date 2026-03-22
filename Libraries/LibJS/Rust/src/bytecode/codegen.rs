@@ -161,7 +161,7 @@ fn generate_expression_inner(
         // === Sequence ===
         ExpressionKind::Sequence(expressions) => {
             let mut last = None;
-            for expression in expressions {
+            for expression in expressions.iter() {
                 last = generate_expression(expression, generator, None);
                 if generator.is_current_block_terminated() {
                     break;

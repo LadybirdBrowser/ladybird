@@ -313,7 +313,7 @@ impl FunctionTable {
                 self.collect_from_expression(alternate, result);
             }
             ExpressionKind::Sequence(exprs) => {
-                for expr in exprs {
+                for expr in exprs.iter() {
                     self.collect_from_expression(expr, result);
                 }
             }
@@ -1363,7 +1363,7 @@ pub enum ExpressionKind {
         consequent: Box<Expression>,
         alternate: Box<Expression>,
     },
-    Sequence(Vec<Expression>),
+    Sequence(Box<Vec<Expression>>),
 
     // Member access
     Member {

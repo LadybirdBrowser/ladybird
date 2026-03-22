@@ -304,7 +304,7 @@ impl Parser<'_> {
                 self.report_invalid_private_identifier_usage(&expression);
                 expressions.push(expression);
             }
-            return self.expression(start, ExpressionKind::Sequence(expressions));
+            return self.expression(start, ExpressionKind::Sequence(Box::new(expressions)));
         }
         expression
     }
