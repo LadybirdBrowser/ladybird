@@ -1446,10 +1446,10 @@ impl Parser<'_> {
 
         self.expression(
             start,
-            ExpressionKind::OptionalChain {
+            ExpressionKind::OptionalChain(Box::new(OptionalChainData {
                 base: Box::new(base),
                 references,
-            },
+            })),
         )
     }
 

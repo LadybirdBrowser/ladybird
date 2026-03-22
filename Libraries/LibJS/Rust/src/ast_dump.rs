@@ -830,11 +830,11 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_expression(&data.property, &child_state(state, true));
         }
 
-        ExpressionKind::OptionalChain { base, references } => {
+        ExpressionKind::OptionalChain(data) => {
             dump_node!(state, "OptionalChain", &expression.range);
-            dump_expression(base, &child_state(state, references.is_empty()));
-            for (i, reference) in references.iter().enumerate() {
-                let ref_state = child_state(state, i == references.len() - 1);
+            dump_expression(&data.base, &child_state(state, data.references.is_empty()));
+            for (i, reference) in data.references.iter().enumerate() {
+                let ref_state = child_state(state, i == data.references.len() - 1);
                 match reference {
                     OptionalChainReference::Call { arguments, mode } => {
                         print_node(&ref_state, &format!("Call({})", optional_mode_str(*mode)));

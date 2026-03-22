@@ -321,9 +321,9 @@ impl FunctionTable {
                 self.collect_from_expression(&data.object, result);
                 self.collect_from_expression(&data.property, result);
             }
-            ExpressionKind::OptionalChain { base, references } => {
-                self.collect_from_expression(base, result);
-                for reference in references {
+            ExpressionKind::OptionalChain(data) => {
+                self.collect_from_expression(&data.base, result);
+                for reference in &data.references {
                     match reference {
                         OptionalChainReference::Call { arguments, .. } => {
                             for arg in arguments {
@@ -1359,6 +1359,12 @@ pub struct MemberExprData {
     pub computed: bool,
 }
 
+#[derive(Clone, Debug)]
+pub struct OptionalChainData {
+    pub base: Box<Expression>,
+    pub references: Vec<OptionalChainReference>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1391,10 +1397,7 @@ pub enum ExpressionKind {
 
     // Member access
     Member(Box<MemberExprData>),
-    OptionalChain {
-        base: Box<Expression>,
-        references: Vec<OptionalChainReference>,
-    },
+    OptionalChain(Box<OptionalChainData>),
 
     // Calls
     Call(Box<CallExpressionData>),

@@ -302,7 +302,7 @@ fn generate_expression_inner(
         }
 
         // === OptionalChain ===
-        ExpressionKind::OptionalChain { base, references } => {
+        ExpressionKind::OptionalChain(oc_data) => {
             // Allocate current_base first, current_value second.
             let current_base = generator.allocate_register();
             let current_value = choose_dst(generator, preferred_dst);
@@ -310,8 +310,8 @@ fn generate_expression_inner(
             generator.emit_mov(&current_base, &undef);
             generate_optional_chain_inner(
                 generator,
-                base,
-                references,
+                &oc_data.base,
+                &oc_data.references,
                 &current_value,
                 &current_base,
             )?;
@@ -3298,12 +3298,18 @@ fn generate_call_expression(
                 });
                 (callee_reg, Some(this_reg))
             }
-            ExpressionKind::OptionalChain { base, references } => {
+            ExpressionKind::OptionalChain(oc_data) => {
                 // Allocate callee (current_value) first, this_value
                 // (current_base) second.
                 let callee = generator.allocate_register();
                 let this_value = generator.allocate_register();
-                generate_optional_chain_inner(generator, base, references, &callee, &this_value)?;
+                generate_optional_chain_inner(
+                    generator,
+                    &oc_data.base,
+                    &oc_data.references,
+                    &callee,
+                    &this_value,
+                )?;
                 (callee, Some(this_value))
             }
             _ => {
@@ -5707,14 +5713,11 @@ fn generate_optional_chain_inner(
             }
             val
         }
-        ExpressionKind::OptionalChain {
-            base: inner_base,
-            references: inner_refs,
-        } => {
+        ExpressionKind::OptionalChain(oc_data) => {
             generate_optional_chain_inner(
                 generator,
-                inner_base,
-                inner_refs,
+                &oc_data.base,
+                &oc_data.references,
                 current_value,
                 current_base,
             )?;
