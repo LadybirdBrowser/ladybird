@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+#clipper {
+    width: 200px;
+    height: 200px;
+    overflow: clip;
+}
+#spacer {
+    height: 500px;
+}
+#target {
+    width: 50px;
+    height: 50px;
+    background: red;
+}
+</style>
+<script src="../include.js"></script>
+<div id="clipper">
+    <div id="spacer"></div>
+    <div id="target"></div>
+</div>
+<script>
+    asyncTest(done => {
+        // The target is inside an overflow:clip container, pushed below
+        // the visible area by a spacer. It should NOT be intersecting.
+        let callbackCount = 0;
+        let observer = new IntersectionObserver(entries => {
+            callbackCount++;
+            entries.forEach(entry => {
+                println(`callback ${callbackCount}: isIntersecting=${entry.isIntersecting}`);
+            });
+            if (callbackCount === 1) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        println(`total callbacks: ${callbackCount}`);
+                        done();
+                    });
+                });
+            }
+        });
+
+        observer.observe(document.getElementById("target"));
+    });
+</script>

@@ -1,0 +1,1 @@
+isIntersecting=true, ratio=1

@@ -1,0 +1,2 @@
+callback 1: isIntersecting=true
+total callbacks: 1
