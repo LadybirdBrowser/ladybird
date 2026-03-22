@@ -1094,7 +1094,7 @@ pub fn generate_statement(
         ),
 
         // === UsingDeclaration ===
-        StatementKind::UsingDeclaration { .. } => {
+        StatementKind::UsingDeclaration(_) => {
             // Disposal semantics are not yet implemented.
             let error = generator.allocate_register();
             let msg = generator.intern_string(utf16!("TODO: UsingDeclaration"));
@@ -2749,8 +2749,8 @@ fn emit_lexical_declarations_for_block<'a>(
                     }
                 }
             }
-            StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
+            StatementKind::UsingDeclaration(declarations) => {
+                for declaration in declarations.iter() {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names);
                     for (name, _) in &names {
@@ -7154,7 +7154,7 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
             // in for_in_of_head_evaluation, so it is treated as Assignment
             // lhs_kind. This produces NewTypeError + Throw for the using
             // declaration, followed by NewReferenceError + Throw (dead code).
-            if matches!(statement.inner, StatementKind::UsingDeclaration { .. }) {
+            if matches!(statement.inner, StatementKind::UsingDeclaration(_)) {
                 generate_statement(statement, generator, None);
                 let exception = generator.allocate_register();
                 let error_string =
@@ -8517,8 +8517,8 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
                     return true;
                 }
             }
-            StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
+            StatementKind::UsingDeclaration(declarations) => {
+                for declaration in declarations.iter() {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names);
                     if !names.is_empty() {

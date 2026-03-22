@@ -35,9 +35,9 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
             }
             names
         }
-        StatementKind::UsingDeclaration { declarations } => {
+        StatementKind::UsingDeclaration(declarations) => {
             let mut names = Vec::new();
-            for declaration in declarations {
+            for declaration in declarations.iter() {
                 if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
                     names.push(id.name.clone());
                 }
@@ -362,9 +362,7 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::UsingDeclaration {
-                declarations: declarators,
-            },
+            StatementKind::UsingDeclaration(Box::new(declarators)),
         )
     }
 

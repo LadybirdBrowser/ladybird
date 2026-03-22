@@ -240,8 +240,8 @@ impl FunctionTable {
                     }
                 }
             }
-            StatementKind::UsingDeclaration { declarations } => {
-                for decl in declarations {
+            StatementKind::UsingDeclaration(declarations) => {
+                for decl in declarations.iter() {
                     self.collect_from_target(&decl.target, result);
                     if let Some(ref init) = decl.init {
                         self.collect_from_expression(init, result);
@@ -1537,9 +1537,7 @@ pub enum StatementKind {
 
     // Declarations
     VariableDeclaration(Box<VariableDeclarationData>),
-    UsingDeclaration {
-        declarations: Vec<VariableDeclarator>,
-    },
+    UsingDeclaration(Box<Vec<VariableDeclarator>>),
     FunctionDeclaration {
         function_id: FunctionId,
         name: Option<Rc<Identifier>>,

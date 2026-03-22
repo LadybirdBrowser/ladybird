@@ -535,7 +535,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::UsingDeclaration { declarations } => {
+        StatementKind::UsingDeclaration(declarations) => {
             dump_node!(state, "UsingDeclaration", &statement.range);
             for (i, declaration) in declarations.iter().enumerate() {
                 dump_variable_declarator(

@@ -1533,8 +1533,8 @@ unsafe fn extract_module_declarations(
                         });
                     }
                 }
-                StatementKind::UsingDeclaration { declarations } => {
-                    for declaration in declarations {
+                StatementKind::UsingDeclaration(declarations) => {
+                    for declaration in declarations.iter() {
                         for_each_bound_name(&declaration.target, &mut |name| {
                             (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), false, -1);
                         });
@@ -1809,8 +1809,8 @@ fn extract_gdi_common(
                     });
                 }
             }
-            StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
+            StatementKind::UsingDeclaration(declarations) => {
+                for declaration in declarations.iter() {
                     for_each_bound_name(&declaration.target, &mut |name| {
                         push_lexical_binding(name, false);
                     });
@@ -1889,8 +1889,8 @@ unsafe fn extract_script_gdi(
                         });
                     }
                 }
-                StatementKind::UsingDeclaration { declarations } => {
-                    for declaration in declarations {
+                StatementKind::UsingDeclaration(declarations) => {
+                    for declaration in declarations.iter() {
                         for_each_bound_name(&declaration.target, &mut |name| {
                             script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
                         });
@@ -2420,8 +2420,8 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>) -> usiz
                     }
                 }
             }
-            ast::StatementKind::UsingDeclaration { declarations } => {
-                for declaration in declarations {
+            ast::StatementKind::UsingDeclaration(declarations) => {
+                for declaration in declarations.iter() {
                     count_non_local_names_in_target(&declaration.target, &mut count);
                 }
             }
