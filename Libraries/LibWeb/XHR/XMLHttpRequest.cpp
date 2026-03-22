@@ -1215,8 +1215,10 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_errors()
         return TRY(request_error_steps(EventNames::abort, WebIDL::AbortError::create(realm(), "Aborted"_utf16)));
 
     // 4. Otherwise, if xhr’s response is a network error, then run the request error steps for xhr, error, and "NetworkError" DOMException.
-    if (m_response->is_network_error())
-        return TRY(request_error_steps(EventNames::error, WebIDL::NetworkError::create(realm(), "Network error"_utf16)));
+    if (m_response->is_network_error()) {
+        auto message = m_response->network_error_message().value_or("Unknown error"_string);
+        return TRY(request_error_steps(EventNames::error, WebIDL::NetworkError::create(realm(), Utf16String::from_utf8(message))));
+    }
 
     return {};
 }

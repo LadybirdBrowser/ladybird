@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const server = httpTestServer();
+
+        await server.createEcho("GET", "/close-connection", {
+            status: 0,
+            close_connection: true,
+        });
+
+        // FIXME: Use the URL returned by createEcho instead of a relative path. Currently that URL uses 127.0.0.1
+        //        which is cross-origin with the localhost page, causing a CORS error instead of a network error.
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", "/close-connection", false);
+        try {
+            xhr.send();
+            println("FAIL: no exception thrown");
+        } catch (e) {
+            println(e.name);
+            println(e.message);
+        }
+        done();
+    });
+</script>

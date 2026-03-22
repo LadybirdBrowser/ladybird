@@ -33,6 +33,7 @@ class Echo:
     delay_ms: Optional[int]
     reason_phrase: Optional[str]
     reflect_headers_in_body: bool
+    close_connection: bool
 
     def __eq__(self, other):
         if not isinstance(other, Echo):
@@ -48,6 +49,7 @@ class Echo:
             and self.headers == other.headers
             and self.reason_phrase == other.reason_phrase
             and self.reflect_headers_in_body == other.reflect_headers_in_body
+            and self.close_connection == other.close_connection
         )
 
 
@@ -105,6 +107,7 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             echo.headers = data.get("headers", {})
             echo.reason_phrase = data.get("reason_phrase", None)
             echo.reflect_headers_in_body = data.get("reflect_headers_in_body", False)
+            echo.close_connection = data.get("close_connection", False)
 
             is_using_reserved_path = echo.path.startswith("/static") or echo.path.startswith("/echo")
 
@@ -190,6 +193,12 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if key in echo_store:
             echo = echo_store[key]
+
+            if echo.close_connection:
+                self.connection.shutdown(socket.SHUT_WR)
+                self.connection.close()
+                return
+
             response_headers = echo.headers.copy()
 
             if echo.delay_ms is not None:
