@@ -51,6 +51,8 @@ public:
     bool track_visibility() const { return m_track_visibility; }
 
     Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> intersection_root() const;
+    GC::Ref<DOM::Node> intersection_root_node() const;
+    bool is_implicit_root() const { return !m_root; }
     CSSPixelRect root_intersection_rectangle() const;
 
     void queue_entry(Badge<DOM::Document>, GC::Ref<IntersectionObserverEntry>);

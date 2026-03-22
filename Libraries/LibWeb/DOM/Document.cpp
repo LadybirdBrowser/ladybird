@@ -5188,18 +5188,10 @@ void Document::queue_an_intersection_observer_entry(IntersectionObserver::Inters
 }
 
 // https://www.w3.org/TR/intersection-observer/#compute-the-intersection
-static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer)
+static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionObserver::IntersectionObserver const& observer, Painting::PaintableBox const* root_paintable, CSSPixelRect const& root_bounds)
 {
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target->get_bounding_client_rect();
-
-    // Determine the root paintable so we know when to stop walking the containing block chain.
-    GC::Ptr<Painting::PaintableBox const> root_paintable;
-    auto intersection_root = observer.intersection_root();
-    intersection_root.visit([&](auto& node) {
-        if (node->paintable_box())
-            root_paintable = node->paintable_box();
-    });
 
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
@@ -5213,7 +5205,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
             //             intersectionRect by clipping to the viewport of the document, and update
             //             container to be the browsing context container of container.
 
-            // NOTE: Steps 3.2 (map to container coordinate space) and 3.4 (update container) are
+            // NOTE: Steps 3.2 (map to container coordinate space) and 3.5 (update container) are
             //       unnecessary here because get_bounding_client_rect() and transform_rect_to_viewport()
             //       already produce viewport-relative coordinates.
 
@@ -5247,8 +5239,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
     // FIXME: 4. Map intersectionRect to the coordinate space of root.
 
     // 5. Update intersectionRect by intersecting it with the root intersection rectangle.
-    auto root_intersection_rectangle = observer.root_intersection_rectangle();
-    intersection_rect.intersect(root_intersection_rectangle);
+    intersection_rect.intersect(root_bounds);
 
     // FIXME: 6. Map intersectionRect to the coordinate space of the viewport of the document containing target.
 
@@ -5272,6 +5263,12 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
         // 1. Let rootBounds be observer’s root intersection rectangle.
         auto root_bounds = observer->root_intersection_rectangle();
 
+        // Pre-compute per-observer values to avoid repeated work in the per-target loop.
+        auto intersection_root_node = observer->intersection_root_node();
+        auto* root_paintable = intersection_root_node->paintable_box();
+        bool is_implicit_root = observer->is_implicit_root();
+        bool root_is_element = intersection_root_node->is_element();
+
         // 2. For each target in observer’s internal [[ObservationTargets]] slot, processed in the same order that
         //    observe() was called on each target:
         for (auto& target : observer->observation_targets()) {
@@ -5288,25 +5285,21 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
             // intersectionRect be a DOMRectReadOnly with x, y, width, and height set to 0.
             CSSPixelRect intersection_rect { 0, 0, 0, 0 };
 
-            // SPEC ISSUE: It doesn't pass in intersection ratio to "queue an IntersectionObserverEntry" despite needing it.
+            // SPEC ISSUE: It doesn’t pass in intersection ratio to "queue an IntersectionObserverEntry" despite needing it.
             //             This is default 0, as isIntersecting is default false, see step 9.
             double intersection_ratio = 0.0;
 
             // 2. If the intersection root is not the implicit root, and target is not in the same document as the intersection root, skip to step 11.
             // 3. If the intersection root is an Element, and target is not a descendant of the intersection root in the containing block chain, skip to step 11.
             // FIXME: Actually use the containing block chain.
-            auto intersection_root = observer->intersection_root();
-            auto intersection_root_document = intersection_root.visit([](auto& node) -> GC::Ref<Document> {
-                return node->document();
-            });
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
-            if (target->layout_node() && (observer->root().has<Empty>() || &target->document() == intersection_root_document.ptr()) && !(intersection_root.has<GC::Root<DOM::Element>>() && !target->is_descendant_of(*intersection_root.get<GC::Root<DOM::Element>>()))) {
+            if (target->layout_node() && (is_implicit_root || &target->document() == &intersection_root_node->document()) && !(root_is_element && !target->is_descendant_of(*intersection_root_node))) {
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
                 target_rect = target->get_bounding_client_rect();
 
                 // 5. Let intersectionRect be the result of running the compute the intersection algorithm on target and
                 //    observer’s intersection root.
-                intersection_rect = compute_intersection(target, observer);
+                intersection_rect = compute_intersection(target, *observer, root_paintable, root_bounds);
 
                 // 6. Let targetArea be targetRect’s area.
                 auto target_area = target_rect.width() * target_rect.height();

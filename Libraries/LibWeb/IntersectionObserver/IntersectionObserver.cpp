@@ -243,18 +243,19 @@ String IntersectionObserver::scroll_margin() const
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-intersection-root
 Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>> IntersectionObserver::intersection_root() const
 {
-    // The intersection root for an IntersectionObserver is the value of its root attribute
-    // if the attribute is non-null;
-    if (m_root) {
-        if (m_root->is_element())
-            return GC::make_root(static_cast<DOM::Element&>(*m_root));
-        if (m_root->is_document())
-            return GC::make_root(static_cast<DOM::Document&>(*m_root));
-        VERIFY_NOT_REACHED();
-    }
+    auto root_node = intersection_root_node();
+    if (root_node->is_element())
+        return GC::make_root(static_cast<DOM::Element&>(*root_node));
+    return GC::make_root(static_cast<DOM::Document&>(*root_node));
+}
 
-    // otherwise, it is the top-level browsing context’s document node, referred to as the implicit root.
-    return GC::make_root(as<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document());
+GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
+{
+    if (m_root)
+        return *m_root;
+
+    // The implicit root is the top-level browsing context’s document node.
+    return *as<HTML::Window>(HTML::relevant_global_object(*this)).page().top_level_browsing_context().active_document();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
