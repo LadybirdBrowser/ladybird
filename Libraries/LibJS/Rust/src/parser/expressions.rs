@@ -699,11 +699,11 @@ impl Parser<'_> {
         };
         self.expression(
             start,
-            ExpressionKind::RegExpLiteral(RegExpLiteralData {
+            ExpressionKind::RegExpLiteral(Box::new(RegExpLiteralData {
                 pattern: pattern.into(),
                 flags: flags.into(),
                 compiled_regex,
-            }),
+            })),
         )
     }
 

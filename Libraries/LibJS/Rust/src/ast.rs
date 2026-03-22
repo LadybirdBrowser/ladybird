@@ -1327,7 +1327,7 @@ pub enum ExpressionKind {
     BooleanLiteral(bool),
     NullLiteral,
     BigIntLiteral(String),
-    RegExpLiteral(RegExpLiteralData),
+    RegExpLiteral(Box<RegExpLiteralData>),
 
     // Identifiers
     Identifier(Rc<Identifier>),
