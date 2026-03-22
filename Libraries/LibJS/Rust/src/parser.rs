@@ -934,7 +934,7 @@ impl<'a> Parser<'a> {
         strict_mode: bool,
     ) -> bool {
         match &expression.inner {
-            ExpressionKind::Identifier(_) | ExpressionKind::Member { .. } => true,
+            ExpressionKind::Identifier(_) | ExpressionKind::Member(_) => true,
             // CallExpression: In strict mode, call expressions are always ~invalid~ as
             // assignment targets. In non-strict mode, they are ~web-compat~ (runtime error).
             // NewExpression is always ~invalid~.
@@ -956,7 +956,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_member_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Member { .. })
+        matches!(&expression.inner, ExpressionKind::Member(_))
     }
 
     fn is_update_expression(expression: &Expression) -> bool {

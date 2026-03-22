@@ -819,19 +819,15 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             }
         }
 
-        ExpressionKind::Member {
-            object,
-            property,
-            computed,
-        } => {
-            let name = if *computed {
+        ExpressionKind::Member(data) => {
+            let name = if data.computed {
                 "MemberExpression [computed]"
             } else {
                 "MemberExpression"
             };
             dump_node!(state, name, &expression.range);
-            dump_expression(object, &child_state(state, false));
-            dump_expression(property, &child_state(state, true));
+            dump_expression(&data.object, &child_state(state, false));
+            dump_expression(&data.property, &child_state(state, true));
         }
 
         ExpressionKind::OptionalChain { base, references } => {

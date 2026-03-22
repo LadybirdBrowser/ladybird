@@ -317,11 +317,9 @@ impl FunctionTable {
                     self.collect_from_expression(expr, result);
                 }
             }
-            ExpressionKind::Member {
-                object, property, ..
-            } => {
-                self.collect_from_expression(object, result);
-                self.collect_from_expression(property, result);
+            ExpressionKind::Member(data) => {
+                self.collect_from_expression(&data.object, result);
+                self.collect_from_expression(&data.property, result);
             }
             ExpressionKind::OptionalChain { base, references } => {
                 self.collect_from_expression(base, result);
@@ -1354,6 +1352,13 @@ pub struct ConditionalExprData {
     pub alternate: Box<Expression>,
 }
 
+#[derive(Clone, Debug)]
+pub struct MemberExprData {
+    pub object: Box<Expression>,
+    pub property: Box<Expression>,
+    pub computed: bool,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1385,11 +1390,7 @@ pub enum ExpressionKind {
     Sequence(Box<Vec<Expression>>),
 
     // Member access
-    Member {
-        object: Box<Expression>,
-        property: Box<Expression>,
-        computed: bool,
-    },
+    Member(Box<MemberExprData>),
     OptionalChain {
         base: Box<Expression>,
         references: Vec<OptionalChainReference>,

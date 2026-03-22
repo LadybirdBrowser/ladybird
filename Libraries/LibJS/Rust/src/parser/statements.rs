@@ -503,8 +503,8 @@ impl Parser<'_> {
                     }
                     // https://tc39.es/ecma262/#sec-for-in-and-for-of-statements
                     if let LocalForInit::Expression(ref expression) = init
-                        && let ExpressionKind::Member { ref object, .. } = expression.inner
-                        && let ExpressionKind::Identifier(ref ident) = object.inner
+                        && let ExpressionKind::Member(ref data) = expression.inner
+                        && let ExpressionKind::Identifier(ref ident) = data.object.inner
                         && ident.name == utf16!("let")
                     {
                         self.syntax_error("For of statement may not start with let.");
@@ -1036,7 +1036,7 @@ impl Parser<'_> {
                     self.syntax_error("Invalid left-hand side in for-loop");
                 }
                 ExpressionKind::Identifier(_)
-                | ExpressionKind::Member { .. }
+                | ExpressionKind::Member(_)
                 | ExpressionKind::Call(_)
                 | ExpressionKind::Object(_)
                 | ExpressionKind::Array(_) => {}
