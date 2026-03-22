@@ -41,9 +41,20 @@ public:
     void print_bytecode(ByteCode const& bytecode) const
     {
         auto state = MatchState::only_for_enumeration();
-        auto flat = bytecode.flat_data();
-        auto const* data = flat.data();
-        auto data_size = flat.size();
+        ByteCodeValueType const* data;
+        auto data_size = bytecode.size();
+        Optional<Vector<ByteCodeValueType>> flat_storage;
+
+        if constexpr (IsSame<ByteCode, FlatByteCode>) {
+            data = bytecode.flat_data().data();
+        } else {
+            flat_storage.emplace();
+            flat_storage->ensure_capacity(data_size);
+            for (size_t i = 0; i < data_size; ++i)
+                flat_storage->unchecked_append(bytecode[i]);
+            data = flat_storage->data();
+        }
+
         for (;;) {
             auto id = (data_size <= state.instruction_position)
                 ? OpCodeId::Exit
