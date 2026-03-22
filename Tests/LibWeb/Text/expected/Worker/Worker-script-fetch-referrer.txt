@@ -1,1 +1,1 @@
-Got referrer: http://127.0.0.1/updated-via-history
+Got referrer: http://localhost/updated-via-history
