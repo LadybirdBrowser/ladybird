@@ -846,7 +846,8 @@ impl Parser<'_> {
                             }
                         }
                     }
-                    StatementKind::FunctionDeclaration { name: Some(id), .. } => {
+                    StatementKind::FunctionDeclaration(fd) if fd.name.is_some() => {
+                        let id = fd.name.as_ref().unwrap();
                         for cn in &catch_names {
                             if cn.as_slice() == id.name.as_slice() {
                                 let n = String::from_utf16_lossy(cn);
@@ -954,8 +955,8 @@ impl Parser<'_> {
         self.last_inner_label_is_iteration = false;
         let body = if self.match_token(TokenType::Function) {
             let fn_decl = self.parse_function_declaration();
-            if let StatementKind::FunctionDeclaration { kind, .. } = fn_decl.inner {
-                match kind {
+            if let StatementKind::FunctionDeclaration(ref fd) = fn_decl.inner {
+                match fd.kind {
                     FunctionKind::Generator | FunctionKind::AsyncGenerator => {
                         self.syntax_error(
                             "Generator functions cannot be defined in labelled statements",

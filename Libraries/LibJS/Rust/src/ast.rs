@@ -141,8 +141,8 @@ impl FunctionTable {
 
     fn collect_from_statement(&mut self, stmt: &Statement, result: &mut FunctionTable) {
         match &stmt.inner {
-            StatementKind::FunctionDeclaration { function_id, .. } => {
-                self.transfer(*function_id, result);
+            StatementKind::FunctionDeclaration(data) => {
+                self.transfer(data.function_id, result);
             }
             StatementKind::Expression(expr) => self.collect_from_expression(expr, result),
             StatementKind::Block(scope) | StatementKind::FunctionBody { scope, .. } => {
@@ -1494,6 +1494,14 @@ pub struct VariableDeclarationData {
     pub declarations: Vec<VariableDeclarator>,
 }
 
+#[derive(Clone, Debug)]
+pub struct FunctionDeclarationData {
+    pub function_id: FunctionId,
+    pub name: Option<Rc<Identifier>>,
+    pub kind: FunctionKind,
+    pub is_hoisted: Cell<bool>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1538,12 +1546,7 @@ pub enum StatementKind {
     // Declarations
     VariableDeclaration(Box<VariableDeclarationData>),
     UsingDeclaration(Box<Vec<VariableDeclarator>>),
-    FunctionDeclaration {
-        function_id: FunctionId,
-        name: Option<Rc<Identifier>>,
-        kind: FunctionKind,
-        is_hoisted: Cell<bool>,
-    },
+    FunctionDeclaration(Box<FunctionDeclarationData>),
     ClassDeclaration(Box<ClassData>),
     ErrorDeclaration,
 

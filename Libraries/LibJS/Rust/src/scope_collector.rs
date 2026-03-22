@@ -1268,10 +1268,8 @@ impl ScopeCollector {
         {
             let sd = scope_data.borrow();
             for i in (0..sd.children.len()).rev() {
-                if let crate::ast::StatementKind::FunctionDeclaration {
-                    name: Some(ref name_ident),
-                    ..
-                } = sd.children[i].inner
+                if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = sd.children[i].inner
+                    && let Some(ref name_ident) = fd.name
                     && seen_function_names.insert(name_ident.name.clone())
                 {
                     functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
@@ -1413,14 +1411,10 @@ impl ScopeCollector {
                 if let Some(ref block_scope) = function.block_scope_data {
                     let bs = block_scope.borrow();
                     for child in &bs.children {
-                        if let crate::ast::StatementKind::FunctionDeclaration {
-                            ref name,
-                            ref is_hoisted,
-                            ..
-                        } = child.inner
-                            && name.as_ref().is_some_and(|n| n.name == function.name)
+                        if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = child.inner
+                            && fd.name.as_ref().is_some_and(|n| n.name == function.name)
                         {
-                            is_hoisted.set(true);
+                            fd.is_hoisted.set(true);
                         }
                     }
                 }

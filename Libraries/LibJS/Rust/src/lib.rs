@@ -854,7 +854,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let function_id = if let StatementKind::Program(ref data) = program.inner {
                 let scope = data.scope.borrow();
                 scope.children.iter().find_map(|child| match &child.inner {
-                    StatementKind::FunctionDeclaration { function_id, .. } => Some(*function_id),
+                    StatementKind::FunctionDeclaration(fd) => Some(fd.function_id),
                     StatementKind::Expression(expression) => {
                         if let ast::ExpressionKind::Function(function_id) = &expression.inner {
                             Some(*function_id)
@@ -961,13 +961,8 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 
             let scope = scope_ref.borrow();
             for child in &scope.children {
-                if let StatementKind::FunctionDeclaration {
-                    function_id,
-                    ref name,
-                    ..
-                } = child.inner
-                {
-                    let function_data = parser.function_table.take(function_id);
+                if let StatementKind::FunctionDeclaration(ref fd) = child.inner {
+                    let function_data = parser.function_table.take(fd.function_id);
                     let subtable = parser.function_table.extract_reachable(&function_data);
                     let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
                         function_data,
@@ -977,7 +972,7 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                         true, // strict
                     );
                     if !sfd_ptr.is_null()
-                        && let Some(name_ident) = name
+                        && let Some(name_ident) = &fd.name
                     {
                         push_function(
                             ctx,
@@ -1340,8 +1335,7 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                 let is_declaration = export_data.statement.as_ref().is_some_and(|s| {
                     matches!(
                         s.inner,
-                        StatementKind::FunctionDeclaration { .. }
-                            | StatementKind::ClassDeclaration(_)
+                        StatementKind::FunctionDeclaration(_) | StatementKind::ClassDeclaration(_)
                     )
                 });
                 if !is_declaration && let Some(ref name) = entry.local_or_import_name {
@@ -1455,13 +1449,11 @@ unsafe fn extract_module_declarations(
             };
 
             match declaration {
-                StatementKind::FunctionDeclaration {
-                    function_id, name, ..
-                } => {
+                StatementKind::FunctionDeclaration(fd) => {
                     let is_default =
-                        is_exported && name.as_ref().is_some_and(|n| n.name == default_name);
+                        is_exported && fd.name.as_ref().is_some_and(|n| n.name == default_name);
 
-                    let function_data = function_table.take(*function_id);
+                    let function_data = function_table.take(fd.function_id);
                     let subtable = function_table.extract_reachable(&function_data);
                     let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
                         function_data,
@@ -1475,7 +1467,7 @@ unsafe fn extract_module_declarations(
                     }
 
                     // Get the binding name from the AST (e.g., "*default*" for anonymous defaults).
-                    let binding_name = if let Some(name_ident) = name {
+                    let binding_name = if let Some(name_ident) = &fd.name {
                         name_ident.name.clone()
                     } else {
                         continue;
@@ -1751,10 +1743,8 @@ fn extract_gdi_common(
     // Var names (var declarations at any nesting level + top-level function declarations)
     for child in &scope.children {
         collect_var_names_recursive(&child.inner, push_var_name);
-        if let StatementKind::FunctionDeclaration {
-            name: Some(ref name_ident),
-            ..
-        } = child.inner
+        if let StatementKind::FunctionDeclaration(ref fd) = child.inner
+            && let Some(ref name_ident) = fd.name
         {
             push_var_name(&name_ident.name);
         }
@@ -1764,14 +1754,11 @@ fn extract_gdi_common(
     let mut seen_names: HashSet<ast::Utf16String> = HashSet::new();
     let mut functions_to_init: Vec<(ast::FunctionId, ast::Utf16String)> = Vec::new();
     for child in scope.children.iter().rev() {
-        if let StatementKind::FunctionDeclaration {
-            function_id,
-            name: Some(ref name_ident),
-            ..
-        } = child.inner
+        if let StatementKind::FunctionDeclaration(ref fd) = child.inner
+            && let Some(ref name_ident) = fd.name
             && seen_names.insert(name_ident.name.clone())
         {
-            functions_to_init.push((function_id, name_ident.name.clone()));
+            functions_to_init.push((fd.function_id, name_ident.name.clone()));
         }
     }
     for (function_id, name) in &functions_to_init {

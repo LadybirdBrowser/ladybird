@@ -1393,10 +1393,10 @@ fn collect_module_declared_names(
                 collect_binding_names(&decl.target, names);
             }
         }
-        StatementKind::FunctionDeclaration {
-            name: Some(name), ..
-        } => {
-            names.insert(name.name.clone());
+        StatementKind::FunctionDeclaration(data) => {
+            if let Some(ref name) = data.name {
+                names.insert(name.name.clone());
+            }
         }
         StatementKind::ClassDeclaration(data) => {
             if let Some(ref name) = data.name {

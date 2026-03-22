@@ -1038,13 +1038,11 @@ pub fn generate_statement(
         StatementKind::Try(data) => generate_try_statement(generator, data, preferred_dst),
 
         // === FunctionDeclaration ===
-        StatementKind::FunctionDeclaration {
-            name, is_hoisted, ..
-        } => {
-            if is_hoisted.get() {
+        StatementKind::FunctionDeclaration(fd) => {
+            if fd.is_hoisted.get() {
                 // Annex B.3.3: Copy the function from the lexical (block) scope
                 // to the var scope.
-                if let Some(name_ident) = name {
+                if let Some(name_ident) = &fd.name {
                     let id = generator.intern_identifier(&name_ident.name);
                     let value = generator.allocate_register();
                     generator.emit(Instruction::GetBinding {
@@ -1151,8 +1149,7 @@ pub fn generate_statement(
                 }
             } else if let Some(ref child_statement) = export_data.statement {
                 match &child_statement.inner {
-                    StatementKind::FunctionDeclaration { .. }
-                    | StatementKind::ClassDeclaration(_) => {
+                    StatementKind::FunctionDeclaration(_) | StatementKind::ClassDeclaration(_) => {
                         generate_statement(child_statement, generator, None)
                     }
                     _ => {
@@ -2775,11 +2772,8 @@ fn emit_lexical_declarations_for_block<'a>(
                     });
                 }
             }
-            StatementKind::FunctionDeclaration {
-                function_id,
-                name: Some(name_ident),
-                ..
-            } => {
+            StatementKind::FunctionDeclaration(fd) if fd.name.is_some() => {
+                let name_ident = fd.name.as_ref().unwrap();
                 // a. Create binding.
                 if !name_ident.is_local() {
                     let id = generator.intern_identifier(&name_ident.name);
@@ -2790,7 +2784,7 @@ fn emit_lexical_declarations_for_block<'a>(
                     });
                 }
                 // b. Instantiate function object.
-                let function_data = generator.function_table.take(*function_id);
+                let function_data = generator.function_table.take(fd.function_id);
                 let sfd_index = emit_new_function(generator, function_data, None);
                 let fo = generator.allocate_register();
                 generator.emit(Instruction::NewFunction {
@@ -5173,10 +5167,8 @@ fn generate_switch_statement(
             // For function declarations in switch cases: emit AnnexB hoisting
             // only if the scope collector approved it (name is in annexb_function_names).
             if did_create_env
-                && let StatementKind::FunctionDeclaration {
-                    name: Some(ref name_ident),
-                    ..
-                } = child.inner
+                && let StatementKind::FunctionDeclaration(ref fd) = child.inner
+                && let Some(ref name_ident) = fd.name
                 && generator.annexb_function_names.contains(&name_ident.name)
             {
                 let id = generator.intern_identifier(&name_ident.name);
@@ -5248,7 +5240,7 @@ fn emit_switch_block_declaration_instantiation(
     // Check if we need a lexical environment.
     // Only needed if there are non-local lexical declarations.
     let needs_env = all_children.iter().any(|child| match &child.inner {
-        StatementKind::FunctionDeclaration { .. } => true,
+        StatementKind::FunctionDeclaration(_) => true,
         StatementKind::VariableDeclaration(vd) => {
             if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
                 vd.declarations.iter().any(|declaration| {
@@ -6311,8 +6303,8 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
     let function_id = if let StatementKind::Program(ref data) = program.inner {
         let scope = data.scope.borrow();
         scope.children.iter().find_map(|child| {
-            if let StatementKind::FunctionDeclaration { function_id, .. } = &child.inner {
-                Some(*function_id)
+            if let StatementKind::FunctionDeclaration(fd) = &child.inner {
+                Some(fd.function_id)
             } else {
                 None
             }
@@ -8441,17 +8433,12 @@ pub fn emit_function_declaration_instantiation(
     if let Some(fsd) = function_scope_data {
         for function_to_init in &fsd.functions_to_initialize {
             let child = &body_scope.children[function_to_init.child_index];
-            if let StatementKind::FunctionDeclaration {
-                function_id,
-                ref name,
-                ..
-            } = child.inner
-            {
-                let inner_function_data = generator.function_table.take(function_id);
+            if let StatementKind::FunctionDeclaration(ref fd) = child.inner {
+                let inner_function_data = generator.function_table.take(fd.function_id);
                 let sfd_index = emit_new_function(generator, inner_function_data, None);
 
                 // Check if the function name identifier is local.
-                if let Some(name_ident) = name {
+                if let Some(name_ident) = &fd.name {
                     if name_ident.is_local() {
                         let local_index = name_ident.local_index.get();
                         let local = generator.local(local_index);
@@ -8496,7 +8483,7 @@ fn is_for_loop(statement: &Statement) -> bool {
 fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
     for child in &scope.children {
         match &child.inner {
-            StatementKind::FunctionDeclaration { .. } => {
+            StatementKind::FunctionDeclaration(_) => {
                 return true;
             }
             StatementKind::VariableDeclaration(vd) => {

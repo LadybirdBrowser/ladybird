@@ -44,8 +44,8 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
             }
             names
         }
-        StatementKind::FunctionDeclaration { name, .. } => {
-            if let Some(name) = name {
+        StatementKind::FunctionDeclaration(fd) => {
+            if let Some(ref name) = fd.name {
                 vec![name.name.clone()]
             } else {
                 Vec::new()
@@ -434,12 +434,12 @@ impl Parser<'_> {
         let function_id = self.function_table.insert(fd);
         self.statement(
             start,
-            StatementKind::FunctionDeclaration {
+            StatementKind::FunctionDeclaration(Box::new(FunctionDeclarationData {
                 function_id,
                 name: decl_name,
                 kind: decl_kind,
                 is_hoisted: Cell::new(false),
-            },
+            })),
         )
     }
 
@@ -1920,10 +1920,8 @@ impl Parser<'_> {
                 let has_default_name = matches_function == MatchesFunctionDeclaration::WithoutName;
                 let declaration = self.parse_function_declaration_for_export(has_default_name);
                 if !has_default_name
-                    && let StatementKind::FunctionDeclaration {
-                        name: Some(ref name_id),
-                        ..
-                    } = declaration.inner
+                    && let StatementKind::FunctionDeclaration(ref fd) = declaration.inner
+                    && let Some(ref name_id) = fd.name
                 {
                     local_name = Some(name_id.name.clone());
                 }

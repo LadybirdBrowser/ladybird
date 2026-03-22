@@ -546,8 +546,8 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::FunctionDeclaration { function_id, .. } => {
-            let function_data = state.function_table().get(*function_id);
+        StatementKind::FunctionDeclaration(data) => {
+            let function_data = state.function_table().get(data.function_id);
             dump_function(
                 function_data,
                 "FunctionDeclaration",
