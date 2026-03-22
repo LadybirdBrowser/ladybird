@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+#root {
+    width: 200px;
+    height: 200px;
+    background: blue;
+}
+#non-descendant {
+    width: 100px;
+    height: 100px;
+    background: red;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+</style>
+<script src="../include.js"></script>
+<div id="root"></div>
+<div id="non-descendant"></div>
+<script>
+    asyncTest(done => {
+        // Observe a target that spatially overlaps the root but is NOT a descendant.
+        // Per spec step 3: "If the intersection root is an Element, and target is not
+        // a descendant of the intersection root, skip to step 11."
+        // This means the target should be reported as non-intersecting (step 11 defaults).
+        let callbackCount = 0;
+        let observer = new IntersectionObserver(entries => {
+            callbackCount++;
+            entries.forEach(entry => {
+                println(`callback ${callbackCount}: isIntersecting=${entry.isIntersecting}, ratio=${entry.intersectionRatio}`);
+            });
+            if (callbackCount === 1) {
+                // After initial callback, wait a couple frames to confirm no further callbacks fire.
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        println(`total callbacks: ${callbackCount}`);
+                        done();
+                    });
+                });
+            }
+        }, { root: document.getElementById("root") });
+
+        observer.observe(document.getElementById("non-descendant"));
+    });
+</script>

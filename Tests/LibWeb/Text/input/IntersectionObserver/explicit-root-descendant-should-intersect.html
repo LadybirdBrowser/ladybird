@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+#root {
+    width: 200px;
+    height: 200px;
+    background: blue;
+}
+#descendant {
+    width: 100px;
+    height: 100px;
+    background: red;
+}
+</style>
+<script src="../include.js"></script>
+<div id="root"><div id="descendant"></div></div>
+<script>
+    asyncTest(done => {
+        // A target that IS a descendant of the explicit root should be reported as intersecting.
+        let observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                println(`isIntersecting=${entry.isIntersecting}`);
+                if (entry.isIntersecting) {
+                    println(`ratio=${entry.intersectionRatio}`);
+                    done();
+                }
+            });
+        }, { root: document.getElementById("root") });
+
+        observer.observe(document.getElementById("descendant"));
+    });
+</script>

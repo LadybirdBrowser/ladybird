@@ -1,0 +1,2 @@
+callback 1: isIntersecting=true, ratio=0.84375
+total callbacks: 1
