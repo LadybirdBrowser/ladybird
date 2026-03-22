@@ -1963,11 +1963,11 @@ fn for_each_child_statement(
         StatementKind::With { body, .. } => {
             f(&body.inner);
         }
-        StatementKind::For { init, body, .. } => {
-            if let Some(ast::ForInit::Declaration(decl)) = init {
+        StatementKind::For(data) => {
+            if let Some(ast::ForInit::Declaration(decl)) = &data.init {
                 f(&decl.inner);
             }
-            f(&body.inner);
+            f(&data.body.inner);
         }
         StatementKind::ForInOf { lhs, body, .. } => {
             if let ast::ForInOfLhs::Declaration(declaration) = lhs {

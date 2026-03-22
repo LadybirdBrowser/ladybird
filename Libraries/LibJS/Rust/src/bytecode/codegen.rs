@@ -963,17 +963,12 @@ pub fn generate_statement(
         }
 
         // === For ===
-        StatementKind::For {
-            init,
-            test,
-            update,
-            body,
-        } => generate_for_statement(
+        StatementKind::For(data) => generate_for_statement(
             generator,
-            init.as_ref(),
-            test.as_deref(),
-            update.as_deref(),
-            body,
+            data.init.as_ref(),
+            data.test.as_deref(),
+            data.update.as_deref(),
+            &data.body,
             preferred_dst,
         ),
 
@@ -6686,7 +6681,7 @@ fn generate_labelled_statement(
     };
     let is_iteration_or_switch = matches!(
         &effective_inner.inner,
-        StatementKind::For { .. }
+        StatementKind::For(_)
             | StatementKind::ForInOf { .. }
             | StatementKind::While(_)
             | StatementKind::DoWhile(_)
@@ -8496,7 +8491,7 @@ pub fn emit_function_declaration_instantiation(
 fn is_for_loop(statement: &Statement) -> bool {
     matches!(
         statement.inner,
-        StatementKind::For { .. } | StatementKind::ForInOf { .. }
+        StatementKind::For(_) | StatementKind::ForInOf { .. }
     )
 }
 

@@ -359,7 +359,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             if s.children.len() == 1
                 && matches!(
                     s.children[0].inner,
-                    StatementKind::For { .. } | StatementKind::ForInOf { .. }
+                    StatementKind::For(_) | StatementKind::ForInOf { .. }
                 )
             {
                 dump_statement(&s.children[0], state);
@@ -418,14 +418,9 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_labeled_expression("test", &data.test, true, state);
         }
 
-        StatementKind::For {
-            init,
-            test,
-            update,
-            body,
-        } => {
+        StatementKind::For(data) => {
             dump_node!(state, "ForStatement", &statement.range);
-            if let Some(init) = init {
+            if let Some(init) = &data.init {
                 let init_state = child_state(state, false);
                 print_node(&init_state, &color_label(state, "init"));
                 match init {
@@ -437,13 +432,13 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                     }
                 }
             }
-            if let Some(test) = test {
+            if let Some(test) = &data.test {
                 dump_labeled_expression("test", test, false, state);
             }
-            if let Some(update) = update {
+            if let Some(update) = &data.update {
                 dump_labeled_expression("update", update, false, state);
             }
-            dump_labeled_statement("body", body, true, state);
+            dump_labeled_statement("body", &data.body, true, state);
         }
 
         StatementKind::ForInOf {

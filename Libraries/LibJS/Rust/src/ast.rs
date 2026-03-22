@@ -170,25 +170,20 @@ impl FunctionTable {
                 self.collect_from_statement(&data.body, result);
                 self.collect_from_expression(&data.test, result);
             }
-            StatementKind::For {
-                init,
-                test,
-                update,
-                body,
-            } => {
-                if let Some(init) = init {
+            StatementKind::For(data) => {
+                if let Some(init) = &data.init {
                     match init {
                         ForInit::Expression(expr) => self.collect_from_expression(expr, result),
                         ForInit::Declaration(decl) => self.collect_from_statement(decl, result),
                     }
                 }
-                if let Some(test) = test {
+                if let Some(test) = &data.test {
                     self.collect_from_expression(test, result);
                 }
-                if let Some(update) = update {
+                if let Some(update) = &data.update {
                     self.collect_from_expression(update, result);
                 }
-                self.collect_from_statement(body, result);
+                self.collect_from_statement(&data.body, result);
             }
             StatementKind::ForInOf { lhs, rhs, body, .. } => {
                 match lhs {
@@ -1465,6 +1460,14 @@ pub struct WhileStatementData {
     pub body: Box<Statement>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ForStatementData {
+    pub init: Option<ForInit>,
+    pub test: Option<Box<Expression>>,
+    pub update: Option<Box<Expression>>,
+    pub body: Box<Statement>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1489,12 +1492,7 @@ pub enum StatementKind {
     If(Box<IfStatementData>),
     While(Box<WhileStatementData>),
     DoWhile(Box<WhileStatementData>),
-    For {
-        init: Option<ForInit>,
-        test: Option<Box<Expression>>,
-        update: Option<Box<Expression>>,
-        body: Box<Statement>,
-    },
+    For(Box<ForStatementData>),
     ForInOf {
         kind: ForInOfKind,
         lhs: ForInOfLhs,

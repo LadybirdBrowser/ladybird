@@ -587,12 +587,12 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::For {
+            StatementKind::For(Box::new(ForStatementData {
                 init,
                 test,
                 update,
                 body: Box::new(body),
-            },
+            })),
         )
     }
 
