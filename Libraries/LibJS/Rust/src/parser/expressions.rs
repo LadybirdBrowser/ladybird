@@ -1474,10 +1474,10 @@ impl Parser<'_> {
         if self.current_token.trivia_has_line_terminator {
             return self.expression(
                 start,
-                ExpressionKind::Yield {
+                ExpressionKind::Yield(Box::new(YieldExprData {
                     argument: None,
                     is_yield_from: false,
-                },
+                })),
             );
         }
 
@@ -1490,18 +1490,18 @@ impl Parser<'_> {
             let argument = self.parse_assignment_expression();
             self.expression(
                 start,
-                ExpressionKind::Yield {
+                ExpressionKind::Yield(Box::new(YieldExprData {
                     argument: Some(Box::new(argument)),
                     is_yield_from,
-                },
+                })),
             )
         } else {
             self.expression(
                 start,
-                ExpressionKind::Yield {
+                ExpressionKind::Yield(Box::new(YieldExprData {
                     argument: None,
                     is_yield_from: false,
-                },
+                })),
             )
         }
     }

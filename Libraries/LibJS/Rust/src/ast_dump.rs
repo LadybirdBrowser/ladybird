@@ -996,17 +996,14 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             }
         }
 
-        ExpressionKind::Yield {
-            argument,
-            is_yield_from,
-        } => {
+        ExpressionKind::Yield(data) => {
             let mut desc = color_node_name(state, "YieldExpression");
-            if *is_yield_from {
+            if data.is_yield_from {
                 desc.push_str(&format!(" {}", color_flag(state, "yield*")));
             }
             desc.push_str(&format_position(state, &expression.range));
             print_node(state, &desc);
-            if let Some(argument) = argument {
+            if let Some(ref argument) = data.argument {
                 dump_expression(argument, &child_state(state, true));
             }
         }

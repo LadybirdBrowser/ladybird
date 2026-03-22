@@ -214,13 +214,10 @@ fn generate_expression_inner(
         }
 
         // === Yield ===
-        ExpressionKind::Yield {
-            argument,
-            is_yield_from,
-        } => Some(generate_yield_expression(
+        ExpressionKind::Yield(data) => Some(generate_yield_expression(
             generator,
-            argument.as_deref(),
-            *is_yield_from,
+            data.argument.as_deref(),
+            data.is_yield_from,
         )),
 
         // === Await ===

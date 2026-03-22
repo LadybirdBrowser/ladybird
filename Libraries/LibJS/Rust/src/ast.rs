@@ -374,8 +374,8 @@ impl FunctionTable {
                 self.collect_from_expression(&data.tag, result);
                 self.collect_from_expression(&data.template_literal, result);
             }
-            ExpressionKind::Yield { argument, .. } => {
-                if let Some(expr) = argument {
+            ExpressionKind::Yield(data) => {
+                if let Some(ref expr) = data.argument {
                     self.collect_from_expression(expr, result);
                 }
             }
@@ -1374,6 +1374,12 @@ pub struct ImportCallData {
     pub options: Option<Box<Expression>>,
 }
 
+#[derive(Clone, Debug)]
+pub struct YieldExprData {
+    pub argument: Option<Box<Expression>>,
+    pub is_yield_from: bool,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1439,10 +1445,7 @@ pub enum ExpressionKind {
     ImportCall(Box<ImportCallData>),
 
     // Async / Generator
-    Yield {
-        argument: Option<Box<Expression>>,
-        is_yield_from: bool,
-    },
+    Yield(Box<YieldExprData>),
     Await(Box<Expression>),
 
     // Error recovery
