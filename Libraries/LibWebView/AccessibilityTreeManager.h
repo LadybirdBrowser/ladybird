@@ -25,6 +25,9 @@ public:
     AccessibilityNodeData const* hit_test(Gfx::IntPoint point) const;
     void set_focused_node(i64 node_id);
 
+    // Build a flat list of text leaf node IDs in DFS order.
+    Vector<i64> text_leaves_in_order() const;
+
     bool is_empty() const { return m_nodes.is_empty(); }
 
 private:

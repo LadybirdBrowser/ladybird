@@ -1,0 +1,24 @@
+document
+  generic focused
+    navigation name="Breadcrumbs"
+      list
+        listitem
+          link name="Home"
+            text leaf name="Home"
+        listitem
+          link name="Products"
+            text leaf name="Products"
+        listitem
+          link name="Widgets"
+            text leaf name="Widgets"
+    navigation name="Steps"
+      list
+        listitem
+          link name="Step 1"
+            text leaf name="Step 1"
+        listitem
+          link name="Step 2"
+            text leaf name="Step 2"
+        listitem
+          link name="Step 3"
+            text leaf name="Step 3"

@@ -1,0 +1,10 @@
+document
+  generic focused
+    form name="Login"
+      text leaf name="Username"
+      textbox name="Username"
+      text leaf name="Password"
+       name="Password"
+      alert
+      button name="Log in"
+        text leaf name="Log in"

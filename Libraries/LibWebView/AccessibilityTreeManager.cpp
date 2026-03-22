@@ -76,6 +76,31 @@ AccessibilityNodeData const* AccessibilityTreeManager::root() const
     return node(m_root_id);
 }
 
+Vector<i64> AccessibilityTreeManager::text_leaves_in_order() const
+{
+    Vector<i64> result;
+    if (m_root_id == -1)
+        return result;
+
+    // DFS pre-order traversal collecting text leaf nodes
+    Vector<i64> stack;
+    stack.append(m_root_id);
+
+    while (!stack.is_empty()) {
+        auto id = stack.take_last();
+        auto const* n = node(id);
+        if (!n)
+            continue;
+        if (n->role.bytes_as_string_view() == "text leaf"sv && !n->name.is_empty())
+            result.append(id);
+        // Push children in reverse for correct DFS order
+        for (int i = static_cast<int>(n->child_ids.size()) - 1; i >= 0; --i)
+            stack.append(n->child_ids[i]);
+    }
+
+    return result;
+}
+
 AccessibilityNodeData const* AccessibilityTreeManager::hit_test(Gfx::IntPoint point) const
 {
     if (m_root_id == -1)
