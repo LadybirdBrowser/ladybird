@@ -162,6 +162,18 @@ void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresen
                  forType:pasteboard_type];
 }
 
+void Application::rebuild_bookmarks_menu() const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    [delegate rebuildBookmarksMenu];
+}
+
+void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    [delegate updateBookmarksBarDisplay:show_bookmarks_bar];
+}
+
 void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();

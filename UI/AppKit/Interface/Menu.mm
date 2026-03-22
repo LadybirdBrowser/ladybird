@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
+
 #import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
@@ -121,6 +123,18 @@ public:
             [m_control setBordered:action.visible()];
     }
 
+    virtual void on_engaged_state_changed(WebView::Action& action) override
+    {
+        switch (action.id()) {
+        case WebView::ActionID::ToggleBookmark:
+        case WebView::ActionID::ToggleBookmarkViaToolbar:
+            set_control_image(m_control, action.engaged() ? @"star.fill" : @"star");
+            break;
+        default:
+            break;
+        }
+    }
+
     virtual void on_checked_state_changed(WebView::Action& action) override
     {
         [m_control setState:action.checked() ? NSControlStateValueOn : NSControlStateValueOff];
@@ -135,6 +149,23 @@ private:
 
     __weak id m_control { nil };
 };
+
+static NSImage* image_from_base64_png(StringView favicon_base64_png)
+{
+    static constexpr CGFloat const MENU_ICON_SIZE = 16;
+
+    auto decoded = decode_base64(favicon_base64_png);
+    if (decoded.is_error())
+        return nil;
+
+    auto* data = [NSData dataWithBytes:decoded.value().data()
+                                length:decoded.value().size()];
+
+    auto* image = [[NSImage alloc] initWithData:data];
+    [image setSize:NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE)];
+
+    return image;
+}
 
 static void initialize_native_control(WebView::Action& action, id control)
 {
@@ -167,6 +198,20 @@ static void initialize_native_control(WebView::Action& action, id control)
 
     case WebView::ActionID::SearchSelectedText:
         set_control_image(control, @"magnifyingglass");
+        break;
+
+    case WebView::ActionID::ToggleBookmark:
+        [control setKeyEquivalent:@"d"];
+        break;
+    case WebView::ActionID::ToggleBookmarksBar:
+        set_control_image(control, @"line.horizontal.star.fill.line.horizontal");
+        [control setKeyEquivalent:@"B"];
+        break;
+    case WebView::ActionID::BookmarkItem:
+        if (auto icon = action.base64_png_icon(); icon.has_value())
+            [control setImage:image_from_base64_png(*icon)];
+        else
+            set_control_image(control, @"globe");
         break;
 
     case WebView::ActionID::OpenAboutPage:
@@ -307,6 +352,12 @@ NSMenu* create_application_menu(WebView::Menu& menu)
     auto* application_menu = [[NSMenu alloc] initWithTitle:string_to_ns_string(menu.title())];
     add_items_to_menu(application_menu, menu.items());
     return application_menu;
+}
+
+void repopulate_application_menu(NSMenu* menu, WebView::Menu& source)
+{
+    [menu removeAllItems];
+    add_items_to_menu(menu, source.items());
 }
 
 NSMenu* create_context_menu(LadybirdWebView* view, WebView::Menu& menu)

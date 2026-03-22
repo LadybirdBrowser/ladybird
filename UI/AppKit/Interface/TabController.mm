@@ -6,6 +6,7 @@
 
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -27,6 +28,7 @@ static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateFo
 static NSString* const TOOLBAR_RELOAD_IDENTIFIER = @"ToolbarReloadIdentifier";
 static NSString* const TOOLBAR_LOCATION_IDENTIFIER = @"ToolbarLocationIdentifier";
 static NSString* const TOOLBAR_ZOOM_IDENTIFIER = @"ToolbarZoomIdentifier";
+static NSString* const TOOLBAR_BOOKMARK_IDENTIFIER = @"ToolbarBookmarkIdentifier";
 static NSString* const TOOLBAR_NEW_TAB_IDENTIFIER = @"ToolbarNewTabIdentifier";
 static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIdentifier";
 
@@ -81,6 +83,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @property (nonatomic, strong) NSToolbarItem* reload_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* zoom_toolbar_item;
+@property (nonatomic, strong) NSToolbarItem* bookmark_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
 
@@ -98,6 +101,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 @synthesize reload_toolbar_item = _reload_toolbar_item;
 @synthesize location_toolbar_item = _location_toolbar_item;
 @synthesize zoom_toolbar_item = _zoom_toolbar_item;
+@synthesize bookmark_toolbar_item = _bookmark_toolbar_item;
 @synthesize new_tab_toolbar_item = _new_tab_toolbar_item;
 @synthesize tab_overview_toolbar_item = _tab_overview_toolbar_item;
 
@@ -365,6 +369,18 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     return _zoom_toolbar_item;
 }
 
+- (NSToolbarItem*)bookmark_toolbar_item
+{
+    if (!_bookmark_toolbar_item) {
+        auto* button = Ladybird::create_application_button([[[self tab] web_view] view].toggle_bookmark_action());
+
+        _bookmark_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_BOOKMARK_IDENTIFIER];
+        [_bookmark_toolbar_item setView:button];
+    }
+
+    return _bookmark_toolbar_item;
+}
+
 - (NSToolbarItem*)new_tab_toolbar_item
 {
     if (!_new_tab_toolbar_item) {
@@ -402,6 +418,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_RELOAD_IDENTIFIER,
             TOOLBAR_LOCATION_IDENTIFIER,
+            TOOLBAR_BOOKMARK_IDENTIFIER,
             TOOLBAR_ZOOM_IDENTIFIER,
             NSToolbarFlexibleSpaceItemIdentifier,
             TOOLBAR_NEW_TAB_IDENTIFIER,
@@ -495,6 +512,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     if (m_fullscreen_requested_for_web_content) {
         [self.toolbar setVisible:NO];
+        [[self tab] updateBookmarksBarDisplay:NO];
 
         m_fullscreen_should_restore_tab_bar = [[self.window tabGroup] isTabBarVisible];
         if (m_fullscreen_should_restore_tab_bar) {
@@ -519,6 +537,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
 {
     if (exchange(m_fullscreen_requested_for_web_content, false)) {
         [self.toolbar setVisible:YES];
+        [[self tab] updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
 
         if (m_fullscreen_should_restore_tab_bar && ![[self.window tabGroup] isTabBarVisible]) {
             [self.window toggleTabBar:nil];
@@ -561,6 +580,9 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
     if ([identifier isEqual:TOOLBAR_ZOOM_IDENTIFIER]) {
         return self.zoom_toolbar_item;
+    }
+    if ([identifier isEqual:TOOLBAR_BOOKMARK_IDENTIFIER]) {
+        return self.bookmark_toolbar_item;
     }
     if ([identifier isEqual:TOOLBAR_NEW_TAB_IDENTIFIER]) {
         return self.new_tab_toolbar_item;

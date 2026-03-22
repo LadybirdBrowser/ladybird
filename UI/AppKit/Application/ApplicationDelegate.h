@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -36,6 +36,9 @@
 - (nullable Tab*)activeTab;
 
 - (void)removeTab:(nonnull TabController*)controller;
+
+- (void)rebuildBookmarksMenu;
+- (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar;
 
 - (void)onDevtoolsEnabled;
 - (void)onDevtoolsDisabled;

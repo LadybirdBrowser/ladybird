@@ -7,9 +7,12 @@
 #include <AK/String.h>
 #include <LibCore/Resource.h>
 #include <LibURL/URL.h>
+#include <LibWebView/Application.h>
+#include <LibWebView/Settings.h>
 #include <LibWebView/ViewImplementation.h>
 
 #import <Application/ApplicationDelegate.h>
+#import <Interface/BookmarksBar.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/SearchPanel.h>
 #import <Interface/Tab.h>
@@ -28,6 +31,7 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 @property (nonatomic, strong) NSString* title;
 @property (nonatomic, strong) NSImage* favicon;
 
+@property (nonatomic, strong) NSTitlebarAccessoryViewController* bookmarks_bar_controller;
 @property (nonatomic, strong) SearchPanel* search_panel;
 
 @end
@@ -81,6 +85,13 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
         [self setTitleVisibility:NSWindowTitleHidden];
         [self setIsVisible:YES];
+
+        auto* bookmarks_bar = [[BookmarksBar alloc] init];
+        self.bookmarks_bar_controller = [[NSTitlebarAccessoryViewController alloc] init];
+        [self.bookmarks_bar_controller setView:bookmarks_bar];
+        [self.bookmarks_bar_controller setLayoutAttribute:NSLayoutAttributeBottom];
+        [self updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
+        [self addTitlebarAccessoryViewController:self.bookmarks_bar_controller];
 
         self.search_panel = [[SearchPanel alloc] init];
         [self.search_panel setHidden:YES];
@@ -276,6 +287,17 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [favicon setResizingMode:NSImageResizingModeStretch];
     self.favicon = favicon;
     [self updateTabTitleAndFavicon];
+}
+
+- (void)rebuildBookmarksBar
+{
+    auto* bookmarks_bar = (BookmarksBar*)[self.bookmarks_bar_controller view];
+    [bookmarks_bar rebuild];
+}
+
+- (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar
+{
+    [self.bookmarks_bar_controller setHidden:!show_bookmarks_bar];
 }
 
 - (void)onAudioPlayStateChange:(Web::HTML::AudioPlayState)play_state

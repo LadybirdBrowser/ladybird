@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2023-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -23,6 +23,8 @@
 @property (nonatomic, strong) NSMutableArray<TabController*>* managed_tabs;
 @property (nonatomic, weak) Tab* active_tab;
 
+@property (nonatomic, strong) NSMenu* bookmarks_menu;
+
 @property (nonatomic, strong) InfoBar* info_bar;
 
 - (NSMenuItem*)createApplicationMenu;
@@ -30,6 +32,7 @@
 - (NSMenuItem*)createEditMenu;
 - (NSMenuItem*)createViewMenu;
 - (NSMenuItem*)createHistoryMenu;
+- (NSMenuItem*)createBookmarksMenu;
 - (NSMenuItem*)createInspectMenu;
 - (NSMenuItem*)createDebugMenu;
 - (NSMenuItem*)createWindowMenu;
@@ -49,6 +52,7 @@
         [[NSApp mainMenu] addItem:[self createEditMenu]];
         [[NSApp mainMenu] addItem:[self createViewMenu]];
         [[NSApp mainMenu] addItem:[self createHistoryMenu]];
+        [[NSApp mainMenu] addItem:[self createBookmarksMenu]];
         [[NSApp mainMenu] addItem:[self createInspectMenu]];
         [[NSApp mainMenu] addItem:[self createDebugMenu]];
         [[NSApp mainMenu] addItem:[self createWindowMenu]];
@@ -105,11 +109,16 @@
 
 - (void)setActiveTab:(Tab*)tab
 {
+    if (tab == self.activeTab)
+        return;
+
     self.active_tab = tab;
 
     if (self.info_bar) {
         [self.info_bar tabBecameActive:self.active_tab];
     }
+
+    WebView::Application::the().update_bookmark_action_for_current_web_view();
 }
 
 - (Tab*)activeTab
@@ -120,6 +129,25 @@
 - (void)removeTab:(TabController*)controller
 {
     [self.managed_tabs removeObject:controller];
+}
+
+- (void)rebuildBookmarksMenu
+{
+    Ladybird::repopulate_application_menu(self.bookmarks_menu, WebView::Application::the().bookmarks_menu());
+
+    for (TabController* controller in self.managed_tabs) {
+        auto* tab = (Tab*)[controller window];
+        [tab rebuildBookmarksBar];
+    }
+}
+
+- (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar
+{
+    for (TabController* controller in self.managed_tabs) {
+        if (auto* tab = (Tab*)[controller window]; ([tab styleMask] & NSWindowStyleMaskFullScreen) == 0) {
+            [tab updateBookmarksBarDisplay:show_bookmarks_bar];
+        }
+    }
 }
 
 - (void)onDevtoolsEnabled
@@ -351,6 +379,16 @@
                                          keyEquivalent:@""]];
 
     [menu setSubmenu:submenu];
+    return menu;
+}
+
+- (NSMenuItem*)createBookmarksMenu
+{
+    auto* menu = [[NSMenuItem alloc] init];
+
+    self.bookmarks_menu = Ladybird::create_application_menu(WebView::Application::the().bookmarks_menu());
+    [menu setSubmenu:self.bookmarks_menu];
+
     return menu;
 }
 
