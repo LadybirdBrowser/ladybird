@@ -20,8 +20,9 @@
 
 namespace Ladybird {
 
-TabBar::TabBar(QWidget* parent)
-    : QTabBar(parent)
+TabBar::TabBar(TabWidget* tab_widget)
+    : QTabBar(tab_widget)
+    , m_tab_widget(tab_widget)
 {
 }
 
@@ -50,9 +51,10 @@ QSize TabBar::tabSizeHint(int index) const
 
 void TabBar::contextMenuEvent(QContextMenuEvent* event)
 {
-    auto* tab_widget = as<TabWidget>(parent());
+    if (!m_tab_widget)
+        return;
 
-    if (auto* tab = tab_widget->tab(tabAt(event->pos())))
+    if (auto* tab = m_tab_widget->tab(tabAt(event->pos())))
         tab->context_menu()->exec(event->globalPos());
 }
 
@@ -110,7 +112,7 @@ TabWidget::TabWidget(QWidget* parent)
 
     recreate_icons();
 
-    auto* tab_bar_row_layout = new QHBoxLayout;
+    auto* tab_bar_row_layout = new QHBoxLayout();
     tab_bar_row_layout->setSpacing(0);
     tab_bar_row_layout->setContentsMargins(0, 0, 0, 0);
     tab_bar_row_layout->addWidget(m_tab_bar);

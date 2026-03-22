@@ -10,6 +10,7 @@
 
 #include <AK/TypeCasts.h>
 
+#include <QPointer>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QTabBar>
@@ -30,7 +31,7 @@ class TabBar final : public QTabBar {
     Q_OBJECT
 
 public:
-    explicit TabBar(QWidget* parent = nullptr);
+    explicit TabBar(TabWidget*);
 
     void set_available_width(int width);
 
@@ -40,6 +41,8 @@ public:
 private:
     void mousePressEvent(QMouseEvent*) override;
     void mouseMoveEvent(QMouseEvent*) override;
+
+    QPointer<TabWidget> m_tab_widget;
 
     int m_available_width { 0 };
     int m_x_position_in_selected_tab_while_dragging { 0 };
