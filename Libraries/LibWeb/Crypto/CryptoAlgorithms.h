@@ -843,13 +843,13 @@ struct CShakeParams : public AlgorithmParams {
 struct KmacParams : public AlgorithmParams {
     virtual ~KmacParams() override;
 
-    KmacParams(u32 length, Optional<ByteBuffer> customization)
-        : length(length)
+    KmacParams(u32 output_length, Optional<ByteBuffer> customization)
+        : output_length(output_length)
         , customization(move(customization))
     {
     }
 
-    u32 length;
+    u32 output_length;
     Optional<ByteBuffer> customization;
 
     static JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> from_value(JS::VM&, JS::Value);

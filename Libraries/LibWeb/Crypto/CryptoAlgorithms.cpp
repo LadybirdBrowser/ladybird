@@ -716,13 +716,13 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> KmacParams::from_value(JS:
     VERIFY(value.is_object());
     auto& object = value.as_object();
 
-    // 1. If the length member is missing, throw a TypeError.
-    if (!MUST(object.has_property("length"_utf16_fly_string))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "length");
+    // 1. If the outputLength member is missing, throw a TypeError.
+    if (!MUST(object.has_property("outputLength"_utf16_fly_string))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::MissingRequiredProperty, "outputLength");
     }
 
-    auto const length_value = TRY(object.get("length"_utf16_fly_string));
-    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, length_value, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
+    auto const output_length = TRY(object.get("outputLength"_utf16_fly_string));
+    auto const length = TRY(WebIDL::convert_to_int<WebIDL::UnsignedLong>(vm, output_length, WebIDL::EnforceRange::Yes, WebIDL::Clamp::No));
 
     // 2. Let customization be the optional customization member or the empty octet string.
     auto const customization = TRY(get_optional_buffer_source(vm, object, "customization"_utf16_fly_string));
@@ -10459,7 +10459,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::ArrayBuffer>> KMAC::sign(AlgorithmParams const& 
     auto const& customization = normalized_algorithm.customization;
 
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const output_length = normalized_algorithm.length;
+    auto const output_length = normalized_algorithm.output_length;
 
     // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
     //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
@@ -10492,7 +10492,7 @@ WebIDL::ExceptionOr<JS::Value> KMAC::verify(AlgorithmParams const& params, GC::R
     auto const& customization = normalized_algorithm.customization;
 
     auto const& key_data = key->handle().get<ByteBuffer>();
-    auto const output_length = normalized_algorithm.length;
+    auto const output_length = normalized_algorithm.output_length;
 
     // 2. If the name member of normalizedAlgorithm is a case-sensitive string match for "KMAC128":
     //    Let mac be the result of performing the KMAC128 function defined in Section 4 of [NIST-SP800-185]
