@@ -1009,8 +1009,8 @@ pub fn generate_statement(
         }
 
         // === Variable declarations ===
-        StatementKind::VariableDeclaration { kind, declarations } => {
-            generate_variable_declaration(generator, *kind, declarations);
+        StatementKind::VariableDeclaration(data) => {
+            generate_variable_declaration(generator, data.kind, &data.declarations);
             None
         }
 
@@ -2458,16 +2458,16 @@ fn generate_for_statement(
     let mut per_iteration_binding_names: Vec<Utf16String> = Vec::new();
 
     if let Some(ForInit::Declaration(init)) = init
-        && let StatementKind::VariableDeclaration { kind, declarations } = &init.inner
-        && (*kind == DeclarationKind::Let || *kind == DeclarationKind::Const)
+        && let StatementKind::VariableDeclaration(vd) = &init.inner
+        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
     {
         let mut non_local_names: Vec<(Utf16String, bool)> = Vec::new();
-        for declaration in declarations {
+        for declaration in &vd.declarations {
             collect_target_names(&declaration.target, &mut non_local_names);
         }
         if !non_local_names.is_empty() {
             has_lexical_environment = true;
-            let is_const = *kind == DeclarationKind::Const;
+            let is_const = vd.kind == DeclarationKind::Const;
 
             // begin_variable_scope: CreateLexicalEnvironment + boundary
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
@@ -2724,10 +2724,10 @@ fn emit_lexical_declarations_for_block<'a>(
 ) {
     for child in children {
         match &child.inner {
-            StatementKind::VariableDeclaration { kind, declarations } => {
-                if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                    let is_constant = *kind == DeclarationKind::Const;
-                    for declaration in declarations {
+            StatementKind::VariableDeclaration(vd) => {
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                    let is_constant = vd.kind == DeclarationKind::Const;
+                    for declaration in &vd.declarations {
                         let mut names = Vec::new();
                         collect_target_names(&declaration.target, &mut names);
                         for (name, _) in &names {
@@ -5249,9 +5249,9 @@ fn emit_switch_block_declaration_instantiation(
     // Only needed if there are non-local lexical declarations.
     let needs_env = all_children.iter().any(|child| match &child.inner {
         StatementKind::FunctionDeclaration { .. } => true,
-        StatementKind::VariableDeclaration { kind, declarations } => {
-            if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                declarations.iter().any(|declaration| {
+        StatementKind::VariableDeclaration(vd) => {
+            if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                vd.declarations.iter().any(|declaration| {
                     let mut names = Vec::new();
                     collect_target_names(&declaration.target, &mut names);
                     !names.is_empty()
@@ -6366,11 +6366,11 @@ fn get_private_identifier_ptr(key: &Expression) -> (*const u16, usize) {
 /// meaning we need a per-iteration lexical environment.
 fn for_in_of_needs_lexical_env(lhs: &ForInOfLhs) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration { kind, declarations } = &statement.inner
-        && (*kind == DeclarationKind::Let || *kind == DeclarationKind::Const)
+        && let StatementKind::VariableDeclaration(vd) = &statement.inner
+        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
     {
         let mut names = Vec::new();
-        for declaration in declarations {
+        for declaration in &vd.declarations {
             collect_target_names(&declaration.target, &mut names);
         }
         return !names.is_empty();
@@ -6425,10 +6425,10 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
     let mut binding_names: Vec<(Utf16String, bool)> = Vec::new();
     let mut is_constant = false;
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration { kind, declarations } = &statement.inner
+        && let StatementKind::VariableDeclaration(vd) = &statement.inner
     {
-        is_constant = *kind == DeclarationKind::Const;
-        for declaration in declarations {
+        is_constant = vd.kind == DeclarationKind::Const;
+        for declaration in &vd.declarations {
             collect_target_names(&declaration.target, &mut binding_names);
         }
     }
@@ -6458,11 +6458,11 @@ fn create_for_in_of_lexical_env(generator: &mut Generator, lhs: &ForInOfLhs) -> 
 /// Returns true if a TDZ scope was entered (must call leave_for_in_of_head_tdz after RHS eval).
 fn enter_for_in_of_head_tdz(generator: &mut Generator, lhs: &ForInOfLhs) -> bool {
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration { kind, declarations } = &statement.inner
-        && (*kind == DeclarationKind::Let || *kind == DeclarationKind::Const)
+        && let StatementKind::VariableDeclaration(vd) = &statement.inner
+        && (vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const)
     {
         let mut names = Vec::new();
-        for declaration in declarations {
+        for declaration in &vd.declarations {
             collect_target_names(&declaration.target, &mut names);
         }
         if !names.is_empty() {
@@ -6523,11 +6523,9 @@ fn generate_for_in_statement(
     // B.3.5 Initializers in ForIn Statement Heads
     // Evaluate the initializer for `for (var x = init in obj)` before the RHS.
     if let ForInOfLhs::Declaration(statement) = lhs
-        && let StatementKind::VariableDeclaration {
-            kind: DeclarationKind::Var,
-            declarations,
-        } = &statement.inner
-        && let Some(declaration) = declarations.first()
+        && let StatementKind::VariableDeclaration(vd) = &statement.inner
+        && vd.kind == DeclarationKind::Var
+        && let Some(declaration) = vd.declarations.first()
         && let (VariableDeclaratorTarget::Identifier(ident), Some(init)) =
             (&declaration.target, &declaration.init)
     {
@@ -7172,12 +7170,12 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
                 return;
             }
             // The declaration is a VariableDeclaration with a single declarator
-            if let StatementKind::VariableDeclaration { kind, declarations } = &statement.inner
-                && let Some(declaration) = declarations.first()
+            if let StatementKind::VariableDeclaration(vd) = &statement.inner
+                && let Some(declaration) = vd.declarations.first()
             {
                 // For var: FDI already initialized the binding, so use Set.
                 // For let/const: per-iteration env created new bindings needing Initialize.
-                let mode = match kind {
+                let mode = match vd.kind {
                     DeclarationKind::Var => BindingMode::Set,
                     DeclarationKind::Let | DeclarationKind::Const => BindingMode::InitializeLexical,
                 };
@@ -8400,10 +8398,10 @@ pub fn emit_function_declaration_instantiation(
 
     for child in &body_scope.children {
         match &child.inner {
-            StatementKind::VariableDeclaration { kind, declarations } => {
-                if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                    let is_constant = *kind == DeclarationKind::Const;
-                    for declaration in declarations {
+            StatementKind::VariableDeclaration(vd) => {
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                    let is_constant = vd.kind == DeclarationKind::Const;
+                    for declaration in &vd.declarations {
                         let mut names = Vec::new();
                         collect_target_names(&declaration.target, &mut names);
                         for (name, _) in names {
@@ -8501,9 +8499,9 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
             StatementKind::FunctionDeclaration { .. } => {
                 return true;
             }
-            StatementKind::VariableDeclaration { kind, declarations } => {
-                if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                    for declaration in declarations {
+            StatementKind::VariableDeclaration(vd) => {
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                    for declaration in &vd.declarations {
                         let mut names = Vec::new();
                         collect_target_names(&declaration.target, &mut names);
                         if !names.is_empty() {
@@ -8539,9 +8537,9 @@ fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
     let mut count = 0u32;
     for child in &scope.children {
         match &child.inner {
-            StatementKind::VariableDeclaration { kind, declarations } => {
-                if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                    for declaration in declarations {
+            StatementKind::VariableDeclaration(vd) => {
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                    for declaration in &vd.declarations {
                         let mut names = Vec::new();
                         collect_target_names(&declaration.target, &mut names);
                         count += u32_from_usize(names.len());

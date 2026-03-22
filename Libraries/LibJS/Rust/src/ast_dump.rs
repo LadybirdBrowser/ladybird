@@ -519,17 +519,17 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::VariableDeclaration { kind, declarations } => {
+        StatementKind::VariableDeclaration(data) => {
             dump_node!(
                 state,
                 "VariableDeclaration",
                 &statement.range,
-                color_op(state, declaration_kind_to_string(*kind))
+                color_op(state, declaration_kind_to_string(data.kind))
             );
-            for (i, declaration) in declarations.iter().enumerate() {
+            for (i, declaration) in data.declarations.iter().enumerate() {
                 dump_variable_declarator(
                     declaration,
-                    &child_state(state, i == declarations.len() - 1),
+                    &child_state(state, i == data.declarations.len() - 1),
                     state,
                 );
             }

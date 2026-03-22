@@ -28,9 +28,9 @@ fn expression_into_identifier(expression: Expression) -> Rc<Identifier> {
 /// Extract bound names from a declaration for export statements.
 fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
     match &statement.inner {
-        StatementKind::VariableDeclaration { declarations, .. } => {
+        StatementKind::VariableDeclaration(vd) => {
             let mut names = Vec::new();
-            for declaration in declarations {
+            for declaration in &vd.declarations {
                 collect_declarator_names(&declaration.target, &mut names);
             }
             names
@@ -272,10 +272,10 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::VariableDeclaration {
+            StatementKind::VariableDeclaration(Box::new(VariableDeclarationData {
                 kind,
                 declarations: declarators,
-            },
+            })),
         )
     }
 

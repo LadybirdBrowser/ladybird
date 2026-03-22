@@ -232,8 +232,8 @@ impl FunctionTable {
                     self.collect_from_statement(finalizer, result);
                 }
             }
-            StatementKind::VariableDeclaration { declarations, .. } => {
-                for decl in declarations {
+            StatementKind::VariableDeclaration(data) => {
+                for decl in &data.declarations {
                     self.collect_from_target(&decl.target, result);
                     if let Some(ref init) = decl.init {
                         self.collect_from_expression(init, result);
@@ -1488,6 +1488,12 @@ pub struct LabelledStatementData {
     pub item: Box<Statement>,
 }
 
+#[derive(Clone, Debug)]
+pub struct VariableDeclarationData {
+    pub kind: DeclarationKind,
+    pub declarations: Vec<VariableDeclarator>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1530,10 +1536,7 @@ pub enum StatementKind {
     Try(Box<TryStatementData>),
 
     // Declarations
-    VariableDeclaration {
-        kind: DeclarationKind,
-        declarations: Vec<VariableDeclarator>,
-    },
+    VariableDeclaration(Box<VariableDeclarationData>),
     UsingDeclaration {
         declarations: Vec<VariableDeclarator>,
     },

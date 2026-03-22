@@ -1519,11 +1519,9 @@ unsafe fn extract_module_declarations(
                         );
                     }
                 }
-                StatementKind::VariableDeclaration { kind, declarations }
-                    if *kind != ast::DeclarationKind::Var =>
-                {
-                    let is_constant = *kind == ast::DeclarationKind::Const;
-                    for declaration in declarations {
+                StatementKind::VariableDeclaration(vd) if vd.kind != ast::DeclarationKind::Var => {
+                    let is_constant = vd.kind == ast::DeclarationKind::Const;
+                    for declaration in &vd.declarations {
                         for_each_bound_name(&declaration.target, &mut |name| {
                             (cb.push_lexical_binding)(
                                 ctx,
@@ -1556,11 +1554,8 @@ unsafe fn collect_module_var_names(
 ) {
     unsafe {
         match statement {
-            ast::StatementKind::VariableDeclaration {
-                kind: ast::DeclarationKind::Var,
-                declarations,
-            } => {
-                for declaration in declarations {
+            ast::StatementKind::VariableDeclaration(vd) if vd.kind == ast::DeclarationKind::Var => {
+                for declaration in &vd.declarations {
                     for_each_bound_name(&declaration.target, &mut |name| {
                         push_var_name(ctx, name.as_ptr(), name.len());
                     });
@@ -1720,11 +1715,8 @@ unsafe extern "C" {
 /// statements, excluding function/class bodies (which create new var scopes).
 fn collect_var_names_recursive(statement: &ast::StatementKind, push_name: &mut dyn FnMut(&[u16])) {
     match statement {
-        ast::StatementKind::VariableDeclaration {
-            kind: ast::DeclarationKind::Var,
-            declarations,
-        } => {
-            for declaration in declarations {
+        ast::StatementKind::VariableDeclaration(vd) if vd.kind == ast::DeclarationKind::Var => {
+            for declaration in &vd.declarations {
                 for_each_bound_name(&declaration.target, push_name);
             }
         }
@@ -1809,11 +1801,9 @@ fn extract_gdi_common(
 
     for child in &scope.children {
         match &child.inner {
-            StatementKind::VariableDeclaration { kind, declarations }
-                if *kind != DeclarationKind::Var =>
-            {
-                let is_constant = *kind == DeclarationKind::Const;
-                for declaration in declarations {
+            StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
+                let is_constant = vd.kind == DeclarationKind::Const;
+                for declaration in &vd.declarations {
                     for_each_bound_name(&declaration.target, &mut |name| {
                         push_lexical_binding(name, is_constant);
                     });
@@ -1892,10 +1882,8 @@ unsafe fn extract_script_gdi(
         // Lexical names (let/const/using/class at top level) — script-only step.
         for child in &scope.children {
             match &child.inner {
-                StatementKind::VariableDeclaration { kind, declarations }
-                    if *kind != DeclarationKind::Var =>
-                {
-                    for declaration in declarations {
+                StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
+                    for declaration in &vd.declarations {
                         for_each_bound_name(&declaration.target, &mut |name| {
                             script_gdi_push_lexical_name(ctx, name.as_ptr(), name.len());
                         });
@@ -2424,10 +2412,10 @@ fn count_non_local_lex_declarations(scope: &Rc<RefCell<ast::ScopeData>>) -> usiz
     let mut count = 0;
     for child in &sd.children {
         match &child.inner {
-            ast::StatementKind::VariableDeclaration { kind, declarations } => {
+            ast::StatementKind::VariableDeclaration(vd) => {
                 use parser::DeclarationKind;
-                if *kind == DeclarationKind::Let || *kind == DeclarationKind::Const {
-                    for declaration in declarations {
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
+                    for declaration in &vd.declarations {
                         count_non_local_names_in_target(&declaration.target, &mut count);
                     }
                 }

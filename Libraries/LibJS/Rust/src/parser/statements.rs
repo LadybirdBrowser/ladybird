@@ -537,12 +537,10 @@ impl Parser<'_> {
 
         // Standard for loop — const requires initializer.
         if let LocalForInit::Declaration(ref declaration) = init
-            && let StatementKind::VariableDeclaration {
-                kind: DeclarationKind::Const,
-                ref declarations,
-            } = declaration.inner
+            && let StatementKind::VariableDeclaration(ref vd) = declaration.inner
+            && vd.kind == DeclarationKind::Const
         {
-            for d in declarations {
+            for d in &vd.declarations {
                 if d.init.is_none() {
                     self.syntax_error("Missing initializer in const declaration");
                 }
@@ -834,10 +832,8 @@ impl Parser<'_> {
         {
             for child in &scope.borrow().children {
                 match &child.inner {
-                    StatementKind::VariableDeclaration { kind, declarations }
-                        if *kind != DeclarationKind::Var =>
-                    {
-                        for decl in declarations {
+                    StatementKind::VariableDeclaration(vd) if vd.kind != DeclarationKind::Var => {
+                        for decl in &vd.declarations {
                             if let VariableDeclaratorTarget::Identifier(ref id) = decl.target {
                                 for cn in &catch_names {
                                     if cn.as_slice() == id.name.as_slice() {
