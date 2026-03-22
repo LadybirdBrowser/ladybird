@@ -111,11 +111,7 @@ Task const* TaskQueue::last_added_task() const
 
 bool TaskQueue::has_rendering_tasks() const
 {
-    for (auto const& task : m_tasks) {
-        if (task->source() == Task::Source::Rendering)
-            return true;
-    }
-    return false;
+    return m_tasks.contains([](auto const& task) { return task->source() == Task::Source::Rendering; });
 }
 
 }
