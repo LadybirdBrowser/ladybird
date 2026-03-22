@@ -1027,8 +1027,8 @@ pub fn generate_statement(
         }
 
         // === Labelled ===
-        StatementKind::Labelled { label, item } => {
-            generate_labelled_statement(generator, label, item, preferred_dst)
+        StatementKind::Labelled(data) => {
+            generate_labelled_statement(generator, &data.label, &data.item, preferred_dst)
         }
 
         // === Switch ===
@@ -6657,13 +6657,9 @@ fn generate_labelled_statement(
     // Collect all labels from nested Labelled statements.
     let mut labels = vec![label.clone()];
     let mut inner = item;
-    while let StatementKind::Labelled {
-        label: next_label,
-        item: next_item,
-    } = &inner.inner
-    {
-        labels.push(next_label.clone());
-        inner = next_item;
+    while let StatementKind::Labelled(labelled_data) = &inner.inner {
+        labels.push(labelled_data.label.clone());
+        inner = &labelled_data.item;
     }
 
     // For iteration/switch statements, set pending_labels so that

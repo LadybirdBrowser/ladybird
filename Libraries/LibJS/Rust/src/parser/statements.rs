@@ -994,10 +994,10 @@ impl Parser<'_> {
 
         Some(self.statement(
             start,
-            StatementKind::Labelled {
+            StatementKind::Labelled(Box::new(LabelledStatementData {
                 label,
                 item: Box::new(body),
-            },
+            })),
         ))
     }
 

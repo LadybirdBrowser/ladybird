@@ -1991,8 +1991,8 @@ fn for_each_child_statement(
                 f(&finalizer.inner);
             }
         }
-        StatementKind::Labelled { item, .. } => {
-            f(&item.inner);
+        StatementKind::Labelled(data) => {
+            f(&data.item.inner);
         }
         // Don't recurse into function/class bodies (new var scopes)
         _ => {}

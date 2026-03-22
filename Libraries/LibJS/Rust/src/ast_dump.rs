@@ -474,14 +474,14 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_labeled_statement("body", &data.body, true, state);
         }
 
-        StatementKind::Labelled { label, item } => {
+        StatementKind::Labelled(data) => {
             dump_node!(
                 state,
                 "LabelledStatement",
                 &statement.range,
-                color_string_utf16(state, label)
+                color_string_utf16(state, &data.label)
             );
-            dump_statement(item, &child_state(state, true));
+            dump_statement(&data.item, &child_state(state, true));
         }
 
         StatementKind::Break { .. } => {

@@ -209,8 +209,8 @@ impl FunctionTable {
                 self.collect_from_expression(&data.object, result);
                 self.collect_from_statement(&data.body, result);
             }
-            StatementKind::Labelled { item, .. } => {
-                self.collect_from_statement(item, result);
+            StatementKind::Labelled(data) => {
+                self.collect_from_statement(&data.item, result);
             }
             StatementKind::Return(arg) => {
                 if let Some(expr) = arg {
@@ -1482,6 +1482,12 @@ pub struct WithStatementData {
     pub body: Box<Statement>,
 }
 
+#[derive(Clone, Debug)]
+pub struct LabelledStatementData {
+    pub label: Utf16String,
+    pub item: Box<Statement>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1510,10 +1516,7 @@ pub enum StatementKind {
     ForInOf(Box<ForInOfStatementData>),
     Switch(Box<SwitchStatementData>),
     With(Box<WithStatementData>),
-    Labelled {
-        label: Utf16String,
-        item: Box<Statement>,
-    },
+    Labelled(Box<LabelledStatementData>),
 
     // Jumps
     Break {
