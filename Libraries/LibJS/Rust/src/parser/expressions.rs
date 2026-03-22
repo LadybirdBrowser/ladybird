@@ -567,10 +567,10 @@ impl Parser<'_> {
                     (
                         self.expression(
                             start,
-                            ExpressionKind::ImportCall {
+                            ExpressionKind::ImportCall(Box::new(ImportCallData {
                                 specifier: Box::new(specifier),
                                 options,
-                            },
+                            })),
                         ),
                         true,
                     )
@@ -1258,7 +1258,7 @@ impl Parser<'_> {
             self.parse_expression(PRECEDENCE_MEMBER, Associativity::Right, forbidden)
         };
 
-        if matches!(callee.inner, ExpressionKind::ImportCall { .. }) {
+        if matches!(callee.inner, ExpressionKind::ImportCall(_)) {
             self.syntax_error("Cannot call new on dynamic import");
         }
 

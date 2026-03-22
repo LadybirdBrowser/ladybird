@@ -379,9 +379,9 @@ impl FunctionTable {
                     self.collect_from_expression(expr, result);
                 }
             }
-            ExpressionKind::ImportCall { specifier, options } => {
-                self.collect_from_expression(specifier, result);
-                if let Some(opts) = options {
+            ExpressionKind::ImportCall(data) => {
+                self.collect_from_expression(&data.specifier, result);
+                if let Some(ref opts) = data.options {
                     self.collect_from_expression(opts, result);
                 }
             }
@@ -1368,6 +1368,12 @@ pub struct TaggedTemplateData {
     pub template_literal: Box<Expression>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ImportCallData {
+    pub specifier: Box<Expression>,
+    pub options: Option<Box<Expression>>,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1430,10 +1436,7 @@ pub enum ExpressionKind {
 
     // Meta
     MetaProperty(MetaPropertyType),
-    ImportCall {
-        specifier: Box<Expression>,
-        options: Option<Box<Expression>>,
-    },
+    ImportCall(Box<ImportCallData>),
 
     // Async / Generator
     Yield {

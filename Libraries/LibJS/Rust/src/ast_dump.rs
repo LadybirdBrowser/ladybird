@@ -988,10 +988,10 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_node!(state, "MetaProperty", &expression.range, name);
         }
 
-        ExpressionKind::ImportCall { specifier, options } => {
+        ExpressionKind::ImportCall(data) => {
             dump_node!(state, "ImportCall", &expression.range);
-            dump_expression(specifier, &child_state(state, options.is_none()));
-            if let Some(opts) = options {
+            dump_expression(&data.specifier, &child_state(state, data.options.is_none()));
+            if let Some(ref opts) = data.options {
                 dump_labeled_expression("options", opts, true, state);
             }
         }

@@ -255,9 +255,9 @@ fn generate_expression_inner(
         }
 
         // === ImportCall ===
-        ExpressionKind::ImportCall { specifier, options } => {
-            let spec = generate_expression(specifier, generator, None)?;
-            let opts = match options {
+        ExpressionKind::ImportCall(ic_data) => {
+            let spec = generate_expression(&ic_data.specifier, generator, None)?;
+            let opts = match &ic_data.options {
                 Some(o) => generate_expression(o, generator, None)?,
                 None => generator.add_constant_undefined(),
             };
