@@ -520,8 +520,14 @@ JS::Realm& entry_realm()
 
     // With this in hand, we define the entry execution context to be the most recently pushed item in the JavaScript execution context stack that is a realm execution context.
     // The entry realm is the principal realm of the entry execution context's Realm component.
-    // NOTE: Currently all execution contexts in LibJS are realm execution contexts
-    return principal_realm(*vm.running_execution_context().realm);
+    auto entry_execution_context = vm.execution_context_stack().last_matching([](JS::ExecutionContext* context) {
+        if (!context->realm)
+            return false;
+        return &principal_realm_settings_object(*context->realm).realm_execution_context() == context;
+    });
+
+    VERIFY(entry_execution_context.has_value());
+    return *entry_execution_context.value()->realm;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#entry-settings-object
