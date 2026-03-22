@@ -1179,16 +1179,13 @@ pub fn generate_statement(
         }
 
         // === ClassFieldInitializer ===
-        StatementKind::ClassFieldInitializer {
-            expression,
-            field_name,
-        } => {
+        StatementKind::ClassFieldInitializer(data) => {
             // Only set pending_lhs_name for compile-time-known keys (non-empty names).
             // For computed keys, field_name is empty and the name is set at runtime.
-            if !field_name.is_empty() {
-                generator.pending_lhs_name = Some(generator.intern_identifier(field_name));
+            if !data.field_name.is_empty() {
+                generator.pending_lhs_name = Some(generator.intern_identifier(&data.field_name));
             }
-            let value = generate_expression_or_undefined(expression, generator, None);
+            let value = generate_expression_or_undefined(&data.expression, generator, None);
             generator.pending_lhs_name = None;
             generator.emit(Instruction::Return {
                 value: value.operand(),
@@ -6083,10 +6080,12 @@ fn generate_class_expression(
                         // Wrap the expression in a ClassFieldInitializer statement.
                         let body_statement = Statement::new(
                             init_expression.range,
-                            StatementKind::ClassFieldInitializer {
-                                expression: Box::new(init_expression.as_ref().clone()),
-                                field_name,
-                            },
+                            StatementKind::ClassFieldInitializer(Box::new(
+                                ClassFieldInitializerData {
+                                    expression: Box::new(init_expression.as_ref().clone()),
+                                    field_name,
+                                },
+                            )),
                         );
                         let wrapper_body = Statement::new(
                             init_expression.range,

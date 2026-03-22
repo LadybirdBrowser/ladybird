@@ -256,8 +256,8 @@ impl FunctionTable {
                     self.collect_from_statement(stmt, result);
                 }
             }
-            StatementKind::ClassFieldInitializer { expression, .. } => {
-                self.collect_from_expression(expression, result);
+            StatementKind::ClassFieldInitializer(data) => {
+                self.collect_from_expression(&data.expression, result);
             }
             StatementKind::Empty
             | StatementKind::Debugger
@@ -1502,6 +1502,12 @@ pub struct FunctionDeclarationData {
     pub is_hoisted: Cell<bool>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ClassFieldInitializerData {
+    pub expression: Box<Expression>,
+    pub field_name: Utf16String,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1555,10 +1561,7 @@ pub enum StatementKind {
     Export(Box<ExportStatementData>),
 
     // Special
-    ClassFieldInitializer {
-        expression: Box<Expression>,
-        field_name: Utf16String,
-    },
+    ClassFieldInitializer(Box<ClassFieldInitializerData>),
 }
 
 // =============================================================================

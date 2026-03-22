@@ -650,7 +650,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::ClassFieldInitializer { .. } => {
+        StatementKind::ClassFieldInitializer(_) => {
             // This should not be dumped as it is never part of an actual AST.
         }
 
