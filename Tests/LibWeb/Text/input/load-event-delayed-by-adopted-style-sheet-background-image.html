@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <script src="include.js"></script>
 <script>
-var echoPort = internals.getEchoServerPort();
-var baseURL = `http://127.0.0.1:${echoPort}`;
 var xhr = new XMLHttpRequest();
-xhr.open("POST", `${baseURL}/echo`, false);
+xhr.open("POST", "/echo", false);
 xhr.setRequestHeader("Content-Type", "application/json");
 xhr.send(JSON.stringify({
     method: "GET",
