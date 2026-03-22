@@ -300,11 +300,11 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::If {
+            StatementKind::If(Box::new(IfStatementData {
                 test: Box::new(predicate),
                 consequent: Box::new(consequent),
                 alternate,
-            },
+            })),
         )
     }
 

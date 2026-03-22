@@ -1948,13 +1948,9 @@ fn for_each_child_statement(
                 f(&child.inner);
             }
         }
-        StatementKind::If {
-            consequent,
-            alternate,
-            ..
-        } => {
-            f(&consequent.inner);
-            if let Some(alt) = alternate {
+        StatementKind::If(data) => {
+            f(&data.consequent.inner);
+            if let Some(alt) = &data.alternate {
                 f(&alt.inner);
             }
         }

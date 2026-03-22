@@ -396,16 +396,12 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::If {
-            test,
-            consequent,
-            alternate,
-        } => {
+        StatementKind::If(data) => {
             dump_node!(state, "IfStatement", &statement.range);
-            let has_alternate = alternate.is_some();
-            dump_labeled_expression("test", test, false, state);
-            dump_labeled_statement("consequent", consequent, !has_alternate, state);
-            if let Some(alt) = alternate {
+            let has_alternate = data.alternate.is_some();
+            dump_labeled_expression("test", &data.test, false, state);
+            dump_labeled_statement("consequent", &data.consequent, !has_alternate, state);
+            if let Some(alt) = &data.alternate {
                 dump_labeled_statement("alternate", alt, true, state);
             }
         }

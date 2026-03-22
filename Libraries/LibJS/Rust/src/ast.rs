@@ -155,14 +155,10 @@ impl FunctionTable {
                     self.collect_from_statement(child, result);
                 }
             }
-            StatementKind::If {
-                test,
-                consequent,
-                alternate,
-            } => {
-                self.collect_from_expression(test, result);
-                self.collect_from_statement(consequent, result);
-                if let Some(alt) = alternate {
+            StatementKind::If(data) => {
+                self.collect_from_expression(&data.test, result);
+                self.collect_from_statement(&data.consequent, result);
+                if let Some(alt) = &data.alternate {
                     self.collect_from_statement(alt, result);
                 }
             }
@@ -1453,6 +1449,17 @@ pub enum ExpressionKind {
 }
 
 // =============================================================================
+// Statement data structs
+// =============================================================================
+
+#[derive(Clone, Debug)]
+pub struct IfStatementData {
+    pub test: Box<Expression>,
+    pub consequent: Box<Statement>,
+    pub alternate: Option<Box<Statement>>,
+}
+
+// =============================================================================
 // Statement enum
 // =============================================================================
 
@@ -1473,11 +1480,7 @@ pub enum StatementKind {
     Program(Box<ProgramData>),
 
     // Control flow
-    If {
-        test: Box<Expression>,
-        consequent: Box<Statement>,
-        alternate: Option<Box<Statement>>,
-    },
+    If(Box<IfStatementData>),
     While {
         test: Box<Expression>,
         body: Box<Statement>,

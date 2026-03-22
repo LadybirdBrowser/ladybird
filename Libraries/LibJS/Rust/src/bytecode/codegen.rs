@@ -944,15 +944,11 @@ pub fn generate_statement(
         }
 
         // === If ===
-        StatementKind::If {
-            test,
-            consequent,
-            alternate,
-        } => generate_if_statement(
+        StatementKind::If(data) => generate_if_statement(
             generator,
-            test,
-            consequent,
-            alternate.as_deref(),
+            &data.test,
+            &data.consequent,
+            data.alternate.as_deref(),
             preferred_dst,
         ),
 
