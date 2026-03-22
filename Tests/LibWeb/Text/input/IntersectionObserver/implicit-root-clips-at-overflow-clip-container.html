@@ -23,12 +23,13 @@ body { margin: 0; }
 <script>
     asyncTest(done => {
         // The target is inside an overflow:clip container, pushed below
-        // the visible area by a spacer. It should NOT be intersecting.
+        // the visible area by a spacer. The intersection ratio should be 0
+        // because compute_intersection clips against the container.
         let callbackCount = 0;
         let observer = new IntersectionObserver(entries => {
             callbackCount++;
             entries.forEach(entry => {
-                println(`callback ${callbackCount}: isIntersecting=${entry.isIntersecting}`);
+                println(`callback ${callbackCount}: ratio=${entry.intersectionRatio}`);
             });
             if (callbackCount === 1) {
                 requestAnimationFrame(() => {

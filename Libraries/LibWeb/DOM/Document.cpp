@@ -5193,19 +5193,46 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
     // 1. Let intersectionRect be the result of getting the bounding box for target.
     auto intersection_rect = target->get_bounding_client_rect();
 
-    // FIXME: 2. Let container be the containing block of target.
-    // FIXME: 3. While container is not root:
-    // FIXME:   1. If container is the document of a nested browsing context, update intersectionRect by clipping to
-    //             the viewport of the document, and update container to be the browsing context container of container.
-    // FIXME:   2. Map intersectionRect to the coordinate space of container.
-    // FIXME:   3. If container has a content clip or a css clip-path property, update intersectionRect by applying
-    //             container’s clip.
-    // FIXME:   4. If container is the root element of a browsing context, update container to be the browsing context’s
-    //             document; otherwise, update container to be the containing block of container.
+    // Determine the root paintable so we know when to stop walking the containing block chain.
+    GC::Ptr<Painting::PaintableBox const> root_paintable;
+    auto intersection_root = observer.intersection_root();
+    intersection_root.visit([&](auto& node) {
+        if (node->paintable_box())
+            root_paintable = node->paintable_box();
+    });
+
+    // 2. Let container be the containing block of target.
+    // 3. While container is not root:
+    if (auto const* target_paintable = target->paintable_box()) {
+        for (auto const* container = target_paintable->containing_block(); container; container = container->containing_block()) {
+            // Stop when we reach the intersection root.
+            if (container == root_paintable)
+                break;
+
+            // FIXME: 3.1. If container is the document of a nested browsing context, update
+            //             intersectionRect by clipping to the viewport of the document, and update
+            //             container to be the browsing context container of container.
+
+            // NOTE: Steps 3.2 (map to container coordinate space) and 3.4 (update container) are
+            //       unnecessary here because get_bounding_client_rect() and transform_rect_to_viewport()
+            //       already produce viewport-relative coordinates.
+
+            // 3.3. If container has a content clip or a css clip-path property, update intersectionRect
+            //      by applying container’s clip.
+            // FIXME: Handle clip-path.
+            auto overflow_x = container->computed_values().overflow_x();
+            auto overflow_y = container->computed_values().overflow_y();
+            bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
+            if (has_content_clip) {
+                auto clip_rect = container->transform_rect_to_viewport(container->absolute_padding_box_rect());
+                intersection_rect.intersect(clip_rect);
+            }
+        }
+    }
+
     // FIXME: 4. Map intersectionRect to the coordinate space of root.
 
     // 5. Update intersectionRect by intersecting it with the root intersection rectangle.
-    // FIXME: Pass in target so we can properly apply rootMargin.
     auto root_intersection_rectangle = observer.root_intersection_rectangle();
     intersection_rect.intersect(root_intersection_rectangle);
 

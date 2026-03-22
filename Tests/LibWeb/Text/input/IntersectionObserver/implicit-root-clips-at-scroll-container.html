@@ -24,13 +24,13 @@ body { margin: 0; }
     asyncTest(done => {
         // The target is inside a scroll container with overflow:hidden.
         // The spacer pushes the target below the scroll container's visible area.
-        // With the implicit root (viewport), the target should NOT be intersecting
-        // because it is clipped by the scroll container.
+        // With the implicit root (viewport), the intersection ratio should be 0
+        // because compute_intersection clips against the scroll container.
         let callbackCount = 0;
         let observer = new IntersectionObserver(entries => {
             callbackCount++;
             entries.forEach(entry => {
-                println(`callback ${callbackCount}: isIntersecting=${entry.isIntersecting}`);
+                println(`callback ${callbackCount}: ratio=${entry.intersectionRatio}`);
             });
             if (callbackCount === 1) {
                 requestAnimationFrame(() => {
