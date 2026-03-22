@@ -1954,9 +1954,10 @@ fn for_each_child_statement(
                 f(&alt.inner);
             }
         }
-        StatementKind::While { body, .. }
-        | StatementKind::DoWhile { body, .. }
-        | StatementKind::With { body, .. } => {
+        StatementKind::While(data) => {
+            f(&data.body.inner);
+        }
+        StatementKind::DoWhile { body, .. } | StatementKind::With { body, .. } => {
             f(&body.inner);
         }
         StatementKind::For { init, body, .. } => {

@@ -162,9 +162,9 @@ impl FunctionTable {
                     self.collect_from_statement(alt, result);
                 }
             }
-            StatementKind::While { test, body } => {
-                self.collect_from_expression(test, result);
-                self.collect_from_statement(body, result);
+            StatementKind::While(data) => {
+                self.collect_from_expression(&data.test, result);
+                self.collect_from_statement(&data.body, result);
             }
             StatementKind::DoWhile { test, body } => {
                 self.collect_from_statement(body, result);
@@ -1459,6 +1459,12 @@ pub struct IfStatementData {
     pub alternate: Option<Box<Statement>>,
 }
 
+#[derive(Clone, Debug)]
+pub struct WhileStatementData {
+    pub test: Box<Expression>,
+    pub body: Box<Statement>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1481,10 +1487,7 @@ pub enum StatementKind {
 
     // Control flow
     If(Box<IfStatementData>),
-    While {
-        test: Box<Expression>,
-        body: Box<Statement>,
-    },
+    While(Box<WhileStatementData>),
     DoWhile {
         test: Box<Expression>,
         body: Box<Statement>,

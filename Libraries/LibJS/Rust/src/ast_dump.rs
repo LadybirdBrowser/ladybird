@@ -406,10 +406,10 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             }
         }
 
-        StatementKind::While { test, body } => {
+        StatementKind::While(data) => {
             dump_node!(state, "WhileStatement", &statement.range);
-            dump_labeled_expression("test", test, false, state);
-            dump_labeled_statement("body", body, true, state);
+            dump_labeled_expression("test", &data.test, false, state);
+            dump_labeled_statement("body", &data.body, true, state);
         }
 
         StatementKind::DoWhile { test, body } => {
