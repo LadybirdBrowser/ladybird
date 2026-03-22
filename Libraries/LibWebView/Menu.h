@@ -113,6 +113,9 @@ public:
     StringView tooltip() const { return action_text_to_string_view(*m_tooltip); }
     void set_tooltip(ActionText);
 
+    void set_base64_png_icon(Optional<String> base64_png_icon) { m_base64_png_icon = move(base64_png_icon); }
+    Optional<String const&> base64_png_icon() const { return m_base64_png_icon; }
+
     ActionID id() const { return m_id; }
 
     bool enabled() const { return m_enabled; }
@@ -152,6 +155,7 @@ private:
 
     ActionText m_text;
     Optional<ActionText> m_tooltip;
+    Optional<String> m_base64_png_icon;
     ActionID m_id;
 
     bool m_enabled { true };
