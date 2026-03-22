@@ -311,10 +311,12 @@ CSSPixelSize FormattingContext::solve_replaced_size_constraint(CSSPixels input_w
     // 10.4 Minimum and maximum widths: 'min-width' and 'max-width'
     // https://www.w3.org/TR/CSS22/visudet.html#min-max-widths
 
-    auto const& containing_block = *box.non_anonymous_containing_block();
+    auto containing_block = box.containing_block();
+    while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
+        containing_block = containing_block->containing_block();
     CSSPixels width_of_containing_block = 0;
     CSSPixels height_of_containing_block = 0;
-    if (auto const* containing_block_used_values = m_state.try_get(containing_block)) {
+    if (auto const* containing_block_used_values = containing_block ? m_state.try_get(*containing_block) : nullptr) {
         width_of_containing_block = containing_block_used_values->content_width();
         height_of_containing_block = containing_block_used_values->content_height();
     }
@@ -663,8 +665,11 @@ CSSPixels FormattingContext::compute_height_for_replaced_element(Box const& box,
     // 10.6.6 Floating replaced elements
     // 10.6.10 'inline-block' replaced elements in normal flow
 
+    auto containing_block = box.containing_block();
+    while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
+        containing_block = containing_block->containing_block();
     CSSPixels height_of_containing_block = 0;
-    if (auto const* containing_block_used_values = m_state.try_get(*box.non_anonymous_containing_block()))
+    if (auto const* containing_block_used_values = containing_block ? m_state.try_get(*containing_block) : nullptr)
         height_of_containing_block = containing_block_used_values->content_height();
     auto computed_width = should_treat_width_as_auto(box, available_space) ? CSS::Size::make_auto() : box.computed_values().width();
     auto computed_height = should_treat_height_as_auto(box, available_space) ? CSS::Size::make_auto() : box.computed_values().height();
@@ -1623,7 +1628,7 @@ void FormattingContext::compute_inset(NodeWithStyleAndBoxModelMetrics const& box
     auto treat_percentage_as_auto = [&](CSS::LengthPercentageOrAuto const& value) -> CSS::LengthPercentageOrAuto {
         if (value.contains_percentage()) {
             auto containing_block = box.containing_block();
-            while (containing_block && containing_block->is_anonymous())
+            while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
                 containing_block = containing_block->containing_block();
             if (containing_block && !m_state.get(*containing_block).has_definite_height())
                 return CSS::LengthPercentageOrAuto::make_auto();
@@ -1895,7 +1900,7 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
     //       their cell/area size as available space).
     if (height.contains_percentage() && available_space.height.is_indefinite()) {
         auto containing_block = box.containing_block();
-        while (containing_block && containing_block->is_anonymous())
+        while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
             containing_block = containing_block->containing_block();
 
         // https://quirks.spec.whatwg.org/#the-percentage-height-calculation-quirk
@@ -2051,8 +2056,10 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
             }();
             if (!percentage_height_quirk_applies) {
                 // NOTE: Anonymous blocks inherit height definiteness from their containing block.
+                //       However, anonymous table cells are proper containing blocks with their own
+                //       height semantics, so we must not walk past them.
                 auto containing_block = box.containing_block();
-                while (containing_block && containing_block->is_anonymous())
+                while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
                     containing_block = containing_block->containing_block();
                 if (!containing_block)
                     return true;
@@ -2286,7 +2293,10 @@ bool FormattingContext::should_treat_max_width_as_none(Box const& box, Available
                 return true;
             return false;
         }
-        auto const* containing_block_used_values = m_state.try_get(*box.non_anonymous_containing_block());
+        auto containing_block = box.containing_block();
+        while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
+            containing_block = containing_block->containing_block();
+        auto const* containing_block_used_values = containing_block ? m_state.try_get(*containing_block) : nullptr;
         if (!containing_block_used_values)
             return true;
         if (!containing_block_used_values->has_definite_width())
@@ -2313,7 +2323,10 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     if (max_height.contains_percentage()) {
         if (available_height.is_min_content())
             return false;
-        auto const* containing_block_used_values = m_state.try_get(*box.non_anonymous_containing_block());
+        auto containing_block = box.containing_block();
+        while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
+            containing_block = containing_block->containing_block();
+        auto const* containing_block_used_values = containing_block ? m_state.try_get(*containing_block) : nullptr;
         if (!containing_block_used_values)
             return true;
         if (!containing_block_used_values->has_definite_height())

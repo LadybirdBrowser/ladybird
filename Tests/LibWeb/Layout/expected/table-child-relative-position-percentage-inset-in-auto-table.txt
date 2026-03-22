@@ -4,7 +4,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       Box <body> at [8,8] table-box [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] [TFC] children: not-inline
         Box <(anonymous)> at [8,8] table-row [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] [BFC] children: not-inline
-            BlockContainer <div> at [8,8] [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] children: inline
+            BlockContainer <div> at [8,8] positioned [0+0+0 150 0+0+0] [0+0+0 18 0+0+0] children: inline
               frag 0 from TextNode start: 0, length: 18, rect: [8,8 150x18] baseline: 13.796875
                   "Zalando in English"
               TextNode <#text> (not painted)
