@@ -34,6 +34,18 @@
 
 namespace Web::CSS {
 
+// In order to avoid conflicts with the old WinIE style of @font-face, if there is no format specified,
+// we check to see if the URL ends with .eot. We will not try to load those.
+// This matches the behavior of other engines (Blink, WebKit).
+static bool is_unsupported_source(ParsedFontFace::Source const& source)
+{
+    if (!source.local_or_url.has<URL>())
+        return false;
+    if (source.format.has_value())
+        return !font_format_is_supported(source.format.value());
+    return source.local_or_url.get<URL>().url().ends_with_bytes(".eot"sv);
+}
+
 static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font(JS::Realm& realm, ByteBuffer const& data)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface const>>::construct();
@@ -123,6 +135,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
     //    If the source argument was a BinaryData, set font face’s internal [[Data]] slot to the passed argument.
     if (source.has<String>()) {
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*parsed_source);
+        font_face->m_urls.remove_all_matching(is_unsupported_source);
     } else {
         auto buffer_source = source.get<GC::Root<WebIDL::BufferSource>>();
         auto maybe_buffer = WebIDL::get_buffer_source_copy(buffer_source->raw_object());
@@ -225,8 +238,10 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
     font_face->m_css_font_face_rule = &rule;
     font_face->reparse_connected_css_font_face_rule_descriptors();
 
-    if (auto src_value = rule.descriptors()->descriptor(DescriptorID::Src))
+    if (auto src_value = rule.descriptors()->descriptor(DescriptorID::Src)) {
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
+        font_face->m_urls.remove_all_matching(is_unsupported_source);
+    }
 
     rule.set_css_connected_font_face(font_face);
 

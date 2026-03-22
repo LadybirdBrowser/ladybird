@@ -675,12 +675,11 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         .slope = font_face.slope().value_or(0),
     };
 
-    // FIXME: Pass the sources directly, so the font loader can make use of the format information, or load local fonts.
+    // FIXME: Handle local() font sources.
     Vector<URL> urls;
     for (auto const& source : font_face.sources()) {
         if (source.local_or_url.has<URL>())
             urls.append(source.local_or_url.get<URL>());
-        // FIXME: Handle local()
     }
 
     if (urls.is_empty()) {
