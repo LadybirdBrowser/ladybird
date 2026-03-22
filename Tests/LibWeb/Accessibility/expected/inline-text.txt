@@ -1,0 +1,21 @@
+document
+  generic focused
+    paragraph
+      text leaf name="Hello world."
+    paragraph
+      text leaf name="This has "
+      strong
+        text leaf name="bold"
+      text leaf name=" and "
+      emphasis
+        text leaf name="italic"
+      text leaf name=" text."
+    paragraph
+      text leaf name="A "
+      link name="link"
+        text leaf name="link"
+      text leaf name=" in a paragraph."
+    heading name="Heading text" level=2
+      text leaf name="Heading text"
+    generic
+      text leaf name="Just a div with text."

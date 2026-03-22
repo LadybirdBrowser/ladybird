@@ -15,19 +15,36 @@
 
 #include <ApplicationServices/ApplicationServices.h>
 
-// Text marker: wraps a node ID for VoiceOver web content navigation.
-static AXTextMarkerRef createTextMarker(i64 node_id)
+// Text marker: encodes a node ID and character offset for
+// cursor-level text navigation.
+struct TextMarkerData {
+    i64 node_id { -1 };
+    i32 offset { 0 };
+};
+
+static AXTextMarkerRef createTextMarker(i64 node_id, i32 offset = 0)
 {
-    return AXTextMarkerCreate(kCFAllocatorDefault, (UInt8 const*)&node_id, sizeof(node_id));
+    TextMarkerData data { node_id, offset };
+    return AXTextMarkerCreate(kCFAllocatorDefault, (UInt8 const*)&data, sizeof(data));
 }
 
-static i64 nodeIDFromTextMarker(AXTextMarkerRef marker)
+static TextMarkerData dataFromTextMarker(AXTextMarkerRef marker)
 {
-    if (!marker || AXTextMarkerGetLength(marker) != sizeof(i64))
-        return -1;
-    i64 node_id;
-    memcpy(&node_id, AXTextMarkerGetBytePtr(marker), sizeof(node_id));
-    return node_id;
+    if (!marker)
+        return {};
+    auto length = AXTextMarkerGetLength(marker);
+    if (length == sizeof(TextMarkerData)) {
+        TextMarkerData data;
+        memcpy(&data, AXTextMarkerGetBytePtr(marker), sizeof(data));
+        return data;
+    }
+    // Handle old-format markers (just node ID, no offset)
+    if (length == sizeof(i64)) {
+        i64 node_id;
+        memcpy(&node_id, AXTextMarkerGetBytePtr(marker), sizeof(node_id));
+        return { node_id, 0 };
+    }
+    return {};
 }
 
 static bool is_ignored_role(StringView role, AK::String const& name)
@@ -421,30 +438,21 @@ static NSString* nsStringFromAK(AK::String const& string)
     if ([attribute isEqualToString:@"AXStartTextMarker"]) {
         if (!data)
             return nil;
-        auto const* node = data;
-        while (!node->child_ids.is_empty()) {
-            auto const* child = _manager->node(node->child_ids[0]);
-            if (!child)
-                break;
-            node = child;
-            if (!is_ignored_role(node->role.bytes_as_string_view(), node->name))
-                break;
-        }
-        return CFBridgingRelease(createTextMarker(node->id));
+        auto leaves = _manager->text_leaves_in_order();
+        if (!leaves.is_empty())
+            return CFBridgingRelease(createTextMarker(leaves.first(), 0));
+        return CFBridgingRelease(createTextMarker(data->id, 0));
     }
     if ([attribute isEqualToString:@"AXEndTextMarker"]) {
         if (!data)
             return nil;
-        auto const* node = data;
-        while (!node->child_ids.is_empty()) {
-            auto const* child = _manager->node(node->child_ids.last());
-            if (!child)
-                break;
-            node = child;
-            if (!is_ignored_role(node->role.bytes_as_string_view(), node->name))
-                break;
+        auto leaves = _manager->text_leaves_in_order();
+        if (!leaves.is_empty()) {
+            auto const* last = _manager->node(leaves.last());
+            i32 len = last ? static_cast<i32>(last->name.bytes_as_string_view().length()) : 0;
+            return CFBridgingRelease(createTextMarker(leaves.last(), len));
         }
-        return CFBridgingRelease(createTextMarker(node->id));
+        return CFBridgingRelease(createTextMarker(data->id, 0));
     }
     if ([attribute isEqualToString:@"AXElementBusy"])
         return @NO;
@@ -824,32 +832,171 @@ static NSString* nsStringFromAK(AK::String const& string)
     }
 
     if ([attribute isEqualToString:@"AXUIElementForTextMarker"]) {
-        i64 nid = nodeIDFromTextMarker((__bridge AXTextMarkerRef)parameter);
-        return nid != -1 ? [_webView accessibilityElementForNodeID:nid] : nil;
+        auto md = dataFromTextMarker((__bridge AXTextMarkerRef)parameter);
+        return md.node_id != -1 ? [_webView accessibilityElementForNodeID:md.node_id] : nil;
     }
 
-    if ([attribute isEqualToString:@"AXNextTextMarkerForTextMarker"]
-        || [attribute isEqualToString:@"AXPreviousTextMarkerForTextMarker"])
+    if ([attribute isEqualToString:@"AXNextTextMarkerForTextMarker"]) {
+        auto md = dataFromTextMarker((__bridge AXTextMarkerRef)parameter);
+        if (md.node_id == -1)
+            return nil;
+        auto const* node = _manager->node(md.node_id);
+        if (!node || node->role.bytes_as_string_view() != "text leaf"sv)
+            return nil;
+
+        i32 text_len = static_cast<i32>(node->name.bytes_as_string_view().length());
+        if (md.offset + 1 < text_len)
+            return CFBridgingRelease(createTextMarker(md.node_id, md.offset + 1));
+
+        // Move to the next text leaf
+        auto leaves = _manager->text_leaves_in_order();
+        for (size_t i = 0; i < leaves.size(); i++) {
+            if (leaves[i] == md.node_id && i + 1 < leaves.size())
+                return CFBridgingRelease(createTextMarker(leaves[i + 1], 0));
+        }
         return nil;
+    }
+
+    if ([attribute isEqualToString:@"AXPreviousTextMarkerForTextMarker"]) {
+        auto md = dataFromTextMarker((__bridge AXTextMarkerRef)parameter);
+        if (md.node_id == -1)
+            return nil;
+
+        if (md.offset > 0)
+            return CFBridgingRelease(createTextMarker(md.node_id, md.offset - 1));
+
+        // Move to the previous text leaf's last character
+        auto leaves = _manager->text_leaves_in_order();
+        for (size_t i = 0; i < leaves.size(); i++) {
+            if (leaves[i] == md.node_id && i > 0) {
+                auto const* prev = _manager->node(leaves[i - 1]);
+                if (prev) {
+                    i32 len = static_cast<i32>(prev->name.bytes_as_string_view().length());
+                    return CFBridgingRelease(createTextMarker(leaves[i - 1], MAX(0, len - 1)));
+                }
+            }
+        }
+        return nil;
+    }
 
     if ([attribute isEqualToString:@"AXTextMarkerRangeForUIElement"]) {
         auto const* data = [self nodeData];
         if (!data)
             return nil;
-        auto start = createTextMarker(data->id);
-        auto end = createTextMarker(data->id);
+
+        // Find first and last text leaves in this element's subtree
+        auto leaves = _manager->text_leaves_in_order();
+        i64 first_leaf = -1, last_leaf = -1;
+
+        for (auto leaf_id : leaves) {
+            // Check if this leaf is a descendant of the element
+            auto const* n = _manager->node(leaf_id);
+            while (n) {
+                if (n->id == data->id) {
+                    if (first_leaf == -1)
+                        first_leaf = leaf_id;
+                    last_leaf = leaf_id;
+                    break;
+                }
+                if (n->parent_id == -1)
+                    break;
+                n = _manager->node(n->parent_id);
+            }
+        }
+
+        if (first_leaf == -1)
+            first_leaf = last_leaf = data->id;
+
+        auto start = createTextMarker(first_leaf, 0);
+        i32 end_offset = 0;
+        if (last_leaf != -1) {
+            auto const* last = _manager->node(last_leaf);
+            if (last)
+                end_offset = static_cast<i32>(last->name.bytes_as_string_view().length());
+        }
+        auto end = createTextMarker(last_leaf, end_offset);
         auto range = AXTextMarkerRangeCreate(kCFAllocatorDefault, start, end);
         CFRelease(start);
         CFRelease(end);
-        return (__bridge id)range;
+        return CFBridgingRelease(range);
     }
 
-    if ([attribute isEqualToString:@"AXLengthForTextMarkerRange"])
-        return @0;
-    if ([attribute isEqualToString:@"AXStringForTextMarkerRange"])
-        return @"";
-    if ([attribute isEqualToString:@"AXAttributedStringForTextMarkerRange"])
-        return [[NSAttributedString alloc] initWithString:@""];
+    if ([attribute isEqualToString:@"AXStringForTextMarkerRange"]
+        || [attribute isEqualToString:@"AXAttributedStringForTextMarkerRange"]
+        || [attribute isEqualToString:@"AXLengthForTextMarkerRange"]) {
+        AXTextMarkerRangeRef range = (__bridge AXTextMarkerRangeRef)parameter;
+        if (!range)
+            return [attribute isEqualToString:@"AXLengthForTextMarkerRange"] ? @0 : @"";
+
+        AXTextMarkerRef startMarker = AXTextMarkerRangeCopyStartMarker(range);
+        AXTextMarkerRef endMarker = AXTextMarkerRangeCopyEndMarker(range);
+        auto startData = dataFromTextMarker(startMarker);
+        auto endData = dataFromTextMarker(endMarker);
+        if (startMarker)
+            CFRelease(startMarker);
+        if (endMarker)
+            CFRelease(endMarker);
+
+        if (startData.node_id == -1 || endData.node_id == -1)
+            return [attribute isEqualToString:@"AXLengthForTextMarkerRange"] ? @0 : @"";
+
+        // Collect text between start and end markers
+        NSMutableString* result = [NSMutableString string];
+        auto leaves = _manager->text_leaves_in_order();
+        bool collecting = false;
+
+        for (auto leaf_id : leaves) {
+            auto const* leaf = _manager->node(leaf_id);
+            if (!leaf)
+                continue;
+
+            auto text = leaf->name.bytes_as_string_view();
+            if (leaf_id == startData.node_id && leaf_id == endData.node_id) {
+                // Start and end in same node
+                i32 start_off = MIN(startData.offset, (i32)text.length());
+                i32 end_off = MIN(endData.offset, (i32)text.length());
+                auto slice = text.substring_view(start_off, end_off - start_off);
+                [result appendString:[[NSString alloc] initWithBytes:slice.characters_without_null_termination()
+                                                              length:slice.length()
+                                                            encoding:NSUTF8StringEncoding]];
+                break;
+            }
+
+            if (leaf_id == startData.node_id) {
+                collecting = true;
+                i32 off = MIN(startData.offset, (i32)text.length());
+                auto slice = text.substring_view(off);
+                [result appendString:[[NSString alloc] initWithBytes:slice.characters_without_null_termination()
+                                                              length:slice.length()
+                                                            encoding:NSUTF8StringEncoding]];
+                continue;
+            }
+
+            if (leaf_id == endData.node_id) {
+                i32 off = MIN(endData.offset, (i32)text.length());
+                auto slice = text.substring_view(0, off);
+                [result appendString:[[NSString alloc] initWithBytes:slice.characters_without_null_termination()
+                                                              length:slice.length()
+                                                            encoding:NSUTF8StringEncoding]];
+                break;
+            }
+
+            if (collecting) {
+                NSString* ns = [[NSString alloc] initWithBytes:text.characters_without_null_termination()
+                                                        length:text.length()
+                                                      encoding:NSUTF8StringEncoding];
+                if (ns)
+                    [result appendString:ns];
+            }
+        }
+
+        if ([attribute isEqualToString:@"AXLengthForTextMarkerRange"])
+            return @([result length]);
+        if ([attribute isEqualToString:@"AXAttributedStringForTextMarkerRange"])
+            return [[NSAttributedString alloc] initWithString:result];
+        return result;
+    }
+
     if ([attribute isEqualToString:@"AXTextMarkerForPosition"])
         return nil;
 

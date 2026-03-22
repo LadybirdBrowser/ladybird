@@ -1,0 +1,18 @@
+document
+  generic focused
+    table name="Grid"
+      rowgroup
+        row name="              1              2              3         "
+          cell name="1"
+            text leaf name="1"
+          cell name="2"
+            text leaf name="2"
+          cell name="3"
+            text leaf name="3"
+        row name="              4              5              6         "
+          cell name="4"
+            text leaf name="4"
+          cell name="5"
+            text leaf name="5"
+          cell name="6"
+            text leaf name="6"
