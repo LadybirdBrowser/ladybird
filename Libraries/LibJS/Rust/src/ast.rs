@@ -1469,7 +1469,7 @@ pub enum StatementKind {
         rhs: Box<Expression>,
         body: Box<Statement>,
     },
-    Switch(SwitchStatementData),
+    Switch(Box<SwitchStatementData>),
     With {
         object: Box<Expression>,
         body: Box<Statement>,

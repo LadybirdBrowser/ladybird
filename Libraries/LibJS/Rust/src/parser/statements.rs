@@ -655,11 +655,11 @@ impl Parser<'_> {
 
         self.statement(
             start,
-            StatementKind::Switch(SwitchStatementData {
+            StatementKind::Switch(Box::new(SwitchStatementData {
                 scope,
                 discriminant: Box::new(discriminant),
                 cases,
-            }),
+            })),
         )
     }
 
