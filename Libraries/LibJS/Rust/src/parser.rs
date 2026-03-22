@@ -1119,51 +1119,7 @@ impl<'a> Parser<'a> {
         // Collect all declared names at module level.
         let mut declared_names: HashSet<Utf16String> = HashSet::new();
         for child in children {
-            match &child.inner {
-                StatementKind::VariableDeclaration { declarations, .. } => {
-                    for decl in declarations {
-                        collect_binding_names(&decl.target, &mut declared_names);
-                    }
-                }
-                StatementKind::FunctionDeclaration {
-                    name: Some(name), ..
-                } => {
-                    declared_names.insert(name.name.clone());
-                }
-                StatementKind::ClassDeclaration(data) => {
-                    if let Some(ref name) = data.name {
-                        declared_names.insert(name.name.clone());
-                    }
-                }
-                StatementKind::Import(data) => {
-                    for entry in &data.entries {
-                        declared_names.insert(entry.local_name.clone());
-                    }
-                }
-                StatementKind::Export(data) => {
-                    if let Some(ref statement) = data.statement {
-                        match &statement.inner {
-                            StatementKind::VariableDeclaration { declarations, .. } => {
-                                for decl in declarations {
-                                    collect_binding_names(&decl.target, &mut declared_names);
-                                }
-                            }
-                            StatementKind::FunctionDeclaration {
-                                name: Some(name), ..
-                            } => {
-                                declared_names.insert(name.name.clone());
-                            }
-                            StatementKind::ClassDeclaration(class_data) => {
-                                if let Some(ref name) = class_data.name {
-                                    declared_names.insert(name.name.clone());
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {}
-            }
+            collect_module_declared_names(child, &mut declared_names);
         }
 
         // Check each export's local bindings.
@@ -1459,6 +1415,122 @@ fn collect_binding_pattern_names(
         } else if let Some(crate::ast::BindingEntryName::Identifier(identifier)) = &entry.name {
             names.insert(identifier.name.clone());
         }
+    }
+}
+
+/// Collect all names declared by a top-level module statement.
+/// This includes lexical declarations (let/const), function/class declarations, imports,
+/// and also `var` declarations which hoist to module scope even when nested inside
+/// blocks, loops, if/else, etc.
+fn collect_module_declared_names(
+    statement: &crate::ast::Statement,
+    names: &mut HashSet<Utf16String>,
+) {
+    use crate::ast::*;
+    match &statement.inner {
+        StatementKind::VariableDeclaration { declarations, kind } => {
+            // All top-level declarations (var, let, const) are module-scoped.
+            let _ = kind;
+            for decl in declarations {
+                collect_binding_names(&decl.target, names);
+            }
+        }
+        StatementKind::FunctionDeclaration {
+            name: Some(name), ..
+        } => {
+            names.insert(name.name.clone());
+        }
+        StatementKind::ClassDeclaration(data) => {
+            if let Some(ref name) = data.name {
+                names.insert(name.name.clone());
+            }
+        }
+        StatementKind::Import(data) => {
+            for entry in &data.entries {
+                names.insert(entry.local_name.clone());
+            }
+        }
+        StatementKind::Export(data) => {
+            if let Some(ref stmt) = data.statement {
+                collect_module_declared_names(stmt, names);
+            }
+        }
+        // For any other statement, recurse to find hoisted var declarations.
+        _ => {
+            collect_var_declared_names(statement, names);
+        }
+    }
+}
+
+/// Recursively collect `var` declaration names from nested statements.
+/// `var` declarations are hoisted to the enclosing function/module scope,
+/// so we must walk into blocks, loops, if/else, switch, try/catch, etc.
+/// We do NOT walk into function bodies since `var` does not hoist out of functions.
+fn collect_var_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
+    use crate::ast::*;
+    match &statement.inner {
+        StatementKind::VariableDeclaration {
+            kind: DeclarationKind::Var,
+            declarations,
+        } => {
+            for decl in declarations {
+                collect_binding_names(&decl.target, names);
+            }
+        }
+        StatementKind::Block(scope) => {
+            for child in &scope.borrow().children {
+                collect_var_declared_names(child, names);
+            }
+        }
+        StatementKind::If {
+            consequent,
+            alternate,
+            ..
+        } => {
+            collect_var_declared_names(consequent, names);
+            if let Some(alt) = alternate {
+                collect_var_declared_names(alt, names);
+            }
+        }
+        StatementKind::While { body, .. }
+        | StatementKind::DoWhile { body, .. }
+        | StatementKind::With { body, .. } => {
+            collect_var_declared_names(body, names);
+        }
+        StatementKind::For { init, body, .. } => {
+            if let Some(ForInit::Declaration(decl)) = init {
+                collect_var_declared_names(decl, names);
+            }
+            collect_var_declared_names(body, names);
+        }
+        StatementKind::ForInOf { lhs, body, .. } => {
+            if let ForInOfLhs::Declaration(decl) = lhs {
+                collect_var_declared_names(decl, names);
+            }
+            collect_var_declared_names(body, names);
+        }
+        StatementKind::Switch(data) => {
+            for case in &data.cases {
+                for child in &case.scope.borrow().children {
+                    collect_var_declared_names(child, names);
+                }
+            }
+        }
+        StatementKind::Try(data) => {
+            collect_var_declared_names(&data.block, names);
+            if let Some(ref handler) = data.handler {
+                collect_var_declared_names(&handler.body, names);
+            }
+            if let Some(ref finalizer) = data.finalizer {
+                collect_var_declared_names(finalizer, names);
+            }
+        }
+        StatementKind::Labelled { item, .. } => {
+            collect_var_declared_names(item, names);
+        }
+        // Don't recurse into functions (var doesn't hoist out of functions).
+        // Don't recurse into let/const (they are block-scoped, not hoisted).
+        _ => {}
     }
 }
 
