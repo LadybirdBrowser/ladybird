@@ -1,0 +1,38 @@
+document
+  generic focused
+    banner
+      heading name="Page Title" level=1
+        text leaf name="Page Title"
+    navigation name="Main"
+      text leaf name="
+        "
+      link name="Home"
+        text leaf name="Home"
+      text leaf name="
+    "
+    main
+      article name="First article"
+        heading name="Article One" level=2
+          text leaf name="Article One"
+        paragraph
+          text leaf name="First paragraph."
+        sectionfooter
+          text leaf name="Published 2026"
+      article name="Second article"
+        heading name="Article Two" level=2
+          text leaf name="Article Two"
+        paragraph
+          text leaf name="Second paragraph."
+    complementary name="Sidebar"
+      heading name="Related Links" level=2
+        text leaf name="Related Links"
+      list
+        listitem
+          link name="Link 1"
+            text leaf name="Link 1"
+        listitem
+          link name="Link 2"
+            text leaf name="Link 2"
+    contentinfo
+      paragraph
+        text leaf name="Copyright notice"

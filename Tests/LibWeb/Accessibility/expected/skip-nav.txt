@@ -1,0 +1,25 @@
+document
+  generic focused
+    link name="Skip to main content"
+      text leaf name="Skip to main content"
+    banner
+      navigation name="Primary"
+        text leaf name="
+            "
+        link name="Home"
+          text leaf name="Home"
+        text leaf name="
+            "
+        link name="About"
+          text leaf name="About"
+        text leaf name="
+            "
+        link name="Contact"
+          text leaf name="Contact"
+        text leaf name="
+        "
+    main
+      heading name="Main Content" level=1
+        text leaf name="Main Content"
+      paragraph
+        text leaf name="The main content of the page."
