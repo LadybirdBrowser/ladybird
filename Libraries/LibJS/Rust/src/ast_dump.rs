@@ -359,7 +359,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             if s.children.len() == 1
                 && matches!(
                     s.children[0].inner,
-                    StatementKind::For(_) | StatementKind::ForInOf { .. }
+                    StatementKind::For(_) | StatementKind::ForInOf(_)
                 )
             {
                 dump_statement(&s.children[0], state);
@@ -441,13 +441,8 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_labeled_statement("body", &data.body, true, state);
         }
 
-        StatementKind::ForInOf {
-            kind,
-            lhs,
-            rhs,
-            body,
-        } => {
-            let name = match kind {
+        StatementKind::ForInOf(data) => {
+            let name = match data.kind {
                 ForInOfKind::ForIn => "ForInStatement",
                 ForInOfKind::ForOf => "ForOfStatement",
                 ForInOfKind::ForAwaitOf => "ForAwaitOfStatement",
@@ -455,9 +450,9 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             dump_node!(state, name, &statement.range);
             let lhs_state = child_state(state, false);
             print_node(&lhs_state, &color_label(state, "lhs"));
-            dump_for_in_of_lhs(lhs, &child_state(&lhs_state, true));
-            dump_labeled_expression("rhs", rhs, false, state);
-            dump_labeled_statement("body", body, true, state);
+            dump_for_in_of_lhs(&data.lhs, &child_state(&lhs_state, true));
+            dump_labeled_expression("rhs", &data.rhs, false, state);
+            dump_labeled_statement("body", &data.body, true, state);
         }
 
         StatementKind::Switch(data) => {

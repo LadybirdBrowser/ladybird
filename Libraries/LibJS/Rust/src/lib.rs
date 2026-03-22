@@ -1969,11 +1969,11 @@ fn for_each_child_statement(
             }
             f(&data.body.inner);
         }
-        StatementKind::ForInOf { lhs, body, .. } => {
-            if let ast::ForInOfLhs::Declaration(declaration) = lhs {
+        StatementKind::ForInOf(data) => {
+            if let ast::ForInOfLhs::Declaration(declaration) = &data.lhs {
                 f(&declaration.inner);
             }
-            f(&body.inner);
+            f(&data.body.inner);
         }
         StatementKind::Switch(data) => {
             for case in &data.cases {

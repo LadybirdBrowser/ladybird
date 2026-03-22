@@ -185,14 +185,14 @@ impl FunctionTable {
                 }
                 self.collect_from_statement(&data.body, result);
             }
-            StatementKind::ForInOf { lhs, rhs, body, .. } => {
-                match lhs {
+            StatementKind::ForInOf(data) => {
+                match &data.lhs {
                     ForInOfLhs::Declaration(decl) => self.collect_from_statement(decl, result),
                     ForInOfLhs::Expression(expr) => self.collect_from_expression(expr, result),
                     ForInOfLhs::Pattern(pattern) => self.collect_from_pattern(pattern, result),
                 }
-                self.collect_from_expression(rhs, result);
-                self.collect_from_statement(body, result);
+                self.collect_from_expression(&data.rhs, result);
+                self.collect_from_statement(&data.body, result);
             }
             StatementKind::Switch(data) => {
                 self.collect_from_expression(&data.discriminant, result);
@@ -1468,6 +1468,14 @@ pub struct ForStatementData {
     pub body: Box<Statement>,
 }
 
+#[derive(Clone, Debug)]
+pub struct ForInOfStatementData {
+    pub kind: ForInOfKind,
+    pub lhs: ForInOfLhs,
+    pub rhs: Box<Expression>,
+    pub body: Box<Statement>,
+}
+
 // =============================================================================
 // Statement enum
 // =============================================================================
@@ -1493,12 +1501,7 @@ pub enum StatementKind {
     While(Box<WhileStatementData>),
     DoWhile(Box<WhileStatementData>),
     For(Box<ForStatementData>),
-    ForInOf {
-        kind: ForInOfKind,
-        lhs: ForInOfLhs,
-        rhs: Box<Expression>,
-        body: Box<Statement>,
-    },
+    ForInOf(Box<ForInOfStatementData>),
     Switch(Box<SwitchStatementData>),
     With {
         object: Box<Expression>,

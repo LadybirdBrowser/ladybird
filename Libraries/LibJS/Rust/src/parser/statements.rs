@@ -463,12 +463,12 @@ impl Parser<'_> {
             let lhs = self.synthesize_for_in_of_lhs(init, init_start);
             let result = self.statement(
                 forin_start,
-                StatementKind::ForInOf {
+                StatementKind::ForInOf(Box::new(ForInOfStatementData {
                     kind: ForInOfKind::ForIn,
                     lhs,
                     rhs: Box::new(rhs),
                     body: Box::new(body),
-                },
+                })),
             );
             return self.close_for_loop_scope(start, result);
         }
@@ -524,12 +524,12 @@ impl Parser<'_> {
                 };
                 let result = self.statement(
                     forof_start,
-                    StatementKind::ForInOf {
+                    StatementKind::ForInOf(Box::new(ForInOfStatementData {
                         kind: for_of_kind,
                         lhs,
                         rhs: Box::new(rhs),
                         body: Box::new(body),
-                    },
+                    })),
                 );
                 return self.close_for_loop_scope(start, result);
             }
