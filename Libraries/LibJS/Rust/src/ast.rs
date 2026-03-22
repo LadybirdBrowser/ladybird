@@ -1379,7 +1379,7 @@ pub enum ExpressionKind {
     // Calls
     Call(Box<CallExpressionData>),
     New(Box<CallExpressionData>),
-    SuperCall(SuperCallData),
+    SuperCall(Box<SuperCallData>),
 
     // Spread
     Spread(Box<Expression>),

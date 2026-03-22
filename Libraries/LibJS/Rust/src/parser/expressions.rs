@@ -378,10 +378,10 @@ impl Parser<'_> {
                     (
                         self.expression(
                             after_super,
-                            ExpressionKind::SuperCall(SuperCallData {
+                            ExpressionKind::SuperCall(Box::new(SuperCallData {
                                 arguments,
                                 is_synthetic: false,
-                            }),
+                            })),
                         ),
                         true,
                     )

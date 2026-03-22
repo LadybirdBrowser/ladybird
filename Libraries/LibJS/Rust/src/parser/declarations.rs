@@ -792,13 +792,13 @@ impl Parser<'_> {
 
             let super_call = self.expression(
                 start,
-                ExpressionKind::SuperCall(SuperCallData {
+                ExpressionKind::SuperCall(Box::new(SuperCallData {
                     arguments: vec![CallArgument {
                         value: arguments_expression,
                         is_spread: true,
                     }],
                     is_synthetic: true,
-                }),
+                })),
             );
             let return_statement =
                 self.statement(start, StatementKind::Return(Some(Box::new(super_call))));
