@@ -369,6 +369,23 @@ void PageClient::page_did_change_active_element(Web::UniqueNodeID node_id)
     client().async_did_accessibility_focus_change(m_id, static_cast<i64>(node_id.value()));
 }
 
+void PageClient::schedule_accessibility_tree_update()
+{
+    if (!m_accessibility_tree_requested)
+        return;
+
+    if (!m_accessibility_update_timer) {
+        m_accessibility_update_timer = Core::Timer::create_single_shot(200, [this] {
+            if (auto* doc = page().top_level_browsing_context().active_document()) {
+                doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+                client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
+            }
+        });
+    }
+
+    m_accessibility_update_timer->restart();
+}
+
 void PageClient::page_did_finish_test(String const& text)
 {
     client().async_did_finish_test(m_id, text);
@@ -783,6 +800,8 @@ void PageClient::page_did_mutate_dom(FlyString const& type, Web::DOM::Node const
     auto serialized_target = MUST(builder.to_string());
 
     client().async_did_mutate_dom(m_id, { type.to_string(), target.unique_id(), move(serialized_target), mutation.release_value() });
+
+    schedule_accessibility_tree_update();
 }
 
 void PageClient::page_did_paint(Gfx::IntRect const& content_rect, i32 bitmap_id)

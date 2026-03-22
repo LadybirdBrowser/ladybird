@@ -625,6 +625,7 @@ void ConnectionFromClient::inspect_accessibility_tree(u64 page_id)
 void ConnectionFromClient::request_accessibility_tree(u64 page_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
+        page->set_accessibility_tree_requested();
         if (auto* doc = page->page().top_level_browsing_context().active_document()) {
             doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
             async_did_get_accessibility_tree(page_id, doc->build_accessibility_node_data());
@@ -648,6 +649,8 @@ void ConnectionFromClient::perform_accessibility_action(u64 page_id, i64 node_id
             if (element.is_focusable())
                 Web::HTML::run_focusing_steps(&element);
         }
+
+        page->schedule_accessibility_tree_update();
     }
 }
 

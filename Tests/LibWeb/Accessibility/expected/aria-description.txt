@@ -1,0 +1,9 @@
+document
+  generic focused
+    button name="Submit"
+      text leaf name="Submit"
+    paragraph
+      text leaf name="Click to submit your application."
+    textbox name="Username"
+    link name="Delete account"
+      text leaf name="Delete account"

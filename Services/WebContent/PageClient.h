@@ -104,6 +104,9 @@ public:
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
 
+    void set_accessibility_tree_requested() { m_accessibility_tree_requested = true; }
+    void schedule_accessibility_tree_update();
+
 private:
     PageClient(PageHost&, u64 id);
 
@@ -147,6 +150,7 @@ private:
     virtual void page_did_change_active_document_in_top_level_browsing_context(Web::DOM::Document&) override;
     virtual void page_did_finish_loading(URL::URL const&) override;
     virtual void page_did_change_active_element(Web::UniqueNodeID) override;
+
     virtual void page_did_request_alert(String const&) override;
     virtual void page_did_request_confirm(String const&) override;
     virtual void page_did_request_prompt(String const&, String const&) override;
@@ -227,6 +231,8 @@ private:
     GC::Ptr<WebContentConsoleClient> m_top_level_document_console_client;
 
     RefPtr<Core::Timer> m_paint_refresh_timer;
+    RefPtr<Core::Timer> m_accessibility_update_timer;
+    bool m_accessibility_tree_requested { false };
 
     u64 m_devtools_client_count { 0 };
 };

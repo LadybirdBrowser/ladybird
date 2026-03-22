@@ -1,0 +1,33 @@
+document
+  generic focused
+    paragraph
+      text leaf name="Normal text with "
+      strong
+        text leaf name="bold"
+      text leaf name=" and "
+      emphasis
+        text leaf name="italic"
+      text leaf name=" words."
+    paragraph
+      text leaf name="Text with "
+      link name="an inline link"
+        text leaf name="an inline link"
+      text leaf name=" inside it."
+    paragraph
+      text leaf name="Text with "
+      text leaf name="HTML"
+      text leaf name=" abbreviation."
+    blockquote
+      text leaf name="A block quote."
+    generic
+      text leaf name="Preformatted text"
+    code
+      text leaf name="Inline code"
+    paragraph
+      text leaf name="Text with "
+      subscript
+        text leaf name="subscript"
+      text leaf name=" and "
+      superscript
+        text leaf name="superscript"
+      text leaf name="."
