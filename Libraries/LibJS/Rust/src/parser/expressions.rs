@@ -423,7 +423,7 @@ impl Parser<'_> {
                     })
                     .collect();
                 (
-                    self.expression(start, ExpressionKind::BigIntLiteral(value_utf8)),
+                    self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value_utf8))),
                     true,
                 )
             }
@@ -1886,7 +1886,8 @@ impl Parser<'_> {
                         c as u8 as char
                     })
                     .collect();
-                let expression = self.expression(start, ExpressionKind::BigIntLiteral(value_utf8));
+                let expression =
+                    self.expression(start, ExpressionKind::BigIntLiteral(Box::new(value_utf8)));
                 PropertyKey {
                     expression,
                     name: None,

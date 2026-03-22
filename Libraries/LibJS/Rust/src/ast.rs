@@ -1326,7 +1326,7 @@ pub enum ExpressionKind {
     StringLiteral(Box<Utf16String>),
     BooleanLiteral(bool),
     NullLiteral,
-    BigIntLiteral(String),
+    BigIntLiteral(Box<String>),
     RegExpLiteral(Box<RegExpLiteralData>),
 
     // Identifiers

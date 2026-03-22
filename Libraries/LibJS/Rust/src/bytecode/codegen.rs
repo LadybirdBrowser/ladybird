@@ -102,7 +102,7 @@ fn generate_expression_inner(
 
         ExpressionKind::BigIntLiteral(value) => {
             // The AST stores the raw value including the 'n' suffix; strip it for codegen.
-            let digits = value.strip_suffix('n').unwrap_or(value);
+            let digits = value.strip_suffix('n').unwrap_or(value.as_str());
             Some(generator.add_constant_bigint(digits.to_string()))
         }
 
@@ -6088,7 +6088,7 @@ fn generate_class_expression(
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
-                                let digits = s.strip_suffix('n').unwrap_or(s);
+                                let digits = s.strip_suffix('n').unwrap_or(s.as_str());
                                 Utf16String(digits.encode_utf16().collect())
                             }
                             _ => Utf16String::new(),
