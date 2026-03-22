@@ -802,8 +802,8 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     if (m_throw_on_dynamic_markup_insertion_counter > 0)
         return WebIDL::InvalidStateError::create(realm(), "throw-on-dynamic-markup-insertion-counter greater than zero."_utf16);
 
-    // FIXME: 3. Let entryDocument be the entry global object's associated Document.
-    auto& entry_document = *this;
+    // 3. Let entryDocument be the entry global object's associated Document.
+    auto& entry_document = as<HTML::Window>(HTML::entry_global_object()).associated_document();
 
     // 4. If document's origin is not same origin to entryDocument's origin, then throw a "SecurityError" DOMException.
     if (origin() != entry_document.origin())
