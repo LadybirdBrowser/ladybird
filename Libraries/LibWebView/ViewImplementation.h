@@ -144,6 +144,7 @@ public:
     void exit_fullscreen();
 
     void set_is_fullscreen(Web::ViewportIsFullscreen is_fullscreen);
+    Web::ViewportIsFullscreen is_fullscreen() const { return m_is_fullscreen; }
 
     void alert_closed();
     void confirm_closed(bool accepted);

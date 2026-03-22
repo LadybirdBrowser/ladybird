@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Base64.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
 #include <UI/Qt/StringUtils.h>
@@ -47,6 +48,24 @@ public:
             m_action->setVisible(action.visible());
     }
 
+    virtual void on_engaged_state_changed(WebView::Action& action) override
+    {
+        if (!m_action)
+            return;
+
+        switch (action.id()) {
+        case WebView::ActionID::ToggleBookmark:
+        case WebView::ActionID::ToggleBookmarkViaToolbar:
+            if (auto* parent = as_if<QWidget>(m_action->parent())) {
+                auto const* icon = action.engaged() ? "star-filled" : "star-countour";
+                m_action->setIcon(create_tvg_icon_with_theme_colors(icon, parent->palette()));
+            }
+            break;
+        default:
+            break;
+        }
+    }
+
     virtual void on_checked_state_changed(WebView::Action& action) override
     {
         if (m_action)
@@ -72,6 +91,21 @@ private:
 
     QPointer<QAction> m_action;
 };
+
+static QIcon icon_from_base64_png(StringView favicon_base64_png)
+{
+    static constexpr int const MENU_ICON_SIZE = 16;
+
+    auto decoded = decode_base64(favicon_base64_png);
+    if (decoded.is_error())
+        return {};
+
+    QPixmap pixmap;
+    if (!pixmap.loadFromData(decoded.value().data(), static_cast<uint>(decoded.value().size()), "PNG"))
+        return {};
+
+    return pixmap.scaled(MENU_ICON_SIZE, MENU_ICON_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+}
 
 static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette)
 {
@@ -104,6 +138,19 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 
     case WebView::ActionID::SearchSelectedText:
         qaction.setIcon(load_icon_from_uri("resource://icons/16x16/find.png"sv));
+        break;
+
+    case WebView::ActionID::ToggleBookmark:
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_D));
+        break;
+    case WebView::ActionID::ToggleBookmarksBar:
+        qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_B));
+        break;
+    case WebView::ActionID::BookmarkItem:
+        if (auto icon = action.base64_png_icon(); icon.has_value())
+            qaction.setIcon(icon_from_base64_png(*icon));
+        else
+            qaction.setIcon(create_tvg_icon_with_theme_colors("globe", palette));
         break;
 
     case WebView::ActionID::OpenProcessesPage:
@@ -271,6 +318,12 @@ QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
     auto* application_menu = new QMenu(qstring_from_ak_string(menu.title()), &parent);
     add_items_to_menu(*application_menu, parent, menu.items());
     return application_menu;
+}
+
+void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source)
+{
+    menu.clear();
+    add_items_to_menu(menu, parent, source.items());
 }
 
 QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu& menu)

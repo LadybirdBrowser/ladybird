@@ -102,6 +102,9 @@ public:
     QAction& new_window_action() const { return *m_new_window_action; }
     QAction& find_action() const { return *m_find_in_page_action; }
 
+    void rebuild_bookmarks_menu();
+    void update_bookmarks_bar_display(bool show_bookmarks_bar);
+
     double refresh_rate() const { return m_refresh_rate; }
 
     void on_devtools_enabled();
@@ -138,7 +141,7 @@ private:
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
     void initialize_tab(Tab*);
 
-    void set_current_tab(Tab* tab) { m_current_tab = tab; }
+    void set_current_tab(Tab* tab);
 
     template<typename Callback>
     void for_each_tab(Callback&& callback)
@@ -163,6 +166,7 @@ private:
     Tab* m_current_tab { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
+    QMenu* m_bookmarks_menu { nullptr };
 
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };

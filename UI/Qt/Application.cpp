@@ -235,6 +235,22 @@ void Application::insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresen
     clipboard->setMimeData(mime_data);
 }
 
+void Application::rebuild_bookmarks_menu() const
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->rebuild_bookmarks_menu();
+    }
+}
+
+void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget))
+            window->update_bookmarks_bar_display(show_bookmarks_bar);
+    }
+}
+
 void Application::on_devtools_enabled() const
 {
     WebView::Application::on_devtools_enabled();

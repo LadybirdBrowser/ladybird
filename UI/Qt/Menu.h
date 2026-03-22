@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Tim Flynn <trflynn89@ladybird.org>
+ * Copyright (c) 2025-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -17,6 +17,8 @@ namespace Ladybird {
 class WebContentView;
 
 QMenu* create_application_menu(QWidget& parent, WebView::Menu&);
+void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source);
+
 QMenu* create_context_menu(QWidget& parent, WebContentView&, WebView::Menu&);
 QAction* create_application_action(QWidget& parent, WebView::Action&);
 

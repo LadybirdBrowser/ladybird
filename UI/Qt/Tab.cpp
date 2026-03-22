@@ -86,6 +86,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_find_in_page->setVisible(false);
     m_toolbar = new QToolBar(this);
     m_location_edit = new LocationEdit(this);
+    m_bookmarks_bar = new BookmarksBar(this);
 
     m_hover_label = new HyperlinkLabel(this);
     m_hover_label->hide();
@@ -101,6 +102,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     addAction(focus_location_editor_action);
 
     m_layout->addWidget(m_toolbar);
+    m_layout->addWidget(m_bookmarks_bar);
     m_layout->addWidget(m_view);
     m_layout->addWidget(m_find_in_page);
 
@@ -136,6 +138,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->addAction(m_navigate_forward_action);
     m_toolbar->addAction(m_reload_action);
     m_toolbar->addWidget(m_location_edit);
+    m_toolbar->addAction(create_application_action(*m_toolbar, view().toggle_bookmark_action()));
     m_toolbar->addAction(create_application_action(*m_toolbar, view().reset_zoom_action()));
     m_hamburger_button_action = m_toolbar->addWidget(m_hamburger_button);
 

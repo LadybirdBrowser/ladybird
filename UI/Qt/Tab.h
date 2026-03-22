@@ -8,6 +8,7 @@
 #pragma once
 
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/WebContentView.h>
@@ -61,6 +62,8 @@ public:
     void find_previous();
     void find_next();
 
+    BookmarksBar& bookmarks_bar() { return *m_bookmarks_bar; }
+
     void request_close();
 
     QIcon const& favicon() const { return m_favicon; }
@@ -93,6 +96,7 @@ private:
 
     QBoxLayout* m_layout { nullptr };
     QToolBar* m_toolbar { nullptr };
+    BookmarksBar* m_bookmarks_bar { nullptr };
     QToolButton* m_hamburger_button { nullptr };
     QAction* m_hamburger_button_action { nullptr };
     LocationEdit* m_location_edit { nullptr };

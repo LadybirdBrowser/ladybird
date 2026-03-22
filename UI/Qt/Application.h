@@ -48,6 +48,9 @@ private:
     virtual Vector<Web::Clipboard::SystemClipboardRepresentation> clipboard_entries() const override;
     virtual void insert_clipboard_entry(Web::Clipboard::SystemClipboardRepresentation) override;
 
+    virtual void rebuild_bookmarks_menu() const override;
+    virtual void update_bookmarks_bar_display(bool) const override;
+
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
 

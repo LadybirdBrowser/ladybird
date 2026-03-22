@@ -293,6 +293,10 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         Settings::the()->set_show_menubar(checked);
     });
 
+    m_bookmarks_menu = create_application_menu(*this, Application::the().bookmarks_menu());
+    m_hamburger_menu->addMenu(m_bookmarks_menu);
+    menuBar()->addMenu(m_bookmarks_menu);
+
     auto* inspect_menu = create_application_menu(*m_hamburger_menu, Application::the().inspect_menu());
     m_hamburger_menu->addMenu(inspect_menu);
     menuBar()->addMenu(inspect_menu);
@@ -372,6 +376,23 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     if (browser_options.devtools_port.has_value())
         on_devtools_enabled();
+}
+
+void BrowserWindow::rebuild_bookmarks_menu()
+{
+    repopulate_application_menu(*m_bookmarks_menu, *this, Application::the().bookmarks_menu());
+
+    for_each_tab([](Tab& tab) {
+        tab.bookmarks_bar().rebuild();
+    });
+}
+
+void BrowserWindow::update_bookmarks_bar_display(bool show_bookmarks_bar)
+{
+    for_each_tab([&](Tab& tab) {
+        if (tab.view().is_fullscreen() == Web::ViewportIsFullscreen::No)
+            tab.bookmarks_bar().setVisible(show_bookmarks_bar);
+    });
 }
 
 void BrowserWindow::on_devtools_enabled()
@@ -473,6 +494,15 @@ void BrowserWindow::initialize_tab(Tab* tab)
 
     m_tabs_container->set_tab_icon(m_tabs_container->index_of(tab), tab->favicon());
     create_close_button_for_tab(tab);
+}
+
+void BrowserWindow::set_current_tab(Tab* tab)
+{
+    if (tab == m_current_tab)
+        return;
+
+    m_current_tab = tab;
+    WebView::Application::the().update_bookmark_action_for_current_web_view();
 }
 
 void BrowserWindow::activate_tab(int index)
@@ -682,6 +712,8 @@ void BrowserWindow::set_window_rect(Optional<Web::DevicePixels> x, Optional<Web:
 void BrowserWindow::enter_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(false);
+    current_tab()->bookmarks_bar().setVisible(false);
+
     m_restore_to_maximized = isMaximized();
     showFullScreen();
 }
@@ -689,6 +721,8 @@ void BrowserWindow::enter_fullscreen()
 void BrowserWindow::exit_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(true);
+    current_tab()->bookmarks_bar().setVisible(WebView::Application::settings().show_bookmarks_bar());
+
     if (m_restore_to_maximized)
         showMaximized();
     else

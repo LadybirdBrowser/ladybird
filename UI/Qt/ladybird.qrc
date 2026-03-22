@@ -5,9 +5,12 @@
         <file>../Icons/close.tvg</file>
         <file>../Icons/folder.tvg</file>
         <file>../Icons/forward.tvg</file>
+        <file>../Icons/globe.tvg</file>
         <file>../Icons/hamburger.tvg</file>
         <file>../Icons/new_tab.tvg</file>
         <file>../Icons/reload.tvg</file>
+        <file>../Icons/star-countour.tvg</file>
+        <file>../Icons/star-filled.tvg</file>
         <file>../Icons/up.tvg</file>
         <file>../Icons/down.tvg</file>
     </qresource>
