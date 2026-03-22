@@ -986,7 +986,7 @@ impl Parser<'_> {
             };
             let expression = self.expression(
                 class_start,
-                ExpressionKind::StringLiteral(Utf16String(name.to_vec())),
+                ExpressionKind::StringLiteral(Box::new(Utf16String(name.to_vec()))),
             );
             PropertyKey {
                 expression,

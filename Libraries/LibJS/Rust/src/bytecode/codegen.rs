@@ -96,7 +96,9 @@ fn generate_expression_inner(
 
         ExpressionKind::NullLiteral => Some(generator.add_constant_null()),
 
-        ExpressionKind::StringLiteral(value) => Some(generator.add_constant_string(value.clone())),
+        ExpressionKind::StringLiteral(value) => {
+            Some(generator.add_constant_string((**value).clone()))
+        }
 
         ExpressionKind::BigIntLiteral(value) => {
             // The AST stores the raw value including the 'n' suffix; strip it for codegen.
@@ -5368,7 +5370,7 @@ fn generate_object_expression(
         // ProtoSetter (__proto__) skips NamedEvaluation per spec.
         if !effectively_computed && property.property_type != ObjectPropertyType::ProtoSetter {
             let base_name: Option<Utf16String> = match &property.key.inner {
-                ExpressionKind::StringLiteral(s) => Some(s.clone()),
+                ExpressionKind::StringLiteral(s) => Some((**s).clone()),
                 ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
                 _ => None,
             };
@@ -6063,7 +6065,7 @@ fn generate_class_expression(
                         }
                         ExpressionKind::StringLiteral(s) => {
                             literal_value_kind = LiteralValueKind::String;
-                            literal_value_string = s.clone();
+                            literal_value_string = (**s).clone();
                             true
                         }
                         ExpressionKind::Unary { op, operand } if *op == UnaryOp::Minus => {
@@ -6082,7 +6084,7 @@ fn generate_class_expression(
                         // Determine field name for anonymous function naming.
                         let field_name = match &key.inner {
                             ExpressionKind::Identifier(ident) => ident.name.clone(),
-                            ExpressionKind::StringLiteral(s) => s.clone(),
+                            ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             ExpressionKind::BigIntLiteral(s) => {
@@ -6133,7 +6135,7 @@ fn generate_class_expression(
                         let key_name: Utf16String = match &key.inner {
                             ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
                             ExpressionKind::Identifier(ident) => ident.name.clone(),
-                            ExpressionKind::StringLiteral(s) => s.clone(),
+                            ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             _ => Utf16String::new(),
                         };

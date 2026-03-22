@@ -1323,7 +1323,7 @@ pub struct VarToInit {
 pub enum ExpressionKind {
     // Literals
     NumericLiteral(f64),
-    StringLiteral(Utf16String),
+    StringLiteral(Box<Utf16String>),
     BooleanLiteral(bool),
     NullLiteral,
     BigIntLiteral(String),
