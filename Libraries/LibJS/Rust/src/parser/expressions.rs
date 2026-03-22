@@ -1304,12 +1304,12 @@ impl Parser<'_> {
         }
         self.expression(
             start,
-            ExpressionKind::Call(CallExpressionData {
+            ExpressionKind::Call(Box::new(CallExpressionData {
                 callee: Box::new(callee),
                 arguments,
                 is_parenthesized: false,
                 is_inside_parens: false,
-            }),
+            })),
         )
     }
 
