@@ -45,6 +45,7 @@ public:
     Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty> root() const;
     String root_margin() const;
     String scroll_margin() const;
+    Vector<CSS::LengthPercentage> const& scroll_margin_values() const { return m_scroll_margin; }
     Vector<double> const& thresholds() const { return m_thresholds; }
     long delay() const { return m_delay; }
     bool track_visibility() const { return m_track_visibility; }

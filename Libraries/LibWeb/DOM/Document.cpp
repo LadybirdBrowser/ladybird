@@ -5217,7 +5217,9 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
             //       unnecessary here because get_bounding_client_rect() and transform_rect_to_viewport()
             //       already produce viewport-relative coordinates.
 
-            // 3.3. If container has a content clip or a css clip-path property, update intersectionRect
+            // 3.3. If container is a scroll container, apply the observer’s [[scrollMargin]]
+            //      to the container’s clip rect.
+            // 3.4. If container has a content clip or a css clip-path property, update intersectionRect
             //      by applying container’s clip.
             // FIXME: Handle clip-path.
             auto overflow_x = container->computed_values().overflow_x();
@@ -5225,6 +5227,18 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
             bool has_content_clip = overflow_x != CSS::Overflow::Visible || overflow_y != CSS::Overflow::Visible;
             if (has_content_clip) {
                 auto clip_rect = container->transform_rect_to_viewport(container->absolute_padding_box_rect());
+
+                // Apply scroll margin to expand the scrollport for scroll containers.
+                auto& scroll_margin = observer.scroll_margin_values();
+                auto const& layout_node = container->layout_node_with_style_and_box_metrics();
+                if (layout_node.is_scroll_container() && !scroll_margin.is_empty()) {
+                    clip_rect.inflate(
+                        scroll_margin[0].to_px(layout_node, clip_rect.height()),
+                        scroll_margin[1].to_px(layout_node, clip_rect.width()),
+                        scroll_margin[2].to_px(layout_node, clip_rect.height()),
+                        scroll_margin[3].to_px(layout_node, clip_rect.width()));
+                }
+
                 intersection_rect.intersect(clip_rect);
             }
         }
