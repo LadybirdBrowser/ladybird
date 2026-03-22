@@ -16,7 +16,6 @@
 #endif
 
 #include <LibCore/MachPort.h>
-#include <LibCore/Socket.h>
 #include <LibThreading/Mutex.h>
 
 namespace IPC {
@@ -28,7 +27,6 @@ struct TransportBootstrapMachPorts {
 
 ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_mach_server(StringView server_name);
 ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port);
-ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_over_socket(Core::LocalSocket&);
 
 class TransportBootstrapMachServer {
     AK_MAKE_NONCOPYABLE(TransportBootstrapMachServer);
@@ -36,8 +34,15 @@ class TransportBootstrapMachServer {
 public:
     TransportBootstrapMachServer() = default;
 
+    struct WaitingForChildTransport {
+    };
+    struct OnDemandTransport {
+        TransportBootstrapMachPorts ports;
+    };
+    using RegisterReplyPortResult = Variant<WaitingForChildTransport, OnDemandTransport>;
+
     void register_pending_transport(pid_t, TransportBootstrapMachPorts);
-    void register_reply_port(pid_t, Core::MachPort reply_port);
+    ErrorOr<RegisterReplyPortResult> register_reply_port(pid_t, Core::MachPort reply_port);
 
 private:
     struct WaitingForPorts {
@@ -49,6 +54,7 @@ private:
     using PendingBootstrapState = Variant<WaitingForPorts, WaitingForReplyPort>;
 
     static void send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
+    static ErrorOr<TransportBootstrapMachPorts> create_on_demand_local_transport(Core::MachPort reply_port);
 
     Threading::Mutex m_pending_bootstrap_mutex;
     HashMap<pid_t, PendingBootstrapState> m_pending_bootstrap;

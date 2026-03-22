@@ -45,6 +45,11 @@ void set_mach_server_name(ByteString name)
     s_mach_server_name = move(name);
 }
 
+ByteString mach_server_name_for_process(StringView process_name, pid_t pid)
+{
+    return ByteString::formatted("org.ladybird.{}.helper.{}", process_name, pid);
+}
+
 static ErrorOr<ByteString> application_directory()
 {
     if (s_ladybird_binary_path.has_value())

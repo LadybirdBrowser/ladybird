@@ -790,10 +790,10 @@ void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot
     client().async_did_take_screenshot(m_id, screenshot);
 }
 
-ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_ipc_path)
+ErrorOr<void> PageClient::connect_to_webdriver(ByteString const& webdriver_endpoint)
 {
     VERIFY(!m_webdriver);
-    m_webdriver = TRY(WebDriverConnection::connect(*this, webdriver_ipc_path));
+    m_webdriver = TRY(WebDriverConnection::connect(*this, webdriver_endpoint));
 
     return {};
 }

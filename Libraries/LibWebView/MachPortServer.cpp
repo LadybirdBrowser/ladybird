@@ -11,9 +11,9 @@
 
 namespace WebView {
 
-MachPortServer::MachPortServer()
+MachPortServer::MachPortServer(ByteString server_port_name)
     : m_thread(Threading::Thread::construct("MachPortServer"sv, [this]() -> intptr_t { thread_loop(); return 0; }))
-    , m_server_port_name(ByteString::formatted("org.ladybird.Ladybird.helper.{}", getpid()))
+    , m_server_port_name(move(server_port_name))
 {
     if (auto err = allocate_server_port(); err.is_error())
         dbgln("Failed to allocate server port: {}", err.error());

@@ -22,7 +22,7 @@ namespace WebView {
 class WEBVIEW_API MachPortServer {
 
 public:
-    MachPortServer();
+    explicit MachPortServer(ByteString server_port_name);
     ~MachPortServer();
 
     void start();

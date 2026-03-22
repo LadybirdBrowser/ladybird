@@ -37,11 +37,6 @@ public:
     };
     static ErrorOr<Paired> create_paired();
 
-    // Bootstrap a Mach port connection over an existing Unix socket.
-    // Used when the initial connection is socket-based (e.g., WebDriver).
-    // Both sides must call this concurrently on the same socket.
-    static ErrorOr<NonnullOwnPtr<TransportMachPort>> from_socket(NonnullOwnPtr<Core::LocalSocket> socket);
-
     TransportMachPort(Core::MachPort receive_right, Core::MachPort send_right);
     ~TransportMachPort();
 

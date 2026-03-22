@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/Error.h>
 #include <AK/String.h>
+#include <AK/Types.h>
 #include <AK/Vector.h>
 #include <LibWebView/Forward.h>
 
@@ -22,6 +23,7 @@ WEBVIEW_API ErrorOr<Vector<ByteString>> get_paths_for_helper_process(StringView 
 WEBVIEW_API extern ByteString s_ladybird_resource_root;
 WEBVIEW_API Optional<ByteString const&> mach_server_name();
 WEBVIEW_API void set_mach_server_name(ByteString name);
+WEBVIEW_API ByteString mach_server_name_for_process(StringView process_name, pid_t pid);
 
 WEBVIEW_API ErrorOr<void> handle_attached_debugger();
 

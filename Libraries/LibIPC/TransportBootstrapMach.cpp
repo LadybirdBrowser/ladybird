@@ -5,38 +5,17 @@
  */
 
 #include <AK/Assertions.h>
-#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
+#include <AK/Optional.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Platform/MachMessageTypes.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportBootstrapMach.h>
 
 #include <mach/mach.h>
+#include <sys/sysctl.h>
 
 namespace IPC {
-
-static ErrorOr<void> write_exact(int fd, ReadonlyBytes bytes)
-{
-    size_t total_written = 0;
-    while (total_written < bytes.size()) {
-        auto nwritten = TRY(Core::System::write(fd, bytes.slice(total_written)));
-        VERIFY(nwritten > 0);
-        total_written += nwritten;
-    }
-    return {};
-}
-
-static ErrorOr<void> read_exact(int fd, Bytes bytes)
-{
-    size_t total_read = 0;
-    while (total_read < bytes.size()) {
-        auto nread = TRY(Core::System::read(fd, bytes.slice(total_read)));
-        VERIFY(nread > 0);
-        total_read += nread;
-    }
-    return {};
-}
 
 ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_server_port(Core::MachPort const& server_port)
 {
@@ -84,42 +63,6 @@ ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_from_mach_server(String
     return bootstrap_transport_from_server_port(server_port);
 }
 
-ErrorOr<TransportBootstrapMachPorts> bootstrap_transport_over_socket(Core::LocalSocket& socket)
-{
-    auto our_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
-    auto our_name = ByteString::formatted("org.ladybird.ipc.{}.{}", Core::System::getpid(), our_receive_right.port());
-    TRY(our_receive_right.register_with_bootstrap_server(our_name));
-
-    auto socket_fd = socket.fd().value();
-    TRY(socket.set_blocking(true));
-
-    auto const name_bytes = our_name.bytes();
-    u32 const name_length = static_cast<u32>(name_bytes.size());
-    TRY(write_exact(socket_fd, ReadonlyBytes { reinterpret_cast<u8 const*>(&name_length), sizeof(name_length) }));
-    TRY(write_exact(socket_fd, name_bytes));
-
-    u32 peer_name_length = 0;
-    TRY(read_exact(socket_fd, Bytes { reinterpret_cast<u8*>(&peer_name_length), sizeof(peer_name_length) }));
-    VERIFY(peer_name_length > 0);
-    VERIFY(peer_name_length <= 256);
-
-    auto peer_name_buffer = TRY(ByteBuffer::create_uninitialized(peer_name_length));
-    TRY(read_exact(socket_fd, peer_name_buffer.bytes()));
-
-    auto peer_name = ByteString { peer_name_buffer.bytes() };
-    auto peer_send_right = TRY(Core::MachPort::look_up_from_bootstrap_server(peer_name));
-
-    u8 ack = 1;
-    TRY(write_exact(socket_fd, { &ack, 1 }));
-    TRY(read_exact(socket_fd, { &ack, 1 }));
-    VERIFY(ack == 1);
-
-    return TransportBootstrapMachPorts {
-        .receive_right = move(our_receive_right),
-        .send_right = move(peer_send_right),
-    };
-}
-
 void TransportBootstrapMachServer::send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports)
 {
     Core::Platform::MessageWithIPCChannelPorts message {};
@@ -141,17 +84,57 @@ void TransportBootstrapMachServer::send_transport_ports_to_child(Core::MachPort 
     VERIFY(ret == KERN_SUCCESS);
 }
 
+static bool process_is_child_of_us(pid_t pid)
+{
+    int mib[4] = {};
+    struct kinfo_proc info = {};
+    size_t size = sizeof(info);
+
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_PID;
+    mib[3] = pid;
+
+    if (sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, nullptr, 0) < 0)
+        return false;
+
+    if (size == 0)
+        return false;
+
+    return info.kp_eproc.e_ppid == Core::System::getpid();
+}
+
+ErrorOr<TransportBootstrapMachPorts> TransportBootstrapMachServer::create_on_demand_local_transport(Core::MachPort reply_port)
+{
+    auto local_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto local_send_right = TRY(local_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+    auto remote_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
+    auto remote_send_right = TRY(remote_receive_right.insert_right(Core::MachPort::MessageRight::MakeSend));
+
+    send_transport_ports_to_child(move(reply_port), TransportBootstrapMachPorts {
+                                                        .receive_right = move(remote_receive_right),
+                                                        .send_right = move(local_send_right),
+                                                    });
+
+    return TransportBootstrapMachPorts {
+        .receive_right = move(local_receive_right),
+        .send_right = move(remote_send_right),
+    };
+}
+
 void TransportBootstrapMachServer::register_pending_transport(pid_t pid, TransportBootstrapMachPorts ports)
 {
-    m_pending_bootstrap_mutex.lock();
-    auto pending = m_pending_bootstrap.take(pid);
-    if (!pending.has_value()) {
-        m_pending_bootstrap.set(pid, WaitingForPorts { move(ports) });
-        m_pending_bootstrap_mutex.unlock();
-        return;
+    Optional<PendingBootstrapState> pending;
+    {
+        Threading::MutexLocker locker(m_pending_bootstrap_mutex);
+        pending = m_pending_bootstrap.take(pid);
+        if (!pending.has_value()) {
+            m_pending_bootstrap.set(pid, WaitingForPorts { move(ports) });
+            return;
+        }
     }
 
-    m_pending_bootstrap_mutex.unlock();
     pending.release_value().visit(
         [&](WaitingForPorts&) {
             VERIFY_NOT_REACHED();
@@ -161,22 +144,29 @@ void TransportBootstrapMachServer::register_pending_transport(pid_t pid, Transpo
         });
 }
 
-void TransportBootstrapMachServer::register_reply_port(pid_t pid, Core::MachPort reply_port)
+ErrorOr<TransportBootstrapMachServer::RegisterReplyPortResult> TransportBootstrapMachServer::register_reply_port(pid_t pid, Core::MachPort reply_port)
 {
-    m_pending_bootstrap_mutex.lock();
-    auto pending = m_pending_bootstrap.take(pid);
-    if (!pending.has_value()) {
-        m_pending_bootstrap.set(pid, WaitingForReplyPort { move(reply_port) });
-        m_pending_bootstrap_mutex.unlock();
-        return;
+    Optional<PendingBootstrapState> pending;
+    {
+        Threading::MutexLocker locker(m_pending_bootstrap_mutex);
+        pending = m_pending_bootstrap.take(pid);
+        if (!pending.has_value()) {
+            if (process_is_child_of_us(pid)) {
+                m_pending_bootstrap.set(pid, WaitingForReplyPort { move(reply_port) });
+                return WaitingForChildTransport {};
+            }
+        }
     }
 
-    m_pending_bootstrap_mutex.unlock();
-    pending.release_value().visit(
-        [&](WaitingForPorts& waiting) {
+    if (!pending.has_value())
+        return OnDemandTransport { .ports = TRY(create_on_demand_local_transport(move(reply_port))) };
+
+    return pending.release_value().visit(
+        [&](WaitingForPorts& waiting) -> ErrorOr<RegisterReplyPortResult> {
             send_transport_ports_to_child(move(reply_port), move(waiting.ports));
+            return WaitingForChildTransport {};
         },
-        [&](WaitingForReplyPort&) {
+        [&](WaitingForReplyPort&) -> ErrorOr<RegisterReplyPortResult> {
             VERIFY_NOT_REACHED();
         });
 }

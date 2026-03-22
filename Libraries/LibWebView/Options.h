@@ -87,7 +87,7 @@ struct BrowserOptions {
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Optional<ProcessType> debug_helper_process {};
     Optional<ProcessType> profile_helper_process {};
-    Optional<ByteString> webdriver_content_ipc_path {};
+    Optional<ByteString> webdriver_endpoint {};
     Optional<DNSSettings> dns_settings {};
     Optional<u16> devtools_port;
     EnableContentFilter enable_content_filter { EnableContentFilter::Yes };

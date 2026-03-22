@@ -27,6 +27,7 @@
 #include <LibWebView/WebContentClient.h>
 
 #if defined(AK_OS_MACOS)
+#    include <LibIPC/Transport.h>
 #    include <LibIPC/TransportBootstrapMach.h>
 #    include <LibWebView/MachPortServer.h>
 #endif
@@ -88,12 +89,31 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 #endif
 
 #if defined(AK_OS_MACOS)
-    m_mach_port_server = make<MachPortServer>();
+    m_mach_port_server = make<MachPortServer>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
     set_mach_server_name(m_mach_port_server->server_port_name());
 
     m_mach_port_server->on_receive_child_mach_port = [this](MachPortServer::ChildMachPortRegistration registration) {
         set_process_mach_port(registration.pid, move(registration.child_port));
-        m_transport_bootstrap_server.register_reply_port(registration.pid, move(registration.reply_port));
+        auto registration_result = m_transport_bootstrap_server.register_reply_port(registration.pid, move(registration.reply_port));
+        if (registration_result.is_error()) {
+            dbgln("Failed to bootstrap Mach transport for pid {}: {}", registration.pid, registration_result.error());
+            return;
+        }
+
+        registration_result.release_value().visit(
+            [](IPC::TransportBootstrapMachServer::WaitingForChildTransport) {
+            },
+            [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                if (!m_on_browser_process_transport)
+                    return;
+
+                VERIFY(m_event_loop);
+                m_event_loop->deferred_invoke([this, transport = move(transport.ports)]() mutable {
+                    if (!m_on_browser_process_transport)
+                        return;
+                    m_on_browser_process_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)));
+                });
+            });
     };
     m_mach_port_server->on_receive_backing_stores = [](MachPortServer::BackingStoresMessage message) {
         if (auto view = WebContentClient::view_for_pid_and_page_id(message.pid, message.page_id); view.has_value())
@@ -114,7 +134,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<u16> devtools_port;
     Optional<StringView> debug_process;
     Optional<StringView> profile_process;
-    Optional<StringView> webdriver_content_ipc_path;
+    Optional<StringView> webdriver_endpoint;
     Optional<StringView> user_agent_preset;
     Optional<StringView> dns_server_address;
     Optional<StringView> default_time_zone;
@@ -173,7 +193,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
-    args_parser.add_option(webdriver_content_ipc_path, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
+#if defined(AK_OS_MACOS)
+    args_parser.add_option(webdriver_endpoint, "Mach server name for WebDriver IPC", "webdriver-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
+#else
+    args_parser.add_option(webdriver_endpoint, "Path to WebDriver IPC for WebContent", "webdriver-content-path", 0, "path", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
+#endif
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
@@ -269,8 +293,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (window_height.has_value())
         m_browser_options.window_height = *window_height;
 
-    if (webdriver_content_ipc_path.has_value())
-        m_browser_options.webdriver_content_ipc_path = *webdriver_content_ipc_path;
+    if (webdriver_endpoint.has_value())
+        m_browser_options.webdriver_endpoint = *webdriver_endpoint;
 
     auto http_disk_cache_mode = HTTPDiskCacheMode::Enabled;
     if (disable_http_disk_cache)
@@ -357,6 +381,11 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
 
 void Application::launch_spare_web_content_process()
 {
+    // Spare WebContent processes inherit the active WebDriver endpoint, but they are not part of the
+    // session and can race browser shutdown while bootstrapping.
+    if (browser_options().webdriver_endpoint.has_value())
+        return;
+
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
     if (browser_options().debug_helper_process == ProcessType::WebContent)
         return;
@@ -571,7 +600,7 @@ ErrorOr<int> Application::execute()
 
         view = HeadlessWebView::create(move(theme), { m_browser_options.window_width, m_browser_options.window_height });
 
-        if (!m_browser_options.webdriver_content_ipc_path.has_value()) {
+        if (!m_browser_options.webdriver_endpoint.has_value()) {
             if (m_browser_options.urls.size() != 1)
                 return Error::from_string_literal("Headless mode currently only supports exactly one URL");
 
@@ -611,6 +640,13 @@ void Application::add_child_process(WebView::Process&& process)
 void Application::set_process_mach_port(pid_t pid, Core::MachPort&& port)
 {
     m_process_manager->set_process_mach_port(pid, move(port));
+}
+#endif
+
+#if defined(AK_OS_MACOS)
+void Application::set_browser_process_transport_handler(Function<void(NonnullOwnPtr<IPC::Transport>)> handler)
+{
+    m_on_browser_process_transport = move(handler);
 }
 #endif
 

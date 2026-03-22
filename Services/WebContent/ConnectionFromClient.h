@@ -62,7 +62,7 @@ private:
     virtual void close_server() override;
     virtual Messages::WebContentServer::GetWindowHandleResponse get_window_handle(u64 page_id) override;
     virtual void set_window_handle(u64 page_id, String handle) override;
-    virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) override;
+    virtual void connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) override;
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;

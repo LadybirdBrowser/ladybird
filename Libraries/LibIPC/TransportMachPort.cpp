@@ -7,9 +7,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Notifier.h>
-#include <LibCore/Socket.h>
 #include <LibCore/System.h>
-#include <LibIPC/TransportBootstrapMach.h>
 #include <LibIPC/TransportMachPort.h>
 #include <LibThreading/Thread.h>
 
@@ -46,12 +44,6 @@ static Attachment attachment_from_descriptor(mach_msg_port_descriptor_t const& d
     default:
         VERIFY_NOT_REACHED();
     }
-}
-
-ErrorOr<NonnullOwnPtr<TransportMachPort>> TransportMachPort::from_socket(NonnullOwnPtr<Core::LocalSocket> socket)
-{
-    auto ports = TRY(bootstrap_transport_over_socket(*socket));
-    return make<TransportMachPort>(move(ports.receive_right), move(ports.send_right));
 }
 
 ErrorOr<TransportMachPort::Paired> TransportMachPort::create_paired()

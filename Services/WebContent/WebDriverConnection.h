@@ -34,7 +34,7 @@ class WebDriverConnection final
     C_OBJECT_ABSTRACT(WebDriverConnection)
 
 public:
-    static ErrorOr<NonnullRefPtr<WebDriverConnection>> connect(Web::PageClient& page_client, ByteString const& webdriver_ipc_path);
+    static ErrorOr<NonnullRefPtr<WebDriverConnection>> connect(Web::PageClient& page_client, ByteString const& webdriver_endpoint);
     virtual ~WebDriverConnection() = default;
 
     void visit_edges(JS::Cell::Visitor&);

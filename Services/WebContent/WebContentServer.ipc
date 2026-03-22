@@ -28,7 +28,7 @@ endpoint WebContentServer
     get_window_handle(u64 page_id) => (String handle)
     set_window_handle(u64 page_id, String handle) =|
 
-    connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path) =|
+    connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint) =|
     connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) =|
     connect_to_request_server(IPC::TransportHandle handle) =|
     connect_to_image_decoder(IPC::TransportHandle handle) =|

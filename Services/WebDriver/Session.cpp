@@ -10,9 +10,14 @@
 
 #include <AK/HashMap.h>
 #include <AK/JsonObject.h>
-#include <LibCore/LocalServer.h>
-#include <LibCore/Socket.h>
-#include <LibCore/StandardPaths.h>
+#if !defined(AK_OS_MACOS)
+#    include <LibCore/LocalServer.h>
+#    include <LibCore/Socket.h>
+#    include <LibCore/StandardPaths.h>
+#else
+#    include <LibIPC/TransportBootstrapMach.h>
+#    include <LibWebView/Utilities.h>
+#endif
 #include <LibCore/System.h>
 #include <LibIPC/Transport.h>
 #include <LibWeb/Crypto/Crypto.h>
@@ -123,6 +128,7 @@ Session::Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, S
     , m_options(capabilities)
     , m_session_id(move(session_id))
     , m_session_flags(flags)
+    , m_event_loop(Core::EventLoop::current_weak())
 {
 }
 
@@ -192,15 +198,67 @@ void Session::close()
     if (m_browser_process.has_value())
         MUST(Core::System::kill(m_browser_process->pid(), SIGTERM));
 
-    if (m_web_content_socket_path.has_value()) {
-        MUST(Core::System::unlink(*m_web_content_socket_path));
-        m_web_content_socket_path = {};
-    }
+#if defined(AK_OS_MACOS)
+    m_web_content_mach_port_server = nullptr;
+#else
+    if (!m_web_content_endpoint.is_empty())
+        MUST(Core::System::unlink(m_web_content_endpoint));
+#endif
+    m_web_content_endpoint = {};
 
     // 5. If an error has occurred in any of the steps above, return the error, otherwise return success with data null.
 }
 
-ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<ServerPromise> promise)
+ErrorOr<void> Session::accept_web_content_transport(NonnullOwnPtr<IPC::Transport> transport, NonnullRefPtr<ServerPromise> promise)
+{
+    auto web_content_connection = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(move(transport))));
+    dbgln("WebDriver is connected to WebContent");
+
+    auto connection_id = m_next_pending_connection_id++;
+    // Publish the connection before the initial did_set_window_handle message can race in.
+    m_pending_connections.set(connection_id, web_content_connection);
+
+    web_content_connection->on_close = [this, promise, connection_id]() {
+        if (m_pending_connections.remove(connection_id)) {
+            dbgln_if(WEBDRIVER_DEBUG, "Pending connection {} closed before sending its handle", connection_id);
+            promise->reject(Error::from_string_literal("Window was closed before sending its handle"));
+        }
+    };
+
+    web_content_connection->on_did_set_window_handle = [this, promise, connection_id](String window_handle) {
+        auto maybe_pending_connection = m_pending_connections.take(connection_id);
+        if (!maybe_pending_connection.has_value())
+            return;
+
+        auto pending_connection = maybe_pending_connection.value();
+        pending_connection->on_did_set_window_handle = nullptr;
+
+        dbgln_if(WEBDRIVER_DEBUG, "Window {} registered with WebDriver.", window_handle);
+
+        pending_connection->on_close = [this, window_handle]() {
+            dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
+            m_windows.remove(window_handle);
+            if (m_windows.is_empty())
+                close();
+        };
+
+        pending_connection->async_set_page_load_strategy(m_page_load_strategy);
+        pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
+        pending_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
+        if (m_timeouts_configuration.has_value())
+            pending_connection->async_set_timeouts(*m_timeouts_configuration);
+
+        m_windows.set(window_handle, Session::Window { window_handle, move(pending_connection) });
+
+        if (m_current_window_handle.is_empty())
+            m_current_window_handle = window_handle;
+
+        promise->resolve({});
+    };
+    return {};
+}
+
+ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
 {
 #if defined(AK_OS_WINDOWS)
     static_assert(IsSame<IPC::Transport, IPC::TransportSocketWindows>, "Need to handle other IPC transports here");
@@ -210,12 +268,44 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
     static_assert(IsSame<IPC::Transport, IPC::TransportSocket>, "Need to handle other IPC transports here");
 #endif
 
-    dbgln("Listening for WebDriver connection on {}", *m_web_content_socket_path);
+    dbgln("Listening for WebDriver connection on {}", m_web_content_endpoint);
 
-    (void)Core::System::unlink(*m_web_content_socket_path);
+#if defined(AK_OS_MACOS)
+    m_web_content_mach_port_server = make<WebView::MachPortServer>(m_web_content_endpoint);
+    if (!m_web_content_mach_port_server->is_initialized())
+        return Error::from_string_literal("Failed to initialize Mach port server for WebDriver");
+
+    m_web_content_mach_port_server->on_receive_child_mach_port = [this, promise](auto registration) {
+        auto registration_result = m_transport_bootstrap_server.register_reply_port(registration.pid, move(registration.reply_port));
+        if (registration_result.is_error()) {
+            auto event_loop = m_event_loop->take();
+            VERIFY(event_loop);
+            event_loop->deferred_invoke([promise, error = registration_result.release_error()]() mutable {
+                promise->resolve(move(error));
+            });
+            return;
+        }
+
+        registration_result.release_value().visit(
+            [](IPC::TransportBootstrapMachServer::WaitingForChildTransport) {
+                VERIFY_NOT_REACHED();
+            },
+            [this, promise](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
+                auto event_loop = m_event_loop->take();
+                VERIFY(event_loop);
+                event_loop->deferred_invoke([this, promise, transport = move(transport.ports)]() mutable {
+                    if (auto result = accept_web_content_transport(make<IPC::Transport>(move(transport.receive_right), move(transport.send_right)), promise); result.is_error())
+                        promise->resolve(result.release_error());
+                });
+            });
+    };
+
+    return {};
+#else
+    (void)Core::System::unlink(m_web_content_endpoint);
 
     auto server = Core::LocalServer::construct();
-    server->listen(*m_web_content_socket_path);
+    server->listen(m_web_content_endpoint);
 
     server->on_accept = [this, promise](auto client_socket) {
         auto maybe_transport = IPC::Transport::from_socket(move(client_socket));
@@ -223,73 +313,31 @@ ErrorOr<NonnullRefPtr<Core::LocalServer>> Session::create_server(NonnullRefPtr<S
             promise->resolve(maybe_transport.release_error());
             return;
         }
-        auto maybe_connection = adopt_nonnull_ref_or_enomem(new (nothrow) WebContentConnection(maybe_transport.release_value()));
-        if (maybe_connection.is_error()) {
-            promise->resolve(maybe_connection.release_error());
-            return;
-        }
-
-        dbgln("WebDriver is connected to WebContent socket");
-        auto web_content_connection = maybe_connection.release_value();
-
-        auto connection_id = m_next_pending_connection_id++;
-
-        web_content_connection->on_close = [this, promise, connection_id]() {
-            if (m_pending_connections.remove(connection_id)) {
-                dbgln_if(WEBDRIVER_DEBUG, "Pending connection {} closed before sending its handle", connection_id);
-                promise->reject(Error::from_string_literal("Window was closed before sending its handle"));
-            }
-        };
-
-        web_content_connection->on_did_set_window_handle = [this, promise, connection_id](String window_handle) {
-            auto maybe_pending_connection = m_pending_connections.take(connection_id);
-            if (!maybe_pending_connection.has_value())
-                return;
-
-            auto pending_connection = maybe_pending_connection.value();
-            pending_connection->on_did_set_window_handle = nullptr;
-
-            dbgln_if(WEBDRIVER_DEBUG, "Window {} registered with WebDriver.", window_handle);
-
-            pending_connection->on_close = [this, window_handle]() {
-                dbgln_if(WEBDRIVER_DEBUG, "Window {} was closed remotely.", window_handle);
-                m_windows.remove(window_handle);
-                if (m_windows.is_empty())
-                    close();
-            };
-
-            pending_connection->async_set_page_load_strategy(m_page_load_strategy);
-            pending_connection->async_set_strict_file_interactability(m_strict_file_interactiblity);
-            pending_connection->async_set_user_prompt_handler(Web::WebDriver::user_prompt_handler());
-            if (m_timeouts_configuration.has_value())
-                pending_connection->async_set_timeouts(*m_timeouts_configuration);
-
-            m_windows.set(window_handle, Session::Window { window_handle, move(pending_connection) });
-
-            if (m_current_window_handle.is_empty())
-                m_current_window_handle = window_handle;
-
-            promise->resolve({});
-        };
-
-        m_pending_connections.set(connection_id, move(web_content_connection));
+        if (auto result = accept_web_content_transport(maybe_transport.release_value(), promise); result.is_error())
+            promise->resolve(result.release_error());
     };
 
     server->on_accept_error = [promise](auto error) {
         promise->resolve(move(error));
     };
 
-    return server;
+    m_web_content_server = server;
+    return {};
+#endif
 }
 
 ErrorOr<void> Session::start(LaunchBrowserCallback const& launch_browser_callback)
 {
     auto promise = ServerPromise::construct();
 
-    m_web_content_socket_path = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), Core::System::getpid(), m_session_id);
-    m_web_content_server = TRY(create_server(promise));
+#if defined(AK_OS_MACOS)
+    m_web_content_endpoint = ByteString::formatted("{}.{}", WebView::mach_server_name_for_process("WebDriver"sv, Core::System::getpid()), m_session_id);
+#else
+    m_web_content_endpoint = ByteString::formatted("{}/webdriver/session_{}_{}", TRY(Core::StandardPaths::runtime_directory()), Core::System::getpid(), m_session_id);
+#endif
+    TRY(create_server(promise));
 
-    m_browser_process = TRY(launch_browser_callback(*m_web_content_socket_path, m_options.headless));
+    m_browser_process = TRY(launch_browser_callback(m_web_content_endpoint, m_options.headless));
 
     // FIXME: Allow this to be more asynchronous. For now, this at least allows us to propagate
     //        errors received while accepting the Browser and WebContent sockets.

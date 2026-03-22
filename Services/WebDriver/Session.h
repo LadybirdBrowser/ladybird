@@ -10,11 +10,18 @@
 
 #include <AK/Error.h>
 #include <AK/JsonValue.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
 #include <LibCore/EventLoop.h>
+#if !defined(AK_OS_MACOS)
+#    include <LibCore/LocalServer.h>
+#else
+#    include <LibIPC/TransportBootstrapMach.h>
+#    include <LibWebView/MachPortServer.h>
+#endif
 #include <LibCore/Process.h>
 #include <LibCore/Promise.h>
 #include <LibWeb/WebDriver/Capabilities.h>
@@ -85,10 +92,11 @@ public:
 private:
     Session(NonnullRefPtr<Client> client, JsonObject const& capabilities, String session_id, Web::WebDriver::SessionFlags flags);
 
-    ErrorOr<void> start(LaunchBrowserCallback const&);
-
     using ServerPromise = Core::Promise<ErrorOr<void>>;
-    ErrorOr<NonnullRefPtr<Core::LocalServer>> create_server(NonnullRefPtr<ServerPromise> promise);
+
+    ErrorOr<void> start(LaunchBrowserCallback const&);
+    ErrorOr<void> accept_web_content_transport(NonnullOwnPtr<IPC::Transport>, NonnullRefPtr<ServerPromise> promise);
+    ErrorOr<void> create_server(NonnullRefPtr<ServerPromise> promise);
 
     NonnullRefPtr<Client> m_client;
     Web::WebDriver::LadybirdOptions m_options;
@@ -102,10 +110,16 @@ private:
     HashMap<u64, NonnullRefPtr<WebContentConnection>> m_pending_connections;
     u64 m_next_pending_connection_id { 0 };
 
-    Optional<ByteString> m_web_content_socket_path;
+    ByteString m_web_content_endpoint;
     Optional<Core::Process> m_browser_process;
+    NonnullRefPtr<Core::WeakEventLoopReference> m_event_loop;
 
+#if defined(AK_OS_MACOS)
+    OwnPtr<WebView::MachPortServer> m_web_content_mach_port_server;
+    IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
+#else
     RefPtr<Core::LocalServer> m_web_content_server;
+#endif
 
     Web::WebDriver::PageLoadStrategy m_page_load_strategy { Web::WebDriver::PageLoadStrategy::Normal };
     Optional<JsonValue> m_timeouts_configuration;

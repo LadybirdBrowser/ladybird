@@ -650,8 +650,8 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
     client().async_set_system_visibility_state(m_client_state.page_index, m_system_visibility_state);
     client().async_set_document_cookie_version_buffer(m_client_state.page_index, m_document_cookie_version_buffer);
 
-    if (auto webdriver_content_ipc_path = Application::browser_options().webdriver_content_ipc_path; webdriver_content_ipc_path.has_value())
-        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_content_ipc_path);
+    if (auto webdriver_endpoint = Application::browser_options().webdriver_endpoint; webdriver_endpoint.has_value())
+        client().async_connect_to_webdriver(m_client_state.page_index, *webdriver_endpoint);
 
     Application::the().apply_view_options({}, *this);
 

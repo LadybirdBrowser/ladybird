@@ -45,7 +45,7 @@ public:
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
 
-    ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_ipc_path);
+    ErrorOr<void> connect_to_webdriver(ByteString const& webdriver_endpoint);
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;

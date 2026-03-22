@@ -33,12 +33,15 @@ static ErrorOr<Core::Process> launch_process(StringView application, ReadonlySpa
     return result;
 }
 
-static Vector<ByteString> create_arguments(ByteString const& socket_path, bool headless, bool expose_experimental_interfaces, bool force_cpu_painting, Optional<StringView> debug_process, Optional<StringView> default_time_zone)
+static Vector<ByteString> create_arguments(ByteString const& webdriver_endpoint, bool headless, bool expose_experimental_interfaces, bool force_cpu_painting, Optional<StringView> debug_process, Optional<StringView> default_time_zone)
 {
-    Vector<ByteString> arguments {
-        "--webdriver-content-path"sv,
-        socket_path,
-    };
+    Vector<ByteString> arguments;
+#if defined(AK_OS_MACOS)
+    arguments.append("--webdriver-mach-server-name"sv);
+#else
+    arguments.append("--webdriver-content-path"sv);
+#endif
+    arguments.append(webdriver_endpoint);
 
     Vector<ByteString> certificate_args;
     for (auto const& certificate : certificates) {
@@ -131,8 +134,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return;
         }
 
-        auto launch_browser_callback = [&](ByteString const& socket_path, bool headless) {
-            auto arguments = create_arguments(socket_path, headless, expose_experimental_interfaces, force_cpu_painting, debug_process, default_time_zone);
+        auto launch_browser_callback = [&](ByteString const& webdriver_endpoint, bool headless) {
+            auto arguments = create_arguments(webdriver_endpoint, headless, expose_experimental_interfaces, force_cpu_painting, debug_process, default_time_zone);
             return launch_process("Ladybird"sv, arguments.span());
         };
 

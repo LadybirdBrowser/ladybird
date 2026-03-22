@@ -122,11 +122,11 @@ void ConnectionFromClient::set_window_handle(u64 page_id, String handle)
         page->page().top_level_traversable()->set_window_handle(move(handle));
 }
 
-void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdriver_ipc_path)
+void ConnectionFromClient::connect_to_webdriver(u64 page_id, ByteString webdriver_endpoint)
 {
     if (auto page = this->page(page_id); page.has_value()) {
         // FIXME: Propagate this error back to the browser.
-        if (auto result = page->connect_to_webdriver(webdriver_ipc_path); result.is_error())
+        if (auto result = page->connect_to_webdriver(webdriver_endpoint); result.is_error())
             dbgln("Unable to connect to the WebDriver process: {}", result.error());
     }
 }
