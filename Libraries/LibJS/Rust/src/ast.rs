@@ -1395,7 +1395,7 @@ pub enum ExpressionKind {
     Class(Box<ClassData>),
 
     // Collections
-    Array(Vec<Option<Expression>>),
+    Array(Box<Vec<Option<Expression>>>),
     Object(Vec<ObjectProperty>),
 
     // Templates

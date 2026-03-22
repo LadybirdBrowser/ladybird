@@ -1991,7 +1991,7 @@ impl Parser<'_> {
         }
 
         self.consume_token(TokenType::BracketClose);
-        self.expression(start, ExpressionKind::Array(elements))
+        self.expression(start, ExpressionKind::Array(Box::new(elements)))
     }
 
     /// Parse a template literal (`` `...${expression}...` ``).
