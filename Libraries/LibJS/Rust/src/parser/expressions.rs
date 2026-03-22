@@ -605,7 +605,7 @@ impl Parser<'_> {
             TokenType::PrivateIdentifier => {
                 let id = self.parse_private_identifier(start);
                 (
-                    self.expression(start, ExpressionKind::PrivateIdentifier(id)),
+                    self.expression(start, ExpressionKind::PrivateIdentifier(Box::new(id))),
                     true,
                 )
             }
@@ -963,7 +963,8 @@ impl Parser<'_> {
                     }
                     // C++ uses rule_start (period position) for property identifiers.
                     let id = self.parse_private_identifier(start);
-                    let property = self.expression(start, ExpressionKind::PrivateIdentifier(id));
+                    let property =
+                        self.expression(start, ExpressionKind::PrivateIdentifier(Box::new(id)));
                     (
                         self.expression(
                             start,
@@ -1908,10 +1909,10 @@ impl Parser<'_> {
                 let key_start = ident_pos_override.unwrap_or(start);
                 let expression = self.expression(
                     key_start,
-                    ExpressionKind::PrivateIdentifier(PrivateIdentifier {
+                    ExpressionKind::PrivateIdentifier(Box::new(PrivateIdentifier {
                         range: self.range_from(key_start),
                         name: value.clone(),
-                    }),
+                    })),
                 );
                 PropertyKey {
                     expression,

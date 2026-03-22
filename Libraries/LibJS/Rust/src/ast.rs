@@ -1331,7 +1331,7 @@ pub enum ExpressionKind {
 
     // Identifiers
     Identifier(Rc<Identifier>),
-    PrivateIdentifier(PrivateIdentifier),
+    PrivateIdentifier(Box<PrivateIdentifier>),
 
     // Operators
     Binary {
