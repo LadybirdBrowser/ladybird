@@ -1265,23 +1265,23 @@ impl Parser<'_> {
             let arguments = self.parse_arguments();
             self.expression(
                 start,
-                ExpressionKind::New(CallExpressionData {
+                ExpressionKind::New(Box::new(CallExpressionData {
                     callee: Box::new(callee),
                     arguments,
                     // Mirrors C++ InvocationStyle::Parenthesized for `new Foo(...)`.
                     is_parenthesized: true,
                     is_inside_parens: false,
-                }),
+                })),
             )
         } else {
             self.expression(
                 start,
-                ExpressionKind::New(CallExpressionData {
+                ExpressionKind::New(Box::new(CallExpressionData {
                     callee: Box::new(callee),
                     arguments: Vec::new(),
                     is_parenthesized: false,
                     is_inside_parens: false,
-                }),
+                })),
             )
         }
     }

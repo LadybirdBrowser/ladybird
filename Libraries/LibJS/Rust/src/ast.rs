@@ -340,13 +340,7 @@ impl FunctionTable {
                     }
                 }
             }
-            ExpressionKind::Call(data) => {
-                self.collect_from_expression(&data.callee, result);
-                for arg in &data.arguments {
-                    self.collect_from_expression(&arg.value, result);
-                }
-            }
-            ExpressionKind::New(data) => {
+            ExpressionKind::Call(data) | ExpressionKind::New(data) => {
                 self.collect_from_expression(&data.callee, result);
                 for arg in &data.arguments {
                     self.collect_from_expression(&arg.value, result);
@@ -1384,7 +1378,7 @@ pub enum ExpressionKind {
 
     // Calls
     Call(Box<CallExpressionData>),
-    New(CallExpressionData),
+    New(Box<CallExpressionData>),
     SuperCall(SuperCallData),
 
     // Spread
