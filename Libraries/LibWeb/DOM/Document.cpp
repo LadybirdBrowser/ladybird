@@ -5259,7 +5259,7 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                 return node->document();
             });
             // NOTE: Check if target has a layout node is not in the spec but required to match other browsers.
-            if (target->layout_node() && (!(observer->root().has<Empty>() && &target->document() == intersection_root_document.ptr()) || !(intersection_root.has<GC::Root<DOM::Element>>() && !target->is_descendant_of(*intersection_root.get<GC::Root<DOM::Element>>())))) {
+            if (target->layout_node() && (observer->root().has<Empty>() || &target->document() == intersection_root_document.ptr()) && !(intersection_root.has<GC::Root<DOM::Element>>() && !target->is_descendant_of(*intersection_root.get<GC::Root<DOM::Element>>()))) {
                 // 4. Set targetRect to the DOMRectReadOnly obtained by getting the bounding box for target.
                 target_rect = target->get_bounding_client_rect();
 
