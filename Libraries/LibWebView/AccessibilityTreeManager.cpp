@@ -10,6 +10,46 @@ namespace WebView {
 
 void AccessibilityTreeManager::update_tree(Vector<AccessibilityNodeData> nodes)
 {
+    // Detect live region content changes before replacing the tree.
+    if (on_live_region_changed && !m_nodes.is_empty()) {
+        for (auto const& new_node : nodes) {
+            // Check if this node is inside a live region.
+            // Walk up ancestors in the NEW tree to find a live region.
+            String live_value;
+            for (auto const* ancestor = &new_node; ancestor;) {
+                if (!ancestor->live.is_empty()) {
+                    live_value = ancestor->live;
+                    break;
+                }
+                if (ancestor->parent_id == -1)
+                    break;
+                // Find parent in new nodes list
+                bool found = false;
+                for (auto const& n : nodes) {
+                    if (n.id == ancestor->parent_id) {
+                        ancestor = &n;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    break;
+            }
+
+            if (live_value.is_empty() || live_value == "off"sv)
+                continue;
+
+            // Compare with old node
+            auto old_it = m_nodes.find(new_node.id);
+            if (old_it == m_nodes.end())
+                continue;
+
+            auto const& old_node = old_it->value;
+            if (old_node.name != new_node.name && !new_node.name.is_empty())
+                on_live_region_changed(new_node.name, live_value);
+        }
+    }
+
     m_nodes.clear();
     m_root_id = -1;
 
