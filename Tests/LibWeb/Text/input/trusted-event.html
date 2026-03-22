@@ -1,0 +1,42 @@
+<!doctype html>
+<dialog id="dialog"></dialog>
+<div popover id="popover"></div>
+<button id="button"></button>
+<script src="include.js"></script>
+<script>
+    const dialog = document.getElementById("dialog");
+    const popover = document.getElementById("popover");
+    const button = document.getElementById("button");
+
+    function sendCommand(command, target) {
+        button.command = command;
+        button.commandForElement = target;
+        button.click();
+    }
+
+    asyncTest(done => {
+        let count = 0;
+        function handleEvent(e) {
+            println(`${e.type} event (${e.constructor.name}) is ${e.isTrusted ? "trusted" : "untrusted"}`);
+            count++;
+            if (count >= 6) {
+                done();
+            }
+        }
+
+        dialog.addEventListener("beforetoggle", handleEvent);
+        dialog.addEventListener("toggle", handleEvent);
+        sendCommand("show-modal", dialog);
+
+        popover.addEventListener("beforetoggle", handleEvent);
+        popover.addEventListener("toggle", handleEvent);
+        sendCommand("show-popover", popover);
+
+        const newWindow = window.open("about:blank", "_blank");
+        newWindow.addEventListener("beforeunload", handleEvent);
+        newWindow.close();
+
+        window.addEventListener("unhandledrejection", handleEvent);
+        new Promise((res, rej) => rej("error"));
+    });
+</script>

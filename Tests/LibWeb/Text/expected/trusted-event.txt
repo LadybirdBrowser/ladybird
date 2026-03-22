@@ -1,0 +1,6 @@
+beforetoggle event (ToggleEvent) is trusted
+beforetoggle event (ToggleEvent) is trusted
+toggle event (ToggleEvent) is trusted
+toggle event (ToggleEvent) is trusted
+beforeunload event (BeforeUnloadEvent) is trusted
+unhandledrejection event (PromiseRejectionEvent) is trusted
