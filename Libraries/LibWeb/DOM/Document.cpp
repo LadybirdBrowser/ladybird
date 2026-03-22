@@ -5321,10 +5321,20 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
                 // 10. Set thresholdIndex to the index of the first entry in observer.thresholds whose value is greater
                 //     than intersectionRatio, or the length of observer.thresholds if intersectionRatio is greater than
                 //     or equal to the last entry in observer.thresholds.
-                threshold_index = observer->thresholds().find_first_index_if([&intersection_ratio](double threshold_value) {
-                                                            return threshold_value > intersection_ratio;
-                                                        })
-                                      .value_or(observer->thresholds().size());
+                // NB: Thresholds are sorted in ascending order, so we use binary search.
+                {
+                    auto const& thresholds = observer->thresholds();
+                    size_t lo = 0;
+                    size_t hi = thresholds.size();
+                    while (lo < hi) {
+                        size_t mid = lo + (hi - lo) / 2;
+                        if (thresholds[mid] > intersection_ratio)
+                            hi = mid;
+                        else
+                            lo = mid + 1;
+                    }
+                    threshold_index = lo;
+                }
             }
 
             // 11. Let intersectionObserverRegistration be the IntersectionObserverRegistration record in target’s
