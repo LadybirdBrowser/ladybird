@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+#scroller {
+    width: 200px;
+    height: 200px;
+    overflow: hidden;
+}
+#spacer {
+    height: 190px;
+}
+#target {
+    width: 50px;
+    height: 50px;
+    background: red;
+}
+</style>
+<script src="../include.js"></script>
+<div id="scroller">
+    <div id="spacer"></div>
+    <div id="target"></div>
+</div>
+<script>
+    asyncTest(done => {
+        // The target starts at y=190 inside a 200px tall container.
+        // Without scroll margin, 10px of the target is visible (ratio = 10*50 / 50*50 = 0.2).
+        // With scrollMargin "50px", the scrollport is expanded by 50px on each side,
+        // making the effective clip rect taller. The target at y=190 to y=240
+        // fits entirely within the expanded scrollport (0-50 to 200+50 = -50 to 250),
+        // so the ratio should be 1.
+        //
+        // We create two observers: one without scroll margin and one with.
+        let results = [];
+        let remaining = 2;
+
+        function checkDone() {
+            remaining--;
+            if (remaining === 0) {
+                results.sort();
+                results.forEach(r => println(r));
+                done();
+            }
+        }
+
+        let observerNoMargin = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                results.push(`no-margin: ratio=${entry.intersectionRatio}`);
+            });
+            checkDone();
+        });
+
+        let observerWithMargin = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                results.push(`with-margin: ratio=${entry.intersectionRatio}`);
+            });
+            checkDone();
+        }, { scrollMargin: "50px" });
+
+        let target = document.getElementById("target");
+        observerNoMargin.observe(target);
+        observerWithMargin.observe(target);
+    });
+</script>
