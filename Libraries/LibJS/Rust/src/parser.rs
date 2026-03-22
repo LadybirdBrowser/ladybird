@@ -960,7 +960,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_update_expression(expression: &Expression) -> bool {
-        matches!(&expression.inner, ExpressionKind::Update { .. })
+        matches!(&expression.inner, ExpressionKind::Update(_))
     }
 
     // === Main entry point ===

@@ -297,8 +297,8 @@ impl FunctionTable {
             ExpressionKind::Unary { operand, .. } => {
                 self.collect_from_expression(operand, result);
             }
-            ExpressionKind::Update { argument, .. } => {
-                self.collect_from_expression(argument, result);
+            ExpressionKind::Update(data) => {
+                self.collect_from_expression(&data.argument, result);
             }
             ExpressionKind::Assignment { lhs, rhs, .. } => {
                 match lhs {
@@ -1337,6 +1337,13 @@ pub struct LogicalExprData {
     pub rhs: Box<Expression>,
 }
 
+#[derive(Clone, Debug)]
+pub struct UpdateExprData {
+    pub op: UpdateOp,
+    pub argument: Box<Expression>,
+    pub prefixed: bool,
+}
+
 // =============================================================================
 // Expression enum
 // =============================================================================
@@ -1362,11 +1369,7 @@ pub enum ExpressionKind {
         op: UnaryOp,
         operand: Box<Expression>,
     },
-    Update {
-        op: UpdateOp,
-        argument: Box<Expression>,
-        prefixed: bool,
-    },
+    Update(Box<UpdateExprData>),
     Assignment {
         op: AssignmentOp,
         lhs: AssignmentLhs,

@@ -776,19 +776,15 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_expression(operand, &child_state(state, true));
         }
 
-        ExpressionKind::Update {
-            op,
-            argument,
-            prefixed,
-        } => {
-            let prefix_str = if *prefixed { "prefix" } else { "postfix" };
+        ExpressionKind::Update(data) => {
+            let prefix_str = if data.prefixed { "prefix" } else { "postfix" };
             dump_node!(
                 state,
                 "UpdateExpression",
                 &expression.range,
-                format!("({}, {})", update_op_to_string(*op), prefix_str)
+                format!("({}, {})", update_op_to_string(data.op), prefix_str)
             );
-            dump_expression(argument, &child_state(state, true));
+            dump_expression(&data.argument, &child_state(state, true));
         }
 
         ExpressionKind::Assignment { op, lhs, rhs } => {

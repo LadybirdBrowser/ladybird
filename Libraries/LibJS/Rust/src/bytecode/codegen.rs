@@ -267,11 +267,9 @@ fn generate_expression_inner(
         }
 
         // === Update (++/--) ===
-        ExpressionKind::Update {
-            op,
-            argument,
-            prefixed,
-        } => generate_update_expression(generator, *op, argument, *prefixed),
+        ExpressionKind::Update(data) => {
+            generate_update_expression(generator, data.op, &data.argument, data.prefixed)
+        }
 
         // === Assignment ===
         ExpressionKind::Assignment { op, lhs, rhs } => {
