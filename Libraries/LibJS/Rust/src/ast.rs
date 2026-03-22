@@ -1441,7 +1441,7 @@ pub enum StatementKind {
         scope: Rc<RefCell<ScopeData>>,
         in_strict_mode: bool,
     },
-    Program(ProgramData),
+    Program(Box<ProgramData>),
 
     // Control flow
     If {
