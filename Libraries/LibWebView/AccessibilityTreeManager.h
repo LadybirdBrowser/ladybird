@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <LibGfx/Point.h>
 #include <LibWebView/AccessibilityNodeData.h>
@@ -16,6 +17,8 @@ namespace WebView {
 class WEBVIEW_API AccessibilityTreeManager {
 public:
     void update_tree(Vector<AccessibilityNodeData> nodes);
+
+    Function<void(String, String)> on_live_region_changed;
 
     AccessibilityNodeData const* node(i64 id) const;
     AccessibilityNodeData const* root() const;

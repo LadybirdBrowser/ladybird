@@ -372,6 +372,30 @@ struct HideCursor {
         NSAccessibilityHandleFocusChanged();
     };
 
+    m_accessibility_manager->on_live_region_changed = [weak_self](auto text, auto live_value) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil)
+            return;
+
+        NSString* announcement = [[NSString alloc] initWithBytes:text.bytes().data()
+                                                          length:text.bytes().size()
+                                                        encoding:NSUTF8StringEncoding];
+        if (!announcement || [announcement length] == 0)
+            return;
+
+        NSAccessibilityPriorityLevel priority = (live_value == "assertive"sv)
+            ? NSAccessibilityPriorityHigh
+            : NSAccessibilityPriorityMedium;
+
+        NSAccessibilityPostNotificationWithUserInfo(
+            self,
+            NSAccessibilityAnnouncementRequestedNotification,
+            @{
+                NSAccessibilityAnnouncementKey : announcement,
+                NSAccessibilityPriorityKey : @(priority),
+            });
+    };
+
     m_web_view_bridge->on_accessibility_focus_changed = [weak_self](i64 node_id) {
         LadybirdWebView* self = weak_self;
         if (self == nil || self->m_accessibility_manager->is_empty()) {

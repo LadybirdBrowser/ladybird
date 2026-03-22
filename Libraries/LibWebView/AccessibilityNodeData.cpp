@@ -39,6 +39,7 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
     auto is_focused = TRY(decoder.decode<bool>());
     auto is_disabled = TRY(decoder.decode<bool>());
     auto heading_level = TRY(decoder.decode<i32>());
+    auto live = TRY(decoder.decode<String>());
 
     return WebView::AccessibilityNodeData {
         id,
@@ -52,5 +53,6 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
         is_focused,
         is_disabled,
         heading_level,
+        move(live),
     };
 }

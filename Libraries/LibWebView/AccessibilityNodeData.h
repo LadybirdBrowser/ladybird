@@ -29,6 +29,8 @@ struct WEBVIEW_API AccessibilityNodeData {
     bool is_focused { false };
     bool is_disabled { false };
     i32 heading_level { 0 };
+
+    String live; // "assertive", "polite", or empty
 };
 
 }

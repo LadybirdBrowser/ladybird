@@ -98,6 +98,16 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
                 node_data.heading_level = *parsed;
         }
 
+        // Extract aria-live value (explicit attribute or implicit from role)
+        if (auto live_attr = element.get_attribute(ARIA::AttributeNames::aria_live); live_attr.has_value()) {
+            node_data.live = live_attr.release_value();
+        } else if (role.has_value() && ARIA::is_live_region_role(*role)) {
+            if (*role == ARIA::Role::alert)
+                node_data.live = "assertive"_string;
+            else
+                node_data.live = "polite"_string;
+        }
+
         if (document.active_element() == &element)
             node_data.is_focused = true;
     } else if (value()->is_text()) {
