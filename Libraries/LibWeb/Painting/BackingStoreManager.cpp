@@ -57,59 +57,72 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     RefPtr<Gfx::PaintingSurface> back_store;
 
 #ifdef AK_OS_MACOS
-    if (skia_backend_context && s_browser_mach_port.has_value()) {
-        auto back_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
-        auto back_iosurface_port = back_iosurface.create_mach_port();
+    VERIFY(s_browser_mach_port.has_value());
 
-        auto front_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
-        auto front_iosurface_port = front_iosurface.create_mach_port();
+    auto back_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
+    auto back_iosurface_port = back_iosurface.create_mach_port();
 
-        m_front_bitmap_id = m_next_bitmap_id++;
-        m_back_bitmap_id = m_next_bitmap_id++;
+    auto front_iosurface = Core::IOSurfaceHandle::create(size.width(), size.height());
+    auto front_iosurface_port = front_iosurface.create_mach_port();
 
-        auto& page_client = m_navigable->top_level_traversable()->page().client();
+    m_front_bitmap_id = m_next_bitmap_id++;
+    m_back_bitmap_id = m_next_bitmap_id++;
 
-        Core::Platform::BackingStoreMetadata metadata;
-        metadata.page_id = page_client.id();
-        metadata.front_backing_store_id = m_front_bitmap_id;
-        metadata.back_backing_store_id = m_back_bitmap_id;
+    auto& page_client = m_navigable->top_level_traversable()->page().client();
 
-        Core::Platform::MessageWithBackingStores message;
+    Core::Platform::BackingStoreMetadata metadata;
+    metadata.page_id = page_client.id();
+    metadata.front_backing_store_id = m_front_bitmap_id;
+    metadata.back_backing_store_id = m_back_bitmap_id;
 
-        message.header.msgh_remote_port = s_browser_mach_port->port();
-        message.header.msgh_local_port = MACH_PORT_NULL;
-        message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
-        message.header.msgh_size = sizeof(message);
-        message.header.msgh_id = Core::Platform::BACKING_STORE_IOSURFACES_MESSAGE_ID;
+    Core::Platform::MessageWithBackingStores message;
 
-        message.body.msgh_descriptor_count = 2;
+    message.header.msgh_remote_port = s_browser_mach_port->port();
+    message.header.msgh_local_port = MACH_PORT_NULL;
+    message.header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_COPY_SEND, 0) | MACH_MSGH_BITS_COMPLEX;
+    message.header.msgh_size = sizeof(message);
+    message.header.msgh_id = Core::Platform::BACKING_STORE_IOSURFACES_MESSAGE_ID;
 
-        message.front_descriptor.name = front_iosurface_port.release();
-        message.front_descriptor.disposition = MACH_MSG_TYPE_MOVE_SEND;
-        message.front_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
+    message.body.msgh_descriptor_count = 2;
 
-        message.back_descriptor.name = back_iosurface_port.release();
-        message.back_descriptor.disposition = MACH_MSG_TYPE_MOVE_SEND;
-        message.back_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
+    message.front_descriptor.name = front_iosurface_port.release();
+    message.front_descriptor.disposition = MACH_MSG_TYPE_MOVE_SEND;
+    message.front_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
 
-        message.metadata = metadata;
+    message.back_descriptor.name = back_iosurface_port.release();
+    message.back_descriptor.disposition = MACH_MSG_TYPE_MOVE_SEND;
+    message.back_descriptor.type = MACH_MSG_PORT_DESCRIPTOR;
 
-        mach_msg_timeout_t const timeout = 100; // milliseconds
-        auto const send_result = mach_msg(&message.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, message.header.msgh_size, 0, MACH_PORT_NULL, timeout, MACH_PORT_NULL);
-        if (send_result != KERN_SUCCESS) {
-            dbgln("Failed to send message to server: {}", mach_error_string(send_result));
-            VERIFY_NOT_REACHED();
-        }
+    message.metadata = metadata;
 
+    mach_msg_timeout_t const timeout = 100; // milliseconds
+    auto const send_result = mach_msg(&message.header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, message.header.msgh_size, 0, MACH_PORT_NULL, timeout, MACH_PORT_NULL);
+    if (send_result != KERN_SUCCESS) {
+        dbgln("Failed to send message to server: {}", mach_error_string(send_result));
+        VERIFY_NOT_REACHED();
+    }
+
+    if (skia_backend_context) {
         front_store = Gfx::PaintingSurface::create_from_iosurface(move(front_iosurface), *skia_backend_context);
         back_store = Gfx::PaintingSurface::create_from_iosurface(move(back_iosurface), *skia_backend_context);
+    } else {
+        auto front_bytes_per_row = front_iosurface.bytes_per_row();
+        auto* front_data = front_iosurface.data();
+        auto back_bytes_per_row = back_iosurface.bytes_per_row();
+        auto* back_data = back_iosurface.data();
 
-        m_allocated_size = size;
+        auto front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size, front_bytes_per_row, front_data, [handle = move(front_iosurface)] { }).release_value();
+        auto back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size, back_bytes_per_row, back_data, [handle = move(back_iosurface)] { }).release_value();
 
-        m_navigable->rendering_thread().update_backing_stores(front_store, back_store, m_front_bitmap_id, m_back_bitmap_id);
-
-        return;
+        front_store = Gfx::PaintingSurface::wrap_bitmap(*front_bitmap);
+        back_store = Gfx::PaintingSurface::wrap_bitmap(*back_bitmap);
     }
+
+    m_allocated_size = size;
+
+    m_navigable->rendering_thread().update_backing_stores(front_store, back_store, m_front_bitmap_id, m_back_bitmap_id);
+
+    return;
 #endif
 
     m_front_bitmap_id = m_next_bitmap_id++;
