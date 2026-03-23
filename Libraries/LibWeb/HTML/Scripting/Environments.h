@@ -22,6 +22,8 @@
 
 namespace Web::HTML {
 
+class UniversalGlobalScopeMixin;
+
 // https://html.spec.whatwg.org/multipage/webappapis.html#environment
 struct WEB_API Environment : public JS::Cell {
     GC_CELL(Environment, JS::Cell);
@@ -120,6 +122,8 @@ public:
     JS::Realm& realm();
     JS::Object& global_object();
     JS::Object const& global_object() const { return const_cast<EnvironmentSettingsObject*>(this)->global_object(); }
+    UniversalGlobalScopeMixin& universal_global_scope();
+    UniversalGlobalScopeMixin const& universal_global_scope() const { return const_cast<EnvironmentSettingsObject*>(this)->universal_global_scope(); }
     EventLoop& responsible_event_loop();
 
     // https://fetch.spec.whatwg.org/#concept-fetch-group
@@ -166,6 +170,7 @@ protected:
 private:
     NonnullOwnPtr<JS::ExecutionContext> m_realm_execution_context;
     GC::Ptr<ModuleMap> m_module_map;
+    UniversalGlobalScopeMixin* m_universal_global_scope { nullptr };
 
     GC::Ptr<EventLoop> m_responsible_event_loop;
 

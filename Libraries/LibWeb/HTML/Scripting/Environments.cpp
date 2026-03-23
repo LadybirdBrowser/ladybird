@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
@@ -56,6 +57,7 @@ void EnvironmentSettingsObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     m_module_map = realm.heap().allocate<ModuleMap>();
+    m_universal_global_scope = &as<UniversalGlobalScopeMixin>(global_object());
 }
 
 void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
@@ -107,6 +109,11 @@ JS::Object& EnvironmentSettingsObject::global_object()
 {
     // An environment settings object's Realm then has a [[GlobalObject]] field, which contains the environment settings object's global object.
     return realm().global_object();
+}
+
+UniversalGlobalScopeMixin& EnvironmentSettingsObject::universal_global_scope()
+{
+    return *m_universal_global_scope;
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#responsible-event-loop
