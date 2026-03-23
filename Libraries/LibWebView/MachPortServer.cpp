@@ -68,24 +68,8 @@ void MachPortServer::thread_loop()
             break;
         }
 
-        if (message.header.msgh_id == Core::Platform::BACKING_STORE_IOSURFACES_MESSAGE_ID) {
-            auto pid = static_cast<pid_t>(message.body.parent_iosurface.trailer.msgh_audit.val[5]);
-            auto const& backing_stores_message = message.body.parent_iosurface;
-            auto front_child_port = Core::MachPort::adopt_right(backing_stores_message.front_descriptor.name, Core::MachPort::PortRight::Send);
-            auto back_child_port = Core::MachPort::adopt_right(backing_stores_message.back_descriptor.name, Core::MachPort::PortRight::Send);
-            auto const& metadata = backing_stores_message.metadata;
-            if (on_receive_backing_stores)
-                on_receive_backing_stores({ .pid = pid,
-                    .page_id = metadata.page_id,
-                    .front_backing_store_id = metadata.front_backing_store_id,
-                    .back_backing_store_id = metadata.back_backing_store_id,
-                    .front_backing_store_port = move(front_child_port),
-                    .back_backing_store_port = move(back_child_port) });
-            continue;
-        }
-
         if (message.header.msgh_id == Core::Platform::SELF_TASK_PORT_MESSAGE_ID) {
-            auto const& task_port_message = message.body.parent;
+            auto const& task_port_message = message.body;
             VERIFY(MACH_MSGH_BITS_LOCAL(message.header.msgh_bits) == MACH_MSG_TYPE_MOVE_SEND);
             VERIFY(task_port_message.body.msgh_descriptor_count == 1);
             VERIFY(task_port_message.port_descriptor.type == MACH_MSG_PORT_DESCRIPTOR);

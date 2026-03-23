@@ -30,34 +30,9 @@ struct MessageWithSelfTaskPort {
     mach_msg_port_descriptor_t port_descriptor;
 };
 
-struct BackingStoreMetadata {
-    u64 page_id { 0 };
-    i32 back_backing_store_id { 0 };
-    i32 front_backing_store_id { 0 };
-};
-
-struct MessageBodyWithBackingStores {
-    mach_msg_body_t body;
-    mach_msg_port_descriptor_t front_descriptor;
-    mach_msg_port_descriptor_t back_descriptor;
-    BackingStoreMetadata metadata;
-    mach_msg_audit_trailer_t trailer;
-};
-
-struct MessageWithBackingStores {
-    mach_msg_header_t header;
-    mach_msg_body_t body;
-    mach_msg_port_descriptor_t front_descriptor;
-    mach_msg_port_descriptor_t back_descriptor;
-    BackingStoreMetadata metadata;
-};
-
 struct ReceivedMachMessage {
     mach_msg_header_t header;
-    union {
-        MessageBodyWithSelfTaskPort parent;
-        MessageBodyWithBackingStores parent_iosurface;
-    } body;
+    MessageBodyWithSelfTaskPort body;
 };
 
 struct MessageWithIPCChannelPorts {
@@ -76,7 +51,6 @@ struct ReceivedIPCChannelPortsMessage {
 };
 
 static constexpr mach_msg_id_t SELF_TASK_PORT_MESSAGE_ID = 0x1234CAFE;
-static constexpr mach_msg_id_t BACKING_STORE_IOSURFACES_MESSAGE_ID = 0x1234CAFF;
 static constexpr mach_msg_id_t IPC_CHANNEL_PORTS_MESSAGE_ID = 0x4950C002;
 
 }

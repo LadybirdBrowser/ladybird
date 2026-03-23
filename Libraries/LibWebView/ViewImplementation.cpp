@@ -566,7 +566,7 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
-void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::ShareableBitmap const& front_bitmap, i32 back_bitmap_id, Gfx::ShareableBitmap const& back_bitmap)
+void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Web::SharedBackingStore front_backing_store, i32 back_bitmap_id, Web::SharedBackingStore back_backing_store)
 {
     if (m_client_state.has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
@@ -574,45 +574,32 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i3
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
     m_client_state.has_usable_bitmap = false;
-
-    m_client_state.front_bitmap.bitmap = front_bitmap.bitmap();
     m_client_state.front_bitmap.id = front_bitmap_id;
-    m_client_state.back_bitmap.bitmap = back_bitmap.bitmap();
     m_client_state.back_bitmap.id = back_bitmap_id;
-}
 
 #ifdef AK_OS_MACOS
-void ViewImplementation::did_allocate_iosurface_backing_stores(i32 front_id, Core::MachPort&& front_port, i32 back_id, Core::MachPort&& back_port)
-{
-    if (m_client_state.has_usable_bitmap) {
-        // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_bitmap = m_client_state.front_bitmap.bitmap;
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
-    }
-    m_client_state.has_usable_bitmap = false;
+    auto update_bitmap = [](SharedBitmap& target, Web::SharedBackingStore backing_store) {
+        auto iosurface_port = backing_store.release_iosurface_port();
+        auto iosurface = Core::IOSurfaceHandle::from_mach_port(iosurface_port);
+        auto size = Gfx::IntSize { iosurface.width(), iosurface.height() };
+        auto bytes_per_row = iosurface.bytes_per_row();
+        target.iosurface_ref = iosurface.core_foundation_pointer();
 
-    auto front_iosurface = Core::IOSurfaceHandle::from_mach_port(move(front_port));
-    auto back_iosurface = Core::IOSurfaceHandle::from_mach_port(move(back_port));
+        auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size, bytes_per_row, iosurface.data(), [handle = move(iosurface)] { });
+        target.bitmap = bitmap.release_value_but_fixme_should_propagate_errors();
+    };
 
-    auto front_size = Gfx::IntSize { front_iosurface.width(), front_iosurface.height() };
-    auto back_size = Gfx::IntSize { back_iosurface.width(), back_iosurface.height() };
+    update_bitmap(m_client_state.front_bitmap, move(front_backing_store));
+    update_bitmap(m_client_state.back_bitmap, move(back_backing_store));
+#else
+    auto update_bitmap = [](SharedBitmap& target, Web::SharedBackingStore backing_store) {
+        target.bitmap = backing_store.bitmap().bitmap();
+    };
 
-    auto bytes_per_row = front_iosurface.bytes_per_row();
-
-    auto* front_ref = front_iosurface.core_foundation_pointer();
-    auto* back_ref = back_iosurface.core_foundation_pointer();
-
-    auto front_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, front_size, bytes_per_row, front_iosurface.data(), [handle = move(front_iosurface)] { });
-    auto back_bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, back_size, bytes_per_row, back_iosurface.data(), [handle = move(back_iosurface)] { });
-
-    m_client_state.front_bitmap.bitmap = front_bitmap.release_value_but_fixme_should_propagate_errors();
-    m_client_state.front_bitmap.id = front_id;
-    m_client_state.front_bitmap.iosurface_ref = front_ref;
-    m_client_state.back_bitmap.bitmap = back_bitmap.release_value_but_fixme_should_propagate_errors();
-    m_client_state.back_bitmap.id = back_id;
-    m_client_state.back_bitmap.iosurface_ref = back_ref;
-}
+    update_bitmap(m_client_state.front_bitmap, move(front_backing_store));
+    update_bitmap(m_client_state.back_bitmap, move(back_backing_store));
 #endif
+}
 
 void ViewImplementation::update_zoom()
 {

@@ -15,10 +15,6 @@ class WEB_API BackingStoreManager : public JS::Cell {
     GC_DECLARE_ALLOCATOR(BackingStoreManager);
 
 public:
-#ifdef AK_OS_MACOS
-    static void set_browser_mach_port(Core::MachPort&&);
-#endif
-
     enum class WindowResizingInProgress {
         No,
         Yes

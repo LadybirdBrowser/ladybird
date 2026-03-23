@@ -253,7 +253,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #if defined(AK_OS_MACOS)
     auto browser_port = TRY(Core::MachPort::look_up_from_bootstrap_server(ByteString { mach_server_name }));
     auto transport_ports = TRY(IPC::bootstrap_transport_from_server_port(browser_port));
-    Web::Painting::BackingStoreManager::set_browser_mach_port(move(browser_port));
     auto webcontent_client = WebContent::ConnectionFromClient::construct(
         make<IPC::Transport>(move(transport_ports.receive_right), move(transport_ports.send_right)));
 #else

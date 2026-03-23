@@ -30,6 +30,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/SharedBackingStore.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Forward.h>
@@ -156,10 +157,7 @@ public:
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
 
-    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::ShareableBitmap const&, i32 back_bitmap_id, Gfx::ShareableBitmap const&);
-#ifdef AK_OS_MACOS
-    void did_allocate_iosurface_backing_stores(i32 front_bitmap_id, Core::MachPort&&, i32 back_bitmap_id, Core::MachPort&&);
-#endif
+    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Web::SharedBackingStore front_backing_store, i32 back_bitmap_id, Web::SharedBackingStore back_backing_store);
 
     enum class ScreenshotType {
         Visible,
