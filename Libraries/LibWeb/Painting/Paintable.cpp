@@ -167,7 +167,8 @@ void Paintable::paint_inspector_overlay(DisplayListRecordingContext& context) co
                     [](TransformData const&) { return true; },
                     [](PerspectiveData const&) { return true; },
                     [](ClipPathData const&) { return false; },
-                    [](EffectsData const&) { return false; });
+                    [](EffectsData const&) { return false; },
+                    [](ScrollCompensation const&) { return true; });
                 if (should_keep)
                     relevant_indices.append(i);
             }

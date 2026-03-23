@@ -73,7 +73,13 @@ struct EffectsData {
     }
 };
 
-using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData>;
+// Negates a scroll frame's offset during display list replay. Used to keep fixed backgrounds stationary relative to
+// the viewport regardless of scroll position.
+struct ScrollCompensation {
+    ScrollFrameIndex scroll_frame_index;
+};
+
+using VisualContextData = Variant<ScrollData, ClipData, TransformData, PerspectiveData, ClipPathData, EffectsData, ScrollCompensation>;
 
 struct AccumulatedVisualContextNode {
     VisualContextData data;
