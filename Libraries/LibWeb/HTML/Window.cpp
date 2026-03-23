@@ -28,6 +28,7 @@
 #include <LibWeb/CSS/Screen.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/Document.h>
@@ -356,7 +357,7 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
     case CSS::MediaFeatureID::AnyPointer:
         return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ident, CSS::KeywordStyleValue::create(CSS::Keyword::Fine));
     case CSS::MediaFeatureID::AspectRatio:
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::Ratio(inner_width(), inner_height())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(inner_width()), CSS::NumberStyleValue::create(inner_height())));
     case CSS::MediaFeatureID::Color:
         return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(8));
     case CSS::MediaFeatureID::ColorGamut:
@@ -365,7 +366,7 @@ Optional<CSS::MediaFeatureValue> Window::query_media_feature(CSS::MediaFeatureID
         return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Integer, CSS::IntegerStyleValue::create(0));
     case CSS::MediaFeatureID::DeviceAspectRatio: {
         auto screen_area = page().client().screen_rect();
-        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::Ratio(screen_area.width().value(), screen_area.height().value())));
+        return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Ratio, CSS::RatioStyleValue::create(CSS::NumberStyleValue::create(screen_area.width().value()), CSS::NumberStyleValue::create(screen_area.height().value())));
     }
     case CSS::MediaFeatureID::DeviceHeight:
         return CSS::MediaFeatureValue(CSS::MediaFeatureValue::Type::Length, CSS::LengthStyleValue::create(CSS::Length::make_px(page().web_exposed_screen_area().height())));

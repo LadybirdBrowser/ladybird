@@ -65,7 +65,7 @@ public:
     Ratio ratio(ComputationContext const& computation_context) const
     {
         VERIFY(is_ratio());
-        return m_value->absolutized(computation_context)->as_ratio().ratio();
+        return m_value->absolutized(computation_context)->as_ratio().resolved();
     }
 
     Resolution resolution(ComputationContext const& computation_context) const

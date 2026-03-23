@@ -2837,7 +2837,7 @@ RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(Tok
 RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
     if (auto ratio = parse_ratio(tokens); ratio.has_value())
-        return RatioStyleValue::create(ratio.release_value());
+        return RatioStyleValue::create(NumberStyleValue::create(ratio->numerator()), NumberStyleValue::create(ratio->denominator()));
     return nullptr;
 }
 

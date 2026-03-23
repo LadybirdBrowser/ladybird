@@ -1945,8 +1945,8 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return RadialSizeStyleValue::create({ interpolated_horizontal.release_nonnull(), interpolated_vertical.release_nonnull() });
     }
     case StyleValue::Type::Ratio: {
-        auto from_ratio = from.as_ratio().ratio();
-        auto to_ratio = to.as_ratio().ratio();
+        auto from_ratio = from.as_ratio().resolved();
+        auto to_ratio = to.as_ratio().resolved();
 
         // https://drafts.csswg.org/css-values/#combine-ratio
         // If either <ratio> is degenerate, the values cannot be interpolated.
@@ -1961,7 +1961,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto from_number = log(from_ratio.value());
         auto to_number = log(to_ratio.value());
         auto interpolated_value = interpolate_raw(from_number, to_number, delta, calculation_context.accepted_type_ranges.get(ValueType::Ratio));
-        return RatioStyleValue::create(Ratio(pow(M_E, interpolated_value)));
+        return RatioStyleValue::create(NumberStyleValue::create(pow(M_E, interpolated_value)), NumberStyleValue::create(1));
     }
     case StyleValue::Type::Rect: {
         auto from_rect = from.as_rect().rect();

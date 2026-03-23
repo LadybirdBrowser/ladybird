@@ -933,17 +933,17 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         if (values_list.size() == 2
             && values_list[0]->is_keyword() && values_list[0]->as_keyword().keyword() == CSS::Keyword::Auto
             && values_list[1]->is_ratio()) {
-            computed_values.set_aspect_ratio({ true, values_list[1]->as_ratio().ratio() });
+            computed_values.set_aspect_ratio({ true, values_list[1]->as_ratio().resolved() });
         }
     } else if (aspect_ratio.is_keyword() && aspect_ratio.as_keyword().keyword() == CSS::Keyword::Auto) {
         computed_values.set_aspect_ratio({ true, {} });
     } else if (aspect_ratio.is_ratio()) {
         // https://drafts.csswg.org/css-sizing-4/#aspect-ratio
         // If the <ratio> is degenerate, the property instead behaves as auto.
-        if (aspect_ratio.as_ratio().ratio().is_degenerate())
+        if (aspect_ratio.as_ratio().resolved().is_degenerate())
             computed_values.set_aspect_ratio({ true, {} });
         else
-            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().ratio() });
+            computed_values.set_aspect_ratio({ false, aspect_ratio.as_ratio().resolved() });
     }
 
     computed_values.set_touch_action(computed_style.touch_action());
