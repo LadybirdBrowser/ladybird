@@ -293,6 +293,9 @@ public:
         m_cached_phase_commands[to_underlying(phase)] = move(commands);
     }
 
+    void set_fixed_background_visual_context(VisualContextIndex index) { m_fixed_background_visual_context = index; }
+    [[nodiscard]] Optional<VisualContextIndex> fixed_background_visual_context() const { return m_fixed_background_visual_context; }
+
     [[nodiscard]] ScrollFrameIndex enclosing_scroll_frame_index() const { return m_enclosing_scroll_frame_index; }
 
     [[nodiscard]] ScrollFrameIndex own_scroll_frame_index() const { return m_own_scroll_frame_index; }
@@ -338,6 +341,7 @@ private:
     ScrollFrameIndex m_own_scroll_frame_index {};
     VisualContextIndex m_accumulated_visual_context_index {};
     VisualContextIndex m_accumulated_visual_context_for_descendants_index {};
+    Optional<VisualContextIndex> m_fixed_background_visual_context;
 
     Optional<BordersDataWithElementKind> m_override_borders_data;
     Optional<TableCellCoordinates> m_table_cell_coordinates;

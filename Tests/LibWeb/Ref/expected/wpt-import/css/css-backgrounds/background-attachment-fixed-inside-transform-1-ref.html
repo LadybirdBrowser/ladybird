@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>CSS Background: background-attachment: background-attachment:fixed inside a transform</title>
+    <link rel="author" title="Botond Ballo" href="mailto:botond@mozilla.com">
+    <link rel="author" title="Mozilla" href="https://www.mozilla.org">
+    <style type="text/css">
+      body {
+        height: 4000px;
+        margin: 0;
+      }
+
+      #outer {
+        margin: 200px;
+        height: 700px;
+        width: 300px;
+        transform: rotate(45deg);
+        overflow: hidden;
+      }
+
+      #inner {
+        height: 700px;
+        background-image: radial-gradient(farthest-corner at center, blue, black);
+        background-size: 300px 300px;
+        background-position: 200px 200px;
+        background-color: lime;
+        background-repeat: no-repeat;
+        background-attachment: scroll;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="outer">
+      <div id="inner">
+      </div>
+    </div>
+  </body>
+</html>
