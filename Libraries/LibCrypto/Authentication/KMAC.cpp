@@ -48,14 +48,8 @@ ErrorOr<ByteBuffer> KMAC::sign(ReadonlyBytes key, ReadonlyBytes message, u32 out
 
     auto const* mac_name = (m_kind == KMACKind::KMAC128) ? OSSL_MAC_NAME_KMAC128 : OSSL_MAC_NAME_KMAC256;
 
-    auto* mac = EVP_MAC_fetch(nullptr, mac_name, nullptr);
-    if (!mac)
-        return Error::from_string_literal("EVP_MAC_fetch failed for KMAC");
-
-    auto* ctx = EVP_MAC_CTX_new(mac);
-    EVP_MAC_free(mac);
-    if (!ctx)
-        return Error::from_string_literal("EVP_MAC_CTX_new failed");
+    auto mac = TRY(OpenSSL_MAC::wrap(EVP_MAC_fetch(nullptr, mac_name, nullptr)));
+    auto ctx = TRY(OpenSSL_MAC_CTX::wrap(EVP_MAC_CTX_new(mac.ptr())));
 
     size_t output_size = output_length_bits / 8;
 
@@ -65,24 +59,12 @@ ErrorOr<ByteBuffer> KMAC::sign(ReadonlyBytes key, ReadonlyBytes message, u32 out
         params.append(OSSL_PARAM_octet_string(OSSL_MAC_PARAM_CUSTOM, const_cast<u8*>(customization.value().data()), customization.value().size()));
     params.append(OSSL_PARAM_END);
 
-    if (EVP_MAC_init(ctx, key.data(), key.size(), params.data()) != 1) {
-        EVP_MAC_CTX_free(ctx);
-        return Error::from_string_literal("EVP_MAC_init failed for KMAC");
-    }
-
-    if (EVP_MAC_update(ctx, message.data(), message.size()) != 1) {
-        EVP_MAC_CTX_free(ctx);
-        return Error::from_string_literal("EVP_MAC_update failed for KMAC");
-    }
+    OPENSSL_TRY(EVP_MAC_init(ctx.ptr(), key.data(), key.size(), params.data()));
+    OPENSSL_TRY(EVP_MAC_update(ctx.ptr(), message.data(), message.size()));
 
     auto buf = TRY(ByteBuffer::create_uninitialized(output_size));
     size_t written = 0;
-    if (EVP_MAC_final(ctx, buf.data(), &written, output_size) != 1) {
-        EVP_MAC_CTX_free(ctx);
-        return Error::from_string_literal("EVP_MAC_final failed for KMAC");
-    }
-
-    EVP_MAC_CTX_free(ctx);
+    OPENSSL_TRY(EVP_MAC_final(ctx.ptr(), buf.data(), &written, output_size));
 
     if (written != output_size)
         return Error::from_string_literal("EVP_MAC_final returned an unexpected output length");
