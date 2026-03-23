@@ -855,7 +855,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
         auto start = resolved_start_property.release_nonnull();
         auto end = resolved_end_property.release_nonnull();
 
-        // OPTIMIZATION: Values resulting from animations other than CSS transitions are overriden by important
+        // OPTIMIZATION: Values resulting from animations other than CSS transitions are overridden by important
         //               properties so there's no need to calculate them
         if (!animation->is_css_transition() && computed_properties.is_property_important(it.key)) {
             continue;

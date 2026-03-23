@@ -87,7 +87,7 @@ static bool should_update_timeline(GC::Ptr<Animations::AnimationTimeline> old_ti
 
 void CSSAnimation::apply_css_properties(ComputedProperties::AnimationProperties const& animation_properties)
 {
-    // FIXME: Don't apply overriden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
+    // FIXME: Don't apply overridden properties as defined here: https://drafts.csswg.org/css-animations-2/#animations
 
     VERIFY(effect());
 
