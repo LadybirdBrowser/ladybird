@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body style="height: 2000px">
+<iframe id="frame"></iframe>
+<script>
+    function afterPaintAndTask(callback) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setTimeout(callback, 0);
+            });
+        });
+    }
+
+    const frame = document.getElementById("frame");
+    frame.srcdoc = "<body><p>Content</p></body>";
+
+    frame.onload = () => {
+        frame.contentDocument.body.offsetHeight;
+
+        afterPaintAndTask(() => {
+            frame.contentDocument.open();
+
+            // Scroll the viewport so the parent needs repaint without invalidating its cached display list.
+            window.scrollTo(0, 1);
+
+            afterPaintAndTask(() => {
+                frame.contentDocument.write("<body></body>");
+                frame.contentDocument.close();
+                document.documentElement.classList.remove("test-wait");
+            });
+        });
+    };
+</script>
+</body>
+</html>

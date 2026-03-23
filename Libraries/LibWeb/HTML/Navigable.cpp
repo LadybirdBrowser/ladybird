@@ -2839,19 +2839,29 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
     document_paintable.refresh_scroll_state();
     scroll_state_snapshot_by_display_list.set(*display_list, document_paintable.scroll_state_snapshot());
+
     // Collect scroll state snapshots for each nested navigable
     document_paintable.for_each_in_inclusive_subtree_of_type<Painting::NavigableContainerViewportPaintable>([&scroll_state_snapshot_by_display_list](auto& navigable_container_paintable) {
-        auto const* hosted_document = navigable_container_paintable.navigable_container().content_document_without_origin_check();
-        if (!hosted_document || !hosted_document->paintable())
+        auto* hosted_document = navigable_container_paintable.navigable_container().content_document_without_origin_check();
+        if (!hosted_document)
             return TraversalDecision::Continue;
+
+        // We can use unsafe_paintable() here since the scroll state collection only reads scroll offsets, which are
+        // valid even when layout is stale (e.g., a render-blocked iframe whose DOM was modified but whose scroll
+        // positions haven't changed).
+        auto* hosted_paintable = const_cast<Painting::ViewportPaintable*>(hosted_document->unsafe_paintable());
+        if (!hosted_paintable)
+            return TraversalDecision::Continue;
+
         // We are only interested in collecting scroll state snapshots for visible nested navigables, which is
         // detectable by checking if they have a cached display list that should've been populated by
         // record_display_list() on top-level document.
         auto navigable_display_list = hosted_document->cached_display_list();
         if (!navigable_display_list)
             return TraversalDecision::Continue;
-        const_cast<DOM::Document&>(*hosted_document).paintable()->refresh_scroll_state();
-        scroll_state_snapshot_by_display_list.set(*navigable_display_list, hosted_document->paintable()->scroll_state_snapshot());
+
+        hosted_paintable->refresh_scroll_state();
+        scroll_state_snapshot_by_display_list.set(*navigable_display_list, hosted_paintable->scroll_state_snapshot());
         return TraversalDecision::Continue;
     });
 
