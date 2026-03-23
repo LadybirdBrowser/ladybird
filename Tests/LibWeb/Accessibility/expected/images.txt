@@ -1,6 +1,7 @@
 document
   generic focused
     image name="A scenic mountain view"
+    image name="Settings icon"
     figure
       image name="Sales chart"
       text leaf name="Quarterly sales"

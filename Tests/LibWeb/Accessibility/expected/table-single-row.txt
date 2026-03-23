@@ -2,7 +2,7 @@ document
   generic focused
     table name="Key-value"
       rowgroup
-        row name="              Property              Value         "
+        row name="Property              Value"
           rowheader name="Property"
             text leaf name="Property"
           cell name="Value"

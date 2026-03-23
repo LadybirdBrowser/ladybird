@@ -8,7 +8,7 @@ document
     link name="Go to homepage"
       text leaf name="Home"
     searchbox name="Search the site"
-    generic name=" Important Section"
+    generic name="Important Section"
       heading name="Important Section" level=2
         text leaf name="Important Section"
       paragraph

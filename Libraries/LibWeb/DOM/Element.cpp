@@ -3044,7 +3044,8 @@ bool Element::is_referenced() const
     if (id().has_value()) {
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())) {
+            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())
+                || aria_data->aria_described_by_or_default().contains_slow(id().value())) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }
@@ -3064,6 +3065,18 @@ bool Element::has_referenced_and_hidden_ancestor() const
     return false;
 }
 
+bool Element::is_aria_hidden() const
+{
+    for (auto const* node = this; node; node = node->parent_element().ptr()) {
+        if (auto hidden = node->get_attribute(ARIA::AttributeNames::aria_hidden); hidden.has_value()) {
+            if (hidden.value() == "true"sv)
+                return true;
+            break;
+        }
+    }
+    return false;
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
 bool Element::exclude_from_accessibility_tree() const
 {
@@ -3073,14 +3086,29 @@ bool Element::exclude_from_accessibility_tree() const
     if (!layout_node())
         return true;
 
-    // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
-    // FIXME: Handle exceptions to excluding presentation role
-    auto role = role_or_default();
-    if (role == ARIA::Role::none || role == ARIA::Role::presentation)
+    // visibility:hidden
+    if (auto props = computed_properties(); props && props->visibility() != CSS::Visibility::Visible)
         return true;
 
-    // TODO: If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
+    // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
+    auto role = role_or_default();
+    if (role == ARIA::Role::none || role == ARIA::Role::presentation) {
+        // Presentational Roles Conflict Resolution: if the element has
+        // any global ARIA attributes, the presentational role is
+        // overridden and the element is not excluded.
+        if (!has_global_aria_attribute())
+            return true;
+    }
+
+    // If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
     //    Elements, including their descendants, that have aria-hidden set to true. In other words, aria-hidden="true" on a parent overrides aria-hidden="false" on descendants.
+    for (auto const* node = this; node; node = node->parent_element().ptr()) {
+        if (auto hidden = node->get_attribute(ARIA::AttributeNames::aria_hidden); hidden.has_value()) {
+            if (hidden.value() == "true"sv)
+                return true;
+            break;
+        }
+    }
     //    Any descendants of elements that have the characteristic "Children Presentational: True" unless the descendant is not allowed to be presentational because it meets one of the conditions for exception described in Presentational Roles Conflict Resolution. However, the text content of any excluded descendants is included.
     //    Elements with the following roles have the characteristic "Children Presentational: True":
     //      button

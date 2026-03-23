@@ -31,6 +31,9 @@ struct WEBVIEW_API AccessibilityNodeData {
     i32 heading_level { 0 };
 
     String live; // "assertive", "polite", or empty
+
+    i32 column_span { 1 };
+    i32 row_span { 1 };
 };
 
 }
