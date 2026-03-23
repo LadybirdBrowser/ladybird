@@ -373,61 +373,6 @@ Optional<TimePercentage> Parser::parse_time_percentage(TokenStream<ComponentValu
     return {};
 }
 
-Optional<Ratio> Parser::parse_ratio(TokenStream<ComponentValue>& tokens)
-{
-    auto transaction = tokens.begin_transaction();
-    tokens.discard_whitespace();
-
-    // FIXME: It seems like `calc(...) / calc(...)` is a valid <ratio>, but this case is neither mentioned in a spec,
-    //        nor tested in WPT, as far as I can tell.
-    //        Still, we should probably support it. That means not assuming we can resolve the calculation immediately.
-
-    auto read_number_value = [this](ComponentValue const& component_value) -> Optional<double> {
-        if (component_value.is(Token::Type::Number))
-            return component_value.token().number_value();
-
-        if (component_value.is_function()) {
-            auto maybe_calc = parse_calculated_value(component_value);
-            if (!maybe_calc)
-                return {};
-            if (maybe_calc->is_number())
-                return maybe_calc->as_number().number();
-            if (!maybe_calc->is_calculated() || !maybe_calc->as_calculated().resolves_to_number())
-                return {};
-            if (auto resolved_number = maybe_calc->as_calculated().resolve_number({}); resolved_number.has_value() && resolved_number.value() >= 0) {
-                return resolved_number.value();
-            }
-        }
-        return {};
-    };
-
-    // `<ratio> = <number [0,∞]> [ / <number [0,∞]> ]?`
-    auto maybe_numerator = read_number_value(tokens.consume_a_token());
-    if (!maybe_numerator.has_value() || maybe_numerator.value() < 0)
-        return {};
-    auto numerator = maybe_numerator.value();
-
-    {
-        auto two_value_transaction = tokens.begin_transaction();
-        tokens.discard_whitespace();
-        auto const& solidus = tokens.consume_a_token();
-        tokens.discard_whitespace();
-        auto maybe_denominator = read_number_value(tokens.consume_a_token());
-
-        if (solidus.is_delim('/') && maybe_denominator.has_value() && maybe_denominator.value() >= 0) {
-            auto denominator = maybe_denominator.value();
-            // Two-value ratio
-            two_value_transaction.commit();
-            transaction.commit();
-            return Ratio { numerator, denominator };
-        }
-    }
-
-    // Single-value ratio
-    transaction.commit();
-    return Ratio { numerator };
-}
-
 // https://drafts.csswg.org/css-fonts-4/#family-name-syntax
 RefPtr<StyleValue const> Parser::parse_family_name_value(TokenStream<ComponentValue>& tokens)
 {
@@ -2834,11 +2779,37 @@ RefPtr<StyleValue const> Parser::parse_nonnegative_integer_symbol_pair_value(Tok
     return StyleValueList::create({ integer.release_nonnull(), symbol.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
+// https://drafts.csswg.org/css-values-4/#ratios
 RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& tokens)
 {
-    if (auto ratio = parse_ratio(tokens); ratio.has_value())
-        return RatioStyleValue::create(NumberStyleValue::create(ratio->numerator()), NumberStyleValue::create(ratio->denominator()));
-    return nullptr;
+    // <ratio> = <number [0,∞]> [ / <number [0,∞]> ]?
+    auto transaction = tokens.begin_transaction();
+
+    auto scope_guard = push_temporary_value_parsing_context(SpecialContext::RatioComponent);
+    tokens.discard_whitespace();
+
+    auto numerator = parse_number_value(tokens);
+
+    if (!numerator || (numerator->is_number() && numerator->as_number().number() < 0))
+        return nullptr;
+
+    tokens.discard_whitespace();
+
+    if (tokens.peek_token().is(Token::Type::Delim) && tokens.peek_token().token().delim() == '/') {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+
+        auto denominator = parse_number_value(tokens);
+        if (!denominator || (denominator->is_number() && denominator->as_number().number() < 0))
+            return nullptr;
+
+        transaction.commit();
+        return RatioStyleValue::create(numerator.release_nonnull(), denominator.release_nonnull());
+    }
+
+    transaction.commit();
+    // The second <number> is optional, defaulting to 1.
+    return RatioStyleValue::create(numerator.release_nonnull(), NumberStyleValue::create(1));
 }
 
 RefPtr<StringStyleValue const> Parser::parse_string_value(TokenStream<ComponentValue>& tokens)
@@ -5175,6 +5146,8 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::RandomValueSharingFixedValue:
                     // Fixed values have to be less than one and numbers serialize with six digits of precision
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 0.999999 } } } };
+                case SpecialContext::RatioComponent:
+                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::StepsIntervalsJumpNone:
                     return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<float>::max() } } } };
                 case SpecialContext::StepsIntervalsNormal:

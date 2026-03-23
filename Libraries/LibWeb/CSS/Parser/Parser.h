@@ -26,7 +26,6 @@
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
 #include <LibWeb/CSS/Parser/Types.h>
-#include <LibWeb/CSS/Ratio.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ShadowStyleValue.h>
@@ -79,6 +78,7 @@ enum SpecialContext : u8 {
     MediaCondition,
     RadialSizeLengthPercentage,
     RandomValueSharingFixedValue,
+    RatioComponent,
     ShadowBlurRadius,
     StepsIntervalsJumpNone,
     StepsIntervalsNormal,
@@ -324,7 +324,6 @@ private:
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
 
     Optional<LengthOrAutoOrCalculated> parse_source_size_value(TokenStream<ComponentValue>&);
-    Optional<Ratio> parse_ratio(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);
     Vector<Gfx::UnicodeRange> parse_unicode_ranges(TokenStream<ComponentValue>&);
