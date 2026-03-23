@@ -15,6 +15,8 @@
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS::Parser {
 
@@ -497,10 +499,10 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             if (tokens.next_token().is(Token::Type::Ident)) {
                 auto transaction = tokens.begin_transaction();
                 tokens.discard_whitespace();
-                auto keyword = keyword_from_string(tokens.consume_a_token().token().ident());
-                if (keyword.has_value() && media_feature_accepts_keyword(media_feature, keyword.value())) {
+                auto keyword = parse_keyword_value(tokens);
+                if (keyword && media_feature_accepts_keyword(media_feature, keyword->to_keyword())) {
                     transaction.commit();
-                    return MediaFeatureValue(MediaFeatureValue::Type::Ident, keyword.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Ident, keyword.release_nonnull());
                 }
             }
 
@@ -508,10 +510,10 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Boolean)) {
                 auto transaction = tokens.begin_transaction();
                 tokens.discard_whitespace();
-                if (auto integer = parse_integer(tokens); integer.has_value()) {
-                    if (integer.value().is_calculated() || integer->value() == 0 || integer->value() == 1) {
+                if (auto integer = parse_integer_value(tokens)) {
+                    if (integer->is_calculated() || first_is_one_of(integer->as_integer().integer(), 0, 1)) {
                         transaction.commit();
-                        return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_value());
+                        return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_nonnull());
                     }
                 }
             }
@@ -519,9 +521,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             // Integer
             if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Integer)) {
                 auto transaction = tokens.begin_transaction();
-                if (auto integer = parse_integer(tokens); integer.has_value()) {
+                if (auto integer = parse_integer_value(tokens)) {
                     transaction.commit();
-                    return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_nonnull());
                 }
             }
 
@@ -529,9 +531,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Length)) {
                 auto transaction = tokens.begin_transaction();
                 tokens.discard_whitespace();
-                if (auto length = parse_length(tokens); length.has_value()) {
+                if (auto length = parse_length_value(tokens)) {
                     transaction.commit();
-                    return MediaFeatureValue(MediaFeatureValue::Type::Length, length.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Length, length.release_nonnull());
                 }
             }
 
@@ -539,9 +541,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Ratio)) {
                 auto transaction = tokens.begin_transaction();
                 tokens.discard_whitespace();
-                if (auto ratio = parse_ratio(tokens); ratio.has_value()) {
+                if (auto ratio = parse_ratio_value(tokens)) {
                     transaction.commit();
-                    return MediaFeatureValue(MediaFeatureValue::Type::Ratio, ratio.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Ratio, ratio.release_nonnull());
                 }
             }
 
@@ -549,9 +551,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             if (media_feature_accepts_type(media_feature, MediaFeatureValueType::Resolution)) {
                 auto transaction = tokens.begin_transaction();
                 tokens.discard_whitespace();
-                if (auto resolution = parse_resolution(tokens); resolution.has_value()) {
+                if (auto resolution = parse_resolution_value(tokens)) {
                     transaction.commit();
-                    return MediaFeatureValue(MediaFeatureValue::Type::Resolution, resolution.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Resolution, resolution.release_nonnull());
                 }
             }
 
@@ -592,7 +594,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             .value_string = MUST(String::join(""sv, unknown_tokens)),
             .description = "Unrecognized type"_string,
         });
-        return MediaFeatureValue(MediaFeatureValue::Type::Unknown, move(unknown_tokens));
+        return MediaFeatureValue(MediaFeatureValue::Type::Unknown, move(UnresolvedStyleValue::create(move(unknown_tokens))));
     }
 
     return {};

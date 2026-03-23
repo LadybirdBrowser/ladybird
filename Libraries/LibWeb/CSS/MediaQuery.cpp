@@ -28,19 +28,9 @@ NonnullRefPtr<MediaQuery> MediaQuery::create_not_all()
 
 String MediaFeatureValue::to_string(SerializationMode mode) const
 {
-    return m_value.visit(
-        [](Keyword const& ident) { return MUST(String::from_utf8(string_from_keyword(ident))); },
-        [&mode](LengthOrCalculated const& length) { return length.to_string(mode); },
-        [](Ratio const& ratio) { return ratio.to_string(); },
-        [&mode](ResolutionOrCalculated const& resolution) { return resolution.to_string(mode); },
-        [](IntegerOrCalculated const& integer) {
-            if (integer.is_calculated())
-                return integer.calculated()->to_string(SerializationMode::Normal);
-            return String::number(integer.value());
-        },
-        [&](Vector<Parser::ComponentValue> const& values) {
-            return serialize_a_series_of_component_values(values);
-        });
+    StringBuilder builder;
+    m_value->serialize(builder, mode);
+    return MUST(builder.to_string());
 }
 
 String MediaFeature::to_string() const
@@ -104,22 +94,22 @@ MatchResult MediaFeature::evaluate(DOM::Document const* document) const
         return MatchResult::False;
     auto queried_value = maybe_queried_value.release_value();
 
-    CalculationResolutionContext calculation_context {
+    ComputationContext computation_context {
         .length_resolution_context = Length::ResolutionContext::for_document(*document),
     };
     switch (m_type) {
     case Type::IsTrue:
         if (queried_value.is_integer())
-            return as_match_result(queried_value.integer().resolved(calculation_context) != 0);
+            return as_match_result(queried_value.integer(computation_context) != 0);
         if (queried_value.is_length()) {
-            auto length = queried_value.length().resolved(calculation_context);
-            return as_match_result(length->raw_value() != 0);
+            auto length = queried_value.length(computation_context);
+            return as_match_result(length.raw_value() != 0);
         }
         // FIXME: I couldn't figure out from the spec how ratios should be evaluated in a boolean context.
         if (queried_value.is_ratio())
-            return as_match_result(!queried_value.ratio().is_degenerate());
+            return as_match_result(!queried_value.ratio(computation_context).is_degenerate());
         if (queried_value.is_resolution())
-            return as_match_result(queried_value.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0) != 0);
+            return as_match_result(queried_value.resolution(computation_context).to_dots_per_pixel() != 0);
         if (queried_value.is_ident()) {
             if (media_feature_keyword_is_falsey(m_id, queried_value.ident()))
                 return MatchResult::False;
@@ -171,29 +161,29 @@ MatchResult MediaFeature::compare(DOM::Document const& document, MediaFeatureVal
 
     auto length_resolution_context = Length::ResolutionContext::for_document(document);
 
-    CalculationResolutionContext calculation_context {
+    ComputationContext computation_context {
         .length_resolution_context = length_resolution_context,
     };
 
     if (left.is_integer()) {
         switch (comparison) {
         case Comparison::Equal:
-            return as_match_result(left.integer().resolved(calculation_context).value_or(0) == right.integer().resolved(calculation_context).value_or(0));
+            return as_match_result(left.integer(computation_context) == right.integer(computation_context));
         case Comparison::LessThan:
-            return as_match_result(left.integer().resolved(calculation_context).value_or(0) < right.integer().resolved(calculation_context).value_or(0));
+            return as_match_result(left.integer(computation_context) < right.integer(computation_context));
         case Comparison::LessThanOrEqual:
-            return as_match_result(left.integer().resolved(calculation_context).value_or(0) <= right.integer().resolved(calculation_context).value_or(0));
+            return as_match_result(left.integer(computation_context) <= right.integer(computation_context));
         case Comparison::GreaterThan:
-            return as_match_result(left.integer().resolved(calculation_context).value_or(0) > right.integer().resolved(calculation_context).value_or(0));
+            return as_match_result(left.integer(computation_context) > right.integer(computation_context));
         case Comparison::GreaterThanOrEqual:
-            return as_match_result(left.integer().resolved(calculation_context).value_or(0) >= right.integer().resolved(calculation_context).value_or(0));
+            return as_match_result(left.integer(computation_context) >= right.integer(computation_context));
         }
         VERIFY_NOT_REACHED();
     }
 
     if (left.is_length()) {
-        auto left_px = left.length().resolved(calculation_context).value_or(Length::make_px(0)).to_px(length_resolution_context);
-        auto right_px = right.length().resolved(calculation_context).value_or(Length::make_px(0)).to_px(length_resolution_context);
+        auto left_px = left.length(computation_context).absolute_length_to_px();
+        auto right_px = right.length(computation_context).absolute_length_to_px();
 
         switch (comparison) {
         case Comparison::Equal:
@@ -212,8 +202,8 @@ MatchResult MediaFeature::compare(DOM::Document const& document, MediaFeatureVal
     }
 
     if (left.is_ratio()) {
-        auto left_decimal = left.ratio().value();
-        auto right_decimal = right.ratio().value();
+        auto left_decimal = left.ratio(computation_context).value();
+        auto right_decimal = right.ratio(computation_context).value();
 
         switch (comparison) {
         case Comparison::Equal:
@@ -231,8 +221,8 @@ MatchResult MediaFeature::compare(DOM::Document const& document, MediaFeatureVal
     }
 
     if (left.is_resolution()) {
-        auto left_dppx = left.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0);
-        auto right_dppx = right.resolution().resolved(calculation_context).map([](auto&& it) { return it.to_dots_per_pixel(); }).value_or(0);
+        auto left_dppx = left.resolution(computation_context).to_dots_per_pixel();
+        auto right_dppx = right.resolution(computation_context).to_dots_per_pixel();
 
         switch (comparison) {
         case Comparison::Equal:

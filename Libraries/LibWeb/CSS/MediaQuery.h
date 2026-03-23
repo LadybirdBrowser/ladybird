@@ -16,6 +16,9 @@
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Ratio.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 
 namespace Web::CSS {
 
@@ -31,7 +34,7 @@ public:
         Unknown,
     };
 
-    explicit MediaFeatureValue(Type type, Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated, Vector<Parser::ComponentValue>> value)
+    explicit MediaFeatureValue(Type type, NonnullRefPtr<StyleValue const> value)
         : m_type(type)
         , m_value(move(value))
     {
@@ -47,39 +50,39 @@ public:
     bool is_unknown() const { return m_type == Type::Unknown; }
     bool is_same_type(MediaFeatureValue const& other) const { return m_type == other.m_type; }
 
-    Keyword const& ident() const
+    Keyword ident() const
     {
         VERIFY(is_ident());
-        return m_value.get<Keyword>();
+        return m_value->to_keyword();
     }
 
-    LengthOrCalculated const& length() const
+    Length length(ComputationContext const& computation_context) const
     {
         VERIFY(is_length());
-        return m_value.get<LengthOrCalculated>();
+        return Length::from_style_value(m_value->absolutized(computation_context), {});
     }
 
-    Ratio const& ratio() const
+    Ratio ratio(ComputationContext const& computation_context) const
     {
         VERIFY(is_ratio());
-        return m_value.get<Ratio>();
+        return m_value->absolutized(computation_context)->as_ratio().ratio();
     }
 
-    ResolutionOrCalculated const& resolution() const
+    Resolution resolution(ComputationContext const& computation_context) const
     {
         VERIFY(is_resolution());
-        return m_value.get<ResolutionOrCalculated>();
+        return Resolution::from_style_value(m_value->absolutized(computation_context));
     }
 
-    IntegerOrCalculated integer() const
+    i64 integer(ComputationContext const& computation_context) const
     {
         VERIFY(is_integer());
-        return m_value.get<IntegerOrCalculated>();
+        return int_from_style_value(m_value->absolutized(computation_context));
     }
 
 private:
     Type m_type;
-    Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated, Vector<Parser::ComponentValue>> m_value;
+    NonnullRefPtr<StyleValue const> m_value;
 };
 
 // https://www.w3.org/TR/mediaqueries-4/#mq-features
