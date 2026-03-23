@@ -343,11 +343,16 @@ static NSString* nsStringFromAK(AK::String const& string)
     if ([attribute isEqualToString:NSAccessibilityTitleAttribute]) {
         if (!data)
             return nil;
+        // Text leaf content is in AXValue, not AXTitle.
+        if (data->role.bytes_as_string_view() == "text leaf"sv)
+            return nil;
         return nsStringFromAK(data->name);
     }
 
     if ([attribute isEqualToString:NSAccessibilityDescriptionAttribute]) {
         if (!data)
+            return nil;
+        if (data->role.bytes_as_string_view() == "text leaf"sv)
             return nil;
         return nsStringFromAK(data->name);
     }

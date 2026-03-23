@@ -115,6 +115,11 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
         node_data.id = static_cast<i64>(text_node.unique_id().value());
         node_data.role = "text leaf"_string;
         node_data.name = text_node.data().to_utf8();
+
+        // Text nodes have no bounding rect of their own.
+        // Use the parent element's bounds as an approximation.
+        if (auto parent = text_node.parent_element())
+            node_data.bounds = parent->get_bounding_client_rect().to_type<int>();
     }
 
     auto my_id = node_data.id;

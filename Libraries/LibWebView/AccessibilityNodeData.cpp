@@ -22,6 +22,7 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::AccessibilityNodeData const
     TRY(encoder.encode(node.is_focused));
     TRY(encoder.encode(node.is_disabled));
     TRY(encoder.encode(node.heading_level));
+    TRY(encoder.encode(node.live));
     return {};
 }
 
