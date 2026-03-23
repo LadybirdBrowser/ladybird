@@ -60,6 +60,16 @@ void Action::set_visible(bool visible)
         observer->on_visible_state_changed(*this);
 }
 
+void Action::set_engaged(bool engaged)
+{
+    if (m_engaged == engaged)
+        return;
+    m_engaged = engaged;
+
+    for (auto& observer : m_observers)
+        observer->on_engaged_state_changed(*this);
+}
+
 void Action::set_checked(bool checked)
 {
     set_checked_internal(checked);
@@ -91,6 +101,7 @@ void Action::add_observer(NonnullOwnPtr<Observer> observer)
         observer->on_tooltip_changed(*this);
     observer->on_enabled_state_changed(*this);
     observer->on_visible_state_changed(*this);
+    observer->on_engaged_state_changed(*this);
     if (is_checkable())
         observer->on_checked_state_changed(*this);
 

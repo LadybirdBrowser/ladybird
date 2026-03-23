@@ -124,6 +124,9 @@ public:
     bool visible() const { return m_visible; }
     void set_visible(bool);
 
+    bool engaged() const { return m_engaged; }
+    void set_engaged(bool);
+
     bool is_checkable() const { return m_checked.has_value(); }
     bool checked() const { return *m_checked; }
     void set_checked(bool);
@@ -135,6 +138,7 @@ public:
         virtual void on_tooltip_changed(Action&) { }
         virtual void on_enabled_state_changed(Action&) { }
         virtual void on_visible_state_changed(Action&) { }
+        virtual void on_engaged_state_changed(Action&) { }
         virtual void on_checked_state_changed(Action&) { }
     };
 
@@ -160,6 +164,7 @@ private:
 
     bool m_enabled { true };
     bool m_visible { true };
+    bool m_engaged { false };
     Optional<bool> m_checked;
 
     Function<void()> m_action;
