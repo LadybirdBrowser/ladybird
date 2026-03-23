@@ -61,6 +61,31 @@
 
 @end
 
+@interface DeallocGuard : NSObject
+{
+    Function<void()> m_on_deallocation;
+}
+@end
+
+@implementation DeallocGuard
+
+- (instancetype)init:(Function<void()>)on_deallocation
+{
+    if (self = [super init]) {
+        m_on_deallocation = move(on_deallocation);
+    }
+
+    return self;
+}
+
+- (void)dealloc
+{
+    if (m_on_deallocation)
+        m_on_deallocation();
+}
+
+@end
+
 namespace Ladybird {
 
 class ActionObserver final : public WebView::Action::Observer {
@@ -237,7 +262,17 @@ static void initialize_native_control(WebView::Action& action, id control)
         break;
     }
 
-    action.add_observer(ActionObserver::create(action, control));
+    auto observer = ActionObserver::create(action, control);
+
+    auto* guard = [[DeallocGuard alloc] init:[action = action.make_weak_ptr(), observer = observer.ptr()]() {
+        if (action)
+            action->remove_observer(*observer);
+    }];
+
+    static char guard_key = 0;
+    objc_setAssociatedObject(control, &guard_key, guard, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
+    action.add_observer(move(observer));
 }
 
 static void add_items_to_menu(NSMenu* menu, Span<WebView::Menu::MenuItem> menu_items)
