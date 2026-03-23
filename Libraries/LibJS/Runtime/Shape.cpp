@@ -6,6 +6,7 @@
  */
 
 #include <LibGC/DeferGC.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/VM.h>
 
@@ -14,15 +15,13 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(Shape);
 GC_DEFINE_ALLOCATOR(PrototypeChainValidity);
 
-static HashTable<GC::Ptr<Shape>> s_all_prototype_shapes;
-
 Shape::~Shape() = default;
 
 void Shape::finalize()
 {
     Base::finalize();
     if (m_is_prototype_shape)
-        s_all_prototype_shapes.remove(this);
+        m_realm->all_prototype_shapes().remove(this);
 }
 
 GC::Ref<Shape> Shape::create_dictionary_transition()
@@ -320,7 +319,7 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     VERIFY(!m_is_prototype_shape);
     VERIFY(!m_prototype_chain_validity);
     auto new_shape = heap().allocate<Shape>(m_realm);
-    s_all_prototype_shapes.set(new_shape);
+    m_realm->all_prototype_shapes().set(new_shape);
     new_shape->m_is_prototype_shape = true;
     new_shape->m_prototype = m_prototype;
     ensure_property_table();
@@ -341,7 +340,7 @@ void Shape::set_prototype_without_transition(Object* new_prototype)
 void Shape::set_prototype_shape()
 {
     VERIFY(!m_is_prototype_shape);
-    s_all_prototype_shapes.set(this);
+    m_realm->all_prototype_shapes().set(this);
     m_is_prototype_shape = true;
     m_prototype_chain_validity = heap().allocate<PrototypeChainValidity>();
 }
@@ -369,7 +368,7 @@ void Shape::invalidate_prototype_if_needed_for_change_without_transition()
 void Shape::invalidate_all_prototype_chains_leading_to_this()
 {
     HashTable<Shape*> shapes_to_invalidate;
-    for (auto& candidate : s_all_prototype_shapes) {
+    for (auto& candidate : m_realm->all_prototype_shapes()) {
         if (!candidate->m_prototype)
             continue;
         for (auto* current_prototype_shape = &candidate->m_prototype->shape(); current_prototype_shape; current_prototype_shape = current_prototype_shape->prototype() ? &current_prototype_shape->prototype()->shape() : nullptr) {
