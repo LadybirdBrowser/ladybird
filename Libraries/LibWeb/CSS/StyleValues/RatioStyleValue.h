@@ -22,17 +22,8 @@ public:
     Ratio const& ratio() const { return m_ratio; }
     Ratio& ratio() { return m_ratio; }
 
-    virtual void serialize(StringBuilder& builder, SerializationMode) const override { builder.append(m_ratio.to_string()); }
-    Vector<Parser::ComponentValue> tokenize() const override
-    {
-        return {
-            Parser::Token::create_number(Number { Number::Type::Number, m_ratio.numerator() }),
-            Parser::Token::create_whitespace(" "_string),
-            Parser::Token::create_delim('/'),
-            Parser::Token::create_whitespace(" "_string),
-            Parser::Token::create_number(Number { Number::Type::Number, m_ratio.denominator() }),
-        };
-    }
+    virtual void serialize(StringBuilder&, SerializationMode) const override;
+    Vector<Parser::ComponentValue> tokenize() const override;
 
     bool properties_equal(RatioStyleValue const& other) const { return m_ratio == other.m_ratio; }
 
