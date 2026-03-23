@@ -1,10 +1,21 @@
 <!doctype html>
 <style>
+  @font-face {
+    font-family: "Lato";
+    src: url("../../Assets/Lato-Bold.ttf");
+  }
   div {
+    font: 16px/1 Lato;
     overflow: hidden;
     white-space: nowrap;
     width: 75px;
   }
 </style>
 <div>This text gets clipped</div>
-<div>This tex…</div>
+<div>This text…</div>
+<div style="width: 0px">Invisible</div>
+<div style="width: 5px">a</div>
+<div>This text…</div>
+<div><a href="#">This text…</a></div>
+<div><b>Bold</b> the…</div>
+<div><span style="float: left">F</span>Text af…</div>

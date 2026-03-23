@@ -1,18 +1,26 @@
 <!doctype html>
 <link rel="match" href="../expected/text-overflow.html" />
 <style>
+  @font-face {
+    font-family: "Lato";
+    src: url("../../Assets/Lato-Bold.ttf");
+  }
   div {
+    font: 16px/1 Lato;
     overflow: hidden;
     white-space: nowrap;
     width: 75px;
+    text-overflow: ellipsis;
   }
   .clip {
     text-overflow: clip;
   }
-  .ellipsis {
-    text-overflow: ellipsis;
-  }
 </style>
 <div class="clip">This text gets clipped</div>
-<div class="ellipsis">This text gets an ellipsis</div>
-<div class="ellipsis" style="width: 0px">Invisible</div>
+<div>This text gets an ellipsis</div>
+<div style="width: 0px">Invisible</div>
+<div style="width: 5px">abc</div>
+<div><span>This text gets an ellipsis</span></div>
+<div><a href="#"><span>This text gets an ellipsis</span></a></div>
+<div><b>Bold</b> <span>then more text here</span></div>
+<div><span style="float: left">F</span>Text after a float gets an ellipsis</div>

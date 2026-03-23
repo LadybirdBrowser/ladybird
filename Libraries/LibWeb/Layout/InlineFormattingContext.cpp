@@ -244,6 +244,102 @@ void InlineFormattingContext::apply_justification_to_fragments(CSS::TextJustify 
     }
 }
 
+// https://drafts.csswg.org/css-overflow-4/#text-overflow
+void InlineFormattingContext::apply_text_overflow_ellipsis(Vector<LineBox>& line_boxes)
+{
+    // This property specifies rendering when inline content overflows its line box edge in the inline progression
+    // direction of its block container element ("the block") that has overflow other than visible.
+
+    // NB: When inline children are wrapped in anonymous blocks (e.g. due to floats), we look past the anonymous
+    //     wrapper to the actual element that has text-overflow and overflow set.
+    GC::Ref<Box const> block = containing_block();
+    if (block->is_anonymous())
+        block = *block->non_anonymous_containing_block();
+
+    // FIXME: Support the <string>, fade, and fade() values, as well as the two-value syntax.
+    auto const& block_values = block->computed_values();
+    if (block_values.text_overflow() != CSS::TextOverflow::Ellipsis)
+        return;
+    if (block_values.overflow_x() == CSS::Overflow::Visible)
+        return;
+
+    // Render an ellipsis character (U+2026) to represent clipped inline content.
+    constexpr u32 ellipsis_codepoint = 0x2026;
+
+    for (auto& line_box : line_boxes) {
+        // NB: Use the line box's original available width rather than the IFC's available space, since the line's
+        //     usable width may be reduced by float intrusions.
+        if (!line_box.original_available_width().is_definite())
+            continue;
+        auto available_width = line_box.original_available_width().to_px_or_zero();
+        if (line_box.inline_length() <= available_width)
+            continue;
+
+        auto& fragments = line_box.fragments();
+        if (fragments.is_empty())
+            continue;
+
+        // For the ellipsis and string values, implementations must hide characters and atomic inline-level elements at
+        // the applicable edge(s) of the line as necessary to fit the ellipsis/string, and place the ellipsis/string
+        // immediately adjacent to the applicable edge(s) of the remaining inline content.
+        bool line_has_visible_content = false;
+        for (size_t i = 0; i < fragments.size(); i++) {
+            auto& fragment = fragments[i];
+            auto fragment_start = fragment.inline_offset();
+            auto fragment_end = fragment_start + fragment.inline_length();
+
+            if (fragment_end <= available_width) {
+                line_has_visible_content = true;
+                continue;
+            }
+
+            // NB: We skip non-text fragments (atomic inlines) for now. Hiding them entirely to make room for the
+            //     ellipsis is not yet implemented.
+            if (!fragment.glyph_run())
+                continue;
+
+            auto& font = fragment.glyph_run()->font();
+            auto ellipsis_width = font.glyph_width(ellipsis_codepoint);
+            auto available_in_fragment = (available_width - fragment_start).to_float();
+            auto max_text_width = available_in_fragment - ellipsis_width;
+
+            auto& glyphs = fragment.glyph_run()->glyphs();
+            size_t keep_count = 0;
+            float last_kept_end = 0.f;
+            float y_position = 0.f;
+
+            // https://drafts.csswg.org/css-overflow-4/#auto-ellipsis
+            // The first character or atomic inline-level element on a line must be clipped rather than ellipsed.
+            for (auto const& glyph : glyphs) {
+                auto glyph_end = glyph.position.x() + glyph.glyph_width;
+                if (glyph_end > max_text_width && (keep_count > 0 || line_has_visible_content))
+                    break;
+                keep_count++;
+                last_kept_end = glyph_end;
+                y_position = glyph.position.y();
+            }
+
+            if (keep_count < glyphs.size())
+                glyphs.remove(keep_count, glyphs.size() - keep_count);
+
+            glyphs.append(Gfx::DrawGlyph {
+                .position = { last_kept_end, y_position },
+                .length_in_code_units = AK::UnicodeUtils::code_unit_length_for_code_point(ellipsis_codepoint),
+                .glyph_width = ellipsis_width,
+                .glyph_id = font.glyph_id_for_code_point(ellipsis_codepoint),
+            });
+
+            fragment.set_inline_length(CSSPixels::nearest_value_for(last_kept_end + ellipsis_width));
+
+            if (i + 1 < fragments.size())
+                fragments.remove(i + 1, fragments.size() - i - 1);
+
+            line_box.m_inline_length = available_width;
+            break;
+        }
+    }
+}
+
 void InlineFormattingContext::generate_line_boxes()
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
@@ -362,62 +458,6 @@ void InlineFormattingContext::generate_line_boxes()
                 // (and its width recomputed) until either some content fits or there are no more floats present.
                 if (!is_whitespace && (item.can_break_before || line_boxes.last().is_empty()))
                     line_builder.break_if_needed(item.border_box_width());
-
-            } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
-                && text_node.computed_values().overflow_x() != CSS::Overflow::Visible) {
-                // We may need to do an ellipsis if the text is too long for the container
-                constexpr u32 ellipsis_codepoint = 0x2026;
-
-                // NOTE: We compute whether we need to truncate the text with an ellipsis based on the width of the
-                //       text node EXCLUSIVE of trailing collapsible whitespace, this is because that trailing
-                //       collapsible whitespace is removed later when we trim the line-boxes anyway.
-                //       Note that this relies on the assumption that this text node is the last in this linebox (as
-                //       there is only one text-node per line box when we have text-wrap: nowrap)
-                double width_without_trailing_collapsible_whitespace = item.width.to_double();
-
-                if (first_is_one_of(text_node.computed_values().white_space_collapse(), CSS::WhiteSpaceCollapse::Collapse, CSS::WhiteSpaceCollapse::PreserveBreaks)) {
-                    auto last_text = text_node.text_for_rendering();
-
-                    size_t last_fragment_length = last_text.length_in_code_units();
-                    while (last_fragment_length) {
-                        auto last_character = last_text.code_unit_at(--last_fragment_length);
-                        if (!is_ascii_space(last_character))
-                            break;
-
-                        width_without_trailing_collapsible_whitespace -= item.glyph_run->font().glyph_width(last_character);
-                    }
-                }
-
-                if (m_available_space.has_value() && width_without_trailing_collapsible_whitespace > m_available_space.value().width.to_px_or_zero().to_double()) {
-                    // Do the ellipsis
-                    auto& glyph_run = item.glyph_run;
-
-                    auto available_width = m_available_space.value().width.to_px_or_zero().to_double();
-                    auto ellipsis_width = glyph_run->font().glyph_width(ellipsis_codepoint);
-                    auto max_text_width = available_width - ellipsis_width;
-
-                    auto& glyphs = glyph_run->glyphs();
-                    size_t last_glyph_index = 0;
-                    auto last_glyph_position = Gfx::FloatPoint();
-
-                    for (auto const& glyph : glyphs) {
-                        if (glyph.position.x() > max_text_width)
-                            break;
-                        last_glyph_index++;
-                        last_glyph_position = glyph.position;
-                    }
-
-                    if (last_glyph_index > 1) {
-                        auto remove_item_count = glyphs.size() - last_glyph_index;
-                        glyphs.remove(last_glyph_index - 1, remove_item_count);
-                        glyphs.append(Gfx::DrawGlyph {
-                            .position = last_glyph_position,
-                            .length_in_code_units = AK::UnicodeUtils::code_unit_length_for_code_point(ellipsis_codepoint),
-                            .glyph_width = glyph_run->font().glyph_width(ellipsis_codepoint),
-                            .glyph_id = glyph_run->font().glyph_id_for_code_point(ellipsis_codepoint),
-                        });
-                    }
-                }
             }
             line_builder.append_text_chunk(
                 text_node,
@@ -437,6 +477,8 @@ void InlineFormattingContext::generate_line_boxes()
 
     for (auto& line_box : line_boxes)
         line_box.trim_trailing_whitespace();
+
+    apply_text_overflow_ellipsis(line_boxes);
 
     line_builder.remove_last_line_if_empty();
 

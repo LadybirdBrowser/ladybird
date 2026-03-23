@@ -40,6 +40,7 @@ public:
 
 private:
     void generate_line_boxes();
+    void apply_text_overflow_ellipsis(Vector<LineBox>&);
     void apply_justification_to_fragments(CSS::TextJustify, LineBox&, bool is_last_line);
 
     LayoutState::UsedValues& m_containing_block_used_values;
