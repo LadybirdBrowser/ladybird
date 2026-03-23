@@ -7,6 +7,8 @@
 
 #include <LibWeb/CSS/Resolution.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
 
 namespace Web::CSS {
 
@@ -19,6 +21,17 @@ Resolution::Resolution(double value, ResolutionUnit unit)
 Resolution Resolution::make_dots_per_pixel(double value)
 {
     return { value, ResolutionUnit::Dppx };
+}
+
+Resolution Resolution::from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+{
+    if (style_value->is_resolution())
+        return style_value->as_resolution().resolution();
+
+    if (style_value->is_calculated())
+        return style_value->as_calculated().resolve_resolution({}).value();
+
+    VERIFY_NOT_REACHED();
 }
 
 void Resolution::serialize(StringBuilder& builder, SerializationMode serialization_mode) const
