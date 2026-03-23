@@ -112,6 +112,7 @@ private:
     struct FlexLine {
         Vector<FlexItem&> items;
         CSSPixels cross_size { 0 };
+        bool has_baseline_aligned_items { false };
         Optional<CSSPixels> remaining_free_space;
         double chosen_flex_fraction { 0 };
 
@@ -198,6 +199,8 @@ private:
     void distribute_any_remaining_free_space();
 
     void align_all_flex_items_along_the_cross_axis();
+
+    void resolve_baseline_aligned_items();
 
     void align_all_flex_lines();
 

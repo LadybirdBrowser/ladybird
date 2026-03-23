@@ -1,0 +1,33 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 39 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 23 0+0+8] children: inline
+      frag 0 from Box start: 0, length: 0, rect: [8,8 23.671875x23] baseline: 17.5
+      Box <div.flex> at [8,8] flex-container(row) [0+0+0 23.671875 0+0+0] [0+0+0 23 0+0+0] [FFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <span.tall> at [8,8] flex-item [0+0+0 17.828125 0+0+0] [0+0+0 23 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [8,8 17.828125x23] baseline: 17.5
+              "A"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <span.short> at [25.828125,16.5] flex-item [0+0+0 5.84375 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 1, rect: [25.828125,16.5 5.84375x12] baseline: 9
+              "B"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0] [BFC] children: inline
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x39]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x23]
+      PaintableBox (Box<DIV>.flex) [8,8 23.671875x23]
+        PaintableWithLines (BlockContainer<SPAN>.tall) [8,8 17.828125x23]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer<SPAN>.short) [25.828125,16.5 5.84375x12]
+          TextPaintable (TextNode<#text>)
+        PaintableWithLines (BlockContainer(anonymous)) [8,8 0x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x39] [children: 0] (z-index: auto)

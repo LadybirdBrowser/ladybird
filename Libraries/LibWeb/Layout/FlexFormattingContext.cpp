@@ -238,6 +238,8 @@ void FlexFormattingContext::run(AvailableSpace const& available_space)
 
             compute_inset(item.box, content_box_rect(m_flex_container_state).size());
         }
+
+        resolve_baseline_aligned_items();
     }
 }
 
@@ -1553,8 +1555,11 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
                 }
                 break;
             case CSS::AlignItems::Baseline:
-                // FIXME: Implement this
-                //  Fallthrough
+                // https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline
+                // NB: Baseline-aligned items are initially placed at the cross-start edge (like flex-start). Their
+                //     positions are adjusted after layout in resolve_baseline_aligned_items().
+                flex_line.has_baseline_aligned_items = true;
+                [[fallthrough]];
             case CSS::AlignItems::Start:
             case CSS::AlignItems::FlexStart:
             case CSS::AlignItems::SelfStart:
@@ -1576,6 +1581,37 @@ void FlexFormattingContext::align_all_flex_items_along_the_cross_axis()
             default:
                 break;
             }
+        }
+    }
+}
+
+// https://drafts.csswg.org/css-flexbox-1/#valdef-align-items-baseline
+void FlexFormattingContext::resolve_baseline_aligned_items()
+{
+    // all participating flex items on the line are aligned such that their baselines align, and the item with the
+    // largest distance between its baseline and its cross-start margin edge is placed flush against the cross-start
+    // edge of the line.
+
+    // NB: This runs after layout_inside() so that line boxes are available for baseline computation.
+    for (auto& flex_line : m_flex_lines) {
+        if (!flex_line.has_baseline_aligned_items)
+            continue;
+
+        CSSPixels max_baseline = 0;
+        for (auto& item : flex_line.items) {
+            if (alignment_for_item(item.box) == CSS::AlignItems::Baseline)
+                max_baseline = max(max_baseline, box_baseline(item.box));
+        }
+
+        for (auto& item : flex_line.items) {
+            if (alignment_for_item(item.box) != CSS::AlignItems::Baseline)
+                continue;
+
+            auto adjustment = max_baseline - box_baseline(item.box);
+            if (is_row_layout())
+                item.used_values.set_content_y(item.used_values.offset.y() + adjustment);
+            else
+                item.used_values.set_content_x(item.used_values.offset.x() + adjustment);
         }
     }
 }
