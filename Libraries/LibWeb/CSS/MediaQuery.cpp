@@ -43,17 +43,6 @@ String MediaFeatureValue::to_string(SerializationMode mode) const
         });
 }
 
-bool MediaFeatureValue::is_same_type(MediaFeatureValue const& other) const
-{
-    return m_value.visit(
-        [&](Keyword const&) { return other.is_ident(); },
-        [&](LengthOrCalculated const&) { return other.is_length(); },
-        [&](Ratio const&) { return other.is_ratio(); },
-        [&](ResolutionOrCalculated const&) { return other.is_resolution(); },
-        [&](IntegerOrCalculated const&) { return other.is_integer(); },
-        [&](Vector<Parser::ComponentValue> const&) { return other.is_unknown(); });
-}
-
 String MediaFeature::to_string() const
 {
     auto comparison_string = [](Comparison comparison) -> StringView {

@@ -22,50 +22,30 @@ namespace Web::CSS {
 // https://www.w3.org/TR/mediaqueries-4/#typedef-mf-value
 class MediaFeatureValue {
 public:
-    explicit MediaFeatureValue(Keyword ident)
-        : m_value(move(ident))
-    {
-    }
+    enum class Type : u8 {
+        Ident,
+        Length,
+        Ratio,
+        Resolution,
+        Integer,
+        Unknown,
+    };
 
-    explicit MediaFeatureValue(LengthOrCalculated length)
-        : m_value(move(length))
-    {
-    }
-
-    explicit MediaFeatureValue(Ratio ratio)
-        : m_value(move(ratio))
-    {
-    }
-
-    explicit MediaFeatureValue(ResolutionOrCalculated resolution)
-        : m_value(move(resolution))
-    {
-    }
-
-    explicit MediaFeatureValue(IntegerOrCalculated integer)
-        : m_value(move(integer))
-    {
-    }
-
-    explicit MediaFeatureValue(i64 integer)
-        : m_value(IntegerOrCalculated(integer))
-    {
-    }
-
-    explicit MediaFeatureValue(Vector<Parser::ComponentValue> unknown_tokens)
-        : m_value(move(unknown_tokens))
+    explicit MediaFeatureValue(Type type, Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated, Vector<Parser::ComponentValue>> value)
+        : m_type(type)
+        , m_value(move(value))
     {
     }
 
     String to_string(SerializationMode mode) const;
 
-    bool is_ident() const { return m_value.has<Keyword>(); }
-    bool is_length() const { return m_value.has<LengthOrCalculated>(); }
-    bool is_integer() const { return m_value.has<IntegerOrCalculated>(); }
-    bool is_ratio() const { return m_value.has<Ratio>(); }
-    bool is_resolution() const { return m_value.has<ResolutionOrCalculated>(); }
-    bool is_unknown() const { return m_value.has<Vector<Parser::ComponentValue>>(); }
-    bool is_same_type(MediaFeatureValue const& other) const;
+    bool is_ident() const { return m_type == Type::Ident; }
+    bool is_length() const { return m_type == Type::Length; }
+    bool is_integer() const { return m_type == Type::Integer; }
+    bool is_ratio() const { return m_type == Type::Ratio; }
+    bool is_resolution() const { return m_type == Type::Resolution; }
+    bool is_unknown() const { return m_type == Type::Unknown; }
+    bool is_same_type(MediaFeatureValue const& other) const { return m_type == other.m_type; }
 
     Keyword const& ident() const
     {
@@ -98,6 +78,7 @@ public:
     }
 
 private:
+    Type m_type;
     Variant<Keyword, LengthOrCalculated, Ratio, ResolutionOrCalculated, IntegerOrCalculated, Vector<Parser::ComponentValue>> m_value;
 };
 

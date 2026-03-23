@@ -500,7 +500,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 auto keyword = keyword_from_string(tokens.consume_a_token().token().ident());
                 if (keyword.has_value() && media_feature_accepts_keyword(media_feature, keyword.value())) {
                     transaction.commit();
-                    return MediaFeatureValue(keyword.value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Ident, keyword.release_value());
                 }
             }
 
@@ -511,7 +511,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 if (auto integer = parse_integer(tokens); integer.has_value()) {
                     if (integer.value().is_calculated() || integer->value() == 0 || integer->value() == 1) {
                         transaction.commit();
-                        return MediaFeatureValue(integer.release_value());
+                        return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_value());
                     }
                 }
             }
@@ -521,7 +521,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 auto transaction = tokens.begin_transaction();
                 if (auto integer = parse_integer(tokens); integer.has_value()) {
                     transaction.commit();
-                    return MediaFeatureValue(integer.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Integer, integer.release_value());
                 }
             }
 
@@ -531,7 +531,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 tokens.discard_whitespace();
                 if (auto length = parse_length(tokens); length.has_value()) {
                     transaction.commit();
-                    return MediaFeatureValue(length.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Length, length.release_value());
                 }
             }
 
@@ -541,7 +541,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 tokens.discard_whitespace();
                 if (auto ratio = parse_ratio(tokens); ratio.has_value()) {
                     transaction.commit();
-                    return MediaFeatureValue(ratio.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Ratio, ratio.release_value());
                 }
             }
 
@@ -551,7 +551,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 tokens.discard_whitespace();
                 if (auto resolution = parse_resolution(tokens); resolution.has_value()) {
                     transaction.commit();
-                    return MediaFeatureValue(resolution.release_value());
+                    return MediaFeatureValue(MediaFeatureValue::Type::Resolution, resolution.release_value());
                 }
             }
 
@@ -592,7 +592,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             .value_string = MUST(String::join(""sv, unknown_tokens)),
             .description = "Unrecognized type"_string,
         });
-        return MediaFeatureValue(move(unknown_tokens));
+        return MediaFeatureValue(MediaFeatureValue::Type::Unknown, move(unknown_tokens));
     }
 
     return {};
