@@ -6,10 +6,8 @@
  */
 
 #include <AK/Random.h>
-#include <AK/StringBuilder.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/CryptoPrototype.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>
@@ -37,6 +35,12 @@ void Crypto::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Crypto);
     Base::initialize(realm);
     m_subtle = SubtleCrypto::create(realm);
+}
+
+void Crypto::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_subtle);
 }
 
 GC::Ref<SubtleCrypto> Crypto::subtle() const
@@ -73,70 +77,15 @@ WebIDL::ExceptionOr<GC::Root<WebIDL::ArrayBufferView>> Crypto::get_random_values
 }
 
 // https://w3c.github.io/webcrypto/#dfn-Crypto-method-randomUUID
-WebIDL::ExceptionOr<String> Crypto::random_uuid() const
+String Crypto::random_uuid() const
 {
-    auto& vm = realm().vm();
-
-    return TRY_OR_THROW_OOM(vm, generate_random_uuid());
-}
-
-void Crypto::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_subtle);
+    return generate_random_uuid();
 }
 
 // https://w3c.github.io/webcrypto/#dfn-generate-a-random-uuid
-ErrorOr<String> generate_random_uuid()
+String generate_random_uuid()
 {
-    // 1. Let bytes be a byte sequence of length 16.
-    u8 bytes[16];
-
-    // 2. Fill bytes with cryptographically secure random bytes.
-    fill_with_random(bytes);
-
-    // 3. Set the 4 most significant bits of bytes[6], which represent the UUID version, to 0100.
-    bytes[6] &= ~(1 << 7);
-    bytes[6] |= 1 << 6;
-    bytes[6] &= ~(1 << 5);
-    bytes[6] &= ~(1 << 4);
-
-    // 4. Set the 2 most significant bits of bytes[8], which represent the UUID variant, to 10.
-    bytes[8] |= 1 << 7;
-    bytes[8] &= ~(1 << 6);
-
-    /* 5. Return the string concatenation of
-        «
-        hexadecimal representation of bytes[0],
-        hexadecimal representation of bytes[1],
-        hexadecimal representation of bytes[2],
-        hexadecimal representation of bytes[3],
-        "-",
-        hexadecimal representation of bytes[4],
-        hexadecimal representation of bytes[5],
-        "-",
-        hexadecimal representation of bytes[6],
-        hexadecimal representation of bytes[7],
-        "-",
-        hexadecimal representation of bytes[8],
-        hexadecimal representation of bytes[9],
-        "-",
-        hexadecimal representation of bytes[10],
-        hexadecimal representation of bytes[11],
-        hexadecimal representation of bytes[12],
-        hexadecimal representation of bytes[13],
-        hexadecimal representation of bytes[14],
-        hexadecimal representation of bytes[15]
-        ».
-        */
-    StringBuilder builder;
-    TRY(builder.try_appendff("{:02x}{:02x}{:02x}{:02x}-", bytes[0], bytes[1], bytes[2], bytes[3]));
-    TRY(builder.try_appendff("{:02x}{:02x}-", bytes[4], bytes[5]));
-    TRY(builder.try_appendff("{:02x}{:02x}-", bytes[6], bytes[7]));
-    TRY(builder.try_appendff("{:02x}{:02x}-", bytes[8], bytes[9]));
-    TRY(builder.try_appendff("{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}", bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]));
-
-    return builder.to_string();
+    return AK::generate_random_uuid();
 }
 
 }

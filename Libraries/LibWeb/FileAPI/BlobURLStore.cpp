@@ -53,7 +53,7 @@ ErrorOr<Utf16String> generate_new_blob_url()
     TRY(result.try_append('/'));
 
     // 9. Generate a UUID [RFC4122] as a string and append it to result.
-    auto uuid = TRY(Crypto::generate_random_uuid());
+    auto uuid = Crypto::generate_random_uuid();
     TRY(result.try_append(uuid));
 
     // 10. Return result.

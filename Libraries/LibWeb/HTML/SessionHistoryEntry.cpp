@@ -25,8 +25,8 @@ void SessionHistoryEntry::visit_edges(Cell::Visitor& visitor)
 SessionHistoryEntry::SessionHistoryEntry()
     : m_classic_history_api_state(MUST(structured_serialize_for_storage(vm(), JS::js_null())))
     , m_navigation_api_state(MUST(structured_serialize_for_storage(vm(), JS::js_undefined())))
-    , m_navigation_api_key(MUST(Crypto::generate_random_uuid()))
-    , m_navigation_api_id(MUST(Crypto::generate_random_uuid()))
+    , m_navigation_api_key(Crypto::generate_random_uuid())
+    , m_navigation_api_id(Crypto::generate_random_uuid())
 {
 }
 

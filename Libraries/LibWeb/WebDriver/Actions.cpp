@@ -1365,7 +1365,7 @@ GC_DEFINE_ALLOCATOR(ActionExecutor);
 void wait_for_an_action_queue_token(InputState& input_state)
 {
     // 1. Let token be a new unique identifier.
-    auto token = MUST(Crypto::generate_random_uuid());
+    auto token = Crypto::generate_random_uuid();
 
     // 2. Enqueue token in input state's actions queue.
     input_state.actions_queue.append(token);

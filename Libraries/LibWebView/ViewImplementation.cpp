@@ -629,7 +629,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
         m_client_state.client->register_view(m_client_state.page_index, *this);
     }
 
-    m_client_state.client_handle = MUST(Web::Crypto::generate_random_uuid());
+    m_client_state.client_handle = Web::Crypto::generate_random_uuid();
     client().async_set_window_handle(m_client_state.page_index, m_client_state.client_handle);
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
     client().async_set_viewport(m_client_state.page_index, viewport_size(), m_device_pixel_ratio, m_is_fullscreen);

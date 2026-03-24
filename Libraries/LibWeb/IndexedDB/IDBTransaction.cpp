@@ -26,8 +26,8 @@ IDBTransaction::IDBTransaction(JS::Realm& realm, GC::Ref<IDBDatabase> connection
     , m_mode(mode)
     , m_durability(durability)
     , m_scope(move(scopes))
+    , m_uuid(Crypto::generate_random_uuid())
 {
-    m_uuid = MUST(Crypto::generate_random_uuid());
     connection->add_transaction(*this);
 }
 

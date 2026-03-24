@@ -25,8 +25,8 @@ IDBRequest::~IDBRequest() = default;
 IDBRequest::IDBRequest(JS::Realm& realm, IDBRequestSource source)
     : EventTarget(realm)
     , m_source(source)
+    , m_uuid(Crypto::generate_random_uuid())
 {
-    m_uuid = MUST(Crypto::generate_random_uuid());
 }
 
 void IDBRequest::initialize(JS::Realm& realm)

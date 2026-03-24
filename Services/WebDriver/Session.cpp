@@ -35,7 +35,7 @@ static HashMap<String, NonnullRefPtr<Session>> s_http_sessions;
 ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, JsonObject& capabilities, Web::WebDriver::SessionFlags flags)
 {
     // 1. Let session id be the result of generating a UUID.
-    auto session_id = MUST(Web::Crypto::generate_random_uuid());
+    auto session_id = Web::Crypto::generate_random_uuid();
 
     // 2. Let session be a new session with session ID session id, and HTTP flag flags contains "http".
     auto session = adopt_ref(*new Session(client, capabilities, move(session_id), flags));

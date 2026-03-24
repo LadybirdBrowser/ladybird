@@ -1685,7 +1685,7 @@ void Navigable::begin_navigation(NavigateParams params)
     // NOTE: This step is handled in Navigable::navigate()
 
     // 7. Let navigationId be the result of generating a random UUID.
-    String navigation_id = MUST(Crypto::generate_random_uuid());
+    auto navigation_id = Crypto::generate_random_uuid();
 
     // FIXME: 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these steps.
     //           Otherwise, queue a global task on the navigation and traversal task source given navigable's active window to continue these steps.

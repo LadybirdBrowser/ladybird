@@ -8,6 +8,7 @@
 
 #include <AK/Platform.h>
 #include <AK/Random.h>
+#include <AK/String.h>
 #include <AK/UFixedBigInt.h>
 #include <AK/UFixedBigIntDivision.h>
 
@@ -87,6 +88,52 @@ u64 get_random_uniform_64(u64 max_bounds)
         random_value = get_random<u64>();
     }
     return random_value % max_bounds;
+}
+
+// https://w3c.github.io/webcrypto/#dfn-generate-a-random-uuid
+String generate_random_uuid()
+{
+    // 1. Let bytes be a byte sequence of length 16.
+    u8 bytes[16];
+
+    // 2. Fill bytes with cryptographically secure random bytes.
+    fill_with_random(bytes);
+
+    // 3. Set the 4 most significant bits of bytes[6], which represent the UUID version, to 0100.
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+
+    // 4. Set the 2 most significant bits of bytes[8], which represent the UUID variant, to 10.
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    // 5. Return the string concatenation of «
+    //     hexadecimal representation of bytes[0],
+    //     hexadecimal representation of bytes[1],
+    //     hexadecimal representation of bytes[2],
+    //     hexadecimal representation of bytes[3],
+    //     "-",
+    //     hexadecimal representation of bytes[4],
+    //     hexadecimal representation of bytes[5],
+    //     "-",
+    //     hexadecimal representation of bytes[6],
+    //     hexadecimal representation of bytes[7],
+    //     "-",
+    //     hexadecimal representation of bytes[8],
+    //     hexadecimal representation of bytes[9],
+    //     "-",
+    //     hexadecimal representation of bytes[10],
+    //     hexadecimal representation of bytes[11],
+    //     hexadecimal representation of bytes[12],
+    //     hexadecimal representation of bytes[13],
+    //     hexadecimal representation of bytes[14],
+    //     hexadecimal representation of bytes[15]
+    // ».
+    return MUST(String::formatted(
+        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3],
+        bytes[4], bytes[5],
+        bytes[6], bytes[7],
+        bytes[8], bytes[9],
+        bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]));
 }
 
 XorShift128PlusRNG::XorShift128PlusRNG()
