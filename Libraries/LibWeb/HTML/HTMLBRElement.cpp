@@ -64,6 +64,9 @@ void HTMLBRElement::adjust_computed_style(CSS::ComputedProperties& style)
     // https://drafts.csswg.org/css-display-3/#unbox
     if (style.display().is_contents())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::None)));
+    else if (!style.display().is_none())
+        // AD-HOC: Prevent other display values from applying, so that we always create a BreakNode
+        style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::Inline)));
 }
 
 }
