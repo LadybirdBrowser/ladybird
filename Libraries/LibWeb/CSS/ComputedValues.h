@@ -172,6 +172,7 @@ public:
     static TextJustify text_justify() { return TextJustify::Auto; }
     static Positioning position() { return Positioning::Static; }
     static TextDecorationLine text_decoration_line() { return TextDecorationLine::None; }
+    static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
     static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
     static TextTransform text_transform() { return TextTransform::None; }
     static TextOverflow text_overflow() { return TextOverflow::Clip; }
@@ -538,6 +539,7 @@ public:
     TextUnderlinePosition text_underline_position() const { return m_inherited.text_underline_position; }
     Vector<TextDecorationLine> const& text_decoration_line() const { return m_noninherited.text_decoration_line; }
     TextDecorationThickness const& text_decoration_thickness() const { return m_noninherited.text_decoration_thickness; }
+    TextDecorationSkipInk text_decoration_skip_ink() const { return m_inherited.text_decoration_skip_ink; }
     TextDecorationStyle text_decoration_style() const { return m_noninherited.text_decoration_style; }
     Color text_decoration_color() const { return m_noninherited.text_decoration_color; }
     TextTransform text_transform() const { return m_inherited.text_transform; }
@@ -741,6 +743,7 @@ protected:
         TextJustify text_justify { InitialValues::text_justify() };
         TextTransform text_transform { InitialValues::text_transform() };
         TextWrapMode text_wrap_mode { InitialValues::text_wrap_mode() };
+        TextDecorationSkipInk text_decoration_skip_ink { InitialValues::text_decoration_skip_ink() };
         TextUnderlinePosition text_underline_position { InitialValues::text_underline_position() };
         Variant<Length, double> tab_size { InitialValues::tab_size() };
         TextIndentData text_indent { InitialValues::text_indent() };
@@ -966,6 +969,7 @@ public:
     void set_text_justify(TextJustify text_justify) { m_inherited.text_justify = text_justify; }
     void set_text_decoration_line(Vector<TextDecorationLine> value) { m_noninherited.text_decoration_line = move(value); }
     void set_text_decoration_thickness(TextDecorationThickness value) { m_noninherited.text_decoration_thickness = move(value); }
+    void set_text_decoration_skip_ink(TextDecorationSkipInk value) { m_inherited.text_decoration_skip_ink = value; }
     void set_text_decoration_style(TextDecorationStyle value) { m_noninherited.text_decoration_style = value; }
     void set_text_decoration_color(Color value) { m_noninherited.text_decoration_color = value; }
     void set_text_transform(TextTransform value) { m_inherited.text_transform = value; }

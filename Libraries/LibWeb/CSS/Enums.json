@@ -1017,6 +1017,11 @@
     "spelling-error",
     "grammar-error"
   ],
+  "text-decoration-skip-ink": [
+    "all",
+    "auto",
+    "none"
+  ],
   "text-decoration-style": [
     "dashed",
     "dotted",

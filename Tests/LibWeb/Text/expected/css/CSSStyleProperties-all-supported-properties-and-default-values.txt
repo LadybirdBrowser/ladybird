@@ -807,6 +807,8 @@ All supported properties and their default values exposed from CSSStylePropertie
 'text-decoration-color': 'rgb(0, 0, 0)'
 'textDecorationLine': 'none'
 'text-decoration-line': 'none'
+'textDecorationSkipInk': 'auto'
+'text-decoration-skip-ink': 'auto'
 'textDecorationStyle': 'solid'
 'text-decoration-style': 'solid'
 'textDecorationThickness': 'auto'

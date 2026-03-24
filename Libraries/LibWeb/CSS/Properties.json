@@ -4096,6 +4096,16 @@
       "text-decoration-line"
     ]
   },
+  "text-decoration-skip-ink": {
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "text-decoration-skip-ink"
+    ]
+  },
   "text-decoration-style": {
     "affects-layout": false,
     "animation-type": "discrete",
