@@ -8,20 +8,43 @@ div {
 }
 </style>
 <div id="vertical">line1<br>line2<br>line3<br>line4<br>line5<br>line6<br>line7<br>line8<br>line9<br>line10</div>
+<div id="hidden" style="overflow: hidden">line1<br>line2<br>line3<br>line4<br>line5<br>line6<br>line7<br>line8<br>line9<br>line10</div>
 <script src="include.js"></script>
 <script>
+function afterAutoScrollTick() {
+    return new Promise(resolve => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                setTimeout(resolve, 0);
+            });
+        });
+    });
+}
+
 asyncTest(async (done) => {
     document.body.offsetWidth; // force layout
 
     println(`before: ${vertical.scrollTop}`);
 
-    const rect = vertical.getBoundingClientRect();
+    let rect = vertical.getBoundingClientRect();
     internals.mouseDown(rect.x + 10, rect.y + 10);
     internals.mouseMove(rect.x + 10, rect.y + rect.height + 50);
 
-    await timeout(1000);
+    await afterAutoScrollTick();
 
     println(`after: ${vertical.scrollTop}`);
+
+    internals.mouseUp(rect.x + 10, rect.y + rect.height + 50);
+
+    println(`hidden before: ${hidden.scrollTop}`);
+
+    rect = hidden.getBoundingClientRect();
+    internals.mouseDown(rect.x + 10, rect.y + 10);
+    internals.mouseMove(rect.x + 10, rect.y + rect.height + 50);
+
+    await afterAutoScrollTick();
+
+    println(`hidden after: ${hidden.scrollTop}`);
 
     internals.mouseUp(rect.x + 10, rect.y + rect.height + 50);
     done();

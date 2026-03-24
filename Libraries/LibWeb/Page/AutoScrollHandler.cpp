@@ -131,7 +131,7 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
 {
     auto* paintable_box = paintable.containing_block();
     while (paintable_box) {
-        if (paintable_box->has_scrollable_overflow()) {
+        if (paintable_box->could_be_scrolled_by_wheel_event()) {
             if (auto* element = as_if<DOM::Element>(paintable_box->dom_node().ptr()))
                 return element;
         }
