@@ -96,19 +96,9 @@ GC::Ptr<HTMLElement> PopoverTargetAttributes::get_the_popover_target_element(GC:
 
     // 4. Let popoverElement be the result of running node's get the popovertarget-associated element.
     auto const* popover_invoker_element = as_if<PopoverTargetAttributes>(*node);
-    GC::Ptr<HTMLElement> popover_element = as<HTMLElement>(popover_invoker_element->m_popover_target_element.ptr());
-    if (!popover_element) {
-        auto target_id = as<HTMLElement>(*node).attribute("popovertarget"_fly_string);
-        if (target_id.has_value()) {
-            node->root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& candidate) {
-                if (candidate.attribute(HTML::AttributeNames::id) == target_id.value()) {
-                    popover_element = &candidate;
-                    return TraversalDecision::Break;
-                }
-                return TraversalDecision::Continue;
-            });
-        }
-    }
+    if (!popover_invoker_element)
+        return {};
+    GC::Ptr<HTMLElement> popover_element = as_if<HTMLElement>(as<HTMLElement>(*node).get_the_attribute_associated_element(AttributeNames::popovertarget, popover_invoker_element->m_popover_target_element).ptr());
 
     // 5. If popoverElement is null, then return null.
     if (!popover_element)

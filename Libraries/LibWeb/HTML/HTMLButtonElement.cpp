@@ -183,20 +183,7 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
     }
 
     // 4. Let target be the result of running element's get the commandfor-associated element.
-    //    AD-HOC: Target needs to be an HTML Element in the following steps.
-    GC::Ptr<HTMLElement> target = as_if<HTMLElement>(m_command_for_element.ptr());
-    if (!target) {
-        auto target_id = attribute(AttributeNames::commandfor);
-        if (target_id.has_value()) {
-            root().for_each_in_inclusive_subtree_of_type<HTMLElement>([&](auto& candidate) {
-                if (candidate.attribute(HTML::AttributeNames::id) == target_id.value()) {
-                    target = &candidate;
-                    return TraversalDecision::Break;
-                }
-                return TraversalDecision::Continue;
-            });
-        }
-    }
+    auto target = get_the_attribute_associated_element(AttributeNames::commandfor, m_command_for_element);
 
     // 5. If target is not null:
     if (target) {

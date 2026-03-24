@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 104 tests
 
-102 Pass
-2 Fail
+104 Pass
 Pass	invoking (with command property as show-modal) closed dialog opens as modal
 Pass	invoking (with command property as show-modal) closed dialog with preventDefault is noop
 Pass	invoking (with command property as show-modal) while changing command still opens as modal
@@ -100,9 +99,9 @@ Pass	invoking (as close) dialog as open popover=auto is noop
 Pass	invoking (as request-close) dialog as open popover=manual is noop
 Pass	invoking (as request-close) dialog as open popover=auto is noop
 Pass	invoking (as show-modal) dialog that is removed is noop
-Fail	invoking (as show-modal) dialog from a detached invoker
+Pass	invoking (as show-modal) dialog from a detached invoker
 Pass	invoking (as show-modal) detached dialog from a detached invoker
-Fail	invoking (as close) dialog that is removed is noop
+Pass	invoking (as close) dialog that is removed is noop
 Pass	invoking (as close) dialog from a detached invoker
 Pass	invoking (as close) detached dialog from a detached invoker
 Pass	invoking (as request-close) dialog that is removed is noop

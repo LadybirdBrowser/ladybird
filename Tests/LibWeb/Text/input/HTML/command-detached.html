@@ -1,0 +1,28 @@
+<!doctype html>
+<script src="../include.js"></script>
+<button id="button"></button>
+<div id="target"></div>
+<script>
+    test(() => {
+        const logEvent = e => println(`${e.command}: ${e.source.id} -> ${e.target.id}`);
+
+        target.addEventListener("command", logEvent);
+        const detachedTarget = document.createElement("div");
+        detachedTarget.id = "detachedTarget";
+        detachedTarget.addEventListener("command", logEvent);
+
+        const detachedButton = document.createElement("button");
+        detachedTarget.id = "detachedButton";
+
+        function testEvent(button, target) {
+            button.command = "--test";
+            button.commandForElement = target;
+            button.click();
+        }
+
+        testEvent(button, target);
+        testEvent(button, detachedTarget);
+        testEvent(detachedButton, target);
+        testEvent(detachedButton, detachedTarget);
+    });
+</script>
