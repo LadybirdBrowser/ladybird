@@ -111,6 +111,16 @@ ARIA roles map to `NSAccessibility` roles via `aria_role_to_ns_role()`. Landmark
 
 The `document` role maps to `@"AXWebArea"` (not a public `NSAccessibilityRole` constant, but used by all other engines) with role description `@“HTML content”`. Without `AXWebArea`, VoiceOver treats the entire page as a generic group and summarizes it — rather than navigating through web content.
 
+### Tree exclusion
+
+Per the [ARIA spec’s tree-exclusion rules](https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion), elements in the following cases are excluded from the accessibility tree during `build_accessibility_tree()`, along with all their descendants:
+
+- Elements with no layout node (`display:none`, HTML `hidden` attribute)
+- Elements with `visibility:hidden` or `visibility:collapse` (those have layout nodes but aren’t visually perceptible)
+- Elements with `aria-hidden=true`, including descendants (checked via `Element::is_aria_hidden()`, which walks up the ancestor chain)
+
+Elements with `role=none` or `role=presentation` are also excluded, but their children are promoted to the parent (per the spec: “their descendants and text content are generally included”). If such an element has global ARIA attributes (like `aria-label`), the presentational role is overridden and the element is not excluded.
+
 ### Ignored-element handling
 
 Elements with certain roles are “ignored” — transparent to VoiceOver. Their children are promoted to the nearest non-ignored ancestor. The `is_ignored_role()` static function centralizes this check:

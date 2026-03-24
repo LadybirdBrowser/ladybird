@@ -6,7 +6,5 @@ document
     paragraph
     generic
       text leaf name="Visible span"
-    generic
-      text leaf name="Invisible but takes space"
     button name="After hidden content"
       text leaf name="After hidden content"

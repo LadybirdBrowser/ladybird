@@ -2939,9 +2939,13 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
                     return IterationDecision::Continue;
                 });
             }
-        } else if (!element->layout_node() || element->is_aria_hidden()) {
-            // Elements without a layout node (display:none, hidden attribute)
-            // and aria-hidden elements have their descendants excluded too.
+        } else if (!element->layout_node() || element->is_aria_hidden()
+            || (element->computed_properties() && element->computed_properties()->visibility() != CSS::Visibility::Visible)) {
+            // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
+            // The following elements are not exposed via the accessibility API and user agents MUST NOT include them in the
+            // accessibility tree: Elements, including their descendent elements, that have host language semantics specifying
+            // that the element is not displayed, such as CSS display:none, visibility:hidden, or the HTML hidden attribute.
+            return;
         } else if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);

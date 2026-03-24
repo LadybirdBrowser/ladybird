@@ -3086,6 +3086,10 @@ bool Element::exclude_from_accessibility_tree() const
     if (!layout_node())
         return true;
 
+    // visibility:hidden
+    if (auto props = computed_properties(); props && props->visibility() != CSS::Visibility::Visible)
+        return true;
+
     // Elements with none or presentation as the first role in the role attribute. However, their exclusion is conditional. In addition, the element's descendants and text content are generally included. These exceptions and conditions are documented in the presentation (role) section.
     auto role = role_or_default();
     if (role == ARIA::Role::none || role == ARIA::Role::presentation) {
