@@ -4,6 +4,6 @@ document
       text leaf name="Submit"
     paragraph
       text leaf name="Click to submit your application."
-    textbox name="Username"
-    link name="Delete account"
+    textbox name="Username" description="Enter your username"
+    link name="Delete account" description="This action cannot be undone"
       text leaf name="Delete account"

@@ -3079,8 +3079,15 @@ bool Element::exclude_from_accessibility_tree() const
     if (role == ARIA::Role::none || role == ARIA::Role::presentation)
         return true;
 
-    // TODO: If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
+    // If not already excluded from the accessibility tree per the above rules, user agents SHOULD NOT include the following elements in the accessibility tree:
     //    Elements, including their descendants, that have aria-hidden set to true. In other words, aria-hidden="true" on a parent overrides aria-hidden="false" on descendants.
+    for (auto const* node = this; node; node = node->parent_element().ptr()) {
+        if (auto hidden = node->get_attribute(ARIA::AttributeNames::aria_hidden); hidden.has_value()) {
+            if (hidden.value() == "true"sv)
+                return true;
+            break;
+        }
+    }
     //    Any descendants of elements that have the characteristic "Children Presentational: True" unless the descendant is not allowed to be presentational because it meets one of the conditions for exception described in Presentational Roles Conflict Resolution. However, the text content of any excluded descendants is included.
     //    Elements with the following roles have the characteristic "Children Presentational: True":
     //      button

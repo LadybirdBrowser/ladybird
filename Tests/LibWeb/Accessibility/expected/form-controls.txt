@@ -34,8 +34,6 @@ document
       text leaf name="
         "
       combobox name="Country"
-        text leaf name="United States"
-        text leaf name="Canada"
       text leaf name="
         "
       textbox name="Comments"
@@ -45,7 +43,7 @@ document
         text leaf name="Register"
       text leaf name="
         "
-      button name="Reset"
+      button name="Reset" disabled
         text leaf name="Reset"
       text leaf name="
     "

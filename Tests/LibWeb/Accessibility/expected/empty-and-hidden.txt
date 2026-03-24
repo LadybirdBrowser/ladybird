@@ -2,9 +2,6 @@ document
   generic focused
     generic
       text leaf name="Visible content"
-    text leaf name="Hidden by CSS"
-    text leaf name="Hidden by ARIA"
-    text leaf name="Hidden by attribute"
     generic
     paragraph
     generic

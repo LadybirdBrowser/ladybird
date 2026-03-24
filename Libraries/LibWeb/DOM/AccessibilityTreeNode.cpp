@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/ARIA/AttributeNames.h>
 #include <LibWeb/ARIA/Roles.h>
 #include <LibWeb/DOM/AccessibilityTreeNode.h>
 #include <LibWeb/DOM/Document.h>
@@ -91,6 +92,10 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
         node_data.name = MUST(element.accessible_name(document));
         node_data.description = MUST(element.accessible_description(document));
+        if (node_data.description.is_empty()) {
+            if (auto desc = element.get_attribute(ARIA::AttributeNames::aria_description); desc.has_value())
+                node_data.description = desc.release_value();
+        }
         node_data.bounds = element.get_bounding_client_rect().to_type<int>();
 
         if (auto level = element.aria_level(); level.has_value()) {
@@ -107,6 +112,9 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
             else
                 node_data.live = "polite"_string;
         }
+
+        if (element.is_actually_disabled())
+            node_data.is_disabled = true;
 
         if (document.active_element() == &element)
             node_data.is_focused = true;

@@ -7,13 +7,12 @@ document
       text leaf name=" Link with image"
     button name="Simple button"
       text leaf name="Simple button"
-    button name="Disabled button"
+    button name="Disabled button" disabled
       text leaf name="Disabled button"
     button name="Input button"
     group
       button name="Expandable section"
         text leaf name="Expandable section"
-      text leaf name="Hidden content."
     button name="Custom button"
       text leaf name="Custom button"
     link name="Custom link"
