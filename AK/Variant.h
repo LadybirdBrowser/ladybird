@@ -191,7 +191,7 @@ struct InheritFromUniqueEntries;
 // as that has already been checked before.
 // This makes sure that the search is linear in time (like the 'merge' step of merge sort).
 template<size_t I, typename... Ts, size_t... Js, typename... Qs>
-struct InheritFromUniqueEntries<I, ParameterPack<Ts...>, IndexSequence<Js...>, Qs...>
+struct AK_COMPACT_EMPTY_BASES InheritFromUniqueEntries<I, ParameterPack<Ts...>, IndexSequence<Js...>, Qs...>
     : public BlankIfDuplicate<Ts, Conditional<Js <= I, ParameterPack<>, Qs>...>... {
 
     using BlankIfDuplicate<Ts, Conditional<Js <= I, ParameterPack<>, Qs>...>::BlankIfDuplicate...;
@@ -203,7 +203,7 @@ struct InheritFromPacks;
 // InheritFromPacks will attempt to 'merge' the pack 'Ps' with *itself*, but skip the duplicate entries
 // (via InheritFromUniqueEntries).
 template<size_t... Is, typename... Ps>
-struct InheritFromPacks<IndexSequence<Is...>, Ps...>
+struct AK_COMPACT_EMPTY_BASES InheritFromPacks<IndexSequence<Is...>, Ps...>
     : public InheritFromUniqueEntries<Is, Ps, IndexSequence<Is...>, Ps...>... {
 
     using InheritFromUniqueEntries<Is, Ps, IndexSequence<Is...>, Ps...>::InheritFromUniqueEntries...;
@@ -225,7 +225,7 @@ template<typename T>
 concept NotLvalueReference = !IsLvalueReference<T>;
 
 template<NotLvalueReference... Ts>
-struct Variant
+struct AK_COMPACT_EMPTY_BASES Variant
     : public Detail::MergeAndDeduplicatePacks<Detail::VariantConstructors<Ts, Variant<Ts...>>...> {
 public:
     using IndexType = Conditional<(sizeof...(Ts) < 255), u8, size_t>; // Note: size+1 reserved for internal value checks
