@@ -5,10 +5,22 @@ set -eo pipefail
 script_path=$(cd -P -- "$(dirname -- "$0")" && pwd -P)
 cd "${script_path}/../.." || exit 1
 
+is_ignored_shell_file() {
+    case "$1" in
+        Tests/LibWeb/Text/input/wpt-import/*)
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
 if [ "$#" -eq "0" ]; then
     files=()
     while IFS= read -r file; do
-        files+=("$file")
+        if ! is_ignored_shell_file "$file"; then
+            files+=("$file")
+        fi
     done <  <(
         git ls-files -- \
             '*.sh' \
@@ -21,7 +33,7 @@ else
            continue
         fi
 
-        if [[ "${file}" == *".sh" && "${file}" != "Base/root/generate_manpages.sh" ]]; then
+        if [[ "${file}" == *".sh" && "${file}" != "Base/root/generate_manpages.sh" ]] && ! is_ignored_shell_file "$file"; then
             files+=("${file}")
         fi
     done
