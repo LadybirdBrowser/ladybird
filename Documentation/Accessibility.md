@@ -172,17 +172,19 @@ When `AccessibilityTreeManager::update_tree()` detects that a node’s `name` ch
 
 ### Live DOM-mutation updates
 
-When the DOM changes, the accessibility tree live-updates. The existing `page_did_mutate_dom` callback in `PageClient` (used by DevTools for DOM inspector updates) also calls `schedule_accessibility_tree_update()`. That uses a 200ms debounce timer to batch rapid changes, then rebuilds the full tree and pushes it via `did_get_accessibility_tree`.
+After an accessibility action is performed (press, focus), `schedule_accessibility_tree_update()` is called with a 200ms debounce timer to rebuild the tree and push it via `did_get_accessibility_tree`. This handles cases where the action changes the page content.
 
 ### LadybirdWebView integration
 
 `LadybirdWebView` (`NSView` subclass) acts as the scroll-area container, with role `NSAccessibilityScrollAreaRole` and a single child: the document root `LadybirdAccessibilityElement`. It owns the `AccessibilityTreeManager` and element cache. Callbacks:
 
-- `on_load_finish` → `request_accessibility_tree()`
-- `on_accessibility_tree_received` → update manager, clear cache, post `NSAccessibilityLayoutChangedNotification`
-  and `@"AXLoadComplete"`
+- `on_load_finish` → `request_accessibility_tree()` (direct)
+- `on_load_start`, `on_url_change`, `on_title_change` → `scheduleAccessibilityTreeRequest` (debounced, 500ms). Multiple callbacks may fire in quick succession during navigation; `performSelector:afterDelay:` with `cancelPreviousPerformRequests` ensures only one tree request fires after they settle. This covers pages where `on_load_finish` does not fire.
+- `on_accessibility_tree_received` → update manager, clear cache, post `NSAccessibilityLayoutChangedNotification` and `@"AXLoadComplete"`
 - `on_accessibility_focus_changed` → update manager, post `NSAccessibilityFocusedUIElementChangedNotification`
 - `on_live_region_changed` → post `NSAccessibilityAnnouncementRequestedNotification`
+
+`accessibilityFocusedUIElement` returns the first non-ignored element in document order (DFS), ensuring VoiceOver starts reading from the top of the page rather than from wherever JavaScript may have set DOM focus.
 
 ## Browser-engine source code research
 
@@ -289,7 +291,7 @@ An added Accessibility test mode in `test-web` follows the same basic pattern as
 ↳ Implements `request_accessibility_tree` (builds and sends the full tree) and `perform_accessibility_action` (looks up a DOM node by `UniqueNodeID` and calls `HTMLElement::click()` or `run_focusing_steps()`). Also implements the `AccessibilityTree` page-info dump for `test-web`.
 
 `PageClient.cpp` / `PageClient.h`
-↳ Implements `page_did_change_active_element` (sends focus-change IPC). Adds `schedule_accessibility_tree_update()` with a 200ms debounce timer (called from the existing `page_did_mutate_dom` callback and after accessibility actions) to push live tree updates after DOM changes.
+↳ Implements `page_did_change_active_element` (sends focus-change IPC). Adds `schedule_accessibility_tree_update()` with a 200ms debounce timer, called after accessibility actions to push tree updates when the page changes.
 
 `WebContentServer.ipc`
 ↳ Added `request_accessibility_tree(page_id)` and `perform_accessibility_action(page_id, node_id, action)` endpoints.

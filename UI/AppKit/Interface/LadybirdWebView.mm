@@ -341,6 +341,7 @@ struct HideCursor {
         if (_status_label != nil) {
             [self.status_label setHidden:YES];
         }
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_load_finish = [weak_self](auto const& url) {
@@ -421,6 +422,7 @@ struct HideCursor {
             return;
         }
         [self.observer onURLChange:url];
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_title_change = [weak_self](auto const& title) {
@@ -429,6 +431,7 @@ struct HideCursor {
             return;
         }
         [self.observer onTitleChange:title];
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_favicon_change = [weak_self](auto const& bitmap) {
@@ -1464,6 +1467,24 @@ struct HideCursor {
     m_web_view_bridge->enqueue_input_event(move(pinch_event));
 }
 
+- (void)scheduleAccessibilityTreeRequest
+{
+    // Debounce: cancel any pending request and schedule a new one.
+    // Multiple navigation callbacks may fire in quick succession;
+    // we only need the tree from after the page has settled.
+    [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                             selector:@selector(requestAccessibilityTreeNow)
+                                               object:nil];
+    [self performSelector:@selector(requestAccessibilityTreeNow)
+               withObject:nil
+               afterDelay:0.5];
+}
+
+- (void)requestAccessibilityTreeNow
+{
+    m_web_view_bridge->request_accessibility_tree();
+}
+
 #pragma mark - Accessibility parameterized attributes
 
 - (NSArray*)accessibilityParameterizedAttributeNames
@@ -1581,27 +1602,28 @@ struct HideCursor {
     if (!root)
         return self;
 
-    // BFS to find the focused node, or the first non-generic element.
-    id first_meaningful = nil;
-    Vector<i64> queue;
-    queue.append(root->id);
-    while (!queue.is_empty()) {
-        auto id = queue.take_first();
+    // DFS to find the first non-ignored element in document order.
+    // This ensures VoiceOver starts reading from the top of the page
+    // rather than from wherever JavaScript set DOM focus.
+    Vector<i64> stack;
+    for (int i = static_cast<int>(root->child_ids.size()) - 1; i >= 0; --i)
+        stack.append(root->child_ids[i]);
+
+    while (!stack.is_empty()) {
+        auto id = stack.take_last();
         auto const* node = m_accessibility_manager->node(id);
         if (!node)
             continue;
-        if (node->is_focused && node->role.bytes_as_string_view() != "generic"sv)
+        auto role = node->role.bytes_as_string_view();
+        bool ignored = (role == "generic"sv && node->name.is_empty())
+            || (role == "paragraph"sv && node->name.is_empty());
+        if (!ignored && role != "document"sv)
             return [self accessibilityElementForNodeID:id];
-        if (!first_meaningful) {
-            auto role = node->role.bytes_as_string_view();
-            if (role != "generic"sv && role != "document"sv && role != "text leaf"sv)
-                first_meaningful = [self accessibilityElementForNodeID:id];
-        }
-        for (auto child_id : node->child_ids)
-            queue.append(child_id);
+        for (int i = static_cast<int>(node->child_ids.size()) - 1; i >= 0; --i)
+            stack.append(node->child_ids[i]);
     }
 
-    return first_meaningful ? first_meaningful : self;
+    return self;
 }
 
 - (id)accessibilityElementForNodeID:(int64_t)nodeID
