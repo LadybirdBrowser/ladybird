@@ -18,37 +18,37 @@
 
 namespace WebView {
 
-static constexpr auto new_tab_page_url_key = "newTabPageURL"sv;
+static constexpr auto NEW_TAB_PAGE_URL_KEY = "newTabPageURL"sv;
 
-static constexpr auto show_bookmarks_bar_key = "showBookmarksBar"sv;
-static constexpr auto default_show_bookmarks_bar = true;
+static constexpr auto SHOW_BOOKMARKS_BAR_KEY = "showBookmarksBar"sv;
+static constexpr auto DEFAULT_SHOW_BOOKMARKS_BAR = true;
 
-static constexpr auto default_zoom_level_factor_key = "defaultZoomLevelFactor"sv;
-static constexpr double initial_zoom_level_factor = 1.0;
+static constexpr auto DEFAULT_ZOOM_LEVEL_FACTOR_KEY = "defaultZoomLevelFactor"sv;
+static constexpr double INITIAL_ZOOM_LEVEL_FACTOR = 1.0;
 
-static constexpr auto languages_key = "languages"sv;
-static auto default_language = "en"_string;
+static constexpr auto LANGUAGES_KEY = "languages"sv;
+static auto DEFAULT_LANGUAGE = "en"_string;
 
-static constexpr auto search_engine_key = "searchEngine"sv;
-static constexpr auto search_engine_custom_key = "custom"sv;
-static constexpr auto search_engine_name_key = "name"sv;
-static constexpr auto search_engine_url_key = "url"sv;
+static constexpr auto SEARCH_ENGINE_KEY = "searchEngine"sv;
+static constexpr auto SEARCH_ENGINE_CUSTOM_KEY = "custom"sv;
+static constexpr auto SEARCH_ENGINE_NAME_KEY = "name"sv;
+static constexpr auto SEARCH_ENGINE_URL_KEY = "url"sv;
 
-static constexpr auto autocomplete_engine_key = "autocompleteEngine"sv;
-static constexpr auto autocomplete_engine_name_key = "name"sv;
+static constexpr auto AUTOCOMPLETE_ENGINE_KEY = "autocompleteEngine"sv;
+static constexpr auto AUTOCOMPLETE_ENGINE_NAME_KEY = "name"sv;
 
-static constexpr auto site_setting_enabled_globally_key = "enabledGlobally"sv;
-static constexpr auto site_setting_site_filters_key = "siteFilters"sv;
+static constexpr auto SITE_SETTING_ENABLED_GLOBALLY_KEY = "enabledGlobally"sv;
+static constexpr auto SITE_SETTING_SITE_FILTERS_KEY = "siteFilters"sv;
 
-static constexpr auto autoplay_key = "autoplay"sv;
+static constexpr auto AUTOPLAY_KEY = "autoplay"sv;
 
-static constexpr auto browsing_data_key = "browsingData"sv;
-static constexpr auto disk_cache_key = "diskCache"sv;
-static constexpr auto disk_cache_maximum_size_key = "maxSize"sv;
+static constexpr auto BROWSING_DATA_KEY = "browsingData"sv;
+static constexpr auto DISK_CACHE_KEY = "diskCache"sv;
+static constexpr auto DISK_CACHE_MAXIMUM_SIZE_KEY = "maxSize"sv;
 
-static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
+static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 
-static constexpr auto dns_settings_key = "dnsSettings"sv;
+static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
 Settings Settings::create(Badge<Application>)
 {
@@ -64,22 +64,22 @@ Settings Settings::create(Badge<Application>)
         return settings;
     }
 
-    if (auto new_tab_page_url = settings_json.value().get_string(new_tab_page_url_key); new_tab_page_url.has_value()) {
+    if (auto new_tab_page_url = settings_json.value().get_string(NEW_TAB_PAGE_URL_KEY); new_tab_page_url.has_value()) {
         if (auto parsed_new_tab_page_url = URL::Parser::basic_parse(*new_tab_page_url); parsed_new_tab_page_url.has_value())
             settings.m_new_tab_page_url = parsed_new_tab_page_url.release_value();
     }
 
-    if (auto show_bookmarks_bar = settings_json.value().get_bool(show_bookmarks_bar_key); show_bookmarks_bar.has_value())
+    if (auto show_bookmarks_bar = settings_json.value().get_bool(SHOW_BOOKMARKS_BAR_KEY); show_bookmarks_bar.has_value())
         settings.m_show_bookmarks_bar = *show_bookmarks_bar;
 
-    if (auto factor = settings_json.value().get_double_with_precision_loss(default_zoom_level_factor_key); factor.has_value())
+    if (auto factor = settings_json.value().get_double_with_precision_loss(DEFAULT_ZOOM_LEVEL_FACTOR_KEY); factor.has_value())
         settings.m_default_zoom_level_factor = factor.release_value();
 
-    if (auto languages = settings_json.value().get(languages_key); languages.has_value())
+    if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
 
-    if (auto search_engine = settings_json.value().get_object(search_engine_key); search_engine.has_value()) {
-        if (auto custom_engines = search_engine->get_array(search_engine_custom_key); custom_engines.has_value()) {
+    if (auto search_engine = settings_json.value().get_object(SEARCH_ENGINE_KEY); search_engine.has_value()) {
+        if (auto custom_engines = search_engine->get_array(SEARCH_ENGINE_CUSTOM_KEY); custom_engines.has_value()) {
             custom_engines->for_each([&](JsonValue const& engine) {
                 auto custom_engine = parse_custom_search_engine(engine);
                 if (!custom_engine.has_value() || settings.find_search_engine_by_name(custom_engine->name).has_value())
@@ -89,13 +89,13 @@ Settings Settings::create(Badge<Application>)
             });
         }
 
-        if (auto search_engine_name = search_engine->get_string(search_engine_name_key); search_engine_name.has_value())
+        if (auto search_engine_name = search_engine->get_string(SEARCH_ENGINE_NAME_KEY); search_engine_name.has_value())
             settings.m_search_engine = settings.find_search_engine_by_name(*search_engine_name);
     }
 
     if (settings.m_search_engine.has_value()) {
-        if (auto autocomplete_engine = settings_json.value().get_object(autocomplete_engine_key); autocomplete_engine.has_value()) {
-            if (auto autocomplete_engine_name = autocomplete_engine->get_string(autocomplete_engine_name_key); autocomplete_engine_name.has_value())
+        if (auto autocomplete_engine = settings_json.value().get_object(AUTOCOMPLETE_ENGINE_KEY); autocomplete_engine.has_value()) {
+            if (auto autocomplete_engine_name = autocomplete_engine->get_string(AUTOCOMPLETE_ENGINE_NAME_KEY); autocomplete_engine_name.has_value())
                 settings.m_autocomplete_engine = find_autocomplete_engine_by_name(*autocomplete_engine_name);
         }
     }
@@ -105,10 +105,10 @@ Settings Settings::create(Badge<Application>)
         if (!saved_settings.has_value())
             return;
 
-        if (auto enabled_globally = saved_settings->get_bool(site_setting_enabled_globally_key); enabled_globally.has_value())
+        if (auto enabled_globally = saved_settings->get_bool(SITE_SETTING_ENABLED_GLOBALLY_KEY); enabled_globally.has_value())
             site_setting.enabled_globally = *enabled_globally;
 
-        if (auto site_filters = saved_settings->get_array(site_setting_site_filters_key); site_filters.has_value()) {
+        if (auto site_filters = saved_settings->get_array(SITE_SETTING_SITE_FILTERS_KEY); site_filters.has_value()) {
             site_setting.site_filters.clear();
 
             site_filters->for_each([&](auto const& site_filter) {
@@ -118,15 +118,15 @@ Settings Settings::create(Badge<Application>)
         }
     };
 
-    load_site_setting(settings.m_autoplay, autoplay_key);
+    load_site_setting(settings.m_autoplay, AUTOPLAY_KEY);
 
-    if (auto browsing_data_settings = settings_json.value().get(browsing_data_key); browsing_data_settings.has_value())
+    if (auto browsing_data_settings = settings_json.value().get(BROWSING_DATA_KEY); browsing_data_settings.has_value())
         settings.m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
 
-    if (auto global_privacy_control = settings_json.value().get_bool(global_privacy_control_key); global_privacy_control.has_value())
+    if (auto global_privacy_control = settings_json.value().get_bool(GLOBAL_PRIVACY_CONTROL_KEY); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
 
-    if (auto dns_settings = settings_json.value().get(dns_settings_key); dns_settings.has_value())
+    if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
     return settings;
@@ -135,18 +135,18 @@ Settings Settings::create(Badge<Application>)
 Settings::Settings(ByteString settings_path)
     : m_settings_path(move(settings_path))
     , m_new_tab_page_url(URL::about_newtab())
-    , m_show_bookmarks_bar(default_show_bookmarks_bar)
-    , m_default_zoom_level_factor(initial_zoom_level_factor)
-    , m_languages({ default_language })
+    , m_show_bookmarks_bar(DEFAULT_SHOW_BOOKMARKS_BAR)
+    , m_default_zoom_level_factor(INITIAL_ZOOM_LEVEL_FACTOR)
+    , m_languages({ DEFAULT_LANGUAGE })
 {
 }
 
 JsonValue Settings::serialize_json() const
 {
     JsonObject settings;
-    settings.set(new_tab_page_url_key, m_new_tab_page_url.serialize());
-    settings.set(show_bookmarks_bar_key, m_show_bookmarks_bar);
-    settings.set(default_zoom_level_factor_key, m_default_zoom_level_factor);
+    settings.set(NEW_TAB_PAGE_URL_KEY, m_new_tab_page_url.serialize());
+    settings.set(SHOW_BOOKMARKS_BAR_KEY, m_show_bookmarks_bar);
+    settings.set(DEFAULT_ZOOM_LEVEL_FACTOR_KEY, m_default_zoom_level_factor);
 
     JsonArray languages;
     languages.ensure_capacity(m_languages.size());
@@ -154,33 +154,33 @@ JsonValue Settings::serialize_json() const
     for (auto const& language : m_languages)
         languages.must_append(language);
 
-    settings.set(languages_key, move(languages));
+    settings.set(LANGUAGES_KEY, move(languages));
 
     JsonArray custom_search_engines;
     custom_search_engines.ensure_capacity(m_custom_search_engines.size());
 
     for (auto const& engine : m_custom_search_engines) {
         JsonObject search_engine;
-        search_engine.set(search_engine_name_key, engine.name);
-        search_engine.set(search_engine_url_key, engine.query_url);
+        search_engine.set(SEARCH_ENGINE_NAME_KEY, engine.name);
+        search_engine.set(SEARCH_ENGINE_URL_KEY, engine.query_url);
 
         custom_search_engines.must_append(move(search_engine));
     }
 
     JsonObject search_engine;
     if (!custom_search_engines.is_empty())
-        search_engine.set(search_engine_custom_key, move(custom_search_engines));
+        search_engine.set(SEARCH_ENGINE_CUSTOM_KEY, move(custom_search_engines));
     if (m_search_engine.has_value())
-        search_engine.set(search_engine_name_key, m_search_engine->name);
+        search_engine.set(SEARCH_ENGINE_NAME_KEY, m_search_engine->name);
 
     if (!search_engine.is_empty())
-        settings.set(search_engine_key, move(search_engine));
+        settings.set(SEARCH_ENGINE_KEY, move(search_engine));
 
     if (m_autocomplete_engine.has_value()) {
         JsonObject autocomplete_engine;
-        autocomplete_engine.set(autocomplete_engine_name_key, m_autocomplete_engine->name);
+        autocomplete_engine.set(AUTOCOMPLETE_ENGINE_NAME_KEY, m_autocomplete_engine->name);
 
-        settings.set(autocomplete_engine_key, move(autocomplete_engine));
+        settings.set(AUTOCOMPLETE_ENGINE_KEY, move(autocomplete_engine));
     }
 
     auto save_site_setting = [&](SiteSetting const& site_setting, StringView key) {
@@ -197,16 +197,16 @@ JsonValue Settings::serialize_json() const
         settings.set(key, move(setting));
     };
 
-    save_site_setting(m_autoplay, autoplay_key);
+    save_site_setting(m_autoplay, AUTOPLAY_KEY);
 
     JsonObject disk_cache_settings;
-    disk_cache_settings.set(disk_cache_maximum_size_key, m_browsing_data_settings.disk_cache_settings.maximum_size);
+    disk_cache_settings.set(DISK_CACHE_MAXIMUM_SIZE_KEY, m_browsing_data_settings.disk_cache_settings.maximum_size);
 
     JsonObject browsing_data;
-    browsing_data.set(disk_cache_key, move(disk_cache_settings));
-    settings.set(browsing_data_key, move(browsing_data));
+    browsing_data.set(DISK_CACHE_KEY, move(disk_cache_settings));
+    settings.set(BROWSING_DATA_KEY, move(browsing_data));
 
-    settings.set(global_privacy_control_key, m_global_privacy_control == GlobalPrivacyControl::Yes);
+    settings.set(GLOBAL_PRIVACY_CONTROL_KEY, m_global_privacy_control == GlobalPrivacyControl::Yes);
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
@@ -230,7 +230,7 @@ JsonValue Settings::serialize_json() const
             dns_settings.set("dnssec"sv, dns.validate_dnssec_locally);
             dns_settings.set("forciblyEnabled"sv, m_dns_override_by_command_line);
         });
-    settings.set(dns_settings_key, move(dns_settings));
+    settings.set(DNS_SETTINGS_KEY, move(dns_settings));
 
     return settings;
 }
@@ -265,7 +265,7 @@ void Settings::set_default_zoom_level_factor(double zoom_level)
 Vector<String> Settings::parse_json_languages(JsonValue const& languages)
 {
     if (!languages.is_array())
-        return { default_language };
+        return { DEFAULT_LANGUAGE };
 
     Vector<String> parsed_languages;
     parsed_languages.ensure_capacity(languages.as_array().size());
@@ -276,7 +276,7 @@ Vector<String> Settings::parse_json_languages(JsonValue const& languages)
     });
 
     if (parsed_languages.is_empty())
-        return { default_language };
+        return { DEFAULT_LANGUAGE };
 
     return parsed_languages;
 }
@@ -308,8 +308,8 @@ Optional<SearchEngine> Settings::parse_custom_search_engine(JsonValue const& sea
     if (!search_engine.is_object())
         return {};
 
-    auto name = search_engine.as_object().get_string(search_engine_name_key);
-    auto url = search_engine.as_object().get_string(search_engine_url_key);
+    auto name = search_engine.as_object().get_string(SEARCH_ENGINE_NAME_KEY);
+    auto url = search_engine.as_object().get_string(SEARCH_ENGINE_URL_KEY);
     if (!name.has_value() || !url.has_value())
         return {};
 
@@ -419,8 +419,8 @@ BrowsingDataSettings Settings::parse_browsing_data_settings(JsonValue const& set
 
     BrowsingDataSettings browsing_data_settings;
 
-    if (auto disk_cache_settings = settings.as_object().get_object(disk_cache_key); disk_cache_settings.has_value()) {
-        if (auto maximum_size = disk_cache_settings->get_integer<u64>(disk_cache_maximum_size_key); maximum_size.has_value())
+    if (auto disk_cache_settings = settings.as_object().get_object(DISK_CACHE_KEY); disk_cache_settings.has_value()) {
+        if (auto maximum_size = disk_cache_settings->get_integer<u64>(DISK_CACHE_MAXIMUM_SIZE_KEY); maximum_size.has_value())
             browsing_data_settings.disk_cache_settings.maximum_size = *maximum_size;
     }
 
