@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration-skip-ink with invalid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property">
+<meta name="assert" content="text-decoration-skip-ink supports only the grammar 'auto | none | all'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_invalid_value("text-decoration-skip-ink", "edges");
+test_invalid_value("text-decoration-skip-ink", "auto none");
+test_invalid_value("text-decoration-skip-ink", "auto all");
+test_invalid_value("text-decoration-skip-ink", "none all");
+test_invalid_value("text-decoration-skip-ink", "10px");
+test_invalid_value("text-decoration-skip-ink", "-5em");
+test_invalid_value("text-decoration-skip-ink", "otto");
+test_invalid_value("text-decoration-skip-ink", "20%");
+test_invalid_value("text-decoration-skip-ink", "-13%");
+test_invalid_value("text-decoration-skip-ink", "0");
+test_invalid_value("text-decoration-skip-ink", "non");
+test_invalid_value("text-decoration-skip-ink", "al");
+test_invalid_value("text-decoration-skip-ink", "invalid");
+</script>

@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Fail
+Fail	e.style['text-decoration-skip-ink'] = "auto" should set the property value
+Fail	e.style['text-decoration-skip-ink'] = "none" should set the property value
+Fail	e.style['text-decoration-skip-ink'] = "all" should set the property value

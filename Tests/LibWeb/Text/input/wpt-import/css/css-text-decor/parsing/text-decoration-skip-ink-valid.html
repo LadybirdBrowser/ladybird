@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: Parsing text-decoration-skip-ink with valid values</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property">
+<meta name="assert" content="text-decoration-skip-ink supports the full grammar 'auto | none | all'.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+<script>
+test_valid_value("text-decoration-skip-ink", "auto");
+test_valid_value("text-decoration-skip-ink", "none");
+test_valid_value("text-decoration-skip-ink", "all");
+</script>

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Text Decoration Test: getComputedStyle().textDecorationSkipInk</title>
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property">
+<meta name="assert" content="text-decoration-skip-ink computed value is as specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+</head>
+<body>
+<div id="target"></div>
+<script>
+test_computed_value("text-decoration-skip-ink", "auto");
+test_computed_value("text-decoration-skip-ink", "none");
+test_computed_value("text-decoration-skip-ink", "all");
+</script>
+</body>
+</html>
