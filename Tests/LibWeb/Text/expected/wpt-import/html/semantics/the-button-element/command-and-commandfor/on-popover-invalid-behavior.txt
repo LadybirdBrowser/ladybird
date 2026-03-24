@@ -1,0 +1,21 @@
+Harness status: OK
+
+Found 16 tests
+
+16 Pass
+Pass	invoking (as null) on popover does nothing
+Pass	invoking (as null) on open popover does nothing
+Pass	invoking (as ) on popover does nothing
+Pass	invoking (as ) on open popover does nothing
+Pass	invoking (as foo-bar) on popover does nothing
+Pass	invoking (as foo-bar) on open popover does nothing
+Pass	invoking (as showpopover) on popover does nothing
+Pass	invoking (as showpopover) on open popover does nothing
+Pass	invoking (as show-modal) on popover does nothing
+Pass	invoking (as show-modal) on open popover does nothing
+Pass	invoking (as show-picker) on popover does nothing
+Pass	invoking (as show-picker) on open popover does nothing
+Pass	invoking (as open) on popover does nothing
+Pass	invoking (as open) on open popover does nothing
+Pass	invoking (as close) on popover does nothing
+Pass	invoking (as close) on open popover does nothing

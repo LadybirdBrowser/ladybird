@@ -154,6 +154,35 @@ bool HTMLButtonElement::has_activation_behavior() const
     return true;
 }
 
+// https://html.spec.whatwg.org/multipage/form-elements.html#determine-if-command-is-valid
+static bool determine_if_a_command_is_valid_for_a_target(String command, GC::Ptr<Web::DOM::Element> target)
+{
+    // 1. If command is in the Unknown state, then return false.
+    if (command.is_empty())
+        return false;
+
+    // 2. If command is in the Custom state, then return true.
+    if (command.starts_with_bytes("--"sv))
+        return true;
+
+    // 3. If target is not an HTML element, then return false.
+    auto target_element = as_if<HTMLElement>(target.ptr());
+    if (!target_element)
+        return false;
+
+    // 4. If command is in any of the following states:
+    //    - Toggle Popover
+    //    - Show Popover
+    //    - Hide Popover
+    //    then return true.
+    if (command == "toggle-popover"sv || command == "show-popover"sv || command == "hide-popover"sv)
+        return true;
+
+    // 5. If this standard does not define is valid command steps for target's local name, then return false.
+    // 6. Otherwise, return the result of running target's corresponding is valid command steps given command.
+    return target_element->is_valid_command(command);
+}
+
 // https://html.spec.whatwg.org/multipage/form-elements.html#the-button-element:activation-behaviour
 void HTMLButtonElement::activation_behavior(DOM::Event const& event)
 {
@@ -190,27 +219,11 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         // 1. Let command be element's command attribute.
         auto command = this->command();
 
-        // 2. If command is in the Unknown state, then return.
-        if (command.is_empty()) {
+        // 2. If the result of determining if a command is valid for a target given command and target is false, then return.
+        if (!determine_if_a_command_is_valid_for_a_target(command, target))
             return;
-        }
 
-        // 3. Let isPopover be true if target's popover attribute is not in the No Popover state; otherwise false.
-        auto is_popover = target->popover().has_value();
-
-        // 4. If isPopover is false and command is not in the Custom state:
-        auto command_is_in_custom_state = command.starts_with_bytes("--"sv);
-        if (!is_popover && !command_is_in_custom_state) {
-            // 1. Assert: target's namespace is the HTML namespace.
-            VERIFY(target->namespace_uri() == Namespace::HTML);
-
-            // 2. If this standard does not define is valid command steps for target's local name, then return.
-            // 3. Otherwise, if the result of running target's corresponding is valid command steps given command is false, then return.
-            if (!target->is_valid_command(command))
-                return;
-        }
-
-        // 5. Let continue be the result of firing an event named command at target, using CommandEvent, with its
+        // 3. Let continue be the result of firing an event named command at target, using CommandEvent, with its
         //    command attribute initialized to command, its source attribute initialized to element, and its cancelable
         //    attribute initialized to true.
         // NOTE: DOM standard issue #1328 tracks how to better standardize associated event data in a way which makes
@@ -225,55 +238,57 @@ void HTMLButtonElement::activation_behavior(DOM::Event const& event)
         event->set_is_trusted(true);
         auto continue_ = target->dispatch_event(event);
 
-        // 6. If continue is false, then return.
+        // 4. If continue is false, then return.
         if (!continue_)
             return;
 
-        // 7. If target is not connected, then return.
+        // 5. If target is not connected, then return.
         if (!target->is_connected())
             return;
 
-        // 8. If command is in the Custom state, then return.
-        if (command_is_in_custom_state)
+        // 6. If command is in the Custom state, then return.
+        if (command.starts_with_bytes("--"sv))
             return;
 
-        // 9. If command is in the Hide Popover state:
+        auto target_element = as<HTMLElement>(target.ptr());
+
+        // 7. If command is in the Hide Popover state:
         if (command == "hide-popover") {
             // 1. If the result of running check popover validity given target, true, false, and null is true,
             //    then run the hide popover algorithm given target, true, true, false, and element.
-            if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
-                MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, this));
+            if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target_element->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, this));
             }
         }
 
-        // 10. Otherwise, if command is in the Toggle Popover state:
+        // 8. Otherwise, if command is in the Toggle Popover state:
         else if (command == "toggle-popover") {
             // 1. If the result of running check popover validity given target, false, false, and null is true,
             //    then run the show popover algorithm given target, false, and this.
-            if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
-                MUST(target->show_popover(ThrowExceptions::No, this));
+            if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target_element->show_popover(ThrowExceptions::No, this));
             }
 
             // 2. Otherwise, if the result of running check popover validity given target, true, false, and null is true,
             //    then run the hide popover algorithm given target, true, true, false and element.
-            else if (MUST(target->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
-                MUST(target->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, this));
+            else if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::Yes, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target_element->hide_popover(FocusPreviousElement::Yes, FireEvents::Yes, ThrowExceptions::No, IgnoreDomState::No, this));
             }
         }
 
-        // 11. Otherwise, if command is in the Show Popover state:
+        // 9. Otherwise, if command is in the Show Popover state:
         else if (command == "show-popover") {
             // 1. If the result of running check popover validity given target, false, false, and null is true,
             //    then run the show popover algorithm given target, false, and this.
-            if (MUST(target->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
-                MUST(target->show_popover(ThrowExceptions::No, this));
+            if (MUST(target_element->check_popover_validity(ExpectedToBeShowing::No, ThrowExceptions::No, nullptr, IgnoreDomState::No))) {
+                MUST(target_element->show_popover(ThrowExceptions::No, this));
             }
         }
 
-        // 12. Otherwise, if this standard defines command steps for target's local name,
+        // 10. Otherwise, if this standard defines command steps for target's local name,
         //     then run the corresponding command steps given target, element, and command.
         else {
-            target->command_steps(*this, command);
+            target_element->command_steps(*this, command);
         }
     }
 

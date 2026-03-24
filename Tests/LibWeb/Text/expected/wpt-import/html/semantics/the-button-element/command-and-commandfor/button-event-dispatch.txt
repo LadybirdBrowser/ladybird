@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 39 tests
 
-38 Pass
-1 Fail
+39 Pass
 Pass	event dispatches on click with addEventListener
 Pass	event dispatches on click with oncommand property
 Pass	setting custom command property to --foo (must include dash) sets event command
@@ -42,4 +41,4 @@ Pass	event does NOT dispatch if button is form associated, with explicit type=in
 Pass	event dispatches if button is form associated, with explicit type=button
 Pass	event does NOT dispatch if button is form associated, with explicit type=submit
 Pass	event does NOT dispatch if button is form associated, with explicit type=reset
-Fail	event dispatches if invokee is non-HTML Element
+Pass	event dispatches if invokee is non-HTML Element

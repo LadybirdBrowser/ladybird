@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="author" title="Keith Cirkel" href="mailto:wpt@keithcirkel.co.uk" />
+<meta name="timeout" content="long" />
+<link rel="help" href="https://open-ui.org/components/invokers.explainer/" />
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/invoker-utils.js"></script>
+
+<div id="invokee" popover>
+  <button id="containedinvoker" commandfor="invokee"></button>
+</div>
+<button id="invokerbutton" commandfor="invokee"></button>
+
+<script>
+  function resetState() {
+    invokerbutton.removeAttribute("command");
+    containedinvoker.removeAttribute("command");
+    try {
+      invokee.hidePopover();
+    } catch {}
+    invokee.setAttribute("popover", "");
+  }
+
+  // invalid actions on show-popover
+  [null, "", "foo-bar", "showpopover", "show-modal", "show-picker", "open", "close"].forEach((command) => {
+    test(function (t) {
+      t.add_cleanup(resetState);
+      let command_event_fired = false;
+      invokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.command = command;
+      assert_false(invokee.matches(":popover-open"));
+      invokerbutton.click();
+      assert_false(invokee.matches(":popover-open"));
+      assert_false(command_event_fired, "command event fired");
+    }, `invoking (as ${command}) on popover does nothing`);
+
+    test(function (t) {
+      t.add_cleanup(resetState);
+      let command_event_fired = false;
+      invokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.command = command;
+      invokee.showPopover();
+      assert_true(invokee.matches(":popover-open"));
+      invokerbutton.click();
+      assert_true(invokee.matches(":popover-open"));
+      assert_false(command_event_fired, "command event fired");
+    }, `invoking (as ${command}) on open popover does nothing`);
+  });
+</script>
