@@ -8,6 +8,7 @@
  */
 
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/TextLayout.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/Range.h>
@@ -495,6 +496,68 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
     context.display_list_recorder().fill_rect(cursor_device_rect, caret_color);
 }
 
+struct DecorationSegment {
+    int start_x;
+    int end_x;
+};
+
+// https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
+static Vector<DecorationSegment> compute_skip_ink_segments(
+    PaintableFragment const& fragment,
+    DisplayListRecordingContext const& context,
+    int span_start_x,
+    int span_end_x,
+    int line_y,
+    int line_thickness,
+    float font_size)
+{
+    auto glyph_run = fragment.glyph_run();
+    if (!glyph_run)
+        return { { span_start_x, span_end_x } };
+
+    // The text blob is drawn at baseline_start on the canvas. Compute that same origin so we can convert between
+    // device-pixel coordinates and blob-local coordinates.
+    auto scale = context.device_pixels_per_css_pixel();
+    auto fragment_absolute_rect = fragment.absolute_rect();
+    float blob_origin_x = fragment_absolute_rect.x().to_float() * static_cast<float>(scale);
+    float blob_origin_y = (fragment_absolute_rect.y().to_float() + fragment.baseline().to_float()) * static_cast<float>(scale);
+
+    // Convert the underline's y-band from device pixels to blob-local coordinates.
+    float half_thickness = line_thickness / 2.f;
+    float y_top = line_y - half_thickness - blob_origin_y;
+    float y_bottom = line_y + half_thickness - blob_origin_y;
+
+    auto intervals = glyph_run->get_glyph_intercepts(scale, y_top, y_bottom);
+    if (intervals.is_empty())
+        return { { span_start_x, span_end_x } };
+
+    // Use the full fragment's X range for gap computation so intercepts aren't cut off at span boundaries.
+    auto full_fragment_rect = context.rounded_device_rect(fragment_absolute_rect);
+    int fragment_start_x = full_fragment_rect.left().value();
+
+    // Convert intercepts from blob-local x to device pixels, and dilate to create visible gaps.
+    float dilation = max(font_size / 20.f, 2.f) * static_cast<float>(scale);
+
+    Vector<DecorationSegment> segments;
+    int current_x = fragment_start_x;
+    for (size_t i = 0; i + 1 < intervals.size(); i += 2) {
+        int gap_start = static_cast<int>(floorf(intervals[i] + blob_origin_x - dilation));
+        int gap_end = static_cast<int>(ceilf(intervals[i + 1] + blob_origin_x + dilation));
+
+        int seg_start = max(current_x, span_start_x);
+        int seg_end = min(gap_start, span_end_x);
+        if (seg_start < seg_end)
+            segments.append({ seg_start, seg_end });
+        current_x = max(gap_end, current_x);
+    }
+
+    int seg_start = max(current_x, span_start_x);
+    if (seg_start < span_end_x)
+        segments.append({ seg_start, span_end_x });
+
+    return segments;
+}
+
 void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable const& paintable, PaintableFragment::FragmentSpan const& span)
 {
     auto const& fragment = span.fragment;
@@ -519,13 +582,13 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
     auto device_line_thickness = context.rounded_device_pixels(fragment.text_decoration_thickness());
 
     // Compute the decoration box for this span.
-    CSSPixelRect fragment_box;
-    if (span.start_code_unit == 0 && span.end_code_unit == fragment.length_in_code_units()) {
-        fragment_box = fragment.absolute_rect();
-    } else {
-        fragment_box = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
+    auto fragment_box = fragment.absolute_rect();
+    if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
+        auto span_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
             fragment.start_offset() + span.start_code_unit,
             fragment.start_offset() + span.end_code_unit);
+        fragment_box.set_x(span_rect.x());
+        fragment_box.set_width(span_rect.width());
     }
     auto text_underline_offset = paintable.computed_values().text_underline_offset();
     auto text_underline_position = paintable.computed_values().text_underline_position();
@@ -616,9 +679,28 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             VERIFY_NOT_REACHED();
         }
 
+        // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
+        // FIXME: For text-decoration-skip-ink: auto, skip CJK ideographs and symbols from the intercept computation,
+        //        since their complex strokes would create too many gaps in the decoration line.
+        auto skip_ink = paintable.computed_values().text_decoration_skip_ink();
+        bool should_skip_ink = skip_ink != CSS::TextDecorationSkipInk::None
+            && first_is_one_of(line, CSS::TextDecorationLine::Underline, CSS::TextDecorationLine::Overline);
+
+        auto draw_line_for_segment = [&](DecorationSegment segment, auto y, int thickness, Gfx::LineStyle style = Gfx::LineStyle::Solid) {
+            recorder.draw_line({ segment.start_x, y }, { segment.end_x, y }, line_color, thickness, style);
+        };
+
+        auto segments_for_line = [&](DevicePixelPoint start, DevicePixelPoint end) -> Vector<DecorationSegment> {
+            if (!should_skip_ink)
+                return { { start.x().value(), end.x().value() } };
+            return compute_skip_ink_segments(fragment, context, start.x().value(), end.x().value(),
+                line_start_point.y().value(), device_line_thickness.value(), font.pixel_size());
+        };
+
         switch (line_style) {
         case CSS::TextDecorationStyle::Solid:
-            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Solid);
+            for (auto segment : segments_for_line(line_start_point, line_end_point))
+                draw_line_for_segment(segment, line_start_point.y().value(), device_line_thickness.value());
             break;
         case CSS::TextDecorationStyle::Double:
             switch (line) {
@@ -636,14 +718,18 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
                 VERIFY_NOT_REACHED();
             }
 
-            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value());
-            recorder.draw_line(line_start_point.translated(0, device_line_thickness + 1).to_type<int>(), line_end_point.translated(0, device_line_thickness + 1).to_type<int>(), line_color, device_line_thickness.value());
+            for (auto segment : segments_for_line(line_start_point, line_end_point)) {
+                draw_line_for_segment(segment, line_start_point.y().value(), device_line_thickness.value());
+                draw_line_for_segment(segment, line_start_point.y().value() + device_line_thickness.value() + 1, device_line_thickness.value());
+            }
             break;
         case CSS::TextDecorationStyle::Dashed:
-            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dashed);
+            for (auto segment : segments_for_line(line_start_point, line_end_point))
+                draw_line_for_segment(segment, line_start_point.y().value(), device_line_thickness.value(), Gfx::LineStyle::Dashed);
             break;
         case CSS::TextDecorationStyle::Dotted:
-            recorder.draw_line(line_start_point.to_type<int>(), line_end_point.to_type<int>(), line_color, device_line_thickness.value(), Gfx::LineStyle::Dotted);
+            for (auto segment : segments_for_line(line_start_point, line_end_point))
+                draw_line_for_segment(segment, line_start_point.y().value(), device_line_thickness.value(), Gfx::LineStyle::Dotted);
             break;
         case CSS::TextDecorationStyle::Wavy:
             auto amplitude = device_line_thickness.value() * 3;
@@ -663,16 +749,20 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
             default:
                 VERIFY_NOT_REACHED();
             }
-            recorder.stroke_path({
-                .cap_style = Gfx::Path::CapStyle::Round,
-                .join_style = Gfx::Path::JoinStyle::Round,
-                .miter_limit = 0,
-                .dash_array = {},
-                .dash_offset = 0,
-                .path = build_triangle_wave_path(line_start_point.to_type<int>(), line_end_point.to_type<int>(), amplitude),
-                .paint_style_or_color = line_color,
-                .thickness = static_cast<float>(device_line_thickness.value()),
-            });
+            for (auto segment : segments_for_line(line_start_point, line_end_point)) {
+                Gfx::IntPoint from { segment.start_x, line_start_point.y().value() };
+                Gfx::IntPoint to { segment.end_x, line_start_point.y().value() };
+                recorder.stroke_path({
+                    .cap_style = Gfx::Path::CapStyle::Round,
+                    .join_style = Gfx::Path::JoinStyle::Round,
+                    .miter_limit = 0,
+                    .dash_array = {},
+                    .dash_offset = 0,
+                    .path = build_triangle_wave_path(from, to, amplitude),
+                    .paint_style_or_color = line_color,
+                    .thickness = static_cast<float>(device_line_thickness.value()),
+                });
+            }
             break;
         }
     }

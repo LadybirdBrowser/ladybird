@@ -1,0 +1,25 @@
+AccumulatedVisualContext Tree:
+  [1] scroll_frame_id=1 (PaintableWithLines(BlockContainer<PRE>#out))
+
+DisplayList:
+SaveLayer@0
+  FillRect@1 rect=[69,-17 47x100] color=rgba(61, 174, 233, 0.5)
+  Save@1
+    AddClipRect@1 rect=[8,-17 61x100]
+    DrawGlyphRun@1 rect=[8,8 169x50] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@1
+  DrawLine@1 from=[8,70] to=[45,70] color=rgb(0, 0, 0) thickness=10
+  DrawLine@1 from=[57,70] to=[67,70] color=rgb(0, 0, 0) thickness=10
+  Save@1
+    AddClipRect@1 rect=[69,-17 47x100]
+    DrawGlyphRun@1 rect=[8,8 169x50] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@1
+  DrawLine@1 from=[109,70] to=[116,70] color=rgb(0, 0, 0) thickness=10
+  Save@1
+    AddClipRect@1 rect=[116,-17 111x100]
+    DrawGlyphRun@1 rect=[8,8 169x50] translation=[8,62.984375] color=rgb(0, 0, 0)
+  Restore@1
+  DrawLine@1 from=[116,70] to=[153,70] color=rgb(0, 0, 0) thickness=10
+  DrawLine@1 from=[165,70] to=[227,70] color=rgb(0, 0, 0) thickness=10
+Restore@0
+

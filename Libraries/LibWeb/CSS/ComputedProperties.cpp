@@ -1321,6 +1321,12 @@ Vector<TextDecorationLine> ComputedProperties::text_decoration_line() const
     VERIFY_NOT_REACHED();
 }
 
+TextDecorationSkipInk ComputedProperties::text_decoration_skip_ink() const
+{
+    auto const& value = property(PropertyID::TextDecorationSkipInk);
+    return keyword_to_text_decoration_skip_ink(value.to_keyword()).release_value();
+}
+
 TextDecorationStyle ComputedProperties::text_decoration_style() const
 {
     auto const& value = property(PropertyID::TextDecorationStyle);

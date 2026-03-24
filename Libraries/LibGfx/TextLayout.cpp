@@ -94,6 +94,24 @@ SkTextBlob* GlyphRun::cached_skia_text_blob() const
     return m_cached_text_blob->blob.get();
 }
 
+Vector<float> GlyphRun::get_glyph_intercepts(float scale, float y_top, float y_bottom) const
+{
+    ensure_text_blob(scale);
+    auto* blob = cached_skia_text_blob();
+    if (!blob)
+        return {};
+
+    Array<SkScalar, 2> bounds { y_top, y_bottom };
+    int count = blob->getIntercepts(bounds.data(), nullptr);
+    if (count < 2)
+        return {};
+
+    Vector<float> intervals;
+    intervals.resize(count);
+    blob->getIntercepts(bounds.data(), intervals.data());
+    return intervals;
+}
+
 Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing)
 {
     if (string.is_empty())

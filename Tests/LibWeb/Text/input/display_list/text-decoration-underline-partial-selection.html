@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+span {
+    text-decoration: underline;
+    font-size: 100px;
+    line-height: 0.5;
+}
+</style>
+<span id="target">xgx</span>
+<script>
+test(() => {
+    const text = document.getElementById('target').firstChild;
+    const range = document.createRange();
+    range.setStart(text, 1);
+    range.setEnd(text, 2);
+    window.getSelection().addRange(range);
+
+    println(internals.dumpDisplayList());
+});
+</script>

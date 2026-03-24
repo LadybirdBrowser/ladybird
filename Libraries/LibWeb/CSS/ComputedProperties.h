@@ -129,6 +129,7 @@ public:
     LineStyle line_style(PropertyID) const;
     OutlineStyle outline_style() const;
     Vector<TextDecorationLine> text_decoration_line() const;
+    TextDecorationSkipInk text_decoration_skip_ink() const;
     TextDecorationStyle text_decoration_style() const;
     TextDecorationThickness text_decoration_thickness() const;
     TextTransform text_transform() const;
