@@ -3,9 +3,10 @@
 <script>
     promiseTest(async () => {
         const iframe = document.createElement('iframe');
+        const iframeLoaded = new Promise(resolve => { iframe.onload = resolve; });
         document.body.appendChild(iframe);
 
-        await new Promise(resolve => iframe.onload = resolve);
+        await iframeLoaded;
 
         const iframeCloseWatcher = iframe.contentWindow.CloseWatcher;
         const iframeDOMException = iframe.contentWindow.DOMException;
