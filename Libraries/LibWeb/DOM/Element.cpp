@@ -3044,7 +3044,8 @@ bool Element::is_referenced() const
     if (id().has_value()) {
         root().for_each_in_subtree_of_type<HTML::HTMLElement>([&](auto& element) {
             auto aria_data = MUST(Web::ARIA::AriaData::build_data(element));
-            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())) {
+            if (aria_data->aria_labelled_by_or_default().contains_slow(id().value())
+                || aria_data->aria_described_by_or_default().contains_slow(id().value())) {
                 is_referenced = true;
                 return TraversalDecision::Break;
             }

@@ -1,8 +1,8 @@
 document
   generic focused
-    button name="Submit"
+    button name="Submit" description="Click to submit your application."
       text leaf name="Submit"
-    paragraph
+    paragraph name="Click to submit your application."
       text leaf name="Click to submit your application."
     textbox name="Username" description="Enter your username"
     link name="Delete account" description="This action cannot be undone"
