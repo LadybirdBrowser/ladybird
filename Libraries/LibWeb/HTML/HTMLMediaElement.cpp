@@ -118,12 +118,6 @@ void HTMLMediaElement::finalize()
 {
     Base::finalize();
 
-    if (m_selected_video_track) {
-        VERIFY(m_selected_video_track_sink);
-        m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
-        m_selected_video_track_sink = nullptr;
-    }
-
     document().page().unregister_media_element({}, unique_id());
 }
 
