@@ -2076,14 +2076,10 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
         SelectorEngine::MatchContext context;
         if (SelectorEngine::matches(selector, element, {}, context, {}))
             return true;
-        if (element.has_pseudo_element(CSS::PseudoElement::Before)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
-                return true;
-        }
-        if (element.has_pseudo_element(CSS::PseudoElement::After)) {
-            if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
-                return true;
-        }
+        if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
+            return true;
+        if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
+            return true;
         return false;
     };
 

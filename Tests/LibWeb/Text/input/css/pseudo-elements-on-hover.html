@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<style>
+    .outer {
+        height: 100px;
+    }
+    .update {
+        display: inline-block;
+    }
+    .update::before {
+        content: "Hi";
+    }
+    .outer:hover .update::before {
+        content: "Long text";
+    }
+    .create {
+        display: inline-block;
+    }
+    .outer:hover .create::before {
+        content: "Flag";
+    }
+</style>
+<script src="../include.js"></script>
+<div class="outer"><div class="update"></div><div class="create"></div></div>
+<script>
+    test(() => {
+        const update = document.querySelector('.update');
+        const create = document.querySelector('.create');
+        println(`update: ${update.clientWidth} create: ${create.clientWidth}`);
+
+        internals.mouseMove(50, 50);
+        println(`update: ${update.clientWidth} create: ${create.clientWidth}`);
+
+        internals.mouseMove(200, 200);
+        println(`update: ${update.clientWidth} create: ${create.clientWidth}`);
+    });
+</script>
