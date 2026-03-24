@@ -13,7 +13,6 @@
 #include <LibIPC/TransportBootstrapMach.h>
 
 #include <mach/mach.h>
-#include <sys/sysctl.h>
 
 namespace IPC {
 
@@ -84,26 +83,6 @@ void TransportBootstrapMachServer::send_transport_ports_to_child(Core::MachPort 
     VERIFY(ret == KERN_SUCCESS);
 }
 
-static bool process_is_child_of_us(pid_t pid)
-{
-    int mib[4] = {};
-    struct kinfo_proc info = {};
-    size_t size = sizeof(info);
-
-    mib[0] = CTL_KERN;
-    mib[1] = KERN_PROC;
-    mib[2] = KERN_PROC_PID;
-    mib[3] = pid;
-
-    if (sysctl(mib, sizeof(mib) / sizeof(*mib), &info, &size, nullptr, 0) < 0)
-        return false;
-
-    if (size == 0)
-        return false;
-
-    return info.kp_eproc.e_ppid == Core::System::getpid();
-}
-
 ErrorOr<TransportBootstrapMachPorts> TransportBootstrapMachServer::create_on_demand_local_transport(Core::MachPort reply_port)
 {
     auto local_receive_right = TRY(Core::MachPort::create_with_right(Core::MachPort::PortRight::Receive));
@@ -123,52 +102,26 @@ ErrorOr<TransportBootstrapMachPorts> TransportBootstrapMachServer::create_on_dem
     };
 }
 
-void TransportBootstrapMachServer::register_pending_transport(pid_t pid, TransportBootstrapMachPorts ports)
+void TransportBootstrapMachServer::register_child_transport(pid_t pid, TransportBootstrapMachPorts ports)
 {
-    Optional<PendingBootstrapState> pending;
-    {
-        Threading::MutexLocker locker(m_pending_bootstrap_mutex);
-        pending = m_pending_bootstrap.take(pid);
-        if (!pending.has_value()) {
-            m_pending_bootstrap.set(pid, WaitingForPorts { move(ports) });
-            return;
-        }
-    }
-
-    pending.release_value().visit(
-        [&](WaitingForPorts&) {
-            VERIFY_NOT_REACHED();
-        },
-        [&](WaitingForReplyPort& waiting) {
-            send_transport_ports_to_child(move(waiting.reply_port), move(ports));
-        });
+    VERIFY(!m_child_transports.contains(pid));
+    m_child_transports.set(pid, move(ports));
 }
 
-ErrorOr<TransportBootstrapMachServer::RegisterReplyPortResult> TransportBootstrapMachServer::register_reply_port(pid_t pid, Core::MachPort reply_port)
+ErrorOr<TransportBootstrapMachServer::BootstrapRequestResult> TransportBootstrapMachServer::handle_bootstrap_request(pid_t pid, Core::MachPort reply_port)
 {
-    Optional<PendingBootstrapState> pending;
+    Optional<TransportBootstrapMachPorts> child_transport;
     {
-        Threading::MutexLocker locker(m_pending_bootstrap_mutex);
-        pending = m_pending_bootstrap.take(pid);
-        if (!pending.has_value()) {
-            if (process_is_child_of_us(pid)) {
-                m_pending_bootstrap.set(pid, WaitingForReplyPort { move(reply_port) });
-                return WaitingForChildTransport {};
-            }
-        }
+        Threading::MutexLocker locker(m_child_registration_mutex);
+        child_transport = m_child_transports.take(pid);
     }
 
-    if (!pending.has_value())
-        return OnDemandTransport { .ports = TRY(create_on_demand_local_transport(move(reply_port))) };
+    if (child_transport.has_value()) {
+        send_transport_ports_to_child(move(reply_port), child_transport.release_value());
+        return ChildTransportHandled {};
+    }
 
-    return pending.release_value().visit(
-        [&](WaitingForPorts& waiting) -> ErrorOr<RegisterReplyPortResult> {
-            send_transport_ports_to_child(move(reply_port), move(waiting.ports));
-            return WaitingForChildTransport {};
-        },
-        [&](WaitingForReplyPort&) -> ErrorOr<RegisterReplyPortResult> {
-            VERIFY_NOT_REACHED();
-        });
+    return OnDemandTransport { .ports = TRY(create_on_demand_local_transport(move(reply_port))) };
 }
 
 }

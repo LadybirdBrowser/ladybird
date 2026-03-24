@@ -30,12 +30,12 @@ public:
 
     bool is_initialized();
 
-    struct ChildMachPortRegistration {
+    struct BootstrapRequest {
         pid_t pid { -1 };
-        Core::MachPort child_port;
+        Core::MachPort task_port;
         Core::MachPort reply_port;
     };
-    Function<void(ChildMachPortRegistration)> on_receive_child_mach_port;
+    Function<void(BootstrapRequest)> on_bootstrap_request;
 
     ByteString const& server_port_name() const { return m_server_port_name; }
 

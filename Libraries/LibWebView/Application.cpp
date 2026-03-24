@@ -106,16 +106,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     m_mach_port_server = make<MachPortServer>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
     set_mach_server_name(m_mach_port_server->server_port_name());
 
-    m_mach_port_server->on_receive_child_mach_port = [this](MachPortServer::ChildMachPortRegistration registration) {
-        set_process_mach_port(registration.pid, move(registration.child_port));
-        auto registration_result = m_transport_bootstrap_server.register_reply_port(registration.pid, move(registration.reply_port));
-        if (registration_result.is_error()) {
-            dbgln("Failed to bootstrap Mach transport for pid {}: {}", registration.pid, registration_result.error());
-            return;
-        }
-
-        registration_result.release_value().visit(
-            [](IPC::TransportBootstrapMachServer::WaitingForChildTransport) {
+    m_mach_port_server->on_bootstrap_request = [this](MachPortServer::BootstrapRequest request) {
+        set_process_mach_port(request.pid, move(request.task_port));
+        auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
+        result.visit(
+            [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
             },
             [this](IPC::TransportBootstrapMachServer::OnDemandTransport& transport) {
                 if (!m_on_browser_process_transport)

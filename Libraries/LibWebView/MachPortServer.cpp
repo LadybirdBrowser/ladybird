@@ -74,14 +74,14 @@ void MachPortServer::thread_loop()
             VERIFY(task_port_message.body.msgh_descriptor_count == 1);
             VERIFY(task_port_message.port_descriptor.type == MACH_MSG_PORT_DESCRIPTOR);
             auto pid = static_cast<pid_t>(task_port_message.trailer.msgh_audit.val[5]);
-            auto child_port = Core::MachPort::adopt_right(task_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
+            auto task_port = Core::MachPort::adopt_right(task_port_message.port_descriptor.name, Core::MachPort::PortRight::Send);
 
             // Extract reply port from the message header (kernel swaps local/remote on receive)
             auto reply_port = Core::MachPort::adopt_right(message.header.msgh_remote_port, Core::MachPort::PortRight::SendOnce);
 
-            dbgln_if(MACH_PORT_DEBUG, "Received child port {:x} from pid {} (reply port {:x})", child_port.port(), pid, reply_port.port());
-            if (on_receive_child_mach_port)
-                on_receive_child_mach_port({ pid, move(child_port), move(reply_port) });
+            dbgln_if(MACH_PORT_DEBUG, "Received bootstrap request from pid {} (task port {:x}, reply port {:x})", pid, task_port.port(), reply_port.port());
+            VERIFY(on_bootstrap_request);
+            on_bootstrap_request({ pid, move(task_port), move(reply_port) });
             continue;
         }
 

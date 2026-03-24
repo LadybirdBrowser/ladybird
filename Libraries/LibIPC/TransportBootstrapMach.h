@@ -34,30 +34,27 @@ class TransportBootstrapMachServer {
 public:
     TransportBootstrapMachServer() = default;
 
-    struct WaitingForChildTransport {
+    struct ChildTransportHandled {
     };
     struct OnDemandTransport {
         TransportBootstrapMachPorts ports;
     };
-    using RegisterReplyPortResult = Variant<WaitingForChildTransport, OnDemandTransport>;
+    using BootstrapRequestResult = Variant<ChildTransportHandled, OnDemandTransport>;
 
-    void register_pending_transport(pid_t, TransportBootstrapMachPorts);
-    ErrorOr<RegisterReplyPortResult> register_reply_port(pid_t, Core::MachPort reply_port);
+    // Hold this lock across process spawn and child transport registration so a
+    // child bootstrap request cannot observe an unregistered pid.
+    Threading::Mutex& child_registration_lock() { return m_child_registration_mutex; }
+
+    // Must be called while holding child_registration_lock().
+    void register_child_transport(pid_t, TransportBootstrapMachPorts);
+    ErrorOr<BootstrapRequestResult> handle_bootstrap_request(pid_t, Core::MachPort reply_port);
 
 private:
-    struct WaitingForPorts {
-        TransportBootstrapMachPorts ports;
-    };
-    struct WaitingForReplyPort {
-        Core::MachPort reply_port;
-    };
-    using PendingBootstrapState = Variant<WaitingForPorts, WaitingForReplyPort>;
-
     static void send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
     static ErrorOr<TransportBootstrapMachPorts> create_on_demand_local_transport(Core::MachPort reply_port);
 
-    Threading::Mutex m_pending_bootstrap_mutex;
-    HashMap<pid_t, PendingBootstrapState> m_pending_bootstrap;
+    Threading::Mutex m_child_registration_mutex;
+    HashMap<pid_t, TransportBootstrapMachPorts> m_child_transports;
 };
 
 }
