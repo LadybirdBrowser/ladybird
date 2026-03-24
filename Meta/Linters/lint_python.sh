@@ -7,6 +7,16 @@ cd "${script_path}/../.." || exit 1
 
 overwrite=0
 
+is_ignored_python_file() {
+    case "$1" in
+        Tests/LibWeb/Text/input/wpt-import/*)
+            return 0
+            ;;
+    esac
+
+    return 1
+}
+
 if [ "$#" -gt "0" ]; then
     if  [ "--overwrite-inplace" = "$1" ] ; then
         overwrite=1
@@ -17,14 +27,16 @@ fi
 if [ "$#" -eq "0" ]; then
     files=()
     while IFS= read -r file; do
-        files+=("$file")
+        if ! is_ignored_python_file "$file"; then
+            files+=("$file")
+        fi
     done <  <(
         git ls-files '*.py'
     )
 else
     files=()
     for file in "$@"; do
-        if [[ "${file}" == *".py" ]]; then
+        if [[ "${file}" == *".py" ]] && ! is_ignored_python_file "$file"; then
             files+=("${file}")
         fi
     done

@@ -21,4 +21,5 @@ exclude = [
     "**/__pycache__",
     "**/.*",
     "**/lit.cfg.py",
+    "Tests/LibWeb/Text/input/wpt-import",
 ]
