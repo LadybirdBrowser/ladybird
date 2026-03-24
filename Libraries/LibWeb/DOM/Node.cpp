@@ -2939,9 +2939,9 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
                     return IterationDecision::Continue;
                 });
             }
-        } else if (element->exclude_from_accessibility_tree()) {
-            // Excluded elements (aria-hidden, display:none, role=none)
-            // do not have their descendants included either.
+        } else if (!element->layout_node() || element->is_aria_hidden()) {
+            // Elements without a layout node (display:none, hidden attribute)
+            // and aria-hidden elements have their descendants excluded too.
         } else if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);

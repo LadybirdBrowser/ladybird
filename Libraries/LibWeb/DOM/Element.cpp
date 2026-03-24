@@ -3065,6 +3065,18 @@ bool Element::has_referenced_and_hidden_ancestor() const
     return false;
 }
 
+bool Element::is_aria_hidden() const
+{
+    for (auto const* node = this; node; node = node->parent_element().ptr()) {
+        if (auto hidden = node->get_attribute(ARIA::AttributeNames::aria_hidden); hidden.has_value()) {
+            if (hidden.value() == "true"sv)
+                return true;
+            break;
+        }
+    }
+    return false;
+}
+
 // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
 bool Element::exclude_from_accessibility_tree() const
 {

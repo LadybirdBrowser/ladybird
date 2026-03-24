@@ -392,6 +392,7 @@ public:
 #undef __ENUMERATE_ARIA_ATTRIBUTE
 
     virtual bool exclude_from_accessibility_tree() const override;
+    bool is_aria_hidden() const;
 
     virtual bool include_in_accessibility_tree() const override;
 

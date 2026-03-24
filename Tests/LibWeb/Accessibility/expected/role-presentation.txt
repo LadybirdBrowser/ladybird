@@ -1,0 +1,15 @@
+document
+  generic focused
+    heading name="Visible heading" level=1
+      text leaf name="Visible heading"
+    paragraph
+      text leaf name="Visible paragraph."
+    link name="Visible link"
+      text leaf name="Visible link"
+    button name="Visible button"
+      text leaf name="Visible button"
+    list
+      listitem
+        text leaf name="Visible item"
+    generic
+      text leaf name="After presentational elements"
