@@ -27,4 +27,7 @@ WEBVIEW_API ByteString mach_server_name_for_process(StringView process_name, pid
 
 WEBVIEW_API ErrorOr<void> handle_attached_debugger();
 
+ErrorOr<JsonObject> read_json_file(ByteString const& path);
+ErrorOr<void> write_json_file(ByteString const& path, JsonValue const& value);
+
 }
