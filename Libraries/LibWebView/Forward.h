@@ -25,10 +25,6 @@ class ViewImplementation;
 class WebContentClient;
 class WebUI;
 
-#if defined(AK_OS_MACOS)
-class MachPortServer;
-#endif
-
 struct Attribute;
 struct AutocompleteEngine;
 struct BrowserOptions;

@@ -27,9 +27,9 @@
 #include <LibWebView/WebContentClient.h>
 
 #if defined(AK_OS_MACOS)
+#    include <LibIPC/MachBootstrapListener.h>
 #    include <LibIPC/Transport.h>
 #    include <LibIPC/TransportBootstrapMach.h>
-#    include <LibWebView/MachPortServer.h>
 #endif
 
 namespace WebView {
@@ -103,10 +103,10 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 #endif
 
 #if defined(AK_OS_MACOS)
-    m_mach_port_server = make<MachPortServer>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
+    m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
     set_mach_server_name(m_mach_port_server->server_port_name());
 
-    m_mach_port_server->on_bootstrap_request = [this](MachPortServer::BootstrapRequest request) {
+    m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
         set_process_mach_port(request.pid, move(request.task_port));
         auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
         result.visit(

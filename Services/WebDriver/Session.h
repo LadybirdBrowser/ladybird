@@ -19,8 +19,8 @@
 #if !defined(AK_OS_MACOS)
 #    include <LibCore/LocalServer.h>
 #else
+#    include <LibIPC/MachBootstrapListener.h>
 #    include <LibIPC/TransportBootstrapMach.h>
-#    include <LibWebView/MachPortServer.h>
 #endif
 #include <LibCore/Process.h>
 #include <LibCore/Promise.h>
@@ -115,7 +115,7 @@ private:
     NonnullRefPtr<Core::WeakEventLoopReference> m_event_loop;
 
 #if defined(AK_OS_MACOS)
-    OwnPtr<WebView::MachPortServer> m_web_content_mach_port_server;
+    OwnPtr<IPC::MachBootstrapListener> m_web_content_mach_port_server;
     IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
 #else
     RefPtr<Core::LocalServer> m_web_content_server;

@@ -294,7 +294,7 @@ private:
     FileDownloader m_file_downloader;
 
 #if defined(AK_OS_MACOS)
-    OwnPtr<MachPortServer> m_mach_port_server;
+    OwnPtr<IPC::MachBootstrapListener> m_mach_port_server;
     IPC::TransportBootstrapMachServer m_transport_bootstrap_server;
     Function<void(NonnullOwnPtr<IPC::Transport>)> m_on_browser_process_transport;
 #endif

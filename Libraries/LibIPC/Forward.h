@@ -22,6 +22,7 @@ class Stub;
 class TransportHandle;
 
 #if defined(AK_OS_MACOS)
+class MachBootstrapListener;
 class TransportMachPort;
 using Transport = TransportMachPort;
 #elif !defined(AK_OS_WINDOWS)

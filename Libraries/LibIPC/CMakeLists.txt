@@ -10,6 +10,7 @@ if (APPLE AND NOT IOS)
     list(APPEND SOURCES
         AttachmentMachPort.cpp
         File.cpp
+        MachBootstrapListener.cpp
         Message.cpp
         TransportBootstrapMach.cpp
         TransportMachPort.cpp)

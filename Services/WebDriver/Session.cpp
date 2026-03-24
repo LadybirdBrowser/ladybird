@@ -271,7 +271,7 @@ ErrorOr<void> Session::create_server(NonnullRefPtr<ServerPromise> promise)
     dbgln("Listening for WebDriver connection on {}", m_web_content_endpoint);
 
 #if defined(AK_OS_MACOS)
-    m_web_content_mach_port_server = make<WebView::MachPortServer>(m_web_content_endpoint);
+    m_web_content_mach_port_server = make<IPC::MachBootstrapListener>(m_web_content_endpoint);
     if (!m_web_content_mach_port_server->is_initialized())
         return Error::from_string_literal("Failed to initialize Mach port server for WebDriver");
 

@@ -7,23 +7,24 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/Function.h>
 #include <AK/Platform.h>
 #include <AK/String.h>
 #include <LibCore/MachPort.h>
 #include <LibThreading/Forward.h>
-#include <LibWebView/Forward.h>
 
 #if !defined(AK_OS_MACH)
-#    error "This file is only for Mach kernel-based OS's"
+#    error "MachBootstrapListener is only available on Mach kernel-based OS's"
 #endif
 
-namespace WebView {
+namespace IPC {
 
-class WEBVIEW_API MachPortServer {
+class MachBootstrapListener {
+    AK_MAKE_NONCOPYABLE(MachBootstrapListener);
 
 public:
-    explicit MachPortServer(ByteString server_port_name);
-    ~MachPortServer();
+    explicit MachBootstrapListener(ByteString server_port_name);
+    ~MachBootstrapListener();
 
     void start();
     void stop();

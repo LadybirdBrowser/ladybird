@@ -16,7 +16,7 @@
 
 #include <mach/mach.h>
 
-namespace Core::Platform {
+namespace IPC {
 
 struct MessageBodyWithSelfTaskPort {
     mach_msg_body_t body;
