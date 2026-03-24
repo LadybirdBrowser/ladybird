@@ -1,0 +1,20 @@
+document
+  generic focused
+    table name="Spans table"
+      rowgroup
+        row name="Wide header                  Normal header"
+          columnheader name="Wide header"
+            text leaf name="Wide header"
+          columnheader name="Normal header"
+            text leaf name="Normal header"
+      rowgroup
+        row name="A1                  A2                  Tall cell"
+          cell name="A1"
+            text leaf name="A1"
+          cell name="A2"
+            text leaf name="A2"
+          cell name="Tall cell"
+            text leaf name="Tall cell"
+        row name="Wide cell"
+          cell name="Wide cell"
+            text leaf name="Wide cell"

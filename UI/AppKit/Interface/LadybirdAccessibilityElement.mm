@@ -675,16 +675,15 @@ static NSString* nsStringFromAK(AK::String const& string)
     }
 
     if ([attribute isEqualToString:@"AXColumnIndexRange"])
-        return [NSValue valueWithRange:NSMakeRange(col_index, 1)];
+        return [NSValue valueWithRange:NSMakeRange(col_index, MAX(1, data->column_span))];
 
     if ([attribute isEqualToString:@"AXRowIndexRange"]) {
-        // Find the row index by walking up to the table
         auto const* row_data = _manager->node(data->parent_id);
         if (!row_data)
-            return [NSValue valueWithRange:NSMakeRange(0, 1)];
+            return [NSValue valueWithRange:NSMakeRange(0, MAX(1, data->row_span))];
         LadybirdAccessibilityElement* rowElement = [_webView accessibilityElementForNodeID:row_data->id];
         int row_index = [[rowElement rowIndex] intValue];
-        return [NSValue valueWithRange:NSMakeRange(row_index, 1)];
+        return [NSValue valueWithRange:NSMakeRange(row_index, MAX(1, data->row_span))];
     }
 
     return nil;
@@ -1002,8 +1001,50 @@ static NSString* nsStringFromAK(AK::String const& string)
         return result;
     }
 
-    if ([attribute isEqualToString:@"AXTextMarkerForPosition"])
+    if ([attribute isEqualToString:@"AXTextMarkerForPosition"]) {
+        if (![parameter isKindOfClass:[NSValue class]])
+            return nil;
+        NSPoint screenPoint = [parameter pointValue];
+        NSRect viewRect = [_webView accessibilityViewRectForScreenPoint:screenPoint];
+        auto point = Gfx::IntPoint {
+            static_cast<int>(viewRect.origin.x),
+            static_cast<int>(viewRect.origin.y)
+        };
+
+        auto const* hit = _manager->hit_test(point);
+        if (!hit)
+            return nil;
+
+        // Walk up past ignored elements
+        while (hit && is_ignored_role(hit->role.bytes_as_string_view(), hit->name)) {
+            if (hit->parent_id == -1)
+                return nil;
+            hit = _manager->node(hit->parent_id);
+        }
+
+        if (hit && hit->role.bytes_as_string_view() == "text leaf"sv)
+            return CFBridgingRelease(createTextMarker(hit->id, 0));
+
+        // If we hit a non-text element, find its first text leaf descendant
+        if (hit) {
+            auto leaves = _manager->text_leaves_in_order();
+            for (auto leaf_id : leaves) {
+                auto const* leaf = _manager->node(leaf_id);
+                if (!leaf)
+                    continue;
+                // Check if this leaf is a descendant of hit
+                auto const* n = leaf;
+                while (n) {
+                    if (n->id == hit->id)
+                        return CFBridgingRelease(createTextMarker(leaf_id, 0));
+                    if (n->parent_id == -1)
+                        break;
+                    n = _manager->node(n->parent_id);
+                }
+            }
+        }
         return nil;
+    }
 
     return nil;
 }

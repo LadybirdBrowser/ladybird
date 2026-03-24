@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
@@ -130,6 +131,11 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
         if (element.is_actually_disabled())
             node_data.is_disabled = true;
+
+        if (auto const* cell = as_if<HTML::HTMLTableCellElement>(element)) {
+            node_data.column_span = static_cast<i32>(cell->col_span());
+            node_data.row_span = static_cast<i32>(cell->row_span());
+        }
 
         if (document.active_element() == &element)
             node_data.is_focused = true;

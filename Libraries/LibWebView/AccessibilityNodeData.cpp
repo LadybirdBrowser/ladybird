@@ -23,6 +23,8 @@ ErrorOr<void> IPC::encode(Encoder& encoder, WebView::AccessibilityNodeData const
     TRY(encoder.encode(node.is_disabled));
     TRY(encoder.encode(node.heading_level));
     TRY(encoder.encode(node.live));
+    TRY(encoder.encode(node.column_span));
+    TRY(encoder.encode(node.row_span));
     return {};
 }
 
@@ -41,6 +43,8 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
     auto is_disabled = TRY(decoder.decode<bool>());
     auto heading_level = TRY(decoder.decode<i32>());
     auto live = TRY(decoder.decode<String>());
+    auto column_span = TRY(decoder.decode<i32>());
+    auto row_span = TRY(decoder.decode<i32>());
 
     return WebView::AccessibilityNodeData {
         id,
@@ -55,5 +59,7 @@ ErrorOr<WebView::AccessibilityNodeData> IPC::decode(Decoder& decoder)
         is_disabled,
         heading_level,
         move(live),
+        column_span,
+        row_span,
     };
 }
