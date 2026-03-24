@@ -50,7 +50,7 @@ void SVGStopElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties>
 Gfx::Color SVGStopElement::stop_color()
 {
     if (auto computed_properties = this->computed_properties())
-        return computed_properties->color_or_fallback(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_element({ *this }), CSS::InitialValues::stop_color());
+        return computed_properties->color(CSS::PropertyID::StopColor, CSS::ColorResolutionContext::for_element({ *this }));
     return CSS::InitialValues::stop_color();
 }
 

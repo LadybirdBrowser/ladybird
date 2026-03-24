@@ -302,12 +302,9 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
     };
 }
 
-Color ComputedProperties::color_or_fallback(PropertyID id, ColorResolutionContext color_resolution_context, Color fallback) const
+Color ComputedProperties::color(PropertyID id, ColorResolutionContext color_resolution_context) const
 {
-    auto const& value = property(id);
-    if (!value.has_color())
-        return fallback;
-    return value.to_color(color_resolution_context).value();
+    return property(id).to_color(color_resolution_context).value();
 }
 
 Position ComputedProperties::position_value(PropertyID id) const

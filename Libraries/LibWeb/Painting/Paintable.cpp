@@ -295,11 +295,11 @@ Paintable::SelectionStyle Paintable::selection_style() const
         auto context = CSS::ColorResolutionContext::for_layout_node_with_style(*element_layout_node);
 
         SelectionStyle style;
-        style.background_color = computed_selection_style->color_or_fallback(CSS::PropertyID::BackgroundColor, context, Color::Transparent);
+        style.background_color = computed_selection_style->color(CSS::PropertyID::BackgroundColor, context);
 
         // Only use text color if it was explicitly set in the ::selection rule, not inherited.
         if (!computed_selection_style->is_property_inherited(CSS::PropertyID::Color))
-            style.text_color = computed_selection_style->color_or_fallback(CSS::PropertyID::Color, context, Color::Transparent);
+            style.text_color = computed_selection_style->color(CSS::PropertyID::Color, context);
 
         // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
         if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
@@ -316,7 +316,7 @@ Paintable::SelectionStyle Paintable::selection_style() const
             style.text_decoration = TextDecorationStyle {
                 .line = computed_selection_style->text_decoration_line(),
                 .style = computed_selection_style->text_decoration_style(),
-                .color = computed_selection_style->color_or_fallback(CSS::PropertyID::TextDecorationColor, context, style.text_color.value_or(Color::Black)),
+                .color = computed_selection_style->color(CSS::PropertyID::TextDecorationColor, context),
             };
         }
 

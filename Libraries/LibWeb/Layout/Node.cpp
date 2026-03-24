@@ -608,7 +608,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     // NOTE: color must be set after color-scheme to ensure currentColor can be resolved in other properties (e.g. background-color).
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
-    computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::color()));
+    computed_values.set_color(computed_style.color(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
     // NOTE: Currently there are still discussions about `accentColor` and `currentColor` interactions, so the line below might need changing in the future
     computed_values.set_accent_color(computed_style.accent_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
@@ -624,7 +624,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     computed_values.set_background_layers(move(background_layers));
 
-    computed_values.set_background_color(computed_style.color_or_fallback(CSS::PropertyID::BackgroundColor, color_resolution_context, CSS::InitialValues::background_color()));
+    computed_values.set_background_color(computed_style.color(CSS::PropertyID::BackgroundColor, color_resolution_context));
     computed_values.set_background_color_clip(computed_style.background_color_clip());
 
     computed_values.set_box_sizing(computed_style.box_sizing());
@@ -658,7 +658,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_backdrop_filter(computed_style.backdrop_filter());
     computed_values.set_filter(computed_style.filter());
 
-    computed_values.set_flood_color(computed_style.color_or_fallback(CSS::PropertyID::FloodColor, color_resolution_context, CSS::InitialValues::flood_color()));
+    computed_values.set_flood_color(computed_style.color(CSS::PropertyID::FloodColor, color_resolution_context));
     computed_values.set_flood_opacity(computed_style.flood_opacity());
 
     computed_values.set_justify_content(computed_style.justify_content());
@@ -714,13 +714,10 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         const_cast<CSS::AbstractImageStyleValue&>(*m_list_style_image).load_any_resources(document());
     }
 
-    // FIXME: The default text decoration color value is `currentcolor`, but since we can't resolve that easily,
-    //        we just manually grab the value from `color`. This makes it dependent on `color` being
-    //        specified first, so it's far from ideal.
-    computed_values.set_text_decoration_color(computed_style.color_or_fallback(CSS::PropertyID::TextDecorationColor, color_resolution_context, computed_values.color()));
+    computed_values.set_text_decoration_color(computed_style.color(CSS::PropertyID::TextDecorationColor, color_resolution_context));
     computed_values.set_text_decoration_thickness(computed_style.text_decoration_thickness());
 
-    computed_values.set_webkit_text_fill_color(computed_style.color_or_fallback(CSS::PropertyID::WebkitTextFillColor, color_resolution_context, computed_values.color()));
+    computed_values.set_webkit_text_fill_color(computed_style.color(CSS::PropertyID::WebkitTextFillColor, color_resolution_context));
 
     computed_values.set_text_shadow(computed_style.text_shadow(*this));
 
@@ -770,10 +767,8 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     }
 
     auto do_border_style = [&](CSS::BorderData& border, CSS::PropertyID width_property, CSS::PropertyID color_property, CSS::PropertyID style_property) {
-        // FIXME: The default border color value is `currentcolor`, but since we can't resolve that easily,
-        //        we just manually grab the value from `color`. This makes it dependent on `color` being
-        //        specified first, so it's far from ideal.
-        border.color = computed_style.color_or_fallback(color_property, color_resolution_context, computed_values.color());
+        // FIXME: Support <image-1d>
+        border.color = computed_style.color(color_property, color_resolution_context);
         border.line_style = computed_style.line_style(style_property);
 
         // If the border-style corresponding to a given border-width is none or hidden, then the used width is 0.
@@ -839,7 +834,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     else if (stroke.is_url())
         computed_values.set_stroke(CSS::SVGPaint(stroke.as_url().url(), extract_paint_fallback_color(stroke.as_url())));
 
-    computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, color_resolution_context, CSS::InitialValues::stop_color()));
+    computed_values.set_stop_color(computed_style.color(CSS::PropertyID::StopColor, color_resolution_context));
 
     auto const& stroke_width = computed_style.property(CSS::PropertyID::StrokeWidth);
     // FIXME: Converting to pixels isn't really correct - values should be in "user units"

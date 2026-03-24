@@ -101,7 +101,7 @@ ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement 
 
     return {
         .color_scheme = color_scheme,
-        .current_color = element.computed_properties()->color_or_fallback(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), CSS::SystemColor::accent_color(color_scheme), element.document(), calculation_resolution_context }, CSS::InitialValues::color()),
+        .current_color = element.computed_properties()->color(PropertyID::Color, { color_scheme, CSS::InitialValues::color(), CSS::SystemColor::accent_color(color_scheme), element.document(), calculation_resolution_context }),
         .accent_color = element.computed_properties()->accent_color({ color_scheme, CSS::InitialValues::color(), CSS::SystemColor::accent_color(color_scheme), element.document(), calculation_resolution_context }),
         .document = element.document(),
         .calculation_resolution_context = calculation_resolution_context
