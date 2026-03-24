@@ -50,6 +50,7 @@
 #include <LibWeb/CSS/StyleValues/TimeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>
 #include <LibWeb/CSS/StyleValues/TupleStyleValue.h>
+#include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/Node.h>
@@ -865,12 +866,14 @@ TransformStyle ComputedProperties::transform_style() const
     return keyword_to_transform_style(value.to_keyword()).release_value();
 }
 
-Optional<Color> ComputedProperties::accent_color(Layout::NodeWithStyle const& node) const
+Color ComputedProperties::accent_color(ColorResolutionContext const& color_resolution_context) const
 {
     auto const& value = property(PropertyID::AccentColor);
-    if (value.has_color())
-        return value.to_color(ColorResolutionContext::for_layout_node_with_style(node));
-    return {};
+
+    if (value.to_keyword() == Keyword::Auto)
+        return CSS::SystemColor::accent_color(color_resolution_context.color_scheme.value());
+
+    return value.to_color(color_resolution_context).value();
 }
 
 AlignContent ComputedProperties::align_content() const

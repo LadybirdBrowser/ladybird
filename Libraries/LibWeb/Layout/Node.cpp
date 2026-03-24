@@ -610,7 +610,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     // NOTE: color must be set after font_size as `CalculatedStyleValue`s can rely on it being set for resolving lengths.
     computed_values.set_color(computed_style.color_or_fallback(CSS::PropertyID::Color, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::InitialValues::color()));
     // NOTE: Currently there are still discussions about `accentColor` and `currentColor` interactions, so the line below might need changing in the future
-    computed_values.set_accent_color(computed_style.color_or_fallback(CSS::PropertyID::AccentColor, CSS::ColorResolutionContext::for_layout_node_with_style(*this), CSS::SystemColor::accent_color(color_scheme)));
+    computed_values.set_accent_color(computed_style.accent_color(CSS::ColorResolutionContext::for_layout_node_with_style(*this)));
     // NOTE: This color resolution context must be created after we set color above so that currentColor resolves correctly
     // FIXME: We should resolve colors to their absolute forms at compute time (i.e. by implementing the relevant absolutized methods)
     auto color_resolution_context = CSS::ColorResolutionContext::for_layout_node_with_style(*this);
@@ -664,10 +664,6 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_justify_content(computed_style.justify_content());
     computed_values.set_justify_items(computed_style.justify_items());
     computed_values.set_justify_self(computed_style.justify_self());
-
-    auto accent_color = computed_style.accent_color(*this);
-    if (accent_color.has_value())
-        computed_values.set_accent_color(accent_color.value());
 
     computed_values.set_align_content(computed_style.align_content());
     computed_values.set_align_items(computed_style.align_items());
