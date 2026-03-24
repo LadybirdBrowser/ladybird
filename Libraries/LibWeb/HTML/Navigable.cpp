@@ -1778,11 +1778,6 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         return {};
     }
 
-    if (m_pending_navigations.is_empty() && params.url.equals(URL::about_blank())) {
-        begin_navigation(move(params));
-        return {};
-    }
-
     if (!m_has_session_history_entry_and_ready_for_navigation) {
         m_pending_navigations.append(move(params));
         return {};
@@ -2578,8 +2573,11 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
     //         history traversal activates the new document. The guard is cleared when the new document becomes ready
     //         for post-load tasks (via set_ready_for_post_load_tasks).
-    if (auto container_doc = navigable->container_document(); container_doc && history_entry->document())
+    bool should_clear_navigation_load_event_guard_after_history_step = false;
+    if (auto container_doc = navigable->container_document(); container_doc && history_entry->document()) {
         navigable->set_navigation_load_event_guard(*container_doc);
+        should_clear_navigation_load_event_guard_after_history_step = history_entry->document()->ready_for_post_load_tasks();
+    }
 
     navigable->set_delaying_load_events(false);
 
@@ -2642,6 +2640,13 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
     traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No);
+
+    // AD-HOC: Some documents, such as the initial about:blank of a child navigable, are already ready for post-load
+    //         tasks before they become the active document. The navigation load event guard added above is normally
+    //         cleared from Document::set_ready_for_post_load_tasks(), but that callback will not run again for these
+    //         documents, so clear it now that the history step has finished.
+    if (should_clear_navigation_load_event_guard_after_history_step)
+        navigable->clear_navigation_load_event_guard();
 
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.

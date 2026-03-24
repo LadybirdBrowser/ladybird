@@ -62,7 +62,7 @@ GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr<GC::Function<void()>> after_session_history_update)
+WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -116,7 +116,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     document->update_the_visibility_state(traversable->system_visibility_state());
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, traversable, navigable, parent_navigable, history_entry] {
         // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
         auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
@@ -145,9 +145,23 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
         // 7. Update for navigable creation/destruction given traversable
         traversable->update_for_navigable_creation_or_destruction();
 
-        if (after_session_history_update) {
-            after_session_history_update->function()();
-        }
+        // AD-HOC: Keep the "ready for navigation" transition in a separate later traversal queue step instead of
+        //         calling it immediately. set_content_navigable_has_session_history_entry_and_ready_for_navigation()
+        //         drains the child navigable's pending navigations right away. Running that inline allows iframe
+        //         navigations queued immediately after insertion (for example by setting location/src/srcdoc
+        //         synchronously) to start before the initial about:blank traversal has finished.
+        traversable->append_session_history_traversal_steps(GC::create_function(traversable->heap(), [this, navigable] {
+            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+            if (navigable->has_been_destroyed() || content_navigable() != navigable) {
+                signal_to_continue_session_history_processing->resolve({});
+                return signal_to_continue_session_history_processing;
+            }
+
+            set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
+        }));
+
         signal_to_continue_session_history_processing->resolve({});
         return signal_to_continue_session_history_processing;
     }));

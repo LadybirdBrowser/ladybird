@@ -3434,10 +3434,6 @@ bool Document::is_completely_loaded() const
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
-    auto navigable = this->navigable();
-    if (!navigable)
-        return;
-
     ScopeGuard notify_observers = [this] {
         notify_each_document_observer([&](auto const& document_observer) {
             return document_observer.document_completely_loaded();
@@ -3455,10 +3451,20 @@ void Document::completely_finish_loading()
         m_active_refresh_timer->start();
 
     // 3. Let container be document's browsing context's container.
-    if (!navigable->container())
+    // Use the browsing context's current container instead of this document's node navigable.
+    // A newly created replacement document can finish loading before it becomes the active
+    // document of its navigable, in which case document.navigable() is still null here.
+    auto* container = [&]() -> DOM::Element* {
+        auto active_document = browsing_context()->active_document();
+        if (!active_document)
+            return nullptr;
+        auto node_navigable = active_document->navigable();
+        if (!node_navigable)
+            return nullptr;
+        return node_navigable->container();
+    }();
+    if (!container)
         return;
-
-    auto container = GC::make_root(navigable->container());
 
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (container && is<HTML::HTMLIFrameElement>(*container)) {

@@ -74,7 +74,20 @@ void SessionHistoryTraversalQueue::append_sync(GC::Ref<GC::Function<NonnullRefPt
 GC::Ptr<SessionHistoryTraversalQueueEntry> SessionHistoryTraversalQueue::first_synchronous_navigation_steps_with_target_navigable_not_contained_in(HashTable<GC::Ref<Navigable>> const& set)
 {
     auto index = m_queue.find_first_index_if([&set](auto const& entry) -> bool {
-        return (entry->target_navigable() != nullptr) && !set.contains(*entry->target_navigable());
+        auto target_navigable = entry->target_navigable();
+        if (target_navigable == nullptr)
+            return false;
+
+        if (set.contains(*target_navigable))
+            return false;
+
+        // A newly created child navigable is not yet discoverable through get_session_history_entries()
+        // until its creation bookkeeping has run on the traversal queue. Do not let synchronous
+        // navigation steps for that child jump ahead of the bookkeeping step that installs it.
+        if (!target_navigable->has_session_history_entry_and_ready_for_navigation())
+            return false;
+
+        return true;
     });
     if (index.has_value())
         return m_queue.take(*index);
