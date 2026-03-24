@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLHeadElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWebView/AccessibilityNodeData.h>
 
 namespace Web::DOM {
@@ -87,10 +88,24 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
         node_data.id = static_cast<i64>(element.unique_id().value());
         auto role = element.role_or_default();
-        if (role.has_value() && !ARIA::is_abstract_role(*role))
-            node_data.role = MUST(String::from_utf8(ARIA::role_name(*role)));
+        if (role.has_value() && !ARIA::is_abstract_role(*role)) {
+            // If the role is none/presentation but the element was
+            // included due to conflict resolution (has global ARIA
+            // attributes), use the element's implicit semantic role.
+            if ((*role == ARIA::Role::none || *role == ARIA::Role::presentation)
+                && element.has_global_aria_attribute()) {
+                if (is<HTML::HTMLImageElement>(element))
+                    node_data.role = "image"_string;
+                else
+                    node_data.role = MUST(String::from_utf8(ARIA::role_name(*role)));
+            } else {
+                node_data.role = MUST(String::from_utf8(ARIA::role_name(*role)));
+            }
+        }
 
         node_data.name = MUST(element.accessible_name(document));
+        if (auto trimmed = node_data.name.bytes_as_string_view().trim_whitespace(); trimmed != node_data.name.bytes_as_string_view())
+            node_data.name = MUST(String::from_utf8(trimmed));
         node_data.description = MUST(element.accessible_description(document));
         if (node_data.description.is_empty()) {
             if (auto desc = element.get_attribute(ARIA::AttributeNames::aria_description); desc.has_value())
