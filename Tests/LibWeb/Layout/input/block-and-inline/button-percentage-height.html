@@ -1,0 +1,23 @@
+<!doctype html>
+<style>
+button {
+    width: 100px;
+    height: 100px;
+}
+#outer {
+    width: 100px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+}
+.inner {
+    background: red;
+    width: 100%;
+    height: 100%;
+    outline: 1px solid blue;
+}
+</style>
+<button><div class="inner"></div></button>
+<hr/>
+<div id="outer"><div><div class="inner"></div></div></div>

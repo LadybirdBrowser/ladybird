@@ -1898,7 +1898,52 @@ CSSPixels FormattingContext::calculate_inner_height(Box const& box, AvailableSpa
     // NOTE: We only do this when available space height is indefinite. If it's definite,
     //       we trust that the caller has set it up correctly (e.g., grid/flex items get
     //       their cell/area size as available space).
-    if (height.contains_percentage() && available_space.height.is_indefinite()) {
+
+    // AD-HOC: For percentage heights inside button content wrappers, resolve against the button itself.
+    // During Phase 1 layout (intrinsic sizing), the button's final height is not yet in layout memory.
+    // To prevent the wrapper from collapsing to 0px, we bypass the layout memory and extract the
+    // explicit CSS height directly, manually calculating the true inner border-box dimensions.
+    bool resolved_against_button = false;
+    if (height.contains_percentage() && !available_space.height.is_definite()) {
+        auto cb = box.containing_block();
+        while (cb && cb->is_anonymous() && !cb->display().is_table_cell()) {
+            cb = cb->containing_block();
+        }
+
+        if (cb) {
+            if (auto const* html_element = as_if<HTML::HTMLElement>(cb->dom_node())) {
+                if (html_element->uses_button_layout()) {
+                    if (auto const* used_values = m_state.try_get(*cb)) {
+                        if (used_values->has_definite_height()) {
+                            height_of_containing_block = used_values->content_height();
+                            resolved_against_button = true;
+                        }
+                    }
+                    if (!resolved_against_button) {
+                        auto const& button_computed_height = cb->computed_values().height();
+                        if (button_computed_height.is_length() && !button_computed_height.is_auto()) {
+                            height_of_containing_block = button_computed_height.to_px(*cb, 0);
+
+                            // Safely adjust for box-sizing without relying on an empty m_state
+                            auto const& cb_computed = cb->computed_values();
+                            if (cb_computed.box_sizing() == CSS::BoxSizing::BorderBox) {
+                                height_of_containing_block -= cb_computed.border_top().width;
+                                height_of_containing_block -= cb_computed.border_bottom().width;
+
+                                auto cb_width = available_space.width.to_px_or_zero();
+                                height_of_containing_block -= cb_computed.padding().top().to_px_or_zero(*cb, cb_width);
+                                height_of_containing_block -= cb_computed.padding().bottom().to_px_or_zero(*cb, cb_width);
+                            }
+                            height_of_containing_block = max(CSSPixels(0), height_of_containing_block);
+                            resolved_against_button = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!resolved_against_button && height.contains_percentage() && available_space.height.is_indefinite()) {
         auto containing_block = box.containing_block();
         while (containing_block && containing_block->is_anonymous() && !containing_block->display().is_table_cell())
             containing_block = containing_block->containing_block();
@@ -2024,10 +2069,37 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
 
     // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
     if (computed_height.contains_percentage()) {
-        if (!box.is_replaced_box() && available_space.height.is_min_content())
-            return true;
-        if (available_space.height.is_max_content())
-            return true;
+
+        // AD-HOC: Button wrappers shrink-fit to 0px during Phase 1 (intrinsic sizing) if their children
+        // rely on percentage heights, causing the internal flex layout to lock in a permanent 50% vertical
+        // displacement. We look ahead to the button's CSS to grant a safe bypass to the 'max-content' panic.
+        bool safe_to_resolve_percentage = false;
+        if (!available_space.height.is_definite()) {
+            auto cb = box.containing_block();
+            while (cb && cb->is_anonymous() && !cb->display().is_table_cell()) {
+                cb = cb->containing_block();
+            }
+            if (cb) {
+                if (auto const* cb_used = m_state.try_get(*cb); cb_used && cb_used->has_definite_height()) {
+                    safe_to_resolve_percentage = true;
+                } else if (auto const* html_element = as_if<HTML::HTMLElement>(cb->dom_node())) {
+                    if (html_element->uses_button_layout()) {
+                        auto const& button_height = cb->computed_values().height();
+                        if (button_height.is_length() && !button_height.is_auto()) {
+                            safe_to_resolve_percentage = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // If we confirmed the ancestor has a definite CSS height, we safely bypass this max-content panic
+        if (!safe_to_resolve_percentage) {
+            if (!box.is_replaced_box() && available_space.height.is_min_content())
+                return true;
+            if (available_space.height.is_max_content())
+                return true;
+        }
         // https://www.w3.org/TR/CSS22/visudet.html#the-height-property
         // If the height of the containing block is not specified explicitly (i.e., it depends on
         // content height), and this element is not absolutely positioned, the percentage value
@@ -2064,10 +2136,14 @@ bool FormattingContext::should_treat_height_as_auto(Box const& box, AvailableSpa
                 if (!containing_block)
                     return true;
                 auto const* containing_block_used_values = m_state.try_get(*containing_block);
-                if (!containing_block_used_values)
-                    return true;
-                if (!containing_block_used_values->has_definite_height())
-                    return true;
+
+                // If it's a fixed-height button, bypass the empty memory panic
+                if (!safe_to_resolve_percentage) {
+                    if (!containing_block_used_values)
+                        return true;
+                    if (!containing_block_used_values->has_definite_height())
+                        return true;
+                }
             }
         }
     }
