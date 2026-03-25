@@ -357,7 +357,10 @@ void InlineFormattingContext::generate_line_boxes()
                     break;
                 }
 
-                if (item.can_break_before && !is_whitespace)
+                // https://drafts.csswg.org/css2/#floats
+                // If a shortened line box is too small to contain any content, then the line box is shifted downward
+                // (and its width recomputed) until either some content fits or there are no more floats present.
+                if (!is_whitespace && (item.can_break_before || line_boxes.last().is_empty()))
                     line_builder.break_if_needed(item.border_box_width());
 
             } else if (text_node.computed_values().text_overflow() == CSS::TextOverflow::Ellipsis
