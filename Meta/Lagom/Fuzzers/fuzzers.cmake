@@ -17,8 +17,6 @@ set(FUZZER_TARGETS
     PEM
     PNGLoader
     RegexECMA262
-    RegexPosixBasic
-    RegexPosixExtended
     RSAKeyParsing
     SHA1
     SHA256
@@ -59,8 +57,6 @@ set(FUZZER_DEPENDENCIES_PEM LibCrypto)
 set(FUZZER_DEPENDENCIES_PNGLoader LibGfx)
 set(FUZZER_DEPENDENCIES_Poly1305 LibCrypto)
 set(FUZZER_DEPENDENCIES_RegexECMA262 LibRegex)
-set(FUZZER_DEPENDENCIES_RegexPosixBasic LibRegex)
-set(FUZZER_DEPENDENCIES_RegexPosixExtended LibRegex)
 set(FUZZER_DEPENDENCIES_RSAKeyParsing LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA1 LibCrypto)
 set(FUZZER_DEPENDENCIES_SHA256 LibCrypto)

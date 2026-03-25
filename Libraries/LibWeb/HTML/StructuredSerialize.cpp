@@ -346,7 +346,7 @@ public:
             //     { [[Type]]: "RegExp", [[RegExpMatcher]]: value.[[RegExpMatcher]], [[OriginalSource]]: value.[[OriginalSource]],
             //       [[OriginalFlags]]: value.[[OriginalFlags]] }.
             else if (auto const* reg_exp_object = as_if<JS::RegExpObject>(*object)) {
-                // NOTE: A Regex<ECMA262> object is perfectly happy to be reconstructed with just the source+flags.
+                // NOTE: ECMAScriptRegex is perfectly happy to be reconstructed with just the source+flags.
                 //       In the future, we could optimize the work being done on the deserialize step by serializing
                 //       more of the internal state (the [[RegExpMatcher]] internal slot).
                 serialized.encode(ValueTag::RegExpObject);

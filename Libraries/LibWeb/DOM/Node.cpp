@@ -15,7 +15,6 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibJS/Runtime/FunctionObject.h>
-#include <LibRegex/Regex.h>
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/NodePrototype.h>
