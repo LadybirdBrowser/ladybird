@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // When document.open() is called synchronously on the initial about:blank document of an iframe
+    // with a srcdoc attribute, process_the_iframe_attributes() should be run while
+    // is_initial_about_blank is true. That makes the srcdoc initial navigate_an_iframe_or_frame()
+    // call use Replace instead of Push, so history.length does not grow spuriously.
+    asyncTest(async done => {
+        const beforeLength = history.length;
+
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<p>hello</p>";
+        document.body.appendChild(iframe);
+
+        const iframeDoc = iframe.contentDocument;
+        iframeDoc.open();
+        iframeDoc.write("<!DOCTYPE html><p>written</p>");
+        iframeDoc.close();
+
+        // Wait several ticks for the srcdoc navigation and history sync steps to settle.
+        for (let i = 0; i < 5; i++)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        // The srcdoc initial navigation must use Replace (history.length unchanged).
+        println(history.length === beforeLength ? "PASS" : "FAIL: history grew unexpectedly");
+        done();
+    });
+</script>
