@@ -1466,6 +1466,9 @@ void HTMLMediaElement::on_metadata_parsed()
     // 6. Set the readyState attribute to HAVE_METADATA.
     set_ready_state(ReadyState::HaveMetadata);
 
+    // AD-HOC: If we've already got buffered data, we need to upgrade the readyState further than HAVE_METADATA.
+    update_ready_state();
+
     // 7. Let jumped be false.
     [[maybe_unused]] auto jumped = false;
 
@@ -1785,6 +1788,89 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 }
 
+// https://w3c.github.io/media-source/#buffer-monitoring
+void HTMLMediaElement::update_ready_state()
+{
+    // AD-HOC: This method is invoked by our versions of the following Media Source Extensions algorithms to fulfill
+    //         the necessary changes to the ready state.
+    //          - https://w3c.github.io/media-source/#sourcebuffer-coded-frame-processing (steps 2-4)
+    //          - https://w3c.github.io/media-source/#sourcebuffer-coded-frame-removal (step 3.5)
+    //          - https://w3c.github.io/media-source/#sourcebuffer-init-segment-received (steps 8-9)
+    //         We intentionally share this logic between local and remote playback, since it's the most specified
+    //         algorithm regarding ready states during playback.
+
+    if (!m_playback_manager)
+        return;
+
+    // -> If the HTMLMediaElement's readyState attribute is HAVE_NOTHING:
+    if (m_ready_state == ReadyState::HaveNothing) {
+        // 1. Abort these steps.
+        return;
+    }
+
+    // -> If HTMLMediaElement's buffered does not contain a TimeRanges for the current playback position:
+    auto current_time = m_playback_manager->current_time();
+    auto ranges = m_playback_manager->buffered_time_ranges();
+    auto current_range = ranges.range_at_or_after(current_time);
+    auto has_future_data = m_playback_manager->has_future_data();
+
+    if (!has_future_data && !current_range.has_value()) {
+        // 1. Set the HTMLMediaElement's readyState attribute to HAVE_METADATA.
+        set_ready_state(ReadyState::HaveMetadata);
+        // 2. Abort these steps.
+        return;
+    }
+
+    // FIXME: It may be worth turning this into a heuristic based on the rate of change of the playback position and
+    //        the buffered head.
+    constexpr auto have_enough_data_duration = AK::Duration::from_seconds(5);
+
+    auto duration = m_playback_manager->duration();
+    auto current_range_end = AK::Duration::zero();
+    if (current_range.has_value())
+        current_range_end = current_range->end;
+    auto playable_duration = max(AK::Duration::zero(), current_range_end - current_time);
+
+    // -> If HTMLMediaElement's buffered contains a TimeRanges that includes the current playback position and
+    //    enough data to ensure uninterrupted playback:
+    if (has_future_data && (playable_duration >= have_enough_data_duration || current_range_end >= duration)) {
+        // 1. Set the HTMLMediaElement's readyState attribute to HAVE_ENOUGH_DATA.
+        set_ready_state(ReadyState::HaveEnoughData);
+
+        // 2. Playback may resume at this point if it was previously suspended by a transition to HAVE_CURRENT_DATA.
+        // NB: Playback will have resumed due to PlaybackManager exiting buffering/seeking.
+
+        // 3. Abort these steps.
+        return;
+    }
+
+    // -> If HTMLMediaElement's buffered contains a TimeRanges that includes the current playback position and
+    //    some time beyond the current playback position:
+    if (has_future_data && playable_duration > AK::Duration::zero()) {
+        // 1. Set the HTMLMediaElement's readyState attribute to HAVE_FUTURE_DATA.
+        set_ready_state(ReadyState::HaveFutureData);
+
+        // 2. Playback may resume at this point if it was previously suspended by a transition to HAVE_CURRENT_DATA.
+        // NB: Playback will have resumed due to PlaybackManager exiting buffering/seeking.
+
+        // 3. Abort these steps.
+        return;
+    }
+
+    // -> If HTMLMediaElement's buffered contains a TimeRanges that ends at the current playback position and
+    //    does not have a range covering the time immediately after:
+    {
+        // 1. Set the HTMLMediaElement's readyState attribute to HAVE_CURRENT_DATA.
+        set_ready_state(ReadyState::HaveCurrentData);
+
+        // 2. Playback is suspended at this point since the media element doesn't have enough data to advance the media timeline.
+        // NB: Playback is suspended by PlaybackManager being in buffering/seeking states.
+
+        // 3. Abort these steps.
+        return;
+    }
+}
+
 void HTMLMediaElement::on_playback_manager_state_change()
 {
     VERIFY(m_playback_manager);
@@ -1794,23 +1880,9 @@ void HTMLMediaElement::on_playback_manager_state_change()
 
     // NB: Queue the readyState update as a task so that it will never run before the durationchange and loadedmetadata
     //     events are fired. This ensures that readyState has a deterministic value in those events.
-    queue_a_media_element_task(GC::weak_callback(*this, [manager = m_playback_manager.ptr(), state = m_playback_manager->state()](auto& self) {
-        // https://html.spec.whatwg.org/multipage/media.html#ready-states
-        if (self.m_fetch_data && self.m_ready_state >= ReadyState::HaveMetadata) {
-            // FIXME: Some of these conditions should depend on the amount of data loaded by IncrementallyPopulatedStream
-            //        instead, especially HAVE_ENOUGH_DATA.
-            if (state == Media::PlaybackState::Buffering) {
-                if (self.m_ready_state >= ReadyState::HaveFutureData)
-                    self.set_ready_state(ReadyState::HaveCurrentData);
-            } else {
-                if (self.m_ready_state == ReadyState::HaveMetadata)
-                    self.set_ready_state(ReadyState::HaveCurrentData);
-                if (self.m_ready_state == ReadyState::HaveCurrentData)
-                    self.set_ready_state(ReadyState::HaveFutureData);
-                if (self.m_ready_state == ReadyState::HaveFutureData)
-                    self.set_ready_state(ReadyState::HaveEnoughData);
-            }
-        }
+    queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
+        if (self.m_ready_state >= ReadyState::HaveMetadata)
+            self.update_ready_state();
     }));
 }
 
@@ -2357,6 +2429,11 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
                 dispatch_time_update_event();
             });
         }
+
+        // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
+        //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
+        //         https://w3c.github.io/media-source/#buffer-monitoring
+        update_ready_state();
     }
 
     // FIXME: 7. If all of the cues in current cues have their text track cue active flag set, none of the cues in other cues have

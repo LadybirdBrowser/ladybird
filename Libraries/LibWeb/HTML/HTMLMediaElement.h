@@ -146,6 +146,8 @@ public:
 
     GC::Ref<TextTrack> add_text_track(Bindings::TextTrackKind kind, String const& label, String const& language);
 
+    void update_ready_state();
+
     void create_controls();
     void destroy_controls();
 
