@@ -3486,7 +3486,8 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
                 HTML::HTMLLinkElement::load_fallback_favicon_if_needed(*this);
             }
             navigable->traversable_navigable()->page().client().page_did_finish_loading(url());
-        } else {
+        } else if (!navigable) {
+            // Navigable not yet associated; defer until make_active().
             m_needs_to_call_page_did_load = true;
         }
     }
