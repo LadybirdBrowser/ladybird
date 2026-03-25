@@ -16,6 +16,7 @@ set(SOURCES
     Sinks/AudioMixingSink.cpp
     Sinks/DisplayingVideoSink.cpp
     TimedImage.cpp
+    TimeRanges.cpp
     VideoFrame.cpp
 )
 

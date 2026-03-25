@@ -12,6 +12,7 @@ set(TEST_SOURCES
     TestParseMatroska.cpp
     TestPlaybackStream.cpp
     TestVorbisDecode.cpp
+    TestTimeRanges.cpp
     TestVP9Decode.cpp
     TestWav.cpp
 )
