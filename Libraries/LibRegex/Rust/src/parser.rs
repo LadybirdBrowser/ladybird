@@ -1406,6 +1406,7 @@ impl Parser {
                     self.pos += 2; // consume '--'
                     operands.push(self.parse_class_set_operand()?);
                 }
+                Self::validate_class_set_operation_operands(&operands)?;
                 Ok(ClassSetExpression::Subtraction(operands))
             }
             Some(('&', '&')) => {
@@ -1417,6 +1418,7 @@ impl Parser {
                     self.pos += 2; // consume '&&'
                     operands.push(self.parse_class_set_operand()?);
                 }
+                Self::validate_class_set_operation_operands(&operands)?;
                 Ok(ClassSetExpression::Intersection(operands))
             }
             _ => {
@@ -1428,6 +1430,17 @@ impl Parser {
                 Ok(ClassSetExpression::Union(operands))
             }
         }
+    }
+
+    fn validate_class_set_operation_operands(operands: &[ClassSetOperand]) -> Result<(), Error> {
+        if operands
+            .iter()
+            .any(|operand| matches!(operand, ClassSetOperand::Range(_, _)))
+        {
+            return Err(Error::InvalidCharacterClass);
+        }
+
+        Ok(())
     }
 
     /// Parse one `/v` `ClassSetOperand`.

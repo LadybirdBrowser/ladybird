@@ -409,6 +409,10 @@ test("RegExp string literal", () => {
         "[\\q{\\w}]",
         "[\\q{\\q}]",
         "[^\\q{\\(\\)}]",
+        "[a-z&&b-y]",
+        "[a-z--[aeiou]]",
+        "[[a-z]&&b-y]",
+        "[\\u0061-z&&d]",
     ].forEach(pattern => {
         expect(() => new RegExp(pattern, "v")).toThrow(SyntaxError);
     });
