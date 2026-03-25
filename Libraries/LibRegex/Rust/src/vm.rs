@@ -401,6 +401,7 @@ fn next_candidate_start<I: Input>(
 ) -> Option<usize> {
     while pos <= input.len() {
         if program.unicode
+            && !hints.can_match_empty
             && pos > 0
             && pos < input.len()
             && is_low_surrogate(input.code_unit(pos))
@@ -837,6 +838,8 @@ pub struct PatternHints {
     /// Simple pattern: just a single matcher (Save(0) + matcher + Save(1) + Match).
     /// Can be executed with a fast scan without the full VM.
     simple_scan: Option<SimpleScan>,
+    /// Whether the full pattern can match without consuming input.
+    can_match_empty: bool,
 }
 
 /// A simple pattern that can be scanned without the full VM.
@@ -904,7 +907,7 @@ fn first_char_at(instructions: &[Instruction], pc: usize) -> Option<(u32, bool)>
 }
 
 /// Analyze the program to extract optimization hints.
-pub fn analyze_pattern(program: &Program) -> PatternHints {
+pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints {
     // Pattern typically starts with Save(0), then the first real instruction.
     let skip = if matches!(program.instructions.first(), Some(Instruction::Save(0))) {
         1
@@ -1021,6 +1024,7 @@ pub fn analyze_pattern(program: &Program) -> PatternHints {
         trailing_literal,
         required_literal,
         simple_scan,
+        can_match_empty,
     }
 }
 

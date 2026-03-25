@@ -7,7 +7,7 @@
 /// High-level regex API.
 ///
 /// This is the main entry point for using the regex engine.
-use crate::ast::{Atom, Flags, Pattern};
+use crate::ast::{Alternative, Atom, Disjunction, Flags, Pattern, Term};
 use crate::bytecode::{Instruction, NamedGroupEntry, append_code_point_wtf16};
 use crate::{compiler, parser, vm};
 use std::cell::RefCell;
@@ -33,7 +33,7 @@ impl Regex {
         let parsed = parser::parse(pattern, flags)?;
         let mut program = compiler::compile(&parsed);
         Self::resolve_properties(&mut program);
-        let hints = vm::analyze_pattern(&program);
+        let hints = vm::analyze_pattern(&program, pattern_can_match_empty(&parsed));
 
         let literal_u16 = extract_literal_u16(&parsed, flags);
         let literal_alt_u16 = extract_literal_alternatives_u16(&parsed, flags);
@@ -367,6 +367,47 @@ impl Regex {
             result_buf,
             scratch,
         )
+    }
+}
+
+fn pattern_can_match_empty(pattern: &Pattern) -> bool {
+    disjunction_can_match_empty(&pattern.disjunction)
+}
+
+fn disjunction_can_match_empty(disjunction: &Disjunction) -> bool {
+    disjunction
+        .alternatives
+        .iter()
+        .any(alternative_can_match_empty)
+}
+
+fn alternative_can_match_empty(alternative: &Alternative) -> bool {
+    alternative.terms.iter().all(term_can_match_empty)
+}
+
+fn term_can_match_empty(term: &Term) -> bool {
+    if let Some(quantifier) = &term.quantifier
+        && quantifier.min == 0
+    {
+        return true;
+    }
+
+    atom_can_match_empty(&term.atom)
+}
+
+fn atom_can_match_empty(atom: &Atom) -> bool {
+    match atom {
+        Atom::Literal(_)
+        | Atom::Dot
+        | Atom::CharacterClass(_)
+        | Atom::BuiltinCharacterClass(_)
+        | Atom::UnicodeProperty(_) => false,
+        Atom::Group(group) => disjunction_can_match_empty(&group.body),
+        Atom::NonCapturingGroup(group) => disjunction_can_match_empty(&group.body),
+        Atom::Lookaround(_) | Atom::Assertion(_) => true,
+        // Backreferences can match empty if their capture is unset or empty.
+        Atom::Backreference(_) => true,
+        Atom::ModifierGroup(group) => disjunction_can_match_empty(&group.body),
     }
 }
 
