@@ -973,7 +973,6 @@ enum SavedState {
     /// Greedy loop backtrack: give up one character at a time from the right.
     /// Carries a register snapshot because later failed alternatives may have
     /// mutated captures before we revisit the loop choice point.
-    /// No register snapshot needed (loop body doesn't touch registers).
     Greedy {
         pc: u32,
         /// Starting position of the greedy consumption.
