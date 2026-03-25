@@ -461,9 +461,28 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     context.total_tests += variants.size() - 1;
 }
 
-static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
+static void start_timeout_for_test(TestWebView& view, TestRunContext& context, size_t test_index, int timeout_in_milliseconds)
+{
+    auto& test = context.tests[test_index];
+    test.did_start_test = false;
+    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
+        auto current_index = s_current_test_index_by_view.get(&view);
+        if (!current_index.has_value() || *current_index != test_index)
+            return;
+
+        auto& test = context.tests[test_index];
+        if (!test.did_start_test)
+            dbgln("Timeout during pre-navigation for {}, WebContent process may be unresponsive", test.relative_path);
+
+        view.on_test_complete({ test_index, TestResult::Timeout });
+    });
+    test.timeout_timer->start();
+}
+
+static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -627,6 +646,12 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         };
     }
 
+    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+        auto& test = context.tests[test_index];
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+    };
+
     view.load(url);
 }
 
@@ -666,9 +691,10 @@ static ErrorOr<void> write_screenshot_failure_results(Test& test, Gfx::Bitmap co
     return {};
 }
 
-static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
+static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&view, &context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -783,12 +809,19 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
         view.load(test.ref_test_expectation_url.value());
     };
 
+    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+        auto& test = context.tests[test_index];
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+    };
+
     view.load(url);
 }
 
-static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
+static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url, int timeout_in_milliseconds)
 {
     auto test_index = test.index;
+    VERIFY(test.timeout_timer);
 
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
@@ -892,6 +925,12 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
         });
     };
 
+    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
+        auto& test = context.tests[test_index];
+        if (milliseconds > timeout_in_milliseconds)
+            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
+    };
+
     view.load(url);
 }
 
@@ -902,41 +941,17 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     auto& test = context.tests[test_index];
     test_run_capture.begin_test_output_capture(view, test);
     auto timeout_in_milliseconds = app.per_test_timeout_in_seconds * 1000;
+    start_timeout_for_test(view, context, test_index, timeout_in_milliseconds);
 
-    test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
-        auto& test = context.tests[test_index];
-        if (!test.did_start_test)
-            dbgln("Timeout during pre-navigation for {}, WebContent process may be unresponsive", test.relative_path);
-
-        view.on_test_complete({ test_index, TestResult::Timeout });
-    });
-    test.timeout_timer->start();
-
-    view.on_set_test_timeout = [&context, test_index, timeout_in_milliseconds](double milliseconds) {
-        auto& test = context.tests[test_index];
-        if (milliseconds > timeout_in_milliseconds)
-            test.timeout_timer->restart(AK::clamp_to<int>(milliseconds));
-    };
-
-    // Clear the current document.
-    // FIXME: Implement a debug-request to do this more thoroughly.
     auto promise = Core::Promise<Empty>::construct();
 
-    view.on_load_finish = [promise](auto const& url) {
-        if (!url.equals(URL::about_blank()))
+    promise->when_resolved([&view, test_index, &app, &context, timeout_in_milliseconds](auto) {
+        auto current_index = s_current_test_index_by_view.get(&view);
+        if (!current_index.has_value() || *current_index != test_index)
             return;
 
-        Core::deferred_invoke([promise]() {
-            promise->resolve({});
-        });
-    };
-
-    view.on_test_finish = {};
-
-    promise->when_resolved([&view, test_index, &app, &context](auto) {
         auto& test = context.tests[test_index];
         test.did_start_test = true;
-
         auto real_path = MUST(FileSystem::real_path(test.input_path));
         auto headers_path = ByteString::formatted("{}.headers", real_path);
 
@@ -961,18 +976,29 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         case TestMode::Crash:
         case TestMode::Text:
         case TestMode::Layout:
-            run_dump_test(view, context, test, *url);
+            run_dump_test(view, context, test, *url, timeout_in_milliseconds);
             return;
         case TestMode::Ref:
-            run_ref_test(view, context, test, *url);
+            run_ref_test(view, context, test, *url, timeout_in_milliseconds);
             return;
         case TestMode::Screenshot:
-            run_screenshot_test(view, context, test, *url);
+            run_screenshot_test(view, context, test, *url, timeout_in_milliseconds);
             return;
         }
 
         VERIFY_NOT_REACHED();
     });
+
+    view.on_load_finish = [promise](auto const& url) {
+        if (!url.equals(URL::about_blank()))
+            return;
+
+        Core::deferred_invoke([promise]() {
+            promise->resolve({});
+        });
+    };
+
+    view.on_test_finish = {};
 
     view.load(URL::about_blank());
 }
