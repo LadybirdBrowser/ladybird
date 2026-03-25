@@ -172,8 +172,7 @@ OwnPtr<BooleanExpression> Parser::parse_media_condition(TokenStream<ComponentVal
 // `<media-feature>`, https://drafts.csswg.org/mediaqueries-5/#typedef-media-feature
 OwnPtr<MediaFeature> Parser::parse_media_feature(TokenStream<ComponentValue>& inner_tokens)
 {
-    // AD-HOC: We have already parsed the parentheses before this point. https://github.com/w3c/csswg-drafts/pull/13575
-    // `<media-feature> = ( [ <mf-plain> | <mf-boolean> | <mf-range> ] )`
+    // `<media-feature> = [ <mf-plain> | <mf-boolean> | <mf-range> ]`
     auto transaction = inner_tokens.begin_transaction();
 
     // `<mf-name> = <ident>`
