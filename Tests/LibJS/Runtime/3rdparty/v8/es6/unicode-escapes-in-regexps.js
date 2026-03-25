@@ -69,7 +69,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("es6/unicode-escapes-in-regexps", () => {
+test("es6/unicode-escapes-in-regexps", () => {
     function testRegexpHelper(r) {
         assertTrue(r.test("foo"));
         assertTrue(r.test("boo"));

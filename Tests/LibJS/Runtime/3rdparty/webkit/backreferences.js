@@ -1,4 +1,4 @@
-test.xfail("backreferences", () => {
+test("backreferences", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
     function description(msg) {

@@ -107,7 +107,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("regexp-UC16", () => {
+test("regexp-UC16", () => {
     assertEquals("x\u03a3\u03c3x,\u03a3", String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "backref-UC16");
     assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"), "\\1 ASCII, string short");
     assertTrue(/\u03a3((?:))\1\1x/i.test("\u03c2x"), "backref-UC16-empty");

@@ -1,4 +1,4 @@
-test.xfail("dotstar", () => {
+test("dotstar", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
     function description(msg) {

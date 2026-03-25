@@ -69,7 +69,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("es6/unicode-regexp-backrefs", () => {
+test("es6/unicode-regexp-backrefs", () => {
     function replace(string) {
         return string.replace(/L/g, "\ud800").replace(/l/g, "\ud801").replace(/T/g, "\udc00").replace(/\./g, "[^]");
     }

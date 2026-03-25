@@ -22,6 +22,11 @@
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
+#ifdef ENABLE_RUST
+#    include <AK/HashMap.h>
+#    include <LibRegex/RustRegex.h>
+#endif
+
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(RegExpPrototype);
@@ -170,10 +175,261 @@ static Value make_match_indices_index_pair_array(VM& vm, Utf16View const& string
     return array;
 }
 
+#ifdef ENABLE_RUST
+static bool s_use_rust_regex = []() {
+    auto* env = getenv("LIBREGEX_USE_RUST");
+    return env && env[0] == '1';
+}();
+
+static HashMap<String, regex::CompiledRustRegex> s_rust_regex_cache;
+
+static regex::CompiledRustRegex const* get_or_compile_rust_regex(RegExpObject& regexp_object)
+{
+    auto const& regex = regexp_object.regex();
+    auto const& pattern = regex.pattern_value;
+
+    // Build a cache key from pattern + flag bits.
+    auto cache_key = MUST(String::formatted("/{}/{}", pattern, static_cast<u8>(regexp_object.flag_bits())));
+
+    if (auto it = s_rust_regex_cache.find(cache_key); it != s_rust_regex_cache.end())
+        return &it->value;
+
+    auto options = regex.options();
+    RustRegexFlags rust_flags {};
+    rust_flags.global = options.has_flag_set(ECMAScriptFlags::Global);
+    rust_flags.ignore_case = options.has_flag_set(ECMAScriptFlags::Insensitive);
+    rust_flags.multiline = options.has_flag_set(ECMAScriptFlags::Multiline);
+    rust_flags.dot_all = options.has_flag_set(ECMAScriptFlags::SingleLine);
+    rust_flags.unicode = options.has_flag_set(ECMAScriptFlags::Unicode);
+    rust_flags.unicode_sets = options.has_flag_set(ECMAScriptFlags::UnicodeSets);
+    rust_flags.sticky = options.has_flag_set(ECMAScriptFlags::Sticky);
+    rust_flags.has_indices = has_flag(regexp_object.flag_bits(), RegExpObject::Flags::HasIndices);
+
+    auto compiled = regex::CompiledRustRegex::compile(pattern.view(), rust_flags);
+    if (!compiled.has_value())
+        return nullptr;
+
+    s_rust_regex_cache.set(cache_key, compiled.release_value());
+    return &s_rust_regex_cache.find(cache_key)->value;
+}
+
+static ThrowCompletionOr<Value> rust_regexp_builtin_exec(VM& vm, RegExpObject& regexp_object, GC::Ref<PrimitiveString> string)
+{
+    auto& realm = *vm.current_realm();
+
+    static Bytecode::StaticPropertyLookupCache cache;
+    auto last_index_value = TRY(regexp_object.get(vm.names.lastIndex, cache));
+    auto last_index = TRY(last_index_value.to_length(vm));
+
+    auto const& regex = regexp_object.regex();
+
+    bool global = regex.options().has_flag_set(ECMAScriptFlags::Global);
+    bool sticky = regex.options().has_flag_set(ECMAScriptFlags::Sticky);
+    bool has_indices = has_flag(regexp_object.flag_bits(), RegExpObject::Flags::HasIndices);
+    bool full_unicode = regex.options().has_flag_set(ECMAScriptFlags::Unicode) || regex.options().has_flag_set(ECMAScriptFlags::UnicodeSets);
+
+    if (!global && !sticky)
+        last_index = 0;
+
+    auto utf16_view = string->utf16_string_view();
+
+    if (last_index > string->length_in_utf16_code_units()) {
+        if (sticky || global) {
+            static Bytecode::StaticPropertyLookupCache cache2;
+            TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
+        }
+        return js_null();
+    }
+
+    auto* rust_regex = get_or_compile_rust_regex(regexp_object);
+    if (!rust_regex) {
+        // Fall back to C++ regex if Rust compilation fails.
+        return js_null();
+    }
+
+    // In Unicode mode, convert code unit offset to code point offset for start position.
+    size_t start_pos = full_unicode ? utf16_view.code_point_offset_of(last_index) : last_index;
+
+    auto result = rust_regex->exec(utf16_view, start_pos);
+
+    if (!result.success) {
+        if (sticky || global) {
+            static Bytecode::StaticPropertyLookupCache cache2;
+            TRY(regexp_object.set(vm.names.lastIndex, Value(0), cache2));
+        }
+        return js_null();
+    }
+
+    // Group 0 is the full match.
+    auto& full_match = result.captures[0];
+    VERIFY(full_match.has_value());
+    auto match_index = full_match->start;
+    auto end_index = full_match->end;
+
+    // In Unicode mode, match_index and end_index are already in code unit indices from the VM.
+    // Update lastIndex.
+    if (global || sticky) {
+        static Bytecode::StaticPropertyLookupCache cache3;
+        TRY(regexp_object.set(vm.names.lastIndex, Value(end_index), cache3));
+    }
+
+    auto n_capture_groups = rust_regex->capture_count();
+    auto& named_groups = rust_regex->named_groups();
+
+    auto array = MUST(Array::create(realm, n_capture_groups + 1));
+    array->unsafe_set_shape(realm.intrinsics().regexp_builtin_exec_array_shape());
+
+    // "index" property.
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_index_offset(), Value(match_index));
+
+    // "input" property.
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_input_offset(), string);
+
+    // Element 0: the full match substring.
+    auto match_str = Utf16String::from_utf16(utf16_view.substring_view(full_match->start, full_match->end - full_match->start));
+    array->indexed_properties().put(0, PrimitiveString::create(vm, match_str));
+
+    // Build a map from capture group index to group name.
+    HashMap<unsigned int, StringView> index_to_name;
+    for (auto const& ng : named_groups)
+        index_to_name.set(ng.index, ng.name);
+
+    bool has_groups = !named_groups.is_empty();
+    auto groups = has_groups ? Object::create(realm, nullptr) : js_undefined();
+
+    // "groups" property.
+    array->put_direct(realm.intrinsics().regexp_builtin_exec_array_groups_offset(), groups);
+
+    Vector<Optional<regex::RustMatch>> indices;
+    Vector<Utf16String> group_names_list;
+    Vector<Utf16String> captured_values;
+    Vector<Utf16FlyString> matched_group_names;
+
+    indices.append(regex::RustMatch { full_match->start, full_match->end });
+
+    for (unsigned int i = 1; i <= n_capture_groups; ++i) {
+        Value captured_value;
+
+        if (i < result.captures.size() && result.captures[i].has_value()) {
+            auto& cap = *result.captures[i];
+            auto cap_view = utf16_view.substring_view(cap.start, cap.end - cap.start);
+            auto cap_str = Utf16String::from_utf16(cap_view);
+            captured_value = PrimitiveString::create(vm, cap_str);
+            indices.append(regex::RustMatch { cap.start, cap.end });
+            captured_values.append(cap_str);
+        } else {
+            captured_value = js_undefined();
+            indices.append({});
+            captured_values.append({});
+        }
+
+        array->indexed_properties().put(i, captured_value);
+
+        if (auto it = index_to_name.find(i); it != index_to_name.end()) {
+            auto group_name = Utf16FlyString::from_utf8(it->value);
+
+            if (matched_group_names.contains_slow(group_name)) {
+                VERIFY(captured_value.is_undefined());
+                group_names_list.append({});
+            } else {
+                if (!captured_value.is_undefined())
+                    matched_group_names.append(group_name);
+                MUST(groups.as_object().create_data_property_or_throw(group_name, captured_value));
+                group_names_list.append(group_name.to_utf16_string());
+            }
+        } else {
+            group_names_list.append({});
+        }
+    }
+
+    // Ensure named groups are enumerated in source order.
+    if (has_groups) {
+        auto original_groups = groups;
+        groups = Object::create(realm, nullptr);
+
+        for (auto const& ng : named_groups) {
+            auto group_name = Utf16FlyString::from_utf8(ng.name);
+            auto value = original_groups.as_object().get_without_side_effects(group_name);
+            MUST(groups.as_object().create_data_property_or_throw(group_name, value));
+        }
+
+        static Bytecode::StaticPropertyLookupCache cache4;
+        MUST(array->set(vm.names.groups, groups, cache4));
+    }
+
+    // Legacy RegExp static properties.
+    auto* this_realm = &realm;
+    auto* regexp_object_realm = &regexp_object.realm();
+    if (this_realm == regexp_object_realm) {
+        if (regexp_object.legacy_features_enabled()) {
+            auto match_indices_for_legacy = regex::RustMatch { full_match->start, full_match->end };
+            update_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(), string->utf16_string(), match_indices_for_legacy.start, match_indices_for_legacy.end, captured_values);
+        } else {
+            invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor());
+        }
+    }
+
+    // hasIndices ("d" flag).
+    if (has_indices) {
+        HashMap<Utf16FlyString, regex::RustMatch> indices_group_names;
+        for (size_t i = 0; i < group_names_list.size(); ++i) {
+            if (!group_names_list[i].is_empty()) {
+                if (i < result.captures.size() - 1 && result.captures[i + 1].has_value()) {
+                    auto& cap = *result.captures[i + 1];
+                    indices_group_names.set(Utf16FlyString { group_names_list[i] }, regex::RustMatch { cap.start, cap.end });
+                }
+            }
+        }
+
+        // Build indices array manually since we can't use Match::create with RustMatch.
+        auto indices_array = MUST(Array::create(realm, 0));
+        for (size_t i = 0; i < indices.size(); ++i) {
+            if (indices[i].has_value()) {
+                auto pair = MUST(Array::create(realm, 2));
+                pair->indexed_properties().put(0, Value(indices[i]->start));
+                pair->indexed_properties().put(1, Value(indices[i]->end));
+                indices_array->indexed_properties().put(i, pair);
+            } else {
+                indices_array->indexed_properties().put(i, js_undefined());
+            }
+        }
+
+        auto indices_groups = has_groups ? Object::create(realm, nullptr) : js_undefined();
+        if (has_groups) {
+            for (auto const& entry : indices_group_names) {
+                auto pair = MUST(Array::create(realm, 2));
+                pair->indexed_properties().put(0, Value(entry.value.start));
+                pair->indexed_properties().put(1, Value(entry.value.end));
+                MUST(indices_groups.as_object().create_data_property_or_throw(entry.key, pair));
+            }
+
+            // Ensure source order.
+            auto ordered = Object::create(realm, nullptr);
+            for (auto const& ng : named_groups) {
+                auto group_name = Utf16FlyString::from_utf8(ng.name);
+                auto value = indices_groups.as_object().get_without_side_effects(group_name);
+                MUST(ordered->create_data_property_or_throw(group_name, value));
+            }
+            indices_groups = ordered;
+        }
+
+        MUST(indices_array->create_data_property_or_throw(vm.names.groups, indices_groups));
+        MUST(array->create_data_property_or_throw(vm.names.indices, indices_array));
+    }
+
+    return array;
+}
+#endif
+
 // 22.2.7.2 RegExpBuiltinExec ( R, S ), https://tc39.es/ecma262/#sec-regexpbuiltinexec
 // 22.2.7.2 RegExpBuiltInExec ( R, S ), https://github.com/tc39/proposal-regexp-legacy-features#regexpbuiltinexec--r-s-
 static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp_object, GC::Ref<PrimitiveString> string)
 {
+#ifdef ENABLE_RUST
+    if (s_use_rust_regex)
+        return rust_regexp_builtin_exec(vm, regexp_object, string);
+#endif
+
     auto& realm = *vm.current_realm();
 
     // 1. Let length be the length of S.

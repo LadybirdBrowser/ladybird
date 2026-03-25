@@ -69,7 +69,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("es6/regexp-constructor", () => {
+test("es6/regexp-constructor", () => {
     "use strict";
 
     function should_not_be_called() {

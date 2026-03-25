@@ -69,7 +69,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("es6/unicode-regexp-restricted-syntax", () => {
+test("es6/unicode-regexp-restricted-syntax", () => {
     assertThrows("/\\1/u", SyntaxError);
     // test262/language/literals/regexp/u-invalid-char-range-a
     assertThrows("/[\\w-a]/u", SyntaxError);

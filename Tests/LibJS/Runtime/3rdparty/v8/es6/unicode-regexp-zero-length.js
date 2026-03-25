@@ -69,7 +69,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("es6/unicode-regexp-zero-length", () => {
+test("es6/unicode-regexp-zero-length", () => {
     var L = "\ud800";
     var T = "\udc00";
     var x = "x";

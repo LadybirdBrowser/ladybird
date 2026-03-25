@@ -75,6 +75,13 @@ test("v flag should enable unicode mode", () => {
     expect(re.test("a\u{10FFFF}")).toBe(true);
 });
 
+test("v flag empty character classes", () => {
+    expect(/[]/v.test("a")).toBeFalse();
+    expect("a".match(/[^]/v)).toEqual(["a"]);
+    expect("\n".match(/[^]/v)).toEqual(["\n"]);
+    expect("foo".match(/[^]+?/v)).toEqual(["f"]);
+});
+
 test("parsing a large bytestring shouldn't crash", () => {
     RegExp(new Uint8Array(0x40000));
 });

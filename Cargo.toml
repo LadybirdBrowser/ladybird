@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "Libraries/LibJS/Rust",
+    "Libraries/LibRegex/Rust",
     "Libraries/LibUnicode/Rust",
 ]
 exclude = [

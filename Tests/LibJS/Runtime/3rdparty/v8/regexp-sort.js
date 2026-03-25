@@ -84,7 +84,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("regexp-sort", () => {
+test("regexp-sort", () => {
     function Test(lower, upper) {
         var lx = lower + "x";
         var ux = upper + "x";

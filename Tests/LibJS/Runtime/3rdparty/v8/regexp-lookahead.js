@@ -107,7 +107,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("regexp-lookahead", () => {
+test("regexp-lookahead", () => {
     function stringEscape(string) {
         // Converts string to source literal.
         return '"' + string.replace(/["\\]/g, "\\$1") + '"';

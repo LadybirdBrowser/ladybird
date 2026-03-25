@@ -1,4 +1,4 @@
-test.xfail("overflow", () => {
+test("overflow", () => {
     // WebKit assertion compatibility shim for Ladybird's test-js harness
 
     function description(msg) {
@@ -55,13 +55,8 @@ test.xfail("overflow", () => {
     var regexp3 = new RegExp(s3, "");
     shouldBe("regexp3.exec(s3)", "null");
 
-    shouldThrow(
-        "function f() { /[^a$]{18446744073709551615}/ }",
-        '"SyntaxError: Invalid regular expression: number too large in {} quantifier"'
-    );
-
-    shouldThrow(
-        "new RegExp('((?=$))??(?:\\\\1){1180591620717411303423,}')",
-        '"SyntaxError: Invalid regular expression: number too large in {} quantifier"'
-    );
+    // Large quantifier values are saturated rather than rejected (matching V8 behavior
+    // and the test262 quantifier-integer-limit test which requires accepting 2^53-1).
+    shouldNotThrow("function f() { /[^a$]{18446744073709551615}/ }");
+    shouldNotThrow("new RegExp('((?=$))??(?:\\\\1){1180591620717411303423,}')");
 });
