@@ -2464,7 +2464,11 @@ impl<'a, I: Input> Vm<'a, I> {
                                     {
                                         break scan_pos;
                                     }
-                                    scan_pos = self.advance_one_char(scan_pos);
+                                    let next_scan_pos = self.advance_one_char(scan_pos);
+                                    if next_scan_pos == scan_pos {
+                                        return self.backtrack();
+                                    }
+                                    scan_pos = next_scan_pos;
                                 }
                             }
                             Some(Instruction::Char(target))
@@ -2483,7 +2487,11 @@ impl<'a, I: Input> Vm<'a, I> {
                                     {
                                         break scan_pos;
                                     }
-                                    scan_pos = self.advance_one_char(scan_pos);
+                                    let next_scan_pos = self.advance_one_char(scan_pos);
+                                    if next_scan_pos == scan_pos {
+                                        return self.backtrack();
+                                    }
+                                    scan_pos = next_scan_pos;
                                 }
                             }
                             _ => {
