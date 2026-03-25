@@ -2386,14 +2386,16 @@ impl<'a, I: Input> Vm<'a, I> {
                                 if !self.modifiers.ignore_case && *target <= 0xFFFF =>
                             {
                                 let target = *target as u16;
-                                // Scan forward (rightward) from current_pos+1.
+                                // In backward mode the next Char reads the code
+                                // point immediately to the left of the current
+                                // position, so scan candidate boundaries and
+                                // check the code unit before each boundary.
                                 let mut scan_pos = self.advance_one_char(current_pos);
                                 loop {
                                     if scan_pos > max_pos {
                                         return self.backtrack();
                                     }
-                                    if scan_pos < self.input_len()
-                                        && self.input_code_unit(scan_pos) == target
+                                    if scan_pos > 0 && self.input_code_unit(scan_pos - 1) == target
                                     {
                                         break scan_pos;
                                     }
@@ -2410,9 +2412,9 @@ impl<'a, I: Input> Vm<'a, I> {
                                     if scan_pos > max_pos {
                                         return self.backtrack();
                                     }
-                                    if scan_pos + 1 < self.input_len()
-                                        && self.input_code_unit(scan_pos) == hi
-                                        && self.input_code_unit(scan_pos + 1) == lo
+                                    if scan_pos >= 2
+                                        && self.input_code_unit(scan_pos - 2) == hi
+                                        && self.input_code_unit(scan_pos - 1) == lo
                                     {
                                         break scan_pos;
                                     }

@@ -87,6 +87,13 @@ test("nested quantified captures keep the last non-empty iteration", () => {
     expect("xyz123xyz".match(/((123)|(xyz)*)*/)).toEqual(["xyz123xyz", "xyz", undefined, "xyz"]);
 });
 
+test("greedy lookbehinds backtrack to the correct boundary", () => {
+    const string = "hey THIS does match!";
+
+    expect(string.match(/(?<=h.*)THIS/)).toEqual(["THIS"]);
+    expect(string.match(/(?<!.*q.*?)(?<=h.*)THIS(?=.*!)/g)).toEqual(["THIS"]);
+});
+
 test("sticky and global flag set", () => {
     const string = "aaba";
     expect(string.match(/a/)).toEqual(["a"]);
