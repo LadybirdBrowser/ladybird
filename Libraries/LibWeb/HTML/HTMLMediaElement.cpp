@@ -237,11 +237,15 @@ GC::Ref<TimeRanges> HTMLMediaElement::buffered() const
 {
     auto& realm = this->realm();
 
-    // FIXME: The buffered attribute must return a new static normalized TimeRanges object that represents the ranges of the
-    //        media resource, if any, that the user agent has buffered, at the time the attribute is evaluated. User agents
-    //        must accurately determine the ranges available, even for media streams where this can only be determined by
-    //        tedious inspection.
-    return realm.create<TimeRanges>(realm);
+    // https://html.spec.whatwg.org/multipage/media.html#dom-media-buffered
+    // The buffered attribute must return a new static normalized TimeRanges object that represents the ranges of the
+    // media resource, if any, that the user agent has buffered, at the time the attribute is evaluated.
+    auto time_ranges = realm.create<TimeRanges>(realm);
+    if (m_playback_manager) {
+        for (auto const& range : m_playback_manager->buffered_time_ranges())
+            time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
+    }
+    return time_ranges;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-played
