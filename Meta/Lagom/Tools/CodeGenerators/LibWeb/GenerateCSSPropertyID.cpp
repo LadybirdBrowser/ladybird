@@ -1023,9 +1023,16 @@ AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
                 if (limits.size() != 2)
                     VERIFY_NOT_REACHED();
 
-                // FIXME: Use min and max values for i32 instead of float where applicable (e.g. for "integer")
-                auto min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
-                auto max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
+                String min;
+                String max;
+
+                if (type_name == "integer") {
+                    min = limits.get(0) == "-∞" ? "AK::NumericLimits<i32>::min()"_string : *limits.get(0);
+                    max = limits.get(1) == "∞" ? "AK::NumericLimits<i32>::max()"_string : *limits.get(1);
+                } else {
+                    min = limits.get(0) == "-∞" ? "AK::NumericLimits<float>::lowest()"_string : *limits.get(0);
+                    max = limits.get(1) == "∞" ? "AK::NumericLimits<float>::max()"_string : *limits.get(1);
+                }
 
                 if (!ranges_builder.is_empty())
                     ranges_builder.appendff(", ");

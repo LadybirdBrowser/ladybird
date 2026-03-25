@@ -1,0 +1,19 @@
+<!doctype html>
+<style>
+    #foo {
+        order: calc(4294967296);
+        animation-timing-function: steps(calc(4294967296), end);
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(`Specified order: ${document.styleSheets[0].cssRules[0].style.order}`);
+        println(`Computed order: ${getComputedStyle(foo).order}`);
+        println(
+            `Specified animation-timing-function: ${document.styleSheets[0].cssRules[0].style.animationTimingFunction}`
+        );
+        println(`Computed animation-timing-function: ${getComputedStyle(foo).animationTimingFunction}`);
+    });
+</script>

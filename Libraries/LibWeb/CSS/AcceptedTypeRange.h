@@ -11,8 +11,8 @@
 namespace Web::CSS {
 
 struct AcceptedTypeRange {
-    float min;
-    float max;
+    double min;
+    double max;
 };
 using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
 

@@ -1,0 +1,4 @@
+Specified order: calc(4294967296)
+Computed order: 2147483647
+Specified animation-timing-function: steps(calc(4294967296))
+Computed animation-timing-function: steps(2147483647)
