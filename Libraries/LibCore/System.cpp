@@ -155,12 +155,23 @@ ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int opti
     static size_t shared_memory_id = 0;
 
     auto name = ByteString::formatted("/shm-{}-{}", getpid(), shared_memory_id++);
-    fd = shm_open(name.characters(), O_RDWR | O_CREAT | options, 0600);
+    // Passing O_CLOEXEC to shm_open in the oflag argument isn't POSIX-compliant and is known to be rejected
+    // in macOS 26.4+. So we filter it out here, and instead set FD_CLOEXEC via fcntl after opening.
+    fd = shm_open(name.characters(), O_RDWR | O_CREAT | (options & ~O_CLOEXEC), 0600);
 
     if (shm_unlink(name.characters()) == -1) {
         auto saved_errno = errno;
-        TRY(close(fd));
+        if (fd >= 0)
+            TRY(close(fd));
         return Error::from_errno(saved_errno);
+    }
+
+    if (fd >= 0 && (options & O_CLOEXEC)) {
+        if (::fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+            auto saved_errno = errno;
+            TRY(close(fd));
+            return Error::from_errno(saved_errno);
+        }
     }
 #endif
     if (fd < 0)
