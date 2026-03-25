@@ -2145,8 +2145,9 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     VERIFY(history_handling == HistoryHandlingBehavior::Replace);
 
     // 2. If targetNavigable's ongoing navigation is no longer navigationId, then return.
-    if (ongoing_navigation() != navigation_id)
-        return;
+    // AD-HOC: See https://github.com/whatwg/html/issues/12120, other browsers only cancel pending navigations for form submissions.
+    // if (ongoing_navigation() != navigation_id)
+    //     return;
 
     // 3. Set the ongoing navigation for targetNavigable to null.
     set_ongoing_navigation({});
