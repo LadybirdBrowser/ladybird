@@ -62,14 +62,8 @@ public:
 private:
     explicit CompiledRustRegex(RustRegex* regex);
 
-    /// Get u16 data pointer and length from a Utf16View.
-    /// For ASCII storage, widens to u16 using the cached buffer.
-    unsigned short const* get_u16_data(Utf16View input, size_t& out_len) const;
-
     RustRegex* m_regex { nullptr };
     Vector<RustNamedCaptureGroup> m_named_groups;
-    /// Reusable buffer for ASCII→u16 widening, avoiding per-call allocation.
-    mutable Vector<u16> m_u16_buffer;
     /// Pre-allocated buffer for capture results to avoid per-exec allocation.
     mutable Vector<int> m_capture_buffer;
     mutable unsigned int m_capture_count { 0 };

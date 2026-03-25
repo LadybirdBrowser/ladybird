@@ -53,6 +53,19 @@ impl Regex {
     /// The buffer should have `(capture_count + 1) * 2` i32 slots.
     /// On match, captures are written as pairs of (start, end) i32 values.
     pub fn exec_into(&self, input: &[u16], start: usize, out: &mut [i32]) -> vm::VmResult {
+        self.exec_into_input(input, start, out)
+    }
+
+    pub fn exec_into_ascii(&self, input: &[u8], start: usize, out: &mut [i32]) -> vm::VmResult {
+        self.exec_into_input(input, start, out)
+    }
+
+    pub(crate) fn exec_into_input<I: vm::Input>(
+        &self,
+        input: I,
+        start: usize,
+        out: &mut [i32],
+    ) -> vm::VmResult {
         // Fast path for literal patterns: use fast substring search.
         // NB: Literal searches never hit the step limit.
         if let Some(ref needle) = self.literal_u16 {
@@ -76,6 +89,14 @@ impl Regex {
 
     /// Test whether the regex matches anywhere in the input.
     pub fn test(&self, input: &[u16], start: usize) -> vm::VmResult {
+        self.test_input(input, start)
+    }
+
+    pub fn test_ascii(&self, input: &[u8], start: usize) -> vm::VmResult {
+        self.test_input(input, start)
+    }
+
+    pub(crate) fn test_input<I: vm::Input>(&self, input: I, start: usize) -> vm::VmResult {
         if let Some(ref needle) = self.literal_u16 {
             return if Self::literal_test(input, start, needle, &self.flags) {
                 vm::VmResult::Match
@@ -98,8 +119,8 @@ impl Regex {
     }
 
     /// Fast literal substring search for whole-pattern literal fast paths.
-    fn literal_search(
-        input: &[u16],
+    fn literal_search<I: vm::Input>(
+        input: I,
         start: usize,
         needle: &[u16],
         flags: &Flags,
@@ -121,10 +142,10 @@ impl Regex {
                 return false;
             }
             'outer: for pos in start..=input.len() - needle_len {
-                for j in 0..needle_len {
+                for (j, expected) in needle.iter().enumerate() {
                     if !vm::case_fold_eq(
-                        input[pos + j] as u32,
-                        needle[j] as u32,
+                        input.code_unit(pos + j) as u32,
+                        *expected as u32,
                         flags.unicode || flags.unicode_sets,
                     ) {
                         continue 'outer;
@@ -149,12 +170,12 @@ impl Regex {
         let end = input.len() - needle_len + 1;
         while pos < end {
             // Bulk scan for first character.
-            match input[pos..end].iter().position(|&c| c == first) {
-                Some(offset) => pos += offset,
+            match input.find_code_unit(pos, end, first) {
+                Some(candidate_pos) => pos = candidate_pos,
                 None => return false,
             }
             // Verify rest of needle.
-            if input[pos..pos + needle_len] == *needle {
+            if input.matches_u16_at(pos, needle) {
                 if out.len() >= 2 {
                     out[0] = pos as i32;
                     out[1] = (pos + needle_len) as i32;
@@ -167,16 +188,21 @@ impl Regex {
     }
 
     /// Fast literal test (no captures needed).
-    fn literal_test(input: &[u16], start: usize, needle: &[u16], flags: &Flags) -> bool {
+    fn literal_test<I: vm::Input>(input: I, start: usize, needle: &[u16], flags: &Flags) -> bool {
         let mut out = [0i32; 2];
         Self::literal_search(input, start, needle, flags, &mut out)
     }
 
     /// Fast literal alternation search: find the first matching alternative.
     /// Alternatives are in source order to preserve ECMAScript leftmost-first semantics.
-    fn literal_alt_search(input: &[u16], start: usize, alts: &[Vec<u16>], out: &mut [i32]) -> bool {
+    fn literal_alt_search<I: vm::Input>(
+        input: I,
+        start: usize,
+        alts: &[Vec<u16>],
+        out: &mut [i32],
+    ) -> bool {
         for pos in start..input.len() {
-            let first_ch = input[pos];
+            let first_ch = input.code_unit(pos);
             for alt in alts {
                 if alt[0] != first_ch {
                     continue;
@@ -185,7 +211,7 @@ impl Regex {
                 if pos + alt_len > input.len() {
                     continue;
                 }
-                if input[pos..pos + alt_len] == alt[..] {
+                if input.matches_u16_at(pos, alt) {
                     if out.len() >= 2 {
                         out[0] = pos as i32;
                         out[1] = (pos + alt_len) as i32;
@@ -198,8 +224,8 @@ impl Regex {
     }
 
     /// Find all literal matches, writing (start, end) pairs into result_buf.
-    fn literal_find_all(
-        input: &[u16],
+    fn literal_find_all<I: vm::Input>(
+        input: I,
         start: usize,
         needle: &[u16],
         flags: &Flags,
@@ -235,8 +261,8 @@ impl Regex {
     }
 
     /// Find all literal alternation matches, writing (start, end) pairs into result_buf.
-    fn literal_alt_find_all(
-        input: &[u16],
+    fn literal_alt_find_all<I: vm::Input>(
+        input: I,
         start: usize,
         alts: &[Vec<u16>],
         result_buf: &mut [i32],
@@ -310,6 +336,19 @@ impl Regex {
     /// Writes (match_start, match_end) i32 pairs directly into `result_buf`.
     /// Returns number of matches found, or -1 if buffer is too small.
     pub fn find_all_into(&self, input: &[u16], start: usize, result_buf: &mut [i32]) -> i32 {
+        self.find_all_into_input(input, start, result_buf)
+    }
+
+    pub fn find_all_into_ascii(&self, input: &[u8], start: usize, result_buf: &mut [i32]) -> i32 {
+        self.find_all_into_input(input, start, result_buf)
+    }
+
+    pub(crate) fn find_all_into_input<I: vm::Input>(
+        &self,
+        input: I,
+        start: usize,
+        result_buf: &mut [i32],
+    ) -> i32 {
         // Fast path for literal patterns.
         if let Some(ref needle) = self.literal_u16 {
             return Self::literal_find_all(input, start, needle, &self.flags, result_buf);

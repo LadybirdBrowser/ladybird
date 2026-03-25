@@ -44,6 +44,26 @@ TEST_CASE(exec_reports_unmatched_optional_groups)
     EXPECT_EQ(regex.capture_slot(3), -1);
 }
 
+TEST_CASE(ascii_backed_inputs_preserve_match_results)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("(?<word>foo)(bar)"sv, {}));
+
+    EXPECT_EQ(regex.exec("foobar"sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.capture_slot(0), 0);
+    EXPECT_EQ(regex.capture_slot(1), 6);
+    EXPECT_EQ(regex.capture_slot(2), 0);
+    EXPECT_EQ(regex.capture_slot(3), 3);
+    EXPECT_EQ(regex.capture_slot(4), 3);
+    EXPECT_EQ(regex.capture_slot(5), 6);
+
+    EXPECT_EQ(regex.test("foobar"sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.find_all("foobar foobar"sv, 0), 2);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(0).end, 6);
+    EXPECT_EQ(regex.find_all_match(1).start, 7);
+    EXPECT_EQ(regex.find_all_match(1).end, 13);
+}
+
 TEST_CASE(test_honors_ignore_case)
 {
     auto regex = MUST(regex::ECMAScriptRegex::compile("casesensitive"sv, { .ignore_case = true }));

@@ -427,7 +427,6 @@ CompiledRustRegex::~CompiledRustRegex()
 CompiledRustRegex::CompiledRustRegex(CompiledRustRegex&& other)
     : m_regex(other.m_regex)
     , m_named_groups(move(other.m_named_groups))
-    , m_u16_buffer(move(other.m_u16_buffer))
     , m_capture_buffer(move(other.m_capture_buffer))
     , m_capture_count(other.m_capture_count)
     , m_capture_count_cached(other.m_capture_count_cached)
@@ -445,7 +444,6 @@ CompiledRustRegex& CompiledRustRegex::operator=(CompiledRustRegex&& other)
             rust_regex_free(m_regex);
         m_regex = other.m_regex;
         m_named_groups = move(other.m_named_groups);
-        m_u16_buffer = move(other.m_u16_buffer);
         m_capture_buffer = move(other.m_capture_buffer);
         m_capture_count = other.m_capture_count;
         m_capture_count_cached = other.m_capture_count_cached;
@@ -462,24 +460,8 @@ CompiledRustRegex::CompiledRustRegex(RustRegex* regex)
 {
 }
 
-unsigned short const* CompiledRustRegex::get_u16_data(Utf16View input, size_t& out_len) const
-{
-    out_len = input.length_in_code_units();
-    if (input.has_ascii_storage()) {
-        auto const* source = input.ascii_span().data();
-        m_u16_buffer.resize(out_len);
-        for (size_t i = 0; i < out_len; ++i)
-            m_u16_buffer[i] = static_cast<u16>(source[i]);
-        return m_u16_buffer.data();
-    }
-    return reinterpret_cast<unsigned short const*>(input.utf16_span().data());
-}
-
 int CompiledRustRegex::exec_internal(Utf16View input, size_t start_pos) const
 {
-    size_t len;
-    auto* data = get_u16_data(input, len);
-
     if (!m_capture_count_cached) {
         m_capture_count = rust_regex_capture_count(m_regex) + 1;
         m_capture_count_cached = true;
@@ -487,7 +469,25 @@ int CompiledRustRegex::exec_internal(Utf16View input, size_t start_pos) const
     auto slots = m_capture_count * 2;
     m_capture_buffer.resize(slots);
 
-    return rust_regex_exec_into(m_regex, data, len, start_pos, m_capture_buffer.data(), slots);
+    if (input.has_ascii_storage()) {
+        auto ascii = input.ascii_span();
+        return rust_regex_exec_into_ascii(
+            m_regex,
+            reinterpret_cast<uint8_t const*>(ascii.data()),
+            ascii.size(),
+            start_pos,
+            m_capture_buffer.data(),
+            slots);
+    }
+
+    auto utf16 = input.utf16_span();
+    return rust_regex_exec_into(
+        m_regex,
+        reinterpret_cast<unsigned short const*>(utf16.data()),
+        utf16.size(),
+        start_pos,
+        m_capture_buffer.data(),
+        slots);
 }
 
 unsigned int CompiledRustRegex::total_groups() const
@@ -501,20 +501,50 @@ unsigned int CompiledRustRegex::total_groups() const
 
 int CompiledRustRegex::test(Utf16View input, size_t start_pos) const
 {
-    size_t len;
-    auto* data = get_u16_data(input, len);
-    return rust_regex_test(m_regex, data, len, start_pos);
+    if (input.has_ascii_storage()) {
+        auto ascii = input.ascii_span();
+        return rust_regex_test_ascii(
+            m_regex,
+            reinterpret_cast<uint8_t const*>(ascii.data()),
+            ascii.size(),
+            start_pos);
+    }
+
+    auto utf16 = input.utf16_span();
+    return rust_regex_test(
+        m_regex,
+        reinterpret_cast<unsigned short const*>(utf16.data()),
+        utf16.size(),
+        start_pos);
 }
 
 int CompiledRustRegex::find_all(Utf16View input, size_t start_pos) const
 {
-    size_t len;
-    auto* data = get_u16_data(input, len);
     // Start with reasonable capacity; keep doubling until it fits.
     if (m_find_all_buffer.size() < 256)
         m_find_all_buffer.resize(256);
+
     for (;;) {
-        int result = rust_regex_find_all(m_regex, data, len, start_pos, m_find_all_buffer.data(), m_find_all_buffer.size());
+        int result;
+        if (input.has_ascii_storage()) {
+            auto ascii = input.ascii_span();
+            result = rust_regex_find_all_ascii(
+                m_regex,
+                reinterpret_cast<uint8_t const*>(ascii.data()),
+                ascii.size(),
+                start_pos,
+                m_find_all_buffer.data(),
+                m_find_all_buffer.size());
+        } else {
+            auto utf16 = input.utf16_span();
+            result = rust_regex_find_all(
+                m_regex,
+                reinterpret_cast<unsigned short const*>(utf16.data()),
+                utf16.size(),
+                start_pos,
+                m_find_all_buffer.data(),
+                m_find_all_buffer.size());
+        }
         if (result != -1)
             return result;
         m_find_all_buffer.resize(m_find_all_buffer.size() * 2);

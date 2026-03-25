@@ -100,6 +100,44 @@ pub unsafe extern "C" fn rust_regex_free(regex: *mut RustRegex) {
     }
 }
 
+fn exec_into_internal<I: crate::vm::Input>(
+    regex: &RustRegex,
+    input: I,
+    start_pos: usize,
+    out_captures: *mut i32,
+    out_capture_slots: u32,
+) -> i32 {
+    use crate::vm::VmResult;
+
+    let out = unsafe { slice::from_raw_parts_mut(out_captures, out_capture_slots as usize) };
+    match regex.0.exec_into_input(input, start_pos, out) {
+        VmResult::Match => 1,
+        VmResult::NoMatch => 0,
+        VmResult::LimitExceeded => -1,
+    }
+}
+
+fn test_internal<I: crate::vm::Input>(regex: &RustRegex, input: I, start_pos: usize) -> i32 {
+    use crate::vm::VmResult;
+
+    match regex.0.test_input(input, start_pos) {
+        VmResult::Match => 1,
+        VmResult::NoMatch => 0,
+        VmResult::LimitExceeded => -1,
+    }
+}
+
+fn find_all_internal<I: crate::vm::Input>(
+    regex: &RustRegex,
+    input: I,
+    start_pos: usize,
+    out: *mut i32,
+    out_capacity: u32,
+) -> i32 {
+    let out_slice = unsafe { slice::from_raw_parts_mut(out, out_capacity as usize) };
+    regex.0.find_all_into_input(input, start_pos, out_slice)
+}
+
 /// Execute a regex, writing captures into a caller-provided buffer.
 /// Returns 1 on match, 0 on no match, -1 on step limit exceeded.
 ///
@@ -117,7 +155,6 @@ pub unsafe extern "C" fn rust_regex_exec_into(
     out_captures: *mut i32,
     out_capture_slots: u32,
 ) -> i32 {
-    use crate::vm::VmResult;
     if regex.is_null() || out_captures.is_null() {
         return 0;
     }
@@ -127,12 +164,34 @@ pub unsafe extern "C" fn rust_regex_exec_into(
     } else {
         unsafe { slice::from_raw_parts(input, input_len) }
     };
-    let out = unsafe { slice::from_raw_parts_mut(out_captures, out_capture_slots as usize) };
-    match regex.0.exec_into(input, start_pos, out) {
-        VmResult::Match => 1,
-        VmResult::NoMatch => 0,
-        VmResult::LimitExceeded => -1,
+    exec_into_internal(regex, input, start_pos, out_captures, out_capture_slots)
+}
+
+/// Execute a regex against ASCII input, writing captures into a caller-provided buffer.
+///
+/// # Safety
+/// - `regex` must be a valid pointer from `rust_regex_compile`.
+/// - `input` must point to `input_len` ASCII code units.
+/// - `out_captures` must point to a buffer of at least `capture_count * 2` i32s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_regex_exec_into_ascii(
+    regex: *const RustRegex,
+    input: *const u8,
+    input_len: usize,
+    start_pos: usize,
+    out_captures: *mut i32,
+    out_capture_slots: u32,
+) -> i32 {
+    if regex.is_null() || out_captures.is_null() {
+        return 0;
     }
+    let regex = unsafe { &*regex };
+    let input = if input.is_null() {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(input, input_len) }
+    };
+    exec_into_internal(regex, input, start_pos, out_captures, out_capture_slots)
 }
 
 /// Test whether a regex matches anywhere in the input.
@@ -147,7 +206,6 @@ pub unsafe extern "C" fn rust_regex_test(
     input_len: usize,
     start_pos: usize,
 ) -> i32 {
-    use crate::vm::VmResult;
     if regex.is_null() {
         return 0;
     }
@@ -157,11 +215,30 @@ pub unsafe extern "C" fn rust_regex_test(
     } else {
         unsafe { slice::from_raw_parts(input, input_len) }
     };
-    match regex.0.test(input, start_pos) {
-        VmResult::Match => 1,
-        VmResult::NoMatch => 0,
-        VmResult::LimitExceeded => -1,
+    test_internal(regex, input, start_pos)
+}
+
+/// Test whether a regex matches anywhere in ASCII input.
+///
+/// # Safety
+/// Same requirements as `rust_regex_test`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_regex_test_ascii(
+    regex: *const RustRegex,
+    input: *const u8,
+    input_len: usize,
+    start_pos: usize,
+) -> i32 {
+    if regex.is_null() {
+        return 0;
     }
+    let regex = unsafe { &*regex };
+    let input = if input.is_null() {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(input, input_len) }
+    };
+    test_internal(regex, input, start_pos)
 }
 
 /// Get the number of capture groups (not counting group 0).
@@ -203,8 +280,34 @@ pub unsafe extern "C" fn rust_regex_find_all(
     } else {
         unsafe { slice::from_raw_parts(input, input_len) }
     };
-    let out_slice = unsafe { slice::from_raw_parts_mut(out, out_capacity as usize) };
-    regex.0.find_all_into(input, start_pos, out_slice)
+    find_all_internal(regex, input, start_pos, out, out_capacity)
+}
+
+/// Find all non-overlapping matches in ASCII input.
+///
+/// # Safety
+/// - `regex` must be a valid pointer from `rust_regex_compile`.
+/// - `input` must point to `input_len` ASCII code units.
+/// - `out` must point to at least `out_capacity` i32s.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_regex_find_all_ascii(
+    regex: *const RustRegex,
+    input: *const u8,
+    input_len: usize,
+    start_pos: usize,
+    out: *mut i32,
+    out_capacity: u32,
+) -> i32 {
+    if regex.is_null() || out.is_null() {
+        return 0;
+    }
+    let regex = unsafe { &*regex };
+    let input = if input.is_null() {
+        &[]
+    } else {
+        unsafe { slice::from_raw_parts(input, input_len) }
+    };
+    find_all_internal(regex, input, start_pos, out, out_capacity)
 }
 
 /// A named group entry returned across FFI.

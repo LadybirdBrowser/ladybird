@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Backtracking regex VM operating on WTF-16 input.
+//! Backtracking regex VM operating on ASCII or WTF-16 input.
 //!
-//! Executes the compiled matcher against a `&[u16]` input string using an
-//! explicit backtrack stack instead of recursion.
+//! Executes the compiled matcher against an input string using an explicit
+//! backtrack stack instead of recursion.
 //!
 //! Spec:
 //! - <https://tc39.es/ecma262/#sec-pattern-semantics>
@@ -23,6 +23,143 @@ pub enum VmResult {
     Match,
     NoMatch,
     LimitExceeded,
+}
+
+pub trait Input: Copy {
+    fn len(self) -> usize;
+    fn code_unit(self, pos: usize) -> u16;
+
+    #[inline(always)]
+    fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
+    #[inline(always)]
+    fn find_code_unit(self, start: usize, end: usize, ch16: u16) -> Option<usize> {
+        let mut pos = start;
+        while pos < end {
+            if self.code_unit(pos) == ch16 {
+                return Some(pos);
+            }
+            pos += 1;
+        }
+        None
+    }
+
+    #[inline(always)]
+    fn next_literal_start(self, start_pos: usize, ch16: u16) -> Option<usize> {
+        self.find_code_unit(start_pos, self.len(), ch16)
+    }
+
+    #[inline(always)]
+    fn matches_u16_at(self, pos: usize, needle: &[u16]) -> bool {
+        if pos + needle.len() > self.len() {
+            return false;
+        }
+        for (offset, expected) in needle.iter().enumerate() {
+            if self.code_unit(pos + offset) != *expected {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[inline(always)]
+    fn ends_with_u16(self, suffix: &[u16]) -> bool {
+        if suffix.len() > self.len() {
+            return false;
+        }
+        self.matches_u16_at(self.len() - suffix.len(), suffix)
+    }
+
+    #[inline(always)]
+    fn ranges_equal(self, left_start: usize, right_start: usize, len: usize) -> bool {
+        if left_start + len > self.len() || right_start + len > self.len() {
+            return false;
+        }
+        for offset in 0..len {
+            if self.code_unit(left_start + offset) != self.code_unit(right_start + offset) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl Input for &[u16] {
+    #[inline(always)]
+    fn len(self) -> usize {
+        <[u16]>::len(self)
+    }
+
+    #[inline(always)]
+    fn code_unit(self, pos: usize) -> u16 {
+        self[pos]
+    }
+
+    #[inline(always)]
+    fn find_code_unit(self, start: usize, end: usize, ch16: u16) -> Option<usize> {
+        let offset = self.get(start..end)?.iter().position(|&c| c == ch16)?;
+        Some(start + offset)
+    }
+
+    #[inline(always)]
+    fn matches_u16_at(self, pos: usize, needle: &[u16]) -> bool {
+        self.get(pos..pos + needle.len()) == Some(needle)
+    }
+
+    #[inline(always)]
+    fn ends_with_u16(self, suffix: &[u16]) -> bool {
+        self.ends_with(suffix)
+    }
+
+    #[inline(always)]
+    fn ranges_equal(self, left_start: usize, right_start: usize, len: usize) -> bool {
+        self.get(left_start..left_start + len) == self.get(right_start..right_start + len)
+    }
+}
+
+impl Input for &[u8] {
+    #[inline(always)]
+    fn len(self) -> usize {
+        <[u8]>::len(self)
+    }
+
+    #[inline(always)]
+    fn code_unit(self, pos: usize) -> u16 {
+        self[pos] as u16
+    }
+
+    #[inline(always)]
+    fn find_code_unit(self, start: usize, end: usize, ch16: u16) -> Option<usize> {
+        let byte = u8::try_from(ch16).ok()?;
+        if byte > 0x7F {
+            return None;
+        }
+        let offset = self.get(start..end)?.iter().position(|&c| c == byte)?;
+        Some(start + offset)
+    }
+
+    #[inline(always)]
+    fn matches_u16_at(self, pos: usize, needle: &[u16]) -> bool {
+        let Some(slice) = self.get(pos..pos + needle.len()) else {
+            return false;
+        };
+        for (actual, expected) in slice.iter().zip(needle.iter()) {
+            if *expected > 0x7F || *actual != *expected as u8 {
+                return false;
+            }
+        }
+        true
+    }
+
+    #[inline(always)]
+    fn ends_with_u16(self, suffix: &[u16]) -> bool {
+        if suffix.len() > self.len() {
+            return false;
+        }
+        self.matches_u16_at(self.len() - suffix.len(), suffix)
+    }
 }
 
 /// Execute the program, writing captures directly into `out` buffer.
@@ -42,12 +179,6 @@ fn next_search_position(match_start: i32, match_end: i32) -> usize {
     } else {
         match_end as usize
     }
-}
-
-#[inline(always)]
-fn next_literal_start(input: &[u16], start_pos: usize, ch16: u16) -> Option<usize> {
-    let offset = input.get(start_pos..)?.iter().position(|&c| c == ch16)?;
-    Some(start_pos + offset)
 }
 
 use crate::bytecode::append_code_point_wtf16;
@@ -154,17 +285,17 @@ fn for_each_successor(
 }
 
 #[inline(always)]
-fn fails_trailing_literal_hint(input: &[u16], hints: &PatternHints) -> bool {
+fn fails_trailing_literal_hint<I: Input>(input: I, hints: &PatternHints) -> bool {
     let Some(suffix) = hints.trailing_literal.as_deref() else {
         return false;
     };
-    !input.ends_with(suffix)
+    !input.ends_with_u16(suffix)
 }
 
 #[inline(always)]
-fn first_char_matches(
+fn first_char_matches<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     pos: usize,
     ch: u32,
     case_insensitive: bool,
@@ -174,13 +305,15 @@ fn first_char_matches(
     }
 
     let input_cp = if program.unicode
-        && is_high_surrogate(input[pos])
+        && is_high_surrogate(input.code_unit(pos))
         && pos + 1 < input.len()
-        && is_low_surrogate(input[pos + 1])
+        && is_low_surrogate(input.code_unit(pos + 1))
     {
-        0x10000 + ((input[pos] as u32 - 0xD800) << 10) + (input[pos + 1] as u32 - 0xDC00)
+        0x10000
+            + ((input.code_unit(pos) as u32 - 0xD800) << 10)
+            + (input.code_unit(pos + 1) as u32 - 0xDC00)
     } else {
-        input[pos] as u32
+        input.code_unit(pos) as u32
     };
 
     if case_insensitive {
@@ -191,9 +324,9 @@ fn first_char_matches(
 }
 
 #[inline(always)]
-fn first_filter_matches(
+fn first_filter_matches<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     pos: usize,
     filter: &SimpleMatch,
 ) -> bool {
@@ -219,9 +352,9 @@ fn first_filter_matches(
 }
 
 #[inline(always)]
-fn next_candidate_start(
+fn next_candidate_start<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     hints: &PatternHints,
     mut pos: usize,
 ) -> Option<usize> {
@@ -229,14 +362,17 @@ fn next_candidate_start(
         if program.unicode
             && pos > 0
             && pos < input.len()
-            && is_low_surrogate(input[pos])
-            && is_high_surrogate(input[pos - 1])
+            && is_low_surrogate(input.code_unit(pos))
+            && is_high_surrogate(input.code_unit(pos - 1))
         {
             pos += 1;
             continue;
         }
 
-        if hints.starts_with_anchor && pos != 0 && !is_line_terminator(input[pos - 1] as u32) {
+        if hints.starts_with_anchor
+            && pos != 0
+            && !is_line_terminator(input.code_unit(pos - 1) as u32)
+        {
             pos += 1;
             continue;
         }
@@ -268,9 +404,9 @@ fn next_candidate_start(
 }
 
 /// Execute the program, reusing a provided VmScratch to avoid per-call allocation.
-pub fn execute_into_with_scratch(
+pub fn execute_into_with_scratch<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     hints: &PatternHints,
     out: &mut [i32],
@@ -282,9 +418,9 @@ pub fn execute_into_with_scratch(
 /// Find all non-overlapping matches, writing (start, end) i32 pairs into result_buf.
 /// Returns number of matches found, or -1 if buffer is too small, or -2 if step limit exceeded.
 /// Keeps the VM alive across matches to avoid per-match setup overhead.
-pub fn find_all_with_scratch(
+pub fn find_all_with_scratch<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     hints: &PatternHints,
     result_buf: &mut [i32],
@@ -310,7 +446,7 @@ pub fn find_all_with_scratch(
         && ch <= 0xFFFF
     {
         let ch16 = ch as u16;
-        while let Some(candidate_pos) = next_literal_start(input, pos, ch16) {
+        while let Some(candidate_pos) = input.next_literal_start(pos, ch16) {
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -377,9 +513,9 @@ pub fn find_all_with_scratch(
 }
 
 /// Find all matches for simple scan patterns (no VM needed).
-fn find_all_simple_scan(
+fn find_all_simple_scan<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     scan: &SimpleScan,
     result_buf: &mut [i32],
@@ -413,9 +549,9 @@ fn find_all_simple_scan(
     count
 }
 
-fn execute_into_impl(
+fn execute_into_impl<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     hints: &PatternHints,
     out: &mut [i32],
@@ -447,7 +583,7 @@ fn execute_into_impl(
     {
         let ch16 = ch as u16;
         let mut pos = start_pos;
-        while let Some(candidate_pos) = next_literal_start(input, pos, ch16) {
+        while let Some(candidate_pos) = input.next_literal_start(pos, ch16) {
             vm.reset(candidate_pos);
             match vm.run() {
                 VmResult::Match => {
@@ -500,9 +636,9 @@ fn execute_into_impl(
 }
 
 /// Fast path for simple scans that writes directly into caller's buffer.
-fn execute_simple_scan_into(
+fn execute_simple_scan_into<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     scan: &SimpleScan,
     out: &mut [i32],
@@ -563,25 +699,27 @@ fn match_simple_match(matcher: &SimpleMatch, cp: u32) -> bool {
 
 /// Decode a code point at a position, handling surrogate pairs in unicode mode.
 #[inline(always)]
-pub(crate) fn decode_code_point(unicode: bool, input: &[u16], pos: usize) -> u32 {
+pub(crate) fn decode_code_point<I: Input>(unicode: bool, input: I, pos: usize) -> u32 {
     if unicode
-        && is_high_surrogate(input[pos])
+        && is_high_surrogate(input.code_unit(pos))
         && pos + 1 < input.len()
-        && is_low_surrogate(input[pos + 1])
+        && is_low_surrogate(input.code_unit(pos + 1))
     {
-        0x10000 + ((input[pos] as u32 - 0xD800) << 10) + (input[pos + 1] as u32 - 0xDC00)
+        0x10000
+            + ((input.code_unit(pos) as u32 - 0xD800) << 10)
+            + (input.code_unit(pos + 1) as u32 - 0xDC00)
     } else {
-        input[pos] as u32
+        input.code_unit(pos) as u32
     }
 }
 
 /// Get the length (in code units) of a code point at a position.
 #[inline(always)]
-pub(crate) fn code_point_len(unicode: bool, input: &[u16], pos: usize) -> usize {
+pub(crate) fn code_point_len<I: Input>(unicode: bool, input: I, pos: usize) -> usize {
     if unicode
-        && is_high_surrogate(input[pos])
+        && is_high_surrogate(input.code_unit(pos))
         && pos + 1 < input.len()
-        && is_low_surrogate(input[pos + 1])
+        && is_low_surrogate(input.code_unit(pos + 1))
     {
         2
     } else {
@@ -591,9 +729,9 @@ pub(crate) fn code_point_len(unicode: bool, input: &[u16], pos: usize) -> usize 
 
 /// Fast path for greedy quantifier patterns like \s+, \d+.
 /// Scans for the first position where the matcher matches, then greedily consumes.
-fn execute_simple_greedy_scan_into(
+fn execute_simple_greedy_scan_into<I: Input>(
     program: &Program,
-    input: &[u16],
+    input: I,
     start_pos: usize,
     matcher: &SimpleMatch,
     min: u32,
@@ -885,9 +1023,9 @@ impl VmScratch {
     }
 }
 
-struct Vm<'a> {
+struct Vm<'a, I: Input> {
     program: &'a Program,
-    input: &'a [u16],
+    input: I,
     pc: u32,
     pos: usize,
     registers: &'a mut Vec<i32>,
@@ -904,13 +1042,8 @@ struct Vm<'a> {
     bt_floor: usize,
 }
 
-impl<'a> Vm<'a> {
-    fn new(
-        program: &'a Program,
-        input: &'a [u16],
-        start_pos: usize,
-        scratch: &'a mut VmScratch,
-    ) -> Self {
+impl<'a, I: Input> Vm<'a, I> {
+    fn new(program: &'a Program, input: I, start_pos: usize, scratch: &'a mut VmScratch) -> Self {
         let reg_count = program.register_count as usize;
         // Ensure registers are the right size.
         scratch.registers.resize(reg_count, -1);
@@ -936,6 +1069,16 @@ impl<'a> Vm<'a> {
             backward: false,
             bt_floor: 0,
         }
+    }
+
+    #[inline(always)]
+    fn input_len(&self) -> usize {
+        self.input.len()
+    }
+
+    #[inline(always)]
+    fn input_code_unit(&self, pos: usize) -> u16 {
+        self.input.code_unit(pos)
     }
 
     /// Reset VM state for a new match attempt at the given position.
@@ -992,7 +1135,7 @@ impl<'a> Vm<'a> {
                 Instruction::Char(c) => {
                     let c = *c;
                     if self.pos < input_len {
-                        let input_cp = input[self.pos] as u32;
+                        let input_cp = input.code_unit(self.pos) as u32;
                         let matches = if self.modifiers.ignore_case {
                             case_fold_eq(input_cp, c, false)
                         } else {
@@ -1011,7 +1154,7 @@ impl<'a> Vm<'a> {
 
                 Instruction::CharNoCase(lo, _hi) => {
                     if self.pos < input_len {
-                        let input_cp = input[self.pos] as u32;
+                        let input_cp = input.code_unit(self.pos) as u32;
                         if case_fold_eq(input_cp, *lo, false) {
                             self.pos += 1;
                             self.pc += 1;
@@ -1026,7 +1169,7 @@ impl<'a> Vm<'a> {
                 Instruction::AnyChar { dot_all } => {
                     if self.pos < input_len {
                         let dot_all = *dot_all || self.modifiers.dot_all;
-                        if dot_all || !is_line_terminator(input[self.pos] as u32) {
+                        if dot_all || !is_line_terminator(input.code_unit(self.pos) as u32) {
                             self.pos += 1;
                             self.pc += 1;
                             continue;
@@ -1039,7 +1182,7 @@ impl<'a> Vm<'a> {
 
                 Instruction::CharClass { ranges, negated } => {
                     if self.pos < input_len {
-                        let cp = input[self.pos] as u32;
+                        let cp = input.code_unit(self.pos) as u32;
                         let in_class = if self.modifiers.ignore_case {
                             match_char_class(cp, ranges, true, false, false)
                         } else {
@@ -1059,7 +1202,7 @@ impl<'a> Vm<'a> {
                 Instruction::BuiltinClass(class) => {
                     let class = *class;
                     if self.pos < input_len {
-                        let cp = input[self.pos] as u32;
+                        let cp = input.code_unit(self.pos) as u32;
                         if match_builtin_class(cp, class, false) {
                             self.pos += 1;
                             self.pc += 1;
@@ -1073,7 +1216,7 @@ impl<'a> Vm<'a> {
 
                 Instruction::UnicodeProperty(data) => {
                     if self.pos < input_len {
-                        let cp = input[self.pos] as u32;
+                        let cp = input.code_unit(self.pos) as u32;
                         // NB: run_fast is only entered when !unicode, so the
                         // case-insensitive Unicode path never applies here.
                         let result = {
@@ -1321,7 +1464,7 @@ impl<'a> Vm<'a> {
 
                     for _ in 0..min {
                         if self.pos < input_len {
-                            let cp = input[self.pos] as u32;
+                            let cp = input.code_unit(self.pos) as u32;
                             if self.match_simple(cp, matcher) {
                                 self.pos += 1;
                             } else {
@@ -1735,7 +1878,9 @@ impl<'a> Vm<'a> {
     fn handle_assert_start(&mut self, multiline: bool) -> Option<VmResult> {
         let multiline = multiline || self.modifiers.multiline;
         let at_start = self.pos == 0
-            || (multiline && self.pos > 0 && is_line_terminator(self.input[self.pos - 1] as u32));
+            || (multiline
+                && self.pos > 0
+                && is_line_terminator(self.input_code_unit(self.pos - 1) as u32));
         if at_start {
             self.pc += 1;
             None
@@ -1747,8 +1892,8 @@ impl<'a> Vm<'a> {
     #[inline(always)]
     fn handle_assert_end(&mut self, multiline: bool, input_len: usize) -> Option<VmResult> {
         let multiline = multiline || self.modifiers.multiline;
-        let at_end =
-            self.pos >= input_len || (multiline && is_line_terminator(self.input[self.pos] as u32));
+        let at_end = self.pos >= input_len
+            || (multiline && is_line_terminator(self.input_code_unit(self.pos) as u32));
         if at_end {
             self.pc += 1;
             None
@@ -1930,14 +2075,14 @@ impl<'a> Vm<'a> {
                         break;
                     }
                     try_pos -= 1;
-                    let cu = self.input[try_pos] as u32;
+                    let cu = self.input_code_unit(try_pos) as u32;
                     if self.program.unicode
                         && is_low_surrogate(cu as u16)
                         && try_pos > 0
-                        && is_high_surrogate(self.input[try_pos - 1])
+                        && is_high_surrogate(self.input_code_unit(try_pos - 1))
                     {
                         try_pos -= 1;
-                        let hi = self.input[try_pos] as u32;
+                        let hi = self.input_code_unit(try_pos) as u32;
                         let cp = 0x10000 + ((hi - 0xD800) << 10) + (cu - 0xDC00);
                         if cp != expected {
                             ok = false;
@@ -1948,17 +2093,17 @@ impl<'a> Vm<'a> {
                         break;
                     }
                 } else {
-                    if try_pos >= self.input.len() {
+                    if try_pos >= self.input_len() {
                         ok = false;
                         break;
                     }
-                    let cu = self.input[try_pos] as u32;
+                    let cu = self.input_code_unit(try_pos) as u32;
                     if self.program.unicode
-                        && is_high_surrogate(self.input[try_pos])
-                        && try_pos + 1 < self.input.len()
-                        && is_low_surrogate(self.input[try_pos + 1])
+                        && is_high_surrogate(self.input_code_unit(try_pos))
+                        && try_pos + 1 < self.input_len()
+                        && is_low_surrogate(self.input_code_unit(try_pos + 1))
                     {
-                        let lo = self.input[try_pos + 1] as u32;
+                        let lo = self.input_code_unit(try_pos + 1) as u32;
                         let cp = 0x10000 + ((cu - 0xD800) << 10) + (lo - 0xDC00);
                         if cp != expected {
                             ok = false;
@@ -2041,32 +2186,32 @@ impl<'a> Vm<'a> {
             if self.pos == 0 {
                 return None;
             }
-            let cu = self.input[self.pos - 1] as u32;
+            let cu = self.input_code_unit(self.pos - 1) as u32;
             // In Unicode mode, check for surrogate pair (low surrogate preceded by high).
             if self.program.unicode
                 && is_low_surrogate(cu as u16)
                 && self.pos >= 2
-                && is_high_surrogate(self.input[self.pos - 2])
+                && is_high_surrogate(self.input_code_unit(self.pos - 2))
             {
-                let hi = self.input[self.pos - 2] as u32;
+                let hi = self.input_code_unit(self.pos - 2) as u32;
                 let lo = cu;
                 Some(0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00))
             } else {
                 Some(cu)
             }
         } else {
-            if self.pos >= self.input.len() {
+            if self.pos >= self.input_len() {
                 return None;
             }
-            let cu = self.input[self.pos] as u32;
+            let cu = self.input_code_unit(self.pos) as u32;
             // Only decode surrogate pairs in Unicode mode.
             if self.program.unicode
                 && is_high_surrogate(cu as u16)
-                && self.pos + 1 < self.input.len()
-                && is_low_surrogate(self.input[self.pos + 1])
+                && self.pos + 1 < self.input_len()
+                && is_low_surrogate(self.input_code_unit(self.pos + 1))
             {
                 let hi = cu;
-                let lo = self.input[self.pos + 1] as u32;
+                let lo = self.input_code_unit(self.pos + 1) as u32;
                 Some(0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00))
             } else {
                 Some(cu)
@@ -2085,19 +2230,19 @@ impl<'a> Vm<'a> {
                 self.pos -= 1;
                 if self.program.unicode
                     && self.pos > 0
-                    && is_low_surrogate(self.input[self.pos])
-                    && is_high_surrogate(self.input[self.pos - 1])
+                    && is_low_surrogate(self.input_code_unit(self.pos))
+                    && is_high_surrogate(self.input_code_unit(self.pos - 1))
                 {
                     self.pos -= 1;
                 }
             }
-        } else if self.pos < self.input.len() {
-            let cu = self.input[self.pos];
+        } else if self.pos < self.input_len() {
+            let cu = self.input_code_unit(self.pos);
             self.pos += 1;
             if self.program.unicode
                 && is_high_surrogate(cu)
-                && self.pos < self.input.len()
-                && is_low_surrogate(self.input[self.pos])
+                && self.pos < self.input_len()
+                && is_low_surrogate(self.input_code_unit(self.pos))
             {
                 self.pos += 1;
             }
@@ -2226,7 +2371,8 @@ impl<'a> Vm<'a> {
                                     if scan_pos > max_pos {
                                         return self.backtrack();
                                     }
-                                    if scan_pos < self.input.len() && self.input[scan_pos] == target
+                                    if scan_pos < self.input_len()
+                                        && self.input_code_unit(scan_pos) == target
                                     {
                                         break scan_pos;
                                     }
@@ -2243,9 +2389,9 @@ impl<'a> Vm<'a> {
                                     if scan_pos > max_pos {
                                         return self.backtrack();
                                     }
-                                    if scan_pos + 1 < self.input.len()
-                                        && self.input[scan_pos] == hi
-                                        && self.input[scan_pos + 1] == lo
+                                    if scan_pos + 1 < self.input_len()
+                                        && self.input_code_unit(scan_pos) == hi
+                                        && self.input_code_unit(scan_pos + 1) == lo
                                     {
                                         break scan_pos;
                                     }
@@ -2311,7 +2457,7 @@ impl<'a> Vm<'a> {
                                     if scan_pos < min_pos {
                                         return self.backtrack();
                                     }
-                                    if self.input[scan_pos] == target {
+                                    if self.input_code_unit(scan_pos) == target {
                                         break scan_pos;
                                     }
                                     if scan_pos == 0 {
@@ -2332,9 +2478,9 @@ impl<'a> Vm<'a> {
                                     if scan_pos < min_pos {
                                         return self.backtrack();
                                     }
-                                    if scan_pos + 1 < self.input.len()
-                                        && self.input[scan_pos] == hi
-                                        && self.input[scan_pos + 1] == lo
+                                    if scan_pos + 1 < self.input_len()
+                                        && self.input_code_unit(scan_pos) == hi
+                                        && self.input_code_unit(scan_pos + 1) == lo
                                     {
                                         break scan_pos;
                                     }
@@ -2486,8 +2632,8 @@ impl<'a> Vm<'a> {
         }
         if self.program.unicode
             && pos >= 2
-            && is_low_surrogate(self.input[pos - 1])
-            && is_high_surrogate(self.input[pos - 2])
+            && is_low_surrogate(self.input_code_unit(pos - 1))
+            && is_high_surrogate(self.input_code_unit(pos - 2))
         {
             pos - 2
         } else {
@@ -2498,15 +2644,15 @@ impl<'a> Vm<'a> {
     /// Move position forward by one character (handling surrogate pairs in unicode mode).
     #[inline(always)]
     fn advance_one_char(&self, pos: usize) -> usize {
-        if pos >= self.input.len() {
+        if pos >= self.input_len() {
             return pos;
         }
         let mut p = pos + 1;
         if self.program.unicode
-            && p < self.input.len()
-            && is_low_surrogate(self.input[p])
+            && p < self.input_len()
+            && is_low_surrogate(self.input_code_unit(p))
             && p >= 1
-            && is_high_surrogate(self.input[p - 1])
+            && is_high_surrogate(self.input_code_unit(p - 1))
         {
             p += 1;
         }
@@ -2517,7 +2663,7 @@ impl<'a> Vm<'a> {
     /// Returns the number of characters consumed.
     #[inline(always)]
     fn greedy_consume_fast(
-        input: &[u16],
+        input: I,
         pos: &mut usize,
         matcher: &SimpleMatch,
         modifiers: &ActiveModifiers,
@@ -2538,7 +2684,7 @@ impl<'a> Vm<'a> {
                 } else {
                     // Match everything except line terminators.
                     while *pos < len && count < limit {
-                        if is_line_terminator(input[*pos] as u32) {
+                        if is_line_terminator(input.code_unit(*pos) as u32) {
                             break;
                         }
                         *pos += 1;
@@ -2550,7 +2696,7 @@ impl<'a> Vm<'a> {
                 let c = *c as u16;
                 if modifiers.ignore_case {
                     while *pos < len && count < limit {
-                        if !case_fold_eq(input[*pos] as u32, c as u32, false) {
+                        if !case_fold_eq(input.code_unit(*pos) as u32, c as u32, false) {
                             break;
                         }
                         *pos += 1;
@@ -2558,7 +2704,7 @@ impl<'a> Vm<'a> {
                     }
                 } else {
                     while *pos < len && count < limit {
-                        if input[*pos] != c {
+                        if input.code_unit(*pos) != c {
                             break;
                         }
                         *pos += 1;
@@ -2568,7 +2714,7 @@ impl<'a> Vm<'a> {
             }
             SimpleMatch::CharNoCase(lo, _hi) => {
                 while *pos < len && count < limit {
-                    if !case_fold_eq(input[*pos] as u32, *lo, false) {
+                    if !case_fold_eq(input.code_unit(*pos) as u32, *lo, false) {
                         break;
                     }
                     *pos += 1;
@@ -2578,8 +2724,13 @@ impl<'a> Vm<'a> {
             SimpleMatch::CharClass { ranges, negated } => {
                 if modifiers.ignore_case {
                     while *pos < len && count < limit {
-                        let in_class =
-                            match_char_class(input[*pos] as u32, ranges, true, false, false);
+                        let in_class = match_char_class(
+                            input.code_unit(*pos) as u32,
+                            ranges,
+                            true,
+                            false,
+                            false,
+                        );
                         if in_class == *negated {
                             break;
                         }
@@ -2588,7 +2739,7 @@ impl<'a> Vm<'a> {
                     }
                 } else {
                     while *pos < len && count < limit {
-                        let in_class = char_in_ranges(input[*pos] as u32, ranges);
+                        let in_class = char_in_ranges(input.code_unit(*pos) as u32, ranges);
                         if in_class == *negated {
                             break;
                         }
@@ -2600,7 +2751,7 @@ impl<'a> Vm<'a> {
             SimpleMatch::BuiltinClass(class) => {
                 let uic = modifiers.ignore_case; // unicode_ignore_case for non-unicode is always false
                 while *pos < len && count < limit {
-                    if !match_builtin_class(input[*pos] as u32, *class, uic) {
+                    if !match_builtin_class(input.code_unit(*pos) as u32, *class, uic) {
                         break;
                     }
                     *pos += 1;
@@ -2609,7 +2760,7 @@ impl<'a> Vm<'a> {
             }
             SimpleMatch::UnicodeProperty(data) => {
                 while *pos < len && count < limit {
-                    let cp = input[*pos] as u32;
+                    let cp = input.code_unit(*pos) as u32;
                     let matched = match_unicode_property_resolved(
                         cp,
                         &data.name,
@@ -2634,12 +2785,12 @@ impl<'a> Vm<'a> {
     fn at_word_boundary(&self) -> bool {
         let uic = self.modifiers.ignore_case && self.program.unicode;
         let before = if self.pos > 0 {
-            is_word_char_unicode(self.input[self.pos - 1] as u32, uic)
+            is_word_char_unicode(self.input_code_unit(self.pos - 1) as u32, uic)
         } else {
             false
         };
-        let after = if self.pos < self.input.len() {
-            is_word_char_unicode(self.input[self.pos] as u32, uic)
+        let after = if self.pos < self.input_len() {
+            is_word_char_unicode(self.input_code_unit(self.pos) as u32, uic)
         } else {
             false
         };
@@ -2676,31 +2827,35 @@ impl<'a> Vm<'a> {
             if self.pos < len {
                 return false;
             }
-            let captured = &self.input[start..end];
-            let current = &self.input[self.pos - len..self.pos];
             if self.modifiers.ignore_case {
-                for (a, b) in captured.iter().zip(current.iter()) {
-                    if !case_fold_eq(*a as u32, *b as u32, false) {
+                for offset in 0..len {
+                    if !case_fold_eq(
+                        self.input_code_unit(start + offset) as u32,
+                        self.input_code_unit(self.pos - len + offset) as u32,
+                        false,
+                    ) {
                         return false;
                     }
                 }
-            } else if captured != current {
+            } else if !self.input.ranges_equal(start, self.pos - len, len) {
                 return false;
             }
             self.pos -= len;
         } else {
-            if self.pos + len > self.input.len() {
+            if self.pos + len > self.input_len() {
                 return false;
             }
-            let captured = &self.input[start..end];
-            let current = &self.input[self.pos..self.pos + len];
             if self.modifiers.ignore_case {
-                for (a, b) in captured.iter().zip(current.iter()) {
-                    if !case_fold_eq(*a as u32, *b as u32, false) {
+                for offset in 0..len {
+                    if !case_fold_eq(
+                        self.input_code_unit(start + offset) as u32,
+                        self.input_code_unit(self.pos + offset) as u32,
+                        false,
+                    ) {
                         return false;
                     }
                 }
-            } else if captured != current {
+            } else if !self.input.ranges_equal(start, self.pos, len) {
                 return false;
             }
             self.pos += len;
@@ -2733,8 +2888,8 @@ impl<'a> Vm<'a> {
                 }
                 check_pos -= 1;
                 if check_pos > 0
-                    && is_low_surrogate(self.input[check_pos])
-                    && is_high_surrogate(self.input[check_pos - 1])
+                    && is_low_surrogate(self.input_code_unit(check_pos))
+                    && is_high_surrogate(self.input_code_unit(check_pos - 1))
                 {
                     check_pos -= 1;
                 }
@@ -2761,7 +2916,7 @@ impl<'a> Vm<'a> {
             self.pos = check_pos;
         } else {
             while cap_pos < cap_end {
-                if inp_pos >= self.input.len() {
+                if inp_pos >= self.input_len() {
                     return false;
                 }
                 let cp_cap = decode_code_point(true, self.input, cap_pos);
