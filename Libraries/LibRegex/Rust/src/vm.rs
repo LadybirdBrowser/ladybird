@@ -231,18 +231,20 @@ fn suffix_has_linear_tail(instructions: &[Instruction], suffix_start: usize) -> 
         return false;
     }
 
-    for target in suffix_start + 1..instructions.len() {
-        let expected_predecessor = target - 1;
-        for (pc, instruction) in instructions.iter().enumerate() {
-            let mut has_unexpected_predecessor = false;
-            for_each_successor(instruction, pc, instructions.len(), |successor| {
-                if successor == target && pc != expected_predecessor {
-                    has_unexpected_predecessor = true;
-                }
-            });
-            if has_unexpected_predecessor {
-                return false;
+    let mut predecessor_count = vec![0usize; instructions.len()];
+    let mut predecessor = vec![usize::MAX; instructions.len()];
+    for (pc, instruction) in instructions.iter().enumerate() {
+        for_each_successor(instruction, pc, instructions.len(), |successor| {
+            predecessor_count[successor] += 1;
+            if predecessor[successor] == usize::MAX {
+                predecessor[successor] = pc;
             }
+        });
+    }
+
+    for target in suffix_start + 1..instructions.len() {
+        if predecessor_count[target] != 1 || predecessor[target] != target - 1 {
+            return false;
         }
     }
 
@@ -290,6 +292,45 @@ fn fails_trailing_literal_hint<I: Input>(input: I, hints: &PatternHints) -> bool
         return false;
     };
     !input.ends_with_u16(suffix)
+}
+
+#[inline(always)]
+fn contains_u16_from<I: Input>(input: I, start: usize, needle: &[u16]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+
+    if needle.len() == 1 {
+        return input
+            .find_code_unit(start, input.len(), needle[0])
+            .is_some();
+    }
+
+    if start + needle.len() > input.len() {
+        return false;
+    }
+
+    let mut pos = start;
+    let end = input.len() - needle.len() + 1;
+    while pos < end {
+        match input.find_code_unit(pos, end, needle[0]) {
+            Some(candidate_pos) => pos = candidate_pos,
+            None => return false,
+        }
+        if input.matches_u16_at(pos, needle) {
+            return true;
+        }
+        pos += 1;
+    }
+    false
+}
+
+#[inline(always)]
+fn fails_required_literal_hint<I: Input>(input: I, start: usize, hints: &PatternHints) -> bool {
+    let Some(literal) = hints.required_literal.as_deref() else {
+        return false;
+    };
+    !contains_u16_from(input, start, literal)
 }
 
 #[inline(always)]
@@ -429,6 +470,9 @@ pub fn find_all_with_scratch<I: Input>(
     if fails_trailing_literal_hint(input, hints) {
         return 0;
     }
+    if fails_required_literal_hint(input, start_pos, hints) {
+        return 0;
+    }
 
     // Fast path for simple single-matcher patterns: use specialized scan.
     if let Some(ref scan) = hints.simple_scan {
@@ -558,6 +602,9 @@ fn execute_into_impl<I: Input>(
     scratch: &mut VmScratch,
 ) -> VmResult {
     if fails_trailing_literal_hint(input, hints) {
+        return VmResult::NoMatch;
+    }
+    if fails_required_literal_hint(input, start_pos, hints) {
         return VmResult::NoMatch;
     }
 
@@ -785,6 +832,8 @@ pub struct PatternHints {
     anchor_multiline: bool,
     /// Literal suffix immediately before a non-multiline end anchor.
     trailing_literal: Option<Vec<u16>>,
+    /// Literal tail in the linear success path that every match must contain.
+    required_literal: Option<Vec<u16>>,
     /// Simple pattern: just a single matcher (Save(0) + matcher + Save(1) + Match).
     /// Can be executed with a fast scan without the full VM.
     simple_scan: Option<SimpleScan>,
@@ -920,6 +969,21 @@ pub fn analyze_pattern(program: &Program) -> PatternHints {
         _ => None,
     };
 
+    let required_literal = match program.instructions.as_slice() {
+        [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
+            extract_trailing_literal(&program.instructions, program.instructions.len() - 2)
+        }
+        [
+            ..,
+            Instruction::AssertEnd { .. },
+            Instruction::Save(1),
+            Instruction::Match,
+        ] if !program.ignore_case => {
+            extract_trailing_literal(&program.instructions, program.instructions.len() - 3)
+        }
+        _ => None,
+    };
+
     // Detect simple patterns: Save(0) + single_matcher + Save(1) + Match
     let simple_scan = if !program.ignore_case
         && program.instructions.len() == 4
@@ -955,6 +1019,7 @@ pub fn analyze_pattern(program: &Program) -> PatternHints {
         starts_with_anchor,
         anchor_multiline,
         trailing_literal,
+        required_literal,
         simple_scan,
     }
 }

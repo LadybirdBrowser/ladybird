@@ -100,6 +100,12 @@ test("redundant optional alternatives do not exceed the backtrack limit", () => 
     expect(string.match(/^(a|a?)+$/)).toBeNull();
 });
 
+test("required tail literals fail fast when they never appear", () => {
+    const string = "a".repeat(25);
+
+    expect(string.match(/(a+)+b/)).toBeNull();
+});
+
 test("sticky and global flag set", () => {
     const string = "aaba";
     expect(string.match(/a/)).toEqual(["a"]);
