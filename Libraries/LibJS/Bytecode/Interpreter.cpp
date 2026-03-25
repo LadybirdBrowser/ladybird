@@ -1324,7 +1324,7 @@ inline ThrowCompletionOr<CalleeAndThis> get_callee_and_this_from_environment(Int
 }
 
 // 13.2.7.3 Runtime Semantics: Evaluation, https://tc39.es/ecma262/#sec-regular-expression-literals-runtime-semantics-evaluation
-inline Value new_regexp(VM& vm, Regex<ECMA262> const& regex, Utf16String pattern, Utf16String flags)
+inline Value new_regexp(VM& vm, Utf16String pattern, Utf16String flags)
 {
     // 1. Let pattern be CodePointsToString(BodyText of RegularExpressionLiteral).
     // 2. Let flags be CodePointsToString(FlagText of RegularExpressionLiteral).
@@ -1332,7 +1332,7 @@ inline Value new_regexp(VM& vm, Regex<ECMA262> const& regex, Utf16String pattern
     // 3. Return ! RegExpCreate(pattern, flags).
     auto& realm = *vm.current_realm();
     // NOTE: We bypass RegExpCreate and subsequently RegExpAlloc as an optimization to use the already parsed values.
-    auto regexp_object = RegExpObject::create(realm, regex, move(pattern), move(flags));
+    auto regexp_object = RegExpObject::create(realm, move(pattern), move(flags));
     // RegExpAlloc has these two steps from the 'Legacy RegExp features' proposal.
     regexp_object->set_realm(realm);
     // We don't need to check 'If SameValue(newTarget, thisRealm.[[Intrinsics]].[[%RegExp%]]) is true'
@@ -2138,7 +2138,6 @@ void NewRegExp::execute_impl(Bytecode::Interpreter& interpreter) const
     interpreter.set(dst(),
         new_regexp(
             interpreter.vm(),
-            interpreter.current_executable().regex_table->get(m_regex_index),
             interpreter.current_executable().get_string(m_source_index),
             interpreter.current_executable().get_string(m_flags_index)));
 }

@@ -71,6 +71,18 @@ test("escaped code points", () => {
     expect(string.match(re).groups.𝓑𝓻𝓸𝔀𝓷).toBe("brown");
 });
 
+test("global match with many empty matches", () => {
+    // A pattern like /a*/ on a string of non-'a' characters produces N+1
+    // empty matches for a string of length N. This exercises the find_all
+    // buffer growth logic.
+    var str = "b".repeat(200);
+    var result = str.match(/a*/g);
+    expect(result.length).toBe(201);
+    for (var i = 0; i < result.length; i++) {
+        expect(result[i]).toBe("");
+    }
+});
+
 test("sticky and global flag set", () => {
     const string = "aaba";
     expect(string.match(/a/)).toEqual(["a"]);

@@ -103,3 +103,10 @@ test("property escapes", () => {
     expect(/\p{Any}/u.test("\u0378")).toBeTrue();
     expect(/\p{Assigned}/u.test("\u0378")).toBeFalse();
 });
+
+test("case-insensitive character class with mixed builtins and literals", () => {
+    expect(/[\dA]/i.test("a")).toBeTrue();
+    expect(/[\dA]/i.test("A")).toBeTrue();
+    expect(/[\dA]/i.test("5")).toBeTrue();
+    expect(/[\dA]/i.test("b")).toBeFalse();
+});

@@ -227,6 +227,7 @@
     M(ReferenceNullishSetProperty, "Cannot set property '{}' of {}")                                                                \
     M(ReferencePrimitiveSetProperty, "Cannot set property '{}' of {} '{}'")                                                         \
     M(ReferenceUnresolvable, "Unresolvable reference")                                                                              \
+    M(RegExpBacktrackLimitExceeded, "Regular expression backtrack limit exceeded")                                                  \
     M(RegExpCompileError, "RegExp compile error: {}")                                                                               \
     M(RegExpObjectBadFlag, "Invalid RegExp flag '{}'")                                                                              \
     M(RegExpObjectIncompatibleFlags, "RegExp flag '{}' is incompatible with flag '{}'")                                             \

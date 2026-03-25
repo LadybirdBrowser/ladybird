@@ -328,3 +328,31 @@ test("invalid named group references", () => {
         new RegExp("(?<a>x)\\k<nonexistent>");
     }).toThrow();
 });
+
+test("pathological backtracking pattern should match", () => {
+    // This pattern requires many backtracking steps but should still match.
+    let result = /(a?){17}a{17}/.exec("aaaaaaaaaaaaaaaaa");
+    expect(result).not.toBe(null);
+    expect(result[0].length).toBe(17);
+});
+
+test("alternation uses leftmost-first semantics", () => {
+    // ECMAScript requires the first alternative to win, not the longest.
+    let result = /a|ab/.exec("ab");
+    expect(result).not.toBe(null);
+    expect(result[0]).toBe("a");
+
+    expect("ab".replace(/a|ab/g, "X")).toBe("Xb");
+});
+
+test("case-insensitive Unicode matching of astral characters", () => {
+    // U+10400 (Deseret Capital Letter Long I) should case-fold to U+10428.
+    let result = /\u{10400}/iu.exec("\u{10428}");
+    expect(result).not.toBe(null);
+    expect(result[0]).toBe("\u{10428}");
+
+    // And vice versa.
+    result = /\u{10428}/iu.exec("\u{10400}");
+    expect(result).not.toBe(null);
+    expect(result[0]).toBe("\u{10400}");
+});

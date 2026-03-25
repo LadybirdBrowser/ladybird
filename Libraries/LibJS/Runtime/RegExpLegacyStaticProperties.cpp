@@ -21,15 +21,56 @@ void RegExpLegacyStaticProperties::invalidate()
     m_left_context_string = {};
     m_right_context = {};
     m_right_context_string = {};
-    m_$1 = {};
-    m_$2 = {};
-    m_$3 = {};
-    m_$4 = {};
-    m_$5 = {};
-    m_$6 = {};
-    m_$7 = {};
-    m_$8 = {};
-    m_$9 = {};
+    for (auto& p : m_$)
+        p = {};
+    for (auto& s : m_paren_starts)
+        s = -1;
+    for (auto& e : m_paren_ends)
+        e = -1;
+    m_parens_materialized = true;
+}
+
+Optional<Utf16String> const& RegExpLegacyStaticProperties::lazy_paren(size_t index) const
+{
+    VERIFY(index < 9);
+    if (!m_parens_materialized) {
+        // Materialize all lazy parens from stored indices.
+        for (size_t i = 0; i < 9; i++) {
+            if (m_paren_starts[i] >= 0 && m_paren_ends[i] >= 0 && m_input.has_value()) {
+                auto view = m_input->substring_view(m_paren_starts[i], m_paren_ends[i] - m_paren_starts[i]);
+                m_$[i] = Utf16String::from_utf16(view);
+            } else {
+                m_$[i] = Utf16String {};
+            }
+        }
+        m_parens_materialized = true;
+    }
+    return m_$[index];
+}
+
+void RegExpLegacyStaticProperties::set_captures_lazy(size_t num_captures, int const* capture_starts, int const* capture_ends)
+{
+    for (size_t i = 0; i < 9; i++) {
+        if (i < num_captures) {
+            m_paren_starts[i] = capture_starts[i];
+            m_paren_ends[i] = capture_ends[i];
+        } else {
+            m_paren_starts[i] = -1;
+            m_paren_ends[i] = -1;
+        }
+    }
+    // Clear any previously materialized strings.
+    for (auto& p : m_$)
+        p = {};
+    m_parens_materialized = false;
+
+    // Set last_paren to the last captured value.
+    if (num_captures > 0 && capture_starts[num_captures - 1] >= 0 && capture_ends[num_captures - 1] >= 0 && m_input.has_value()) {
+        auto view = m_input->substring_view(capture_starts[num_captures - 1], capture_ends[num_captures - 1] - capture_starts[num_captures - 1]);
+        m_last_paren = Utf16String::from_utf16(view);
+    } else {
+        m_last_paren = Utf16String {};
+    }
 }
 
 // GetLegacyRegExpStaticProperty( C, thisValue, internalSlotName ), https://github.com/tc39/proposal-regexp-legacy-features#getlegacyregexpstaticproperty-c-thisvalue-internalslotname-
@@ -141,6 +182,30 @@ void update_legacy_regexp_static_properties(RegExpConstructor& constructor, Utf1
             legacy_static_properties.set_$9(move(value));
         }
     }
+}
+
+// Like update_legacy_regexp_static_properties, but defers $1-$9 string creation.
+// Captures are stored as index pairs into the input string and materialized on access.
+void update_legacy_regexp_static_properties_lazy(RegExpConstructor& constructor, Utf16String const& string, size_t start_index, size_t end_index, size_t num_captures, int const* capture_starts, int const* capture_ends)
+{
+    auto& legacy_static_properties = constructor.legacy_static_properties();
+
+    auto len = string.length_in_code_units();
+    VERIFY(start_index <= end_index);
+    VERIFY(end_index <= len);
+
+    legacy_static_properties.set_input(string);
+
+    auto last_match = legacy_static_properties.input()->substring_view(start_index, end_index - start_index);
+    legacy_static_properties.set_last_match(last_match);
+
+    auto left_context = legacy_static_properties.input()->substring_view(0, start_index);
+    legacy_static_properties.set_left_context(left_context);
+
+    auto right_context = legacy_static_properties.input()->substring_view(end_index, len - end_index);
+    legacy_static_properties.set_right_context(right_context);
+
+    legacy_static_properties.set_captures_lazy(num_captures, capture_starts, capture_ends);
 }
 
 // InvalidateLegacyRegExpStaticProperties ( C ), https://github.com/tc39/proposal-regexp-legacy-features#invalidatelegacyregexpstaticproperties--c

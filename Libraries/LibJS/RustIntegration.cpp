@@ -640,9 +640,7 @@ void free_function_ast(void* ast)
 namespace JS::FFI {
 
 struct RustCompiledRegex {
-    regex::Parser::Result parsed_regex;
     String parsed_pattern;
-    regex::RegexOptions<ECMAScriptFlags> flags;
 };
 
 static Utf16View view_from_ffi(FFIUtf16Slice slice)
@@ -761,11 +759,12 @@ extern "C" void* rust_create_executable(
         str_table->insert(utf16_from_ffi(data->string_table[i]));
     }
 
-    // Build regex table from pre-compiled regex objects
+    // Build regex table from pre-compiled regex objects.
+    // NB: The regex table is no longer read at runtime (new_regexp uses pattern+flags directly),
+    // but we still need to iterate and free the RustCompiledRegex objects.
     auto regex_tbl = make<JS::Bytecode::RegexTable>();
     for (size_t i = 0; i < data->regex_count; ++i) {
         auto* cr = static_cast<RustCompiledRegex*>(data->compiled_regexes[i]);
-        regex_tbl->insert(JS::Bytecode::ParsedRegex { move(cr->parsed_regex), move(cr->parsed_pattern), cr->flags });
         delete cr;
     }
 
@@ -1015,9 +1014,19 @@ extern "C" void* rust_compile_regex(
     *error_out = nullptr;
     auto pattern = Utf16View { reinterpret_cast<char16_t const*>(pattern_data), pattern_len };
     auto flags_view = Utf16View { reinterpret_cast<char16_t const*>(flags_data), flags_len };
-    auto parsed_flags = JS::regex_flags_from_string(flags_view);
-    auto ecma_flags = parsed_flags.is_error() ? regex::RegexOptions<ECMAScriptFlags> {} : parsed_flags.release_value();
-    auto parsed_pattern = JS::parse_regex_pattern(pattern, ecma_flags.has_flag_set(ECMAScriptFlags::Unicode), ecma_flags.has_flag_set(ECMAScriptFlags::UnicodeSets));
+
+    // Extract unicode/unicode_sets from flags for parse_regex_pattern.
+    bool is_unicode = false;
+    bool is_unicode_sets = false;
+    for (size_t i = 0; i < flags_view.length_in_code_units(); ++i) {
+        auto ch = flags_view.code_unit_at(i);
+        if (ch == 'u')
+            is_unicode = true;
+        else if (ch == 'v')
+            is_unicode_sets = true;
+    }
+
+    auto parsed_pattern = JS::parse_regex_pattern(pattern, is_unicode, is_unicode_sets);
     if (parsed_pattern.is_error()) {
         auto msg = MUST(String::formatted("RegExp compile error: {}", parsed_pattern.release_error().error));
         auto* buf = static_cast<char*>(malloc(msg.byte_count() + 1));
@@ -1027,17 +1036,52 @@ extern "C" void* rust_compile_regex(
         return nullptr;
     }
     auto pattern_str = parsed_pattern.release_value();
-    auto parsed_regex = Regex<ECMA262>::parse_pattern(pattern_str, ecma_flags);
-    if (parsed_regex.error != regex::Error::NoError) {
-        auto error_string = Regex<ECMA262>(parsed_regex, ""sv, ecma_flags).error_string();
-        auto msg = MUST(String::formatted("RegExp compile error: {}", error_string));
+
+    // Build compile flags from the flag characters.
+    regex::ECMAScriptCompileFlags compile_flags {};
+    for (size_t i = 0; i < flags_view.length_in_code_units(); ++i) {
+        auto ch = flags_view.code_unit_at(i);
+        switch (ch) {
+        case 'g':
+            compile_flags.global = true;
+            break;
+        case 'i':
+            compile_flags.ignore_case = true;
+            break;
+        case 'm':
+            compile_flags.multiline = true;
+            break;
+        case 's':
+            compile_flags.dot_all = true;
+            break;
+        case 'u':
+            compile_flags.unicode = true;
+            break;
+        case 'v':
+            compile_flags.unicode_sets = true;
+            break;
+        case 'y':
+            compile_flags.sticky = true;
+            break;
+        case 'd':
+            compile_flags.has_indices = true;
+            break;
+        default:
+            break;
+        }
+    }
+
+    auto compiled = regex::ECMAScriptRegex::compile(pattern_str.bytes_as_string_view(), compile_flags);
+    if (compiled.is_error()) {
+        auto msg = MUST(String::formatted("RegExp compile error: {}", compiled.release_error()));
         auto* buf = static_cast<char*>(malloc(msg.byte_count() + 1));
         memcpy(buf, msg.bytes().data(), msg.byte_count());
         buf[msg.byte_count()] = '\0';
         *error_out = buf;
         return nullptr;
     }
-    return new RustCompiledRegex { move(parsed_regex), move(pattern_str), ecma_flags };
+
+    return new RustCompiledRegex { move(pattern_str) };
 }
 
 extern "C" void rust_free_compiled_regex(void* ptr)

@@ -103,7 +103,8 @@ ThrowCompletionOr<Value> RegExpConstructor::call()
             return pattern;
     }
 
-    return TRY(construct(new_target));
+    // Reuse the already-computed patternIsRegExp to avoid re-reading @@match.
+    return TRY(construct_impl(new_target, pattern_is_regexp));
 }
 
 // 22.2.4.1 RegExp ( pattern, flags ), https://tc39.es/ecma262/#sec-regexp-pattern-flags
@@ -111,14 +112,19 @@ ThrowCompletionOr<GC::Ref<Object>> RegExpConstructor::construct(FunctionObject& 
 {
     auto& vm = this->vm();
 
+    // 1. Let patternIsRegExp be ? IsRegExp(pattern).
+    bool pattern_is_regexp = TRY(vm.argument(0).is_regexp(vm));
+
+    // 3. Else, let newTarget be NewTarget.
+    return construct_impl(new_target, pattern_is_regexp);
+}
+
+ThrowCompletionOr<GC::Ref<Object>> RegExpConstructor::construct_impl(FunctionObject& new_target, bool pattern_is_regexp)
+{
+    auto& vm = this->vm();
+
     auto pattern = vm.argument(0);
     auto flags = vm.argument(1);
-
-    // 1. Let patternIsRegExp be ? IsRegExp(pattern).
-    bool pattern_is_regexp = TRY(pattern.is_regexp(vm));
-
-    // NOTE: Step 2 is handled in call() above.
-    // 3. Else, let newTarget be NewTarget.
 
     Value pattern_value;
     Value flags_value;

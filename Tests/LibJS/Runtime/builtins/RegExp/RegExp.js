@@ -1,8 +1,38 @@
 describe("errors", () => {
-    test("invalid pattern", () => {
+    test("invalid pattern (unterminated character class)", () => {
         expect(() => {
             RegExp("[");
-        }).toThrowWithMessage(SyntaxError, "RegExp compile error: Error during parsing of regular expression:");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: unexpected end of pattern");
+    });
+
+    test("invalid pattern (unmatched parenthesis)", () => {
+        expect(() => {
+            RegExp("(");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: unexpected end of pattern");
+    });
+
+    test("invalid pattern (duplicate group name)", () => {
+        expect(() => {
+            RegExp("(?<a>.)(?<a>.)", "v");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: duplicate group name 'a'");
+    });
+
+    test("invalid pattern (invalid character class in v-mode)", () => {
+        expect(() => {
+            RegExp("[(]", "v");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid character class");
+    });
+
+    test("invalid pattern (invalid quantifier)", () => {
+        expect(() => {
+            RegExp("a{2,1}");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid quantifier");
+    });
+
+    test("invalid pattern (invalid group name)", () => {
+        expect(() => {
+            RegExp("(?<>a)");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid group name");
     });
 
     test("invalid flag", () => {
