@@ -519,11 +519,14 @@ static bool is_form_control(DOM::Element const& element, HTMLFormElement const& 
         return false;
     }
 
-    auto const& form_associated_element = as<FormAssociatedElement>(element);
-    if (form_associated_element.form() != &form)
+    auto const* form_associated_element = as_if<FormAssociatedElement>(element);
+    if (!form_associated_element)
         return false;
 
-    if (!form_associated_element.is_listed())
+    if (form_associated_element->form() != &form)
+        return false;
+
+    if (!form_associated_element->is_listed())
         return false;
 
     return true;
