@@ -255,7 +255,6 @@ void PlaybackManager::dispatch_error(DecoderError&& error)
 void PlaybackManager::set_time_provider(NonnullRefPtr<MediaTimeProvider> const& provider)
 {
     auto time = current_time();
-    dbgln("set time to {}, playing? {}", time, is_playing());
     provider->set_time(time);
     m_time_provider = provider;
     for (auto& track_data : m_video_track_datas) {
