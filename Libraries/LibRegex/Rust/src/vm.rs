@@ -2844,9 +2844,8 @@ impl<'a, I: Input> Vm<'a, I> {
                 }
             }
             SimpleMatch::BuiltinClass(class) => {
-                let uic = modifiers.ignore_case; // unicode_ignore_case for non-unicode is always false
                 while *pos < len && count < limit {
-                    if !match_builtin_class(input.code_unit(*pos) as u32, *class, uic) {
+                    if !match_builtin_class(input.code_unit(*pos) as u32, *class, false) {
                         break;
                     }
                     *pos += 1;
