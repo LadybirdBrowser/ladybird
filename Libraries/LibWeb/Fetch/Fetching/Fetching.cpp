@@ -1919,13 +1919,32 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
 
         // 14. If response’s status is 401, httpRequest’s response tainting is not "cors", includeCredentials is true,
         //     and request’s traversable for user prompts is a traversable navigable:
+        // AD-HOC: Only enter the 401 handling path if the server is requesting an authentication
+        //         scheme we can handle with a username/password prompt (Basic or Digest).
+        //         Other schemes like PrivateToken (RFC 9577) are not user-prompt-based and should
+        //         not trigger credential prompting or request retries.
+        auto www_authenticate_has_credential_based_scheme = [&] {
+            auto www_authenticate = response->header_list()->get("WWW-Authenticate"sv);
+            if (!www_authenticate.has_value())
+                return false;
+            // The value is a comma-separated list of challenges. Each challenge starts with a scheme name.
+            // We check if any of the schemes are ones we can handle with a username/password prompt.
+            auto value = *www_authenticate;
+            for (auto challenge : value.view().split_view(',')) {
+                auto trimmed = challenge.trim_whitespace();
+                auto space_index = trimmed.find(' ');
+                auto scheme = space_index.has_value() ? trimmed.substring_view(0, *space_index) : trimmed;
+                if (scheme.equals_ignoring_ascii_case("Basic"sv) || scheme.equals_ignoring_ascii_case("Digest"sv))
+                    return true;
+            }
+            return false;
+        };
+
         if (response->status() == 401
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
             && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
-            // AD-HOC: Require at least one WWW-Authenticate header to be set before automatically retrying an authenticated
-            //         request (see rule 1 below). See: https://github.com/whatwg/fetch/issues/1766
-            && response->header_list()->contains("WWW-Authenticate"sv)) {
+            && www_authenticate_has_credential_based_scheme()) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
 
