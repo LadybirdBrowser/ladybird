@@ -51,6 +51,10 @@ public:
     {
         return PlaybackState::Seeking;
     }
+    virtual bool has_future_data() override
+    {
+        return false;
+    }
 
     virtual void enter_buffering() override { }
     virtual void exit_buffering() override { }

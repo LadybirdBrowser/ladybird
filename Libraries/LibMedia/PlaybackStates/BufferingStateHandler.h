@@ -25,6 +25,10 @@ public:
     {
         return PlaybackState::Buffering;
     }
+    virtual bool has_future_data() override
+    {
+        return false;
+    }
 
     virtual void enter_buffering() override
     {

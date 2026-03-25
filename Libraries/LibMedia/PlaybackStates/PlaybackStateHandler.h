@@ -30,6 +30,7 @@ public:
 
     virtual bool is_playing() = 0;
     virtual PlaybackState state() = 0;
+    virtual bool has_future_data() = 0;
 
     virtual void enter_buffering() { VERIFY_NOT_REACHED(); }
     virtual void exit_buffering() { VERIFY_NOT_REACHED(); }

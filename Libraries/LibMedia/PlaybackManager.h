@@ -81,6 +81,7 @@ public:
 
     bool is_playing();
     PlaybackState state();
+    bool has_future_data();
     TimeRanges buffered_time_ranges() const;
 
     void set_volume(double);

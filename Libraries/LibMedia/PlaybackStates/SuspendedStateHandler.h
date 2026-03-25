@@ -54,10 +54,13 @@ public:
     {
         return false;
     }
-
     virtual PlaybackState state() override
     {
         return PlaybackState::Suspended;
+    }
+    virtual bool has_future_data() override
+    {
+        return true;
     }
 
     virtual void enter_buffering() override { }
