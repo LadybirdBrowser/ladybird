@@ -1405,9 +1405,16 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
     {
         auto* typed_regexp = as_if<RegExpObject>(*regexp_object);
         auto& realm = *vm.current_realm();
+        bool exec_is_builtin = false;
+        if (typed_regexp) {
+            static Bytecode::StaticPropertyLookupCache exec_cache;
+            auto exec_val = TRY(regexp_object->get(vm.names.exec, exec_cache));
+            if (auto exec_fn = exec_val.as_if<FunctionObject>())
+                exec_is_builtin = exec_fn->builtin() == Bytecode::Builtin::RegExpPrototypeExec;
+        }
         if (typed_regexp
-            && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype()
-            && !regexp_object->storage_has(vm.names.exec)) {
+            && exec_is_builtin
+            && static_cast<Object const&>(*regexp_object).prototype() == realm.intrinsics().regexp_prototype()) {
 
             auto flag_bits = typed_regexp->flag_bits();
             bool global = has_flag(flag_bits, RegExpObject::Flags::Global);

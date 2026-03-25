@@ -71,6 +71,26 @@ test("override exec with function", () => {
     expect(calls).toBe(1);
 });
 
+test("override exec on prototype", () => {
+    let calls = 0;
+    let original = RegExp.prototype.exec;
+    try {
+        RegExp.prototype.exec = function (s) {
+            ++calls;
+            return original.call(this, s);
+        };
+
+        let re = /abc.+de/;
+        expect(re.test("abcXdef")).toBe(true);
+        expect(calls).toBe(1);
+
+        expect(re.test("no match")).toBe(false);
+        expect(calls).toBe(2);
+    } finally {
+        RegExp.prototype.exec = original;
+    }
+});
+
 test("override exec with bad function", () => {
     let calls = 0;
 
