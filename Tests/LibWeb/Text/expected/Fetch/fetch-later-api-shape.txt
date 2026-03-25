@@ -1,0 +1,5 @@
+typeof fetchLater: function
+result instanceof FetchLaterResult: true
+typeof result.activated: boolean
+result.activated is readonly: true
+PASS

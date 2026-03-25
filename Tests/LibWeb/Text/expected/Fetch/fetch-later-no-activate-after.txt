@@ -1,0 +1,4 @@
+activated before iframe unload: false
+cookie observed before iframe unload: false
+cookie observed after iframe unload: true
+PASS

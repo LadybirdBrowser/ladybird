@@ -1,0 +1,9 @@
+require request argument: true
+reject data: scheme: true
+reject non-trustworthy http: true
+accept localhost http: true
+accept loopback http: true
+reject negative activateAfter: true
+reject initially aborted signal: true
+accept normal request: true
+PASS
