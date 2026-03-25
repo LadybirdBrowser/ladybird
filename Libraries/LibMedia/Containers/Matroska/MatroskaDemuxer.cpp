@@ -68,6 +68,8 @@ static TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
 
 static Track track_from_track_entry(TrackEntry const& track_entry)
 {
+    // FIXME: Set the kind correctly.
+    auto kind = Track::Kind::None;
     auto name = Utf16String::from_utf8(track_entry.name());
     auto language = [&] {
         // LanguageBCP47 - The language of the track, in the BCP47 form; see basics on language codes. If this Element is used,
@@ -76,7 +78,7 @@ static Track track_from_track_entry(TrackEntry const& track_entry)
             return Utf16String::from_utf8(track_entry.language_bcp_47().value());
         return Utf16String::from_utf8(track_entry.language());
     }();
-    Track track(track_type_from_matroska_track_type(track_entry.track_type()), track_entry.track_number(), name, language);
+    Track track(track_type_from_matroska_track_type(track_entry.track_type()), track_entry.track_number(), kind, name, language);
 
     if (track.type() == TrackType::Video) {
         auto video_track = track_entry.video_track();

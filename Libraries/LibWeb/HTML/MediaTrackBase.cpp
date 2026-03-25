@@ -15,7 +15,8 @@ MediaTrackBase::MediaTrackBase(JS::Realm& realm, GC::Ref<HTMLMediaElement> media
     , m_media_element(media_element)
     , m_track_in_playback_manager(track)
     , m_id(Utf16String::number(track.identifier()))
-    , m_label(track.name())
+    , m_kind(track.kind())
+    , m_label(track.label())
 {
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotrack-language
     // https://html.spec.whatwg.org/multipage/media.html#dom-videotrack-language
