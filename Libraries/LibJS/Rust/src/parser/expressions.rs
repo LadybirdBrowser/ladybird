@@ -690,14 +690,13 @@ impl Parser<'_> {
             Vec::new()
         };
         self.validate_regex_flags(&flags);
-        let compiled_regex = Rc::new(CompiledRegex::new(std::ptr::null_mut()));
-        self.deferred_regexes.push(super::DeferredRegex {
-            compiled_regex: compiled_regex.clone(),
-            pattern: pattern.clone(),
-            flags: flags.clone(),
-            line: start.line,
-            column: start.column,
-        });
+        let compiled_regex = match crate::bytecode::ffi::compile_regex(&pattern, &flags) {
+            Ok(handle) => Rc::new(CompiledRegex::new(handle)),
+            Err(msg) => {
+                self.syntax_error_at_position(&msg, start);
+                Rc::new(CompiledRegex::new(std::ptr::null_mut()))
+            }
+        };
         self.expression(
             start,
             ExpressionKind::RegExpLiteral(RegExpLiteralData {

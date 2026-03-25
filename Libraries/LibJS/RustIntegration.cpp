@@ -366,9 +366,6 @@ Optional<Result<ScriptResult, Vector<ParserError>>> compile_parsed_script(Parsed
     if (!parsed)
         return {};
 
-    // Compile deferred regex literals (must happen on the main thread).
-    rust_parsed_program_compile_regexes(parsed);
-
     if (rust_parsed_program_has_errors(parsed)) {
         Vector<ParserError> parse_errors;
         rust_parsed_program_take_errors(parsed, &parse_errors, collect_parse_errors);
@@ -469,9 +466,6 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
 {
     if (!parsed)
         return {};
-
-    // Compile deferred regex literals (must happen on the main thread).
-    rust_parsed_program_compile_regexes(parsed);
 
     if (rust_parsed_program_has_errors(parsed)) {
         Vector<ParserError> parse_errors;

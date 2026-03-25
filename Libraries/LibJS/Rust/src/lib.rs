@@ -113,7 +113,6 @@ pub struct ParsedProgram {
     has_top_level_await: bool,
     errors: Vec<ParseError>,
     ast_dump: Option<Vec<u8>>,
-    deferred_regexes: Vec<parser::DeferredRegex>,
 }
 
 // SAFETY: Full ownership transfer between threads, never concurrent access.
@@ -358,12 +357,6 @@ pub unsafe extern "C" fn rust_compile_program(
 
             let program = parser.parse_program(starts_in_strict_mode);
 
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
-                return std::ptr::null_mut();
-            }
-
             if check_errors(&mut parser) {
                 return std::ptr::null_mut();
             }
@@ -464,8 +457,6 @@ pub unsafe extern "C" fn rust_parse_program(
                 (scope, false, false)
             };
 
-            let deferred_regexes = parser.take_deferred_regexes();
-
             let parsed = ParsedProgram {
                 program,
                 function_table: std::mem::take(&mut parser.function_table),
@@ -474,7 +465,6 @@ pub unsafe extern "C" fn rust_parse_program(
                 has_top_level_await: has_tla,
                 errors,
                 ast_dump: None,
-                deferred_regexes,
             };
 
             Box::into_raw(Box::new(parsed))
@@ -511,25 +501,6 @@ pub unsafe extern "C" fn rust_parsed_program_take_errors(
             let msg = err.message.as_bytes();
             error_callback.unwrap()(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
         }
-    }
-}
-
-/// Compile deferred regex literals in a ParsedProgram.
-///
-/// Must be called on the main thread (LibRegex is not thread-safe).
-/// Any regex compilation errors are added to the ParsedProgram's error list,
-/// so the caller should check `rust_parsed_program_has_errors()` afterwards.
-///
-/// # Safety
-/// `parsed` must be a valid pointer from `rust_parse_program()`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_program_compile_regexes(parsed: *mut ParsedProgram) {
-    unsafe {
-        let parsed = &mut *parsed;
-        let deferred = std::mem::take(&mut parsed.deferred_regexes);
-        parsed
-            .errors
-            .extend(Parser::compile_deferred_regexes(deferred));
     }
 }
 
@@ -666,18 +637,6 @@ pub unsafe extern "C" fn rust_compile_eval(
             parser.flags.in_class_field_initializer = in_class_field_initializer;
 
             let program = parser.parse_program(starts_in_strict_mode);
-
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
-                if let Some(cb) = error_callback {
-                    for err in &regex_errors {
-                        let msg = err.message.as_bytes();
-                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
-                    }
-                }
-                return std::ptr::null_mut();
-            }
 
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
@@ -864,18 +823,6 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let mut parser = Parser::new(full_slice, ProgramType::Script);
             let program = parser.parse_program(false);
 
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
-                if let Some(cb) = error_callback {
-                    for err in &regex_errors {
-                        let msg = err.message.as_bytes();
-                        cb(error_context, msg.as_ptr(), msg.len(), err.line, err.column);
-                    }
-                }
-                return std::ptr::null_mut();
-            }
-
             if check_errors_with_callback(&mut parser, error_context, error_callback) {
                 return std::ptr::null_mut();
             }
@@ -987,16 +934,6 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 
             let mut parser = Parser::new(source_slice, ProgramType::Script);
             let program = parser.parse_program(true); // strict mode
-
-            // Compile deferred regex literals.
-            let regex_errors = Parser::compile_deferred_regexes(parser.take_deferred_regexes());
-            if !regex_errors.is_empty() {
-                let errors: Vec<String> = regex_errors
-                    .iter()
-                    .map(|e| format!("{}:{}: {}", e.line, e.column, e.message))
-                    .collect();
-                panic!("Regex errors in builtin file: {}", errors.join("; "));
-            }
 
             if parser.has_errors() {
                 let errors: Vec<String> = parser
@@ -1312,9 +1249,6 @@ pub unsafe extern "C" fn rust_compile_module(
             if parsed.is_null() {
                 return std::ptr::null_mut();
             }
-
-            // Compile deferred regex literals before checking for errors.
-            rust_parsed_program_compile_regexes(parsed);
 
             if rust_parsed_program_has_errors(parsed) {
                 if let Some(cb) = error_callback {
