@@ -90,6 +90,11 @@ unsigned int ECMAScriptRegex::total_groups() const
     return m_impl->rust_regex.total_groups();
 }
 
+bool ECMAScriptRegex::is_single_non_bmp_literal() const
+{
+    return m_impl->rust_regex.is_single_non_bmp_literal();
+}
+
 Vector<ECMAScriptNamedCaptureGroup> const& ECMAScriptRegex::named_groups() const
 {
     return m_impl->named_groups;

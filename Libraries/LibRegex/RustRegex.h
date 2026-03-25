@@ -45,6 +45,7 @@ public:
     unsigned int capture_count() const;
     /// Total number of capture groups including group 0.
     unsigned int total_groups() const;
+    bool is_single_non_bmp_literal() const;
 
     /// Find all non-overlapping matches. Returns number of matches found.
     /// Results are written as (start, end) i32 pairs to the internal find_all buffer.

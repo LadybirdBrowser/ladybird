@@ -66,6 +66,8 @@ public:
     /// Total number of capture groups including group 0.
     unsigned int total_groups() const;
 
+    bool is_single_non_bmp_literal() const;
+
     /// Named capture groups with their indices.
     Vector<ECMAScriptNamedCaptureGroup> const& named_groups() const;
 

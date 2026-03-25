@@ -254,6 +254,20 @@ pub unsafe extern "C" fn rust_regex_capture_count(regex: *const RustRegex) -> u3
     regex.0.capture_count()
 }
 
+/// Return whether this regex is a whole-pattern literal for a single non-BMP
+/// code point in unicode mode.
+///
+/// # Safety
+/// `regex` must be a valid pointer from `rust_regex_compile`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_regex_is_single_non_bmp_literal(regex: *const RustRegex) -> bool {
+    if regex.is_null() {
+        return false;
+    }
+    let regex = unsafe { &*regex };
+    regex.0.is_single_non_bmp_literal()
+}
+
 /// Find all non-overlapping matches and return a flat array of (start, end) i32 pairs.
 /// Returns the number of matches (NOT the number of i32s). The output buffer must have
 /// space for at least `max_matches * 2` i32s. Returns -1 if the buffer is too small.

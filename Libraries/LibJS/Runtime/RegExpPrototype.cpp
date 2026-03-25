@@ -168,7 +168,8 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         || has_flag(flag_bits, RegExpObject::Flags::UnicodeSets);
     if (unicode_mode && last_index > 0 && last_index < utf16_view.length_in_code_units()) {
         if (utf16_view.code_unit_at(last_index) >= 0xDC00 && utf16_view.code_unit_at(last_index) <= 0xDFFF
-            && utf16_view.code_unit_at(last_index - 1) >= 0xD800 && utf16_view.code_unit_at(last_index - 1) <= 0xDBFF) {
+            && utf16_view.code_unit_at(last_index - 1) >= 0xD800 && utf16_view.code_unit_at(last_index - 1) <= 0xDBFF
+            && !compiled_regex->is_single_non_bmp_literal()) {
             --last_index;
         }
     }

@@ -499,6 +499,11 @@ unsigned int CompiledRustRegex::total_groups() const
     return m_capture_count;
 }
 
+bool CompiledRustRegex::is_single_non_bmp_literal() const
+{
+    return rust_regex_is_single_non_bmp_literal(m_regex);
+}
+
 int CompiledRustRegex::test(Utf16View input, size_t start_pos) const
 {
     if (input.has_ascii_storage()) {

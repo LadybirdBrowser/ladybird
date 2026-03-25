@@ -332,6 +332,15 @@ impl Regex {
         &self.program.named_groups
     }
 
+    pub fn is_single_non_bmp_literal(&self) -> bool {
+        (self.flags.unicode || self.flags.unicode_sets)
+            && matches!(
+                self.literal_u16.as_deref(),
+                Some([high, low])
+                    if (0xD800..=0xDBFF).contains(high) && (0xDC00..=0xDFFF).contains(low)
+            )
+    }
+
     /// Find all non-overlapping matches starting from `start`.
     /// Writes (match_start, match_end) i32 pairs directly into `result_buf`.
     /// Returns number of matches found, or -1 if buffer is too small.
