@@ -93,4 +93,7 @@ constexpr u32 CUE_RELATIVE_POSITION_ID = 0xF0;
 constexpr u32 CUE_CODEC_STATE_ID = 0xEA;
 constexpr u32 CUE_REFERENCE_ID = 0xDB;
 
+// Chapters
+constexpr u32 CHAPTERS_ELEMENT_ID = 0x1043A770;
+
 }
