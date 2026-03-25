@@ -1,0 +1,138 @@
+<!doctype html>
+<title>@container: parsing</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-rule">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="support/cq-testcommon.js"></script>
+<div style="container-name:name;container-type:size; width:100px; height:100px">
+  <main id="cq-main"></main>
+</div>
+<script>
+  setup(() => assert_implements_size_container_queries());
+
+  test_cq_condition_known('(width)');
+  test_cq_condition_known('(min-width: 0px)');
+  test_cq_condition_known('(max-width: 0px)');
+  test_cq_condition_known('(height)');
+  test_cq_condition_known('(min-height: 0px)');
+  test_cq_condition_known('(max-height: 0px)');
+  test_cq_condition_known('(aspect-ratio)');
+  test_cq_condition_known('(min-aspect-ratio: 1/2)');
+  test_cq_condition_known('(max-aspect-ratio: 1/2)');
+  test_cq_condition_known('(orientation: portrait)');
+  test_cq_condition_known('(inline-size)');
+  test_cq_condition_known('(min-inline-size: 0px)');
+  test_cq_condition_known('(max-inline-size: 0px)');
+  test_cq_condition_known('(block-size)');
+  test_cq_condition_known('(min-block-size: 0px)');
+  test_cq_condition_known('(max-block-size: 0px)');
+
+  test_cq_condition_known('(width: 100px)');
+  test_cq_condition_known('((width: 100px))');
+  test_cq_condition_known('(not (width: 100px))');
+  test_cq_condition_known('((width: 100px) and (height: 100px))');
+  test_cq_condition_known('(((width: 40px) or (width: 50px)) and (height: 100px))');
+  test_cq_condition_known('((width: 100px) and ((height: 40px) or (height: 50px)))');
+  test_cq_condition_known('(((width: 40px) and (height: 50px)) or (height: 100px))');
+  test_cq_condition_known('((width: 50px) or ((width: 40px) and (height: 50px)))');
+  test_cq_condition_known('((width: 100px) and (not (height: 100px)))');
+  test_cq_condition_known('(width < 100px)');
+  test_cq_condition_known('(width <= 100px)');
+  test_cq_condition_known('(width = 100px)');
+  test_cq_condition_known('(width > 100px)');
+  test_cq_condition_known('(width >= 100px)');
+  test_cq_condition_known('(100px < width)');
+  test_cq_condition_known('(100px <= width)');
+  test_cq_condition_known('(100px = width)');
+  test_cq_condition_known('(100px > width)');
+  test_cq_condition_known('(100px >= width)');
+  test_cq_condition_known('(100px < width < 200px)');
+  test_cq_condition_known('(100px < width <= 200px)');
+  test_cq_condition_known('(100px <= width < 200px)');
+  test_cq_condition_known('(100px > width > 200px)');
+  test_cq_condition_known('(100px > width >= 200px)');
+  test_cq_condition_known('(100px >= width > 200px)');
+
+  test_cq_condition_known('(width: calc(10px))');
+  test_cq_condition_known('(width: calc(10em))');
+  test_cq_condition_known('(width: calc(10px + 10em))');
+  test_cq_condition_known('(width < calc(10px + 10em))');
+  test_cq_condition_known('(width < max(10px, 10em))');
+  test_cq_condition_known('(calc(10px + 10em) < width)');
+  test_cq_condition_known('(calc(10px + 10em) < width < max(30px, 30em))');
+  test_cq_condition_known('(width: 100px) and (height: 100px)');
+  test_cq_condition_known('(width: 100px) or (height: 100px)');
+  test_cq_condition_known('not (width: 100px)');
+
+  test_cq_condition_unknown('foo(width)');
+  test_cq_condition_unknown('size(width)');
+  test_cq_condition_unknown('(asdf)');
+  test_cq_condition_unknown('(resolution > 100dpi)');
+  test_cq_condition_unknown('(resolution: 150dpi)');
+  test_cq_condition_unknown('(resolution: calc(2x))');
+  test_cq_condition_unknown('(color)');
+  test_cq_condition_unknown('(min-color: 1)');
+  test_cq_condition_unknown('(color-index >= 1)');
+  test_cq_condition_unknown('size(grid)');
+  test_cq_condition_unknown('(grid)');
+  test_cq_condition_unknown('(width == 100px)');
+  test_cq_condition_unknown('(100px == width)');
+  test_cq_condition_unknown('(100px = width = 200px)');
+  test_cq_condition_unknown('(100px < width > 200px)');
+  test_cq_condition_unknown('(100px <= width >= 200px)');
+  test_cq_condition_unknown('(100px <= width > 200px)');
+  test_cq_condition_unknown('(100px < width >= 200px)');
+  test_cq_condition_unknown('(100px : width : 200px)');
+
+  test_cq_condition_invalid('screen');
+  test_cq_condition_invalid('print');
+  test_cq_condition_invalid('not print');
+  test_cq_condition_invalid('only print');
+  test_cq_condition_invalid('screen and (width: 100px)');
+  test_cq_condition_invalid('screen or (width: 100px)');
+  test_cq_condition_invalid('not screen and (width: 100px)');
+  test_cq_condition_invalid('not screen or (width: 100px)');
+  test_cq_condition_invalid('foo (width: 100px)');
+
+  test_cq_rule_valid('name not (width <= 500px)');
+  test_cq_rule_valid('not (width <= 500px)');
+  test_cq_rule_valid('(width: 100px), (height: 100px)');
+  test_cq_rule_valid('(width),(height)  , (inline-size > 20px)');
+  test_cq_rule_valid('(width), name (height)');
+  test_cq_rule_valid('--foo');
+  test_cq_rule_valid('container');
+  test_cq_rule_valid('container, container2');
+
+  test_cq_rule_invalid('');
+  test_cq_rule_invalid('(width),');
+  test_cq_rule_invalid(',(width)');
+  test_cq_rule_invalid('(width),,(height)');
+
+  test_container_name_valid('foo');
+  test_container_name_valid(' foo');
+  test_container_name_valid(' foo ');
+  test_container_name_valid('normal');
+  test_container_name_valid('Normal');
+  test_container_name_valid('auto');
+  test_container_name_valid('Auto');
+
+  test_container_name_invalid('foo foo');
+  test_container_name_invalid('1px');
+  test_container_name_invalid('50gil');
+  test_container_name_invalid('name(foo)');
+  test_container_name_invalid('type(inline-size)');
+  test_container_name_invalid('"foo"');
+  test_container_name_invalid('"inherit"');
+  test_container_name_invalid('inherit');
+  test_container_name_invalid('INITIAL');
+  test_container_name_invalid('Unset');
+  test_container_name_invalid('deFAULT');
+  test_container_name_invalid('none');
+  test_container_name_invalid('None');
+  test_container_name_invalid('and');
+  test_container_name_invalid('or');
+  test_container_name_invalid('not');
+  test_container_name_invalid('And');
+  test_container_name_invalid('oR');
+  test_container_name_invalid('nOt');
+</script>

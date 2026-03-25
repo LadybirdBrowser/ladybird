@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<title>CSS Conditional Test: CSSContainerRule API</title>
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#the-csscontainerrule-interface">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style id="style_elm">
+</style>
+<script>
+  const sheet = style_elm.sheet;
+
+  function insertRule(source_text) {
+    try {
+      while (sheet.cssRules.length) {
+        sheet.deleteRule(0);
+      }
+      sheet.insertRule(source_text);
+      return sheet.cssRules[0];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  test(() => {
+    const rule = insertRule("@container Name {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.containerName, "Name");
+    assert_equals(rule.containerQuery, "");
+  }, "containerName without query");
+
+  test(() => {
+    const rule = insertRule("@container (width > 300px) {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.containerName, "");
+    assert_equals(rule.containerQuery, "(width > 300px)");
+  }, "containerQuery without name");
+
+  test(() => {
+    const rule = insertRule("@container Name (width > 300px) {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.containerName, "Name");
+    assert_equals(rule.containerQuery, "(width > 300px)");
+  }, "containerName and containerQuery");
+
+  test(() => {
+    const rule = insertRule("@container Name (width > 300px) {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.conditions.length, 1);
+    assert_equals(rule.conditions[0].name, "Name");
+    assert_equals(rule.conditions[0].query, "(width > 300px)");
+  }, ".conditions");
+
+  test(() => {
+    const rule = insertRule("@container (width > 300px) {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.conditions.length, 1);
+    assert_equals(rule.conditions[0].name, "");
+    assert_equals(rule.conditions[0].query, "(width > 300px)");
+  }, ".conditions without name");
+
+  test(() => {
+    const rule = insertRule("@container (width > 300px), Name (width < 1000px) {}");
+    assert_true(!!rule, "Rule successfully parsed");
+    assert_equals(rule.conditions.length, 2);
+    assert_equals(rule.containerName, "");
+    assert_equals(rule.containerQuery, "");
+    assert_equals(rule.conditions[0].name, "");
+    assert_equals(rule.conditions[0].query, "(width > 300px)");
+    assert_equals(rule.conditions[1].name, "Name");
+    assert_equals(rule.conditions[1].query, "(width < 1000px)");
+  }, "multiple conditions");
+</script>
