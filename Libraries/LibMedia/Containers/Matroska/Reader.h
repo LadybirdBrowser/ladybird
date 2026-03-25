@@ -54,7 +54,7 @@ public:
     static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
     static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
 
-    Optional<AK::Duration> duration() { return m_segment_information.duration(); }
+    Optional<AK::Duration> duration() const { return m_segment_information.duration(); }
 
     DecoderErrorOr<void> for_each_track(TrackEntryCallback);
     DecoderErrorOr<void> for_each_track_of_type(TrackEntry::TrackType, TrackEntryCallback);
