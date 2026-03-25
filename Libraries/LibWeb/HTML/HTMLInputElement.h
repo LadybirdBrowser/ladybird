@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <LibRegex/Regex.h>
+#include <LibRegex/ECMAScriptRegex.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Export.h>
@@ -377,7 +377,7 @@ private:
     GC::Ptr<SharedResourceRequest> m_resource_request;
     SelectedCoordinate m_selected_coordinate;
 
-    Optional<Regex<ECMA262>> compiled_pattern_regular_expression() const;
+    Optional<regex::ECMAScriptRegex> compiled_pattern_regular_expression() const;
 
     Optional<GC::Ref<HTMLDataListElement const>> suggestions_source_element() const;
 

@@ -6,9 +6,11 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
-#include <LibRegex/Regex.h>
+#include <LibRegex/ECMAScriptRegex.h>
 #include <LibURL/Pattern/PatternParser.h>
 
 namespace URL::Pattern {
@@ -23,7 +25,14 @@ struct Component {
         OrderedHashMap<String, Variant<String, Empty>> groups;
     };
 
-    Result create_match_result(String const& input, regex::RegexResult const& exec_result) const;
+    struct ExecutionResult {
+        bool success { false };
+        Vector<Optional<String>> captures;
+    };
+
+    Result create_match_result(String const& input, ExecutionResult const& exec_result) const;
+    ExecutionResult execute(String const& input) const;
+    bool matches(StringView input) const;
 
     // https://urlpattern.spec.whatwg.org/#component-pattern-string
     // pattern string, a well formed pattern string
@@ -31,7 +40,7 @@ struct Component {
 
     // https://urlpattern.spec.whatwg.org/#component-regular-expression
     // regular expression, a RegExp
-    OwnPtr<Regex<ECMA262>> regular_expression;
+    OwnPtr<regex::ECMAScriptRegex> regular_expression;
 
     // https://urlpattern.spec.whatwg.org/#component-group-name-list
     // group name list, a list of strings

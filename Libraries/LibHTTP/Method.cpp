@@ -5,8 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
+#include <LibHTTP/HTTP.h>
 #include <LibHTTP/Method.h>
-#include <LibRegex/Regex.h>
 
 namespace HTTP {
 
@@ -14,8 +15,7 @@ namespace HTTP {
 bool is_method(StringView method)
 {
     // A method is a byte sequence that matches the method token production.
-    Regex<ECMA262Parser> regex { R"~~~(^[A-Za-z0-9!#$%&'*+\-.^_`|~]+$)~~~" };
-    return regex.has_match(method);
+    return !method.is_empty() && all_of(method, is_http_token_code_point);
 }
 
 // https://fetch.spec.whatwg.org/#cors-safelisted-method

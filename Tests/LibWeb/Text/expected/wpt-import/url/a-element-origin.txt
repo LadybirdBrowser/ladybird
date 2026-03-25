@@ -405,4 +405,4 @@ Pass	Parsing origin: <non-special:\\opaque\path> against <about:blank>
 Pass	Parsing origin: <non-special:\/opaque> against <about:blank>
 Pass	Parsing origin: <non-special:/\path> against <about:blank>
 Pass	Parsing origin: <non-special://host/a\b> against <about:blank>
-Pass	Parsing origin: <http://example.com//U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> against <about:blank>
+Pass	Parsing origin: <http://example.com/U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿?U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> against <about:blank>

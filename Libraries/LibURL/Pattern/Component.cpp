@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibRegex/Regex.h>
+#include <AK/Utf16String.h>
+#include <LibRegex/ECMAScriptRegex.h>
 #include <LibURL/Pattern/Component.h>
 #include <LibURL/Pattern/PatternParser.h>
 #include <LibURL/Pattern/String.h>
@@ -19,10 +20,10 @@ bool protocol_component_matches_a_special_scheme(Component const& protocol_compo
     // 2. For each scheme of special scheme list:
     for (StringView scheme : special_schemes()) {
         // 1. Let test result be RegExpBuiltinExec(protocol component’s regular expression, scheme).
-        auto test_result = protocol_component.regular_expression->match(scheme);
+        auto test_result = protocol_component.matches(scheme);
 
         // 2. If test result is not null, then return true.
-        if (test_result.success)
+        if (test_result)
             return true;
     }
 
@@ -225,27 +226,23 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
 
     // 3. Let flags be an empty string.
     // NOTE: These flags match the flags for the empty string of the LibJS RegExp implementation.
-    auto flags = regex::RegexOptions<ECMAScriptFlags> {
-        (regex::ECMAScriptFlags)regex::AllFlags::SingleMatch
-        | (regex::ECMAScriptFlags)regex::AllFlags::Global
-        | regex::ECMAScriptFlags::BrowserExtended
-    };
+    regex::ECMAScriptCompileFlags flags {};
 
     // 4. If options’s ignore case is true then set flags to "vi".
     if (options.ignore_case) {
-        flags |= regex::ECMAScriptFlags::UnicodeSets;
-        flags |= regex::ECMAScriptFlags::Insensitive;
+        flags.unicode_sets = true;
+        flags.ignore_case = true;
     }
     // 5. Otherwise set flags to "v"
     else {
-        flags |= regex::ECMAScriptFlags::UnicodeSets;
+        flags.unicode_sets = true;
     }
 
     // 6. Let regular expression be RegExpCreate(regular expression string, flags). If this throws an exception, catch
     //    it, and throw a TypeError.
-    auto regex = make<Regex<ECMA262>>(regular_expression_string.to_byte_string(), flags);
-    if (regex->parser_result.error != regex::Error::NoError)
-        return ErrorInfo { MUST(String::formatted("RegExp compile error: {}", regex->error_string())) };
+    auto regex = regex::ECMAScriptRegex::compile(regular_expression_string.bytes_as_string_view(), flags);
+    if (regex.is_error())
+        return ErrorInfo { MUST(String::formatted("RegExp compile error: {}", regex.release_error())) };
 
     // 7. Let pattern string be the result of running generate a pattern string given part list and options.
     auto pattern_string = generate_a_pattern_string(part_list, options);
@@ -266,14 +263,45 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
     //     group name list is name list, and has regexp groups is has regexp groups.
     return Component {
         .pattern_string = move(pattern_string),
-        .regular_expression = move(regex),
+        .regular_expression = adopt_own(*new regex::ECMAScriptRegex(regex.release_value())),
         .group_name_list = move(name_list),
         .has_regexp_groups = has_regexp_groups,
     };
 }
 
+Component::ExecutionResult Component::execute(String const& input) const
+{
+    auto utf16_input = Utf16String::from_utf8(input);
+    auto match_result = regular_expression->exec(utf16_input.utf16_view(), 0);
+    if (match_result != regex::MatchResult::Match)
+        return {};
+
+    ExecutionResult result;
+    result.success = true;
+    result.captures.ensure_capacity(group_name_list.size());
+    for (size_t index = 1; index <= group_name_list.size(); ++index) {
+        auto start = regular_expression->capture_slot(index * 2);
+        auto end = regular_expression->capture_slot(index * 2 + 1);
+        if (start < 0 || end < 0) {
+            result.captures.append({});
+            continue;
+        }
+
+        auto capture = utf16_input.substring_view(static_cast<size_t>(start), static_cast<size_t>(end - start));
+        result.captures.append(MUST(capture.to_utf8()));
+    }
+
+    return result;
+}
+
+bool Component::matches(StringView input) const
+{
+    auto utf16_input = Utf16String::from_utf8(input);
+    return regular_expression->test(utf16_input.utf16_view(), 0) == regex::MatchResult::Match;
+}
+
 // https://urlpattern.spec.whatwg.org/#create-a-component-match-result
-Component::Result Component::create_match_result(String const& input, regex::RegexResult const& exec_result) const
+Component::Result Component::create_match_result(String const& input, ExecutionResult const& exec_result) const
 {
     // 1. Let result be a new URLPatternComponentResult.
     Component::Result result;
@@ -286,18 +314,18 @@ Component::Result Component::create_match_result(String const& input, regex::Reg
 
     // 4. Let index be 1.
     // 5. While index is less than or equal to component’s group name list’s size:
+    VERIFY(exec_result.captures.size() == group_name_list.size());
     for (size_t index = 1; index <= group_name_list.size(); ++index) {
-        auto const& capture = exec_result.capture_group_matches[0][index - 1];
-
         // 1. Let name be component’s group name list[index − 1].
         auto name = group_name_list[index - 1];
 
         // 2. Let value be Get(execResult, ToString(index)).
         // 3. Set groups[name] to value.
-        if (capture.view.is_null())
+        auto const& capture = exec_result.captures[index - 1];
+        if (!capture.has_value())
             groups.set(name, Empty {});
         else
-            groups.set(name, MUST(capture.view.to_string()));
+            groups.set(name, *capture);
 
         // 4. Increment index by 1.
     }

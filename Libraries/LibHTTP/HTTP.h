@@ -39,6 +39,36 @@ constexpr bool is_http_tab_or_space(u32 code_point)
     return code_point == 0x09u || code_point == 0x20u;
 }
 
+constexpr bool is_http_token_code_point(u32 code_point)
+{
+    if ((code_point >= '0' && code_point <= '9')
+        || (code_point >= 'A' && code_point <= 'Z')
+        || (code_point >= 'a' && code_point <= 'z')) {
+        return true;
+    }
+
+    switch (code_point) {
+    case '!':
+    case '#':
+    case '$':
+    case '%':
+    case '&':
+    case '\'':
+    case '*':
+    case '+':
+    case '-':
+    case '.':
+    case '^':
+    case '_':
+    case '`':
+    case '|':
+    case '~':
+        return true;
+    default:
+        return false;
+    }
+}
+
 enum class HttpQuotedStringExtractValue {
     No,
     Yes,

@@ -275,7 +275,7 @@ Optional<GC::Ref<HTMLDataListElement const>> HTMLInputElement::suggestions_sourc
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#compiled-pattern-regular-expression
-Optional<Regex<ECMA262>> HTMLInputElement::compiled_pattern_regular_expression() const
+Optional<regex::ECMAScriptRegex> HTMLInputElement::compiled_pattern_regular_expression() const
 {
     // 1. If the element does not have a pattern attribute specified, then return nothing. The element has no compiled pattern regular expression.
     auto maybe_pattern = get_attribute(HTML::AttributeNames::pattern);
@@ -283,20 +283,25 @@ Optional<Regex<ECMA262>> HTMLInputElement::compiled_pattern_regular_expression()
         return {};
 
     // 2. Let pattern be the value of the pattern attribute of the element.
-    auto pattern = maybe_pattern.release_value().to_byte_string();
+    auto pattern = maybe_pattern.release_value();
 
     // 3. Let regexpCompletion be RegExpCreate(pattern, "v").
-    Regex<ECMA262> regexp_completion(pattern, JS::RegExpObject::default_flags | ECMAScriptFlags::UnicodeSets);
+    regex::ECMAScriptCompileFlags compile_flags {};
+    compile_flags.unicode_sets = true;
+    auto regexp_completion = regex::ECMAScriptRegex::compile(pattern.bytes_as_string_view(), compile_flags);
 
     // 4. If regexpCompletion is an abrupt completion, then return nothing. The element has no compiled pattern regular expression.
-    if (regexp_completion.parser_result.error != regex::Error::NoError)
+    if (regexp_completion.is_error())
         return {};
 
     // 5. Let anchoredPattern be the string "^(?:", followed by pattern, followed by ")$".
-    auto anchored_pattern = ByteString::formatted("^(?:{})$", pattern);
+    auto anchored_pattern = MUST(String::formatted("^(?:{})$", pattern));
 
     // 6. Return ! RegExpCreate(anchoredPattern, "v").
-    return Regex<ECMA262>(anchored_pattern, JS::RegExpObject::default_flags | ECMAScriptFlags::UnicodeSets);
+    auto anchored = regex::ECMAScriptRegex::compile(anchored_pattern.bytes_as_string_view(), compile_flags);
+    if (anchored.is_error())
+        return {};
+    return anchored.release_value();
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-files
@@ -3557,7 +3562,13 @@ bool HTMLInputElement::suffering_from_being_missing() const
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address
-static Regex<ECMA262> const valid_email_address_regex = Regex<ECMA262>("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$");
+static regex::ECMAScriptRegex& valid_email_address_regex()
+{
+    static auto regex = MUST(regex::ECMAScriptRegex::compile(
+        "^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"sv,
+        regex::ECMAScriptCompileFlags {}));
+    return regex;
+}
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-a-type-mismatch
 bool HTMLInputElement::suffering_from_a_type_mismatch() const
@@ -3577,7 +3588,7 @@ bool HTMLInputElement::suffering_from_a_type_mismatch() const
         // When the multiple attribute is not specified on the element: While the value of the element is neither the
         // empty string nor a single valid email address, the element is suffering from a type mismatch.
         if (!has_attribute(HTML::AttributeNames::multiple))
-            return !input.is_empty() && !valid_email_address_regex.match(input.utf16_view()).success;
+            return !input.is_empty() && valid_email_address_regex().exec(input.utf16_view(), 0) != regex::MatchResult::Match;
 
         // When the multiple attribute is specified on the element: While the value of the element is not a valid email
         // address list, the element is suffering from a type mismatch.
@@ -3588,7 +3599,7 @@ bool HTMLInputElement::suffering_from_a_type_mismatch() const
         bool valid = true;
 
         input.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& address) {
-            if (valid_email_address_regex.match(address).success)
+            if (valid_email_address_regex().exec(address, 0) == regex::MatchResult::Match)
                 return IterationDecision::Continue;
 
             valid = false;
@@ -3633,7 +3644,7 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
         bool valid = true;
 
         value.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& value) {
-            if (regexp_object->match(value).success)
+            if (regexp_object->exec(value, 0) == regex::MatchResult::Match)
                 return IterationDecision::Continue;
 
             valid = false;
@@ -3643,7 +3654,7 @@ bool HTMLInputElement::suffering_from_a_pattern_mismatch() const
         return !valid;
     }
 
-    return !regexp_object->match(value.utf16_view()).success;
+    return regexp_object->exec(value.utf16_view(), 0) != regex::MatchResult::Match;
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#suffering-from-an-underflow

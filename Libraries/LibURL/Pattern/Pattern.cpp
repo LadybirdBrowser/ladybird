@@ -307,42 +307,42 @@ PatternErrorOr<Optional<Result>> Pattern::match(Variant<String, Init, URL> const
     }
 
     // 14. Let protocolExecResult be RegExpBuiltinExec(urlPattern’s protocol component's regular expression, protocol).
-    auto protocol_exec_result = m_protocol_component.regular_expression->match(protocol);
+    auto protocol_exec_result = m_protocol_component.execute(protocol);
     if (!protocol_exec_result.success)
         return OptionalNone {};
 
     // 15. Let usernameExecResult be RegExpBuiltinExec(urlPattern’s username component's regular expression, username).
-    auto username_exec_result = m_username_component.regular_expression->match(username);
+    auto username_exec_result = m_username_component.execute(username);
     if (!username_exec_result.success)
         return OptionalNone {};
 
     // 16. Let passwordExecResult be RegExpBuiltinExec(urlPattern’s password component's regular expression, password).
-    auto password_exec_result = m_password_component.regular_expression->match(password);
+    auto password_exec_result = m_password_component.execute(password);
     if (!password_exec_result.success)
         return OptionalNone {};
 
     // 17. Let hostnameExecResult be RegExpBuiltinExec(urlPattern’s hostname component's regular expression, hostname).
-    auto hostname_exec_result = m_hostname_component.regular_expression->match(hostname);
+    auto hostname_exec_result = m_hostname_component.execute(hostname);
     if (!hostname_exec_result.success)
         return OptionalNone {};
 
     // 18. Let portExecResult be RegExpBuiltinExec(urlPattern’s port component's regular expression, port).
-    auto port_exec_result = m_port_component.regular_expression->match(port);
+    auto port_exec_result = m_port_component.execute(port);
     if (!port_exec_result.success)
         return OptionalNone {};
 
     // 19. Let pathnameExecResult be RegExpBuiltinExec(urlPattern’s pathname component's regular expression, pathname).
-    auto pathname_exec_result = m_pathname_component.regular_expression->match(pathname);
+    auto pathname_exec_result = m_pathname_component.execute(pathname);
     if (!pathname_exec_result.success)
         return OptionalNone {};
 
     // 20. Let searchExecResult be RegExpBuiltinExec(urlPattern’s search component's regular expression, search).
-    auto search_exec_result = m_search_component.regular_expression->match(search);
+    auto search_exec_result = m_search_component.execute(search);
     if (!search_exec_result.success)
         return OptionalNone {};
 
     // 21. Let hashExecResult be RegExpBuiltinExec(urlPattern’s hash component's regular expression, hash).
-    auto hash_exec_result = m_hash_component.regular_expression->match(hash);
+    auto hash_exec_result = m_hash_component.execute(hash);
     if (!hash_exec_result.success)
         return OptionalNone {};
 

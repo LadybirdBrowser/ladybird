@@ -885,4 +885,4 @@ Pass	Parsing: <non-special:\/opaque> without base
 Pass	Parsing: <non-special:/\path> without base
 Pass	Parsing: <non-special://host\a> without base
 Pass	Parsing: <non-special://host/a\b> without base
-Pass	Parsing: <http://example.com//U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base
+Pass	Parsing: <http://example.com/U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿?U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base

@@ -350,8 +350,8 @@ Pass	ToASCII("⑷.four") U1 (ignored)
 Pass	ToASCII("(4).four") U1 (ignored)
 Pass	ToASCII("⑷.FOUR") U1 (ignored)
 Pass	ToASCII("⑷.Four") U1 (ignored)
-Pass	ToASCII("aaU+d900z") V7; A3
-Pass	ToASCII("AAU+d900Z") V7; A3
+Pass	ToASCII("aU+d900z") V7; A3
+Pass	ToASCII("AU+d900Z") V7; A3
 Pass	ToASCII("xn--") P4; A4_1 (ignored); A4_2 (ignored)
 Pass	ToASCII("xn---") P4
 Pass	ToASCII("xn--ASCII-") P4

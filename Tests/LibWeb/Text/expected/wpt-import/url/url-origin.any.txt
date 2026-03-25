@@ -406,4 +406,4 @@ Pass	Origin parsing: <non-special:\\opaque\path> without base
 Pass	Origin parsing: <non-special:\/opaque> without base
 Pass	Origin parsing: <non-special:/\path> without base
 Pass	Origin parsing: <non-special://host/a\b> without base
-Pass	Origin parsing: <http://example.com//U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿??U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base
+Pass	Origin parsing: <http://example.com/U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿?U+d800í í¿¾U+dfffï·ï·ï·¯ï·°ï¿¾ï¿¿> without base
