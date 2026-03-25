@@ -94,6 +94,12 @@ test("greedy lookbehinds backtrack to the correct boundary", () => {
     expect(string.match(/(?<!.*q.*?)(?<=h.*)THIS(?=.*!)/g)).toEqual(["THIS"]);
 });
 
+test("redundant optional alternatives do not exceed the backtrack limit", () => {
+    const string = "a".repeat(25) + "b";
+
+    expect(string.match(/^(a|a?)+$/)).toBeNull();
+});
+
 test("sticky and global flag set", () => {
     const string = "aaba";
     expect(string.match(/a/)).toEqual(["a"]);

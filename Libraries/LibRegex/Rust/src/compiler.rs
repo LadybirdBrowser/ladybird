@@ -315,6 +315,10 @@ impl Compiler {
     /// Lower `Disjunction` to a chain of split/jump choice points.
     /// <https://tc39.es/ecma262/#sec-compilesubpattern>
     fn compile_disjunction(&mut self, disj: &Disjunction) {
+        if let Some(term) = self.try_merge_optional_alternatives(disj) {
+            self.compile_term(&term);
+            return;
+        }
         self.emit_split_chain(&disj.alternatives, |s, alt| s.compile_alternative(alt));
     }
 
@@ -408,6 +412,37 @@ impl Compiler {
                     },
                 )))
             }
+            _ => None,
+        }
+    }
+
+    /// Collapse simple disjunctions like `a|a?` into a single greedy optional
+    /// term. This preserves semantics for single-term simple-match
+    /// alternatives while avoiding exponential backtracking in quantified
+    /// contexts such as `^(a|a?)+$`.
+    fn try_merge_optional_alternatives(&self, disj: &Disjunction) -> Option<Term> {
+        let [first, second] = disj.alternatives.as_slice() else {
+            return None;
+        };
+        let [first_term] = first.terms.as_slice() else {
+            return None;
+        };
+        let [second_term] = second.terms.as_slice() else {
+            return None;
+        };
+
+        let first_match = self.try_simple_match(&first_term.atom)?;
+        let second_match = self.try_simple_match(&second_term.atom)?;
+        if first_match != second_match {
+            return None;
+        }
+
+        let optional = Quantifier::zero_or_one(true);
+        match (&first_term.quantifier, &second_term.quantifier) {
+            (None, Some(q)) | (Some(q), None) if *q == optional => Some(Term {
+                atom: first_term.atom.clone(),
+                quantifier: Some(optional),
+            }),
             _ => None,
         }
     }
