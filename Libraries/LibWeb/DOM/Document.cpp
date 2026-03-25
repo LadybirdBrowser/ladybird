@@ -789,17 +789,9 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open
+// https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#document-open-steps
 WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<String> const&)
 {
-    // If document belongs to a child navigable, we need to make sure its initial navigation is done,
-    // because subsequent steps will modify "initial about:blank" to false, which would cause
-    // initial navigation to fail in case it was "about:blank".
-    if (auto navigable = this->navigable(); navigable && navigable->container() && !navigable->container()->content_navigable_has_session_history_entry_and_ready_for_navigation()) {
-        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
-            return navigable_container->content_navigable_has_session_history_entry_and_ready_for_navigation();
-        }));
-    }
-
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
         return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
@@ -827,7 +819,13 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     if (m_active_parser_was_aborted)
         return this;
 
-    // FIXME: 8. If document's browsing context is non-null and there is an existing attempt to navigate document's browsing context, then stop document loading given document.
+    // 8. If document's node navigable is non-null and document's node navigable's ongoing navigation is a navigation ID, then stop loading document's node navigable.
+    // AD-HOC: Pending navigations can also sit in m_pending_navigations, so we need to cancel those too.
+    if (auto navigable = this->navigable()) {
+        navigable->clear_pending_navigations();
+        if (navigable->ongoing_navigation().has<String>())
+            navigable->stop_loading();
+    }
 
     // FIXME: 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
 

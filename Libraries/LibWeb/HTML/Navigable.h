@@ -217,6 +217,7 @@ public:
     void inform_the_navigation_api_about_child_navigable_destruction();
 
     bool has_pending_navigations() const { return !m_pending_navigations.is_empty(); }
+    void clear_pending_navigations() { m_pending_navigations.clear(); }
 
     void ready_to_paint();
     void record_display_list_and_scroll_state(PaintConfig);
