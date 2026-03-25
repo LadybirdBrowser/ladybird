@@ -83,6 +83,10 @@ test("global match with many empty matches", () => {
     }
 });
 
+test("nested quantified captures keep the last non-empty iteration", () => {
+    expect("xyz123xyz".match(/((123)|(xyz)*)*/)).toEqual(["xyz123xyz", "xyz", undefined, "xyz"]);
+});
+
 test("sticky and global flag set", () => {
     const string = "aaba";
     expect(string.match(/a/)).toEqual(["a"]);

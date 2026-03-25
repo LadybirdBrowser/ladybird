@@ -1418,16 +1418,14 @@ impl<'a, I: Input> Vm<'a, I> {
                     if last_pos == self.pos as i32 {
                         // Zero-width match detected. Per ECMA-262, captures from the
                         // body should be cleared to undefined before exiting.
-                        if !self.backtrack() {
-                            return VmResult::NoMatch;
-                        }
-                        // Clear captures AFTER backtrack, since backtrack restores
-                        // registers from a snapshot that may contain stale captures.
                         for &cap_reg in clear_captures {
                             let r = cap_reg as usize;
                             if r < self.registers.len() {
                                 self.registers[r] = -1;
                             }
+                        }
+                        if !self.backtrack() {
+                            return VmResult::NoMatch;
                         }
                     } else {
                         self.registers[reg] = self.pos as i32;
@@ -1648,7 +1646,8 @@ impl<'a, I: Input> Vm<'a, I> {
                     let mut reg = *reg as usize;
                     // In backward mode, swap start/end registers for capture groups
                     // since we're traversing right-to-left.
-                    if self.backward {
+                    let capture_register_count = (self.program.capture_count as usize + 1) * 2;
+                    if self.backward && reg < capture_register_count {
                         if reg.is_multiple_of(2) {
                             reg += 1; // start → end
                         } else {

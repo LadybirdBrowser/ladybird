@@ -146,6 +146,15 @@ test("lazy quantified capture restores the previous iteration when backtracking"
     expect(res.index).toBe(0);
 });
 
+test("zero-width quantified captures fall back to the pre-iteration state", () => {
+    let res = /(a*)*/.exec("b");
+
+    expect(res.length).toBe(2);
+    expect(res[0]).toBe("");
+    expect(res[1]).toBeUndefined();
+    expect(res.index).toBe(0);
+});
+
 // #6256
 test("empty character class semantics", () => {
     // Should not match zero-length strings.

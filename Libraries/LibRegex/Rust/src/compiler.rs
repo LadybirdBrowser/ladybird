@@ -459,10 +459,7 @@ impl Compiler {
             self.emit(Instruction::RepeatStart { counter_reg });
             let body_start = self.current_offset();
             if let Some(reg) = progress_reg {
-                self.emit(Instruction::ProgressCheck {
-                    reg,
-                    clear_captures: Self::capture_registers(atom),
-                });
+                self.emit(Instruction::Save(reg));
             }
             self.emit_clear_captures(atom);
             self.compile_atom(atom);
@@ -516,16 +513,11 @@ impl Compiler {
                             other: u32::MAX,
                         });
                         if let Some(reg) = progress_reg {
-                            // First ProgressCheck initializes the register.
-                            self.emit(Instruction::ProgressCheck {
-                                reg,
-                                clear_captures: Self::capture_registers(atom),
-                            });
+                            self.emit(Instruction::Save(reg));
                         }
                         self.emit_clear_captures(atom);
                         self.compile_atom(atom);
                         if let Some(reg) = progress_reg {
-                            // Second ProgressCheck rejects zero-width matches.
                             self.emit(Instruction::ProgressCheck {
                                 reg,
                                 clear_captures: Self::capture_registers(atom),
@@ -543,10 +535,7 @@ impl Compiler {
                             other: self.current_offset() + 1,
                         });
                         if let Some(reg) = progress_reg {
-                            self.emit(Instruction::ProgressCheck {
-                                reg,
-                                clear_captures: Self::capture_registers(atom),
-                            });
+                            self.emit(Instruction::Save(reg));
                         }
                         self.emit_clear_captures(atom);
                         self.compile_atom(atom);
@@ -579,6 +568,9 @@ impl Compiler {
                         prefer: self.current_offset() + 1,
                         other: u32::MAX,
                     });
+                    if can_be_zero_width {
+                        self.emit(Instruction::Save(progress_reg));
+                    }
                     self.emit_clear_captures(atom);
                     self.compile_atom(atom);
                     if can_be_zero_width {
@@ -598,6 +590,9 @@ impl Compiler {
                         prefer: u32::MAX,
                         other: self.current_offset() + 1,
                     });
+                    if can_be_zero_width {
+                        self.emit(Instruction::Save(progress_reg));
+                    }
                     self.emit_clear_captures(atom);
                     self.compile_atom(atom);
                     if can_be_zero_width {
