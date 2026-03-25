@@ -971,6 +971,8 @@ enum SavedState {
         modifier_stack_len: usize,
     },
     /// Greedy loop backtrack: give up one character at a time from the right.
+    /// Carries a register snapshot because later failed alternatives may have
+    /// mutated captures before we revisit the loop choice point.
     /// No register snapshot needed (loop body doesn't touch registers).
     Greedy {
         pc: u32,
@@ -978,6 +980,7 @@ enum SavedState {
         start_pos: usize,
         /// Current right edge (position after last consumed char).
         current_pos: usize,
+        reg_snapshot_offset: usize,
         /// Minimum number of chars that must be kept.
         min: u32,
         /// Whether this greedy loop was executing in backward mode (lookbehind).
@@ -986,10 +989,13 @@ enum SavedState {
         modifier_stack_len: usize,
     },
     /// Lazy loop backtrack: try consuming one more character.
+    /// Carries a register snapshot because later failed alternatives may have
+    /// mutated captures before we revisit the loop choice point.
     Lazy {
         pc: u32,
         /// Position to try consuming from next.
         pos: usize,
+        reg_snapshot_offset: usize,
         /// Maximum total matches allowed.
         max: Option<u32>,
         /// Number of matches consumed so far.
@@ -2252,8 +2258,7 @@ impl<'a, I: Input> Vm<'a, I> {
     /// Push a backtrack state with a snapshot of the current registers.
     #[inline(always)]
     fn push_backtrack(&mut self, pc: u32, pos: usize) {
-        let offset = self.register_pool.len();
-        self.register_pool.extend_from_slice(self.registers);
+        let offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Normal {
             pc,
             pos,
@@ -2267,8 +2272,7 @@ impl<'a, I: Input> Vm<'a, I> {
     /// The modification is applied at `mod_index` with `mod_value`.
     #[inline(always)]
     fn push_backtrack_modified(&mut self, pc: u32, pos: usize, mod_index: usize, mod_value: i32) {
-        let offset = self.register_pool.len();
-        self.register_pool.extend_from_slice(self.registers);
+        let offset = self.snapshot_registers();
         self.register_pool[offset + mod_index] = mod_value;
         self.backtrack_stack.push(SavedState::Normal {
             pc,
@@ -2279,13 +2283,15 @@ impl<'a, I: Input> Vm<'a, I> {
         });
     }
 
-    /// Push a greedy loop backtrack state (no register snapshot).
+    /// Push a greedy loop backtrack state.
     #[inline(always)]
     fn push_greedy_backtrack(&mut self, pc: u32, start_pos: usize, current_pos: usize, min: u32) {
+        let reg_snapshot_offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Greedy {
             pc,
             start_pos,
             current_pos,
+            reg_snapshot_offset,
             min,
             backward: self.backward,
             modifiers: self.modifiers,
@@ -2293,17 +2299,34 @@ impl<'a, I: Input> Vm<'a, I> {
         });
     }
 
-    /// Push a lazy loop backtrack state (no register snapshot).
+    /// Push a lazy loop backtrack state.
     #[inline(always)]
     fn push_lazy_backtrack(&mut self, pc: u32, pos: usize, max: Option<u32>, consumed: u32) {
+        let reg_snapshot_offset = self.snapshot_registers();
         self.backtrack_stack.push(SavedState::Lazy {
             pc,
             pos,
+            reg_snapshot_offset,
             max,
             consumed,
             modifiers: self.modifiers,
             modifier_stack_len: self.modifier_stack.len(),
         });
+    }
+
+    #[inline(always)]
+    fn snapshot_registers(&mut self) -> usize {
+        let offset = self.register_pool.len();
+        self.register_pool.extend_from_slice(self.registers);
+        offset
+    }
+
+    #[inline(always)]
+    fn restore_registers(&mut self, reg_snapshot_offset: usize) {
+        let reg_count = self.registers.len();
+        self.registers.copy_from_slice(
+            &self.register_pool[reg_snapshot_offset..reg_snapshot_offset + reg_count],
+        );
     }
 
     fn backtrack(&mut self) -> bool {
@@ -2321,10 +2344,7 @@ impl<'a, I: Input> Vm<'a, I> {
                 } => {
                     self.pc = pc;
                     self.pos = pos;
-                    let reg_count = self.registers.len();
-                    self.registers.copy_from_slice(
-                        &self.register_pool[reg_snapshot_offset..reg_snapshot_offset + reg_count],
-                    );
+                    self.restore_registers(reg_snapshot_offset);
                     self.register_pool.truncate(reg_snapshot_offset);
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
@@ -2333,11 +2353,14 @@ impl<'a, I: Input> Vm<'a, I> {
                     pc,
                     start_pos,
                     current_pos,
+                    reg_snapshot_offset,
                     min,
                     backward,
                     modifiers,
                     modifier_stack_len,
                 } => {
+                    self.restore_registers(reg_snapshot_offset);
+                    self.register_pool.truncate(reg_snapshot_offset);
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
 
@@ -2410,10 +2433,12 @@ impl<'a, I: Input> Vm<'a, I> {
 
                         // Push updated state if we can still give back more.
                         if new_pos < max_pos {
+                            let reg_snapshot_offset = self.snapshot_registers();
                             self.backtrack_stack.push(SavedState::Greedy {
                                 pc,
                                 start_pos,
                                 current_pos: new_pos,
+                                reg_snapshot_offset,
                                 min,
                                 backward,
                                 modifiers,
@@ -2502,10 +2527,12 @@ impl<'a, I: Input> Vm<'a, I> {
 
                         // Push updated greedy state for further backtracking.
                         if new_pos > min_pos {
+                            let reg_snapshot_offset = self.snapshot_registers();
                             self.backtrack_stack.push(SavedState::Greedy {
                                 pc,
                                 start_pos,
                                 current_pos: new_pos,
+                                reg_snapshot_offset,
                                 min,
                                 backward,
                                 modifiers,
@@ -2520,11 +2547,14 @@ impl<'a, I: Input> Vm<'a, I> {
                 SavedState::Lazy {
                     pc,
                     pos,
+                    reg_snapshot_offset,
                     max,
                     consumed,
                     modifiers,
                     modifier_stack_len,
                 } => {
+                    self.restore_registers(reg_snapshot_offset);
+                    self.register_pool.truncate(reg_snapshot_offset);
                     self.modifiers = modifiers;
                     self.modifier_stack.truncate(modifier_stack_len);
 

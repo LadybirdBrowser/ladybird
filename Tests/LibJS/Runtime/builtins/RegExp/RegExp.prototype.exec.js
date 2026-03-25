@@ -137,6 +137,15 @@ test("brace quantifier with invalid contents", () => {
     expect(res[0]).toBe("{{lit-746579221856449}}");
 });
 
+test("lazy quantified capture restores the previous iteration when backtracking", () => {
+    let res = /^(b+|a){1,2}?bc/.exec("bbc");
+
+    expect(res.length).toBe(2);
+    expect(res[0]).toBe("bbc");
+    expect(res[1]).toBe("b");
+    expect(res.index).toBe(0);
+});
+
 // #6256
 test("empty character class semantics", () => {
     // Should not match zero-length strings.
