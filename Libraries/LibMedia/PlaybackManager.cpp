@@ -131,9 +131,9 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         if (self->on_track_added) {
             for (size_t i = first_new_audio_index; i < self->m_audio_tracks.size(); i++)
-                self->on_track_added(TrackType::Audio, self->m_audio_tracks[i]);
+                self->on_track_added(self->m_audio_tracks[i]);
             for (size_t i = first_new_video_index; i < self->m_video_tracks.size(); i++)
-                self->on_track_added(TrackType::Video, self->m_video_tracks[i]);
+                self->on_track_added(self->m_video_tracks[i]);
         }
 
         if (self->on_metadata_parsed)

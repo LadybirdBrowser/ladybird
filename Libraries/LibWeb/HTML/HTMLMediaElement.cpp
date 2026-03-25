@@ -1536,8 +1536,8 @@ void HTMLMediaElement::set_up_playback_manager()
 
     // -> If the media resource is found to have an audio track
     // -> If the media resource is found to have a video track
-    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto track_type, auto& track) {
-        if (track_type == Media::TrackType::Audio)
+    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
+        if (track.type() == Media::TrackType::Audio)
             self.on_audio_track_added(track);
         else
             self.on_video_track_added(track);

@@ -83,7 +83,7 @@ public:
 
     Function<void()> on_metadata_parsed;
     Function<void(DecoderError&&)> on_unsupported_format_error;
-    Function<void(TrackType, Track const&)> on_track_added;
+    Function<void(Track const&)> on_track_added;
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void(DecoderError&&)> on_error;
