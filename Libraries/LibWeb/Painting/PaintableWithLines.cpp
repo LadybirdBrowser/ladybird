@@ -21,7 +21,6 @@
 #include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 #include <LibWeb/Painting/TextPaintable.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/Selection/Selection.h>
 
 namespace Web::Painting {
@@ -231,36 +230,36 @@ static void resolve_text_fragment_properties(PaintableWithLines const& paintable
 {
     auto const& parent_layout_node = paintable_with_lines.layout_node();
     for (auto& fragment : const_cast<PaintableWithLines&>(paintable_with_lines).fragments()) {
-        auto const& fragment_layout_node = fragment.layout_node();
-        if (!fragment_layout_node.is_text_node())
+        auto const* text_node = as_if<Layout::TextNode>(fragment.layout_node());
+        if (!text_node)
             continue;
-        auto const& text_node = static_cast<Layout::TextNode const&>(fragment_layout_node);
 
-        auto const& font = fragment_layout_node.first_available_font();
+        auto const& font = text_node->first_available_font();
         auto const glyph_height = CSSPixels::nearest_value_for(font.pixel_size());
         auto const css_line_thickness = [&] {
-            auto const& thickness = text_node.computed_values().text_decoration_thickness();
+            auto const& thickness = text_node->computed_values().text_decoration_thickness();
             return thickness.value.visit(
                 [glyph_height](CSS::TextDecorationThickness::Auto) {
-                    // The UA chooses an appropriate thickness for text decoration lines; see below.
                     // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-auto
+                    // The UA chooses an appropriate thickness for text decoration lines; see below.
                     return max(glyph_height.scaled(0.1), 1);
                 },
                 [glyph_height](CSS::TextDecorationThickness::FromFont) {
+                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-from-font
                     // If the first available font has metrics indicating a preferred underline width, use that width,
                     // otherwise behaves as auto.
-                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-from-font
                     // FIXME: Implement this properly.
                     return max(glyph_height.scaled(0.1), 1);
                 },
                 [&](CSS::LengthPercentage const& length_percentage) {
-                    auto resolved_length = length_percentage.resolved(text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(text_node)).to_px(fragment_layout_node);
+                    // https://drafts.csswg.org/css-text-decor-4/#valdef-text-decoration-thickness-length-percentage
+                    auto resolved_length = length_percentage.resolved(*text_node, CSS::Length(1, CSS::LengthUnit::Em).to_px(*text_node)).to_px(*text_node);
                     return max(resolved_length, 1);
                 });
         }();
         fragment.set_text_decoration_thickness(css_line_thickness);
 
-        auto const& text_shadow = text_node.computed_values().text_shadow();
+        auto const& text_shadow = text_node->computed_values().text_shadow();
         Vector<ShadowData> resolved_shadow_data;
         if (!text_shadow.is_empty()) {
             resolved_shadow_data.ensure_capacity(text_shadow.size());
