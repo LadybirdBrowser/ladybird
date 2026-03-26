@@ -349,10 +349,6 @@ if (DEFINED ASMINT_ARCH)
     add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/gen_asm_offsets.cpp")
     target_link_libraries(gen_asm_offsets PRIVATE AK)
 
-    if (ANDROID)
-        target_link_libraries(gen_asm_offsets PRIVATE log)
-    endif()
-
     target_compile_definitions(gen_asm_offsets PRIVATE private=public protected=public)
     # NB: Strip fuzzer sanitizer flags so gen_asm_offsets can define its own main().
     if (ENABLE_FUZZERS_LIBFUZZER)
