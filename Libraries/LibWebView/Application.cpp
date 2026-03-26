@@ -946,6 +946,77 @@ void Application::initialize_actions()
     m_bookmarks_menu_static_size = m_bookmarks_menu->size();
     create_bookmark_menu_items();
 
+    auto add_bookmark_action = Action::create("Add Bookmark..."sv, ActionID::AddBookmark, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        display_add_bookmark_dialog()
+            ->when_resolved([this, bookmark_id = bookmark_id.release_value()](BookmarkItem::Bookmark bookmark) {
+                m_bookmark_store.add_bookmark(move(bookmark.url), move(bookmark.title), {}, bookmark_id.target_folder_id);
+            });
+    });
+    auto add_bookmark_folder_action = Action::create("Add Folder..."sv, ActionID::AddBookmarkFolder, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        display_add_bookmark_folder_dialog()
+            ->when_resolved([this, bookmark_id = bookmark_id.release_value()](BookmarkItem::Folder folder) {
+                m_bookmark_store.add_folder(move(folder.title), bookmark_id.target_folder_id);
+            });
+    });
+
+    m_bookmarks_bar_context_menu = Menu::create("Bookmarks Bar Context Menu"sv);
+    m_bookmarks_bar_context_menu->add_action(add_bookmark_action);
+    m_bookmarks_bar_context_menu->add_action(add_bookmark_folder_action);
+
+    m_bookmark_context_menu = Menu::create("Bookmark Context Menu"sv);
+    m_bookmark_context_menu->add_action(Action::create("Edit Bookmark..."sv, ActionID::EditBookmark, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        auto current_bookmark = m_bookmark_store.find_item_by_id(bookmark_id->id);
+        if (!current_bookmark.has_value() || !current_bookmark->is_bookmark())
+            return;
+
+        display_edit_bookmark_dialog(current_bookmark->bookmark())
+            ->when_resolved([this, bookmark_id = bookmark_id.release_value()](BookmarkItem::Bookmark bookmark) {
+                m_bookmark_store.edit_bookmark(bookmark_id.id, move(bookmark.url), move(bookmark.title));
+            });
+    }));
+    m_bookmark_context_menu->add_action(Action::create("Delete Bookmark"sv, ActionID::DeleteBookmark, [this]() {
+        if (auto bookmark_id = bookmark_item_id_for_context_menu(); bookmark_id.has_value())
+            m_bookmark_store.remove_item(bookmark_id->id);
+    }));
+    m_bookmark_context_menu->add_separator();
+    m_bookmark_context_menu->add_action(add_bookmark_action);
+    m_bookmark_context_menu->add_action(add_bookmark_folder_action);
+
+    m_bookmark_folder_context_menu = Menu::create("Bookmark Folder Context Menu"sv);
+    m_bookmark_folder_context_menu->add_action(Action::create("Edit Folder..."sv, ActionID::EditBookmarkFolder, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        auto current_folder = m_bookmark_store.find_item_by_id(bookmark_id->id);
+        if (!current_folder.has_value() || !current_folder->is_folder())
+            return;
+
+        display_edit_bookmark_folder_dialog(current_folder->folder())
+            ->when_resolved([this, bookmark_id = bookmark_id.release_value()](BookmarkItem::Folder folder) {
+                m_bookmark_store.edit_folder(bookmark_id.id, move(folder.title));
+            });
+    }));
+    m_bookmark_folder_context_menu->add_action(Action::create("Delete Folder"sv, ActionID::DeleteBookmarkFolder, [this]() {
+        if (auto bookmark_id = bookmark_item_id_for_context_menu(); bookmark_id.has_value())
+            m_bookmark_store.remove_item(bookmark_id->id);
+    }));
+    m_bookmark_folder_context_menu->add_separator();
+    m_bookmark_folder_context_menu->add_action(add_bookmark_action);
+    m_bookmark_folder_context_menu->add_action(add_bookmark_folder_action);
+
     m_inspect_menu = Menu::create("Inspect"sv);
 
     m_view_source_action = Action::create("View Source"sv, ActionID::ViewSource, [this]() {
@@ -1071,14 +1142,17 @@ void Application::show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>)
     update_bookmarks_bar_display(m_settings.show_bookmarks_bar());
 }
 
-void Application::create_bookmark_menu_items(Menu* menu, Vector<BookmarkItem> const* items)
+void Application::create_bookmark_menu_items(Optional<MenuData> data)
 {
-    if (!menu) {
-        menu = m_bookmarks_menu;
-        items = &m_bookmark_store.root_items();
-    }
+    auto const& [menu, items, target_folder_id] = data.ensure([&]() -> MenuData {
+        return {
+            .menu = *m_bookmarks_menu,
+            .items = m_bookmark_store.root_items(),
+            .target_folder_id = {},
+        };
+    });
 
-    for (auto const& item : *items) {
+    for (auto const& item : items) {
         item.data.visit(
             [&](BookmarkItem::Bookmark const& bookmark) {
                 auto action = Action::create(bookmark.title.value_or({}), ActionID::BookmarkItem, [this, url = bookmark.url]() {
@@ -1089,19 +1163,60 @@ void Application::create_bookmark_menu_items(Menu* menu, Vector<BookmarkItem> co
                 action->set_base64_png_icon(bookmark.favicon_base64_png);
                 action->set_tooltip(bookmark.url.serialize());
 
-                menu->add_action(move(action));
+                action->add_property("id"sv, item.id);
+                action->add_property("type"sv, "bookmark"_string);
+                if (target_folder_id.has_value())
+                    action->add_property("target_folder_id"sv, *target_folder_id);
+
+                menu.add_action(move(action));
             },
             [&](BookmarkItem::Folder const& folder) {
                 auto submenu = folder.title.has_value()
                     ? Menu::create_group(*folder.title)
                     : Menu::create_group("(no title)"sv);
 
-                create_bookmark_menu_items(submenu, &folder.children);
-                submenu->set_render_group_icon(true);
+                create_bookmark_menu_items(MenuData {
+                    .menu = submenu,
+                    .items = folder.children,
+                    .target_folder_id = item.id,
+                });
 
-                menu->add_submenu(move(submenu));
+                submenu->add_property("id"sv, item.id);
+                submenu->add_property("type"sv, "folder"_string);
+                submenu->add_property("target_folder_id"sv, item.id);
+
+                submenu->set_render_group_icon(true);
+                menu.add_submenu(move(submenu));
             });
     }
+}
+
+template<typename T>
+static NonnullRefPtr<T> create_unsupported_rejection()
+{
+    auto promise = T::construct();
+    promise->reject(Error::from_errno(ENOTSUP));
+    return promise;
+}
+
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog() const
+{
+    return create_unsupported_rejection<BookmarkPromise>();
+}
+
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(BookmarkItem::Bookmark const&) const
+{
+    return create_unsupported_rejection<BookmarkPromise>();
+}
+
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog() const
+{
+    return create_unsupported_rejection<BookmarkFolderPromise>();
+}
+
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(BookmarkItem::Folder const&) const
+{
+    return create_unsupported_rejection<BookmarkFolderPromise>();
 }
 
 ErrorOr<void> Application::toggle_devtools_enabled()

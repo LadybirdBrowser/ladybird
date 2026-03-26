@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -40,6 +41,13 @@ enum class ActionID {
     ToggleBookmarkViaToolbar,
     ToggleBookmarksBar,
     BookmarkItem,
+
+    AddBookmark,
+    AddBookmarkFolder,
+    DeleteBookmark,
+    DeleteBookmarkFolder,
+    EditBookmark,
+    EditBookmarkFolder,
 
     OpenAboutPage,
     OpenProcessesPage,
@@ -123,6 +131,9 @@ public:
 
     ActionID id() const { return m_id; }
 
+    HashMap<StringView, String> const& properties() const { return m_properties; }
+    void add_property(StringView name, String value) { m_properties.set(name, move(value)); }
+
     bool enabled() const { return m_enabled; }
     void set_enabled(bool);
 
@@ -165,7 +176,9 @@ private:
     ActionText m_text;
     Optional<ActionText> m_tooltip;
     Optional<String> m_base64_png_icon;
+
     ActionID m_id;
+    HashMap<StringView, String> m_properties;
 
     bool m_enabled { true };
     bool m_visible { true };
@@ -201,6 +214,9 @@ public:
     Span<MenuItem> items() { return m_items; }
     ReadonlySpan<MenuItem> items() const { return m_items; }
 
+    HashMap<StringView, String> const& properties() const { return m_properties; }
+    void add_property(StringView name, String value) { m_properties.set(name, move(value)); }
+
     void set_render_group_icon(bool render_group_icon) { m_render_group_icon = render_group_icon; }
     bool render_group_icon() const { return m_render_group_icon; }
 
@@ -225,6 +241,8 @@ private:
 
     ActionText m_title;
     Vector<MenuItem> m_items;
+
+    HashMap<StringView, String> m_properties;
 
     bool m_is_group { false };
     bool m_render_group_icon { false };

@@ -139,6 +139,9 @@ public:
     Menu& motion_menu() { return *m_motion_menu; }
 
     Menu& bookmarks_menu() { return *m_bookmarks_menu; }
+    Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
+    Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
+    Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
 
     Menu& inspect_menu() { return *m_inspect_menu; }
     Action& view_source_action() { return *m_view_source_action; }
@@ -170,6 +173,20 @@ protected:
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
 
+    struct BookmarkID {
+        String id;
+        Optional<String> target_folder_id;
+    };
+    virtual Optional<BookmarkID> bookmark_item_id_for_context_menu() const { return {}; }
+
+    using BookmarkPromise = Core::Promise<BookmarkItem::Bookmark>;
+    virtual NonnullRefPtr<BookmarkPromise> display_add_bookmark_dialog() const;
+    virtual NonnullRefPtr<BookmarkPromise> display_edit_bookmark_dialog([[maybe_unused]] BookmarkItem::Bookmark const& current_bookmark) const;
+
+    using BookmarkFolderPromise = Core::Promise<BookmarkItem::Folder>;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog() const;
+    virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
+
     virtual void on_devtools_enabled() const;
     virtual void on_devtools_disabled() const;
 
@@ -185,7 +202,13 @@ private:
     void initialize_actions();
 
     void update_bookmarks_bar_action();
-    void create_bookmark_menu_items(Menu* menu = nullptr, Vector<BookmarkItem> const* items = nullptr);
+
+    struct MenuData {
+        Menu& menu;
+        ReadonlySpan<BookmarkItem> items;
+        Optional<String const&> target_folder_id;
+    };
+    void create_bookmark_menu_items(Optional<MenuData> = {});
 
     virtual Vector<DevTools::TabDescription> tab_list() const override;
     virtual Vector<DevTools::CSSProperty> css_property_list() const override;
@@ -276,6 +299,10 @@ private:
     RefPtr<Action> m_toggle_bookmark_action;
     RefPtr<Action> m_toggle_bookmark_bar_action;
     size_t m_bookmarks_menu_static_size { 0 };
+
+    RefPtr<Menu> m_bookmarks_bar_context_menu;
+    RefPtr<Menu> m_bookmark_context_menu;
+    RefPtr<Menu> m_bookmark_folder_context_menu;
 
     RefPtr<Menu> m_inspect_menu;
     RefPtr<Action> m_view_source_action;
