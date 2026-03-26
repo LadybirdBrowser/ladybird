@@ -92,6 +92,13 @@ private:
     QPointer<QAction> m_action;
 };
 
+template<typename T>
+static void add_properties(QObject& object, T& menu_or_action)
+{
+    for (auto const& [key, value] : menu_or_action.properties())
+        object.setProperty(key.to_byte_string().characters(), qstring_from_ak_string(value));
+}
+
 static QIcon icon_from_base64_png(StringView favicon_base64_png)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
@@ -283,32 +290,36 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setCheckable(true);
 
     action.add_observer(ActionObserver::create(action, qaction));
+    add_properties(qaction, action);
 }
 
-static void add_items_to_menu(QMenu& menu, QWidget& parent, Span<WebView::Menu::MenuItem> menu_items)
+static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu)
 {
-    for (auto& menu_item : menu_items) {
+    add_properties(qmenu, menu);
+
+    for (auto& menu_item : menu.items()) {
         menu_item.visit(
             [&](NonnullRefPtr<WebView::Action>& action) {
                 auto* qaction = create_application_action(parent, action);
-                menu.addAction(qaction);
+                qmenu.addAction(qaction);
 
                 if (action->id() == WebView::ActionID::SpoofUserAgent || action->id() == WebView::ActionID::NavigatorCompatibilityMode) {
-                    if (menu.icon().isNull())
-                        menu.setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
+                    if (qmenu.icon().isNull())
+                        qmenu.setIcon(load_icon_from_uri("resource://icons/16x16/spoof.png"sv));
                 }
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
-                auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &menu);
-                add_items_to_menu(*qsubmenu, parent, submenu->items());
+                auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &qmenu);
+                add_items_to_menu(*qsubmenu, parent, submenu);
 
                 if (submenu->render_group_icon())
                     qsubmenu->setIcon(create_tvg_icon_with_theme_colors("folder", parent.palette()));
 
-                menu.addMenu(qsubmenu);
+                add_properties(*qsubmenu, *submenu);
+                qmenu.addMenu(qsubmenu);
             },
             [&](WebView::Separator) {
-                menu.addSeparator();
+                qmenu.addSeparator();
             });
     }
 }
@@ -316,14 +327,14 @@ static void add_items_to_menu(QMenu& menu, QWidget& parent, Span<WebView::Menu::
 QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
 {
     auto* application_menu = new QMenu(qstring_from_ak_string(menu.title()), &parent);
-    add_items_to_menu(*application_menu, parent, menu.items());
+    add_items_to_menu(*application_menu, parent, menu);
     return application_menu;
 }
 
 void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source)
 {
     menu.clear();
-    add_items_to_menu(menu, parent, source.items());
+    add_items_to_menu(menu, parent, source);
 }
 
 QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu& menu)
