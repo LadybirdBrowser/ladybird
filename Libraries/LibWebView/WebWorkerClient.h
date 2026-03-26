@@ -9,6 +9,7 @@
 #include <AK/ByteString.h>
 #include <AK/Types.h>
 #include <LibHTTP/Cookie/Cookie.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
@@ -37,6 +38,8 @@ public:
     virtual void did_report_worker_exception(String message, String filename, u32 lineno, u32 colno) override;
     virtual Messages::WebWorkerClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source) override;
     virtual void did_request_file(ByteString path, i32 request_id) override;
+    virtual void did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) override;
+    virtual Messages::WebWorkerClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String domain) override;
     virtual void did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage) override;
     virtual Messages::WebWorkerClient::StartWorkerAgentResponse start_worker_agent(Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(Web::HTML::WorkerAgentId, Web::HTML::WorkerAgentOwnerToken) override;

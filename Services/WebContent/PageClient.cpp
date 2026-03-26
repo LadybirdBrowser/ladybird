@@ -627,6 +627,21 @@ void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
         document->reset_cookie_version();
 }
 
+void PageClient::page_did_store_hsts_policy(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
+{
+    client().async_did_store_hsts_policy(domain, policy);
+}
+
+bool PageClient::page_did_is_known_hsts_host(String const& domain)
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidIsKnownHstsHost>(domain);
+    if (!response) {
+        dbgln("WebContent client disconnected during DidIsKnownHstsHost. Exiting peacefully.");
+        exit(0);
+    }
+    return response->result();
+}
+
 Optional<String> PageClient::page_did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String const& storage_key, String const& bottle_key)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestStorageItem>(storage_endpoint, storage_key, bottle_key);

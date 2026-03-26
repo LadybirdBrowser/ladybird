@@ -6,6 +6,7 @@
 
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/HSTSStore.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -49,6 +50,16 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
 void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
 {
     WorkerProcessManager::the().worker_did_request_file(m_agent_id, move(path), request_id);
+}
+
+void WebWorkerClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
+{
+    Application::hsts_store().store_policy(domain, policy);
+}
+
+Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
+{
+    return Application::hsts_store().is_known_hsts_host(domain);
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)

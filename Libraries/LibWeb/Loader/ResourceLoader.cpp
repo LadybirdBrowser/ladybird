@@ -13,6 +13,7 @@
 #include <LibGC/Function.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
 #include <LibURL/Parser.h>
@@ -501,6 +502,24 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
 {
     if (!request.page())
         return;
+
+    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
+    // If an HTTP response, received over a secure transport, includes an STS header field, conforming to the grammar
+    // specified in Section 6.1, and there are no underlying secure transport errors or warnings, the UA MUST either
+    // note the host as a Known HSTS Host or update the UA's cached information for the Known HSTS Host.
+    if (request.url().has_value() && request.url()->scheme() == "https"sv
+        && request.url()->host().has_value() && request.url()->host()->is_domain()) {
+        // If a UA receives more than one STS header field in an HTTP response message over secure transport, then
+        // the UA MUST process only the first such header field.
+        for (auto const& [header, value] : response_headers) {
+            if (header.equals_ignoring_ascii_case("Strict-Transport-Security"sv)) {
+                auto parsed_policy = HTTP::HSTS::parse_header(value);
+                if (parsed_policy.has_value())
+                    request.page()->client().page_did_store_hsts_policy(request.url()->host()->get<String>(), parsed_policy.value());
+                break;
+            }
+        }
+    }
 
     if (request.include_credentials() == HTTP::Cookie::IncludeCredentials::Yes) {
         // From https://fetch.spec.whatwg.org/#concept-http-network-fetch:

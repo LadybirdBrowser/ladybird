@@ -83,7 +83,7 @@ Optional<Vector<ByteString>> Header::extract_header_values() const
 bool is_header_name(StringView header_name)
 {
     // A header name is a byte sequence that matches the field-name token production.
-    return !header_name.is_empty() && all_of(header_name, is_http_token_code_point);
+    return is_token(header_name);
 }
 
 // https://fetch.spec.whatwg.org/#header-value

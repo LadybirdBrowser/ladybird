@@ -11,6 +11,7 @@ set(SOURCES
     HeadlessWebView.cpp
     HistoryStore.cpp
     HelperProcess.cpp
+    HSTSStore.cpp
     Menu.cpp
     Mutation.cpp
     Plugins/ImageCodecPlugin.cpp

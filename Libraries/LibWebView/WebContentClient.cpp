@@ -17,6 +17,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
+#include <LibWebView/HSTSStore.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/SourceHighlighter.h>
@@ -960,6 +961,16 @@ void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
 {
     Application::cookie_jar().expire_cookies_with_time_offset(offset);
+}
+
+void WebContentClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
+{
+    Application::hsts_store().store_policy(domain, policy);
+}
+
+Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
+{
+    return Application::hsts_store().is_known_hsts_host(domain);
 }
 
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key)

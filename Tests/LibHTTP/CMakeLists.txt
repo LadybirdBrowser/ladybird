@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestCacheUtilities.cpp
+    TestHSTSPolicy.cpp
     TestHTTPUtils.cpp
 )
 
