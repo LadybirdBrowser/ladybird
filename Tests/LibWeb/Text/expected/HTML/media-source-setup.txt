@@ -1,4 +1,5 @@
 PASS: isTypeSupported
 PASS: created MediaSource
 PASS: assigned object URL to video.src
-FAIL: timeout
+PASS: sourceopen fired
+FAIL: sourceopen handler: TypeError: undefined is not a function (evaluated from 'mediaSource.addSourceBuffer')

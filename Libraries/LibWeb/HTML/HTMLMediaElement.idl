@@ -6,6 +6,7 @@
 #import <HTML/TimeRanges.idl>
 #import <HTML/VideoTrackList.idl>
 #import <HTML/Scripting/Fetching.idl>
+#import <MediaSourceExtensions/MediaSource.idl>
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-media-preload
 [MissingValueDefault=metadata, InvalidValueDefault=metadata]
@@ -22,6 +23,8 @@ enum CanPlayTypeResult {
     "probably"
 };
 
+typedef (MediaSource or Blob) MediaProvider;
+
 // https://html.spec.whatwg.org/multipage/media.html#htmlmediaelement
 [Exposed=Window]
 interface HTMLMediaElement : HTMLElement {
@@ -31,7 +34,7 @@ interface HTMLMediaElement : HTMLElement {
 
     // network state
     [Reflect, CEReactions, URL] attribute USVString src;
-    [FIXME] attribute MediaProvider? srcObject;
+    attribute MediaProvider? srcObject;
     readonly attribute USVString currentSrc;
     [Reflect=crossorigin, CEReactions, Enumerated=CORSSettingsAttribute] attribute DOMString? crossOrigin;
     const unsigned short NETWORK_EMPTY = 0;

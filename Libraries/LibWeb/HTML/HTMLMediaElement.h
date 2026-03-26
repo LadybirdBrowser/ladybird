@@ -16,6 +16,7 @@
 #include <LibGfx/Rect.h>
 #include <LibMedia/Forward.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
+#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/HTMLElement.h>
@@ -32,6 +33,8 @@ enum class MediaSeekMode : u8 {
 };
 
 class SourceElementSelector;
+
+using OptionalMediaProvider = Variant<Empty, GC::Root<MediaSourceExtensions::MediaSource>, GC::Root<FileAPI::Blob>>;
 
 class HTMLMediaElement : public HTMLElement {
     WEB_PLATFORM_OBJECT(HTMLMediaElement, HTMLElement);
@@ -55,6 +58,9 @@ public:
 
     String const& current_src() const { return m_current_src; }
     void select_resource();
+
+    OptionalMediaProvider src_object() const;
+    WebIDL::ExceptionOr<void> set_src_object(OptionalMediaProvider);
 
     enum class NetworkState : u8 {
         Empty,
@@ -183,10 +189,16 @@ private:
 
     Task::Source media_element_event_task_source() const { return m_media_element_event_task_source.source; }
 
+    using MediaProviderObject = Variant<Empty, GC::Ref<MediaSourceExtensions::MediaSource>, GC::Ref<FileAPI::Blob>>;
+    MediaProviderObject const& assigned_media_provider_object() const;
+    MediaProviderObject& assigned_media_provider_object();
+    void set_assigned_media_provider_object(MediaProviderObject const&);
+
     WebIDL::ExceptionOr<void> load_element();
 
-    void fetch_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
-    void fetch_resource(ByteRange const&);
+    void load_url_resource(URL::URL const&, ESCAPING Function<void(String)> failure_callback);
+    void load_remote_resource(ByteRange const&);
+    void load_local_resource(MediaProviderObject const&, ESCAPING Function<void(String)> failure_callback);
 
     Optional<String> verify_response_or_get_failure_reason(GC::Ref<Fetch::Infrastructure::Response>, ByteRange const&);
 
@@ -263,6 +275,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-crossorigin
     CORSSettingAttribute m_crossorigin { CORSSettingAttribute::NoCORS };
+
+    // https://html.spec.whatwg.org/multipage/media.html#assigned-media-provider-object
+    MediaProviderObject m_assigned_media_provider_object;
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-media-currentsrc
     String m_current_src;

@@ -24,7 +24,7 @@ interface MediaSource : EventTarget {
     readonly  attribute MediaSourceHandle handle;
     [FIXME] readonly  attribute SourceBufferList sourceBuffers;
     [FIXME] readonly  attribute SourceBufferList activeSourceBuffers;
-    [FIXME] readonly  attribute ReadyState readyState;
+    readonly  attribute ReadyState readyState;
 
     [FIXME] attribute unrestricted double duration;
     attribute EventHandler onsourceopen;
