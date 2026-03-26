@@ -1,0 +1,5 @@
+after-start:running
+statechange:running
+after-await:closed:1
+InvalidStateError: Rendering is already started
+complete:closed

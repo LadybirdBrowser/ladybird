@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const audioContext = new OfflineAudioContext(1, 1, 44100)
+        audioContext.addEventListener("statechange", () => println(`statechange:${audioContext.state}`));
+        audioContext.addEventListener("complete", () => println(`complete:${audioContext.state}`));
+
+        const promise = audioContext.startRendering();
+        println(`after-start:${audioContext.state}`);
+        const buffer = await promise;
+        println(`after-await:${audioContext.state}:${buffer.length}`);
+
+        try {
+            await audioContext.startRendering();
+            println('FAIL: started rendering on repeated call');
+        } catch (e) {
+            println(`${e}`);
+        }
+
+        await timeout(0);
+        done();
+    });
+</script>

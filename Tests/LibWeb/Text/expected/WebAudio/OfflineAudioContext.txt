@@ -1,2 +1,2 @@
+initial:suspended
 128
-InvalidStateError: Rendering is already started

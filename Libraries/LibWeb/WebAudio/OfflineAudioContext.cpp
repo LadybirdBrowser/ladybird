@@ -95,6 +95,14 @@ WebIDL::ExceptionOr<GC::Ref<WebIDL::Promise>> OfflineAudioContext::start_renderi
     // 3. Set the [[rendering started]] slot of the OfflineAudioContext to true.
     m_rendering_started = true;
 
+    // ADHOC: The current spec text for startRendering() does not describe state transitions here, but current
+    //        browsers expose "running" synchronously after startRendering() and fire statechange asynchronously.
+    set_control_state(Bindings::AudioContextState::Running);
+    set_rendering_state(Bindings::AudioContextState::Running);
+    queue_a_media_element_task(GC::create_function(heap(), [this]() {
+        this->dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::statechange));
+    }));
+
     // 4. Let promise be a new promise.
     auto promise = WebIDL::create_promise(realm);
 
@@ -130,6 +138,11 @@ void OfflineAudioContext::begin_offline_rendering(GC::Ref<WebIDL::Promise> promi
     // 4: Once the rendering is complete, queue a media element task to execute the following steps:
     queue_a_media_element_task(GC::create_function(heap(), [promise, this]() {
         HTML::TemporaryExecutionContext context(this->realm(), HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+        // AD-HOC: The current spec text for offline rendering completion does not describe a terminal state transition,
+        //         but current browsers expose the context as "closed" once rendering completes.
+        set_control_state(Bindings::AudioContextState::Closed);
+        set_rendering_state(Bindings::AudioContextState::Closed);
 
         // 4.1 Resolve the promise created by startRendering() with [[rendered buffer]].
         WebIDL::resolve_promise(this->realm(), promise, this->m_rendered_buffer);
