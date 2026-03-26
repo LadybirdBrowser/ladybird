@@ -35,8 +35,6 @@ class SessionHistoryEntry final : public JS::Cell {
 public:
     SessionHistoryEntry();
 
-    GC::Ref<SessionHistoryEntry> clone() const;
-
     void visit_edges(Cell::Visitor&) override;
 
     GC::Ptr<DOM::Document> document() const;

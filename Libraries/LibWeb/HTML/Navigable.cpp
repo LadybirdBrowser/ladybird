@@ -1486,7 +1486,17 @@ static void create_navigation_params_by_fetching(
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#populating-a-session-history-entry
 void Navigable::populate_session_history_entry_document(
-    GC::Ptr<SessionHistoryEntry> entry,
+    URL::URL url,
+    Variant<Empty, String, POSTResource> document_resource,
+    Fetch::Infrastructure::Request::ReferrerType request_referrer,
+    ReferrerPolicy::ReferrerPolicy request_referrer_policy,
+    Optional<URL::Origin> initiator_origin,
+    Optional<URL::Origin> origin,
+    Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+    Optional<URL::URL> about_base_url,
+    String navigable_target_name,
+    bool reload_pending,
+    bool ever_populated,
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
@@ -1508,15 +1518,15 @@ void Navigable::populate_session_history_entry_document(
         VERIFY(navigation_params.has<GC::Ref<NavigationParams>>() && navigation_params.get<GC::Ref<NavigationParams>>()->response);
 
     // 3. Let documentResource be entry's document state's resource.
-    auto document_resource = entry->document_state()->resource();
+    // NOTE: documentResource is passed as a parameter.
 
-    auto received_navigation_params = GC::create_function(heap(), [this, entry, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing](GC::Ref<InternalNavigationResult> result) {
+    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window())
             return;
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, entry, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing]() mutable {
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing]() mutable {
             auto& navigation_params = result->navigation_params;
 
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
@@ -1570,7 +1580,7 @@ void Navigable::populate_session_history_entry_document(
                 // 1. Set entry's document state's document to the result of creating a document for inline content that doesn't have a DOM, given navigable, null, navTimingType, and userInvolvement. The inline content should indicate to the user the sort of error that occurred.
                 auto error_message = navigation_params.has<NullOrError>() ? navigation_params.get<NullOrError>().value_or("Unknown error"_string) : "The request was denied."_string;
 
-                auto error_url = result->redirected_url.value_or(entry->url());
+                auto error_url = result->redirected_url.value_or(url);
                 auto error_html = load_error_page(error_url, error_message).release_value_but_fixme_should_propagate_errors();
                 output->document = create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
                     auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
@@ -1662,9 +1672,9 @@ void Navigable::populate_session_history_entry_document(
         if (document_resource.has<String>()) {
             wrap_navigation_params(create_navigation_params_from_a_srcdoc_resource(
                 document_resource,
-                entry->document_state()->origin(),
-                entry->document_state()->history_policy_container(),
-                entry->document_state()->about_base_url(),
+                origin,
+                history_policy_container,
+                about_base_url,
                 this, target_snapshot_params, user_involvement, navigation_id));
         }
         // 2. Otherwise, if all of the following are true:
@@ -1674,19 +1684,19 @@ void Navigable::populate_session_history_entry_document(
         //    then set navigationParams to the result of creating navigation params by fetching given entry, navigable,
         //    sourceSnapshotParams, targetSnapshotParams, cspNavigationType, userInvolvement, navigationId, and
         //    navTimingType.
-        else if (Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme()) && (document_resource.has<Empty>() || allow_POST)) {
+        else if (Fetch::Infrastructure::is_fetch_scheme(url.scheme()) && (document_resource.has<Empty>() || allow_POST)) {
             create_navigation_params_by_fetching(
-                entry->url(),
+                url,
                 document_resource,
-                entry->document_state()->request_referrer(),
-                entry->document_state()->request_referrer_policy(),
-                entry->document_state()->initiator_origin(),
-                entry->document_state()->history_policy_container(),
-                entry->document_state()->about_base_url(),
-                entry->document_state()->origin(),
-                entry->document_state()->navigable_target_name(),
-                entry->document_state()->reload_pending(),
-                entry->document_state()->ever_populated(),
+                request_referrer,
+                request_referrer_policy,
+                initiator_origin,
+                history_policy_container,
+                about_base_url,
+                origin,
+                navigable_target_name,
+                reload_pending,
+                ever_populated,
                 this,
                 source_snapshot_params,
                 target_snapshot_params,
@@ -1697,7 +1707,7 @@ void Navigable::populate_session_history_entry_document(
         }
         // 3. Otherwise, if entry's URL's scheme is not a fetch scheme, then set navigationParams to a new non-fetch
         //    scheme navigation params, with:
-        else if (!Fetch::Infrastructure::is_fetch_scheme(entry->url().scheme())) {
+        else if (!Fetch::Infrastructure::is_fetch_scheme(url.scheme())) {
             // - id: navigationId
             // - navigable: navigable
             // - URL: entry's URL
@@ -1709,10 +1719,10 @@ void Navigable::populate_session_history_entry_document(
             wrap_navigation_params(vm().heap().allocate<NonFetchSchemeNavigationParams>(
                 navigation_id,
                 this,
-                entry->url(),
+                url,
                 target_snapshot_params.sandboxing_flags,
                 source_snapshot_params->has_transient_activation,
-                *entry->document_state()->initiator_origin(),
+                *initiator_origin,
                 user_involvement));
         }
     } else {
@@ -2083,33 +2093,45 @@ void Navigable::begin_navigation(NavigateParams params)
 
         // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
         auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
-        populate_session_history_entry_document(history_entry, source_snapshot_params, target_snapshot_params, user_involvement, signal_to_continue_session_history_processing, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, signal_to_continue_session_history_processing, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
-            if (output)
-                output->apply_to(*history_entry);
-            // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
-            traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, signal_to_continue_session_history_processing] {
-                if (this->has_been_destroyed()) {
-                    // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-                    set_delaying_load_events(false);
-                    signal_to_continue_session_history_processing->resolve({});
-                    return signal_to_continue_session_history_processing;
-                }
-                if (this->ongoing_navigation() != navigation_id) {
-                    // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
-                    set_delaying_load_events(false);
-                    signal_to_continue_session_history_processing->resolve({});
-                    return signal_to_continue_session_history_processing;
-                }
-                finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
+        populate_session_history_entry_document(
+            history_entry->url(),
+            history_entry->document_state()->resource(),
+            history_entry->document_state()->request_referrer(),
+            history_entry->document_state()->request_referrer_policy(),
+            history_entry->document_state()->initiator_origin(),
+            history_entry->document_state()->origin(),
+            history_entry->document_state()->history_policy_container(),
+            history_entry->document_state()->about_base_url(),
+            history_entry->document_state()->navigable_target_name(),
+            history_entry->document_state()->reload_pending(),
+            history_entry->document_state()->ever_populated(),
+            source_snapshot_params, target_snapshot_params, user_involvement, signal_to_continue_session_history_processing, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, signal_to_continue_session_history_processing, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                if (output)
+                    output->apply_to(*history_entry);
+                // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
+                traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, signal_to_continue_session_history_processing] {
+                    if (this->has_been_destroyed()) {
+                        // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
+                        set_delaying_load_events(false);
+                        signal_to_continue_session_history_processing->resolve({});
+                        return signal_to_continue_session_history_processing;
+                    }
+                    if (this->ongoing_navigation() != navigation_id) {
+                        // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
+                        set_delaying_load_events(false);
+                        signal_to_continue_session_history_processing->resolve({});
+                        return signal_to_continue_session_history_processing;
+                    }
+                    finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
 
-                // AD-HOC: If the document isn't active or is still loading session history traversal queue will wait
-                //         for it to load else resolve the signal_to_continue_session_history_processing.
-                if (history_entry->document() && (!history_entry->document()->is_active() || history_entry->document()->ready_state() != "loading")) {
-                    signal_to_continue_session_history_processing->resolve({});
-                }
-                return signal_to_continue_session_history_processing;
+                    // AD-HOC: If the document isn't active or is still loading session history traversal queue will wait
+                    //         for it to load else resolve the signal_to_continue_session_history_processing.
+                    if (history_entry->document() && (!history_entry->document()->is_active() || history_entry->document()->ready_state() != "loading")) {
+                        signal_to_continue_session_history_processing->resolve({});
+                    }
+                    return signal_to_continue_session_history_processing;
+                }));
             }));
-        }));
     }));
 }
 

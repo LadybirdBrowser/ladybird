@@ -31,8 +31,6 @@ public:
 
     virtual ~DocumentState();
 
-    GC::Ref<DocumentState> clone() const;
-
     enum class Client {
         Tag,
     };

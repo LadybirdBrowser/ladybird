@@ -16,6 +16,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/HTML/InitialInsertion.h>
 #include <LibWeb/HTML/NavigationObserver.h>
@@ -124,16 +125,26 @@ public:
     void set_ongoing_navigation(Variant<Empty, Traversal, String> ongoing_navigation);
 
     void populate_session_history_entry_document(
-        GC::Ptr<SessionHistoryEntry> entry,
+        URL::URL url,
+        Variant<Empty, String, POSTResource> document_resource,
+        Fetch::Infrastructure::Request::ReferrerType request_referrer,
+        ReferrerPolicy::ReferrerPolicy request_referrer_policy,
+        Optional<URL::Origin> initiator_origin,
+        Optional<URL::Origin> origin,
+        Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+        Optional<URL::URL> about_base_url,
+        String navigable_target_name,
+        bool reload_pending,
+        bool ever_populated,
         GC::Ref<SourceSnapshotParams> source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         UserNavigationInvolvement user_involvement,
         NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing,
-        Optional<String> navigation_id = {},
-        NavigationParamsVariant navigation_params = Navigable::NullOrError {},
-        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
-        bool allow_POST = false,
-        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps = {});
+        Optional<String> navigation_id,
+        NavigationParamsVariant navigation_params,
+        ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
+        bool allow_POST,
+        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps);
 
     struct NavigateParams {
         URL::URL url;
