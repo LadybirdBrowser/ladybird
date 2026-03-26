@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <AK/Queue.h>
+#include <AK/Vector.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 
@@ -37,7 +37,7 @@ public:
     }
 
     void remove_tasks_matching(Function<bool(HTML::Task const&)>);
-    GC::RootVector<GC::Ref<Task>> take_tasks_matching(Function<bool(HTML::Task const&)>);
+    GC::Ptr<Task> take_first_runnable_matching(Function<bool(HTML::Task const&)>);
 
     Task const* last_added_task() const;
 

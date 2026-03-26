@@ -617,16 +617,14 @@ WebIDL::ExceptionOr<void> HTMLMediaElement::load_element()
     //          any ongoing fetch operation. Therefore, all resource selection algorithms will be cancelled before a new
     //          one begins.
 
-    // 2. Let pending tasks be a list of all tasks from the media element's media element event task source in one of the task queues.
-    [[maybe_unused]] auto pending_tasks = HTML::main_thread_event_loop().task_queue().take_tasks_matching([&](auto& task) {
+    // 2. Let pending tasks be a list of all tasks from the media element's media element event task source in one of
+    //    the task queues.
+    // FIXME: 3. For each task in pending tasks that would resolve pending play promises or reject pending play promises,
+    //    immediately resolve or reject those promises in the order the corresponding tasks were queued.
+    // 4. Remove each task in pending tasks from its task queue
+    main_thread_event_loop().task_queue().remove_tasks_matching([&](auto& task) {
         return task.source() == media_element_event_task_source();
     });
-
-    // FIXME: 3. For each task in pending tasks that would resolve pending play promises or reject pending play promises, immediately resolve or
-    //           reject those promises in the order the corresponding tasks were queued.
-
-    // 4. Remove each task in pending tasks from its task queue
-    //    NOTE: We performed this step along with step 2.
 
     // 5. If the media element's networkState is set to NETWORK_LOADING or NETWORK_IDLE, queue a media element task given the media element to
     //    fire an event named abort at the media element.

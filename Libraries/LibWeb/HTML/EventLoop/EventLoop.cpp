@@ -131,16 +131,15 @@ void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC:
     Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
         if (goal_condition->function()())
             return true;
-        if (m_task_queue->has_runnable_tasks()) {
-            auto tasks = m_task_queue->take_tasks_matching([&](auto& task) {
-                return task.source() == source && task.is_runnable();
-            });
+        while (auto task = m_task_queue->take_first_runnable_matching([&](auto& candidate_task) {
+            return candidate_task.source() == source;
+        })) {
+            m_currently_running_task = task.ptr();
+            task->execute();
+            m_currently_running_task = nullptr;
 
-            for (auto& task : tasks) {
-                m_currently_running_task = task.ptr();
-                task->execute();
-                m_currently_running_task = nullptr;
-            }
+            if (goal_condition->function()())
+                break;
         }
 
         // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
