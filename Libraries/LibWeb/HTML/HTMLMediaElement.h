@@ -171,7 +171,7 @@ protected:
 private:
     friend SourceElementSelector;
 
-    struct FetchData;
+    struct RemoteFetchData;
 
     virtual bool is_html_media_element() const final { return true; }
 
@@ -335,7 +335,7 @@ private:
 
     GC::Ptr<SourceElementSelector> m_source_element_selector;
 
-    OwnPtr<FetchData> m_fetch_data;
+    OwnPtr<RemoteFetchData> m_remote_fetch_data;
     u32 m_current_fetch_generation { 0 };
 
     OwnPtr<Media::PlaybackManager> m_playback_manager;
