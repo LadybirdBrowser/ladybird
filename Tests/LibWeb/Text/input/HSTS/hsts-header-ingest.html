@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Test the response-header ingestion path used by ResourceLoader for Strict-Transport-Security:
+    // parses the header, applies the IP-host guard, and stores the policy when applicable.
+    test(() => {
+        // Per-instance host so this never collides with another test's view of the shared store.
+        const host = uniqueLocalhostHostname("hsts-ingest");
+        const validURL = `http://${host}/path`;
+        const ipURL = "http://127.0.0.1/path";
+
+        internals.ingestHSTSHeader(validURL, "max-age=31536000");
+        if (!internals.isKnownHSTSHost(host)) {
+            println("FAIL - valid header was not stored");
+            return;
+        }
+
+        internals.setHSTSPolicy(host, 0, false);
+        if (internals.isKnownHSTSHost(host)) {
+            println("FAIL - cleanup did not remove the policy");
+            return;
+        }
+
+        internals.ingestHSTSHeader(validURL, "@invalid=garbage");
+        if (internals.isKnownHSTSHost(host)) {
+            println("FAIL - invalid header should not have been stored");
+            return;
+        }
+
+        internals.ingestHSTSHeader(ipURL, "max-age=31536000");
+        if (internals.isKnownHSTSHost("127.0.0.1")) {
+            println("FAIL - policy should not be stored for an IP-address host");
+            return;
+        }
+
+        println("PASS");
+    });
+</script>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An HSTS policy injected via internals.setHSTSPolicy must upgrade HTTP to HTTPS. The echo
+    // server is HTTP-only, so the upgraded request fails -- which is what proves the upgrade fired.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const echoURL = await httpServer.createEcho("GET", "/hsts-upgrade-test", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "hello",
+        });
+
+        const url = new URL(echoURL);
+        url.hostname = uniqueLocalhostHostname("hsts-upgrade");
+
+        // Without HSTS the host must actually reach the echo server, otherwise the failure below
+        // would be an indistinguishable false PASS.
+        let pre;
+        try {
+            pre = await fetch(url.href, { signal: AbortSignal.timeout(2000) });
+        } catch (e) {
+            println("FAIL - precondition: echo unreachable pre-HSTS");
+            return;
+        }
+        if (!pre.ok || (await pre.text()) !== "hello") {
+            println("FAIL - precondition: unexpected echo response pre-HSTS");
+            return;
+        }
+
+        internals.setHSTSPolicy(url.hostname, 31536000, false);
+
+        // The request is now upgraded to HTTPS and fails (no HTTPS server). The timeout avoids
+        // hanging on a TLS handshake to a non-TLS server.
+        try {
+            await fetch(url.href, { signal: AbortSignal.timeout(2000) });
+            println("FAIL - HSTS-upgraded request should have failed (no HTTPS server)");
+        } catch (e) {
+            println("PASS");
+        }
+
+        internals.setHSTSPolicy(url.hostname, 0, false);
+    });
+</script>

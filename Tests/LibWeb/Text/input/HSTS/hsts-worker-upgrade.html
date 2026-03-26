@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // HSTS upgrades must fire on fetches issued from a dedicated Worker, exercising the
+    // worker -> WebContent IPC path for did_is_known_hsts_host. The precondition and the
+    // upgraded fetch both run inside the worker, so the rejection is attributable to HSTS
+    // in the worker path and not to worker fetch/DNS behaviour.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const echoURL = await httpServer.createEcho("GET", "/hsts-worker-test", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "hello",
+        });
+
+        const url = new URL(echoURL);
+        url.hostname = uniqueLocalhostHostname("hsts-worker");
+
+        const workerScript = `
+            let targetURL = null;
+            let phase = "prefetch";
+            self.onmessage = async (e) => {
+                if (phase === "prefetch") {
+                    targetURL = e.data;
+                    let pre;
+                    try {
+                        pre = await fetch(targetURL, { signal: AbortSignal.timeout(2000) });
+                    } catch (err) {
+                        postMessage("FAIL - precondition: worker echo unreachable pre-HSTS");
+                        return;
+                    }
+                    if (!pre.ok || (await pre.text()) !== "hello") {
+                        postMessage("FAIL - precondition: unexpected echo response pre-HSTS");
+                        return;
+                    }
+                    phase = "awaiting-go";
+                    postMessage("PRECONDITION_OK");
+                    return;
+                }
+                try {
+                    await fetch(targetURL, { signal: AbortSignal.timeout(2000) });
+                    postMessage("FAIL - worker fetch should have been upgraded and failed");
+                } catch (err) {
+                    postMessage("PASS");
+                }
+            };
+        `;
+        const blob = new Blob([workerScript], { type: "text/javascript" });
+        const worker = new Worker(URL.createObjectURL(blob));
+
+        const result = await new Promise(resolve => {
+            let gotPrecondition = false;
+            worker.onmessage = e => {
+                if (!gotPrecondition) {
+                    gotPrecondition = true;
+                    if (e.data !== "PRECONDITION_OK") {
+                        resolve(e.data);
+                        return;
+                    }
+                    // setHSTSPolicy is async IPC to the UI process; a synchronous
+                    // isKnownHSTSHost round-trip on the same channel both confirms the
+                    // policy and orders after the store before the worker proceeds.
+                    internals.setHSTSPolicy(url.hostname, 31536000, false);
+                    if (!internals.isKnownHSTSHost(url.hostname)) {
+                        resolve("FAIL - HSTS policy was not installed");
+                        return;
+                    }
+                    worker.postMessage("go");
+                    return;
+                }
+                resolve(e.data);
+            };
+            worker.postMessage(url.href);
+        });
+
+        println(result);
+        worker.terminate();
+        internals.setHSTSPolicy(url.hostname, 0, false);
+    });
+</script>

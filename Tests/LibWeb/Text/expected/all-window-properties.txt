@@ -596,4 +596,5 @@ removeTestErrorHandler
 spoofCurrentURL
 test
 timeout
+uniqueLocalhostHostname
 webkitURL

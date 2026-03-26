@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Test that max-age=0 removes an HSTS policy, allowing HTTP requests to succeed again.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const echoURL = await httpServer.createEcho("GET", "/hsts-max-age-zero-test", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "hello",
+        });
+
+        const url = new URL(echoURL);
+        url.hostname = uniqueLocalhostHostname("hsts-maxagezero");
+
+        internals.setHSTSPolicy(url.hostname, 31536000, false);
+
+        // Verify the request is upgraded (and fails because no HTTPS server).
+        try {
+            await fetch(url.href, { signal: AbortSignal.timeout(2000) });
+            println("FAIL - request should have been upgraded and failed");
+            return;
+        } catch (e) {
+            // Expected: HSTS upgrade causes failure.
+        }
+
+        // Remove the HSTS policy with max-age=0.
+        internals.setHSTSPolicy(url.hostname, 0, false);
+
+        // Now the HTTP request should succeed again.
+        try {
+            const response = await fetch(url.href);
+            if (response.ok) {
+                println("PASS");
+            } else {
+                println("FAIL - response was not ok after removing HSTS policy");
+            }
+        } catch (e) {
+            println("FAIL - request still being upgraded after max-age=0: " + e);
+        }
+    });
+</script>

@@ -6,8 +6,10 @@
  */
 
 #include <AK/JsonObject.h>
+#include <AK/NumericLimits.h>
 #include <LibCore/TimeZone.h>
 #include <LibGfx/Cursor.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/Error.h>
@@ -44,6 +46,7 @@
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
@@ -542,6 +545,30 @@ u16 Internals::get_echo_server_port()
 void Internals::set_echo_server_port(u16 const port)
 {
     s_echo_server_port = port;
+}
+
+void Internals::set_hsts_policy(String const& domain, u64 max_age, bool include_sub_domains)
+{
+    // NB: Clamp to i64::max so AK::Duration::from_seconds cannot overflow, mirroring the HSTS header parser.
+    auto clamped_seconds = AK::min<u64>(max_age, NumericLimits<i64>::max());
+    page().client().page_did_store_hsts_policy(domain, HTTP::HSTS::ParsedHSTSPolicy {
+                                                           AK::Duration::from_seconds(static_cast<i64>(clamped_seconds)),
+                                                           include_sub_domains,
+                                                       });
+}
+
+void Internals::ingest_hsts_header(String const& url, String const& header_value)
+{
+    auto parsed_url = URL::Parser::basic_parse(url);
+    if (!parsed_url.has_value())
+        return;
+
+    ResourceLoader::try_store_hsts_policy_for_url(page(), parsed_url.value(), header_value);
+}
+
+bool Internals::is_known_hsts_host(String const& domain)
+{
+    return page().client().page_did_is_known_hsts_host(domain);
 }
 
 void Internals::set_browser_zoom(double factor)
