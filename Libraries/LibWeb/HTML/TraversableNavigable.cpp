@@ -1242,6 +1242,9 @@ void TraversableNavigable::close_top_level_traversable()
     if (is_closing())
         return;
 
+    // AD-HOC: Set the is closing flag to prevent re-entrant calls from queuing duplicate session history steps.
+    set_closing(true);
+
     // 2. Definitely close traversable.
     definitely_close_top_level_traversable();
 }
