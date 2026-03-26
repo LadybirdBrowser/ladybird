@@ -123,6 +123,22 @@ static void store_response_cookies(Page& page, URL::URL const& url, StringView s
     page.client().page_did_set_cookie(url, cookie.value(), HTTP::Cookie::Source::Http);
 }
 
+void ResourceLoader::try_store_hsts_policy_for_url(Page& page, URL::URL const& url, StringView header_value)
+{
+    // https://www.rfc-editor.org/rfc/rfc6797#section-8.1
+    // If the substring matching the host production from the Request-URI (of the message to which the host responded)
+    // syntactically matches the IP-literal or IPv4address productions from Section 3.2.2 of [RFC3986], then the UA
+    // MUST NOT note this host as a Known HSTS Host.
+    if (!url.host().has_value() || !url.host()->is_domain())
+        return;
+
+    auto parsed_policy = HTTP::HSTS::parse_header(header_value);
+    if (!parsed_policy.has_value())
+        return;
+
+    page.client().page_did_store_hsts_policy(url.host()->get<String>(), parsed_policy.value());
+}
+
 static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
 {
     // For file:// and resource:// URLs, we have to guess the MIME type, since there's no HTTP header to tell us what
@@ -507,15 +523,12 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
     // If an HTTP response, received over a secure transport, includes an STS header field, conforming to the grammar
     // specified in Section 6.1, and there are no underlying secure transport errors or warnings, the UA MUST either
     // note the host as a Known HSTS Host or update the UA's cached information for the Known HSTS Host.
-    if (request.url().has_value() && request.url()->scheme() == "https"sv
-        && request.url()->host().has_value() && request.url()->host()->is_domain()) {
+    if (request.url().has_value() && request.url()->scheme() == "https"sv) {
         // If a UA receives more than one STS header field in an HTTP response message over secure transport, then
         // the UA MUST process only the first such header field.
         for (auto const& [header, value] : response_headers) {
             if (header.equals_ignoring_ascii_case("Strict-Transport-Security"sv)) {
-                auto parsed_policy = HTTP::HSTS::parse_header(value);
-                if (parsed_policy.has_value())
-                    request.page()->client().page_did_store_hsts_policy(request.url()->host()->get<String>(), parsed_policy.value());
+                try_store_hsts_policy_for_url(*request.page(), request.url().value(), value);
                 break;
             }
         }

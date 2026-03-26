@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // HSTS with includeSubDomains must upgrade subdomain HTTP URLs too.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const echoURL = await httpServer.createEcho("GET", "/hsts-subdomains-test", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: "hello",
+        });
+
+        const url = new URL(echoURL);
+        const parent = uniqueLocalhostHostname("hsts-subdomains");
+        const childURL = `http://sub.${parent}:${url.port}/echo/hsts-subdomains-test`;
+
+        // The subdomain must reach the echo server pre-HSTS (this also proves multi-label
+        // *.localhost resolves), otherwise the failure below would be a false PASS.
+        let pre;
+        try {
+            pre = await fetch(childURL, { signal: AbortSignal.timeout(2000) });
+        } catch (e) {
+            println("FAIL - precondition: subdomain echo unreachable pre-HSTS");
+            return;
+        }
+        if (!pre.ok || (await pre.text()) !== "hello") {
+            println("FAIL - precondition: unexpected echo response pre-HSTS");
+            return;
+        }
+
+        internals.setHSTSPolicy(parent, 31536000, true);
+
+        try {
+            await fetch(childURL, { signal: AbortSignal.timeout(2000) });
+            println("FAIL - subdomain request should have been upgraded and failed");
+        } catch (e) {
+            println("PASS");
+        }
+
+        internals.setHSTSPolicy(parent, 0, false);
+    });
+</script>

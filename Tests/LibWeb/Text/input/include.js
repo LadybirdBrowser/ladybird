@@ -138,3 +138,9 @@ function httpTestServer() {
     }
     return __httpTestServer;
 }
+
+// Per-call unique loopback host, so tests that mutate global per-host state
+// (e.g. HSTS) don't collide under the parallel runner or --repeat clones.
+function uniqueLocalhostHostname(prefix) {
+    return `${prefix}-${crypto.randomUUID()}.localhost`;
+}

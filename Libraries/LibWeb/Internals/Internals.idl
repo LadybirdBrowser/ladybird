@@ -69,6 +69,10 @@ interface Internals {
     DOMString getComputedAriaLevel(Element element);
     unsigned short getEchoServerPort();
 
+    undefined setHSTSPolicy(DOMString domain, unsigned long long maxAge, boolean includeSubDomains);
+    undefined ingestHSTSHeader(USVString url, DOMString headerValue);
+    boolean isKnownHSTSHost(DOMString domain);
+
     undefined setBrowserZoom(double factor);
     undefined setDevicePixelRatio(double ratio);
 
