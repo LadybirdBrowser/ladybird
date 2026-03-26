@@ -746,8 +746,12 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         // 6. Let navigable be changingNavigableContinuation's navigable.
         auto navigable = changing_navigable_continuation->navigable;
 
-        // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
+        // AD-HOC: We should not continue navigation if navigable has been destroyed.
         if (navigable->has_been_destroyed())
+            continue;
+
+        // AD-HOC: The displayed document may have been destroyed during the nested step execution above.
+        if (!displayed_document->navigable())
             continue;
 
         // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
