@@ -46,6 +46,9 @@ public:
 
     WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
 
+    WebIDL::ExceptionOr<void> end_of_stream(Optional<Bindings::EndOfStreamError> const& error = {});
+    void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
+
     static bool is_type_supported(String const&);
     static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
 
@@ -58,6 +61,9 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
+    // https://w3c.github.io/media-source/#end-of-stream-algorithm
+    void run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamError> const&);
+
     Bindings::ReadyState m_ready_state { Bindings::ReadyState::Closed };
     bool m_has_ever_been_attached { false };
     GC::Ptr<HTML::HTMLMediaElement> m_media_element_assigned_to;

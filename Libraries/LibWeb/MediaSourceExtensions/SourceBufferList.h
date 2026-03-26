@@ -27,6 +27,8 @@ public:
     void set_onremovesourcebuffer(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onremovesourcebuffer();
 
+    bool contains(SourceBuffer const&) const;
+
 private:
     SourceBufferList(JS::Realm&);
 

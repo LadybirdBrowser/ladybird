@@ -161,7 +161,7 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
 
     // 5. Let buffer be a new instance of a ManagedSourceBuffer if this is a ManagedMediaSource, or
     //    a SourceBuffer otherwise, with their respective associated resources.
-    auto buffer = realm().create<SourceBuffer>(realm());
+    auto buffer = realm().create<SourceBuffer>(realm(), GC::Ref(*this));
 
     // FIXME: 6. Set buffer's [[generate timestamps flag]] to the value in the "Generate Timestamps Flag"
     //           column of the Media Source Extensions™ Byte Stream Format Registry entry that is
@@ -174,6 +174,71 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
 
     // 10. Return buffer.
     return buffer;
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-endofstream
+WebIDL::ExceptionOr<void> MediaSource::end_of_stream(Optional<Bindings::EndOfStreamError> const& error)
+{
+    // 1. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception
+    //    and abort these steps.
+    if (ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // 2. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an
+    //    InvalidStateError exception and abort these steps.
+    for (size_t i = 0; i < m_source_buffers->length(); i++) {
+        if (m_source_buffers->item(i)->updating())
+            return WebIDL::InvalidStateError::create(realm(), "A SourceBuffer is still updating"_utf16);
+    }
+
+    // 3. Run the end of stream algorithm with the error parameter set to error.
+    run_end_of_stream_algorithm(error);
+
+    return {};
+}
+
+// https://w3c.github.io/media-source/#end-of-stream-algorithm
+void MediaSource::run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamError> const& error)
+{
+    // 1. Change the readyState attribute value to "ended".
+    m_ready_state = ReadyState::Ended;
+
+    // 2. Queue a task to fire an event named sourceended at the MediaSource.
+    queue_a_media_source_task(GC::create_function(heap(), [this] {
+        dispatch_event(DOM::Event::create(realm(), EventNames::sourceended));
+    }));
+
+    // 3. If error is not set:
+    if (!error.has_value()) {
+        // 1. Run the duration change algorithm with new duration set to the largest track buffer ranges
+        //    end time across all the track buffers across all SourceBuffer objects in sourceBuffers.
+        // FIXME: Implement duration change based on track buffer ranges.
+
+        // 2. Notify the media element that it now has all of the media data.
+        // FIXME: Signal to the HTMLMediaElement that all data has been provided.
+        return;
+    }
+
+    // 4. If error is set to "network":
+    if (error.value() == Bindings::EndOfStreamError::Network) {
+        // FIXME: If the HTMLMediaElement's readyState attribute equals HAVE_NOTHING:
+        //            Run the "If the media data cannot be fetched at all" steps of the resource fetch algorithm.
+        //        Otherwise:
+        //            Run the "If the connection is interrupted after some media data has been received" steps
+        //            of the resource fetch algorithm.
+        return;
+    }
+
+    // 5. If error is set to "decode":
+    if (error.value() == Bindings::EndOfStreamError::Decode) {
+        // FIXME: If the HTMLMediaElement's readyState attribute equals HAVE_NOTHING:
+        //            Run the "If the media data can be fetched but is found by inspection to be in an
+        //            unsupported format" steps of the resource fetch algorithm.
+        //        Otherwise:
+        //            Run the "If the media data can be fetched but has fatal network errors" steps of the
+        //            resource fetch algorithm.
+        return;
+    }
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported

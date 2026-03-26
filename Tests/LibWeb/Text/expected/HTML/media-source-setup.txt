@@ -4,4 +4,5 @@ PASS: assigned object URL to video.src
 PASS: sourceopen fired
 PASS: addSourceBuffer succeeded
 PASS: loaded media data (2009229 bytes)
-FAIL: sourceopen handler: TypeError: undefined is not a function (evaluated from 'sourceBuffer.appendBuffer')
+PASS: appendBuffer() for slice 1/3
+FAIL: sourceopen handler: Error: error event on SourceBuffer

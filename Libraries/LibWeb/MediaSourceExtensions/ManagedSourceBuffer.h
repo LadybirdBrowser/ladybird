@@ -20,7 +20,7 @@ public:
     GC::Ptr<WebIDL::CallbackType> onbufferedchange();
 
 private:
-    ManagedSourceBuffer(JS::Realm&);
+    ManagedSourceBuffer(JS::Realm&, ManagedMediaSource&);
 
     virtual ~ManagedSourceBuffer() override;
 

@@ -83,4 +83,9 @@ GC::Ptr<WebIDL::CallbackType> SourceBufferList::onremovesourcebuffer()
     return event_handler_attribute(EventNames::removesourcebuffer);
 }
 
+bool SourceBufferList::contains(SourceBuffer const& source_buffer) const
+{
+    return m_buffers.contains([&](GC::Ref<SourceBuffer> const& contained_buffer) { return contained_buffer == &source_buffer; });
+}
+
 }
