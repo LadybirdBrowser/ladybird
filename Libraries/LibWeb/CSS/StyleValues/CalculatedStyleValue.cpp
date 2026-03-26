@@ -3019,7 +3019,7 @@ Optional<double> CalculatedStyleValue::resolve_number(CalculationResolutionConte
     return {};
 }
 
-Optional<i64> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
+Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext const& context) const
 {
     auto result = resolve_value(context);
 

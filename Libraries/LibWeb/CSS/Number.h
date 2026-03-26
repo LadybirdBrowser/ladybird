@@ -14,7 +14,7 @@
 
 namespace Web::CSS {
 
-i64 round_to_nearest_integer(double);
+i32 round_to_nearest_integer(double);
 
 class Number {
 public:
@@ -37,7 +37,7 @@ public:
 
     Type type() const { return m_type; }
     double value() const { return m_value; }
-    i64 integer_value() const
+    i32 integer_value() const
     {
         // https://www.w3.org/TR/css-values-4/#numeric-types
         // When a value cannot be explicitly supported due to range/precision limitations, it must be converted

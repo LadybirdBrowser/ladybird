@@ -1,0 +1,4 @@
+Specified order: -2147483648
+Computed order: -2147483648
+Specified animation-timing-function: steps(2147483647, jump-start)
+Computed animation-timing-function: steps(2147483647, jump-start)

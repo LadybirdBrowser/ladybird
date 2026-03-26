@@ -19,12 +19,12 @@ Vector<CounterStyleRangeEntry> AutoRange::resolve(CounterStyleAlgorithm const& a
     return algorithm.visit(
         [](AdditiveCounterStyleAlgorithm const&) -> Vector<CounterStyleRangeEntry> {
             // For additive systems, the range is 0 to positive infinity.
-            return { { 0, NumericLimits<i64>::max() } };
+            return { { 0, NumericLimits<i32>::max() } };
         },
         [](FixedCounterStyleAlgorithm const&) -> Vector<CounterStyleRangeEntry> {
             // For cyclic, numeric, and fixed systems, the range is negative infinity to positive infinity.
             // NB: cyclic and numeric are handled below.
-            return { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } };
+            return { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } };
         },
         [](GenericCounterStyleAlgorithm const& generic_algorithm) -> Vector<CounterStyleRangeEntry> {
             switch (generic_algorithm.type) {
@@ -32,11 +32,11 @@ Vector<CounterStyleRangeEntry> AutoRange::resolve(CounterStyleAlgorithm const& a
             case CounterStyleSystem::Numeric:
                 // For cyclic, numeric, and fixed systems, the range is negative infinity to positive infinity.
                 // NB: Fixed is handled above.
-                return { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } };
+                return { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } };
             case CounterStyleSystem::Alphabetic:
             case CounterStyleSystem::Symbolic:
                 // For alphabetic and symbolic systems, the range is 1 to positive infinity.
-                return { { 1, NumericLimits<i64>::max() } };
+                return { { 1, NumericLimits<i32>::max() } };
             case CounterStyleSystem::Additive:
                 // NB: Additive is handled above.
                 VERIFY_NOT_REACHED();
@@ -129,7 +129,7 @@ Variant<Empty, CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends> Cou
 
             // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
             // If it is omitted, the first symbol value is 1.
-            i64 first_symbol = 1;
+            i32 first_symbol = 1;
 
             if (fixed.first_symbol)
                 first_symbol = int_from_style_value(fixed.first_symbol->absolutized(computation_context));
@@ -216,14 +216,14 @@ Variant<AutoRange, Vector<CounterStyleRangeEntry>> CounterStyleDefinition::resol
         auto const& range_values = entry->as_value_list().values();
         VERIFY(range_values.size() == 2);
 
-        auto const resolve_value = [&](NonnullRefPtr<StyleValue const> const& value, i64 infinite_value) {
+        auto const resolve_value = [&](NonnullRefPtr<StyleValue const> const& value, i32 infinite_value) {
             if (value->is_keyword() && value->to_keyword() == Keyword::Infinite)
                 return infinite_value;
 
             return int_from_style_value(value->absolutized(computation_context));
         };
 
-        ranges.unchecked_append({ resolve_value(range_values[0], NumericLimits<i64>::min()), resolve_value(range_values[1], NumericLimits<i64>::max()) });
+        ranges.unchecked_append({ resolve_value(range_values[0], NumericLimits<i32>::min()), resolve_value(range_values[1], NumericLimits<i32>::max()) });
     }
 
     return ranges;

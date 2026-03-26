@@ -165,13 +165,13 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
             font_language_override = value->as_string().string_value();
     }
 
-    Optional<OrderedHashMap<FlyString, i64>> font_feature_settings;
+    Optional<OrderedHashMap<FlyString, i32>> font_feature_settings;
     if (auto value = descriptors.descriptor_or_initial_value(DescriptorID::FontFeatureSettings)) {
         if (value->to_keyword() == Keyword::Normal) {
             font_feature_settings.clear();
         } else if (value->is_value_list()) {
             auto const& feature_tags = value->as_value_list().values();
-            OrderedHashMap<FlyString, i64> settings;
+            OrderedHashMap<FlyString, i32> settings;
             settings.ensure_capacity(feature_tags.size());
             for (auto const& feature_tag_style_value : feature_tags) {
                 auto const& feature_tag = feature_tag_style_value->as_open_type_tagged();
@@ -219,7 +219,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceDescriptors const& de
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i64>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
+ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<FlyString> font_named_instance, Optional<FlyString> font_language_override, Optional<OrderedHashMap<FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<FlyString, double>> font_variation_settings)
     : m_parent_rule(parent_rule)
     , m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))

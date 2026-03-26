@@ -1018,7 +1018,7 @@ public:
 
     StyleInvalidator& style_invalidator() { return m_style_invalidator; }
 
-    Optional<Vector<CSS::Parser::ComponentValue>> environment_variable_value(CSS::EnvironmentVariable, Span<i64> indices = {}) const;
+    Optional<Vector<CSS::Parser::ComponentValue>> environment_variable_value(CSS::EnvironmentVariable, Span<i32> indices = {}) const;
 
     // https://www.w3.org/TR/css-properties-values-api-1/#dom-window-registeredpropertyset-slot
     HashMap<FlyString, CSS::CustomPropertyRegistration>& registered_property_set();

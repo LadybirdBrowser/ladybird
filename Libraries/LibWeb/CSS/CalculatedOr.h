@@ -133,11 +133,11 @@ public:
     NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 
-class IntegerOrCalculated : public CalculatedOr<IntegerOrCalculated, i64> {
+class IntegerOrCalculated : public CalculatedOr<IntegerOrCalculated, i32> {
 public:
     using CalculatedOr::CalculatedOr;
 
-    Optional<i64> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
+    Optional<i32> resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, CalculationResolutionContext const&) const;
     NonnullRefPtr<StyleValue const> create_style_value() const;
 };
 

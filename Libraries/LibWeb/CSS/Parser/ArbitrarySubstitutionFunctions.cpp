@@ -271,7 +271,7 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
     auto& name = name_token.token().ident();
     first_argument_tokens.discard_whitespace();
 
-    Vector<i64> indices;
+    Vector<i32> indices;
     // FIXME: Are non-literal <integer>s allowed here?
     while (first_argument_tokens.has_next_token()) {
         auto& maybe_integer = first_argument_tokens.consume_a_token();

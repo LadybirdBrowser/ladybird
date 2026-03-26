@@ -10,7 +10,7 @@
 
 namespace Web::CSS {
 
-i64 round_to_nearest_integer(double value)
+i32 round_to_nearest_integer(double value)
 {
     // https://drafts.csswg.org/css-values-4/#css-round-to-the-nearest-integer
     // Unless otherwise specified, in the CSS specifications rounding to the nearest integer requires rounding in
@@ -20,12 +20,12 @@ i64 round_to_nearest_integer(double value)
 
     if (isinf(value)) {
         if (value > 0)
-            return AK::NumericLimits<i64>::max();
+            return AK::NumericLimits<i32>::max();
 
-        return AK::NumericLimits<i64>::min();
+        return AK::NumericLimits<i32>::min();
     }
 
-    return AK::clamp_to<i64>(floor(value + 0.5));
+    return AK::clamp_to<i32>(floor(value + 0.5));
 }
 
 void Number::serialize(StringBuilder& builder, SerializationMode) const

@@ -83,12 +83,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     // of a counter symbol and an integer weight. Each weight must be a non-negative integer, and the
                     // additive tuples must be specified in order of strictly descending weight; otherwise, the
                     // declaration is invalid and must be ignored.
-                    i64 previous_weight = NumericLimits<i64>::max();
+                    i32 previous_weight = NumericLimits<i32>::max();
 
                     for (auto const& tuple_style_value : additive_tuples->as_value_list().values()) {
                         auto const& weight = tuple_style_value->as_value_list().value_at(0, false);
 
-                        i64 resolved_weight;
+                        i32 resolved_weight;
 
                         if (weight->is_integer()) {
                             resolved_weight = weight->as_integer().integer();
@@ -180,7 +180,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                             return nullptr;
                         };
 
-                        auto const resolve_value = [&](StyleValue const& value, i64 infinite_value) -> Optional<i64> {
+                        auto const resolve_value = [&](StyleValue const& value, i32 infinite_value) -> Optional<i32> {
                             if (value.is_integer())
                                 return value.as_integer().integer();
 
@@ -202,8 +202,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                         // If the lower bound of any range is higher than the upper bound, the entire descriptor is
                         // invalid and must be ignored.
-                        auto first_int = resolve_value(*first_value, NumericLimits<i64>::min());
-                        auto second_int = resolve_value(*second_value, NumericLimits<i64>::max());
+                        auto first_int = resolve_value(*first_value, NumericLimits<i32>::min());
+                        auto second_int = resolve_value(*second_value, NumericLimits<i32>::max());
 
                         if (!first_int.has_value() || !second_int.has_value() || first_int.value() > second_int.value())
                             return nullptr;

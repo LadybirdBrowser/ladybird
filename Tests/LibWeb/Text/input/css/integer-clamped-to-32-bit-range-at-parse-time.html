@@ -1,0 +1,18 @@
+<!doctype html>
+<style>
+    #foo {
+        order: -2147483649;
+        animation-timing-function: steps(2147483648, jump-start);
+    }
+</style>
+<div id="foo"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const style = document.styleSheets[0].cssRules[0].style;
+        println(`Specified order: ${style.order}`);
+        println(`Computed order: ${getComputedStyle(foo).order}`);
+        println(`Specified animation-timing-function: ${style.animationTimingFunction}`);
+        println(`Computed animation-timing-function: ${getComputedStyle(foo).animationTimingFunction}`);
+    });
+</script>

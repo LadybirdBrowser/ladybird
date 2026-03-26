@@ -282,8 +282,8 @@ GridFormattingContext::PlacementPosition GridFormattingContext::resolve_grid_pos
 
     CSS::CalculationResolutionContext resolution_context { .length_resolution_context = CSS::Length::ResolutionContext::for_layout_node(child_box) };
 
-    Optional<i64> placement_start_line_number = placement_start.has_line_number() ? placement_start.line_number().resolved(resolution_context) : Optional<i64> {};
-    Optional<i64> placement_end_line_number = placement_end.has_line_number() ? placement_end.line_number().resolved(resolution_context) : Optional<i64> {};
+    Optional<i32> placement_start_line_number = placement_start.has_line_number() ? placement_start.line_number().resolved(resolution_context) : Optional<i32> {};
+    Optional<i32> placement_end_line_number = placement_end.has_line_number() ? placement_end.line_number().resolved(resolution_context) : Optional<i32> {};
 
     PlacementPosition result;
 

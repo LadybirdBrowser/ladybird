@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 class IntegerStyleValue final : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<IntegerStyleValue const> create(i64 value)
+    static ValueComparingNonnullRefPtr<IntegerStyleValue const> create(i32 value)
     {
         return adopt_ref(*new (nothrow) IntegerStyleValue(value));
     }
 
-    i64 integer() const { return m_value; }
+    i32 integer() const { return m_value; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
     virtual Vector<Parser::ComponentValue> tokenize() const override;
@@ -32,13 +32,13 @@ public:
     }
 
 private:
-    explicit IntegerStyleValue(i64 value)
+    explicit IntegerStyleValue(i32 value)
         : StyleValue(Type::Integer)
         , m_value(value)
     {
     }
 
-    i64 m_value { 0 };
+    i32 m_value { 0 };
 };
 
 }

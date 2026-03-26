@@ -74,7 +74,7 @@ public:
         return Resolution::from_style_value(m_value->absolutized(computation_context));
     }
 
-    i64 integer(ComputationContext const& computation_context) const
+    i32 integer(ComputationContext const& computation_context) const
     {
         VERIFY(is_integer());
         return int_from_style_value(m_value->absolutized(computation_context));

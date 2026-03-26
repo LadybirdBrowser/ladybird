@@ -11,8 +11,8 @@
 namespace Web::CSS {
 
 struct CounterStyleRangeEntry {
-    i64 start;
-    i64 end;
+    i32 start;
+    i32 end;
 };
 
 // https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols
@@ -42,7 +42,7 @@ struct AdditiveCounterStyleAlgorithm {
 };
 
 struct FixedCounterStyleAlgorithm {
-    i64 first_symbol;
+    i32 first_symbol;
     Vector<CounterStyleSymbol> symbol_list;
 };
 

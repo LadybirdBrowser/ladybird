@@ -187,7 +187,7 @@ StyleValueVector StyleValue::subdivide_into_iterations(PropertyNameAndID const&)
     return StyleValueVector { *this };
 }
 
-i64 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
+i32 int_from_style_value(NonnullRefPtr<StyleValue const> const& style_value)
 {
     if (style_value->is_integer())
         return style_value->as_integer().integer();

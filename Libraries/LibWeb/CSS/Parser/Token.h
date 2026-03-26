@@ -134,7 +134,7 @@ public:
         VERIFY(m_type == Type::Number);
         return m_number_value.value();
     }
-    i64 to_integer() const
+    i32 to_integer() const
     {
         VERIFY(m_type == Type::Number && m_number_value.is_integer());
         return m_number_value.integer_value();
@@ -150,7 +150,7 @@ public:
         VERIFY(m_type == Type::Dimension);
         return m_number_value.value();
     }
-    i64 dimension_value_int() const { return m_number_value.integer_value(); }
+    i32 dimension_value_int() const { return m_number_value.integer_value(); }
 
     double percentage() const
     {

@@ -7704,7 +7704,7 @@ String Document::dump_stacking_context_tree()
     return builder.to_string_without_validation();
 }
 
-Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_value(CSS::EnvironmentVariable environment_variable, Span<i64> indices) const
+Optional<Vector<CSS::Parser::ComponentValue>> Document::environment_variable_value(CSS::EnvironmentVariable environment_variable, Span<i32> indices) const
 {
     auto invalid = [] {
         return Vector { CSS::Parser::ComponentValue { CSS::Parser::GuaranteedInvalidValue {} } };
@@ -7851,14 +7851,15 @@ void Document::build_counter_style_cache()
                 {},
                 {},
                 "/ "_fly_string,
-                Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i64>::max() } },
+                Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i32>::max() } },
                 {},
                 {}));
 
         // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
         // For all of these counter styles, the descriptors are the same as for the limited range variants, except for
         // the range, which is calc(-1 * pow(10, 16) + 1) calc(pow(10, 16) - 1).
-        Vector<CSS::CounterStyleRangeEntry> extended_cjk_range { { -9999999999999999, 9999999999999999 } };
+        // AD-HOC: Ranges (as with all other CSS <integer>s are limited to i32 range)
+        Vector<CSS::CounterStyleRangeEntry> extended_cjk_range { { AK::clamp_to<i32>(-9999999999999999), AK::clamp_to<i32>(9999999999999999) } };
 
         // https://drafts.csswg.org/css-counter-styles-3/#limited-chinese
         // For all of these counter styles, the suffix is "、" U+3001, the fallback is cjk-decimal, the range is -9999

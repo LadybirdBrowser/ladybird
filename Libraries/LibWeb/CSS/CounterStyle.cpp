@@ -19,7 +19,7 @@ NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
         CounterStyleNegativeSign { .prefix = "-"_fly_string, .suffix = ""_fly_string },
         ""_fly_string,
         ". "_fly_string,
-        { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } },
+        { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         {},
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
 }
@@ -33,7 +33,7 @@ NonnullRefPtr<CounterStyle const> CounterStyle::disc()
         CounterStyleNegativeSign { .prefix = ""_fly_string, .suffix = " "_fly_string },
         ""_fly_string,
         " "_fly_string,
-        { { NumericLimits<i64>::min(), NumericLimits<i64>::max() } },
+        { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         "decimal"_fly_string,
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
 }
