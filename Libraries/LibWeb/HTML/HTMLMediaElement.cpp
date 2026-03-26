@@ -159,6 +159,12 @@ void HTMLMediaElement::attribute_changed(FlyString const& name, Optional<String>
     Base::attribute_changed(name, old_value, value, namespace_);
 
     if (name == HTML::AttributeNames::src) {
+        // https://html.spec.whatwg.org/multipage/media.html#attr-media-src
+        // If a src attribute of a media element is set or changed, the user agent must invoke the
+        // media element's media element load algorithm. (Removing the src attribute does not do
+        // this, even if there are source elements present.)
+        if (!value.has_value())
+            return;
         load_element().release_value_but_fixme_should_propagate_errors();
     } else if (name == HTML::AttributeNames::crossorigin) {
         m_crossorigin = cors_setting_attribute_from_keyword(value);
