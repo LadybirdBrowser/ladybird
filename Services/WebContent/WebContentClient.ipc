@@ -5,6 +5,7 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -94,6 +95,9 @@ endpoint WebContentClient
     did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
     did_update_cookie(HTTP::Cookie::Cookie cookie) =|
     did_expire_cookies_with_time_offset(AK::Duration offset) =|
+
+    did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) =|
+    did_is_known_hsts_host(String domain) => (bool result)
 
     did_request_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key) => (Optional<String> value)
     did_set_storage_item(Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, String bottle_key, String value) => (WebView::StorageSetResult result)

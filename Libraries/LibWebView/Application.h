@@ -82,6 +82,7 @@ public:
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id) { }
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
+    static HSTSStore& hsts_store() { return *the().m_hsts_store; }
     static StorageJar& storage_jar() { return *the().m_storage_jar; }
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
@@ -330,6 +331,7 @@ private:
     RefPtr<Database::Database> m_database;
     RefPtr<Database::Database> m_history_database;
     OwnPtr<CookieJar> m_cookie_jar;
+    OwnPtr<HSTSStore> m_hsts_store;
     OwnPtr<StorageJar> m_storage_jar;
 
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;

@@ -4,11 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AllOf.h>
 #include <AK/GenericLexer.h>
 #include <AK/StringBuilder.h>
 #include <LibHTTP/HTTP.h>
 
 namespace HTTP {
+
+// https://www.rfc-editor.org/rfc/rfc7230#section-3.2.6
+bool is_token(StringView value)
+{
+    return !value.is_empty() && all_of(value, is_http_token_code_point);
+}
 
 // https://fetch.spec.whatwg.org/#collect-an-http-quoted-string
 String collect_an_http_quoted_string(GenericLexer& lexer, HttpQuotedStringExtractValue extract_value)

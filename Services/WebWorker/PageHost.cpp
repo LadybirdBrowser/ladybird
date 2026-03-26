@@ -93,6 +93,16 @@ HTTP::Cookie::VersionedCookie PageHost::page_did_request_cookie(URL::URL const& 
     return m_client.did_request_cookie(url, source);
 }
 
+void PageHost::page_did_store_hsts_policy(String const& domain, HTTP::HSTS::ParsedHSTSPolicy const& policy)
+{
+    m_client.async_did_store_hsts_policy(domain, policy);
+}
+
+bool PageHost::page_did_is_known_hsts_host(String const& domain)
+{
+    return m_client.did_is_known_hsts_host(domain);
+}
+
 void PageHost::page_did_report_worker_exception(String const& message, String const& filename, u32 lineno, u32 colno)
 {
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);

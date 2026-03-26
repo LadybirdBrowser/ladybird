@@ -7,6 +7,7 @@ set(SOURCES
     Cache/Utilities.cpp
     Cookie/Cookie.cpp
     Cookie/ParsedCookie.cpp
+    HSTS/ParsedHSTSPolicy.cpp
     Header.cpp
     HeaderList.cpp
     HTTP.cpp

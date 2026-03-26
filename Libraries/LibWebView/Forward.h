@@ -19,6 +19,7 @@ class BookmarkStore;
 class CompositorClient;
 class CookieJar;
 class HistoryStore;
+class HSTSStore;
 class Menu;
 class OutOfProcessWebView;
 class ProcessManager;

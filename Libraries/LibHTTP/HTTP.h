@@ -69,6 +69,9 @@ constexpr bool is_http_token_code_point(u32 code_point)
     }
 }
 
+// https://www.rfc-editor.org/rfc/rfc7230#section-3.2.6
+[[nodiscard]] bool is_token(StringView);
+
 enum class HttpQuotedStringExtractValue {
     No,
     Yes,
