@@ -1492,6 +1492,10 @@ void Navigable::populate_session_history_entry_document(
                     body->wait_for_sniff_bytes(GC::create_function(heap(),
                         [entry, navigation_params, signal_to_continue_session_history_processing,
                             received_navigation_params, saveExtraDocumentState, completion_steps](ReadonlyBytes sniff_bytes) {
+                            // AD-HOC: The document may have been destroyed between when the fetch started and when the
+                            //         bytes arrived.
+                            if (!navigation_params->navigable->active_browsing_context())
+                                return;
                             auto document = load_document(navigation_params, signal_to_continue_session_history_processing, sniff_bytes);
                             entry->document_state()->set_document(document);
                             finalize_session_history_entry(entry, received_navigation_params, saveExtraDocumentState, completion_steps);
