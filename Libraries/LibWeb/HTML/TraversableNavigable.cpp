@@ -675,7 +675,9 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
                         Navigable::NullOrError {},
                         ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
                         allow_POST,
-                        GC::create_function(this->heap(), [this, after_document_populated, populated_target_entry]() mutable {
+                        GC::create_function(this->heap(), [this, after_document_populated, populated_target_entry](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+                            if (output)
+                                output->apply_to(*populated_target_entry);
                             VERIFY(active_window());
                             queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(this->heap(), [after_document_populated, populated_target_entry]() mutable {
                                 after_document_populated->function()(true, populated_target_entry);

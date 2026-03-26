@@ -35,6 +35,8 @@
 
 namespace Web::HTML {
 
+struct PopulateSessionHistoryEntryDocumentOutput;
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#target-snapshot-params
 struct TargetSnapshotParams {
     SandboxingFlagSet sandboxing_flags {};
@@ -123,7 +125,7 @@ public:
 
     void populate_session_history_entry_document(
         GC::Ptr<SessionHistoryEntry> entry,
-        SourceSnapshotParams const& source_snapshot_params,
+        GC::Ref<SourceSnapshotParams> source_snapshot_params,
         TargetSnapshotParams const& target_snapshot_params,
         UserNavigationInvolvement user_involvement,
         NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing,
@@ -131,7 +133,7 @@ public:
         NavigationParamsVariant navigation_params = Navigable::NullOrError {},
         ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type = ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
         bool allow_POST = false,
-        GC::Ptr<GC::Function<void()>> completion_steps = {});
+        GC::Ptr<GC::Function<void(GC::Ptr<PopulateSessionHistoryEntryDocumentOutput>)>> completion_steps = {});
 
     struct NavigateParams {
         URL::URL url;
@@ -290,6 +292,27 @@ private:
     bool m_should_show_line_box_borders { false };
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
     RenderingThread m_rendering_thread;
+};
+
+struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {
+    GC_CELL(PopulateSessionHistoryEntryDocumentOutput, JS::Cell);
+    GC_DECLARE_ALLOCATOR(PopulateSessionHistoryEntryDocumentOutput);
+
+public:
+    GC::Ptr<DOM::Document> document;
+
+    Navigable::NavigationParamsVariant navigation_params { Navigable::NullOrError {} };
+    bool save_extra_document_state = true;
+
+    Optional<URL::URL> redirected_url;
+    Optional<SerializationRecord> classic_history_api_state;
+    GC::Ptr<DocumentState> replacement_document_state;
+    bool resource_cleared = false;
+
+    void apply_to(GC::Ref<SessionHistoryEntry> entry);
+
+private:
+    virtual void visit_edges(Cell::Visitor&) override;
 };
 
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
