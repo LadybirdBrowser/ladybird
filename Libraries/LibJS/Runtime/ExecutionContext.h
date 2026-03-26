@@ -36,14 +36,13 @@ private:
 
 public:
     // NB: The layout is: [registers | locals | constants | arguments]
-    //     We only initialize registers and locals to empty, since constants are copied in right after.
     ALWAYS_INLINE ExecutionContext(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count_)
     {
         VERIFY(!Checked<u32>::addition_would_overflow(registers_and_locals_count, constants_count, arguments_count_));
         registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants_count + arguments_count_;
         argument_count = arguments_count_;
         auto* values = registers_and_constants_and_locals_and_arguments();
-        for (size_t i = 0; i < registers_and_locals_count; ++i)
+        for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
             values[i] = js_special_empty_value();
     }
 
