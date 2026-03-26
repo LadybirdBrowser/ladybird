@@ -23,6 +23,7 @@ class MediaStream;
 class MediaStreamCursor;
 class MediaTimeProvider;
 class PlaybackManager;
+class ReadonlyBytesCursor;
 class Track;
 class VideoDataProvider;
 class VideoDecoder;
