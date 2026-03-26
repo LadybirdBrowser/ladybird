@@ -19,7 +19,7 @@ public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<MediaSource>> construct_impl(JS::Realm&);
 
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
-    static bool can_construct_in_dedicated_worker(JS::VM&) { return true; }
+    static bool can_construct_in_dedicated_worker(JS::VM&) { return false; }
 
     void set_onsourceopen(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceopen();
