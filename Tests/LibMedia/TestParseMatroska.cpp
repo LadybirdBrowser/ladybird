@@ -283,7 +283,7 @@ TEST_CASE(block_group)
     EXPECT_EQ(first_block.duration()->to_milliseconds(), 33);
 
     auto second_block = MUST(iterator.next_block());
-    EXPECT_EQ(second_block.timestamp().to_milliseconds(), 33);
+    EXPECT_EQ(second_block.timestamp().value().to_milliseconds(), 33);
     EXPECT(second_block.only_keyframes());
 }
 
@@ -303,7 +303,7 @@ TEST_CASE(fixed_size_lacing)
 
     // Block 1: 4 frames × 4 bytes
     auto block1 = MUST(iterator.next_block());
-    EXPECT_EQ(block1.timestamp().to_milliseconds(), 0);
+    EXPECT_EQ(block1.timestamp().value().to_milliseconds(), 0);
     EXPECT(block1.only_keyframes());
     EXPECT_EQ(block1.lacing(), Media::Matroska::Block::Lacing::FixedSize);
     auto frames1 = MUST(iterator.get_frames(block1));
@@ -313,7 +313,7 @@ TEST_CASE(fixed_size_lacing)
 
     // Block 2: 2 frames × 8 bytes
     auto block2 = MUST(iterator.next_block());
-    EXPECT_EQ(block2.timestamp().to_milliseconds(), 33);
+    EXPECT_EQ(block2.timestamp().value().to_milliseconds(), 33);
     EXPECT_EQ(block2.lacing(), Media::Matroska::Block::Lacing::FixedSize);
     auto frames2 = MUST(iterator.get_frames(block2));
     EXPECT_EQ(frames2.size(), 2u);
@@ -322,7 +322,7 @@ TEST_CASE(fixed_size_lacing)
 
     // Block 3: 3 frames × 1 byte
     auto block3 = MUST(iterator.next_block());
-    EXPECT_EQ(block3.timestamp().to_milliseconds(), 66);
+    EXPECT_EQ(block3.timestamp().value().to_milliseconds(), 66);
     EXPECT_EQ(block3.lacing(), Media::Matroska::Block::Lacing::FixedSize);
     auto frames3 = MUST(iterator.get_frames(block3));
     EXPECT_EQ(frames3.size(), 3u);
@@ -434,27 +434,27 @@ TEST_CASE(seeking)
         auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
 
         auto first_block = MUST(iterator.next_block());
-        EXPECT_EQ(first_block.timestamp().to_milliseconds(), 0);
+        EXPECT_EQ(first_block.timestamp().value().to_milliseconds(), 0);
         EXPECT(first_block.only_keyframes());
 
         iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(150)));
         auto block_after_forward_seek = MUST(iterator.next_block());
-        EXPECT_EQ(block_after_forward_seek.timestamp().to_milliseconds(), 100);
+        EXPECT_EQ(block_after_forward_seek.timestamp().value().to_milliseconds(), 100);
         EXPECT(block_after_forward_seek.only_keyframes());
 
         iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(220)));
         auto block_at_200 = MUST(iterator.next_block());
-        EXPECT_EQ(block_at_200.timestamp().to_milliseconds(), 200);
+        EXPECT_EQ(block_at_200.timestamp().value().to_milliseconds(), 200);
         EXPECT(block_at_200.only_keyframes());
 
         iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(50)));
         auto block_at_0 = MUST(iterator.next_block());
-        EXPECT_EQ(block_at_0.timestamp().to_milliseconds(), 0);
+        EXPECT_EQ(block_at_0.timestamp().value().to_milliseconds(), 0);
         EXPECT(block_at_0.only_keyframes());
 
         iterator = MUST(matroska_reader.seek_to_random_access_point(iterator, AK::Duration::from_milliseconds(100)));
         auto block_exact_100 = MUST(iterator.next_block());
-        EXPECT_EQ(block_exact_100.timestamp().to_milliseconds(), 100);
+        EXPECT_EQ(block_exact_100.timestamp().value().to_milliseconds(), 100);
         EXPECT(block_exact_100.only_keyframes());
     }
 }

@@ -8,9 +8,9 @@
 
 #include "TestMediaCommon.h"
 
-static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::SampleIterator const& iterator)
+static NonnullOwnPtr<Media::VideoDecoder> make_decoder(Media::Matroska::TrackEntry const& track)
 {
-    return MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(Media::CodecID::VP9, iterator.track().codec_private_data()));
+    return MUST(Media::FFmpeg::FFmpegVideoDecoder::try_create(Media::CodecID::VP9, track.codec_private_data()));
 }
 
 TEST_CASE(webm_in_vp9)

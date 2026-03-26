@@ -51,8 +51,8 @@ public:
     static DecoderErrorOr<SegmentInformation> parse_segment_information_element(Streamer&);
     static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer&);
     static DecoderErrorOr<Cluster> parse_cluster_element(Streamer&, u64 timestamp_scale);
-    static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
-    static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const&);
+    static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const&);
+    static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const&);
 
     Optional<AK::Duration> duration() const { return m_segment_information.duration(); }
 
@@ -112,18 +112,18 @@ public:
     DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
     Cluster const& current_cluster() const { return *m_current_cluster; }
     Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
-    TrackEntry const& track() const { return *m_track; }
     MediaStreamCursor& cursor() { return m_stream_cursor; }
 
 private:
     friend class Reader;
 
-    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position);
+    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, u64 track_number, TrackBlockContexts&&, u64 timestamp_scale, size_t segment_contents_position, size_t position);
 
     DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
 
     NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
-    NonnullRefPtr<TrackEntry> m_track;
+    u64 m_track_number;
+    TrackBlockContexts m_track_block_contexts;
     u64 m_segment_timestamp_scale { 0 };
     size_t m_segment_contents_position { 0 };
 

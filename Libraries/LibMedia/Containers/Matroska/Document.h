@@ -164,6 +164,29 @@ private:
     Optional<AudioTrack> m_audio_track;
 };
 
+struct TrackBlockContext {
+    String codec_id;
+    double timestamp_scale { 1 };
+    u64 codec_delay { 0 };
+    u64 seek_pre_roll { 0 };
+    u64 timestamp_offset { 0 };
+    u64 default_duration { 0 };
+
+    static TrackBlockContext from_track_entry(TrackEntry const& entry)
+    {
+        return {
+            .codec_id = entry.codec_id(),
+            .timestamp_scale = entry.timestamp_scale(),
+            .codec_delay = entry.codec_delay(),
+            .seek_pre_roll = entry.seek_pre_roll(),
+            .timestamp_offset = entry.timestamp_offset(),
+            .default_duration = entry.default_duration(),
+        };
+    }
+};
+
+using TrackBlockContexts = HashMap<u64, TrackBlockContext>;
+
 class Block {
 public:
     enum Lacing : u8 {
@@ -175,7 +198,7 @@ public:
 
     u64 track_number() const { return m_track_number; }
     void set_track_number(u64 track_number) { m_track_number = track_number; }
-    AK::Duration timestamp() const { return m_timestamp; }
+    Optional<AK::Duration> timestamp() const { return m_timestamp; }
     void set_timestamp(AK::Duration timestamp) { m_timestamp = timestamp; }
     Optional<AK::Duration> duration() const { return m_duration; }
     void set_duration(AK::Duration duration) { m_duration = duration; }
@@ -197,7 +220,7 @@ public:
 
 private:
     u64 m_track_number { 0 };
-    AK::Duration m_timestamp { AK::Duration::zero() };
+    Optional<AK::Duration> m_timestamp;
     Optional<AK::Duration> m_duration;
     bool m_only_keyframes { false };
     bool m_invisible { false };

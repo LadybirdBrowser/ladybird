@@ -26,30 +26,31 @@ static inline void decode_video(StringView path, size_t expected_frame_count, T 
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(MUST(file->read_until_eof()));
     auto matroska_reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
-    u64 video_track = 0;
+    RefPtr<Media::Matroska::TrackEntry const> video_track_entry;
     MUST(matroska_reader.for_each_track_of_type(Media::Matroska::TrackEntry::TrackType::Video, [&](Media::Matroska::TrackEntry const& track_entry) -> Media::DecoderErrorOr<IterationDecision> {
-        video_track = track_entry.track_number();
+        video_track_entry = track_entry;
         return IterationDecision::Break;
     }));
-    VERIFY(video_track != 0);
+    EXPECT(video_track_entry);
 
-    auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track));
+    auto iterator = MUST(matroska_reader.create_sample_iterator(stream->create_cursor(), video_track_entry->track_number()));
     size_t frame_count = 0;
-    NonnullOwnPtr<Media::VideoDecoder> decoder = create_decoder(iterator);
+    NonnullOwnPtr<Media::VideoDecoder> decoder = create_decoder(*video_track_entry);
 
     auto last_timestamp = AK::Duration::min();
 
     while (frame_count <= expected_frame_count) {
         auto block_result = iterator.next_block();
         if (block_result.is_error() && block_result.error().category() == Media::DecoderErrorCategory::EndOfStream) {
-            VERIFY(frame_count == expected_frame_count);
+            EXPECT_EQ(frame_count, expected_frame_count);
             return;
         }
 
         auto block = block_result.release_value();
+        EXPECT(block.timestamp().has_value());
         auto frames = MUST(iterator.get_frames(block));
         for (auto const& frame : frames) {
-            MUST(decoder->receive_coded_data(block.timestamp(), block.duration().value_or(AK::Duration::zero()), frame));
+            MUST(decoder->receive_coded_data(block.timestamp().value(), block.duration().value_or(AK::Duration::zero()), frame));
             while (true) {
                 auto frame_result = decoder->get_decoded_frame({});
                 if (frame_result.is_error()) {

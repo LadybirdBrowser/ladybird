@@ -682,7 +682,7 @@ DecoderErrorOr<Cluster> Reader::parse_cluster_element(Streamer& streamer, u64 ti
     return cluster;
 }
 
-static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track, i16 timestamp_offset)
+static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContext const& context, i16 timestamp_offset)
 {
     // https://www.matroska.org/technical/notes.html
     // Block Timestamps:
@@ -695,11 +695,11 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
     //     of that track. To get the timestamp in nanoseconds of the first frame in a Block or
     //     SimpleBlock, the formula becomes:
     //         `( ( Cluster\Timestamp + ( block timestamp * TrackTimestampScale ) ) * TimestampScale ) - CodecDelay`
-    auto timestamp_offset_in_cluster_offset = AK::clamp_to<i64>(static_cast<double>(timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * track.timestamp_scale());
-    timestamp_offset_in_cluster_offset = saturating_sub(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(track.codec_delay()));
+    auto timestamp_offset_in_cluster_offset = AK::clamp_to<i64>(static_cast<double>(timestamp_offset * AK::clamp_to<i64>(segment_timestamp_scale)) * context.timestamp_scale);
+    timestamp_offset_in_cluster_offset = saturating_sub(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(context.codec_delay));
     // This is only mentioned in the elements specification under TrackOffset.
     // https://www.matroska.org/technical/elements.html
-    timestamp_offset_in_cluster_offset = saturating_add(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(track.timestamp_offset()));
+    timestamp_offset_in_cluster_offset = saturating_add(timestamp_offset_in_cluster_offset, AK::clamp_to<i64>(context.timestamp_offset));
     return cluster_timestamp + AK::Duration::from_nanoseconds(timestamp_offset_in_cluster_offset);
 }
 
@@ -778,16 +778,15 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
     return frames;
 }
 
-static void set_block_duration_to_default(Block& block, TrackEntry const& track)
+static void set_block_duration_to_default(Block& block, TrackBlockContext const& context)
 {
-    if (track.default_duration() != 0)
-        block.set_duration(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(track.default_duration())));
+    if (context.default_duration != 0)
+        block.set_duration(AK::Duration::from_nanoseconds(AK::clamp_to<i64>(context.default_duration)));
 }
 
-DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const& contexts)
 {
     Block block;
-    set_block_duration_to_default(block, track);
 
     auto content_size = TRY(streamer.read_variable_size_integer());
     auto content_end = streamer.position() + content_size;
@@ -795,7 +794,6 @@ DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duratio
     block.set_track_number(TRY(streamer.read_variable_size_integer()));
 
     auto timestamp_offset = TRY(streamer.read_i16());
-    block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, track, timestamp_offset));
 
     auto flags = TRY(streamer.read_octet());
     block.set_only_keyframes((flags & (1u << 7u)) != 0);
@@ -806,14 +804,24 @@ DecoderErrorOr<Block> Reader::parse_simple_block(Streamer& streamer, AK::Duratio
     auto data_position = streamer.position();
     auto data_size = content_end - data_position;
     block.set_data(data_position, data_size);
+
+    auto maybe_context = contexts.get(block.track_number());
+    if (maybe_context.has_value()) {
+        auto const& context = maybe_context.value();
+        block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, context, timestamp_offset));
+
+        set_block_duration_to_default(block, context);
+    }
+
     TRY(streamer.seek_to_position(content_end));
     return block;
 }
 
-DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackEntry const& track)
+DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const& contexts)
 {
     Block block;
-    set_block_duration_to_default(block, track);
+    i16 timestamp_offset = 0;
+    Optional<u64> raw_block_duration;
 
     auto parsed_a_block = false;
     TRY(Reader::parse_master_element(streamer, "BlockGroup"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
@@ -826,9 +834,7 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
             auto content_end = streamer.position() + content_size;
 
             block.set_track_number(TRY(streamer.read_variable_size_integer()));
-
-            auto timestamp_offset = TRY(streamer.read_i16());
-            block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, track, timestamp_offset));
+            timestamp_offset = TRY(streamer.read_i16());
 
             auto flags = TRY(streamer.read_octet());
             block.set_invisible((flags & (1u << 3)) != 0);
@@ -838,14 +844,11 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
             auto data_size = content_end - data_position;
             block.set_data(data_position, data_size);
             TRY(streamer.seek_to_position(content_end));
+            parsed_a_block = true;
             break;
         }
         case BLOCK_DURATION_ID: {
-            auto duration = TRY(streamer.read_u64());
-            auto duration_nanoseconds = saturating_mul(AK::clamp_to<i64>(duration), AK::clamp_to<i64>(segment_timestamp_scale));
-            if (track.timestamp_scale() != 1)
-                duration_nanoseconds = AK::clamp_to<i64>(static_cast<double>(duration_nanoseconds) * track.timestamp_scale());
-            block.set_duration(AK::Duration::from_nanoseconds(duration_nanoseconds));
+            raw_block_duration = TRY(streamer.read_u64());
             break;
         }
         default:
@@ -856,13 +859,31 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
         return ElementIterationDecision::Continue;
     }));
 
+    auto maybe_context = contexts.get(block.track_number());
+    if (maybe_context.has_value()) {
+        auto const& context = maybe_context.value();
+        block.set_timestamp(block_timestamp_to_duration(cluster_timestamp, segment_timestamp_scale, context, timestamp_offset));
+
+        if (raw_block_duration.has_value()) {
+            auto duration_nanoseconds = saturating_mul(AK::clamp_to<i64>(*raw_block_duration), AK::clamp_to<i64>(segment_timestamp_scale));
+            if (context.timestamp_scale != 1)
+                duration_nanoseconds = AK::clamp_to<i64>(static_cast<double>(duration_nanoseconds) * context.timestamp_scale);
+            block.set_duration(AK::Duration::from_nanoseconds(duration_nanoseconds));
+        } else {
+            set_block_duration_to_default(block, context);
+        }
+    }
+
     return block;
 }
 
 DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number)
 {
     dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", m_first_cluster_position, m_segment_contents_position);
-    return SampleIterator(stream_consumer, TRY(track_for_track_number(track_number)), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
+    auto track_entry = TRY(track_for_track_number(track_number));
+    TrackBlockContexts track_contexts;
+    track_contexts.set(track_number, TrackBlockContext::from_track_entry(track_entry));
+    return SampleIterator(stream_consumer, track_number, move(track_contexts), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
 }
 
 static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& streamer)
@@ -1045,7 +1066,7 @@ static DecoderErrorOr<void> search_clusters_for_keyframe_before_timestamp(Sample
         }
 
         auto block = block_result.release_value();
-        if (block.timestamp() > timestamp)
+        if (block.timestamp().value() > timestamp)
             break;
 
         if (block.only_keyframes()) {
@@ -1075,9 +1096,10 @@ bool Reader::has_cues_for_track(u64 track_number)
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp)
 {
-    timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(iterator.m_track->seek_pre_roll()));
+    auto seek_pre_roll = iterator.m_track_block_contexts.get(iterator.m_track_number)->seek_pre_roll;
+    timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(seek_pre_roll));
 
-    auto cue_points = cue_points_for_track(iterator.m_track->track_number());
+    auto cue_points = cue_points_for_track(iterator.m_track_number);
     auto seek_target = CuePointTarget::Block;
 
     // If no cues are present for the track, use the first track's cues.
@@ -1095,8 +1117,8 @@ DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterato
     if (!iterator.last_timestamp().has_value() || timestamp < iterator.last_timestamp().value()) {
         // If the timestamp is before the iterator's current position, then we need to start from the beginning of the Segment.
         if (timestamp > AK::Duration::zero())
-            warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track->track_number());
-        iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track->track_number()));
+            warnln("Seeking track {} to {}s required restarting the sample iterator from the start, streaming may be broken for this file.", timestamp, iterator.m_track_number);
+        iterator = TRY(create_sample_iterator(iterator.m_stream_cursor, iterator.m_track_number));
         TRY(search_clusters_for_keyframe_before_timestamp(iterator, timestamp));
         return iterator;
     }
@@ -1135,13 +1157,13 @@ DecoderErrorOr<Block> SampleIterator::next_block()
             m_current_cluster = TRY(Reader::parse_cluster_element(streamer, m_segment_timestamp_scale));
         } else if (element_id == SIMPLE_BLOCK_ID) {
             dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new simple block.");
-            auto candidate_block = TRY(Reader::parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
-            if (candidate_block.track_number() == m_track->track_number())
+            auto candidate_block = TRY(Reader::parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
+            if (candidate_block.track_number() == m_track_number)
                 block = move(candidate_block);
         } else if (element_id == BLOCK_GROUP_ID) {
             dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new block group.");
-            auto candidate_block = TRY(Reader::parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track));
-            if (candidate_block.track_number() == m_track->track_number())
+            auto candidate_block = TRY(Reader::parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
+            if (candidate_block.track_number() == m_track_number)
                 block = move(candidate_block);
         } else if (element_id == SEGMENT_ELEMENT_ID) {
             dbgln("Malformed file, found a segment element within the root segment element. Jumping into it.");
@@ -1161,9 +1183,10 @@ DecoderErrorOr<Block> SampleIterator::next_block()
     VERIFY_NOT_REACHED();
 }
 
-SampleIterator::SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, TrackEntry& track, u64 timestamp_scale, size_t segment_contents_position, size_t position)
+SampleIterator::SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, u64 track_number, TrackBlockContexts&& track_contexts, u64 timestamp_scale, size_t segment_contents_position, size_t position)
     : m_stream_cursor(stream_cursor)
-    , m_track(track)
+    , m_track_number(track_number)
+    , m_track_block_contexts(move(track_contexts))
     , m_segment_timestamp_scale(timestamp_scale)
     , m_segment_contents_position(segment_contents_position)
     , m_position(position)
