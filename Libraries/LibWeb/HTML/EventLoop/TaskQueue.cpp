@@ -78,9 +78,7 @@ bool TaskQueue::has_runnable_tasks() const
 
 void TaskQueue::remove_tasks_matching(Function<bool(HTML::Task const&)> filter)
 {
-    m_tasks.remove_all_matching([&](auto& task) {
-        return filter(*task);
-    });
+    m_tasks.remove_all_matching(filter);
 }
 
 GC::RootVector<GC::Ref<Task>> TaskQueue::take_tasks_matching(Function<bool(HTML::Task const&)> filter)
