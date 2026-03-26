@@ -1637,9 +1637,8 @@ void Navigable::populate_session_history_entry_document(
                             navigation_params, completion_steps](ReadonlyBytes sniff_bytes) {
                             // AD-HOC: The document may have been destroyed between when the fetch started and when the
                             //         bytes arrived.
-                            if (!nav_params->navigable->active_browsing_context())
-                                return;
-                            output->document = load_document(nav_params, signal_to_continue_session_history_processing, sniff_bytes);
+                            if (nav_params->navigable->active_browsing_context())
+                                output->document = load_document(nav_params, signal_to_continue_session_history_processing, sniff_bytes);
                             output->navigation_params = navigation_params;
                             if (completion_steps)
                                 completion_steps->function()(output);
