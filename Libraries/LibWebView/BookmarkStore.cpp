@@ -164,7 +164,43 @@ Optional<BookmarkItem const&> BookmarkStore::find_bookmark_by_url(URL::URL const
     return find_bookmark_by_url_impl(m_items, url);
 }
 
-void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64_png)
+template<typename ListType>
+static Optional<CopyConst<ListType, BookmarkItem>&> find_item_by_id_impl(ListType& items, StringView id)
+{
+    for (auto& item : items) {
+        if (item.id == id)
+            return item;
+
+        if (item.is_folder()) {
+            if (auto found = find_item_by_id_impl(item.folder().children, id); found.has_value())
+                return found;
+        }
+    }
+
+    return {};
+}
+
+Optional<BookmarkItem const&> BookmarkStore::BookmarkStore::find_item_by_id(StringView id) const
+{
+    return find_item_by_id_impl(m_items, id);
+}
+
+Optional<BookmarkItem&> BookmarkStore::BookmarkStore::find_mutable_item_by_id(StringView id)
+{
+    return find_item_by_id_impl(m_items, id);
+}
+
+static Vector<BookmarkItem>& find_target_folder(Vector<BookmarkItem>& items, Optional<String const&> target_folder_id)
+{
+    if (target_folder_id.has_value()) {
+        if (auto target = find_item_by_id_impl(items, *target_folder_id); target.has_value() && target->is_folder())
+            return target->folder().children;
+    }
+
+    return items;
+}
+
+void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64_png, Optional<String const&> target_folder_id)
 {
     BookmarkItem item {
         .id = generate_random_uuid(),
@@ -175,7 +211,49 @@ void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<
         },
     };
 
-    m_items.append(move(item));
+    find_target_folder(m_items, target_folder_id).append(move(item));
+
+    persist_bookmarks();
+    notify_observers();
+}
+
+void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> target_folder_id)
+{
+    BookmarkItem item {
+        .id = generate_random_uuid(),
+        .data = BookmarkItem::Folder {
+            .title = move(title),
+            .children = {},
+        },
+    };
+
+    find_target_folder(m_items, target_folder_id).append(move(item));
+
+    persist_bookmarks();
+    notify_observers();
+}
+
+void BookmarkStore::edit_bookmark(StringView id, URL::URL url, Optional<String> title)
+{
+    auto item = find_mutable_item_by_id(id);
+    if (!item.has_value() || !item->is_bookmark())
+        return;
+
+    auto& bookmark = item->bookmark();
+    bookmark.url = move(url);
+    bookmark.title = move(title);
+
+    persist_bookmarks();
+    notify_observers();
+}
+
+void BookmarkStore::edit_folder(StringView id, Optional<String> title)
+{
+    auto item = find_mutable_item_by_id(id);
+    if (!item.has_value() || !item->is_folder())
+        return;
+
+    item->folder().title = move(title);
 
     persist_bookmarks();
     notify_observers();
