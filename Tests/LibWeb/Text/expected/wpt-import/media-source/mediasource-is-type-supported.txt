@@ -2,17 +2,17 @@ Harness status: OK
 
 Found 55 tests
 
-33 Pass
-22 Fail
+32 Pass
+23 Fail
 Pass	Test invalid MIME format "video"
 Pass	Test invalid MIME format "video/"
 Pass	Test invalid MIME format "video/webm"
 Pass	Test invalid MIME format "video/webm;"
 Pass	Test invalid MIME format "video/webm;codecs"
 Pass	Test invalid MIME format "video/webm;codecs="
-Pass	Test invalid MIME format "video/webm;codecs=""
-Pass	Test invalid MIME format "video/webm;codecs="""
-Pass	Test invalid MIME format "video/webm;codecs=",""
+Fail	Test invalid MIME format "video/webm;codecs=""
+Fail	Test invalid MIME format "video/webm;codecs="""
+Fail	Test invalid MIME format "video/webm;codecs=",""
 Pass	Test invalid MIME format "audio/webm;aaacodecsbbb=opus"
 Pass	Test invalid MIME format "unsupported_mediatype"
 Pass	Test invalid MIME format ""
@@ -44,8 +44,8 @@ Fail	Test valid WebM type "video/webm;codecs="vorbis, vp8""
 Fail	Test valid WebM type "audio/webm;codecs="vorbis""
 Fail	Test valid WebM type "AUDIO/WEBM;CODECS="vorbis""
 Fail	Test valid WebM type "audio/webm;codecs=vorbis;test="6""
-Fail	Test valid WebM type "audio/webm;codecs="opus""
-Fail	Test valid WebM type "video/webm;codecs="opus""
+Pass	Test valid WebM type "audio/webm;codecs="opus""
+Pass	Test valid WebM type "video/webm;codecs="opus""
 Fail	Test valid MP4 type "video/mp4;codecs="avc1.4d001e""
 Fail	Test valid MP4 type "video/mp4;codecs="avc1.42001e""
 Fail	Test valid MP4 type "audio/mp4;codecs="mp4a.40.2""

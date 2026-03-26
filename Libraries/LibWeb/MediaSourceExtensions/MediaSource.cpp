@@ -80,16 +80,40 @@ bool MediaSource::is_type_supported(JS::VM&, String const& type)
     if (!mime_type.has_value())
         return false;
 
-    // FIXME: 3. If type contains a media type or media subtype that the MediaSource does not support, then
+    // FIXME: Ask LibMedia about what it supports instead of hardcoding this.
+
+    // 3. If type contains a media type or media subtype that the MediaSource does not support, then
     //    return false.
-    return false;
+    auto type_and_subtype_are_supported = [&] {
+        if (mime_type->type() == "video" && mime_type->subtype() == "webm")
+            return true;
+        if (mime_type->type() == "audio" && mime_type->subtype() == "webm")
+            return true;
+        return false;
+    }();
+    if (!type_and_subtype_are_supported)
+        return false;
 
-    // FIXME: 4. If type contains a codec that the MediaSource does not support, then return false.
-
-    // FIXME: 5. If the MediaSource does not support the specified combination of media type, media
+    // 4. If type contains a codec that the MediaSource does not support, then return false.
+    // 5. If the MediaSource does not support the specified combination of media type, media
     //    subtype, and codecs then return false.
+    auto codecs_iter = mime_type->parameters().find("codecs"sv);
+    if (codecs_iter == mime_type->parameters().end())
+        return false;
+    auto codecs = codecs_iter->value.bytes_as_string_view();
+    auto had_unsupported_codec = false;
+    codecs.for_each_split_view(',', SplitBehavior::Nothing, [&](auto const& codec) {
+        if (!codec.starts_with("vp9"sv) && !codec.starts_with("vp09"sv) && !codec.starts_with("opus"sv)) {
+            had_unsupported_codec = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    if (had_unsupported_codec)
+        return false;
 
     // 6. Return true.
+    return true;
 }
 
 }

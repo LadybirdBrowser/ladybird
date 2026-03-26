@@ -1,1 +1,3 @@
-FAIL: isTypeSupported: video/webm;codecs="vp9,opus" not supported
+PASS: isTypeSupported
+PASS: created MediaSource
+FAIL: setup: TypeError: No union types matched
