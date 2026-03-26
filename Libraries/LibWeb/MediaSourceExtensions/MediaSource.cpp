@@ -82,6 +82,7 @@ bool MediaSource::is_type_supported(JS::VM&, String const& type)
 
     // FIXME: 3. If type contains a media type or media subtype that the MediaSource does not support, then
     //    return false.
+    return false;
 
     // FIXME: 4. If type contains a codec that the MediaSource does not support, then return false.
 
@@ -89,7 +90,6 @@ bool MediaSource::is_type_supported(JS::VM&, String const& type)
     //    subtype, and codecs then return false.
 
     // 6. Return true.
-    return true;
 }
 
 }
