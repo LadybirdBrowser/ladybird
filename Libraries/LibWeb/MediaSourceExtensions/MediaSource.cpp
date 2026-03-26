@@ -10,6 +10,8 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
+#include <LibWeb/MediaSourceExtensions/SourceBuffer.h>
+#include <LibWeb/MediaSourceExtensions/SourceBufferList.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 
 namespace Web::MediaSourceExtensions {
@@ -25,6 +27,7 @@ WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm&
 
 MediaSource::MediaSource(JS::Realm& realm)
     : DOM::EventTarget(realm)
+    , m_source_buffers(realm.create<SourceBufferList>(realm))
 {
 }
 
@@ -40,6 +43,7 @@ void MediaSource::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media_element_assigned_to);
+    visitor.visit(m_source_buffers);
 }
 
 void MediaSource::queue_a_media_source_task(GC::Ref<GC::Function<void()>> task)
@@ -88,6 +92,11 @@ void MediaSource::unassign_from_media_element(Badge<HTML::HTMLMediaElement>)
     m_media_element_assigned_to = nullptr;
 }
 
+GC::Ref<SourceBufferList> MediaSource::source_buffers()
+{
+    return m_source_buffers;
+}
+
 // https://w3c.github.io/media-source/#dom-mediasource-onsourceopen
 void MediaSource::set_onsourceopen(GC::Ptr<WebIDL::CallbackType> event_handler)
 {
@@ -124,8 +133,51 @@ GC::Ptr<WebIDL::CallbackType> MediaSource::onsourceclose()
     return event_handler_attribute(EventNames::sourceclose);
 }
 
+// https://w3c.github.io/media-source/#addsourcebuffer-method
+WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String const& type)
+{
+    // 1. If type is an empty string then throw a TypeError exception and abort these steps.
+    if (type.is_empty()) {
+        return WebIDL::SimpleException {
+            WebIDL::SimpleExceptionType::TypeError,
+            "SourceBuffer type must not be empty"sv
+        };
+    }
+
+    // 2. If type contains a MIME type that is not supported or contains a MIME type that is not
+    //    supported with the types specified for the other SourceBuffer objects in sourceBuffers,
+    //    then throw a NotSupportedError exception and abort these steps.
+    if (!is_type_supported(type)) {
+        return WebIDL::NotSupportedError::create(realm(), "Unsupported MIME type"_utf16);
+    }
+
+    // FIXME: 3. If the user agent can't handle any more SourceBuffer objects or if creating a SourceBuffer
+    //           based on type would result in an unsupported SourceBuffer configuration, then throw a
+    //           QuotaExceededError exception and abort these steps.
+
+    // 4. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception and abort these steps.
+    if (ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // 5. Let buffer be a new instance of a ManagedSourceBuffer if this is a ManagedMediaSource, or
+    //    a SourceBuffer otherwise, with their respective associated resources.
+    auto buffer = realm().create<SourceBuffer>(realm());
+
+    // FIXME: 6. Set buffer's [[generate timestamps flag]] to the value in the "Generate Timestamps Flag"
+    //           column of the Media Source Extensions™ Byte Stream Format Registry entry that is
+    //           associated with type.
+    // FIXME: 7. If buffer's [[generate timestamps flag]] is true, set buffer's mode to "sequence".
+    //           Otherwise, set buffer's mode to "segments".
+    // 8. Append buffer to this's sourceBuffers.
+    // 9. Queue a task to fire an event named addsourcebuffer at this's sourceBuffers.
+    m_source_buffers->append(buffer);
+
+    // 10. Return buffer.
+    return buffer;
+}
+
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported
-bool MediaSource::is_type_supported(JS::VM&, String const& type)
+bool MediaSource::is_type_supported(String const& type)
 {
     // 1. If type is an empty string, then return false.
     if (type.is_empty())

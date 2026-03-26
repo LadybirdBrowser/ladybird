@@ -26,6 +26,8 @@ public:
     void set_has_ever_been_attached();
     void set_ready_state_to_open_and_fire_sourceopen_event();
 
+    GC::Ref<SourceBufferList> source_buffers();
+
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
     static bool can_construct_in_dedicated_worker(JS::VM&) { return false; }
 
@@ -42,7 +44,10 @@ public:
     void set_onsourceclose(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> onsourceclose();
 
-    static bool is_type_supported(JS::VM&, String const&);
+    WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> add_source_buffer(String const& type);
+
+    static bool is_type_supported(String const&);
+    static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
 
 protected:
     MediaSource(JS::Realm&);
@@ -56,6 +61,8 @@ private:
     Bindings::ReadyState m_ready_state { Bindings::ReadyState::Closed };
     bool m_has_ever_been_attached { false };
     GC::Ptr<HTML::HTMLMediaElement> m_media_element_assigned_to;
+
+    GC::Ref<SourceBufferList> m_source_buffers;
 };
 
 }

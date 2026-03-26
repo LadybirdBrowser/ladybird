@@ -2,4 +2,6 @@ PASS: isTypeSupported
 PASS: created MediaSource
 PASS: assigned object URL to video.src
 PASS: sourceopen fired
-FAIL: sourceopen handler: TypeError: undefined is not a function (evaluated from 'mediaSource.addSourceBuffer')
+PASS: addSourceBuffer succeeded
+PASS: loaded media data (2009229 bytes)
+FAIL: sourceopen handler: TypeError: undefined is not a function (evaluated from 'sourceBuffer.appendBuffer')
