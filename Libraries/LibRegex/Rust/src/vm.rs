@@ -485,6 +485,33 @@ pub fn find_all_with_scratch<I: Input>(
     let mut count = 0i32;
     let mut pos = start_pos;
 
+    if let Some(ref start_hint) = hints.start_position_hint
+        && !program.unicode
+    {
+        while let Some(candidate_pos) = next_literal_start_from_hint(input, pos, start_hint) {
+            vm.reset(candidate_pos);
+            match vm.run() {
+                VmResult::Match => {
+                    let match_start = vm.registers[0];
+                    let match_end = vm.registers[1];
+                    let idx = count as usize * 2;
+                    if idx + 1 >= capacity {
+                        return -1;
+                    }
+                    result_buf[idx] = match_start;
+                    result_buf[idx + 1] = match_end;
+                    count += 1;
+                    pos = next_search_position(match_start, match_end);
+                }
+                VmResult::LimitExceeded => return -2,
+                VmResult::NoMatch => {
+                    pos = candidate_pos + 1;
+                }
+            }
+        }
+        return count;
+    }
+
     // Fast path: non-unicode pattern starting with a literal character.
     if let Some((ch, false)) = hints.first_char
         && !program.unicode
@@ -622,6 +649,29 @@ fn execute_into_impl<I: Input>(
     // Reuse a single VM across all starting positions to avoid repeated allocation.
     let mut vm = Vm::new(program, input, start_pos, scratch);
     let mut hit_limit = false;
+
+    if let Some(ref start_hint) = hints.start_position_hint
+        && !program.unicode
+    {
+        let mut pos = start_pos;
+        while let Some(candidate_pos) = next_literal_start_from_hint(input, pos, start_hint) {
+            vm.reset(candidate_pos);
+            match vm.run() {
+                VmResult::Match => {
+                    copy_captures_to_out(vm.registers, program.capture_count, out);
+                    return VmResult::Match;
+                }
+                VmResult::LimitExceeded => hit_limit = true,
+                VmResult::NoMatch => {}
+            }
+            pos = candidate_pos + 1;
+        }
+        return if hit_limit {
+            VmResult::LimitExceeded
+        } else {
+            VmResult::NoMatch
+        };
+    }
 
     // Fast path: non-unicode pattern starting with a literal character.
     // Use iter().position() for bulk scanning (LLVM can auto-vectorize this).
@@ -827,6 +877,9 @@ pub struct PatternHints {
     first_char: Option<(u32, bool)>,
     /// First instruction filter: skip positions where the first matcher can't match.
     first_filter: Option<SimpleMatch>,
+    /// Leading alternatives that can only begin at position 0 or at one of a
+    /// small set of literal code units.
+    start_position_hint: Option<StartPositionHint>,
     /// Pattern starts with ^ (AssertStart) — only try at line starts (or input start).
     starts_with_anchor: bool,
     /// Whether the anchor is multiline (^ matches at line starts, not just input start).
@@ -840,6 +893,11 @@ pub struct PatternHints {
     simple_scan: Option<SimpleScan>,
     /// Whether the full pattern can match without consuming input.
     can_match_empty: bool,
+}
+
+struct StartPositionHint {
+    includes_input_start: bool,
+    literal_code_units: Vec<u16>,
 }
 
 /// A simple pattern that can be scanned without the full VM.
@@ -906,6 +964,95 @@ fn first_char_at(instructions: &[Instruction], pc: usize) -> Option<(u32, bool)>
     }
 }
 
+enum LeadingAlternativeStart {
+    InputStart,
+    LiteralCodeUnit(u16),
+}
+
+fn leading_alternative_start_at(
+    instructions: &[Instruction],
+    pc: usize,
+) -> Option<LeadingAlternativeStart> {
+    match instructions.get(pc)? {
+        Instruction::AssertStart { multiline: false } => Some(LeadingAlternativeStart::InputStart),
+        Instruction::Char(c) if *c <= 0xFFFF => {
+            Some(LeadingAlternativeStart::LiteralCodeUnit(*c as u16))
+        }
+        Instruction::Save(_) | Instruction::Nop => {
+            leading_alternative_start_at(instructions, pc + 1)
+        }
+        _ => None,
+    }
+}
+
+fn analyze_start_position_hint(
+    instructions: &[Instruction],
+    start: usize,
+) -> Option<StartPositionHint> {
+    let Instruction::Split { .. } = instructions.get(start)? else {
+        return None;
+    };
+
+    let mut hint = StartPositionHint {
+        includes_input_start: false,
+        literal_code_units: Vec::new(),
+    };
+    let mut pc = start;
+
+    loop {
+        match instructions.get(pc)? {
+            Instruction::Split { prefer, other } => {
+                match leading_alternative_start_at(instructions, *prefer as usize)? {
+                    LeadingAlternativeStart::InputStart => hint.includes_input_start = true,
+                    LeadingAlternativeStart::LiteralCodeUnit(ch) => {
+                        if !hint.literal_code_units.contains(&ch) {
+                            hint.literal_code_units.push(ch);
+                        }
+                    }
+                }
+                pc = *other as usize;
+            }
+            _ => {
+                match leading_alternative_start_at(instructions, pc)? {
+                    LeadingAlternativeStart::InputStart => hint.includes_input_start = true,
+                    LeadingAlternativeStart::LiteralCodeUnit(ch) => {
+                        if !hint.literal_code_units.contains(&ch) {
+                            hint.literal_code_units.push(ch);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Keep this hint narrowly scoped to `(^|literal)` prefixes. Wider literal
+    // sets require a single-pass scanner; repeated `find_code_unit()` probes
+    // per literal turn miss-heavy inputs quadratic.
+    if hint.includes_input_start && hint.literal_code_units.len() == 1 {
+        Some(hint)
+    } else {
+        None
+    }
+}
+
+#[inline(always)]
+fn next_literal_start_from_hint<I: Input>(
+    input: I,
+    start: usize,
+    hint: &StartPositionHint,
+) -> Option<usize> {
+    let [literal] = hint.literal_code_units.as_slice() else {
+        return None;
+    };
+
+    if hint.includes_input_start && start == 0 {
+        return Some(0);
+    }
+
+    input.next_literal_start(start, *literal)
+}
+
 /// Analyze the program to extract optimization hints.
 pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints {
     // Pattern typically starts with Save(0), then the first real instruction.
@@ -951,6 +1098,12 @@ pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints
             }
             _ => None,
         }
+    } else {
+        None
+    };
+
+    let start_position_hint = if !program.unicode {
+        analyze_start_position_hint(&program.instructions, filter_offset)
     } else {
         None
     };
@@ -1019,6 +1172,7 @@ pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints
     PatternHints {
         first_char,
         first_filter,
+        start_position_hint,
         starts_with_anchor,
         anchor_multiline,
         trailing_literal,

@@ -143,6 +143,25 @@ TEST_CASE(end_anchored_suffix_patterns_preserve_behavior)
     EXPECT_EQ(regex.test(u"<script src=\"/assets/client-main.js\"></script>"sv, 0), regex::MatchResult::NoMatch);
 }
 
+TEST_CASE(leading_start_or_separator_prefix_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("(?:^|;)\\s*foo=([^;]*)"sv, {}));
+
+    {
+        auto subject = Utf16String::from_utf8("foo=bar"sv);
+        EXPECT_EQ(regex.exec(subject, 0), regex::MatchResult::Match);
+        expect_capture_eq(regex, subject, 1, "bar"sv);
+    }
+
+    {
+        auto subject = Utf16String::from_utf8("a=1; foo=bar; baz=qux"sv);
+        EXPECT_EQ(regex.exec(subject, 0), regex::MatchResult::Match);
+        expect_capture_eq(regex, subject, 1, "bar"sv);
+    }
+
+    EXPECT_EQ(regex.test(u"a=1; baz=qux"sv, 0), regex::MatchResult::NoMatch);
+}
+
 TEST_CASE(restored_ecmascript_parse_coverage)
 {
     struct Test {
