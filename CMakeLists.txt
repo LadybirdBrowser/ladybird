@@ -41,17 +41,7 @@ list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
 include(UI/cmake/EnableLagom.cmake)
 include(lagom_options NO_POLICY_SCOPE)
-include(lagom_compile_options)
-
-if (HAIKU)
-    # Haiku needs some extra compile definitions to make important stuff in its headers available.
-    add_compile_definitions(_DEFAULT_SOURCE)
-    add_compile_definitions(_GNU_SOURCE)
-    add_compile_definitions(__USE_GNU)
-endif()
-
-add_cxx_compile_options(-Wno-expansion-to-defined)
-add_cxx_compile_options(-Wno-user-defined-literals)
+include(compile_options)
 
 # We need to find OpenSSL in order to link it explicitly with all targets.
 find_package(OpenSSL REQUIRED)

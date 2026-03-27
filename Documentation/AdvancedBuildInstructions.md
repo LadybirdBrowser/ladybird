@@ -147,10 +147,10 @@ If you do run into such an error, the rest of this section explains how to deal 
 
       ```diff
       $ patch -p1 <<EOF
-      diff --git a/Meta/CMake/lagom_compile_options.cmake b/Meta/CMake/lagom_compile_options.cmake
+      diff --git a/Meta/CMake/compile_options.cmake b/Meta/CMake/compile_options.cmake
       index 7fec47ac843..45c3af87493 100644
-      --- a/Meta/CMake/lagom_compile_options.cmake
-      +++ b/Meta/CMake/lagom_compile_options.cmake
+      --- a/Meta/CMake/compile_options.cmake
+      +++ b/Meta/CMake/compile_options.cmake
       @@ -29,7 +29,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
            if (NOT MSVC)
                add_cxx_compile_options(-ggdb3)
@@ -169,7 +169,7 @@ If you do run into such an error, the rest of this section explains how to deal 
 2. At your command-line prompt in your shell environment, run the following command:
 
       ```
-      git update-index --skip-worktree Meta/CMake/lagom_compile_options.cmake
+      git update-index --skip-worktree Meta/CMake/compile_options.cmake
       ```
 
    That will cause git to ignore the change you made to that build file. Otherwise, if you don’t run that command, git will consider that build file to have been modified, and you might then end up inadvertently committing the changes to that build file as part of some actual code change you’re making to the sources that you’re in the process of debugging.
@@ -181,8 +181,8 @@ After you’ve finished debugging your code changes with that build, you can rev
 1. At your command-line prompt in your shell environment, run the following:
 
       ```
-      git update-index --no-skip-worktree Meta/CMake/lagom_compile_options.cmake \
-          && git checkout Meta/CMake/lagom_compile_options.cmake
+      git update-index --no-skip-worktree Meta/CMake/compile_options.cmake \
+          && git checkout Meta/CMake/compile_options.cmake
       ```
 
 That will restore your git environment to the state it was in before you patched the build file.
