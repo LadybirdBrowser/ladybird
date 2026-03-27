@@ -106,7 +106,7 @@ function(lagom_lib target_name fs_name)
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
     if (ENABLE_INSTALL_HEADERS)
         install(
-                DIRECTORY "${LADYBIRD_PROJECT_ROOT}/Libraries/Lib${library}"
+                DIRECTORY "${LADYBIRD_SOURCE_DIR}/Libraries/Lib${library}"
                 COMPONENT Lagom_Development
                 DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
                 FILES_MATCHING PATTERN "*.h"
@@ -196,7 +196,7 @@ function(ladybird_lib name fs_name)
 endfunction()
 
 macro(add_ladybird_subdirectory path)
-    add_subdirectory("${LADYBIRD_PROJECT_ROOT}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
+    add_subdirectory("${LADYBIRD_SOURCE_DIR}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
 endmacro()
 
 if (NOT TARGET ladybird_codegen_accumulator)

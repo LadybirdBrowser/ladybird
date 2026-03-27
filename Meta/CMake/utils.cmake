@@ -103,7 +103,7 @@ function(invoke_py_generator name script primary_source header implementation)
 
     invoke_generator_impl(
         ${name}
-        "${LADYBIRD_PROJECT_ROOT}/Meta/${script}"
+        "${LADYBIRD_SOURCE_DIR}/Meta/${script}"
         ${primary_source}
         ${header}
         ${implementation}
