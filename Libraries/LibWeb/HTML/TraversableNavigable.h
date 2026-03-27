@@ -65,14 +65,14 @@ public:
         Applied,
     };
 
-    HistoryStepResult apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement);
-    HistoryStepResult apply_the_reload_history_step(UserNavigationInvolvement);
+    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete = {});
+    void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete = {});
     enum class SynchronousNavigation : bool {
         Yes,
         No,
     };
-    HistoryStepResult apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
-    HistoryStepResult update_for_navigable_creation_or_destruction();
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
+    void update_for_navigable_creation_or_destruction();
 
     int get_the_used_step(int step) const;
     Vector<GC::Root<Navigable>> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
@@ -107,7 +107,7 @@ public:
         CanceledByNavigate,
         Continue,
     };
-    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload);
+    void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
     StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
@@ -131,16 +131,27 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     // FIXME: Fix spec typo cancelation --> cancellation
-    HistoryStepResult apply_the_history_step(
+    void apply_the_history_step(
         int step,
         bool check_for_cancelation,
         GC::Ptr<SourceSnapshotParams>,
         GC::Ptr<Navigable> initiator_to_check,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
-        SynchronousNavigation);
+        SynchronousNavigation,
+        GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete);
 
-    CheckIfUnloadingIsCanceledResult check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events);
+    void apply_the_history_step_after_unload_check(
+        int step,
+        int target_step,
+        GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+        Vector<GC::Root<Navigable>> changing_navigables,
+        UserNavigationInvolvement user_involvement,
+        Optional<Bindings::NavigationType> navigation_type,
+        SynchronousNavigation,
+        GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete);
+
+    void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
     Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 

@@ -703,35 +703,36 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::perform_a_navigation_api_trave
 
         // 4. Let result be the result of applying the traverse history step given by targetSHE's step to traversable,
         //    given sourceSnapshotParams, navigable, and "none".
-        auto result = traversable->apply_the_traverse_history_step(target_she->step().get<int>(), source_snapshot_params, navigable, UserNavigationInvolvement::None);
+        traversable->apply_the_traverse_history_step(target_she->step().get<int>(), source_snapshot_params, navigable, UserNavigationInvolvement::None,
+            GC::create_function(heap(), [this, signal_to_continue_session_history_processing, api_method_tracker](TraversableNavigable::HistoryStepResult result) {
+                // NOTE: When result is "canceled-by-beforeunload" or "initiator-disallowed", the navigate event was never fired,
+                //       aborting the ongoing navigation would not be correct; it would result in a navigateerror event without a
+                //       preceding navigate event. In the "canceled-by-navigate" case, navigate is fired, but the inner navigate event
+                //       firing algorithm will take care of aborting the ongoing navigation.
 
-        // NOTE: When result is "canceled-by-beforeunload" or "initiator-disallowed", the navigate event was never fired,
-        //       aborting the ongoing navigation would not be correct; it would result in a navigateerror event without a
-        //       preceding navigate event. In the "canceled-by-navigate" case, navigate is fired, but the inner navigate event
-        //       firing algorithm will take care of aborting the ongoing navigation.
+                // 5. If result is "canceled-by-beforeunload", then queue a global task on the navigation and traversal task source
+                //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
+                //    new "AbortError" DOMException created in navigation's relevant realm.
+                auto& realm = relevant_realm(*this);
+                auto& global = relevant_global_object(*this);
+                if (result == TraversableNavigable::HistoryStepResult::CanceledByBeforeUnload) {
+                    queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
+                        TemporaryExecutionContext execution_context { realm };
+                        reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_utf16));
+                    }));
+                }
 
-        // 5. If result is "canceled-by-beforeunload", then queue a global task on the navigation and traversal task source
-        //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
-        //    new "AbortError" DOMException created in navigation's relevant realm.
-        auto& realm = relevant_realm(*this);
-        auto& global = relevant_global_object(*this);
-        if (result == TraversableNavigable::HistoryStepResult::CanceledByBeforeUnload) {
-            queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
-                TemporaryExecutionContext execution_context { realm };
-                reject_the_finished_promise(api_method_tracker, WebIDL::AbortError::create(realm, "Navigation cancelled by beforeunload"_utf16));
+                // 6. If result is "initiator-disallowed", then queue a global task on the navigation and traversal task source
+                //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
+                //    new "SecurityError" DOMException created in navigation's relevant realm.
+                if (result == TraversableNavigable::HistoryStepResult::InitiatorDisallowed) {
+                    queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
+                        TemporaryExecutionContext execution_context { realm };
+                        reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_utf16));
+                    }));
+                }
+                signal_to_continue_session_history_processing->resolve({});
             }));
-        }
-
-        // 6. If result is "initiator-disallowed", then queue a global task on the navigation and traversal task source
-        //    given navigation's relevant global object to reject the finished promise for apiMethodTracker with a
-        //    new "SecurityError" DOMException created in navigation's relevant realm.
-        if (result == TraversableNavigable::HistoryStepResult::InitiatorDisallowed) {
-            queue_global_task(Task::Source::NavigationAndTraversal, global, GC::create_function(heap(), [this, api_method_tracker, &realm] {
-                TemporaryExecutionContext execution_context { realm };
-                reject_the_finished_promise(api_method_tracker, WebIDL::SecurityError::create(realm, "Navigation disallowed from this origin"_utf16));
-            }));
-        }
-        signal_to_continue_session_history_processing->resolve({});
         return signal_to_continue_session_history_processing;
     }));
 

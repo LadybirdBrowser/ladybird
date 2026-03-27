@@ -28,6 +28,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
 
@@ -440,16 +441,16 @@ struct ChangingNavigableContinuationState : public JS::Cell {
 GC_DEFINE_ALLOCATOR(ChangingNavigableContinuationState);
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
-TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_step(
+void TraversableNavigable::apply_the_history_step(
     int step,
     bool check_for_cancelation,
     GC::Ptr<SourceSnapshotParams> source_snapshot_params,
     GC::Ptr<Navigable> initiator_to_check,
     IGNORE_USE_IN_ESCAPING_LAMBDA UserNavigationInvolvement user_involvement,
     IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
-    IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation)
+    IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation,
+    GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
 {
-    auto& vm = this->vm();
     // FIXME: 1. Assert: This is running within traversable's session history traversal queue.
 
     // 2. Let targetStep be the result of getting the used step given traversable and step.
@@ -466,8 +467,11 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
         // 2. For each navigable of get all navigables whose current session history entry will change or reload:
         //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return "initiator-disallowed".
         for (auto const& navigable : change_or_reload_navigables) {
-            if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params))
-                return HistoryStepResult::InitiatorDisallowed;
+            if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params)) {
+                if (on_complete)
+                    on_complete->function()(HistoryStepResult::InitiatorDisallowed);
+                return;
+            }
         }
     }
 
@@ -477,15 +481,38 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
     //    and userInvolvement is not "continue", then return that result.
     if (check_for_cancelation) {
-        auto result = check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement);
-        if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload)
-            return HistoryStepResult::CanceledByBeforeUnload;
-        if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate)
-            return HistoryStepResult::CanceledByNavigate;
+        check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement,
+            GC::create_function(heap(), [this, step, target_step, source_snapshot_params, changing_navigables = move(change_or_reload_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
+                if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload) {
+                    if (on_complete)
+                        on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
+                    return;
+                }
+                if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate) {
+                    if (on_complete)
+                        on_complete->function()(HistoryStepResult::CanceledByNavigate);
+                    return;
+                }
+                apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, move(changing_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete);
+            }));
+        return;
     }
 
     // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change or reload given traversable and targetStep.
-    auto changing_navigables = move(change_or_reload_navigables);
+    apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, move(change_or_reload_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete);
+}
+
+void TraversableNavigable::apply_the_history_step_after_unload_check(
+    int step,
+    int target_step,
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+    Vector<GC::Root<Navigable>> changing_navigables,
+    UserNavigationInvolvement user_involvement,
+    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
+    IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation,
+    GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
+{
+    auto& vm = this->vm();
 
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need history object length/index update given traversable and targetStep.
     auto non_changing_navigables_that_still_need_updates = get_all_navigables_that_only_need_history_object_length_index_update(target_step);
@@ -926,138 +953,233 @@ TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_history_
     page().client().page_did_change_url(current_session_history_entry()->url());
 
     // 21. Return "applied".
-    return HistoryStepResult::Applied;
+    if (on_complete)
+        on_complete->function()(HistoryStepResult::Applied);
 }
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
-TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(
-    Vector<GC::Root<Navigable>> navigables_that_need_before_unload,
-    GC::Ptr<TraversableNavigable> traversable,
-    Optional<int> target_step,
-    Optional<UserNavigationInvolvement> user_involvement_for_navigate_events)
-{
-    // 1. Let documentsToFireBeforeunload be the active document of each item in navigablesThatNeedBeforeUnload.
-    Vector<GC::Root<DOM::Document>> documents_to_fire_beforeunload;
-    for (auto& navigable : navigables_that_need_before_unload)
-        documents_to_fire_beforeunload.append(navigable->active_document());
+class CheckUnloadingCanceledState : public GC::Cell {
+    GC_CELL(CheckUnloadingCanceledState, GC::Cell);
+    GC_DECLARE_ALLOCATOR(CheckUnloadingCanceledState);
 
-    // 2. Let unloadPromptShown be false.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto unload_prompt_shown = false;
+public:
+    using Result = TraversableNavigable::CheckIfUnloadingIsCanceledResult;
+    static constexpr int TIMEOUT_MS = 15000;
 
-    // 3. Let finalStatus be "continue".
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto final_status = CheckIfUnloadingIsCanceledResult::Continue;
-
-    // 4. If traversable was given, then:
-    if (traversable) {
-        // 1. Assert: targetStep and userInvolvementForNavigateEvent were given.
-        // NOTE: This assertion is enforced by the caller.
-
-        // 2. Let targetEntry be the result of getting the target history entry given traversable and targetStep.
-        auto target_entry = traversable->get_the_target_history_entry(target_step.value());
-
-        // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is the same as
-        //    traversable's current session history entry's document state's origin, then:
-        if (target_entry != traversable->current_session_history_entry() && target_entry->document_state()->origin() != traversable->current_session_history_entry()->document_state()->origin()) {
-            // 1. Let eventsFired be false.
-            IGNORE_USE_IN_ESCAPING_LAMBDA auto events_fired = false;
-
-            // 2. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
-            auto it = navigables_that_need_before_unload.find_if([&traversable](auto const& navigable) {
-                return navigable.ptr() == traversable.ptr();
-            });
-            auto needs_beforeunload = it != navigables_that_need_before_unload.end();
-
-            // 3. If needsBeforeunload is true, then remove traversable's active document from documentsToFireBeforeunload.
-            if (needs_beforeunload) {
-                documents_to_fire_beforeunload.remove_first_matching([&](auto& document) {
-                    return document.ptr() == traversable->active_document().ptr();
-                });
+    CheckUnloadingCanceledState(
+        GC::Ptr<TraversableNavigable> traversable,
+        Optional<UserNavigationInvolvement> user_involvement,
+        GC::Ref<GC::Function<void(Result)>> callback)
+        : m_traversable(traversable)
+        , m_user_involvement(user_involvement)
+        , m_callback(callback)
+        , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+            if (!m_completed) {
+                dbgln("FIXME: check_if_unloading_is_canceled timed out");
+                finish(Result::Continue);
             }
-
-            // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
-            VERIFY(traversable->active_window());
-            queue_global_task(Task::Source::NavigationAndTraversal, *traversable->active_window(), GC::create_function(heap(), [needs_beforeunload, user_involvement_for_navigate_events, traversable, target_entry, &final_status, &unload_prompt_shown, &events_fired] {
-                // 1. if needsBeforeunload is true, then:
-                if (needs_beforeunload) {
-                    // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
-                    auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = traversable->active_document()->steps_to_fire_beforeunload(false);
-
-                    // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
-                    if (unload_prompt_shown_for_this_document)
-                        unload_prompt_shown = true;
-
-                    // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
-                    if (unload_prompt_canceled_by_this_document)
-                        final_status = CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload;
-                }
-
-                // 2. If finalStatus is "canceled-by-beforeunload", then abort these steps.
-                if (final_status == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload)
-                    return;
-
-                // 3. Let navigation be traversable's active window's navigation API.
-                VERIFY(traversable->active_window());
-                auto navigation = traversable->active_window()->navigation();
-
-                // 4. Let navigateEventResult be the result of firing a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvent.
-                VERIFY(target_entry);
-                auto navigate_event_result = navigation->fire_a_traverse_navigate_event(*target_entry, *user_involvement_for_navigate_events);
-
-                // 5. If navigateEventResult is false, then set finalStatus to "canceled-by-navigate".
-                if (!navigate_event_result)
-                    final_status = CheckIfUnloadingIsCanceledResult::CanceledByNavigate;
-
-                // 6. Set eventsFired to true.
-                events_fired = true;
-            }));
-
-            // 5. Wait for eventsFired to be true.
-            main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal,
-                GC::create_function(heap(), [&] { return events_fired; }));
-
-            // 6. If finalStatus is not "continue", then return finalStatus.
-            if (final_status != CheckIfUnloadingIsCanceledResult::Continue)
-                return final_status;
-        }
+        })))
+    {
+        m_timeout->start();
     }
 
-    // 5. Let totalTasks be the size of documentsToFireBeforeunload.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_tasks = documents_to_fire_beforeunload.size();
+    virtual void visit_edges(Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        for (auto& doc : m_phase2_documents)
+            visitor.visit(doc);
+        visitor.visit(m_traversable);
+        visitor.visit(m_target_entry);
+        visitor.visit(m_callback);
+        visitor.visit(m_timeout);
+    }
 
-    // 6. Let completedTasks be 0.
-    IGNORE_USE_IN_ESCAPING_LAMBDA size_t completed_tasks = 0;
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+    void start(Vector<GC::Root<Navigable>> const& navigables_that_need_before_unload, Optional<int> target_step)
+    {
+        // 1. Let documentsToFireBeforeunload be the active document of each item in navigablesThatNeedBeforeUnload.
+        for (auto& navigable : navigables_that_need_before_unload)
+            m_phase2_documents.append(*navigable->active_document());
 
-    // 7. For each document of documentsToFireBeforeunload, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
-    for (auto& document : documents_to_fire_beforeunload) {
-        // NOTE: We don't capture `document` by value here because it is a GC::Root and we want to avoid reference cycles.
-        queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [document = document.ptr(), &final_status, &completed_tasks, &unload_prompt_shown] {
-            // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
-            auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(unload_prompt_shown);
+        // 2. Let unloadPromptShown be false.
 
-            // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
-            if (unload_prompt_shown_for_this_document)
-                unload_prompt_shown = true;
+        // 3. Let finalStatus be "continue".
 
-            // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
-            if (unload_prompt_canceled_by_this_document)
-                final_status = CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload;
+        // 4. If traversable was given, then:
+        if (m_traversable) {
+            // 1. Assert: targetStep and userInvolvementForNavigateEvent were given.
+            // NOTE: This assertion is enforced by the caller.
 
-            // 4. Increment completedTasks.
-            completed_tasks++;
+            // 2. Let targetEntry be the result of getting the target history entry given traversable and targetStep.
+            m_target_entry = m_traversable->get_the_target_history_entry(target_step.value());
+
+            // 3. If targetEntry is not traversable's current session history entry, and targetEntry's document state's origin is not the same as
+            //    traversable's current session history entry's document state's origin, then:
+            if (m_target_entry != m_traversable->current_session_history_entry() && m_target_entry->document_state()->origin() != m_traversable->current_session_history_entry()->document_state()->origin()) {
+
+                // 1. Let eventsFired be false.
+
+                // 2. Let needsBeforeunload be true if navigablesThatNeedBeforeUnload contains traversable; otherwise false.
+                m_needs_beforeunload = navigables_that_need_before_unload.find_if([this](auto const& navigable) {
+                    return navigable.ptr() == m_traversable.ptr();
+                }) != navigables_that_need_before_unload.end();
+
+                // 3. If needsBeforeunload is true, then remove traversable's active document from documentsToFireBeforeunload.
+                if (m_needs_beforeunload) {
+                    m_phase2_documents.remove_first_matching([this](auto& document) {
+                        return document.ptr() == m_traversable->active_document().ptr();
+                    });
+                }
+
+                start_phase1();
+                return;
+            }
+        }
+
+        start_phase2();
+    }
+
+private:
+    void start_phase1()
+    {
+        // 4. Queue a global task on the navigation and traversal task source given traversable's active window to perform the following steps:
+        VERIFY(m_traversable->active_window());
+        queue_global_task(Task::Source::NavigationAndTraversal, *m_traversable->active_window(), GC::create_function(heap(), [this] {
+            // 1. if needsBeforeunload is true, then:
+            if (m_needs_beforeunload) {
+                // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given traversable's active document and false.
+                auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = m_traversable->active_document()->steps_to_fire_beforeunload(false);
+
+                // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
+                if (unload_prompt_shown_for_this_document)
+                    m_unload_prompt_shown = true;
+
+                // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
+                if (unload_prompt_canceled_by_this_document)
+                    m_final_status = Result::CanceledByBeforeUnload;
+            }
+
+            // 2. If finalStatus is "canceled-by-beforeunload", then abort these steps.
+            if (m_final_status == Result::CanceledByBeforeUnload) {
+                finish(m_final_status);
+                return;
+            }
+
+            // 3. Let navigation be traversable's active window's navigation API.
+            VERIFY(m_traversable->active_window());
+            auto navigation = m_traversable->active_window()->navigation();
+
+            // 4. Let navigateEventResult be the result of firing a traverse navigate event at navigation given targetEntry and userInvolvementForNavigateEvent.
+            VERIFY(m_target_entry);
+            auto navigate_event_result = navigation->fire_a_traverse_navigate_event(*m_target_entry, *m_user_involvement);
+
+            // 5. If navigateEventResult is false, then set finalStatus to "canceled-by-navigate".
+            if (!navigate_event_result)
+                m_final_status = Result::CanceledByNavigate;
+
+            // 6. Set eventsFired to true.
+
+            phase1_completed();
         }));
     }
 
-    // 8. Wait for completedTasks to be totalTasks.
-    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal,
-        GC::create_function(heap(), [&] { return completed_tasks == total_tasks; }));
+    void phase1_completed()
+    {
+        // 5. Wait for eventsFired to be true.
 
-    // 9. Return finalStatus.
-    return final_status;
+        // 6. If finalStatus is not "continue", then return finalStatus.
+        if (m_final_status != Result::Continue) {
+            finish(m_final_status);
+            return;
+        }
+        start_phase2();
+    }
+
+    void start_phase2()
+    {
+        if (m_phase2_documents.is_empty()) {
+            finish(m_final_status);
+            return;
+        }
+
+        // 5. Let totalTasks be the size of documentsToFireBeforeunload.
+
+        // 6. Let completedTasks be 0.
+        m_remaining_phase2_tasks = m_phase2_documents.size();
+
+        // 7. For each document of documentsToFireBeforeunload, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
+        for (auto& document : m_phase2_documents) {
+            queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [this, document] {
+                // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
+                auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(m_unload_prompt_shown);
+
+                // 2. If unloadPromptShownForThisDocument is true, then set unloadPromptShown to true.
+                if (unload_prompt_shown_for_this_document)
+                    m_unload_prompt_shown = true;
+
+                // 3. If unloadPromptCanceledByThisDocument is true, then set finalStatus to "canceled-by-beforeunload".
+                if (unload_prompt_canceled_by_this_document)
+                    m_final_status = Result::CanceledByBeforeUnload;
+
+                // 4. Increment completedTasks.
+                did_complete_phase2_task();
+            }));
+        }
+    }
+
+    void did_complete_phase2_task()
+    {
+        VERIFY(m_remaining_phase2_tasks > 0);
+        if (--m_remaining_phase2_tasks > 0)
+            return;
+
+        // 8. Wait for completedTasks to be totalTasks.
+
+        // 9. Return finalStatus.
+        finish(m_final_status);
+    }
+
+    void finish(Result final_result)
+    {
+        if (m_completed)
+            return;
+        m_completed = true;
+        m_timeout->stop();
+        m_callback->function()(final_result);
+    }
+
+    Result m_final_status { Result::Continue };
+    bool m_unload_prompt_shown { false };
+    bool m_completed { false };
+    bool m_needs_beforeunload { false };
+    size_t m_remaining_phase2_tasks { 0 };
+    Vector<GC::Ref<DOM::Document>> m_phase2_documents;
+    GC::Ptr<TraversableNavigable> m_traversable;
+    GC::Ptr<SessionHistoryEntry> m_target_entry;
+    Optional<UserNavigationInvolvement> m_user_involvement;
+    GC::Ref<GC::Function<void(Result)>> m_callback;
+    GC::Ref<Platform::Timer> m_timeout;
+};
+
+GC_DEFINE_ALLOCATOR(CheckUnloadingCanceledState);
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+void TraversableNavigable::check_if_unloading_is_canceled(
+    Vector<GC::Root<Navigable>> navigables_that_need_before_unload,
+    GC::Ptr<TraversableNavigable> traversable,
+    Optional<int> target_step,
+    Optional<UserNavigationInvolvement> user_involvement_for_navigate_events,
+    GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
+{
+    auto state = heap().allocate<CheckUnloadingCanceledState>(
+        traversable,
+        user_involvement_for_navigate_events,
+        callback);
+    state->start(navigables_that_need_before_unload, target_step);
 }
 
-TraversableNavigable::CheckIfUnloadingIsCanceledResult TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload)
+void TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback)
 {
-    return check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {});
+    check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, callback);
 }
 
 Vector<GC::Ref<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable> navigable, int target_step)
@@ -1227,44 +1349,46 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
 
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
-        apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement);
-        signal_to_continue_session_history_processing->resolve({});
+        apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement,
+            GC::create_function(heap(), [signal_to_continue_session_history_processing](HistoryStepResult) {
+                signal_to_continue_session_history_processing->resolve({});
+            }));
         return signal_to_continue_session_history_processing;
     }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
-TraversableNavigable::HistoryStepResult TraversableNavigable::update_for_navigable_creation_or_destruction()
+void TraversableNavigable::update_for_navigable_creation_or_destruction()
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step to traversable given false, null, null, null, and null.
-    return apply_the_history_step(step, false, {}, {}, UserNavigationInvolvement::None, {}, SynchronousNavigation::No);
+    apply_the_history_step(step, false, {}, {}, UserNavigationInvolvement::None, {}, SynchronousNavigation::No, {});
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-reload-history-step
-TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement)
+void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step step to traversable given true, null, null, null, and "reload".
-    return apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No);
+    apply_the_history_step(step, true, {}, {}, user_involvement, Bindings::NavigationType::Reload, SynchronousNavigation::No, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
-TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation)
+void TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation)
 {
     // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? Bindings::NavigationType::Replace : Bindings::NavigationType::Push;
-    return apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation);
+    apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, {});
 }
 
-TraversableNavigable::HistoryStepResult TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement)
+void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
-    return apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No);
+    apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
@@ -1290,22 +1414,24 @@ void TraversableNavigable::definitely_close_top_level_traversable()
     auto to_unload = active_document()->inclusive_descendant_navigables();
 
     // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
-    if (check_if_unloading_is_canceled(to_unload) != CheckIfUnloadingIsCanceledResult::Continue)
-        return;
+    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this](CheckIfUnloadingIsCanceledResult result) {
+        if (result != CheckIfUnloadingIsCanceledResult::Continue)
+            return;
 
-    // 3. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this] {
-        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
-        // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
-        auto after_all_unloads = GC::create_function(heap(), [this] {
-            destroy_top_level_traversable();
-        });
+        // 3. Append the following session history traversal steps to traversable:
+        append_session_history_traversal_steps(GC::create_function(heap(), [this] {
+            // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+            // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
+            auto after_all_unloads = GC::create_function(heap(), [this] {
+                destroy_top_level_traversable();
+            });
 
-        // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
-        active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-        signal_to_continue_session_history_processing->resolve({});
-        return signal_to_continue_session_history_processing;
+            // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
+            active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
+            signal_to_continue_session_history_processing->resolve({});
+            return signal_to_continue_session_history_processing;
+        }));
     }));
 }
 

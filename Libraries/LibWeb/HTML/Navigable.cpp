@@ -2026,110 +2026,111 @@ void Navigable::begin_navigation(NavigateParams params)
         }
 
         // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
-        auto unload_prompt_canceled = traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables());
+        traversable_navigable()->check_if_unloading_is_canceled(this->active_document()->inclusive_descendant_navigables(),
+            GC::create_function(heap(), [this, source_snapshot_params, target_snapshot_params, csp_navigation_type, document_resource, url, navigation_id, referrer_policy, initiator_origin_snapshot, response, history_handling, initiator_base_url_snapshot, user_involvement](TraversableNavigable::CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
+                // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
+                if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || ongoing_navigation() != navigation_id) {
+                    // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
 
-        // 2. If unloadPromptCanceled is not "continue", or navigable's ongoing navigation is no longer navigationId:
-        if (unload_prompt_canceled != TraversableNavigable::CheckIfUnloadingIsCanceledResult::Continue || ongoing_navigation() != navigation_id) {
-            // FIXME: 1. Invoke WebDriver BiDi navigation failed with navigable and a new WebDriver BiDi navigation status whose id is navigationId, status is "canceled", and url is url.
+                    // 2. Abort these steps.
+                    set_delaying_load_events(false);
+                    return;
+                }
 
-            // 2. Abort these steps.
-            set_delaying_load_events(false);
-            return;
-        }
+                // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
+                if (!active_window()) {
+                    set_delaying_load_events(false);
+                    return;
+                }
 
-        // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
-        if (!active_window()) {
-            set_delaying_load_events(false);
-            return;
-        }
-
-        // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
-            this->active_document()->abort_a_document_and_its_descendants();
-        }));
-
-        // 4. Let documentState be a new document state with
-        //    request referrer policy: referrerPolicy
-        //    initiator origin: initiatorOriginSnapshot
-        //    resource: documentResource
-        //    navigable target name: navigable's target name
-        GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
-        document_state->set_request_referrer_policy(referrer_policy);
-        document_state->set_initiator_origin(initiator_origin_snapshot);
-        document_state->set_resource(document_resource);
-        document_state->set_navigable_target_name(target_name());
-
-        // 5. If url matches about:blank or is about:srcdoc, then:
-        // FIXME: Is calling url_matches_about_srcdoc() correct? https://github.com/whatwg/html/issues/10900
-        if (url_matches_about_blank(url) || url_matches_about_srcdoc(url)) {
-            // AD-HOC: document_resource cannot have an Empty if the url is about:srcdoc since we rely on document_resource
-            //         having a String to call create_navigation_params_from_a_srcdoc_resource
-            if (url_matches_about_srcdoc(url) && document_resource.has<Empty>()) {
-                document_state->set_resource({ String {} });
-            }
-            // 1. Set documentState's origin to initiatorOriginSnapshot.
-            document_state->set_origin(document_state->initiator_origin());
-
-            // 2. Set documentState's about base URL to initiatorBaseURLSnapshot.
-            document_state->set_about_base_url(initiator_base_url_snapshot);
-        }
-
-        // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
-        GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
-        history_entry->set_url(url);
-        history_entry->set_document_state(document_state);
-
-        // 7. Let navigationParams be null.
-        NavigationParamsVariant navigation_params = Navigable::NullOrError {};
-
-        // FIXME: 8. If response is non-null:
-        if (response) {
-        }
-
-        // 9. Attempt to populate the history entry's document for historyEntry, given navigable, "navigate",
-        //    sourceSnapshotParams, targetSnapshotParams, userInvolvement, navigationId, navigationParams,
-        //    cspNavigationType, with allowPOST set to true and completionSteps set to the following step:
-
-        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
-        populate_session_history_entry_document(
-            history_entry->url(),
-            history_entry->document_state()->resource(),
-            history_entry->document_state()->request_referrer(),
-            history_entry->document_state()->request_referrer_policy(),
-            history_entry->document_state()->initiator_origin(),
-            history_entry->document_state()->origin(),
-            history_entry->document_state()->history_policy_container(),
-            history_entry->document_state()->about_base_url(),
-            history_entry->document_state()->navigable_target_name(),
-            history_entry->document_state()->reload_pending(),
-            history_entry->document_state()->ever_populated(),
-            source_snapshot_params, target_snapshot_params, user_involvement, signal_to_continue_session_history_processing, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, signal_to_continue_session_history_processing, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
-                if (output)
-                    output->apply_to(*history_entry);
-                // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
-                traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, signal_to_continue_session_history_processing] {
-                    if (this->has_been_destroyed()) {
-                        // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
-                        set_delaying_load_events(false);
-                        signal_to_continue_session_history_processing->resolve({});
-                        return signal_to_continue_session_history_processing;
-                    }
-                    if (this->ongoing_navigation() != navigation_id) {
-                        // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
-                        set_delaying_load_events(false);
-                        signal_to_continue_session_history_processing->resolve({});
-                        return signal_to_continue_session_history_processing;
-                    }
-                    finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
-
-                    // AD-HOC: If the document isn't active or is still loading session history traversal queue will wait
-                    //         for it to load else resolve the signal_to_continue_session_history_processing.
-                    if (history_entry->document() && (!history_entry->document()->is_active() || history_entry->document()->ready_state() != "loading")) {
-                        signal_to_continue_session_history_processing->resolve({});
-                    }
-                    return signal_to_continue_session_history_processing;
+                // 3. Queue a global task on the navigation and traversal task source given navigable's active window to abort a document and its descendants given navigable's active document.
+                queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this] {
+                    this->active_document()->abort_a_document_and_its_descendants();
                 }));
+
+                // 4. Let documentState be a new document state with
+                //    request referrer policy: referrerPolicy
+                //    initiator origin: initiatorOriginSnapshot
+                //    resource: documentResource
+                //    navigable target name: navigable's target name
+                GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
+                document_state->set_request_referrer_policy(referrer_policy);
+                document_state->set_initiator_origin(initiator_origin_snapshot);
+                document_state->set_resource(document_resource);
+                document_state->set_navigable_target_name(target_name());
+
+                // 5. If url matches about:blank or is about:srcdoc, then:
+                // FIXME: Is calling url_matches_about_srcdoc() correct? https://github.com/whatwg/html/issues/10900
+                if (url_matches_about_blank(url) || url_matches_about_srcdoc(url)) {
+                    // AD-HOC: document_resource cannot have an Empty if the url is about:srcdoc since we rely on document_resource
+                    //         having a String to call create_navigation_params_from_a_srcdoc_resource
+                    if (url_matches_about_srcdoc(url) && document_resource.has<Empty>()) {
+                        document_state->set_resource({ String {} });
+                    }
+                    // 1. Set documentState's origin to initiatorOriginSnapshot.
+                    document_state->set_origin(document_state->initiator_origin());
+
+                    // 2. Set documentState's about base URL to initiatorBaseURLSnapshot.
+                    document_state->set_about_base_url(initiator_base_url_snapshot);
+                }
+
+                // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
+                GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
+                history_entry->set_url(url);
+                history_entry->set_document_state(document_state);
+
+                // 7. Let navigationParams be null.
+                NavigationParamsVariant navigation_params = Navigable::NullOrError {};
+
+                // FIXME: 8. If response is non-null:
+                if (response) {
+                }
+
+                // 9. Attempt to populate the history entry's document for historyEntry, given navigable, "navigate",
+                //    sourceSnapshotParams, targetSnapshotParams, userInvolvement, navigationId, navigationParams,
+                //    cspNavigationType, with allowPOST set to true and completionSteps set to the following step:
+
+                // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
+                auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+                populate_session_history_entry_document(
+                    history_entry->url(),
+                    history_entry->document_state()->resource(),
+                    history_entry->document_state()->request_referrer(),
+                    history_entry->document_state()->request_referrer_policy(),
+                    history_entry->document_state()->initiator_origin(),
+                    history_entry->document_state()->origin(),
+                    history_entry->document_state()->history_policy_container(),
+                    history_entry->document_state()->about_base_url(),
+                    history_entry->document_state()->navigable_target_name(),
+                    history_entry->document_state()->reload_pending(),
+                    history_entry->document_state()->ever_populated(),
+                    source_snapshot_params, target_snapshot_params, user_involvement, signal_to_continue_session_history_processing, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, signal_to_continue_session_history_processing, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                        if (output)
+                            output->apply_to(*history_entry);
+                        // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
+                        traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, signal_to_continue_session_history_processing] {
+                            if (this->has_been_destroyed()) {
+                                // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
+                                set_delaying_load_events(false);
+                                signal_to_continue_session_history_processing->resolve({});
+                                return signal_to_continue_session_history_processing;
+                            }
+                            if (this->ongoing_navigation() != navigation_id) {
+                                // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
+                                set_delaying_load_events(false);
+                                signal_to_continue_session_history_processing->resolve({});
+                                return signal_to_continue_session_history_processing;
+                            }
+                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry);
+
+                            // AD-HOC: If the document isn't active or is still loading session history traversal queue will wait
+                            //         for it to load else resolve the signal_to_continue_session_history_processing.
+                            if (history_entry->document() && (!history_entry->document()->is_active() || history_entry->document()->ready_state() != "loading")) {
+                                signal_to_continue_session_history_processing->resolve({});
+                            }
+                            return signal_to_continue_session_history_processing;
+                        }));
+                    }));
             }));
     }));
 }
@@ -2468,8 +2469,9 @@ void Navigable::reload(Optional<SerializationRecord> navigation_api_state, UserN
         // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
         auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
         // 1. Apply the reload history step to traversable given userInvolvement.
-        traversable->apply_the_reload_history_step(user_involvement);
-        signal_to_continue_session_history_processing->resolve({});
+        traversable->apply_the_reload_history_step(user_involvement, GC::create_function(traversable->heap(), [signal_to_continue_session_history_processing](TraversableNavigable::HistoryStepResult) {
+            signal_to_continue_session_history_processing->resolve({});
+        }));
         return signal_to_continue_session_history_processing;
     }));
 }
