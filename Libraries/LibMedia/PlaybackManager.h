@@ -54,6 +54,7 @@ public:
     ~PlaybackManager();
 
     AK::Duration duration() const { return m_duration; }
+    void set_duration(AK::Duration duration) { m_duration = duration; }
     AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
 
     auto const& video_tracks() const { return m_video_tracks; }
