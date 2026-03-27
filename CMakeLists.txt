@@ -186,18 +186,6 @@ if (LAGOM_TOOLS_ONLY)
     return()
 endif()
 
-# Lagom Libraries
-# FIXME: Move these calls to the relevant client library CMakeLists
-# Note that the Services themselves are only built if ENABLE_GUI_TARGETS, from top level.
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
-compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
-
 if (ENABLE_FUZZERS)
     add_subdirectory(Meta/Lagom/Fuzzers)
 endif()
