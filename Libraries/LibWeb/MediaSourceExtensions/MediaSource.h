@@ -27,6 +27,9 @@ public:
     void set_ready_state_to_open_and_fire_sourceopen_event();
 
     GC::Ref<SourceBufferList> source_buffers();
+    GC::Ref<SourceBufferList> active_source_buffers();
+
+    Utf16String next_track_id();
 
     // https://w3c.github.io/media-source/#dom-mediasource-canconstructindedicatedworker
     static bool can_construct_in_dedicated_worker(JS::VM&) { return false; }
@@ -49,6 +52,13 @@ public:
     WebIDL::ExceptionOr<void> end_of_stream(Optional<Bindings::EndOfStreamError> const& error = {});
     void run_end_of_stream_algorithm(Badge<SourceBuffer>, Optional<Bindings::EndOfStreamError> const& error) { run_end_of_stream_algorithm(error); }
 
+    // https://w3c.github.io/media-source/#dom-mediasource-duration
+    double duration() const;
+    WebIDL::ExceptionOr<void> set_duration(double);
+
+    // https://w3c.github.io/media-source/#duration-change-algorithm
+    void run_duration_change_algorithm(double new_duration);
+
     static bool is_type_supported(String const&);
     static bool is_type_supported(JS::VM&, String const& type) { return is_type_supported(type); }
 
@@ -69,6 +79,11 @@ private:
     GC::Ptr<HTML::HTMLMediaElement> m_media_element_assigned_to;
 
     GC::Ref<SourceBufferList> m_source_buffers;
+    GC::Ref<SourceBufferList> m_active_source_buffers;
+
+    double m_duration { NAN };
+
+    u64 m_next_track_id = 1;
 };
 
 }

@@ -44,13 +44,13 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> VideoTrackList::internal
     return Base::internal_get_own_property(property_name);
 }
 
-void VideoTrackList::add_track(Badge<HTMLMediaElement>, GC::Ref<VideoTrack> video_track)
+void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
 {
     m_video_tracks.append(video_track);
     video_track->set_video_track_list({}, this);
 }
 
-void VideoTrackList::remove_all_tracks(Badge<HTMLMediaElement>)
+void VideoTrackList::remove_all_tracks()
 {
     for (auto& video_track : m_video_tracks)
         video_track->set_selected(false);

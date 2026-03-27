@@ -50,6 +50,11 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> TextTrackList::internal_
     return Base::internal_get_own_property(property_name);
 }
 
+void TextTrackList::add_track(GC::Ref<TextTrack> text_track)
+{
+    m_text_tracks.append(text_track);
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-texttracklist-length
 size_t TextTrackList::length() const
 {

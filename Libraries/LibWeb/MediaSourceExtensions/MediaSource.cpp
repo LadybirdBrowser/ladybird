@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MediaSourcePrototype.h>
 #include <LibWeb/DOM/Event.h>
@@ -28,6 +29,7 @@ WebIDL::ExceptionOr<GC::Ref<MediaSource>> MediaSource::construct_impl(JS::Realm&
 MediaSource::MediaSource(JS::Realm& realm)
     : DOM::EventTarget(realm)
     , m_source_buffers(realm.create<SourceBufferList>(realm))
+    , m_active_source_buffers(realm.create<SourceBufferList>(realm))
 {
 }
 
@@ -44,6 +46,7 @@ void MediaSource::visit_edges(Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_media_element_assigned_to);
     visitor.visit(m_source_buffers);
+    visitor.visit(m_active_source_buffers);
 }
 
 void MediaSource::queue_a_media_source_task(GC::Ref<GC::Function<void()>> task)
@@ -76,6 +79,13 @@ void MediaSource::set_ready_state_to_open_and_fire_sourceopen_event()
 {
     m_ready_state = ReadyState::Open;
 
+    // AD-HOC: Notify all demuxers that we have new data coming in and cannot consider the end of the buffer to be
+    //         the end of the stream.
+    for (size_t i = 0; i < m_source_buffers->length(); i++) {
+        auto& source_buffer = *m_source_buffers->item(i);
+        source_buffer.clear_reached_end_of_stream({});
+    }
+
     queue_a_media_source_task(GC::create_function(heap(), [this] {
         auto event = DOM::Event::create(realm(), EventNames::sourceopen);
         dispatch_event(event);
@@ -95,6 +105,16 @@ void MediaSource::unassign_from_media_element(Badge<HTML::HTMLMediaElement>)
 GC::Ref<SourceBufferList> MediaSource::source_buffers()
 {
     return m_source_buffers;
+}
+
+GC::Ref<SourceBufferList> MediaSource::active_source_buffers()
+{
+    return m_active_source_buffers;
+}
+
+Utf16String MediaSource::next_track_id()
+{
+    return Utf16String::number(m_next_track_id++);
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-onsourceopen
@@ -162,6 +182,7 @@ WebIDL::ExceptionOr<GC::Ref<SourceBuffer>> MediaSource::add_source_buffer(String
     // 5. Let buffer be a new instance of a ManagedSourceBuffer if this is a ManagedMediaSource, or
     //    a SourceBuffer otherwise, with their respective associated resources.
     auto buffer = realm().create<SourceBuffer>(realm(), GC::Ref(*this));
+    buffer->set_content_type(type);
 
     // FIXME: 6. Set buffer's [[generate timestamps flag]] to the value in the "Generate Timestamps Flag"
     //           column of the Media Source Extensions™ Byte Stream Format Registry entry that is
@@ -208,6 +229,13 @@ void MediaSource::run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamErro
         dispatch_event(DOM::Event::create(realm(), EventNames::sourceended));
     }));
 
+    // AD-HOC: Notify all demuxers that end of stream was reached, so that they can return the requisite error and
+    //         allow decoders to flush all their frames.
+    for (size_t i = 0; i < m_source_buffers->length(); i++) {
+        auto& source_buffer = *m_source_buffers->item(i);
+        source_buffer.set_reached_end_of_stream({});
+    }
+
     // 3. If error is not set:
     if (!error.has_value()) {
         // 1. Run the duration change algorithm with new duration set to the largest track buffer ranges
@@ -239,6 +267,71 @@ void MediaSource::run_end_of_stream_algorithm(Optional<Bindings::EndOfStreamErro
         //            resource fetch algorithm.
         return;
     }
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-duration
+double MediaSource::duration() const
+{
+    // 1. If the readyState attribute is "closed" then return NaN and abort these steps.
+    if (ready_state() == ReadyState::Closed)
+        return NAN;
+
+    // 2. Return the current value of the attribute.
+    return m_duration;
+}
+
+// https://w3c.github.io/media-source/#dom-mediasource-duration
+WebIDL::ExceptionOr<void> MediaSource::set_duration(double new_duration)
+{
+    // 1. If the value being set is negative or NaN then throw a TypeError exception and abort these steps.
+    if (new_duration < 0 || isnan(new_duration))
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "duration must not be negative or NaN"sv };
+
+    // 2. If the readyState attribute is not in the "open" state then throw an InvalidStateError exception
+    //    and abort these steps.
+    if (ready_state() != ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // 3. If the updating attribute equals true on any SourceBuffer in sourceBuffers, then throw an
+    //    InvalidStateError exception and abort these steps.
+    for (size_t i = 0; i < m_source_buffers->length(); i++) {
+        if (m_source_buffers->item(i)->updating())
+            return WebIDL::InvalidStateError::create(realm(), "A SourceBuffer is still updating"_utf16);
+    }
+
+    // 4. Run the duration change algorithm with new duration set to the value being assigned to this attribute.
+    run_duration_change_algorithm(new_duration);
+
+    return {};
+}
+
+// https://w3c.github.io/media-source/#duration-change-algorithm
+void MediaSource::run_duration_change_algorithm(double new_duration)
+{
+    // 1. If the current value of duration is equal to new duration, then return.
+    if (m_duration == new_duration)
+        return;
+
+    // 2. If new duration is less than the highest presentation timestamp of any buffered coded frames
+    //    for all SourceBuffer objects in sourceBuffers, then throw an InvalidStateError exception and
+    //    abort these steps.
+    // FIXME: Check highest presentation timestamp across all track buffers.
+
+    // 3. Let highest end time be the largest track buffer ranges end time across all the track buffers
+    //    across all SourceBuffer objects in sourceBuffers.
+    // 4. If new duration is less than highest end time, then update new duration to equal highest end time.
+    // FIXME: Clamp new_duration to highest end time.
+
+    // 5. Update duration to new duration.
+    m_duration = new_duration;
+
+    // 6. Use the mirror if necessary algorithm to run the following steps in Window to update the
+    //    media element's duration:
+    // FIXME: Mirror to the Window when workers are supported.
+    //        Update the media element's duration to new duration.
+    //        Run the HTMLMediaElement duration change algorithm.
+    media_element_assigned_to()->set_duration({}, new_duration);
+    media_element_assigned_to()->playback_manager().set_duration(AK::Duration::from_seconds_f64(new_duration));
 }
 
 // https://w3c.github.io/media-source/#dom-mediasource-istypesupported

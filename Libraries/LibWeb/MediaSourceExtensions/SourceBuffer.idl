@@ -13,7 +13,7 @@ enum AppendMode {
 // https://w3c.github.io/media-source/#dom-sourcebuffer
 [Exposed=(Window,DedicatedWorker)]
 interface SourceBuffer : EventTarget {
-    [FIXME] attribute AppendMode mode;
+    attribute AppendMode mode;
     readonly  attribute boolean updating;
     [FIXME] readonly  attribute TimeRanges buffered;
     [FIXME] attribute double timestampOffset;
@@ -31,6 +31,6 @@ interface SourceBuffer : EventTarget {
 
     undefined appendBuffer(BufferSource data);
     [FIXME] undefined abort();
-    [FIXME] undefined changeType(DOMString type);
+    undefined changeType(DOMString type);
     [FIXME] undefined remove(double start, unrestricted double end);
 };

@@ -1182,7 +1182,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         failure_callback(move(error_message));
     };
 
-    set_up_playback_manager();
+    set_up_playback_manager_for_remote();
 
     load_remote_resource(EntireResource {});
 }
@@ -1424,6 +1424,7 @@ void HTMLMediaElement::load_local_resource(MediaProviderObject const& media_prov
             //        3. Set [[port to main]] null.
 
             media_source->set_assigned_to_media_element({}, *this);
+            set_up_playback_manager_for_local();
 
             // 4. Set the readyState attribute to "open".
             // 5. Queue a task to fire an event named sourceopen at the MediaSource.
@@ -1520,6 +1521,11 @@ void HTMLMediaElement::restart_fetch_at_offset(u64 offset)
 
 void HTMLMediaElement::set_audio_track_enabled(Badge<AudioTrack>, GC::Ptr<HTML::AudioTrack> audio_track, bool enabled)
 {
+    VERIFY(m_playback_manager);
+
+    if (!m_playback_manager->audio_tracks().contains_slow(audio_track->track_in_playback_manager()))
+        return;
+
     if (enabled)
         m_playback_manager->enable_an_audio_track(audio_track->track_in_playback_manager());
     else
@@ -1535,6 +1541,11 @@ Painting::ExternalContentSource& HTMLMediaElement::ensure_external_content_sourc
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)
 {
+    VERIFY(m_playback_manager);
+
+    if (video_track && !m_playback_manager->video_tracks().contains_slow(video_track->track_in_playback_manager()))
+        return;
+
     if (m_selected_video_track) {
         VERIFY(m_selected_video_track_sink);
         m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
@@ -1579,7 +1590,7 @@ void HTMLMediaElement::on_audio_track_added(Media::Track const& track)
     auto audio_track = realm.create<AudioTrack>(realm, *this, track);
 
     // 2. Update the media element's audioTracks attribute's AudioTrackList object with the new AudioTrack object.
-    m_audio_tracks->add_track({}, audio_track);
+    m_audio_tracks->add_track(audio_track);
 
     // 3. Let enable be unknown.
     auto enable = TriState::Unknown;
@@ -1621,7 +1632,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
     auto video_track = realm.create<VideoTrack>(realm, *this, track);
 
     // 2. Update the media element's videoTracks attribute's VideoTrackList object with the new VideoTrack object.
-    m_video_tracks->add_track({}, *video_track);
+    m_video_tracks->add_track(video_track);
 
     // 3. Let enable be unknown.
     auto enable = TriState::Unknown;
@@ -1737,7 +1748,7 @@ void HTMLMediaElement::on_metadata_parsed()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
-void HTMLMediaElement::set_up_playback_manager()
+void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
     m_playback_manager = Media::PlaybackManager::create();
 
@@ -1791,6 +1802,63 @@ void HTMLMediaElement::set_up_playback_manager()
     });
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream);
+
+    m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
+        self.on_playback_manager_state_change();
+    });
+}
+
+// https://html.spec.whatwg.org/multipage/media.html#media-data-processing-steps-list
+void HTMLMediaElement::set_up_playback_manager_for_local()
+{
+    m_playback_manager = Media::PlaybackManager::create();
+
+    m_has_enabled_preferred_audio_track = false;
+    m_has_selected_preferred_video_track = false;
+
+    // NB: The spec is unclear on whether the following media resource track conditions should trigger multiple
+    //     times on one media resource, but it is implied to be possible by the start of the "Media elements"
+    //     section, where it says that a "media resource can have multiple audio and video tracks."
+    //     https://html.spec.whatwg.org/multipage/media.html#media-elements
+    //     Therefore, we enumerate all the available tracks into our VideoTrackList and AudioTrackList.
+
+    // AD-HOC: Enable the tracks in PlaybackManager if MediaSource already enabled them in the DOM.
+    //         Note that we do not want to call on_(audio/video)_track_added() here, since the MSE spec takes care
+    //         of setting up the tracks.
+    m_playback_manager->on_track_added = GC::weak_callback(*this, [](auto& self, auto& track) {
+        if (track.type() == Media::TrackType::Audio) {
+            self.m_audio_tracks->for_each_track([&](auto& element_track) {
+                if (!element_track.enabled())
+                    return IterationDecision::Continue;
+                if (element_track.track_in_playback_manager() == track) {
+                    self.m_playback_manager->enable_an_audio_track(track);
+                    return IterationDecision::Break;
+                }
+                return IterationDecision::Continue;
+            });
+        } else if (track.type() == Media::TrackType::Video) {
+            self.m_video_tracks->for_each_track([&](auto& element_track) {
+                if (!element_track.selected())
+                    return IterationDecision::Continue;
+                if (element_track.track_in_playback_manager() == track) {
+                    self.m_selected_video_track = element_track;
+                    self.m_selected_video_track_sink = self.m_playback_manager->get_or_create_the_displaying_video_sink_for_track(track);
+                    return IterationDecision::Break;
+                }
+                return IterationDecision::Continue;
+            });
+        }
+    });
+
+    // -> Once enough of the media data has been fetched to determine the duration of the media resource, its dimensions, and other metadata
+    m_playback_manager->on_metadata_parsed = GC::weak_callback(*this, [](auto& self) {
+        self.on_metadata_parsed();
+    });
+
+    // -> If the media data is corrupted
+    m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
+        self.set_decoder_error(MUST(String::from_utf8(error.description())));
+    });
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {
         self.on_playback_manager_state_change();
@@ -1893,8 +1961,8 @@ void HTMLMediaElement::forget_media_resource_specific_tracks()
     // of text tracks all the media-resource-specific text tracks, then empty the media element's audioTracks attribute's AudioTrackList object, then
     // empty the media element's videoTracks attribute's VideoTrackList object. No events (in particular, no removetrack events) are fired as part of
     // this; the error and emptied events, fired by the algorithms that invoke this one, can be used instead.
-    m_audio_tracks->remove_all_tracks({});
-    m_video_tracks->remove_all_tracks({});
+    m_audio_tracks->remove_all_tracks();
+    m_video_tracks->remove_all_tracks();
     m_playback_manager.clear();
 }
 

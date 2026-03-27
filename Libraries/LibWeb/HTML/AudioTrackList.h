@@ -19,8 +19,8 @@ class AudioTrackList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(AudioTrackList);
 
 public:
-    void add_track(Badge<HTMLMediaElement>, GC::Ref<AudioTrack>);
-    void remove_all_tracks(Badge<HTMLMediaElement>);
+    void add_track(GC::Ref<AudioTrack>);
+    void remove_all_tracks();
 
     // https://html.spec.whatwg.org/multipage/media.html#dom-audiotracklist-length
     size_t length() const { return m_audio_tracks.size(); }

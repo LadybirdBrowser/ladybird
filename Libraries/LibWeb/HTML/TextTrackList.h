@@ -19,6 +19,8 @@ class TextTrackList final : public DOM::EventTarget {
 public:
     virtual ~TextTrackList() override;
 
+    void add_track(GC::Ref<TextTrack>);
+
     size_t length() const;
 
     GC::Ptr<TextTrack> get_track_by_id(StringView id) const;

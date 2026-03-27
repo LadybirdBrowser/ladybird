@@ -44,13 +44,13 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> AudioTrackList::internal
     return Base::internal_get_own_property(property_name);
 }
 
-void AudioTrackList::add_track(Badge<HTMLMediaElement>, GC::Ref<AudioTrack> audio_track)
+void AudioTrackList::add_track(GC::Ref<AudioTrack> audio_track)
 {
     m_audio_tracks.append(audio_track);
     audio_track->set_audio_track_list({}, this);
 }
 
-void AudioTrackList::remove_all_tracks(Badge<HTMLMediaElement>)
+void AudioTrackList::remove_all_tracks()
 {
     for (auto& audio_track : m_audio_tracks)
         audio_track->set_enabled(false);

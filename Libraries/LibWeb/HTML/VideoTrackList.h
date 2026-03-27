@@ -19,8 +19,8 @@ class VideoTrackList final : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(VideoTrackList);
 
 public:
-    void add_track(Badge<HTMLMediaElement>, GC::Ref<VideoTrack>);
-    void remove_all_tracks(Badge<HTMLMediaElement>);
+    void add_track(GC::Ref<VideoTrack>);
+    void remove_all_tracks();
 
     Span<GC::Ref<VideoTrack>> video_tracks() { return m_video_tracks; }
 

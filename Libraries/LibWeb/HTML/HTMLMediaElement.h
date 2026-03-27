@@ -154,6 +154,14 @@ public:
 
     void update_ready_state();
 
+    void set_duration(Badge<MediaSourceExtensions::MediaSource>, double duration) { set_duration(duration); }
+
+    Media::PlaybackManager& playback_manager()
+    {
+        VERIFY(m_playback_manager);
+        return *m_playback_manager;
+    }
+
     void create_controls();
     void destroy_controls();
 
@@ -204,7 +212,8 @@ private:
 
     void restart_fetch_at_offset(u64 offset);
 
-    void set_up_playback_manager();
+    void set_up_playback_manager_for_remote();
+    void set_up_playback_manager_for_local();
     enum class FetchingStatus : u8 {
         Ongoing,
         Complete,
