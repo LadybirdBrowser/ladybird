@@ -174,28 +174,8 @@ add_library(NoCoverage INTERFACE)
 # "install" these special targets to placate CMake
 install(TARGETS NoCoverage EXPORT LagomTargets)
 
-# AK
 add_subdirectory(AK)
-
-# LibCore dependencies
-add_subdirectory(Libraries/LibTextCodec)
-add_subdirectory(Libraries/LibUnicode)
-add_subdirectory(Libraries/LibRegex)
-add_subdirectory(Libraries/LibURL)
-
-# LibCore
-add_subdirectory(Libraries/LibCore)
-
-# LibMain
-add_subdirectory(Libraries/LibMain)
-
-# LibFileSystem
-# This is needed even if Lagom is not enabled because it is depended upon by code generators.
-add_subdirectory(Libraries/LibFileSystem)
-
-# LibIDL
-# This is used by the BindingsGenerator so needs to always be built.
-add_subdirectory(Libraries/LibIDL)
+add_subdirectory(Libraries)
 
 # Code Generators and other host tools
 if (BUILD_LAGOM_TOOLS)
@@ -217,8 +197,6 @@ compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverClient.ipc Servi
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIClient.ipc Services/WebContent/WebUIClientEndpoint.h)
 compile_ipc(${LADYBIRD_SOURCE_DIR}/Services/WebContent/WebUIServer.ipc Services/WebContent/WebUIServerEndpoint.h)
-
-add_subdirectory(Libraries)
 
 if (ENABLE_FUZZERS)
     add_subdirectory(Meta/Lagom/Fuzzers)

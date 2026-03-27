@@ -1,3 +1,16 @@
+add_subdirectory(LibCore)
+add_subdirectory(LibFileSystem)
+add_subdirectory(LibIDL)
+add_subdirectory(LibMain)
+add_subdirectory(LibRegex)
+add_subdirectory(LibTextCodec)
+add_subdirectory(LibUnicode)
+add_subdirectory(LibURL)
+
+if (LAGOM_TOOLS_ONLY)
+    return()
+endif()
+
 add_subdirectory(LibCompress)
 add_subdirectory(LibCrypto)
 add_subdirectory(LibDatabase)
