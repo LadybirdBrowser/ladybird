@@ -306,6 +306,8 @@ private:
     template<typename NestedDeclarationsRule>
     GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
     GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
+    template<typename NestedDeclarationsRule>
+    GC::Ptr<CSSContainerRule> convert_to_container_rule(AtRule const&, Nested);
     GC::Ptr<CSSCounterStyleRule> convert_to_counter_style_rule(AtRule const&);
     GC::Ptr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
     GC::Ptr<CSSFontFeatureValuesRule> convert_to_font_feature_values_rule(AtRule const&);
@@ -608,6 +610,10 @@ private:
     OwnPtr<BooleanExpression> parse_supports_condition(TokenStream<ComponentValue>&);
     OwnPtr<BooleanExpression> parse_supports_feature(TokenStream<ComponentValue>&);
     OwnPtr<Supports::Declaration> parse_supports_declaration(TokenStream<ComponentValue>&);
+
+    OwnPtr<BooleanExpression> parse_container_query_condition(TokenStream<ComponentValue>&);
+    OwnPtr<BooleanExpression> parse_container_query_feature(TokenStream<ComponentValue>&);
+    RefPtr<ContainerQuery> parse_container_query(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<StyleValue const> resolve_unresolved_style_value(DOM::AbstractElement, GuardedSubstitutionContexts&, PropertyNameAndID const&, UnresolvedStyleValue const&);
 

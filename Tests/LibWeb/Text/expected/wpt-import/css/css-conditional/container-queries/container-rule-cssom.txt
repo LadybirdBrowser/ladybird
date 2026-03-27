@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 6 tests
 
-6 Fail
-Fail	containerName without query
-Fail	containerQuery without name
-Fail	containerName and containerQuery
-Fail	.conditions
-Fail	.conditions without name
-Fail	multiple conditions
+6 Pass
+Pass	containerName without query
+Pass	containerQuery without name
+Pass	containerName and containerQuery
+Pass	.conditions
+Pass	.conditions without name
+Pass	multiple conditions

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2024, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -21,6 +21,7 @@
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
@@ -436,6 +437,43 @@ OwnPtr<Supports::Declaration> Parser::parse_supports_declaration(TokenStream<Com
         }
     }
     return {};
+}
+
+OwnPtr<BooleanExpression> Parser::parse_container_query_condition(TokenStream<ComponentValue>& tokens)
+{
+    return parse_boolean_expression(tokens, MatchResult::False, [this](auto& tokens) {
+        return parse_container_query_feature(tokens);
+    });
+}
+
+OwnPtr<BooleanExpression> Parser::parse_container_query_feature(TokenStream<ComponentValue>&)
+{
+    // https://drafts.csswg.org/css-conditional-5/#typedef-query-in-parens
+    // <query-in-parens> = ( <container-query> )
+    //                   | ( <size-feature> )
+    //                   | style( <style-query> )
+    //                   | scroll-state( <scroll-state-query> )
+    //                   | <general-enclosed>
+
+    // https://drafts.csswg.org/css-anchor-position-2/#container-rule-anchored
+    // <query-in-parens> = ...
+    //                   | anchored( <anchored-query> )
+
+    // NB: Spec isn't yet in terms of `<boolean-condition>`, so this is the closest definition to what we want.
+    //     `( <container-query> )` and `<general-enclosed>` are handled by parse_boolean_expression() already.
+
+    // FIXME: `( <size-feature> )`
+    // FIXME: `style( <style-query> )`
+    // FIXME: `scroll-state( <scroll-state-query> )`
+    // FIXME: `anchored( <anchored-query> )`
+    return nullptr;
+}
+
+RefPtr<ContainerQuery> Parser::parse_container_query(TokenStream<ComponentValue>& tokens)
+{
+    if (auto condition = parse_container_query_condition(tokens))
+        return ContainerQuery::create(condition.release_nonnull());
+    return nullptr;
 }
 
 // https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed
@@ -1552,6 +1590,7 @@ bool Parser::is_valid_in_the_current_context(Declaration const&) const
         // Style and keyframe rules contain property declarations
         return true;
 
+    case RuleContext::AtContainer:
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
     case RuleContext::AtSupports:
@@ -1595,12 +1634,12 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
 
     // Only grouping rules can be nested within style rules
     if (m_rule_context.contains_slow(RuleContext::Style))
-        return first_is_one_of(at_rule.name, "layer", "media", "supports");
+        return first_is_one_of(at_rule.name, "container", "layer", "media", "supports");
 
     if (m_rule_context.contains_slow(RuleContext::AtFunction)) {
         // https://drafts.csswg.org/css-mixins-1/#function-body
         // The body of a @function rule accepts conditional group rules
-        return first_is_one_of(at_rule.name, "media", "supports");
+        return first_is_one_of(at_rule.name, "container", "media", "supports");
     }
 
     switch (m_rule_context.last()) {
@@ -1612,6 +1651,7 @@ bool Parser::is_valid_in_the_current_context(AtRule const& at_rule) const
         // Already handled above
         VERIFY_NOT_REACHED();
 
+    case RuleContext::AtContainer:
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
     case RuleContext::AtSupports:
@@ -1662,6 +1702,7 @@ bool Parser::is_valid_in_the_current_context(QualifiedRule const&) const
         // Style rules can contain style rules
         return true;
 
+    case RuleContext::AtContainer:
     case RuleContext::AtLayer:
     case RuleContext::AtMedia:
     case RuleContext::AtSupports:

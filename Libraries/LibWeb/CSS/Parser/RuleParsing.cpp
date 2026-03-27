@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2020-2021, the SerenityOS developers.
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  * Copyright (c) 2021, Tobias Christiansen <tobyase@serenityos.org>
  * Copyright (c) 2022, MacDue <macdue@dueutil.tech>
  * Copyright (c) 2024, Shannon Booth <shannon@serenityos.org>
@@ -13,6 +13,7 @@
  */
 
 #include <LibGC/HeapVector.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
@@ -32,6 +33,7 @@
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -105,6 +107,9 @@ GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 
             if (has_ignored_vendor_prefix(at_rule.name))
                 return {};
+
+            if (at_rule.name.equals_ignoring_ascii_case("container"sv))
+                return convert_to_container_rule<NestedDeclarationsRule>(at_rule, nested);
 
             if (at_rule.name.equals_ignoring_ascii_case("counter-style"sv))
                 return convert_to_counter_style_rule(at_rule);
@@ -833,6 +838,85 @@ GC::Ptr<CSSPropertyRule> Parser::convert_to_property_rule(AtRule const& rule)
     return CSSPropertyRule::create(realm(), name, syntax_maybe.value(), inherits_maybe.value(), move(initial_value_maybe));
 }
 
+// https://drafts.csswg.org/css-conditional-5/#container-rule
+template<typename NestedDeclarationsRule>
+GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule(AtRule const& rule, Nested nested)
+{
+    // @container <container-condition># {
+    //   <block-contents>
+    // }
+    // <container-condition> = [ <container-name>? <container-query>? ]!
+    // <container-name> = <custom-ident>
+
+    TokenStream prelude_stream { rule.prelude };
+    if (!rule.is_block_rule) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@container"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Must be a block, not a statement."_string,
+        });
+        return nullptr;
+    }
+
+    auto prelude_item_values = parse_a_comma_separated_list_of_component_values(prelude_stream);
+    if (prelude_item_values.is_empty()) {
+        ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+            .rule_name = "@container"_fly_string,
+            .prelude = prelude_stream.dump_string(),
+            .description = "Empty prelude."_string,
+        });
+        return nullptr;
+    }
+
+    Vector<CSSContainerRule::Condition> conditions;
+    conditions.ensure_capacity(prelude_item_values.size());
+
+    for (auto const& prelude_item : prelude_item_values) {
+        TokenStream item_tokens { prelude_item };
+        item_tokens.discard_whitespace();
+        // https://drafts.csswg.org/css-conditional-5/#container-name
+        // The keywords none, and, not, and or are excluded from this <custom-ident>.
+        auto container_name = parse_custom_ident(item_tokens, { { "none"sv, "and"sv, "not"sv, "or"sv } });
+        item_tokens.discard_whitespace();
+        auto container_query = parse_container_query(item_tokens);
+        if (!container_name.has_value() && !container_query) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@container"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Missing container name or query."_string,
+            });
+            return nullptr;
+        }
+
+        item_tokens.discard_whitespace();
+        if (item_tokens.has_next_token()) {
+            ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
+                .rule_name = "@container"_fly_string,
+                .prelude = prelude_stream.dump_string(),
+                .description = "Trailing tokens after name and query."_string,
+            });
+            return nullptr;
+        }
+
+        conditions.unchecked_empend(move(container_name), move(container_query));
+    }
+
+    GC::RootVector<GC::Ref<CSSRule>> child_rules { realm().heap() };
+    for (auto const& child : rule.child_rules_and_lists_of_declarations) {
+        child.visit(
+            [&](Rule const& child_rule) {
+                if (auto converted_rule = convert_to_rule<NestedDeclarationsRule>(child_rule, nested))
+                    child_rules.append(*converted_rule);
+            },
+            [&](Vector<Declaration> const& declarations) {
+                child_rules.append(CSSNestedDeclarations::create(realm(), *convert_to_style_declaration(declarations)));
+            });
+    }
+
+    auto rule_list = CSSRuleList::create(realm(), child_rules);
+    return CSSContainerRule::create(realm(), move(conditions), rule_list);
+}
+
 GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const& rule)
 {
     // https://drafts.csswg.org/css-counter-styles-3/#the-counter-style-rule
@@ -1428,12 +1512,15 @@ GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<
 
 template GC::Ref<CSSFunctionDescriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations);
 
-template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSNestedDeclarations>(Rule const&, Parser::Nested);
-template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule const&, Parser::Nested);
+template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSNestedDeclarations>(Rule const&, Nested);
+template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule const&, Nested);
 
-template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(AtRule const& rule, Parser::Nested);
+template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSNestedDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSContainerRule> Parser::convert_to_container_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
 
-template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Parser::Nested);
-template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSFunctionDeclarations>(AtRule const&, Parser::Nested);
+template GC::Ptr<CSSRule> Parser::convert_to_layer_rule<CSSNestedDeclarations>(AtRule const& rule, Nested);
+
+template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSNestedDeclarations>(AtRule const&, Nested);
+template GC::Ptr<CSSSupportsRule> Parser::convert_to_supports_rule<CSSFunctionDeclarations>(AtRule const&, Nested);
 
 }

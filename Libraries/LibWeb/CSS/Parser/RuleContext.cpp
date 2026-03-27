@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,7 +14,7 @@ RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
 {
     switch (rule_type) {
     case CSSRule::Type::Container:
-        TODO();
+        return RuleContext::AtContainer;
     case CSSRule::Type::CounterStyle:
         return RuleContext::AtCounterStyle;
     case CSSRule::Type::Style:
@@ -57,6 +57,8 @@ RuleContext rule_context_type_for_at_rule(FlyString const& name)
 {
     if (name.equals_ignoring_ascii_case("media"sv))
         return RuleContext::AtMedia;
+    if (name.equals_ignoring_ascii_case("container"sv))
+        return RuleContext::AtContainer;
     if (name.equals_ignoring_ascii_case("counter-style"sv))
         return RuleContext::AtCounterStyle;
     if (name.equals_ignoring_ascii_case("font-face"sv))

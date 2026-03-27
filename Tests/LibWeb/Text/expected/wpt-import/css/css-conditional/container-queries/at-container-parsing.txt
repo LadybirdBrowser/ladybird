@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 117 tests
 
-32 Pass
-85 Fail
+66 Pass
+51 Fail
 Fail	Query condition should be valid: (width)
 Fail	Query condition should be valid: (min-width: 0px)
 Fail	Query condition should be valid: (max-width: 0px)
@@ -55,25 +55,25 @@ Fail	Query condition should be valid: (calc(10px + 10em) < width < max(30px, 30e
 Fail	Query condition should be valid: (width: 100px) and (height: 100px)
 Fail	Query condition should be valid: (width: 100px) or (height: 100px)
 Fail	Query condition should be valid: not (width: 100px)
-Fail	Query condition should be valid but unknown: foo(width)
-Fail	Query condition should be valid but unknown: size(width)
-Fail	Query condition should be valid but unknown: (asdf)
-Fail	Query condition should be valid but unknown: (resolution > 100dpi)
-Fail	Query condition should be valid but unknown: (resolution: 150dpi)
-Fail	Query condition should be valid but unknown: (resolution: calc(2x))
-Fail	Query condition should be valid but unknown: (color)
-Fail	Query condition should be valid but unknown: (min-color: 1)
-Fail	Query condition should be valid but unknown: (color-index >= 1)
-Fail	Query condition should be valid but unknown: size(grid)
-Fail	Query condition should be valid but unknown: (grid)
-Fail	Query condition should be valid but unknown: (width == 100px)
-Fail	Query condition should be valid but unknown: (100px == width)
-Fail	Query condition should be valid but unknown: (100px = width = 200px)
-Fail	Query condition should be valid but unknown: (100px < width > 200px)
-Fail	Query condition should be valid but unknown: (100px <= width >= 200px)
-Fail	Query condition should be valid but unknown: (100px <= width > 200px)
-Fail	Query condition should be valid but unknown: (100px < width >= 200px)
-Fail	Query condition should be valid but unknown: (100px : width : 200px)
+Pass	Query condition should be valid but unknown: foo(width)
+Pass	Query condition should be valid but unknown: size(width)
+Pass	Query condition should be valid but unknown: (asdf)
+Pass	Query condition should be valid but unknown: (resolution > 100dpi)
+Pass	Query condition should be valid but unknown: (resolution: 150dpi)
+Pass	Query condition should be valid but unknown: (resolution: calc(2x))
+Pass	Query condition should be valid but unknown: (color)
+Pass	Query condition should be valid but unknown: (min-color: 1)
+Pass	Query condition should be valid but unknown: (color-index >= 1)
+Pass	Query condition should be valid but unknown: size(grid)
+Pass	Query condition should be valid but unknown: (grid)
+Pass	Query condition should be valid but unknown: (width == 100px)
+Pass	Query condition should be valid but unknown: (100px == width)
+Pass	Query condition should be valid but unknown: (100px = width = 200px)
+Pass	Query condition should be valid but unknown: (100px < width > 200px)
+Pass	Query condition should be valid but unknown: (100px <= width >= 200px)
+Pass	Query condition should be valid but unknown: (100px <= width > 200px)
+Pass	Query condition should be valid but unknown: (100px < width >= 200px)
+Pass	Query condition should be valid but unknown: (100px : width : 200px)
 Pass	Query condition should be invalid: screen
 Pass	Query condition should be invalid: print
 Pass	Query condition should be invalid: not print
@@ -83,25 +83,25 @@ Pass	Query condition should be invalid: screen or (width: 100px)
 Pass	Query condition should be invalid: not screen and (width: 100px)
 Pass	Query condition should be invalid: not screen or (width: 100px)
 Pass	Query condition should be invalid: foo (width: 100px)
-Fail	@container rule should be valid: @container name not (width <= 500px) {} {}
-Fail	@container rule should be valid: @container not (width <= 500px) {} {}
-Fail	@container rule should be valid: @container (width: 100px), (height: 100px) {} {}
-Fail	@container rule should be valid: @container (width),(height)  , (inline-size > 20px) {} {}
-Fail	@container rule should be valid: @container (width), name (height) {} {}
-Fail	@container rule should be valid: @container --foo {} {}
-Fail	@container rule should be valid: @container container {} {}
-Fail	@container rule should be valid: @container container, container2 {} {}
+Pass	@container rule should be valid: @container name not (width <= 500px) {} {}
+Pass	@container rule should be valid: @container not (width <= 500px) {} {}
+Pass	@container rule should be valid: @container (width: 100px), (height: 100px) {} {}
+Pass	@container rule should be valid: @container (width),(height)  , (inline-size > 20px) {} {}
+Pass	@container rule should be valid: @container (width), name (height) {} {}
+Pass	@container rule should be valid: @container --foo {} {}
+Pass	@container rule should be valid: @container container {} {}
+Pass	@container rule should be valid: @container container, container2 {} {}
 Pass	@container rule should be invalid: @container  {} {}
 Pass	@container rule should be invalid: @container (width), {} {}
 Pass	@container rule should be invalid: @container ,(width) {} {}
 Pass	@container rule should be invalid: @container (width),,(height) {} {}
-Fail	Container name: foo
-Fail	Container name:  foo
-Fail	Container name:  foo 
-Fail	Container name: normal
-Fail	Container name: Normal
-Fail	Container name: auto
-Fail	Container name: Auto
+Pass	Container name: foo
+Pass	Container name:  foo
+Pass	Container name:  foo 
+Pass	Container name: normal
+Pass	Container name: Normal
+Pass	Container name: auto
+Pass	Container name: Auto
 Pass	Container name: foo foo
 Pass	Container name: 1px
 Pass	Container name: 50gil
