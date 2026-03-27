@@ -18,16 +18,6 @@ if (${ENABLE_LAGOM_LADYBIRD} OR $CACHE{ENABLE_LAGOM_LADYBIRD})
         "Please use the top-level CMakeLists.txt to enable Ladybird builds.\n")
 endif()
 
-# This is required for CMake (when invoked for a Lagom-only build) to
-# ignore any files downloading during the build, e.g. public_suffix_list.dat.
-# https://cmake.org/cmake/help/latest/policy/CMP0058.html
-cmake_policy(SET CMP0058 NEW)
-
-# Make CMAKE_EXE_LINKER_FLAGS have an effect on `try_compile()` jobs.
-# This is required if we want to have the `LAGOM_USE_LINKER` option
-# take effect in `check_linker_flag` checks.
-cmake_policy(SET CMP0056 NEW)
-
 # Ensure that when single-value arguments are passed to `cmake_parse_arguments()`
 # with no or empty string arguments, they are still defined.
 if (POLICY CMP0174)

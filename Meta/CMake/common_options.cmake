@@ -1,13 +1,3 @@
-# Make relative paths in depfiles be relative to CMAKE_CURRENT_BINARY_DIR rather than to CMAKE_BINARY_DIR
-if (POLICY CMP0116)
-    cmake_policy(SET CMP0116 NEW)
-endif()
-
-# Check arguments to return()
-if (POLICY CMP0140)
-    cmake_policy(SET CMP0140 NEW)
-endif()
-
 ladybird_option(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries instead of static libraries")
 
 ladybird_option(ENABLE_COMPILETIME_FORMAT_CHECK ON CACHE BOOL "Enable compiletime format string checks")
