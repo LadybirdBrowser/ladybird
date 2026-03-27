@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/StringBuilder.h>
 #include <AK/Utf16String.h>
 #include <LibTest/TestCase.h>
 
@@ -244,6 +245,83 @@ TEST_CASE(leading_start_or_separator_prefix_preserves_behavior)
     }
 
     EXPECT_EQ(regex.test(u"a=1; baz=qux"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(required_literal_prefilter_preserves_assignment_extractors)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("(?:^|;)\\s*foo=([^;]*)"sv, {}));
+
+    {
+        auto subject = Utf16String::from_utf8("a=1; bar=baz; foo=qux"sv);
+        EXPECT_EQ(regex.exec(subject, 0), regex::MatchResult::Match);
+        expect_capture_eq(regex, subject, 1, "qux"sv);
+    }
+
+    EXPECT_EQ(regex.test(u"a=1; bar=baz; quux=7"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(ascii_ignore_case_required_literal_prefilter_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bfoo\\s*=\\s*([^;]*)"sv, { .ignore_case = true }));
+
+    {
+        auto subject = Utf16String::from_utf8("FOO = Bar"sv);
+        EXPECT_EQ(regex.exec(subject, 0), regex::MatchResult::Match);
+        expect_capture_eq(regex, subject, 1, "Bar"sv);
+    }
+
+    EXPECT_EQ(regex.test(u"bar = baz"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(required_literal_prefilter_handles_common_substrings_across_alternatives)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("(\\$\\{name\\})|(\\$name\\b)"sv, {}));
+
+    EXPECT_EQ(regex.find_all("${name} $name"sv, 0), 2);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(0).end, 7);
+    EXPECT_EQ(regex.find_all_match(1).start, 8);
+    EXPECT_EQ(regex.find_all_match(1).end, 13);
+    EXPECT_EQ(regex.test(u"${other} $other"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(required_literal_prefilter_compiles_large_exact_quantifiers)
+{
+    StringBuilder pattern_builder;
+    pattern_builder.append("(?:ab){"sv);
+    pattern_builder.appendff("{}", 1'000'000);
+    pattern_builder.append("}"sv);
+    auto pattern = MUST(pattern_builder.to_string());
+
+    EXPECT(compile_succeeds(pattern));
+}
+
+TEST_CASE(required_literal_prefilter_compiles_long_literal_alternations)
+{
+    StringBuilder branch_builder;
+    branch_builder.append_repeated("a"sv, 1'024);
+    auto shared_prefix = MUST(branch_builder.to_string());
+
+    StringBuilder pattern_builder;
+    pattern_builder.append(shared_prefix);
+    pattern_builder.append("b|"sv);
+    pattern_builder.append(shared_prefix);
+    pattern_builder.append("c"sv);
+    auto pattern = MUST(pattern_builder.to_string());
+
+    auto regex = MUST(regex::ECMAScriptRegex::compile(pattern, {}));
+
+    StringBuilder subject_builder;
+    subject_builder.append(shared_prefix);
+    subject_builder.append("c"sv);
+    auto matching_subject = MUST(subject_builder.to_string());
+
+    subject_builder.trim(1);
+    subject_builder.append("d"sv);
+    auto missing_subject = MUST(subject_builder.to_string());
+
+    EXPECT_EQ(regex.test(Utf16String::from_utf8(matching_subject), 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.test(Utf16String::from_utf8(missing_subject), 0), regex::MatchResult::NoMatch);
 }
 
 TEST_CASE(restored_ecmascript_parse_coverage)

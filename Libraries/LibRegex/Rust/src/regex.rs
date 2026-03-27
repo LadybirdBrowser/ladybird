@@ -11,6 +11,7 @@ use crate::ast::{Alternative, Atom, Disjunction, Flags, Pattern, Term};
 use crate::bytecode::{Instruction, NamedGroupEntry, append_code_point_wtf16};
 use crate::{compiler, parser, vm};
 use std::cell::RefCell;
+use std::collections::HashSet;
 
 /// A compiled regular expression.
 pub struct Regex {
@@ -35,7 +36,12 @@ impl Regex {
         let parsed = parser::parse(pattern, flags)?;
         let mut program = compiler::compile(&parsed);
         Self::resolve_properties(&mut program);
-        let hints = vm::analyze_pattern(&program, pattern_can_match_empty(&parsed));
+        let required_literal_hint = extract_required_literal_hint(&parsed, flags);
+        let hints = vm::analyze_pattern(
+            &program,
+            pattern_can_match_empty(&parsed),
+            required_literal_hint,
+        );
 
         let literal_u16 = extract_literal_u16(&parsed, flags);
         let word_boundary_literal_u16 = extract_word_boundary_literal_u16(&parsed, flags);
@@ -640,6 +646,318 @@ fn has_ascii_word_boundaries_at<I: vm::Input>(
     let right_is_word =
         match_end < input.len() && is_ascii_word_code_unit(input.code_unit(match_end));
     !left_is_word && !right_is_word
+}
+
+const MAX_REQUIRED_LITERAL_RUNS: usize = 16;
+const MAX_REQUIRED_LITERAL_CODE_UNITS: usize = 64;
+
+#[derive(Default)]
+struct RequiredLiteralAnalysis {
+    exact_literal: Option<Vec<u16>>,
+    guaranteed_runs: Vec<Vec<u16>>,
+}
+
+fn extract_required_literal_hint(
+    pattern: &Pattern,
+    flags: Flags,
+) -> Option<vm::RequiredLiteralHint> {
+    let analysis = analyze_required_literal_disjunction(&pattern.disjunction, flags);
+    let literal = analysis
+        .guaranteed_runs
+        .into_iter()
+        .max_by_key(|run| run.len())?;
+    if literal.is_empty() {
+        return None;
+    }
+
+    let ascii_case_insensitive = if flags.ignore_case {
+        if flags.unicode || flags.unicode_sets || literal.iter().any(|ch| *ch > 0x7F) {
+            return None;
+        }
+        true
+    } else {
+        false
+    };
+
+    Some(vm::RequiredLiteralHint {
+        literal,
+        ascii_case_insensitive,
+    })
+}
+
+fn analyze_required_literal_disjunction(
+    disjunction: &Disjunction,
+    flags: Flags,
+) -> RequiredLiteralAnalysis {
+    let mut analyses = disjunction
+        .alternatives
+        .iter()
+        .map(|alternative| analyze_required_literal_alternative(alternative, flags));
+
+    let Some(first_analysis) = analyses.next() else {
+        return RequiredLiteralAnalysis {
+            exact_literal: Some(Vec::new()),
+            guaranteed_runs: Vec::new(),
+        };
+    };
+
+    let mut exact_literal = first_analysis.exact_literal.clone();
+    let mut guaranteed_runs = first_analysis.guaranteed_runs;
+    for analysis in analyses {
+        if exact_literal.as_deref() != analysis.exact_literal.as_deref() {
+            exact_literal = None;
+        }
+        guaranteed_runs =
+            intersect_required_literal_runs(&guaranteed_runs, &analysis.guaranteed_runs);
+        if guaranteed_runs.is_empty() && exact_literal.is_none() {
+            break;
+        }
+    }
+
+    if let Some(ref literal) = exact_literal
+        && !literal.is_empty()
+    {
+        guaranteed_runs.push(literal.clone());
+    }
+
+    RequiredLiteralAnalysis {
+        exact_literal,
+        guaranteed_runs: prune_required_literal_runs(guaranteed_runs),
+    }
+}
+
+fn analyze_required_literal_alternative(
+    alternative: &Alternative,
+    flags: Flags,
+) -> RequiredLiteralAnalysis {
+    let mut exact_literal = Some(Vec::new());
+    let mut current_run = Vec::new();
+    let mut guaranteed_runs = Vec::new();
+
+    for term in &alternative.terms {
+        let term_analysis = analyze_required_literal_term(term, flags);
+        if let Some(literal) = term_analysis.exact_literal.as_deref() {
+            if let Some(exact) = exact_literal.as_mut() {
+                exact.extend_from_slice(literal);
+            }
+            current_run.extend_from_slice(literal);
+            continue;
+        }
+
+        exact_literal = None;
+        if !current_run.is_empty() {
+            guaranteed_runs.push(std::mem::take(&mut current_run));
+        }
+        guaranteed_runs.extend(term_analysis.guaranteed_runs);
+    }
+
+    if !current_run.is_empty() {
+        guaranteed_runs.push(current_run);
+    }
+
+    if let Some(ref literal) = exact_literal
+        && !literal.is_empty()
+    {
+        guaranteed_runs.push(literal.clone());
+    }
+
+    RequiredLiteralAnalysis {
+        exact_literal,
+        guaranteed_runs: prune_required_literal_runs(guaranteed_runs),
+    }
+}
+
+fn analyze_required_literal_term(term: &Term, flags: Flags) -> RequiredLiteralAnalysis {
+    let atom_analysis = analyze_required_literal_atom(&term.atom, flags);
+    let Some(quantifier) = &term.quantifier else {
+        return atom_analysis;
+    };
+    if quantifier.min == 0 {
+        return RequiredLiteralAnalysis::default();
+    }
+
+    let repeated_guaranteed_run = atom_analysis
+        .exact_literal
+        .as_deref()
+        .map(|literal| repeat_literal_prefix(literal, quantifier.min));
+    let exact_literal = if quantifier.max == Some(quantifier.min) {
+        atom_analysis
+            .exact_literal
+            .as_deref()
+            .and_then(|literal| repeat_literal_exact(literal, quantifier.min))
+    } else {
+        None
+    };
+
+    let mut guaranteed_runs = atom_analysis.guaranteed_runs;
+    if let Some(literal) = repeated_guaranteed_run
+        && !literal.is_empty()
+    {
+        guaranteed_runs.push(literal);
+    }
+
+    RequiredLiteralAnalysis {
+        exact_literal,
+        guaranteed_runs: prune_required_literal_runs(guaranteed_runs),
+    }
+}
+
+fn analyze_required_literal_atom(atom: &Atom, flags: Flags) -> RequiredLiteralAnalysis {
+    match atom {
+        Atom::Literal(cp) => literal_required_literal_analysis(*cp, flags),
+        Atom::Group(group) => analyze_required_literal_disjunction(&group.body, flags),
+        Atom::NonCapturingGroup(group) => analyze_required_literal_disjunction(&group.body, flags),
+        Atom::ModifierGroup(group) => {
+            if group.add_flags.ignore_case || group.remove_flags.ignore_case {
+                RequiredLiteralAnalysis::default()
+            } else {
+                analyze_required_literal_disjunction(&group.body, flags)
+            }
+        }
+        Atom::Assertion(_) | Atom::Lookaround(_) => RequiredLiteralAnalysis {
+            exact_literal: Some(Vec::new()),
+            guaranteed_runs: Vec::new(),
+        },
+        Atom::Dot
+        | Atom::CharacterClass(_)
+        | Atom::BuiltinCharacterClass(_)
+        | Atom::UnicodeProperty(_)
+        | Atom::Backreference(_) => RequiredLiteralAnalysis::default(),
+    }
+}
+
+fn literal_required_literal_analysis(cp: u32, flags: Flags) -> RequiredLiteralAnalysis {
+    if is_unsafe_unicode_literal(cp, flags) {
+        return RequiredLiteralAnalysis::default();
+    }
+
+    let mut literal = Vec::new();
+    if append_code_point_wtf16(&mut literal, cp).is_none() {
+        return RequiredLiteralAnalysis::default();
+    }
+
+    RequiredLiteralAnalysis {
+        exact_literal: Some(literal.clone()),
+        guaranteed_runs: vec![literal],
+    }
+}
+
+fn intersect_required_literal_runs(lhs: &[Vec<u16>], rhs: &[Vec<u16>]) -> Vec<Vec<u16>> {
+    let mut common_runs = Vec::new();
+    for left in lhs {
+        for right in rhs {
+            common_runs.extend(maximal_common_substrings(left, right));
+        }
+    }
+    prune_required_literal_runs(common_runs)
+}
+
+fn maximal_common_substrings(lhs: &[u16], rhs: &[u16]) -> Vec<Vec<u16>> {
+    let max_len = lhs
+        .len()
+        .min(rhs.len())
+        .min(MAX_REQUIRED_LITERAL_CODE_UNITS);
+    let (shorter, longer) = if lhs.len() <= rhs.len() {
+        (lhs, rhs)
+    } else {
+        (rhs, lhs)
+    };
+
+    let mut substrings: Vec<Vec<u16>> = Vec::new();
+    for len in (1..=max_len).rev() {
+        // Required-literal hints keep at most 64 code units, so intersect
+        // fixed-size windows instead of walking every start-position pair.
+        let shorter_windows: HashSet<Vec<u16>> =
+            shorter.windows(len).map(|window| window.to_vec()).collect();
+        let mut matches = HashSet::new();
+        for window in longer.windows(len) {
+            if shorter_windows.contains(window) {
+                matches.insert(window.to_vec());
+            }
+        }
+
+        let mut matches: Vec<_> = matches.into_iter().collect();
+        matches.sort();
+        for candidate in matches {
+            if substrings
+                .iter()
+                .any(|existing| contains_literal_subslice(existing, &candidate))
+            {
+                continue;
+            }
+            substrings.push(candidate);
+            if substrings.len() == MAX_REQUIRED_LITERAL_RUNS {
+                return substrings;
+            }
+        }
+    }
+    prune_required_literal_runs(substrings)
+}
+
+fn repeat_literal_exact(literal: &[u16], repeat_count: u32) -> Option<Vec<u16>> {
+    let total_len = literal.len().checked_mul(repeat_count as usize)?;
+    // Preserve exact-literal tracking only while the full literal fits in the
+    // retained hint budget. Longer exact runs still contribute via prefixes.
+    if total_len > MAX_REQUIRED_LITERAL_CODE_UNITS {
+        return None;
+    }
+    let mut repeated = Vec::with_capacity(total_len);
+    for _ in 0..repeat_count {
+        repeated.extend_from_slice(literal);
+    }
+    Some(repeated)
+}
+
+fn repeat_literal_prefix(literal: &[u16], repeat_count: u32) -> Vec<u16> {
+    let mut repeated = Vec::new();
+    if literal.is_empty() {
+        return repeated;
+    }
+
+    repeated.reserve(
+        MAX_REQUIRED_LITERAL_CODE_UNITS.min(literal.len().saturating_mul(repeat_count as usize)),
+    );
+    for _ in 0..repeat_count {
+        for code_unit in literal {
+            if repeated.len() == MAX_REQUIRED_LITERAL_CODE_UNITS {
+                return repeated;
+            }
+            repeated.push(*code_unit);
+        }
+    }
+    repeated
+}
+
+fn prune_required_literal_runs(mut runs: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
+    runs.retain(|run| !run.is_empty());
+    runs.sort_by(|lhs, rhs| rhs.len().cmp(&lhs.len()).then_with(|| lhs.cmp(rhs)));
+
+    let mut pruned: Vec<Vec<u16>> = Vec::new();
+    'outer: for run in runs {
+        if pruned
+            .iter()
+            .any(|existing| contains_literal_subslice(existing, &run))
+        {
+            continue;
+        }
+        pruned.push(run);
+        if pruned.len() == MAX_REQUIRED_LITERAL_RUNS {
+            break 'outer;
+        }
+    }
+    pruned
+}
+
+fn contains_literal_subslice(haystack: &[u16], needle: &[u16]) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    if needle.len() > haystack.len() {
+        return false;
+    }
+    haystack
+        .windows(needle.len())
+        .any(|window| window == needle)
 }
 
 fn pattern_can_match_empty(pattern: &Pattern) -> bool {

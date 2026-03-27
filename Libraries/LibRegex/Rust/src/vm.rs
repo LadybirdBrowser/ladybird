@@ -326,11 +326,75 @@ fn contains_u16_from<I: Input>(input: I, start: usize, needle: &[u16]) -> bool {
 }
 
 #[inline(always)]
+fn fold_ascii_for_compare(ch: u16) -> u16 {
+    match ch {
+        0x41..=0x5A => ch + 32,
+        _ => ch,
+    }
+}
+
+#[inline(always)]
+fn contains_ascii_case_insensitive_u16_from<I: Input>(
+    input: I,
+    start: usize,
+    needle: &[u16],
+) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+
+    let needle_len = needle.len();
+    if start + needle_len > input.len() {
+        return false;
+    }
+
+    let folded_first = fold_ascii_for_compare(needle[0]);
+    let mut pos = start;
+    let end = input.len() - needle_len + 1;
+    while pos < end {
+        while pos < end {
+            let code_unit = input.code_unit(pos);
+            if code_unit <= 0x7F && fold_ascii_for_compare(code_unit) == folded_first {
+                break;
+            }
+            pos += 1;
+        }
+        if pos >= end {
+            return false;
+        }
+        if matches_ascii_case_insensitive_u16_at(input, pos, needle) {
+            return true;
+        }
+        pos += 1;
+    }
+    false
+}
+
+#[inline(always)]
+fn matches_ascii_case_insensitive_u16_at<I: Input>(input: I, pos: usize, needle: &[u16]) -> bool {
+    if pos + needle.len() > input.len() {
+        return false;
+    }
+    for (offset, expected) in needle.iter().enumerate() {
+        let actual = input.code_unit(pos + offset);
+        if actual > 0x7F || fold_ascii_for_compare(actual) != fold_ascii_for_compare(*expected) {
+            return false;
+        }
+    }
+    true
+}
+
+#[inline(always)]
 fn fails_required_literal_hint<I: Input>(input: I, start: usize, hints: &PatternHints) -> bool {
-    let Some(literal) = hints.required_literal.as_deref() else {
+    let Some(literal) = hints.required_literal.as_ref() else {
         return false;
     };
-    !contains_u16_from(input, start, literal)
+    let matched = if literal.ascii_case_insensitive {
+        contains_ascii_case_insensitive_u16_from(input, start, &literal.literal)
+    } else {
+        contains_u16_from(input, start, &literal.literal)
+    };
+    !matched
 }
 
 #[inline(always)]
@@ -886,13 +950,18 @@ pub struct PatternHints {
     anchor_multiline: bool,
     /// Literal suffix immediately before a non-multiline end anchor.
     trailing_literal: Option<Vec<u16>>,
-    /// Literal tail in the linear success path that every match must contain.
-    required_literal: Option<Vec<u16>>,
+    /// Literal substring that every match must contain.
+    required_literal: Option<RequiredLiteralHint>,
     /// Simple pattern: just a single matcher (Save(0) + matcher + Save(1) + Match).
     /// Can be executed with a fast scan without the full VM.
     simple_scan: Option<SimpleScan>,
     /// Whether the full pattern can match without consuming input.
     can_match_empty: bool,
+}
+
+pub(crate) struct RequiredLiteralHint {
+    pub literal: Vec<u16>,
+    pub ascii_case_insensitive: bool,
 }
 
 struct StartPositionHint {
@@ -1054,7 +1123,11 @@ fn next_literal_start_from_hint<I: Input>(
 }
 
 /// Analyze the program to extract optimization hints.
-pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints {
+pub(crate) fn analyze_pattern(
+    program: &Program,
+    can_match_empty: bool,
+    ast_required_literal: Option<RequiredLiteralHint>,
+) -> PatternHints {
     // Pattern typically starts with Save(0), then the first real instruction.
     let skip = if matches!(program.instructions.first(), Some(Instruction::Save(0))) {
         1
@@ -1125,20 +1198,32 @@ pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints
         _ => None,
     };
 
-    let required_literal = match program.instructions.as_slice() {
-        [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
-            extract_trailing_literal(&program.instructions, program.instructions.len() - 2)
-        }
-        [
-            ..,
-            Instruction::AssertEnd { .. },
-            Instruction::Save(1),
-            Instruction::Match,
-        ] if !program.ignore_case => {
-            extract_trailing_literal(&program.instructions, program.instructions.len() - 3)
-        }
-        _ => None,
-    };
+    let required_literal =
+        pick_more_selective_required_literal(
+            ast_required_literal,
+            match program.instructions.as_slice() {
+                [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
+                    extract_trailing_literal(&program.instructions, program.instructions.len() - 2)
+                        .map(|literal| RequiredLiteralHint {
+                            literal,
+                            ascii_case_insensitive: false,
+                        })
+                }
+                [
+                    ..,
+                    Instruction::AssertEnd { .. },
+                    Instruction::Save(1),
+                    Instruction::Match,
+                ] if !program.ignore_case => {
+                    extract_trailing_literal(&program.instructions, program.instructions.len() - 3)
+                        .map(|literal| RequiredLiteralHint {
+                            literal,
+                            ascii_case_insensitive: false,
+                        })
+                }
+                _ => None,
+            },
+        );
 
     // Detect simple patterns: Save(0) + single_matcher + Save(1) + Match
     let simple_scan = if !program.ignore_case
@@ -1179,6 +1264,27 @@ pub fn analyze_pattern(program: &Program, can_match_empty: bool) -> PatternHints
         required_literal,
         simple_scan,
         can_match_empty,
+    }
+}
+
+fn pick_more_selective_required_literal(
+    lhs: Option<RequiredLiteralHint>,
+    rhs: Option<RequiredLiteralHint>,
+) -> Option<RequiredLiteralHint> {
+    match (lhs, rhs) {
+        (Some(lhs), Some(rhs)) => {
+            if rhs.literal.len() > lhs.literal.len()
+                || (rhs.literal.len() == lhs.literal.len()
+                    && !rhs.ascii_case_insensitive
+                    && lhs.ascii_case_insensitive)
+            {
+                Some(rhs)
+            } else {
+                Some(lhs)
+            }
+        }
+        (Some(hint), None) | (None, Some(hint)) => Some(hint),
+        (None, None) => None,
     }
 }
 
