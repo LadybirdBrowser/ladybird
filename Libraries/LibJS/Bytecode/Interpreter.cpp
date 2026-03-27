@@ -308,14 +308,8 @@ ExecutionContext* Interpreter::push_inline_frame(
     //     in cross-realm calls (e.g. iframe <-> parent).
     callee_context->executable = callee_executable;
 
-    // Copy constants (memcpy avoids aliasing issues with the scalar loop).
-    auto* values = callee_context->registers_and_constants_and_locals_and_arguments();
-    if (auto count = callee_executable.constants.size())
-        memcpy(values + callee_executable.registers_and_locals_count,
-            callee_executable.constants.data(),
-            count * sizeof(Value));
-
     // Set this value register.
+    auto* values = callee_context->registers_and_constants_and_locals_and_arguments();
     values[Register::this_value().index()] = callee_context->this_value.value_or(js_special_empty_value());
 
     return callee_context;
@@ -841,18 +835,12 @@ ThrowCompletionOr<Value> Interpreter::run_executable(ExecutionContext& context, 
     if (reg(Register::this_value()).is_special_empty_value())
         reg(Register::this_value()) = context.this_value.value_or(js_special_empty_value());
 
-    // NB: Layout is [registers | locals | constants | arguments], so constants start after registers+locals.
-    auto* values = context.registers_and_constants_and_locals_and_arguments();
-    if (auto count = executable.constants.size())
-        memcpy(values + executable.registers_and_locals_count,
-            executable.constants.data(),
-            count * sizeof(Value));
-
     run_bytecode(entry_point);
 
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter did run unit {}", context.executable);
 
     if constexpr (JS_BYTECODE_DEBUG) {
+        auto* values = context.registers_and_constants_and_locals_and_arguments();
         for (size_t i = 0; i < executable.number_of_registers; ++i) {
             String value_string;
             if (values[i].is_special_empty_value())

@@ -43,8 +43,10 @@ public:
         registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants.size() + arguments_count_;
         argument_count = arguments_count_;
         auto* values = registers_and_constants_and_locals_and_arguments();
-        for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
+        for (size_t i = 0; i < registers_and_locals_count; ++i)
             values[i] = js_special_empty_value();
+        for (size_t i = 0; i < constants.size(); ++i)
+            values[registers_and_locals_count + i] = constants[i];
     }
 
     void operator delete(void* ptr);
