@@ -80,9 +80,9 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
             return matroska_result.release_value();
         return Media::FFmpeg::FFmpegDemuxer::from_stream(stream);
     }());
-    auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-    VERIFY(track.has_value());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
     auto reached_end = false;
     provider->set_error_handler([&](Media::DecoderError&& error) {

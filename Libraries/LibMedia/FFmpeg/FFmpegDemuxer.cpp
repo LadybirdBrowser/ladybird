@@ -156,14 +156,14 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
     }
 
     demuxer->m_preferred_track_for_type.fill(-1);
-    for (size_t type_index = 0; type_index < demuxer->m_preferred_track_for_type.size(); type_index++) {
-        auto type = static_cast<TrackType>(type_index);
-        auto media_type = ffmpeg_media_type_from_track_type(type);
-        auto best_stream_index = av_find_best_stream(format_context, media_type, -1, -1, nullptr, 0);
-        if (best_stream_index >= 0) {
-            VERIFY(static_cast<size_t>(best_stream_index) < demuxer->m_stream_info.size());
-            demuxer->m_preferred_track_for_type[type_index] = best_stream_index;
-        }
+    for (u32 i = 0; i < format_context->nb_streams; i++) {
+        auto& stream = *format_context->streams[i];
+        auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
+        auto type_index = to_underlying(type);
+        if (demuxer->m_preferred_track_for_type[type_index] >= 0)
+            continue;
+        if (stream.disposition & AV_DISPOSITION_DEFAULT)
+            demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
     avformat_close_input(&format_context);

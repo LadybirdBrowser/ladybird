@@ -114,10 +114,10 @@ TEST_CASE(audio_provider_underspecified_5_1_channel_map)
 
     auto stream = load_test_file("WAV/tone_44100_5_1_underspecified.wav"sv);
     auto demuxer = create_demuxer(stream);
-    auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-    VERIFY(track.has_value());
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
 
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
     provider->start();
 

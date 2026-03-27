@@ -76,9 +76,9 @@ static void decode_and_expect()
     auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(wav_data);
     auto demuxer = MUST(Media::FFmpeg::FFmpegDemuxer::from_stream(stream));
 
-    auto track = TRY_OR_FAIL(demuxer->get_preferred_track_for_type(Media::TrackType::Audio));
-    VERIFY(track.has_value());
-    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, track.release_value()));
+    auto tracks = TRY_OR_FAIL(demuxer->get_tracks_for_type(Media::TrackType::Audio));
+    VERIFY(!tracks.is_empty());
+    auto provider = TRY_OR_FAIL(Media::AudioDataProvider::try_create(Core::EventLoop::current_weak(), demuxer, tracks[0]));
 
     bool reached_end_of_stream = false;
     provider->set_error_handler([&](Media::DecoderError&& error) {
