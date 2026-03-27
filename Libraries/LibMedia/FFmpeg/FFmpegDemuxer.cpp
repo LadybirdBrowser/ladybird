@@ -48,7 +48,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     return {};
 }
 
-static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream)
+static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream, StringView format_name, HashTable<TrackType>& seen_types)
 {
     auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
     auto get_string_metadata = [&](char const* key) {
@@ -57,8 +57,23 @@ static DecoderErrorOr<Track> create_track_from_stream(AVStream const& stream)
             return Utf16String();
         return Utf16String::from_utf8(StringView(name_entry->value, strlen(name_entry->value)));
     };
-    // FIXME: Set the kind correctly.
-    auto kind = Track::Kind::None;
+
+    // https://dev.w3.org/html5/html-sourcing-inband-tracks/
+    auto kind = [&] {
+        auto is_first_of_type = seen_types.set(type) == HashSetResult::InsertedNewEntry;
+        if (format_name.starts_with("mov"sv)) {
+            // https://dev.w3.org/html5/html-sourcing-inband-tracks/#mpeg4avta
+            // "main": first audio (video) track
+            if (is_first_of_type)
+                return Track::Kind::Main;
+            // "translation": not first audio (video) track
+            return Track::Kind::Translation;
+        }
+
+        // AD-HOC: For container formats not covered by the spec, default to "main".
+        return Track::Kind::Main;
+    }();
+
     auto name = get_string_metadata("title");
     auto language = get_string_metadata("language");
     Track track(type, stream.index, kind, name, language);
@@ -114,10 +129,13 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
     auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream)));
     demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
 
+    auto format_name = StringView(format_context->iformat->name, strlen(format_context->iformat->name));
+    auto seen_types = HashTable<TrackType>();
+
     for (u32 i = 0; i < format_context->nb_streams; i++) {
         auto& stream = *format_context->streams[i];
 
-        auto track = TRY(create_track_from_stream(stream));
+        auto track = TRY(create_track_from_stream(stream, format_name, seen_types));
         auto codec_id = media_codec_id_from_ffmpeg_codec_id(stream.codecpar->codec_id);
         auto codec_initialization_data = DECODER_TRY_ALLOC(ByteBuffer::copy(stream.codecpar->extradata, stream.codecpar->extradata_size));
 
