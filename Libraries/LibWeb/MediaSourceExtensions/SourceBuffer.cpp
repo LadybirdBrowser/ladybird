@@ -351,6 +351,50 @@ WebIDL::ExceptionOr<void> SourceBuffer::append_buffer(GC::Root<WebIDL::BufferSou
     return {};
 }
 
+// https://w3c.github.io/media-source/#dom-sourcebuffer-abort
+WebIDL::ExceptionOr<void> SourceBuffer::abort()
+{
+    // 1. If this object has been removed from the sourceBuffers attribute of the parent media source
+    //    then throw an InvalidStateError exception and abort these steps.
+    if (!m_media_source->source_buffers()->contains(*this))
+        return WebIDL::InvalidStateError::create(realm(), "SourceBuffer has been removed"_utf16);
+
+    // 2. If the readyState attribute of the parent media source is not in the "open" state
+    //    then throw an InvalidStateError exception and abort these steps.
+    if (m_media_source->ready_state() != Bindings::ReadyState::Open)
+        return WebIDL::InvalidStateError::create(realm(), "MediaSource is not open"_utf16);
+
+    // FIXME: 3. If the range removal algorithm is running, then throw an InvalidStateError exception and abort these steps.
+
+    // 4. If the updating attribute equals true, then run the following steps:
+    if (updating()) {
+        // 4.1. Abort the buffer append algorithm if it is running.
+        // FIXME: The buffer append algorithm cannot be running in parallel with this code. However, when
+        //        it can, this will need additional work.
+
+        // 4.2. Set the updating attribute to false.
+        m_processor->set_updating(false);
+
+        // 4.3. Queue a task to fire an event named abort at this SourceBuffer object.
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(DOM::Event::create(realm(), EventNames::abort));
+        }));
+
+        // 4.4. Queue a task to fire an event named updateend at this SourceBuffer object.
+        m_media_source->queue_a_media_source_task(GC::create_function(heap(), [this] {
+            dispatch_event(DOM::Event::create(realm(), EventNames::updateend));
+        }));
+    }
+
+    // 5. Run the reset parser state algorithm.
+    m_processor->reset_parser_state();
+
+    // FIXME: 6. Set appendWindowStart to the presentation start time.
+    //        7. Set appendWindowEnd to positive Infinity.
+
+    return {};
+}
+
 // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
 WebIDL::ExceptionOr<void> SourceBuffer::change_type(String const& type)
 {

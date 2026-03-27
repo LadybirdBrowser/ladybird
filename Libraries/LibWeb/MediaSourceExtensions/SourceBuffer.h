@@ -52,6 +52,9 @@ public:
     // https://w3c.github.io/media-source/#addsourcebuffer-method
     WebIDL::ExceptionOr<void> append_buffer(GC::Root<WebIDL::BufferSource> const&);
 
+    // https://w3c.github.io/media-source/#dom-sourcebuffer-abort
+    WebIDL::ExceptionOr<void> abort();
+
     // https://w3c.github.io/media-source/#dom-sourcebuffer-changetype
     WebIDL::ExceptionOr<void> change_type(String const& type);
 

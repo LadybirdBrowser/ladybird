@@ -30,7 +30,7 @@ interface SourceBuffer : EventTarget {
     attribute EventHandler onabort;
 
     undefined appendBuffer(BufferSource data);
-    [FIXME] undefined abort();
+    undefined abort();
     undefined changeType(DOMString type);
     [FIXME] undefined remove(double start, unrestricted double end);
 };
