@@ -84,7 +84,7 @@ function assertArrayEquals(expected, actual) {
     expect(actual).toEqual(expected);
 }
 
-test.xfail("regexp-duplicate-named-groups", () => {
+test("regexp-duplicate-named-groups", () => {
     assertEarlyError("/(?<a>.)(?<a>.)/");
     assertEarlyError("/((?<a>.)(?<a>.))/");
     assertEarlyError("/(?<a>.)((?<a>.))/");

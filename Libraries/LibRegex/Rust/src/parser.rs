@@ -279,16 +279,29 @@ impl Parser {
     /// Parse `Disjunction`.
     /// <https://tc39.es/ecma262/#sec-patterns>
     fn parse_disjunction(&mut self) -> Result<Disjunction, Error> {
-        self.alternative_name_stack.push(std::collections::HashSet::new());
+        let inherited = self.alternative_name_stack.last().cloned().unwrap_or_default();
+        self.alternative_name_stack.push(inherited.clone());
         let mut alternatives = vec![self.parse_alternative()?];
         while self.eat('|') {
-            // Reset the current alternative's name set for the next alternative.
-            if let Some(names) = self.alternative_name_stack.last_mut() {
-                names.clear();
+            // Merge names from the just finished alternative into the parent scope so
+            // parent knows these names exist and can reject duplicates from enclosing alternatives
+            let committed = self.alternative_name_stack.last().cloned().unwrap_or_default();
+            if let Some(outer) = self.alternative_name_stack.iter_mut().rev().nth(1) {
+                outer.extend(committed.iter().cloned());
+            }
+
+            // Reset to only the names from outer scopes so the next alternative only sees
+            // names from outer scopes and not from its siblings
+            if let Some(top) = self.alternative_name_stack.last_mut() {
+                *top = inherited.clone();
             }
             alternatives.push(self.parse_alternative()?);
         }
-        self.alternative_name_stack.pop();
+
+        let final_names = self.alternative_name_stack.pop().unwrap_or_default();
+        if let Some(outer) = self.alternative_name_stack.last_mut() {
+            outer.extend(final_names.into_iter().filter(|n| !inherited.contains(n)));
+        }
         Ok(Disjunction { alternatives })
     }
 
@@ -946,8 +959,9 @@ impl Parser {
                             // Named capture group: (?<name>...).
                             let name = self.parse_group_name()?;
                             self.expect('>')?;
-                            // Duplicate names are allowed across alternatives,
-                            // but not within the same alternative.
+                            // Duplicate names are allowed across alternatives of
+                            // the same disjunction, but not within the same
+                            // alternative.
                             if let Some(current_alt_names) = self.alternative_name_stack.last()
                                 && current_alt_names.contains(&name)
                             {
@@ -955,12 +969,8 @@ impl Parser {
                             }
                             let index = self.next_capture_index;
                             self.next_capture_index += 1;
-                            // Propagate the name to every active disjunction
-                            // level so a duplicate later in the same enclosing
-                            // alternative is rejected even if the first use was
-                            // nested inside a child disjunction.
-                            for level in self.alternative_name_stack.iter_mut() {
-                                level.insert(name.clone());
+                            if let Some(top) = self.alternative_name_stack.last_mut() {
+                                top.insert(name.clone());
                             }
                             self.named_groups.push(NamedGroup {
                                 name: name.clone(),
