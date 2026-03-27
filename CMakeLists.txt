@@ -58,13 +58,6 @@ if (ANDROID AND ENABLE_QT)
     set(ENABLE_QT OFF CACHE BOOL "" FORCE)
 endif()
 
-if (ENABLE_QT AND ENABLE_GUI_TARGETS)
-    set(CMAKE_AUTOMOC ON)
-    set(CMAKE_AUTORCC ON)
-    set(CMAKE_AUTOUIC ON)
-    find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
-endif()
-
 # We need to find OpenSSL in order to link it explicitly with all targets.
 find_package(OpenSSL REQUIRED)
 
