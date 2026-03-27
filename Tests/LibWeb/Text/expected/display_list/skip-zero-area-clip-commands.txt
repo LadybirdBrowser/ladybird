@@ -4,6 +4,10 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  FillRect@6 rect=[8,108 50x50] color=rgb(255, 0, 0)
+  SaveLayer@0
+    SaveLayer@1
+      FillRect@6 rect=[8,108 50x50] color=rgb(255, 0, 0)
+    Restore@1
+  Restore@0
 Restore@0
 

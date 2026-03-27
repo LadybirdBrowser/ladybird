@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Compositing and Blending: The isolation property</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/compositing-1/#isolation">
+<link rel="match" href="../../../../../expected/wpt-import/css/compositing/isolation/../../reference/ref-filled-green-100px-square.xht">
+<meta name="assert" content="For CSS, setting `isolation` to `isolate` will turn the element into a stacking context.">
+
+<style>
+#parent {
+  width: 100px;
+  height: 100px;
+  isolation: isolate;
+  background: red;
+}
+#child {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  z-index: -1;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="parent">
+  <div id="child"></div>
+</div>

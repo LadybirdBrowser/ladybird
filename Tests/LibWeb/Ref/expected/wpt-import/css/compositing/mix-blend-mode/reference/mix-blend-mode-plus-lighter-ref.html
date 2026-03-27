@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>mix-blend-mode: plus-lighter test</title>
+<link rel="author" title="Jake Archibald" href="mailto:jakearchibald@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/compositing-2/#mix-blend-mode">
+<style>
+  .test {
+    width: 100px;
+    height: 100px;
+  }
+</style>
+<script type="module">
+  import { tests, plusLighter } from '../../support/plus-lighter.js';
+  import { toCSSColor } from '../../support/utils.js';
+
+  for (const colors of tests) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="test" style="background-color: ${toCSSColor(plusLighter(colors))}"></div>
+    `);
+  }
+</script>

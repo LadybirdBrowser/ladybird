@@ -4,7 +4,13 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+  SaveLayer@0
+    SaveLayer@1
+      SaveLayer@1
+        FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+      Restore@1
+    Restore@1
+  Restore@0
 Restore@0
 
 After z-index change:
@@ -13,6 +19,12 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+  SaveLayer@0
+    SaveLayer@1
+      SaveLayer@1
+        FillRect@1 rect=[8,8 50x50] color=rgb(0, 0, 255)
+      Restore@1
+    Restore@1
+  Restore@0
 Restore@0
 

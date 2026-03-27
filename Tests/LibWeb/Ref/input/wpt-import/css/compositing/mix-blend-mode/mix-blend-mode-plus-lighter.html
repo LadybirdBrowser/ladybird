@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<title>mix-blend-mode: plus-lighter test</title>
+<link rel="author" title="Jake Archibald" href="mailto:jakearchibald@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/compositing-2/#mix-blend-mode">
+<link rel="match" href="../../../../../expected/wpt-import/css/compositing/mix-blend-mode/reference/mix-blend-mode-plus-lighter-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-4294967295">
+<style>
+  .test {
+    width: 100px;
+    height: 100px;
+    position: relative;
+    isolation: isolate;
+  }
+  .layer {
+    position: absolute;
+    inset: 0;
+    mix-blend-mode: plus-lighter;
+  }
+</style>
+<script type="module">
+  import { tests } from '../support/plus-lighter.js';
+  import { toCSSColor } from '../support/utils.js';
+
+  function createLayers(colors) {
+    let html = '';
+
+    for (const color of colors) {
+      html += `<div class="layer" style="background-color: ${toCSSColor(color)}"></div>`;
+    }
+
+    return html;
+  }
+
+  for (const colors of tests) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <div class="test">${createLayers(colors)}</div>
+    `);
+  }
+</script>

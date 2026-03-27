@@ -326,6 +326,14 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto effective_context_index = paintable_box().accumulated_visual_context_index();
     context.display_list_recorder().set_accumulated_visual_context(effective_context_index);
 
+    // Stacking contexts need to create a layer to ensure proper backdrop for child blend modes
+    // https://drafts.csswg.org/compositing-1/#csscompositingrules_CSS
+    // Per spec: "Everything in CSS that creates a stacking context must be considered an 'isolated' group."
+    bool needs_stacking_context_layer = paintable_box().stacking_context() != nullptr;
+    if (needs_stacking_context_layer) {
+        context.display_list_recorder().save_layer();
+    }
+
     // For elements with SVG filters, emit a transparent FillRect to trigger filter application.
     // This ensures content-generating filters (feFlood, feImage) work even with empty source.
     if (auto const& bounds = paintable_box().filter().svg_filter_bounds; bounds.has_value()) {
@@ -369,6 +377,10 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     context.display_list_recorder().set_accumulated_visual_context(context_before_children);
 
     context.display_list_recorder().end_masks(masks);
+
+    if (needs_stacking_context_layer) {
+        context.display_list_recorder().restore();
+    }
 }
 
 TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const

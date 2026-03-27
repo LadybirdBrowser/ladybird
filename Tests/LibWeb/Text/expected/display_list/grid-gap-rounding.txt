@@ -3,10 +3,14 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  FillRect@1 rect=[8,8 29x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[38,8 28x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[67,8 29x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[97,8 28x30] color=rgb(0, 0, 0)
-  FillRect@1 rect=[126,8 29x30] color=rgb(0, 0, 0)
+  SaveLayer@0
+    SaveLayer@1
+      FillRect@1 rect=[8,8 29x30] color=rgb(0, 0, 0)
+      FillRect@1 rect=[38,8 28x30] color=rgb(0, 0, 0)
+      FillRect@1 rect=[67,8 29x30] color=rgb(0, 0, 0)
+      FillRect@1 rect=[97,8 28x30] color=rgb(0, 0, 0)
+      FillRect@1 rect=[126,8 29x30] color=rgb(0, 0, 0)
+    Restore@1
+  Restore@0
 Restore@0
 

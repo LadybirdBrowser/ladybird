@@ -5,26 +5,32 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  Save@2
-    AddClipRect@2 rect=[-2,-2 119x119]
-    SaveLayer@2
-      ApplyEffects@3 opacity=1 has_filter=false
-        PaintNestedDisplayList@3 rect=[-2,-2 119x119]
-          Translate@0 delta=[2,2]
-          FillPath@0 path_bounding_rect=[8,8 100x100]
+  SaveLayer@0
+    SaveLayer@1
+      Save@2
+        AddClipRect@2 rect=[-2,-2 119x119]
+        SaveLayer@2
+          ApplyEffects@3 opacity=1 has_filter=false
+            PaintNestedDisplayList@3 rect=[-2,-2 119x119]
+              Translate@0 delta=[2,2]
+              FillPath@0 path_bounding_rect=[8,8 100x100]
+          Restore@3
+        Restore@3
       Restore@3
-    Restore@3
-  Restore@3
-  Save@2
-    AddClipRect@2 rect=[-2,-2 119x119]
-    SaveLayer@2
-      FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 0)
-      ApplyEffects@2 opacity=1 has_filter=false
-        PaintNestedDisplayList@2 rect=[-2,-2 119x119]
-          Translate@0 delta=[2,2]
-          FillPath@0 path_bounding_rect=[8,8 100x100]
+      SaveLayer@2
+        Save@2
+          AddClipRect@2 rect=[-2,-2 119x119]
+          SaveLayer@2
+            FillRect@3 rect=[8,8 100x100] color=rgb(0, 0, 0)
+            ApplyEffects@2 opacity=1 has_filter=false
+              PaintNestedDisplayList@2 rect=[-2,-2 119x119]
+                Translate@0 delta=[2,2]
+                FillPath@0 path_bounding_rect=[8,8 100x100]
+            Restore@2
+          Restore@2
+        Restore@2
       Restore@2
-    Restore@2
-  Restore@2
+    Restore@1
+  Restore@0
 Restore@0
 
