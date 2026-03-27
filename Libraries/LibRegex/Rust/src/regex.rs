@@ -20,6 +20,8 @@ pub struct Regex {
     hints: vm::PatternHints,
     /// Pre-computed u16 literal for whole-pattern literal search.
     literal_u16: Option<Vec<u16>>,
+    /// Pre-computed u16 literal for whole-pattern `\bliteral\b` matching.
+    word_boundary_literal_u16: Option<Vec<u16>>,
     /// Pre-computed u16 alternatives for fast literal alternation matching.
     /// Alternatives stay in source order to preserve leftmost-first semantics.
     literal_alt_u16: Option<Vec<Vec<u16>>>,
@@ -36,6 +38,7 @@ impl Regex {
         let hints = vm::analyze_pattern(&program, pattern_can_match_empty(&parsed));
 
         let literal_u16 = extract_literal_u16(&parsed, flags);
+        let word_boundary_literal_u16 = extract_word_boundary_literal_u16(&parsed, flags);
         let literal_alt_u16 = extract_literal_alternatives_u16(&parsed, flags);
 
         Ok(Self {
@@ -43,6 +46,7 @@ impl Regex {
             flags,
             hints,
             literal_u16,
+            word_boundary_literal_u16,
             literal_alt_u16,
             scratch: RefCell::new(vm::VmScratch::new()),
         })
@@ -75,6 +79,13 @@ impl Regex {
                 vm::VmResult::NoMatch
             };
         }
+        if let Some(ref needle) = self.word_boundary_literal_u16 {
+            return if Self::word_boundary_literal_search(input, start, needle, &self.flags, out) {
+                vm::VmResult::Match
+            } else {
+                vm::VmResult::NoMatch
+            };
+        }
         // Fast path for literal alternation patterns.
         if let Some(ref alts) = self.literal_alt_u16 {
             return if Self::literal_alt_search(input, start, alts, &self.flags, out) {
@@ -99,6 +110,13 @@ impl Regex {
     pub(crate) fn test_input<I: vm::Input>(&self, input: I, start: usize) -> vm::VmResult {
         if let Some(ref needle) = self.literal_u16 {
             return if Self::literal_test(input, start, needle, &self.flags) {
+                vm::VmResult::Match
+            } else {
+                vm::VmResult::NoMatch
+            };
+        }
+        if let Some(ref needle) = self.word_boundary_literal_u16 {
+            return if Self::word_boundary_literal_test(input, start, needle, &self.flags) {
                 vm::VmResult::Match
             } else {
                 vm::VmResult::NoMatch
@@ -219,6 +237,47 @@ impl Regex {
         Self::literal_search(input, start, needle, flags, &mut out)
     }
 
+    fn word_boundary_literal_search<I: vm::Input>(
+        input: I,
+        start: usize,
+        needle: &[u16],
+        flags: &Flags,
+        out: &mut [i32],
+    ) -> bool {
+        let mut pos = start;
+        let mut literal_out = [-1i32; 2];
+        while pos < input.len() {
+            literal_out[0] = -1;
+            literal_out[1] = -1;
+            if !Self::literal_search(input, pos, needle, flags, &mut literal_out) {
+                return false;
+            }
+
+            let match_start = literal_out[0] as usize;
+            let match_end = literal_out[1] as usize;
+            if has_ascii_word_boundaries_at(input, match_start, match_end) {
+                if out.len() >= 2 {
+                    out[0] = match_start as i32;
+                    out[1] = match_end as i32;
+                }
+                return true;
+            }
+
+            pos = match_start + 1;
+        }
+        false
+    }
+
+    fn word_boundary_literal_test<I: vm::Input>(
+        input: I,
+        start: usize,
+        needle: &[u16],
+        flags: &Flags,
+    ) -> bool {
+        let mut out = [0i32; 2];
+        Self::word_boundary_literal_search(input, start, needle, flags, &mut out)
+    }
+
     /// Fast literal alternation search: find the first matching alternative.
     /// Alternatives are in source order to preserve ECMAScript leftmost-first semantics.
     fn literal_alt_search<I: vm::Input>(
@@ -337,6 +396,38 @@ impl Regex {
         count
     }
 
+    fn word_boundary_literal_find_all<I: vm::Input>(
+        input: I,
+        start: usize,
+        needle: &[u16],
+        flags: &Flags,
+        result_buf: &mut [i32],
+    ) -> i32 {
+        let capacity = result_buf.len();
+        let mut count = 0i32;
+        let mut pos = start;
+        let mut out = [-1i32; 2];
+        loop {
+            if pos > input.len() {
+                break;
+            }
+            out[0] = -1;
+            out[1] = -1;
+            if !Self::word_boundary_literal_search(input, pos, needle, flags, &mut out) {
+                break;
+            }
+            let idx = count as usize * 2;
+            if idx + 1 >= capacity {
+                return -1;
+            }
+            result_buf[idx] = out[0];
+            result_buf[idx + 1] = out[1];
+            count += 1;
+            pos = out[1] as usize;
+        }
+        count
+    }
+
     /// Find all literal alternation matches, writing (start, end) pairs into result_buf.
     fn literal_alt_find_all<I: vm::Input>(
         input: I,
@@ -440,6 +531,15 @@ impl Regex {
         if let Some(ref needle) = self.literal_u16 {
             return Self::literal_find_all(input, start, needle, &self.flags, result_buf);
         }
+        if let Some(ref needle) = self.word_boundary_literal_u16 {
+            return Self::word_boundary_literal_find_all(
+                input,
+                start,
+                needle,
+                &self.flags,
+                result_buf,
+            );
+        }
         // Fast path for literal alternation patterns.
         if let Some(ref alts) = self.literal_alt_u16 {
             return Self::literal_alt_find_all(input, start, alts, &self.flags, result_buf);
@@ -460,6 +560,11 @@ impl Regex {
 #[inline(always)]
 fn is_ascii_alpha(ch: u16) -> bool {
     matches!(ch, 0x41..=0x5A | 0x61..=0x7A)
+}
+
+#[inline(always)]
+fn is_ascii_word_code_unit(ch: u16) -> bool {
+    matches!(ch, 0x30..=0x39 | 0x41..=0x5A | 0x5F | 0x61..=0x7A)
 }
 
 #[inline(always)]
@@ -523,6 +628,18 @@ fn matches_ascii_case_insensitive_u16_at<I: vm::Input>(
         }
     }
     true
+}
+
+#[inline(always)]
+fn has_ascii_word_boundaries_at<I: vm::Input>(
+    input: I,
+    match_start: usize,
+    match_end: usize,
+) -> bool {
+    let left_is_word = match_start > 0 && is_ascii_word_code_unit(input.code_unit(match_start - 1));
+    let right_is_word =
+        match_end < input.len() && is_ascii_word_code_unit(input.code_unit(match_end));
+    !left_is_word && !right_is_word
 }
 
 fn pattern_can_match_empty(pattern: &Pattern) -> bool {
@@ -627,6 +744,64 @@ fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<V
     }
 
     Some(literal_alternatives)
+}
+
+fn extract_word_boundary_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
+    if flags.unicode || flags.unicode_sets || pattern.capture_count > 0 {
+        return None;
+    }
+    if pattern.disjunction.alternatives.len() != 1 {
+        return None;
+    }
+
+    let terms = &pattern.disjunction.alternatives[0].terms;
+    if terms.len() < 3 {
+        return None;
+    }
+
+    let first_term = terms.first()?;
+    let last_term = terms.last()?;
+    if first_term.quantifier.is_some() || last_term.quantifier.is_some() {
+        return None;
+    }
+    if !matches!(
+        first_term.atom,
+        Atom::Assertion(crate::ast::AssertionKind::WordBoundary)
+    ) {
+        return None;
+    }
+    if !matches!(
+        last_term.atom,
+        Atom::Assertion(crate::ast::AssertionKind::WordBoundary)
+    ) {
+        return None;
+    }
+
+    let mut literal = Vec::new();
+    for term in &terms[1..terms.len() - 1] {
+        if term.quantifier.is_some() {
+            return None;
+        }
+        let Atom::Literal(cp) = term.atom else {
+            return None;
+        };
+        if is_unsafe_unicode_literal(cp, flags) {
+            return None;
+        }
+        if flags.ignore_case && cp > 0x7F {
+            return None;
+        }
+        append_code_point_wtf16(&mut literal, cp)?;
+    }
+
+    if literal.is_empty() {
+        return None;
+    }
+    if !is_ascii_word_code_unit(*literal.first()?) || !is_ascii_word_code_unit(*literal.last()?) {
+        return None;
+    }
+
+    Some(literal)
 }
 
 fn is_unsafe_unicode_literal(cp: u32, flags: Flags) -> bool {

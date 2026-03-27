@@ -171,6 +171,35 @@ TEST_CASE(unicode_ignore_case_literal_alternation_preserves_behavior)
     EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::Match);
 }
 
+TEST_CASE(word_boundary_literal_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bfoo\\b"sv, {}));
+
+    EXPECT_EQ(regex.find_all("foo foo-bar barfoo foo2 _foo foo_"sv, 0), 2);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(0).end, 3);
+    EXPECT_EQ(regex.find_all_match(1).start, 4);
+    EXPECT_EQ(regex.find_all_match(1).end, 7);
+}
+
+TEST_CASE(ascii_ignore_case_word_boundary_literal_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bzfvr\\b"sv, { .ignore_case = true }));
+
+    EXPECT_EQ(regex.find_all("ZFVR zfvr1 _ZFVR zFVr"sv, 0), 2);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(0).end, 4);
+    EXPECT_EQ(regex.find_all_match(1).start, 17);
+    EXPECT_EQ(regex.find_all_match(1).end, 21);
+}
+
+TEST_CASE(unicode_ignore_case_word_boundary_literal_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("\\bk\\b"sv, { .ignore_case = true, .unicode = true }));
+
+    EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::Match);
+}
+
 TEST_CASE(find_all_returns_non_overlapping_matches)
 {
     auto regex = MUST(regex::ECMAScriptRegex::compile("aba"sv, {}));
