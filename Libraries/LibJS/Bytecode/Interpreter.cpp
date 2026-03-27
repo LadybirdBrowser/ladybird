@@ -121,16 +121,16 @@ ThrowCompletionOr<Value> Interpreter::run(Script& script_record, GC::Ptr<Environ
         executable->dump();
 
     u32 registers_and_locals_count = 0;
-    u32 constants_count = 0;
+    ReadonlySpan<Value> constants;
     if (executable) {
         registers_and_locals_count = executable->registers_and_locals_count;
-        constants_count = executable->constants.size();
+        constants = executable->constants;
     }
 
     // 2. Let scriptContext be a new ECMAScript code execution context.
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* script_context = stack.allocate(registers_and_locals_count, constants_count, 0);
+    auto* script_context = stack.allocate(registers_and_locals_count, constants, 0);
     if (!script_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
@@ -256,10 +256,9 @@ ExecutionContext* Interpreter::push_inline_frame(
 
     u32 insn_argument_count = arguments.size();
     size_t registers_and_locals_count = callee_executable.registers_and_locals_count;
-    size_t constants_count = callee_executable.constants.size();
     size_t argument_count = max(insn_argument_count, static_cast<u32>(callee_function.formal_parameter_count()));
 
-    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, argument_count);
+    auto* callee_context = stack.allocate(registers_and_locals_count, callee_executable.constants, argument_count);
     if (!callee_context) [[unlikely]]
         return nullptr;
 
@@ -2733,13 +2732,13 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_call(
     auto& function = callee.as_function();
 
     size_t registers_and_locals_count = 0;
-    size_t constants_count = 0;
+    ReadonlySpan<Value> constants;
     size_t argument_count = arguments.size();
-    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
 
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, max(arguments.size(), argument_count));
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(arguments.size(), argument_count));
     if (!callee_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
@@ -2813,12 +2812,12 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
 
     size_t argument_count = argument_array_length;
     size_t registers_and_locals_count = 0;
-    size_t constants_count = 0;
-    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
+    ReadonlySpan<Value> constants;
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
 
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(argument_array_length, argument_count));
     if (!callee_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
@@ -2898,12 +2897,12 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
 
     size_t argument_count = argument_array_length;
     size_t registers_and_locals_count = 0;
-    size_t constants_count = 0;
-    function.get_stack_frame_size(registers_and_locals_count, constants_count, argument_count);
+    ReadonlySpan<Value> constants;
+    function.get_stack_frame_info(registers_and_locals_count, constants, argument_count);
 
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* callee_context = stack.allocate(registers_and_locals_count, constants_count, max(argument_array_length, argument_count));
+    auto* callee_context = stack.allocate(registers_and_locals_count, constants, max(argument_array_length, argument_count));
     if (!callee_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };

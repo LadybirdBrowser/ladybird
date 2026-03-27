@@ -10,6 +10,7 @@
 #pragma once
 
 #include <AK/Checked.h>
+#include <AK/Span.h>
 #include <LibJS/Bytecode/BasicBlock.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
@@ -24,7 +25,7 @@ using ScriptOrModule = Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>;
 
 // 9.4 Execution Contexts, https://tc39.es/ecma262/#sec-execution-contexts
 struct JS_API ExecutionContext {
-    static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count);
+    static NonnullOwnPtr<ExecutionContext> create(u32 registers_and_locals_count, ReadonlySpan<Value> constants, u32 arguments_count);
     [[nodiscard]] NonnullOwnPtr<ExecutionContext> copy() const;
 
     ~ExecutionContext() = default;
@@ -36,10 +37,10 @@ private:
 
 public:
     // NB: The layout is: [registers | locals | constants | arguments]
-    ALWAYS_INLINE ExecutionContext(u32 registers_and_locals_count, u32 constants_count, u32 arguments_count_)
+    ALWAYS_INLINE ExecutionContext(u32 registers_and_locals_count, ReadonlySpan<Value> constants, u32 arguments_count_)
     {
-        VERIFY(!Checked<u32>::addition_would_overflow(registers_and_locals_count, constants_count, arguments_count_));
-        registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants_count + arguments_count_;
+        VERIFY(!Checked<u32>::addition_would_overflow(registers_and_locals_count, constants.size(), arguments_count_));
+        registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants.size() + arguments_count_;
         argument_count = arguments_count_;
         auto* values = registers_and_constants_and_locals_and_arguments();
         for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)

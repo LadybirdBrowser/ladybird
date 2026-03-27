@@ -150,7 +150,7 @@ ThrowCompletionOr<GC::Ref<Promise>> SyntheticModule::evaluate(VM& vm)
     // 2. Set the Function of moduleContext to null.
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* module_context = stack.allocate(0, 0, 0);
+    auto* module_context = stack.allocate(0, ReadonlySpan<Value> {}, 0);
     if (!module_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };

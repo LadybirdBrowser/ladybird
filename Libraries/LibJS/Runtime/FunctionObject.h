@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/Span.h>
 #include <AK/StringView.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/LocalVariable.h>
@@ -25,7 +26,7 @@ public:
 
     // Table 5: Additional Essential Internal Methods of Function Objects, https://tc39.es/ecma262/#table-additional-essential-internal-methods-of-function-objects
 
-    virtual void get_stack_frame_size([[maybe_unused]] size_t& registers_and_locals_count, [[maybe_unused]] size_t& constants_count, [[maybe_unused]] size_t& argument_count) { }
+    virtual void get_stack_frame_info([[maybe_unused]] size_t& registers_and_locals_count, [[maybe_unused]] ReadonlySpan<Value>& constants, [[maybe_unused]] size_t& argument_count) { }
     virtual ThrowCompletionOr<Value> internal_call(ExecutionContext&, Value this_argument) = 0;
     virtual ThrowCompletionOr<GC::Ref<Object>> internal_construct(ExecutionContext&, [[maybe_unused]] FunctionObject& new_target) { VERIFY_NOT_REACHED(); }
 

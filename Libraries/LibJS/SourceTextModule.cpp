@@ -33,7 +33,7 @@ SourceTextModule::SourceTextModule(Realm& realm, StringView filename, Script::Ho
     GC::Ptr<Bytecode::Executable> executable,
     GC::Ptr<SharedFunctionInstanceData> tla_shared_data)
     : CyclicModule(realm, filename, has_top_level_await, move(requested_modules), host_defined)
-    , m_execution_context(ExecutionContext::create(0, 0, 0))
+    , m_execution_context(ExecutionContext::create(0, ReadonlySpan<Value> {}, 0))
     , m_import_entries(move(import_entries))
     , m_local_export_entries(move(local_export_entries))
     , m_indirect_export_entries(move(indirect_export_entries))
@@ -503,16 +503,16 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
     VERIFY(m_has_top_level_await || m_executable);
 
     u32 registers_and_locals_count = 0;
-    u32 constants_count = 0;
+    ReadonlySpan<Value> constants;
     if (m_executable) {
         registers_and_locals_count = m_executable->registers_and_locals_count;
-        constants_count = m_executable->constants.size();
+        constants = m_executable->constants;
     }
 
     // 1. Let moduleContext be a new ECMAScript code execution context.
     auto& stack = vm.interpreter_stack();
     auto* stack_mark = stack.top();
-    auto* module_context = stack.allocate(registers_and_locals_count, constants_count, 0);
+    auto* module_context = stack.allocate(registers_and_locals_count, constants, 0);
     if (!module_context) [[unlikely]]
         return vm.throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
     ScopeGuard deallocate_guard = [&stack, stack_mark] { stack.deallocate(stack_mark); };
