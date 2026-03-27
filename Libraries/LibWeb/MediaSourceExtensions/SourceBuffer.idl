@@ -15,7 +15,7 @@ enum AppendMode {
 interface SourceBuffer : EventTarget {
     attribute AppendMode mode;
     readonly  attribute boolean updating;
-    [FIXME] readonly  attribute TimeRanges buffered;
+    readonly  attribute TimeRanges buffered;
     [FIXME] attribute double timestampOffset;
     [FIXME] readonly  attribute AudioTrackList audioTracks;
     [FIXME] readonly  attribute VideoTrackList videoTracks;

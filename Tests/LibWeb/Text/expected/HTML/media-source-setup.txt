@@ -5,15 +5,15 @@ PASS: sourceopen fired
 PASS: addSourceBuffer succeeded
 PASS: loaded media data (2009229 bytes)
 PASS: appendBuffer() for slice 1/3
-buffered after slice 1/3: not available
+buffered after slice 1/3: [0.004-3.044]
 PASS: slice 1 appended
 PASS: appendBuffer() for slice 2/3
-buffered after slice 2/3: not available
+buffered after slice 2/3: [0.004-7.564]
 PASS: slice 2 appended
 PASS: appendBuffer() for slice 3/3
-buffered after slice 3/3: not available
+buffered after slice 3/3: [0.004-12.044]
 PASS: slice 3 appended
 PASS: endOfStream succeeded
-buffered after endOfStream: not available
+buffered after endOfStream: [0.004-12.044]
 PASS: play() promise resolved
 PASS: playing

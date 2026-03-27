@@ -95,6 +95,8 @@ public:
     void set_reached_end_of_stream();
     void clear_reached_end_of_stream();
 
+    Media::TimeRanges buffered_ranges() const;
+
 private:
     void drop_consumed_bytes_from_input_buffer();
     void unset_all_track_buffer_timestamps();

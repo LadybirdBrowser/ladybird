@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/TextTrackList.h>
+#include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
@@ -211,6 +212,23 @@ Bindings::AppendMode SourceBuffer::mode() const
 bool SourceBuffer::updating() const
 {
     return m_processor->updating();
+}
+
+// https://w3c.github.io/media-source/#dom-sourcebuffer-buffered
+GC::Ref<HTML::TimeRanges> SourceBuffer::buffered()
+{
+    auto time_ranges = realm().create<HTML::TimeRanges>(realm());
+
+    // FIXME: 1. If this object has been removed from the sourceBuffers attribute of the parent media source then throw
+    //           an InvalidStateError exception and abort these steps.
+
+    // NB: Further steps to intersect the buffered ranges of the track buffers are implemented within
+    //     SourceBufferProcessor::buffered_ranges() below, since it has access to the track buffers.
+    auto ranges = m_processor->buffered_ranges();
+    for (auto const& range : ranges)
+        time_ranges->add_range(range.start.to_seconds_f64(), range.end.to_seconds_f64());
+
+    return time_ranges;
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-mode
