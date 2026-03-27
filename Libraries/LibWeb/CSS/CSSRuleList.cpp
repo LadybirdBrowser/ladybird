@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -7,6 +7,7 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/CSSRuleListPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSFunctionRule.h>
@@ -210,6 +211,7 @@ void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(We
             break;
         }
 
+        case CSSRule::Type::Container:
         case CSSRule::Type::LayerBlock:
         case CSSRule::Type::Media:
         case CSSRule::Type::Page:
@@ -244,6 +246,12 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
 
     for (auto& rule : m_rules) {
         switch (rule->type()) {
+        case CSSRule::Type::Container: {
+            auto& container_rule = as<CSSContainerRule>(*rule);
+            if (container_rule.css_rules().evaluate_media_queries(document))
+                any_media_queries_changed_match_state = true;
+            break;
+        }
         case CSSRule::Type::Function: {
             any_media_queries_changed_match_state |= as<CSSFunctionRule>(*rule).css_rules().evaluate_media_queries(document);
             break;

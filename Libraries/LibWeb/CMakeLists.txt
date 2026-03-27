@@ -104,13 +104,14 @@ set(SOURCES
     CSS/CascadedProperties.cpp
     CSS/Clip.cpp
     CSS/ComputedProperties.cpp
-    CSS/CustomPropertyData.cpp
+    CSS/ContainerQuery.cpp
     CSS/CountersSet.cpp
     CSS/CounterStyle.cpp
     CSS/CounterStyleDefinition.cpp
     CSS/CSS.cpp
     CSS/CSSAnimation.cpp
     CSS/CSSConditionRule.cpp
+    CSS/CSSContainerRule.cpp
     CSS/CSSCounterStyleRule.cpp
     CSS/CSSDescriptors.cpp
     CSS/CSSFontFaceDescriptors.cpp
@@ -167,6 +168,7 @@ set(SOURCES
     CSS/CSSUnitValue.cpp
     CSS/CSSUnparsedValue.cpp
     CSS/CSSVariableReferenceValue.cpp
+    CSS/CustomPropertyData.cpp
     CSS/Descriptor.cpp
     CSS/Display.cpp
     CSS/EasingFunction.cpp

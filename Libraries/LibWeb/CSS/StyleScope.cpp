@@ -426,6 +426,7 @@ void StyleScope::build_qualified_layer_names_cache()
                 // Ignore everything else
             case CSSRule::Type::Style:
             case CSSRule::Type::Media:
+            case CSSRule::Type::Container:
             case CSSRule::Type::CounterStyle:
             case CSSRule::Type::FontFace:
             case CSSRule::Type::FontFeatureValues:

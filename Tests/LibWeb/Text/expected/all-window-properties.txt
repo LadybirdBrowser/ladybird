@@ -38,6 +38,7 @@ ByteLengthQueuingStrategy
 CDATASection
 CSSAnimation
 CSSConditionRule
+CSSContainerRule
 CSSCounterStyleRule
 CSSFontFaceDescriptors
 CSSFontFaceRule

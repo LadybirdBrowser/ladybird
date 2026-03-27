@@ -44,6 +44,7 @@ public:
         Property = 103,
         Function = 104,
         FunctionDeclarations = 105,
+        Container = 106,
     };
 
     Type type() const { return m_type; }

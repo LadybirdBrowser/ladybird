@@ -100,6 +100,7 @@ FlyString CSSRule::parent_layer_internal_qualified_name_slow_case() const
 
             // Ignore everything else
             // Note that LayerStatement cannot have child rules so we still ignore it here.
+        case Type::Container:
         case Type::CounterStyle:
         case Type::LayerStatement:
         case Type::Style:

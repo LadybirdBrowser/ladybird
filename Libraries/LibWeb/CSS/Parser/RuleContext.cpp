@@ -13,6 +13,8 @@ namespace Web::CSS::Parser {
 RuleContext rule_context_type_for_rule(CSSRule::Type rule_type)
 {
     switch (rule_type) {
+    case CSSRule::Type::Container:
+        TODO();
     case CSSRule::Type::CounterStyle:
         return RuleContext::AtCounterStyle;
     case CSSRule::Type::Style:
