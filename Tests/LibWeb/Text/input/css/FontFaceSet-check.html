@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const fontFaceSet = document.fonts;
+
+        try {
+            fontFaceSet.check("invalid");
+            println("Check invalid font: FAIL");
+        } catch (e) {
+            println(`Check invalid font: ${e.name === "SyntaxError" ? "PASS" : "FAIL"}`);
+        }
+
+        try {
+            fontFaceSet.check("revert");
+            println("Check CSS keyword as font: FAIL");
+        } catch (e) {
+            println(`Check CSS keyword as font: ${e.name === "SyntaxError" ? "PASS" : "FAIL"}`);
+        }
+
+        println(`Check non-existent font: ${fontFaceSet.check("10px NonExistentFont") === true ? "PASS" : "FAIL"}`);
+
+        const fontFace = new FontFace("Hash Sans", "url(../../../Assets/HashSans.woff)");
+        fontFaceSet.add(fontFace);
+        println(`Check unloaded font: ${fontFaceSet.check("1em Hash Sans") === false ? "PASS" : "FAIL"}`);
+
+        await fontFace.load();
+        println(`Check loaded font: ${fontFaceSet.check("1em Hash Sans") === true ? "PASS" : "FAIL"}`);
+    });
+</script>

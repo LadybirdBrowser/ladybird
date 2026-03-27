@@ -1,0 +1,5 @@
+Check invalid font: PASS
+Check CSS keyword as font: PASS
+Check non-existent font: PASS
+Check unloaded font: PASS
+Check loaded font: PASS

@@ -40,6 +40,7 @@ public:
     WebIDL::CallbackType* onloadingerror();
 
     JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(String const& font, String const& text);
+    WebIDL::ExceptionOr<bool> check(String const& font, String const& text);
 
     Vector<GC::Ref<FontFace>>& loading_fonts() { return m_loading_fonts; }
     Vector<GC::Ref<FontFace>>& loaded_fonts() { return m_loaded_fonts; }
