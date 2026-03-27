@@ -57,9 +57,11 @@ DecoderErrorOr<Vector<Track>> MatroskaDemuxer::get_tracks_for_type(TrackType typ
 {
     auto matroska_track_type = matroska_track_type_from_track_type(type);
     Vector<Track> tracks;
+    bool is_first = true;
     TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
         VERIFY(track_entry.track_type() == matroska_track_type);
-        DECODER_TRY_ALLOC(tracks.try_append(track_from_track_entry(track_entry)));
+        DECODER_TRY_ALLOC(tracks.try_append(track_from_track_entry(track_entry, is_first)));
+        is_first = false;
         return IterationDecision::Continue;
     }));
     return tracks;
@@ -71,7 +73,7 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
     Optional<Track> result;
     TRY(m_reader.for_each_track_of_type(matroska_track_type, [&](TrackEntry const& track_entry) -> DecoderErrorOr<IterationDecision> {
         VERIFY(track_entry.track_type() == matroska_track_type);
-        result = track_from_track_entry(track_entry);
+        result = track_from_track_entry(track_entry, true);
         return IterationDecision::Break;
     }));
     return result;

@@ -10,6 +10,7 @@
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/FixedArray.h>
+#include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
@@ -144,6 +145,8 @@ public:
     void set_default_duration(u64 default_duration) { m_default_duration = default_duration; }
     Optional<VideoTrack> video_track() const { return m_video_track; }
     void set_video_track(VideoTrack video_track) { m_video_track = video_track; }
+    bool flag_default() const { return m_flag_default; }
+    void set_flag_default(bool flag_default) { m_flag_default = flag_default; }
     Optional<AudioTrack> audio_track() const { return m_audio_track; }
     void set_audio_track(AudioTrack audio_track) { m_audio_track = audio_track; }
 
@@ -161,6 +164,7 @@ private:
     u64 m_seek_pre_roll { 0 };
     u64 m_timestamp_offset { 0 };
     u64 m_default_duration { 0 };
+    bool m_flag_default { true };
     Optional<VideoTrack> m_video_track;
     Optional<AudioTrack> m_audio_track;
 };
@@ -209,9 +213,40 @@ inline TrackType track_type_from_matroska_track_type(TrackEntry::TrackType type)
     VERIFY_NOT_REACHED();
 }
 
-inline Track track_from_track_entry(TrackEntry const& track_entry)
+inline Track track_from_track_entry(TrackEntry const& track_entry, bool is_first_of_type)
 {
-    auto kind = Track::Kind::None;
+    // https://dev.w3.org/html5/html-sourcing-inband-tracks/#webm
+    auto kind = [&] {
+        if (first_is_one_of(track_entry.track_type(), TrackEntry::TrackType::Subtitle, TrackEntry::TrackType::Metadata)) {
+            auto codec_id = track_entry.codec_id();
+            // "captions": TrackType is "0x11" and CodecId is "D_WEBVTT/captions"
+            if (codec_id == "D_WEBVTT/captions"sv)
+                return Track::Kind::Captions;
+            // "subtitles": TrackType is "0x11" and CodecId is "D_WEBVTT/subtitles"
+            if (codec_id == "D_WEBVTT/subtitles"sv)
+                return Track::Kind::Subtitles;
+            // "descriptions": TrackType is "0x11" and CodecId is "D_WEBVTT/descriptions"
+            if (codec_id == "D_WEBVTT/descriptions"sv)
+                return Track::Kind::Descriptions;
+            // "metadata": otherwise
+            if (codec_id.starts_with_bytes("D_WEBVTT/"sv))
+                return Track::Kind::Metadata;
+
+            // The Matroska container format, which is the basis for WebM, has specifications for other text tracks, in
+            // particular SRT, SSA/ASS, and VOBSUB. The described attribute mappings can be applied to these, too,
+            // except that the kind field will always be "subtitles".
+            return Track::Kind::Subtitles;
+        }
+        // "main": the FlagDefault element is set on the track
+        if (track_entry.flag_default())
+            return Track::Kind::Main;
+        // "translation": not first audio (video) track
+        if (!is_first_of_type)
+            return Track::Kind::Translation;
+        // "": otherwise
+        return Track::Kind::None;
+    }();
+
     auto name = Utf16String::from_utf8(track_entry.name());
     auto language = [&] {
         // LanguageBCP47 - The language of the track, in the BCP47 form; see basics on language codes. If this Element is used,

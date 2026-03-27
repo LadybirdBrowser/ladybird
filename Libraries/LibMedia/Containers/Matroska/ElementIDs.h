@@ -45,6 +45,7 @@ constexpr u32 TRACK_ENTRY_ID = 0xAE;
 constexpr u32 TRACK_NUMBER_ID = 0xD7;
 constexpr u32 TRACK_UID_ID = 0x73C5;
 constexpr u32 TRACK_TYPE_ID = 0x83;
+constexpr u32 TRACK_FLAG_DEFAULT_ID = 0x88;
 constexpr u32 TRACK_NAME_ID = 0x536E;
 constexpr u32 TRACK_LANGUAGE_ID = 0x22B59C;
 constexpr u32 TRACK_LANGUAGE_BCP_47_ID = 0x22B59D;
