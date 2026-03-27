@@ -40,7 +40,7 @@ set(LADYBIRD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
 include(UI/cmake/EnableLagom.cmake)
-include(lagom_options NO_POLICY_SCOPE)
+include(cmake_options NO_POLICY_SCOPE)
 include(compile_options)
 
 # We need to find OpenSSL in order to link it explicitly with all targets.
