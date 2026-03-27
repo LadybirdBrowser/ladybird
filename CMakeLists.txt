@@ -53,11 +53,6 @@ endif()
 add_cxx_compile_options(-Wno-expansion-to-defined)
 add_cxx_compile_options(-Wno-user-defined-literals)
 
-if (ANDROID AND ENABLE_QT)
-    message(STATUS "Disabling Qt for Android")
-    set(ENABLE_QT OFF CACHE BOOL "" FORCE)
-endif()
-
 # We need to find OpenSSL in order to link it explicitly with all targets.
 find_package(OpenSSL REQUIRED)
 

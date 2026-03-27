@@ -173,7 +173,7 @@ jobs:
         if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
         run: |
-          cmake --preset ${{ inputs.build_preset }} -B Build -DENABLE_QT=ON
+          cmake --preset ${{ inputs.build_preset }} -B Build -DLADYBIRD_GUI_FRAMEWORK=Qt
           cmake --build Build
 
       - name: Save Caches

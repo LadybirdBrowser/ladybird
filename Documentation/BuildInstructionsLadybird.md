@@ -254,15 +254,13 @@ Ladybird will be built with one of the following browser frontends, depending on
 * [Qt](https://doc.qt.io/qt-6/) - The UI used on all other platforms.
 * [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
 
-The Qt UI is available on platforms where it is not the default as well (except on Android). To build the
-Qt UI, install the Qt dependencies for your platform, and enable the Qt UI via CMake:
+The Qt UI is available on platforms where it is not the default as well (except on Android).
+You can pick the UI using the `LADYBIRD_GUI_FRAMEWORK` option, for example to enable the Qt UI:
 
 ```bash
 # From /path/to/ladybird
-cmake --preset default -DENABLE_QT=ON
+cmake --preset default -DLADYBIRD_GUI_FRAMEWORK=Qt
 ```
-
-To re-disable the Qt UI, run the above command with `-DENABLE_QT=OFF`.
 
 ### Build error messages you may encounter
 
