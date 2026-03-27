@@ -77,7 +77,7 @@ impl Regex {
         }
         // Fast path for literal alternation patterns.
         if let Some(ref alts) = self.literal_alt_u16 {
-            return if Self::literal_alt_search(input, start, alts, out) {
+            return if Self::literal_alt_search(input, start, alts, &self.flags, out) {
                 vm::VmResult::Match
             } else {
                 vm::VmResult::NoMatch
@@ -106,7 +106,7 @@ impl Regex {
         }
         if let Some(ref alts) = self.literal_alt_u16 {
             let mut out = [-1i32; 2];
-            return if Self::literal_alt_search(input, start, alts, &mut out) {
+            return if Self::literal_alt_search(input, start, alts, &self.flags, &mut out) {
                 vm::VmResult::Match
             } else {
                 vm::VmResult::NoMatch
@@ -225,8 +225,13 @@ impl Regex {
         input: I,
         start: usize,
         alts: &[Vec<u16>],
+        flags: &Flags,
         out: &mut [i32],
     ) -> bool {
+        if flags.ignore_case {
+            return Self::literal_alt_search_ascii_ignore_case(input, start, alts, out);
+        }
+
         for pos in start..input.len() {
             let first_ch = input.code_unit(pos);
             for alt in alts {
@@ -245,6 +250,52 @@ impl Regex {
                     return true;
                 }
             }
+        }
+        false
+    }
+
+    fn literal_alt_search_ascii_ignore_case<I: vm::Input>(
+        input: I,
+        start: usize,
+        alts: &[Vec<u16>],
+        out: &mut [i32],
+    ) -> bool {
+        let min_alt_len = alts.iter().map(|alt| alt.len()).min().unwrap_or(0);
+        if min_alt_len == 0 || start + min_alt_len > input.len() {
+            return false;
+        }
+
+        let mut first_code_units = [false; 128];
+        for alt in alts {
+            first_code_units[fold_ascii_for_compare(alt[0]) as usize] = true;
+        }
+
+        let mut pos = start;
+        let end = input.len() - min_alt_len + 1;
+        while pos < end {
+            match find_ascii_case_insensitive_code_unit_in_set(input, pos, end, &first_code_units) {
+                Some(candidate_pos) => pos = candidate_pos,
+                None => return false,
+            }
+
+            let folded_first_code_unit = fold_ascii_for_compare(input.code_unit(pos));
+            for alt in alts {
+                if fold_ascii_for_compare(alt[0]) != folded_first_code_unit {
+                    continue;
+                }
+                let alt_len = alt.len();
+                if pos + alt_len > input.len() {
+                    continue;
+                }
+                if matches_ascii_case_insensitive_u16_at(input, pos, alt) {
+                    if out.len() >= 2 {
+                        out[0] = pos as i32;
+                        out[1] = (pos + alt_len) as i32;
+                    }
+                    return true;
+                }
+            }
+            pos += 1;
         }
         false
     }
@@ -291,6 +342,7 @@ impl Regex {
         input: I,
         start: usize,
         alts: &[Vec<u16>],
+        flags: &Flags,
         result_buf: &mut [i32],
     ) -> i32 {
         let capacity = result_buf.len();
@@ -303,7 +355,7 @@ impl Regex {
             }
             out[0] = -1;
             out[1] = -1;
-            if !Self::literal_alt_search(input, pos, alts, &mut out) {
+            if !Self::literal_alt_search(input, pos, alts, flags, &mut out) {
                 break;
             }
             let idx = count as usize * 2;
@@ -390,7 +442,7 @@ impl Regex {
         }
         // Fast path for literal alternation patterns.
         if let Some(ref alts) = self.literal_alt_u16 {
-            return Self::literal_alt_find_all(input, start, alts, result_buf);
+            return Self::literal_alt_find_all(input, start, alts, &self.flags, result_buf);
         }
         // Use the VM-internal find_all loop which reuses a single VM across matches.
         let scratch = &mut *self.scratch.borrow_mut();
@@ -430,6 +482,24 @@ fn find_ascii_case_insensitive_code_unit<I: vm::Input>(
     while pos < end {
         let code_unit = input.code_unit(pos);
         if code_unit <= 0x7F && fold_ascii_for_compare(code_unit) == folded_needle {
+            return Some(pos);
+        }
+        pos += 1;
+    }
+    None
+}
+
+#[inline(always)]
+fn find_ascii_case_insensitive_code_unit_in_set<I: vm::Input>(
+    input: I,
+    start: usize,
+    end: usize,
+    needles: &[bool; 128],
+) -> Option<usize> {
+    let mut pos = start;
+    while pos < end {
+        let code_unit = input.code_unit(pos);
+        if code_unit <= 0x7F && needles[fold_ascii_for_compare(code_unit) as usize] {
             return Some(pos);
         }
         pos += 1;
@@ -523,7 +593,7 @@ fn extract_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
 }
 
 fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<Vec<u16>>> {
-    if flags.ignore_case {
+    if flags.ignore_case && (flags.unicode || flags.unicode_sets) {
         return None;
     }
 
@@ -543,6 +613,9 @@ fn extract_literal_alternatives_u16(pattern: &Pattern, flags: Flags) -> Option<V
                 return None;
             };
             if is_unsafe_unicode_literal(cp, flags) {
+                return None;
+            }
+            if flags.ignore_case && cp > 0x7F {
                 return None;
             }
             append_code_point_wtf16(&mut literal, cp)?;
