@@ -11,11 +11,11 @@ function(embed_as_string name source_file output source_variable_name)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
         OUTPUT "${output}"
-        COMMAND "${Python3_EXECUTABLE}" "${SerenityOS_SOURCE_DIR}/Meta/embed_as_string.py" "${source_file}" -o "${output}.tmp" -n "${source_variable_name}" ${namespace_arg}
+        COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/embed_as_string.py" "${source_file}" -o "${output}.tmp" -n "${source_variable_name}" ${namespace_arg}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${output}.tmp" "${output}"
         COMMAND "${CMAKE_COMMAND}" -E remove "${output}.tmp"
         VERBATIM
-        DEPENDS "${SerenityOS_SOURCE_DIR}/Meta/embed_as_string.py"
+        DEPENDS "${LADYBIRD_SOURCE_DIR}/Meta/embed_as_string.py"
         MAIN_DEPENDENCY "${source_file}"
     )
 
@@ -40,7 +40,7 @@ function(compile_ipc source output)
     add_custom_target(generate_${output_name} DEPENDS ${output})
     add_dependencies(ladybird_codegen_accumulator generate_${output_name})
 
-    cmake_path(RELATIVE_PATH CMAKE_CURRENT_SOURCE_DIR BASE_DIRECTORY ${SerenityOS_SOURCE_DIR} OUTPUT_VARIABLE current_source_dir_relative)
+    cmake_path(RELATIVE_PATH CMAKE_CURRENT_SOURCE_DIR BASE_DIRECTORY ${LADYBIRD_SOURCE_DIR} OUTPUT_VARIABLE current_source_dir_relative)
     if (ENABLE_INSTALL_HEADERS)
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${output} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${current_source_dir_relative}" OPTIONAL)
     endif()
