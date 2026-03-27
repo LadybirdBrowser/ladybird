@@ -14,7 +14,7 @@ ladybird_option(ENABLE_NETWORK_DOWNLOADS ON CACHE BOOL "Allow downloads of requi
 ladybird_option(ENABLE_CLANG_PLUGINS OFF CACHE BOOL "Enable building with the Clang plugins")
 ladybird_option(ENABLE_CLANG_PLUGINS_INVALID_FUNCTION_MEMBERS OFF CACHE BOOL "Enable detecting invalid function types as members of GC-allocated objects")
 
-if (LINUX AND NOT ANDROID)
+if ((LINUX AND NOT ANDROID) OR BSD)
     set(freedesktop_files_default ON)
 else()
     set(freedesktop_files_default OFF)
