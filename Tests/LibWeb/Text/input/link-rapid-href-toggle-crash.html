@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<link id="link" rel="stylesheet" href="valid.css">
+<script>
+    test(() => {
+        const link = document.getElementById("link");
+        // Rapidly toggle href to trigger multiple stale fetch callbacks
+        for (let i = 0; i < 10; i++) {
+            link.href = "valid.css?" + i;
+        }
+        println("PASS (didn't crash)");
+    });
+</script>

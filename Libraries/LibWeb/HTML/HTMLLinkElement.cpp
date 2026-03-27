@@ -874,11 +874,12 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
     // 6. If el contributes a script-blocking style sheet, then:
     if (contributes_a_script_blocking_style_sheet()) {
-        // 1. Assert: el's node document's script-blocking style sheet set contains el.
-        VERIFY(document().script_blocking_style_sheet_set().contains(*this));
-
-        // 2. Remove el from its node document's script-blocking style sheet set.
-        document().script_blocking_style_sheet_set().remove(*this);
+        // AD-HOC: The spec says to assert that the set contains el, but when the href attribute
+        //       is rapidly toggled, multiple stale fetch callbacks can fire for the same element.
+        //       The first callback removes el from the set, and the second would hit the assert.
+        //       We gracefully handle this by only removing if present.
+        if (auto it = document().script_blocking_style_sheet_set().find(*this); it != document().script_blocking_style_sheet_set().end())
+            document().script_blocking_style_sheet_set().remove(it);
     }
 
     // 7. Unblock rendering on el.
