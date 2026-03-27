@@ -136,11 +136,37 @@ impl Regex {
         }
 
         if flags.ignore_case {
-            // Case-insensitive literal search — fall back to linear scan with case folding.
             let needle_len = needle.len();
             if start + needle_len > input.len() {
                 return false;
             }
+            if needle.iter().all(|ch| *ch <= 0x7F) {
+                let first = needle[0];
+                let mut pos = start;
+                let end = input.len() - needle_len + 1;
+                while pos < end {
+                    let next = if is_ascii_alpha(first) {
+                        find_ascii_case_insensitive_code_unit(input, pos, end, first)
+                    } else {
+                        input.find_code_unit(pos, end, first)
+                    };
+                    match next {
+                        Some(candidate_pos) => pos = candidate_pos,
+                        None => return false,
+                    }
+                    if matches_ascii_case_insensitive_u16_at(input, pos, needle) {
+                        if out.len() >= 2 {
+                            out[0] = pos as i32;
+                            out[1] = (pos + needle_len) as i32;
+                        }
+                        return true;
+                    }
+                    pos += 1;
+                }
+                return false;
+            }
+            // Non-ASCII case-insensitive literals fall back to linear scan with
+            // full case folding.
             'outer: for pos in start..=input.len() - needle_len {
                 for (j, expected) in needle.iter().enumerate() {
                     if !vm::case_fold_eq(
@@ -377,6 +403,56 @@ impl Regex {
             scratch,
         )
     }
+}
+
+#[inline(always)]
+fn is_ascii_alpha(ch: u16) -> bool {
+    matches!(ch, 0x41..=0x5A | 0x61..=0x7A)
+}
+
+#[inline(always)]
+fn fold_ascii_for_compare(ch: u16) -> u16 {
+    match ch {
+        0x41..=0x5A => ch + 32,
+        _ => ch,
+    }
+}
+
+#[inline(always)]
+fn find_ascii_case_insensitive_code_unit<I: vm::Input>(
+    input: I,
+    start: usize,
+    end: usize,
+    needle: u16,
+) -> Option<usize> {
+    let folded_needle = fold_ascii_for_compare(needle);
+    let mut pos = start;
+    while pos < end {
+        let code_unit = input.code_unit(pos);
+        if code_unit <= 0x7F && fold_ascii_for_compare(code_unit) == folded_needle {
+            return Some(pos);
+        }
+        pos += 1;
+    }
+    None
+}
+
+#[inline(always)]
+fn matches_ascii_case_insensitive_u16_at<I: vm::Input>(
+    input: I,
+    pos: usize,
+    needle: &[u16],
+) -> bool {
+    if pos + needle.len() > input.len() {
+        return false;
+    }
+    for (offset, expected) in needle.iter().enumerate() {
+        let actual = input.code_unit(pos + offset);
+        if actual > 0x7F || fold_ascii_for_compare(actual) != fold_ascii_for_compare(*expected) {
+            return false;
+        }
+    }
+    true
 }
 
 fn pattern_can_match_empty(pattern: &Pattern) -> bool {

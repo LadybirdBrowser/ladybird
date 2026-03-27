@@ -116,6 +116,31 @@ TEST_CASE(test_honors_ignore_case)
     EXPECT_EQ(regex.test(u"something else"sv, 0), regex::MatchResult::NoMatch);
 }
 
+TEST_CASE(ascii_ignore_case_literal_search_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("zfvr"sv, { .ignore_case = true }));
+
+    EXPECT_EQ(regex.exec("...ZFVR..."sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.capture_slot(0), 3);
+    EXPECT_EQ(regex.capture_slot(1), 7);
+
+    EXPECT_EQ(regex.find_all("zfvr ZFVR zFVr"sv, 0), 3);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(1).start, 5);
+    EXPECT_EQ(regex.find_all_match(2).start, 10);
+}
+
+TEST_CASE(ascii_ignore_case_literal_search_handles_punctuation_prefixes)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("##yv22##"sv, { .ignore_case = true }));
+
+    EXPECT_EQ(regex.find_all("##YV22## and ##yv22##"sv, 0), 2);
+    EXPECT_EQ(regex.find_all_match(0).start, 0);
+    EXPECT_EQ(regex.find_all_match(0).end, 8);
+    EXPECT_EQ(regex.find_all_match(1).start, 13);
+    EXPECT_EQ(regex.find_all_match(1).end, 21);
+}
+
 TEST_CASE(find_all_returns_non_overlapping_matches)
 {
     auto regex = MUST(regex::ECMAScriptRegex::compile("aba"sv, {}));
