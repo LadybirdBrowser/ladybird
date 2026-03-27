@@ -32,7 +32,7 @@ if ! eval "${find_compiler}" ; then
     die "Unable to determine clang compiler"
 fi
 
-cmake -GNinja --preset=Distribution -B Build/tools \
+cmake -S ../.. -GNinja --preset=Distribution -B Build/tools \
     -DLAGOM_TOOLS_ONLY=ON \
     -DINSTALL_LAGOM_TOOLS=ON \
     -DCMAKE_CXX_FLAGS="$CXXFLAGS" \
@@ -51,7 +51,7 @@ echo "Building Lagom Fuzzers..."
 
 if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
     echo "Building for oss-fuzz configuration..."
-    cmake -GNinja -B Build/fuzzers \
+    cmake -S ../.. -GNinja -B Build/fuzzers \
         -DBUILD_SHARED_LIBS=OFF \
         -DENABLE_FUZZERS_OSSFUZZ=ON \
         -DFUZZER_DICTIONARY_DIRECTORY="$OUT" \
@@ -64,13 +64,13 @@ if [ "$#" -gt "0" ] && [ "--oss-fuzz" = "$1" ] ; then
     cp Build/fuzzers/bin/Fuzz* "$OUT"/
 elif [ "$#" -gt "0" ] && [ "--standalone" = "$1" ] ; then
     echo "Building for standalone fuzz configuration..."
-    cmake -GNinja -B Build/lagom-fuzzers-standalone \
+    cmake -S ../.. -GNinja -B Build/lagom-fuzzers-standalone \
         -DENABLE_FUZZERS=ON \
         -DCMAKE_PREFIX_PATH=Build/tool-install
     ninja -C Build/lagom-fuzzers-standalone
 else
     echo "Building for local fuzz configuration..."
-    cmake -GNinja --preset Fuzzers -B Build/lagom-fuzzers \
+    cmake -S ../.. -GNinja --preset Fuzzers -B Build/lagom-fuzzers \
         -DCMAKE_PREFIX_PATH=Build/tool-install \
         -DCMAKE_C_COMPILER="${CC}" \
         -DCMAKE_CXX_COMPILER="${CXX}" \
