@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <LibJS/Runtime/Realm.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/Dump.h>
 
@@ -78,6 +79,22 @@ void Supports::FontFormat::dump(StringBuilder& builder, int indent_levels) const
 {
     indent(builder, indent_levels);
     builder.appendff("FontFormat: `{}` matches={}\n", m_format, m_matches);
+}
+
+MatchResult Supports::Env::evaluate(DOM::Document const*) const
+{
+    return as_match_result(m_matches);
+}
+
+String Supports::Env::to_string() const
+{
+    return MUST(String::formatted("font-format({})", serialize_an_identifier(m_variable_name)));
+}
+
+void Supports::Env::dump(StringBuilder& builder, int indent_levels) const
+{
+    indent(builder, indent_levels);
+    builder.appendff("Env: `{}` matches={}\n", m_variable_name, m_matches);
 }
 
 String Supports::to_string() const

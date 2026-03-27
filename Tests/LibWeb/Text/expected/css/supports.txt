@@ -6,7 +6,7 @@ These should all be valid:
 @supports selector(.simple): PASS
 @supports selector(a#more > .complicated.case:nth-child(42)): PASS
 @supports selector(.easy) or selector(.....nope): PASS
-@supports env(preferred-text-scale): FAIL
+@supports env(preferred-text-scale): PASS
 
 These should all be invalid:
 @supports (not (color: green)): PASS

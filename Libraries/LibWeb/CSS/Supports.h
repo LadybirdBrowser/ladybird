@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2021-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -103,6 +103,28 @@ public:
         {
         }
         FlyString m_format;
+        bool m_matches;
+    };
+
+    class Env final : public BooleanExpression {
+    public:
+        static NonnullOwnPtr<Env> create(FlyString variable_name, bool matches)
+        {
+            return adopt_own(*new Env(move(variable_name), matches));
+        }
+        virtual ~Env() override = default;
+
+        virtual MatchResult evaluate(DOM::Document const*) const override;
+        virtual String to_string() const override;
+        virtual void dump(StringBuilder&, int indent_levels = 0) const override;
+
+    private:
+        Env(FlyString variable_name, bool matches)
+            : m_variable_name(move(variable_name))
+            , m_matches(matches)
+        {
+        }
+        FlyString m_variable_name;
         bool m_matches;
     };
 

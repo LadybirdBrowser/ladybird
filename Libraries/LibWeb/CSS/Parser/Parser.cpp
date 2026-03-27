@@ -338,7 +338,8 @@ OwnPtr<BooleanExpression> Parser::parse_supports_condition(TokenStream<Component
 OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentValue>& tokens)
 {
     // <supports-feature> = <supports-selector-fn> | <supports-font-tech-fn>
-    //                    | <supports-font-format-fn> | <supports-decl>
+    //                    | <supports-font-format-fn> | <supports-env-fn>
+    //                    | <supports-decl>
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
@@ -397,6 +398,24 @@ OwnPtr<BooleanExpression> Parser::parse_supports_feature(TokenStream<ComponentVa
         auto format_name = format_token.token().ident();
         bool matches = font_format_is_supported(format_name);
         return Supports::FontFormat::create(move(format_name), matches);
+    }
+
+    // `<supports-env-fn> = env( <ident> )`
+    if (first_token.is_function("env"sv)) {
+        TokenStream format_tokens { first_token.function().value };
+        format_tokens.discard_whitespace();
+        auto variable_token = format_tokens.consume_a_token();
+        format_tokens.discard_whitespace();
+        if (format_tokens.has_next_token() || !variable_token.is(Token::Type::Ident))
+            return {};
+
+        transaction.commit();
+        auto variable_name = variable_token.token().ident();
+        // https://drafts.csswg.org/css-conditional-5/#support-definition-env
+        // A CSS processor is considered to support an environment variable if the <ident> is a supported environment
+        // variable.
+        bool matches = environment_variable_from_string(variable_name).has_value();
+        return Supports::FontFormat::create(move(variable_name), matches);
     }
 
     return {};
