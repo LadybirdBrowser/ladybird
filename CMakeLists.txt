@@ -132,30 +132,7 @@ include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_BINARY_DIR}/Libraries)
 include_directories(${CMAKE_BINARY_DIR}/Services)
 
-# install rules, think about moving to its own helper cmake file
-include(CMakePackageConfigHelpers)
-
-# find_package(<package>) call for consumers to find this project
-set(package Lagom CACHE STRING "")
-
-# Allow package maintainers to freely override the path for the configs
-set(Lagom_INSTALL_CMAKEDIR "${CMAKE_INSTALL_DATADIR}/${package}"
-    CACHE PATH "CMake package config location relative to the install prefix")
-mark_as_advanced(Lagom_INSTALL_CMAKEDIR)
-
-install(
-    FILES "${LADYBIRD_SOURCE_DIR}/Meta/CMake/lagom-install-config.cmake"
-    DESTINATION "${Lagom_INSTALL_CMAKEDIR}"
-    RENAME "${package}Config.cmake"
-    COMPONENT Lagom_Development
-)
-
-install(
-    EXPORT LagomTargets
-    NAMESPACE Lagom::
-    DESTINATION "${Lagom_INSTALL_CMAKEDIR}"
-    COMPONENT Lagom_Development
-)
+include(lagom_install)
 
 if (WIN32)
     find_package(pthread REQUIRED)
