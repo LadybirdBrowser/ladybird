@@ -1,4 +1,4 @@
-These should all pass:
+These should all be valid:
 @supports (color: green): PASS
 @supports (color: green) and (width: 50px): PASS
 @supports (color: green) or (flogwizzle: purple): PASS
@@ -6,12 +6,15 @@ These should all pass:
 @supports selector(.simple): PASS
 @supports selector(a#more > .complicated.case:nth-child(42)): PASS
 @supports selector(.easy) or selector(.....nope): PASS
+@supports env(preferred-text-scale): FAIL
 
-These should all fail:
-@supports (not (color: green)): FAIL
-@supports (color: green) and (width: 50px) or (color: green): FAIL
-@supports (width: yellow) or (height: green): FAIL
-@supports (flogwizzle: purple): FAIL
-@supports selector(.....nope): FAIL
-@supports selector(::-webkit-input-placeholder): PASS
-@supports selector(32) or selector(thing[foo??????bar]): FAIL
+These should all be invalid:
+@supports (not (color: green)): PASS
+@supports (color: green) and (width: 50px) or (color: green): PASS
+@supports (width: yellow) or (height: green): PASS
+@supports (flogwizzle: purple): PASS
+@supports selector(.....nope): PASS
+@supports selector(::-thing-we-dont-support): PASS
+@supports selector(32) or selector(thing[foo??????bar]): PASS
+@supports env(florb): PASS
+@supports env(123): PASS
