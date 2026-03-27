@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<body>
+<script>
+const iframe = document.createElement("iframe");
+document.body.appendChild(iframe);
+iframe.contentDocument.open();
+iframe.contentDocument.write("<!DOCTYPE html><p>hello</p>");
+iframe.contentDocument.close();
+iframe.contentWindow.navigation.currentEntry;
+</script>
+</body>

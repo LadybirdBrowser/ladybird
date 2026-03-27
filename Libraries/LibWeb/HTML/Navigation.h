@@ -134,6 +134,8 @@ public:
     bool focus_changed_during_ongoing_navigation() const { return m_focus_changed_during_ongoing_navigation; }
     void set_focus_changed_during_ongoing_navigation(bool b) { m_focus_changed_during_ongoing_navigation = b; }
 
+    void set_was_initial_about_blank_opened(bool b) { m_was_initial_about_blank_opened = b; }
+
 private:
     explicit Navigation(JS::Realm&);
 
@@ -190,6 +192,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-non-traverse-api-method-tracker
     HashMap<String, GC::Ref<NavigationAPIMethodTracker>> m_upcoming_traverse_api_method_trackers;
+
+    // AD-HOC: Set when document.open() is called on an initial about:blank document.
+    bool m_was_initial_about_blank_opened { false };
 };
 
 HistoryHandlingBehavior to_history_handling_behavior(Bindings::NavigationHistoryBehavior);

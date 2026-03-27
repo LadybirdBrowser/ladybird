@@ -467,6 +467,12 @@ bool Navigation::has_entries_and_events_disabled() const
     if (document.origin().is_opaque())
         return true;
 
+    // AD-HOC: Keep entries and events disabled when document.open() is called on an initial about:blank document. This
+    //         behavior matches other engines.
+    //         Spec issue: https://github.com/whatwg/html/issues/11811
+    if (m_was_initial_about_blank_opened)
+        return true;
+
     // 5. Return false.
     return false;
 }
@@ -1429,6 +1435,10 @@ void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector
 
     // 2. Assert: navigation's current entry index is −1.
     VERIFY(m_current_entry_index == -1);
+
+    // AD-HOC: This flag is only set when an about:blank page is modified by document.open(). Reset it now that a new
+    //         navigation is happening.
+    m_was_initial_about_blank_opened = false;
 
     // 3. If navigation has entries and events disabled, then return.
     if (has_entries_and_events_disabled())
