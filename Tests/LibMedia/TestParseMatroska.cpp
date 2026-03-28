@@ -6,9 +6,219 @@
 
 #include <LibCore/File.h>
 #include <LibMedia/Containers/Matroska/MatroskaDemuxer.h>
+#include <LibMedia/ReadonlyBytesCursor.h>
 #include <LibTest/TestCase.h>
 
 #include <LibMedia/Containers/Matroska/Reader.h>
+
+static Media::Matroska::Streamer streamer_from_bytes(ReadonlyBytes bytes)
+{
+    return Media::Matroska::Streamer(make_ref_counted<Media::ReadonlyBytesCursor>(bytes));
+}
+
+TEST_CASE(streamer_read_element_id)
+{
+    // 1-byte ID: 0xEC (Void)
+    auto streamer = streamer_from_bytes("\xEC"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_element_id()), 0xECu);
+
+    // 2-byte ID: 0x42 0x86 (EBMLVersion)
+    streamer = streamer_from_bytes("\x42\x86"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_element_id()), 0x4286u);
+
+    // 4-byte ID: 0x1A 0x45 0xDF 0xA3 (EBML)
+    streamer = streamer_from_bytes("\x1A\x45\xDF\xA3"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_element_id()), 0x1A45DFA3u);
+
+    // Invalid: leading byte 0x00 (no width bit set)
+    streamer = streamer_from_bytes("\x00"sv.bytes());
+    EXPECT(streamer.read_element_id().is_error());
+}
+
+TEST_CASE(streamer_read_element_size)
+{
+    // 1-byte size: 0x85 = size 5
+    auto streamer = streamer_from_bytes("\x85"sv.bytes());
+    auto size = MUST(streamer.read_element_size());
+    EXPECT(size.has_value());
+    EXPECT_EQ(size.value(), 5u);
+
+    // 1-byte size: 0x80 = size 0
+    streamer = streamer_from_bytes("\x80"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(size.has_value());
+    EXPECT_EQ(size.value(), 0u);
+
+    // 2-byte size: 0x40 0x02 = size 2
+    streamer = streamer_from_bytes("\x40\x02"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(size.has_value());
+    EXPECT_EQ(size.value(), 2u);
+
+    // 1-byte unknown size: 0xFF
+    streamer = streamer_from_bytes("\xFF"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(!size.has_value());
+
+    // 2-byte unknown size: 0x7F 0xFF
+    streamer = streamer_from_bytes("\x7F\xFF"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(!size.has_value());
+
+    // 4-byte unknown size: 0x1F 0xFF 0xFF 0xFF
+    streamer = streamer_from_bytes("\x1F\xFF\xFF\xFF"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(!size.has_value());
+
+    // 8-byte unknown size: 0x01 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF
+    streamer = streamer_from_bytes("\x01\xFF\xFF\xFF\xFF\xFF\xFF\xFF"sv.bytes());
+    size = MUST(streamer.read_element_size());
+    EXPECT(!size.has_value());
+}
+
+TEST_CASE(streamer_read_variable_size_integer)
+{
+    // 1-byte VINT: 7 data bits
+    // 0x80 → data=0
+    auto streamer = streamer_from_bytes("\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 0u);
+
+    // 0x81 → data=1
+    streamer = streamer_from_bytes("\x81"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 1u);
+
+    // 0xFE → data=126
+    streamer = streamer_from_bytes("\xFE"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 126u);
+
+    // 0xFF → data=127 (max for 1-byte)
+    streamer = streamer_from_bytes("\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 127u);
+
+    // 2-byte VINT: 14 data bits
+    // 0x40 0x00 → data=0
+    streamer = streamer_from_bytes("\x40\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 0u);
+
+    // 0x40 0x80 → data=128
+    streamer = streamer_from_bytes("\x40\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 128u);
+
+    // 0x7F 0xFF → data=16383 (max for 2-byte)
+    streamer = streamer_from_bytes("\x7F\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 16383u);
+
+    // 4-byte VINT: 28 data bits
+    // 0x10 0x00 0x01 0x00 → data=256
+    streamer = streamer_from_bytes("\x10\x00\x01\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_integer()), 256u);
+
+    // Invalid: leading byte 0x00
+    streamer = streamer_from_bytes("\x00"sv.bytes());
+    EXPECT(streamer.read_variable_size_integer().is_error());
+}
+
+TEST_CASE(streamer_read_variable_size_signed_integer)
+{
+    // 1-byte signed VINT: 7 data bits, bias = 2^6 - 1 = 63
+    // 0xBF → data=63 → 63-63 = 0
+    auto streamer = streamer_from_bytes("\xBF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), 0);
+
+    // 0x80 → data=0 → 0-63 = -63
+    streamer = streamer_from_bytes("\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), -63);
+
+    // 0xFF → data=127 → 127-63 = 64
+    streamer = streamer_from_bytes("\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), 64);
+
+    // 2-byte signed VINT: 14 data bits, bias = 2^13 - 1 = 8191
+    // 0x60 0x00 → data=8191 → 8191-8191 = 0
+    streamer = streamer_from_bytes("\x5F\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), 0);
+
+    // 0x40 0x00 → data=0 → 0-8191 = -8191
+    streamer = streamer_from_bytes("\x40\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), -8191);
+
+    // 0x7F 0xFE → data=16382 → 16382-8191 = 8191
+    streamer = streamer_from_bytes("\x7F\xFE"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_variable_size_signed_integer()), 8191);
+}
+
+TEST_CASE(streamer_read_u64)
+{
+    // Zero-length integer = 0
+    auto streamer = streamer_from_bytes("\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_u64()), 0u);
+
+    // 1-byte integer: size=1, value=42
+    streamer = streamer_from_bytes("\x81\x2A"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_u64()), 42u);
+
+    // 2-byte integer: size=2, value=0x0100 = 256
+    streamer = streamer_from_bytes("\x82\x01\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_u64()), 256u);
+
+    // 1-byte integer: size=1, value=0xFF = 255
+    streamer = streamer_from_bytes("\x81\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_u64()), 255u);
+}
+
+TEST_CASE(streamer_read_i64)
+{
+    // Zero-length signed integer = 0
+    auto streamer = streamer_from_bytes("\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), 0);
+
+    // 1-byte signed: size=1, value=0x01 = 1
+    streamer = streamer_from_bytes("\x81\x01"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), 1);
+
+    // 1-byte signed: size=1, value=0xFF = -1 (sign extended)
+    streamer = streamer_from_bytes("\x81\xFF"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), -1);
+
+    // 1-byte signed: size=1, value=0x80 = -128
+    streamer = streamer_from_bytes("\x81\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), -128);
+
+    // 1-byte signed: size=1, value=0x7F = 127
+    streamer = streamer_from_bytes("\x81\x7F"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), 127);
+
+    // 2-byte signed: size=2, value=0xFF80 = -128
+    streamer = streamer_from_bytes("\x82\xFF\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), -128);
+
+    // 2-byte signed: size=2, value=0x0080 = 128
+    streamer = streamer_from_bytes("\x82\x00\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_i64()), 128);
+}
+
+TEST_CASE(streamer_read_float)
+{
+    // Zero-length float = 0.0
+    auto streamer = streamer_from_bytes("\x80"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_float()), 0.0);
+
+    // 4-byte float: size=4, IEEE 754 1.0f = 0x3F800000
+    streamer = streamer_from_bytes("\x84\x3F\x80\x00\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_float()), 1.0);
+
+    // 8-byte double: size=8, IEEE 754 1.0 = 0x3FF0000000000000
+    streamer = streamer_from_bytes("\x88\x3F\xF0\x00\x00\x00\x00\x00\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_float()), 1.0);
+
+    // 4-byte float: size=4, IEEE 754 -1.0f = 0xBF800000
+    streamer = streamer_from_bytes("\x84\xBF\x80\x00\x00"sv.bytes());
+    EXPECT_EQ(MUST(streamer.read_float()), -1.0);
+
+    // Invalid float size (3 bytes)
+    streamer = streamer_from_bytes("\x83\x00\x00\x00"sv.bytes());
+    EXPECT(streamer.read_float().is_error());
+}
 
 TEST_CASE(master_elements_containing_crc32)
 {
