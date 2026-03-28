@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 239 tests
 
-231 Pass
-8 Fail
+233 Pass
+6 Fail
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid
@@ -203,8 +203,8 @@ Pass	syntax:'*', initialValue:'"
 ' is invalid
 Pass	syntax:'*', initialValue:'url(moo '')' is invalid
 Pass	syntax:'*', initialValue:'semi;colon' is invalid
-Fail	syntax:'*', initialValue:'var(invalid var ref)' is invalid
-Fail	syntax:'*', initialValue:'var(--foo)' is invalid
+Pass	syntax:'*', initialValue:'var(invalid var ref)' is invalid
+Pass	syntax:'*', initialValue:'var(--foo)' is invalid
 Pass	syntax:'banana', initialValue:'bAnAnA' is invalid
 Pass	syntax:'<length>', initialValue:'var(--moo)' is invalid
 Pass	syntax:'<length>', initialValue:'10' is invalid
