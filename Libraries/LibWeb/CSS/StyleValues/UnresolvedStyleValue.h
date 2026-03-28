@@ -17,7 +17,7 @@ namespace Web::CSS {
 
 class UnresolvedStyleValue final : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Optional<Parser::SubstitutionFunctionsPresence> = {}, Optional<String> original_source_text = {});
+    static ValueComparingNonnullRefPtr<UnresolvedStyleValue const> create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence, Optional<String> original_source_text = {});
     virtual ~UnresolvedStyleValue() override = default;
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;

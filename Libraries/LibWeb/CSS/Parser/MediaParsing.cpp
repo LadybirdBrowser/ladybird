@@ -594,7 +594,9 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
             .value_string = MUST(String::join(""sv, unknown_tokens)),
             .description = "Unrecognized type"_string,
         });
-        return MediaFeatureValue(MediaFeatureValue::Type::Unknown, move(UnresolvedStyleValue::create(move(unknown_tokens))));
+        // NB: We only use this for serialization so the substitution function presence is irrelevant and we can just
+        //     set it to empty.
+        return MediaFeatureValue(MediaFeatureValue::Type::Unknown, move(UnresolvedStyleValue::create(move(unknown_tokens), {})));
     }
 
     return {};

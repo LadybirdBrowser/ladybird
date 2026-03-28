@@ -5874,7 +5874,7 @@ NonnullRefPtr<StyleValue const> Parser::resolve_unresolved_style_value(DOM::Abst
     // NB: Custom properties have no grammar as such, so we skip this step for them.
     // FIXME: Parse according to @property syntax once we support that.
     if (property.is_custom_property())
-        return UnresolvedStyleValue::create(move(result));
+        return UnresolvedStyleValue::create(move(result), {});
 
     auto expanded_value_tokens = TokenStream { result };
     auto parsed_value = parse_css_value(property.id(), expanded_value_tokens);

@@ -19,16 +19,9 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Optional<Parser::SubstitutionFunctionsPresence> substitution_presence, Optional<String> original_source_text)
+ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::create(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text)
 {
-    if (!substitution_presence.has_value()) {
-        substitution_presence = Parser::SubstitutionFunctionsPresence {};
-        // FIXME: Make substitution_presence non-optional since all callers need to check ASF argument syntax anyway
-        auto result = Parser::Parser::collect_arbitrary_substitution_function_presence(values, *substitution_presence);
-        VERIFY(!result.is_error());
-    }
-
-    return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), *substitution_presence, move(original_source_text)));
+    return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), substitution_presence, move(original_source_text)));
 }
 
 UnresolvedStyleValue::UnresolvedStyleValue(Vector<Parser::ComponentValue>&& values, Parser::SubstitutionFunctionsPresence substitution_presence, Optional<String> original_source_text)

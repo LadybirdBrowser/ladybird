@@ -322,10 +322,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                     tokens.discard_whitespace();
 
                     if (tokens.is_empty())
-                        return UnresolvedStyleValue::create({});
+                        return UnresolvedStyleValue::create({}, {});
 
-                    if (auto parsed_declaration_value = parse_declaration_value(tokens); parsed_declaration_value.has_value() && tokens.is_empty())
-                        return UnresolvedStyleValue::create(parsed_declaration_value.release_value());
+                    if (auto parsed_declaration_value = parse_declaration_value(tokens); parsed_declaration_value.has_value() && tokens.is_empty()) {
+                        // NB: We know this contains no substitution functions otherwise we would have returned earlier
+                        return UnresolvedStyleValue::create(parsed_declaration_value.release_value(), {});
+                    }
 
                     return nullptr;
                 }
