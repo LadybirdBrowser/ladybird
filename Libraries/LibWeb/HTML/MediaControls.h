@@ -101,6 +101,13 @@ private:
     MuteIconState m_mute_icon_state { MuteIconState::Empty };
 
     double m_last_timeline_progress { 0.0 };
+
+    struct BufferedRange {
+        GC::Weak<DOM::Element> element;
+        double left { 0 };
+        double width { 0 };
+    };
+    Vector<BufferedRange> m_buffered_ranges;
 };
 
 }
