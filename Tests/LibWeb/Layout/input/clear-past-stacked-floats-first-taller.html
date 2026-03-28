@@ -1,0 +1,5 @@
+<!DOCTYPE html><!-- First float is taller than second. Tests that we don't lose track of the first float's bottom. -->
+<style>
+.clearfix:after { display: block; content: " "; clear: both; }
+.float { float: left; width: 100%; }
+</style><div class="clearfix"><div class="float" style="height: 400px; background: steelblue;"></div><div class="float" style="height: 50px; background: tomato;"></div></div><div id="after" style="height: 10px; background: seagreen;"></div>

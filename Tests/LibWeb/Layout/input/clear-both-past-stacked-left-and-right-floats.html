@@ -1,0 +1,4 @@
+<!DOCTYPE html><!-- Stacked left floats and stacked right floats, clear:both should clear past all of them. -->
+<style>
+.clearfix:after { display: block; content: " "; clear: both; }
+</style><div class="clearfix"><div style="float: left; width: 100%; height: 100px; background: steelblue;"></div><div style="float: left; width: 100%; height: 50px; background: tomato;"></div><div style="float: right; width: 100%; height: 200px; background: gold;"></div><div style="float: right; width: 100%; height: 80px; background: plum;"></div></div><div id="after" style="height: 10px; background: seagreen;"></div>

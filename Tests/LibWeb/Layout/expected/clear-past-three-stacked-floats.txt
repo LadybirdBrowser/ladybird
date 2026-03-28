@@ -1,0 +1,26 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 376 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 360 0+0+8] children: not-inline
+      BlockContainer <div.clearfix> at [8,8] [0+0+0 784 0+0+0] [0+0+0 350 0+0+0] children: not-inline
+        BlockContainer <div.float> at [8,8] floating [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.float> at [8,108] floating [0+0+0 784 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.float> at [8,308] floating [0+0+0 784 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,358] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <div#after> at [8,358] [0+0+0 784 0+0+0] [0+0+0 10 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,368] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x376]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x360]
+      PaintableWithLines (BlockContainer<DIV>.clearfix) [8,8 784x350]
+        PaintableWithLines (BlockContainer<DIV>.float) [8,8 784x100]
+        PaintableWithLines (BlockContainer<DIV>.float) [8,108 784x200]
+        PaintableWithLines (BlockContainer<DIV>.float) [8,308 784x50]
+        PaintableWithLines (BlockContainer(anonymous)) [8,358 784x0]
+      PaintableWithLines (BlockContainer<DIV>#after) [8,358 784x10]
+      PaintableWithLines (BlockContainer(anonymous)) [8,368 784x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x376] [children: 0] (z-index: auto)

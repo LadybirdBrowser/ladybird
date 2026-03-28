@@ -1144,9 +1144,12 @@ BlockFormattingContext::DidIntroduceClearance BlockFormattingContext::clear_floa
         //       the `child_box` layout state.
 
         // First, find the lowest margin box edge on this float side and calculate the Y offset just below it.
+        // NOTE: We must look at all_boxes here, not current_boxes, because current_boxes gets cleared
+        //       when floats are stacked (e.g. multiple width:100% floats). The clear property needs to
+        //       clear past ALL preceding floats, not just the ones on the current "float line".
         CSSPixels clearance_y_in_root = 0;
-        for (auto const& floating_box : float_side.current_boxes)
-            clearance_y_in_root = max(clearance_y_in_root, floating_box.margin_box_rect_in_root_coordinate_space.bottom());
+        for (auto const& floating_box : float_side.all_boxes)
+            clearance_y_in_root = max(clearance_y_in_root, floating_box->margin_box_rect_in_root_coordinate_space.bottom());
 
         // Then, convert the clearance Y to a coordinate relative to the containing block of `child_box`.
         CSSPixels clearance_y_in_containing_block = clearance_y_in_root;
@@ -1378,6 +1381,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         if (!line_builder)
             y += side_data.y_offset;
 
+        // NOTE: We don't set the X position here, that happens later, once we know the root block width.
+        //       See parent_context_did_dimension_child_root_box() for that logic.
+        box_state.set_content_y(y);
+
         auto top_margin_edge = y - box_state.margin_box_top();
         side_data.all_boxes.append(adopt_own(*new FloatingBox {
             .box = box,
@@ -1396,10 +1403,6 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
             side_data.current_width = offset_from_edge + box_state.margin_box_left();
         }
         side_data.max_width = max(side_data.current_width, side_data.max_width);
-
-        // NOTE: We don't set the X position here, that happens later, once we know the root block width.
-        //       See parent_context_did_dimension_child_root_box() for that logic.
-        box_state.set_content_y(y);
     };
 
     // Next, float to the left and/or right
