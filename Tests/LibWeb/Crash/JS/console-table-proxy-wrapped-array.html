@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<script>
+    console.table({ a: new Proxy([1, 2, 3], {}) });
+    console.table(new Proxy([1, 2, 3], {}));
+    console.table({ a: 1, b: 2 }, new Proxy(["a"], {}));
+</script>

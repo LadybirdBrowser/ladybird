@@ -183,17 +183,17 @@ static ThrowCompletionOr<GC::Ref<Object>> create_table_row(Realm& realm, Value r
 
     // 3. If `tabularDataItem` is a list, then:
     if (TRY(tabular_data_item.is_array(vm))) {
-        auto& array = tabular_data_item.as_array();
+        auto& array_like = tabular_data_item.as_object();
 
         // 3.1. Let `indices` be get the indices of `tabularDataItem`
-        auto indices = array.indexed_indices();
+        auto length = TRY(length_of_array_like(vm, array_like));
 
         // 3.2. For each `index` of `indices`
-        for (auto index : indices) {
-            PropertyKey key(index);
+        for (size_t i = 0; i < length; ++i) {
+            PropertyKey key(i);
 
             // 3.2.1. Let `value` be `tabularDataItem[index]`
-            Value value = TRY(array.get(key));
+            Value value = TRY(array_like.get(key));
 
             // 3.2.2. If `properties` is not empty and `properties` does not contain `index`, continue
             if (properties.size() > 0 && !properties.contains(key)) {
@@ -256,12 +256,12 @@ ThrowCompletionOr<Value> Console::table()
         HashMap<PropertyKey, bool> properties;
 
         if (TRY(properties_arg.is_array(vm))) {
-            auto& properties_arr = properties_arg.as_array();
-            auto prop_indices = properties_arr.indexed_indices();
-            for (auto index : prop_indices) {
-                auto col_result = properties_arr.indexed_get(index);
-                if (col_result.has_value())
-                    properties.set(TRY(PropertyKey::from_value(vm, col_result->value)), true);
+            auto& properties_arr = properties_arg.as_object();
+            auto properties_length = TRY(length_of_array_like(vm, properties_arr));
+            for (size_t index = 0; index < properties_length; ++index) {
+                auto value = TRY(properties_arr.get(index));
+                if (!value.is_undefined())
+                    properties.set(TRY(PropertyKey::from_value(vm, value)), true);
             }
         }
 
@@ -275,17 +275,17 @@ ThrowCompletionOr<Value> Console::table()
 
         // 3. If `tabularData` is a list, then:
         if (TRY(tabular_data.is_array(vm))) {
-            auto& array = tabular_data.as_array();
+            auto& array_like = tabular_data.as_object();
 
             // 3.1. Let `indices` be get the indices of `tabularData`
-            auto table_indices = array.indexed_indices();
+            auto length = TRY(length_of_array_like(vm, array_like));
 
             // 3.2. For each `index` of `indices`
-            for (auto idx : table_indices) {
+            for (size_t idx = 0; idx < length; ++idx) {
                 PropertyKey index(idx);
 
                 // 3.2.1. Let `value` be `tabularData[index]`
-                Value value = TRY(array.get(index));
+                Value value = TRY(array_like.get(index));
 
                 // 3.2.2. Perform create table row with `value`, `key`, `finalColumns`, and `properties` that returns `row`
                 auto row = TRY(create_table_row(realm(), Value(index.as_number()), value, final_columns, visited_columns, properties));
