@@ -781,12 +781,11 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
         auto navigable = changing_navigable_continuation->navigable;
 
         // AD-HOC: We should not continue navigation if navigable has been destroyed.
-        if (navigable->has_been_destroyed())
-            continue;
-
         // AD-HOC: The displayed document may have been destroyed during the nested step execution above.
-        if (!displayed_document->navigable())
+        if (navigable->has_been_destroyed() || !displayed_document->navigable()) {
+            completed_change_jobs++;
             continue;
+        }
 
         // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
         //         This can happen if navigables are destroyed while we wait for tasks to complete.
