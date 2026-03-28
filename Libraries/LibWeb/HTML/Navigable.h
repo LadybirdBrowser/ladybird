@@ -78,6 +78,9 @@ public:
     void set_delaying_load_events(bool value);
     bool is_delaying_load_events() const { return m_delaying_the_load_event.has_value(); }
 
+    void set_navigation_load_event_guard(DOM::Document& parent_doc);
+    void clear_navigation_load_event_guard();
+
     GC::Ptr<SessionHistoryEntry> active_session_history_entry() const { return m_active_session_history_entry; }
     void set_active_session_history_entry(GC::Ptr<SessionHistoryEntry> entry) { m_active_session_history_entry = entry; }
     GC::Ptr<SessionHistoryEntry> current_session_history_entry() const { return m_current_session_history_entry; }
@@ -278,6 +281,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#delaying-load-events-mode
     Optional<DOM::DocumentLoadEventDelayer> m_delaying_the_load_event;
+
+    // AD-HOC: Guards the parent document's load event delay count during cross-document navigation.
+    Optional<DOM::DocumentLoadEventDelayer> m_navigation_load_event_guard;
 
     // Implied link between navigable and its container.
     GC::Ptr<NavigableContainer> m_container;

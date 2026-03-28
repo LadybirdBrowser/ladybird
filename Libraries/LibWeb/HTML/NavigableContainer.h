@@ -59,7 +59,7 @@ protected:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#content-navigable
     GC::Ptr<Navigable> m_content_navigable { nullptr };
 
-    void set_potentially_delays_the_load_event(bool value) { m_potentially_delays_the_load_event = value; }
+    void set_potentially_delays_the_load_event(bool value);
 
     void set_content_navigable_has_session_history_entry_and_ready_for_navigation();
 

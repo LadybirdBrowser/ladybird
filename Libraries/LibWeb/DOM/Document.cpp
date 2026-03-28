@@ -606,6 +606,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_appropriate_template_contents_owner_document);
     visitor.visit(m_pending_parsing_blocking_script);
     visitor.visit(m_history);
+    visitor.visit(m_html_parser_end_state);
     visitor.visit(m_style_computer);
     visitor.visit(m_font_computer);
     visitor.visit(m_browsing_context);
@@ -3957,7 +3958,7 @@ void Document::set_parser(Badge<HTML::HTMLParser>, HTML::HTMLParser& parser)
     m_parser = parser;
 }
 
-void Document::detach_parser(Badge<HTML::HTMLParser>)
+void Document::detach_parser()
 {
     m_parser = nullptr;
 }
@@ -4064,6 +4065,36 @@ void Document::decrement_number_of_things_delaying_the_load_event(Badge<Document
     --m_number_of_things_delaying_the_load_event;
 
     page().client().page_did_update_resource_count(m_number_of_things_delaying_the_load_event);
+
+    schedule_html_parser_end_check();
+}
+
+void Document::set_html_parser_end_state(GC::Ptr<HTML::HTMLParserEndState> state)
+{
+    m_html_parser_end_state = state;
+}
+
+void Document::schedule_html_parser_end_check()
+{
+    if (m_html_parser_end_state)
+        m_html_parser_end_state->schedule_progress_check();
+}
+
+void Document::set_ready_for_post_load_tasks(bool ready)
+{
+    m_ready_for_post_load_tasks = ready;
+    if (ready) {
+        if (auto navigable = this->navigable()) {
+            // AD-HOC: Clear the navigation load event guard now that the document is ready.
+            //         This guard was set in finalize_a_cross_document_navigation to prevent the parent's
+            //         load event from firing while the about:blank was still the active document.
+            navigable->clear_navigation_load_event_guard();
+
+            if (auto container = navigable->container()) {
+                container->document().schedule_html_parser_end_check();
+            }
+        }
+    }
 }
 
 bool Document::anything_is_delaying_the_load_event() const
@@ -4933,6 +4964,8 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 void Document::did_stop_being_active_document_in_navigable()
 {
     tear_down_layout_tree();
+
+    schedule_html_parser_end_check();
 
     if (!m_has_fired_document_became_inactive) {
         m_has_fired_document_became_inactive = true;

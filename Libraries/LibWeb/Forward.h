@@ -775,6 +775,7 @@ class HTMLOutputElement;
 class HTMLParagraphElement;
 class HTMLParamElement;
 class HTMLParser;
+class HTMLParserEndState;
 class HTMLPictureElement;
 class HTMLPreElement;
 class HTMLProgressElement;

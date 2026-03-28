@@ -312,6 +312,7 @@ void NavigableContainer::destroy_the_child_navigable()
     navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;
+        document().schedule_html_parser_end_check();
 
         // Not in the spec:
         HTML::all_navigables().remove(*navigable);
@@ -376,11 +377,19 @@ bool NavigableContainer::content_navigable_has_session_history_entry_and_ready_f
     return m_content_navigable->has_session_history_entry_and_ready_for_navigation();
 }
 
+void NavigableContainer::set_potentially_delays_the_load_event(bool value)
+{
+    m_potentially_delays_the_load_event = value;
+    if (!value)
+        document().schedule_html_parser_end_check();
+}
+
 void NavigableContainer::set_content_navigable_has_session_history_entry_and_ready_for_navigation()
 {
     if (!content_navigable())
         return;
     content_navigable()->set_has_session_history_entry_and_ready_for_navigation();
+    document().schedule_html_parser_end_check();
 }
 
 }

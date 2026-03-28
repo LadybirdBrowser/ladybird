@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Parser/ListOfActiveFormattingElements.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
 #include <LibWeb/MimeSniff/MimeType.h>
+#include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
 
@@ -215,6 +216,39 @@ private:
 
     GC::Ptr<DOM::Text> m_character_insertion_node;
     StringBuilder m_character_insertion_builder { StringBuilder::Mode::UTF16 };
+};
+
+class HTMLParserEndState final : public JS::Cell {
+    GC_CELL(HTMLParserEndState, JS::Cell);
+    GC_DECLARE_ALLOCATOR(HTMLParserEndState);
+
+public:
+    static GC::Ref<HTMLParserEndState> create(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>);
+
+    void schedule_progress_check();
+
+private:
+    enum class Phase {
+        WaitingForDeferredScripts,
+        WaitingForASAPScripts,
+        WaitingForLoadEventDelay,
+        Completed,
+    };
+
+    HTMLParserEndState(GC::Ref<DOM::Document>, GC::Ptr<HTMLParser>);
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    void check_progress();
+    void advance_to_asap_scripts_phase();
+    void complete();
+
+    Phase m_phase { Phase::WaitingForDeferredScripts };
+    bool m_check_pending { false };
+
+    GC::Ref<DOM::Document> m_document;
+    GC::Ptr<HTMLParser> m_parser;
+    GC::Ref<Platform::Timer> m_timeout;
 };
 
 RefPtr<CSS::StyleValue const> parse_dimension_value(StringView);

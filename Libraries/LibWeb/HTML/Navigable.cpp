@@ -358,6 +358,16 @@ void Navigable::set_delaying_load_events(bool value)
     }
 }
 
+void Navigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
+{
+    m_navigation_load_event_guard.emplace(parent_doc);
+}
+
+void Navigable::clear_navigation_load_event_guard()
+{
+    m_navigation_load_event_guard.clear();
+}
+
 GC::Ptr<Navigable> Navigable::navigable_with_active_document(GC::Ref<DOM::Document> document)
 {
     for (auto navigable : all_navigables()) {
@@ -2564,6 +2574,13 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     // 1. FIXME: Assert: this is running on navigable's traversable navigable's session history traversal queue.
 
     // 2. Set navigable's is delaying load events to false.
+    // AD-HOC: Without this guard, decrementing the navigable's delay counter triggers schedule_load_event_delay_check
+    //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
+    //         history traversal activates the new document. The guard is cleared when the new document becomes ready
+    //         for post-load tasks (via set_ready_for_post_load_tasks).
+    if (auto container_doc = navigable->container_document(); container_doc && history_entry->document())
+        navigable->set_navigation_load_event_guard(*container_doc);
+
     navigable->set_delaying_load_events(false);
 
     // 3. If historyEntry's document is null, then return.

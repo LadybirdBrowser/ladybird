@@ -879,6 +879,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
         // 2. Remove el from its node document's script-blocking style sheet set.
         document().script_blocking_style_sheet_set().remove(*this);
+        document().schedule_html_parser_end_check();
     }
 
     // 7. Unblock rendering on el.

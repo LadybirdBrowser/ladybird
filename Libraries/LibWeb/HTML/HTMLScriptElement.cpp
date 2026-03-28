@@ -688,6 +688,9 @@ void HTMLScriptElement::mark_as_ready(Result result)
 
     // 4. Set el's delaying the load event to false.
     m_document_load_event_delayer.clear();
+
+    if (m_preparation_time_document)
+        m_preparation_time_document->schedule_html_parser_end_check();
 }
 
 void HTMLScriptElement::unmark_as_already_started(Badge<DOM::Range>)
