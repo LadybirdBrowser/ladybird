@@ -1,0 +1,6 @@
+after init: []
+after cluster 1: [0.004-4.9745]
+after cluster 3: [0.004-4.9745, 9.604-12.044]
+after cluster 2: [0.004-5.004, 9.604-12.044]
+after cluster 1 again: [0.004-5.004, 9.604-12.044]
+after cluster 2 again: [0.004-12.044]

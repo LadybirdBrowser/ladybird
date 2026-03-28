@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const TIMEOUT_MS = 1000;
+        let timer;
+        function restartTimeout() {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                println("FAIL: timeout");
+                done();
+            }, TIMEOUT_MS);
+        }
+        restartTimeout();
+
+        function step(text) {
+            println(text);
+            restartTimeout();
+        }
+
+        function fail(name, error) {
+            println(`FAIL: ${name}: ${error}`);
+            clearTimeout(timer);
+            done();
+        }
+
+        function formatRanges(buffered) {
+            const parts = [];
+            for (let i = 0; i < buffered.length; i++)
+                parts.push(`${buffered.start(i)}-${buffered.end(i)}`);
+            return `[${parts.join(", ")}]`;
+        }
+
+        try {
+            const video = document.getElementById("video");
+            const mimeType = 'video/webm;codecs="vp9,opus"';
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            // The test WebM file has:
+            //   Init segment: bytes 0-529
+            //   Cluster 1 (0ms): bytes 530-946884
+            //   Cluster 2 (4981ms): bytes 946885-1605920
+            //   Cluster 3 (9601ms): bytes 1605921-end
+            const INIT_END = 530;
+            const CLUSTER2_START = 946885;
+            const CLUSTER3_START = 1605921;
+
+            mediaSource.addEventListener("sourceopen", async () => {
+                try {
+                    const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+
+                    const response = await fetch("../../../Assets/test-webm.webm");
+                    if (!response.ok) {
+                        fail("fetch", `HTTP ${response.status}`);
+                        return;
+                    }
+                    const data = await response.arrayBuffer();
+
+                    async function appendSlice(start, end, name) {
+                        const slice = data.slice(start, end);
+                        await new Promise((resolve, reject) => {
+                            sourceBuffer.addEventListener("updateend", resolve, { once: true });
+                            sourceBuffer.addEventListener("error", () => reject(new Error("error")), { once: true });
+                            sourceBuffer.appendBuffer(slice);
+                        });
+                        step(`after ${name}: ${formatRanges(sourceBuffer.buffered)}`);
+                    }
+
+                    await appendSlice(0, INIT_END, "init");
+
+                    // Append init segment + Cluster 1 (0~4.9s).
+                    await appendSlice(0, CLUSTER2_START, "cluster 1");
+
+                    // Append Cluster 3 (9.6s+), skipping Cluster 2.
+                    await appendSlice(CLUSTER3_START, undefined, "cluster 3");
+
+                    // Append Cluster 2 (4.9s~9.6s), which won't actually fill the gap because Cluster 2 doesn't
+                    // contain any video keyframes.
+                    await appendSlice(CLUSTER2_START, CLUSTER3_START, "cluster 2");
+
+                    // Append Clusters 1 and 2 again to fill in the gap properly.
+                    await appendSlice(INIT_END, CLUSTER2_START, "cluster 1 again");
+                    await appendSlice(CLUSTER2_START, CLUSTER3_START, "cluster 2 again");
+
+                    clearTimeout(timer);
+                    done();
+                } catch (e) {
+                    fail("sourceopen handler", e);
+                }
+            });
+        } catch (e) {
+            fail("setup", e);
+        }
+    });
+</script>
