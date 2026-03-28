@@ -23,7 +23,9 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 {
     if (!substitution_presence.has_value()) {
         substitution_presence = Parser::SubstitutionFunctionsPresence {};
-        Parser::Parser::collect_arbitrary_substitution_function_presence(values, *substitution_presence);
+        // FIXME: Make substitution_presence non-optional since all callers need to check ASF argument syntax anyway
+        auto result = Parser::Parser::collect_arbitrary_substitution_function_presence(values, *substitution_presence);
+        VERIFY(!result.is_error());
     }
 
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), *substitution_presence, move(original_source_text)));

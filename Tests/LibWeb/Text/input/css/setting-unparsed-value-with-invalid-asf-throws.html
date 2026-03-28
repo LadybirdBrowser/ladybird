@@ -1,0 +1,13 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        try {
+            target.attributeStyleMap.set("width", new CSSUnparsedValue(["var(,)"]));
+            println("FAIL");
+        } catch {
+            println("PASS");
+        }
+    });
+</script>

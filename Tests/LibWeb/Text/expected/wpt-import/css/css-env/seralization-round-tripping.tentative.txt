@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	Test style seralization round tripping with CSS env vars
+1 Pass
+Pass	Test style seralization round tripping with CSS env vars

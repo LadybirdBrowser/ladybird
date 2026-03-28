@@ -1951,17 +1951,24 @@ LengthOrCalculated Parser::parse_as_sizes_attribute(DOM::Element const& element,
     return Length(100, LengthUnit::Vw);
 }
 
-void Parser::collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const& component_values, SubstitutionFunctionsPresence& presence)
+Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const& component_values, SubstitutionFunctionsPresence& presence)
 {
-    for (auto const& component_value : component_values)
-        collect_arbitrary_substitution_function_presence(component_value, presence);
+    for (auto const& component_value : component_values) {
+        if (collect_arbitrary_substitution_function_presence(component_value, presence).is_error())
+            return ParseError::SyntaxError;
+    }
+
+    return {};
 }
 
-void Parser::collect_arbitrary_substitution_function_presence(ComponentValue const& component_value, SubstitutionFunctionsPresence& presence)
+Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(ComponentValue const& component_value, SubstitutionFunctionsPresence& presence)
 {
     if (component_value.is_function()) {
         auto const& function = component_value.function();
         if (auto arbitrary_substitution_function = to_arbitrary_substitution_function(function.name); arbitrary_substitution_function.has_value()) {
+            if (!parse_according_to_argument_grammar(arbitrary_substitution_function.value(), function.value).has_value())
+                return ParseError::SyntaxError;
+
             switch (arbitrary_substitution_function.value()) {
             case ArbitrarySubstitutionFunction::Attr:
                 presence.attr = true;
@@ -1981,10 +1988,13 @@ void Parser::collect_arbitrary_substitution_function_presence(ComponentValue con
             }
         }
 
-        collect_arbitrary_substitution_function_presence(function.value, presence);
-    } else if (component_value.is_block()) {
-        collect_arbitrary_substitution_function_presence(component_value.block().value, presence);
+        return collect_arbitrary_substitution_function_presence(function.value, presence);
     }
+
+    if (component_value.is_block())
+        return collect_arbitrary_substitution_function_presence(component_value.block().value, presence);
+
+    return {};
 }
 
 bool Parser::has_ignored_vendor_prefix(StringView string)

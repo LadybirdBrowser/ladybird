@@ -1,0 +1,1 @@
+@function --var-default(--x: var(--fallback)) { }

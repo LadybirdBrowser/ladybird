@@ -485,8 +485,12 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
             return ParseError::SyntaxError;
         }
 
-        // FIXME: We should validate ASF grammar syntax at parse time
-        collect_arbitrary_substitution_function_presence(token, substitution_presence);
+        // https://drafts.csswg.org/css-values-5/#resolve-property
+        // If a property value contains one or more arbitrary substitution functions, and all of those functions are
+        // themselves syntactically valid according to their argument grammars, the entire value’s grammar must be
+        // assumed to be valid at parse time.
+        if (collect_arbitrary_substitution_function_presence(token, substitution_presence).is_error())
+            return ParseError::SyntaxError;
     }
     tokens.restore_a_mark();
 

@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-6 Pass
-2 Fail
+8 Pass
 Pass	e.style['left'] = "inherit(--x)" should set the property value
 Pass	e.style['left'] = "calc(inherit(--x) + 1px)" should set the property value
 Pass	e.style['left'] = "inherit(--x,)" should set the property value
 Pass	e.style['left'] = "inherit(--x, )" should set the property value
 Pass	e.style['left'] = "inherit(--x , )" should set the property value
 Pass	e.style['left'] = "inherit(--x, foo)" should set the property value
-Fail	e.style['left'] = "inherit(!!, foo)" should not set the property value
-Fail	e.style['left'] = "inherit(, foo)" should not set the property value
+Pass	e.style['left'] = "inherit(!!, foo)" should not set the property value
+Pass	e.style['left'] = "inherit(, foo)" should not set the property value

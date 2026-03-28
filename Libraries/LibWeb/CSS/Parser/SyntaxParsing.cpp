@@ -233,8 +233,12 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
     switch (syntax_node.type()) {
     case SyntaxNode::NodeType::Universal:
         if (auto declaration_value = parse_declaration_value(tokens); declaration_value.has_value()) {
+            SubstitutionFunctionsPresence substitution_functions_presence;
+            if (collect_arbitrary_substitution_function_presence(declaration_value.value(), substitution_functions_presence).is_error())
+                return nullptr;
+
             transaction.commit();
-            return UnresolvedStyleValue::create(declaration_value.release_value());
+            return UnresolvedStyleValue::create(declaration_value.release_value(), substitution_functions_presence);
         }
         return nullptr;
     case SyntaxNode::NodeType::Ident: {

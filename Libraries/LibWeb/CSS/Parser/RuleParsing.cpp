@@ -1240,6 +1240,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
             // If a default value and a parameter type are both provided, then the default value must parse successfully
             // according to that parameter type’s syntax. Otherwise, the @function rule is invalid.
+            // FIXME: Chrome allows ASFs regardless of the parameter's type
             TokenStream default_value_token_stream { maybe_default_value.value() };
             if (!parse_according_to_syntax_node(default_value_token_stream, *type) || !default_value_token_stream.is_empty())
                 return {};

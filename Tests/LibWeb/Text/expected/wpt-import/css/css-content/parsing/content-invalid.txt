@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 70 tests
 
-68 Pass
-2 Fail
-Fail	e.style['content'] = "attr()" should not set the property value
-Fail	e.style['content'] = "attr() / \"alt text\"" should not set the property value
+70 Pass
+Pass	e.style['content'] = "attr()" should not set the property value
+Pass	e.style['content'] = "attr() / \"alt text\"" should not set the property value
 Pass	e.style['content'] = "counters(counter-name)" should not set the property value
 Pass	e.style['content'] = "counters(counter-name) / \"alt text\"" should not set the property value
 Pass	e.style['content'] = "counter()" should not set the property value

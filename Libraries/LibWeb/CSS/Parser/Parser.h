@@ -184,18 +184,18 @@ public:
     GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
-    static void collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const&, SubstitutionFunctionsPresence&);
-    static void collect_arbitrary_substitution_function_presence(ComponentValue const&, SubstitutionFunctionsPresence&);
-
-private:
-    Parser(ParsingParams const&, Vector<Token>);
-
     enum class ParseError : u8 {
         IncludesIgnoredVendorPrefix,
         SyntaxError,
     };
     template<typename T>
     using ParseErrorOr = ErrorOr<T, ParseError>;
+
+    static ParseErrorOr<void> collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const&, SubstitutionFunctionsPresence&);
+    static ParseErrorOr<void> collect_arbitrary_substitution_function_presence(ComponentValue const&, SubstitutionFunctionsPresence&);
+
+private:
+    Parser(ParsingParams const&, Vector<Token>);
 
     // "Parse a stylesheet" is intended to be the normal parser entry point, for parsing stylesheets.
     struct ParsedStyleSheet {

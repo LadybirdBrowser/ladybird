@@ -184,7 +184,13 @@ WebIDL::ExceptionOr<NonnullRefPtr<StyleValue const>> CSSUnparsedValue::create_an
     auto string = TRY(to_string());
     auto parser = Parser::Parser::create(Parser::ParsingParams {}, string);
     auto component_values = parser.parse_as_list_of_component_values();
-    return UnresolvedStyleValue::create(move(component_values));
+
+    Parser::SubstitutionFunctionsPresence substitution_presence;
+
+    if (Parser::Parser::collect_arbitrary_substitution_function_presence(component_values, substitution_presence).is_error())
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid arbitrary substitution function syntax"_string };
+
+    return UnresolvedStyleValue::create(move(component_values), substitution_presence);
 }
 
 }

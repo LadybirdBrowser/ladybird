@@ -46,7 +46,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
         if (token.is(Token::Type::Semicolon))
             return ParseError::SyntaxError;
 
-        collect_arbitrary_substitution_function_presence(token, substitution_functions_presence);
+        if (collect_arbitrary_substitution_function_presence(token, substitution_functions_presence).is_error())
+            return ParseError::SyntaxError;
     }
 
     auto metadata = get_descriptor_metadata(at_rule_id, descriptor_name_and_id.id());
