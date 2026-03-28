@@ -82,7 +82,6 @@ struct SimpleBlock {
 
     String to_string() const;
     String original_source_text() const;
-    void contains_arbitrary_substitution_function(SubstitutionFunctionsPresence&) const;
 
     bool operator==(SimpleBlock const& other) const { return token == other.token && value == other.value; }
 };
@@ -96,7 +95,6 @@ struct Function {
 
     String to_string() const;
     String original_source_text() const;
-    void contains_arbitrary_substitution_function(SubstitutionFunctionsPresence&) const;
 
     bool operator==(Function const& other) const { return name == other.name && value == other.value; }
 };

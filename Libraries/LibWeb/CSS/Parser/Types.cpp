@@ -34,16 +34,6 @@ String SimpleBlock::original_source_text() const
     return builder.to_string_without_validation();
 }
 
-void SimpleBlock::contains_arbitrary_substitution_function(SubstitutionFunctionsPresence& presence) const
-{
-    for (auto const& component_value : value) {
-        if (component_value.is_function())
-            component_value.function().contains_arbitrary_substitution_function(presence);
-        if (component_value.is_block())
-            component_value.block().contains_arbitrary_substitution_function(presence);
-    }
-}
-
 String Function::to_string() const
 {
     StringBuilder builder;
@@ -66,26 +56,6 @@ String Function::original_source_text() const
     }
     builder.append(end_token.original_source_text());
     return builder.to_string_without_validation();
-}
-
-void Function::contains_arbitrary_substitution_function(SubstitutionFunctionsPresence& presence) const
-{
-    if (name.equals_ignoring_ascii_case("attr"sv))
-        presence.attr = true;
-    else if (name.equals_ignoring_ascii_case("env"sv))
-        presence.env = true;
-    else if (name.equals_ignoring_ascii_case("if"sv))
-        presence.if_ = true;
-    else if (name.equals_ignoring_ascii_case("inherit"sv))
-        presence.inherit = true;
-    else if (name.equals_ignoring_ascii_case("var"sv))
-        presence.var = true;
-    for (auto const& component_value : value) {
-        if (component_value.is_function())
-            component_value.function().contains_arbitrary_substitution_function(presence);
-        if (component_value.is_block())
-            component_value.block().contains_arbitrary_substitution_function(presence);
-    }
 }
 
 void AtRule::for_each(AtRuleVisitor&& visit_at_rule, QualifiedRuleVisitor&& visit_qualified_rule, DeclarationVisitor&& visit_declaration) const

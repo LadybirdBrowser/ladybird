@@ -11,6 +11,7 @@
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/ArbitrarySubstitutionFunctions.h>
+#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -22,12 +23,7 @@ ValueComparingNonnullRefPtr<UnresolvedStyleValue const> UnresolvedStyleValue::cr
 {
     if (!substitution_presence.has_value()) {
         substitution_presence = Parser::SubstitutionFunctionsPresence {};
-        for (auto const& value : values) {
-            if (value.is_function())
-                value.function().contains_arbitrary_substitution_function(*substitution_presence);
-            if (value.is_block())
-                value.block().contains_arbitrary_substitution_function(*substitution_presence);
-        }
+        Parser::Parser::collect_arbitrary_substitution_function_presence(values, *substitution_presence);
     }
 
     return adopt_ref(*new (nothrow) UnresolvedStyleValue(move(values), *substitution_presence, move(original_source_text)));

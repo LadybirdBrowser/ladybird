@@ -184,6 +184,9 @@ public:
     GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
     GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
+    static void collect_arbitrary_substitution_function_presence(Vector<ComponentValue> const&, SubstitutionFunctionsPresence&);
+    static void collect_arbitrary_substitution_function_presence(ComponentValue const&, SubstitutionFunctionsPresence&);
+
 private:
     Parser(ParsingParams const&, Vector<Token>);
 

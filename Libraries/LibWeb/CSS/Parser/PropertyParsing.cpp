@@ -486,10 +486,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
         }
 
         // FIXME: We should validate ASF grammar syntax at parse time
-        if (token.is_function())
-            token.function().contains_arbitrary_substitution_function(substitution_presence);
-        else if (token.is_block())
-            token.block().contains_arbitrary_substitution_function(substitution_presence);
+        collect_arbitrary_substitution_function_presence(token, substitution_presence);
     }
     tokens.restore_a_mark();
 
