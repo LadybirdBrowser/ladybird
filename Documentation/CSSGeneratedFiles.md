@@ -183,21 +183,23 @@ Each at-rule object has the following fields. Both are required.
 
 Each descriptor object can have the following fields:
 
-| Field              | Required | Description                                                           |
-|--------------------|----------|-----------------------------------------------------------------------|
-| `initial`          | No       | String. The descriptor's initial value if none is provided.           |
-| `legacy-alias-for` | No       | String. The name of a different descriptor that this is an alias for. |
-| `syntax`           | Yes      | Array of strings. Each string is one option, taken from the spec.     |
-| `FIXME` or `NOTE`  | No       | Strings, for when you want to leave a note.                           |
+| Field                                    | Default | Required | Description                                                                |
+|------------------------------------------|---------|----------|----------------------------------------------------------------------------|
+| `allow-arbitrary-substitution-functions` | `false` | No       | Boolean. Whether this descriptor supports arbitrary substitution functions |
+| `initial`                                | Nothing | No       | String. The descriptor's initial value if none is provided.                |
+| `legacy-alias-for`                       | Nothing | No       | String. The name of a different descriptor that this is an alias for.      |
+| `syntax`                                 | N/A     | Yes      | Array of strings. Each string is one option, taken from the spec.          |
+| `FIXME` or `NOTE`                        | Nothing | No       | Strings, for when you want to leave a note.                                |
 
 ### Custom descriptor fields
 
 Each custom descriptor object has the following fields
 
-| Field              | Required | Description                                  |
-|--------------------|----------|----------------------------------------------|
-| `syntax`           | Yes      | Array of strings. Each string is one option. |
-| `FIXME` or `NOTE`  | No       | Strings, for when you want to leave a note.  |
+| Field                                    | Default | Required | Description                                                                |
+|------------------------------------------|---------|----------|----------------------------------------------------------------------------|
+| `allow-arbitrary-substitution-functions` | `false` | No       | Boolean. Whether this descriptor supports arbitrary substitution functions |
+| `syntax`                                 | N/A     | Yes      | Array of strings. Each string is one option.                               |
+| `FIXME` or `NOTE`                        | Nothing | No       | Strings, for when you want to leave a note.                                |
 
 ## Keywords.json
 

@@ -36,20 +36,46 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
     auto transaction = tokens.begin_transaction();
 
+    auto descriptor_value_start_index = tokens.current_index();
+    SubstitutionFunctionsPresence substitution_functions_presence {};
+
     tokens.mark();
     while (tokens.has_next_token()) {
         auto const& token = tokens.consume_a_token();
 
         if (token.is(Token::Type::Semicolon))
             return ParseError::SyntaxError;
+
+        collect_arbitrary_substitution_function_presence(token, substitution_functions_presence);
     }
+
+    auto metadata = get_descriptor_metadata(at_rule_id, descriptor_name_and_id.id());
+
+    if (substitution_functions_presence.has_any()) {
+        // https://drafts.csswg.org/css-values-5/#resolve-property
+        // Unless otherwise specified, arbitrary substitution functions can be used in place of any part of any
+        // property’s value (including within other functional notations); and are not valid in any other context.
+
+        // NB: Since we are not in a property value context we only allow ASFs if they are explicitly allowed in
+        //     Descriptors.json
+        if (!metadata.allow_arbitrary_substitution_functions) {
+            ErrorReporter::the().report(InvalidValueError {
+                .value_type = MUST(String::formatted("{}/{}", to_string(at_rule_id), descriptor_name_and_id.name())),
+                .value_string = tokens.dump_string(),
+                .description = "ASFs are not supported in this descriptor"_string,
+            });
+            return ParseError::SyntaxError;
+        }
+
+        return UnresolvedStyleValue::create(Vector<ComponentValue> { tokens.tokens_since(descriptor_value_start_index) }, substitution_functions_presence);
+    }
+
     tokens.restore_a_mark();
 
     Optional<ComputationContext> computation_context = m_document
         ? ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*m_document) }
         : Optional<ComputationContext> {};
 
-    auto metadata = get_descriptor_metadata(at_rule_id, descriptor_name_and_id.id());
     for (auto const& option : metadata.syntax) {
         auto syntax_transaction = transaction.create_child();
         auto parsed_style_value = option.visit(
@@ -61,10 +87,8 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 if (value_or_error.is_error())
                     return nullptr;
                 auto value_for_property = value_or_error.release_value();
-                // Descriptors don't accept the following, which properties do:
-                // - CSS-wide keywords
-                // - Arbitrary substitution functions (so, UnresolvedStyleValue)
-                if (value_for_property->is_css_wide_keyword() || value_for_property->is_unresolved())
+                // Descriptors don't accept the CSS-wide keywords
+                if (value_for_property->is_css_wide_keyword())
                     return nullptr;
                 return value_for_property;
             },

@@ -138,6 +138,7 @@ struct DescriptorMetadata {
         UnicodeRangeTokens,
     };
     Vector<Variant<Keyword, PropertyID, ValueType>> syntax;
+    bool allow_arbitrary_substitution_functions { false };
 };
 
 DescriptorMetadata get_descriptor_metadata(AtRuleID, DescriptorID);
@@ -468,7 +469,11 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
 
             generate_syntax_list(descriptor_generator, syntax);
 
+            descriptor_generator.set("allow-arbitrary-substitution-functions"sv, descriptor.get_bool("allow-arbitrary-substitution-functions"sv).value_or(false) ? "true" : "false");
+
             descriptor_generator.append(R"~~~(
+            metadata.allow_arbitrary_substitution_functions = @allow-arbitrary-substitution-functions@;
+
             return metadata;
         }
 )~~~");
@@ -484,7 +489,12 @@ DescriptorMetadata get_descriptor_metadata(AtRuleID at_rule_id, DescriptorID des
 )~~~");
             auto const& syntax = custom_descriptors.get_array("syntax"sv).value();
             generate_syntax_list(custom_descriptor_generator, syntax);
+
+            custom_descriptor_generator.set("allow-arbitrary-substitution-functions"sv, custom_descriptors.get_bool("allow-arbitrary-substitution-functions"sv).value_or(false) ? "true" : "false");
+
             custom_descriptor_generator.append(R"~~~(
+            metadata.allow_arbitrary_substitution_functions = @allow-arbitrary-substitution-functions@;
+
             return metadata;
         }
 )~~~");

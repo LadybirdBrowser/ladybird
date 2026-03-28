@@ -261,12 +261,14 @@
     "spec": "https://drafts.csswg.org/css-mixins-1/#function-rule",
     "descriptors": {
       "result": {
+        "allow-arbitrary-substitution-functions": true,
         "syntax": [
           "<declaration-value>?"
         ]
       }
     },
     "custom-descriptors": {
+      "allow-arbitrary-substitution-functions": true,
       "syntax": [
         "<declaration-value>?"
       ]
