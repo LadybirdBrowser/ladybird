@@ -255,7 +255,9 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
 
 Array& Value::as_array()
 {
-    return *as_if<Array>();
+    auto ptr = as_if<Array>();
+    ASSERT(ptr);
+    return *ptr;
 }
 
 // 7.2.3 IsCallable ( argument ), https://tc39.es/ecma262/#sec-iscallable
@@ -269,12 +271,16 @@ bool Value::is_function() const
 
 FunctionObject& Value::as_function()
 {
-    return *as_if<FunctionObject>();
+    auto ptr = as_if<FunctionObject>();
+    ASSERT(ptr);
+    return *ptr;
 }
 
 FunctionObject const& Value::as_function() const
 {
-    return *as_if<FunctionObject>();
+    auto ptr = as_if<FunctionObject>();
+    ASSERT(ptr);
+    return *ptr;
 }
 
 // 7.2.4 IsConstructor ( argument ), https://tc39.es/ecma262/#sec-isconstructor
