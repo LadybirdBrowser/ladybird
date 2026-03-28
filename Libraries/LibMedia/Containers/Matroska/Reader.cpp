@@ -1275,9 +1275,14 @@ DecoderErrorOr<ByteBuffer> Streamer::read_raw_octets(size_t num_octets)
 DecoderErrorOr<u64> Streamer::read_u64()
 {
     auto integer_length = TRY(read_variable_size_integer());
+    if (integer_length == 0)
+        return 0;
+    if (integer_length > 8)
+        return DecoderError::corrupted("Integer Element is too large"sv);
     u64 result = 0;
     for (size_t i = 0; i < integer_length; i++) {
-        result = (result << 8u) + TRY(read_octet());
+        result <<= 8;
+        result |= TRY(read_octet());
     }
     return result;
 }
@@ -1285,6 +1290,8 @@ DecoderErrorOr<u64> Streamer::read_u64()
 DecoderErrorOr<double> Streamer::read_float()
 {
     auto length = TRY(read_variable_size_integer());
+    if (length == 0)
+        return 0;
     if (length != 4u && length != 8u)
         return DecoderError::format(DecoderErrorCategory::Invalid, "Float size must be 4 or 8 bytes");
 
