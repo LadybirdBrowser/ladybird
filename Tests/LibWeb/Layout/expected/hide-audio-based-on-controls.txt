@@ -7,7 +7,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           BlockContainer <div.container.audio> at [8,8] [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] [BFC] children: not-inline
             Box <div.controls.visible> at [8,8] flex-container(column) [0+0+0 300 0+0+0] [0+0+0 43 0+0+0] [FFC] children: not-inline
               BlockContainer <div.timeline> at [8,8] flex-item [0+0+0 300 0+0+0] [-5+0+5 5 5+0+-5] [BFC] children: not-inline
-                BlockContainer <div.timeline-fill> at [8,8] [0+0+0 0 0+0+300] [0+0+0 5 0+0+0] children: not-inline
+                BlockContainer <div.timeline-track> at [8,8] positioned [0+0+0 300 0+0+0] [0+0+0 5 0+0+0] children: not-inline
+                  BlockContainer <div.timeline-fill> at [8,8] [0+0+0 0 0+0+300] [0+0+0 5 0+0+0] children: not-inline
               Box <div.button-bar> at [16,17] flex-container(row) flex-item [0+0+8 284 8+0+0] [0+0+4 30 4+0+0] [FFC] children: not-inline
                 Box <button.control-button.play-pause-button> at [16,20] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
                   SVGSVGBox <svg.icon.play-pause-icon> at [16,20] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [SVG] children: not-inline
@@ -38,7 +39,8 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
           PaintableWithLines (BlockContainer<DIV>.container.audio) [8,8 300x43]
             PaintableBox (Box<DIV>.controls.visible) [8,8 300x43]
               PaintableWithLines (BlockContainer<DIV>.timeline) [8,3 300x15]
-                PaintableWithLines (BlockContainer<DIV>.timeline-fill) [8,8 0x5]
+                PaintableWithLines (BlockContainer<DIV>.timeline-track) [8,8 300x5]
+                  PaintableWithLines (BlockContainer<DIV>.timeline-fill) [8,8 0x5]
               PaintableBox (Box<DIV>.button-bar) [8,13 300x38]
                 PaintableBox (Box<BUTTON>.control-button.play-pause-button) [16,20 24x24]
                   SVGSVGPaintable (SVGSVGBox<svg>.icon.play-pause-icon) [16,20 24x24]
