@@ -61,6 +61,15 @@
     background: var(--track-color);
 }
 
+.timeline-buffered {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.3);
+    mix-blend-mode: hard-light;
+    pointer-events: none;
+}
+
 .timeline-fill {
     height: 100%;
     background: var(--accent-color);
