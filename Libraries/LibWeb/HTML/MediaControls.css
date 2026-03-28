@@ -48,14 +48,17 @@
 
 .timeline {
     z-index: 1;
-    height: 5px;
     padding: 5px 0;
     margin: -5px 0;
-    background: var(--track-color);
-    background-clip: content-box;
     cursor: pointer;
     flex-shrink: 0;
     text-align: left;
+}
+
+.timeline-track {
+    position: relative;
+    height: 5px;
+    background: var(--track-color);
 }
 
 .timeline-fill {
