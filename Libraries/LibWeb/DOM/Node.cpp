@@ -2142,14 +2142,14 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
             }
         }
 
-        if (paintable_box()) {
-            if (paintable_box()->could_be_scrolled_by_wheel_event()) {
+        if (auto const* box = unsafe_paintable_box()) {
+            if (box->could_be_scrolled_by_wheel_event()) {
                 MUST(object.add("scrollable"sv, true));
             }
-            if (!paintable_box()->is_visible()) {
+            if (!box->is_visible()) {
                 MUST(object.add("invisible"sv, true));
             }
-            if (paintable_box()->has_stacking_context()) {
+            if (box->has_stacking_context()) {
                 MUST(object.add("stackingContext"sv, true));
             }
         }
@@ -2166,7 +2166,7 @@ void Node::serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object) c
         MUST(object.add("mode"sv, static_cast<DOM::ShadowRoot const&>(*this).mode() == Bindings::ShadowRootMode::Open ? "open"sv : "closed"sv));
     }
 
-    MUST((object.add("visible"sv, !!layout_node())));
+    MUST((object.add("visible"sv, !!unsafe_layout_node())));
 
     if (auto const* element = as_if<Element>(this)) {
         element->serialize_children_as_json(object);
