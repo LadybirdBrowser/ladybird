@@ -455,7 +455,7 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_entry(Streamer& st
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackTimestampScale attribute: {}", track_entry->timestamp_scale());
             break;
         case TRACK_OFFSET_ID:
-            track_entry->set_timestamp_offset(TRY(streamer.read_variable_size_signed_integer()));
+            track_entry->set_timestamp_offset(TRY(streamer.read_i64()));
             dbgln_if(MATROSKA_TRACE_DEBUG, "Read Track's TrackOffset attribute: {}", track_entry->timestamp_offset());
             break;
         case TRACK_DEFAULT_DURATION_ID:
@@ -1284,6 +1284,24 @@ DecoderErrorOr<u64> Streamer::read_u64()
         result <<= 8;
         result |= TRY(read_octet());
     }
+    return result;
+}
+
+DecoderErrorOr<i64> Streamer::read_i64()
+{
+    auto integer_length = TRY(read_variable_size_integer());
+    if (integer_length == 0)
+        return 0;
+    if (integer_length > 8)
+        return DecoderError::corrupted("Signed Integer Element is too large"sv);
+    i64 result = 0;
+    for (size_t i = 0; i < integer_length; i++) {
+        result <<= 8;
+        result |= TRY(read_octet());
+    }
+    auto shift = 64 - (static_cast<i64>(integer_length) * 8);
+    result <<= shift;
+    result >>= shift;
     return result;
 }
 

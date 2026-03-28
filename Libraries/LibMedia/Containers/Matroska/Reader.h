@@ -147,6 +147,7 @@ public:
     DecoderErrorOr<i64> read_variable_size_signed_integer();
 
     DecoderErrorOr<u64> read_u64();
+    DecoderErrorOr<i64> read_i64();
     DecoderErrorOr<double> read_float();
 
     DecoderErrorOr<String> read_string();
