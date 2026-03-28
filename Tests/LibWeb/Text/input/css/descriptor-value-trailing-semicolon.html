@@ -1,0 +1,13 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const face = new FontFace("Foo", "url(foo.woff2)");
+        try {
+            face.weight = "400;";
+            println(`FAIL`);
+        } catch (error) {
+            println(`PASS`);
+        }
+    });
+</script>

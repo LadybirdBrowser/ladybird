@@ -22,7 +22,7 @@
 
 namespace Web::CSS::Parser {
 
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorNameAndID const& descriptor_name_and_id, TokenStream<ComponentValue>& unprocessed_tokens)
+Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_value(AtRuleID at_rule_id, DescriptorNameAndID const& descriptor_name_and_id, TokenStream<ComponentValue>& tokens)
 {
     if (!at_rule_supports_descriptor(at_rule_id, descriptor_name_and_id.id())) {
         ErrorReporter::the().report(UnknownPropertyError {
@@ -34,23 +34,24 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
     auto context_guard = push_temporary_value_parsing_context(DescriptorContext { at_rule_id, descriptor_name_and_id.id() });
 
-    Vector<ComponentValue> component_values;
-    while (unprocessed_tokens.has_next_token()) {
-        if (unprocessed_tokens.peek_token().is(Token::Type::Semicolon))
-            break;
+    auto transaction = tokens.begin_transaction();
 
-        auto const& token = unprocessed_tokens.consume_a_token();
-        component_values.append(token);
+    tokens.mark();
+    while (tokens.has_next_token()) {
+        auto const& token = tokens.consume_a_token();
+
+        if (token.is(Token::Type::Semicolon))
+            return ParseError::SyntaxError;
     }
+    tokens.restore_a_mark();
 
     Optional<ComputationContext> computation_context = m_document
         ? ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*m_document) }
         : Optional<ComputationContext> {};
 
-    TokenStream tokens { component_values };
     auto metadata = get_descriptor_metadata(at_rule_id, descriptor_name_and_id.id());
     for (auto const& option : metadata.syntax) {
-        auto transaction = tokens.begin_transaction();
+        auto syntax_transaction = transaction.create_child();
         auto parsed_style_value = option.visit(
             [&](Keyword keyword) {
                 return parse_all_as_single_keyword_value(tokens, keyword);
@@ -409,7 +410,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
             });
         if (!parsed_style_value || tokens.has_next_token())
             continue;
-        transaction.commit();
+        syntax_transaction.commit();
         return parsed_style_value.release_nonnull();
     }
 
