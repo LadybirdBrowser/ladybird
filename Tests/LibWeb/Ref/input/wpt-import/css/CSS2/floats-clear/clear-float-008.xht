@@ -1,0 +1,40 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clear set to 'right' with later right floated boxes</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-07-02 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/adjacent-floats-001-ref.xht" />
+
+        <meta name="assert" content="Boxes with 'clear: right' do not clear later right floated boxes." />
+        <style type="text/css">
+            div
+            {
+                width: 2in;
+            }
+            span
+            {
+                float: right;
+                height: 1in;
+                width: 1in;
+            }
+            #span1
+            {
+                background-color: blue;
+                clear: right;
+            }
+            #span2
+            {
+                background: orange;
+            }
+        </style>
+    </head>
+    <body>
+          <p>Test passes if the orange square is to the left of the blue square and the squares top edges are aligned.</p>
+        <div>
+            <span id="span1"></span>
+            <span id="span2"></span>
+        </div>
+    </body>
+</html>

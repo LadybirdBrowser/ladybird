@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>Negative clearance between bottom margin and cleared child with top margin</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="position:relative; top:-50px; z-index:-1;">
+  <div style="float:left; width:50px; height:50px; border-top:50px solid white; background:green;"></div>
+  <div style="padding-top:1px;">
+    <div style="width:100px; background:green;">
+      <div style="margin-bottom:49px;"></div>
+      <div style="clear:left; margin-top:98px;"></div>
+    </div>
+    <div style="width:100px; height:50px; background:green;"></div>
+  </div>
+</div>

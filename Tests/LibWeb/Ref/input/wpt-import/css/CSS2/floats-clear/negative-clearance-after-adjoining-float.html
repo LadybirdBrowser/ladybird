@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Negative clearance between adjoining float and child with top margin</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; background:red;">
+  <div style="float:left; width:100px; height:50px; background:green;"></div>
+  <div style="clear:left; margin-top:200px;"></div>
+</div>
+<div style="width:100px; height:50px; background:green;"></div>

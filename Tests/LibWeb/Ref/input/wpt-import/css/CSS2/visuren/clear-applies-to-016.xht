@@ -1,0 +1,86 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: 'clear' applied to the table wrapper box (has 1 caption at top)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <!--
+  "(...) list of properties that are used on the table wrapper box and not
+  the table box. (...) this is the case for 'clear' as well:
+  If 'clear' is to have an effect, the table and its captions (if any)
+  should stay together and not be separated by clearance.
+  Re: [CSS21] The 'clear' property on table wrappers.
+  http://lists.w3.org/Archives/Public/www-style/2012Jun/0072.html
+  -->
+
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visuren/../floats-clear/clear-applies-to-009-ref.xht" />
+
+  <meta name="assert" content="The 'clear' property apply to elements with a display of 'table' and is applied to the table wrapper box and not on the table box. In this test, the table wrapper box has a table caption placed before the table box." />
+
+  <style type="text/css"><![CDATA[
+  body {margin: 8px;}
+
+  p
+  {
+  float: left;
+  line-height: 1.25;
+  margin: 1em 0;
+  width: 320px;
+  }
+
+  div#table
+  {
+  background-color: blue;
+  clear: both;
+  display: table;
+  table-layout: fixed;
+  width: 1in;
+  }
+
+  div#caption
+  {
+  background-color: blue;
+  caption-side: top;
+  color: blue;
+  display: table-caption;
+  height: 0.5in;
+  width: 1in;
+  }
+
+  div.row {display: table-row;}
+
+  div.cell
+  {
+  color: blue;
+  display: table-cell;
+  height: 0.25in;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is a filled blue square <strong>below this text</strong>.</p>
+
+  <div id="table">
+
+      <div id="caption">cap</div>
+
+      <div class="row">
+          <div class="cell">a</div><div class="cell">b</div>
+      </div>
+
+      <div class="row">
+          <div class="cell">c</div><div class="cell">d</div>
+      </div>
+
+  </div>
+
+ </body>
+</html>

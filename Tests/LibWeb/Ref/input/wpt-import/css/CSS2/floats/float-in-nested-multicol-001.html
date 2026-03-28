@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" title="Ting-Yu Lin" href="mailto:tlin@mozilla.com">
+<link rel="author" title="Mozilla" href="https://www.mozilla.org/">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1833238">
+<!-- Browsers do not agree on the rendering, so we just verify the rendering is *not* blank. -->
+<link rel="mismatch" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/blank.html">
+
+<style>
+article {
+  width: 300px;
+  column-count: 2;
+}
+main {
+  column-count: 2;
+}
+</style>
+
+<article>
+  <main>
+    <div>&nbsp;</div>
+    <footer style="float: left">
+      <div style="margin-top: 1em">ABC</div> <!-- This text should appear. -->
+    </footer>
+  </main>
+</article>

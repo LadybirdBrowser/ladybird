@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Clearance on empty block followed by block with large margin and 'clear'</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins" title="8.3.1 Collapsing margins">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="position:relative; width:100px; border-top:1px solid white; top:-21px; z-index:-1; background:green;">
+  <div style="float:left; width:100px; height:20px; background:white;"></div>
+  <div style="clear:both;"></div>
+  <div style="clear:both; margin-top:100px; height:20px; background:white;"></div>
+</div>

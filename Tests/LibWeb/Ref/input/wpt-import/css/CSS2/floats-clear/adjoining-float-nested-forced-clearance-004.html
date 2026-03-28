@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html" />
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<p>Test passes if there is a filled green square.</p>
+<div style="overflow: hidden;"></div>
+<div style="float: left; width: 100px; height: 50px; background: green;"></div>
+<span>
+  <div style="clear: both;">
+    <div style="height: 10px;">
+      <div style="float: left; width: 100px; height: 50px; background: green;">
+    </div>
+  </div>
+</span>

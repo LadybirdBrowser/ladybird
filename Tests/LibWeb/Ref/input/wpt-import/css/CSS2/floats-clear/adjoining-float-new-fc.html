@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>New formatting context next to adjoining float</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins" title="8.3.1 Collapsing margins">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; overflow:hidden; background:red;">
+  <div>
+    <div style="float:left; width:100px; height:50px; background:green;"></div>
+    <div style="margin-top:300px; clear:left; overflow:hidden; width:100px; height:50px; background:green;"></div>
+  </div>
+</div>

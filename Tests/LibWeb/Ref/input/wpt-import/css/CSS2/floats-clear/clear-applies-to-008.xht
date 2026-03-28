@@ -1,0 +1,24 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Clear on inline elements</title>
+  <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch" />
+  <link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact" />
+  <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-04-07 -->
+  <link rel="alternate" href="http://www.hixie.ch/tests/adhoc/css/box/float/clear/001-demo.html" type="text/html" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-applies-to-008-ref.xht" />
+
+  <meta name="assert" content="The 'clear' property does not apply to elements with a display of 'inline'." />
+  <style type="text/css">
+   /* Disable kerning because kerning may differ for different node tree. */
+   html { font-kerning: none; font-feature-settings: "kern" off; }
+   .float { float: left; height: 10em; }
+   .clear { clear: left; }
+  </style>
+ </head>
+ <body>
+  <p>Test passes if the word PASS appears on a single line below.</p>
+  <div><div class="float">P</div><span class="clear">A</span>SS</div>
+ </body>
+</html>

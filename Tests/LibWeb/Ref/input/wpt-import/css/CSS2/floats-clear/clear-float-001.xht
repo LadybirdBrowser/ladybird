@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Child elements are not impacted by 'clear'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-07-02 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-float-001-ref.xht" />
+
+        <meta name="assert" content="Child elements of the container are not impacted by clear." />
+        <style type="text/css">
+            div
+            {
+                height: 1in;
+                width: 1in;
+            }
+            #div1
+            {
+                background: orange;
+            }
+            #div2
+            {
+                background: blue;
+                clear: both;
+                width: 2in;
+            }
+            #div3
+            {
+                background: yellow;
+                float: right;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the yellow square is directly to the right of the blue square and the yellow and blue squares are below the orange square.</p>
+        <div id="div1"></div>
+        <div id="div2">
+            <div id="div3"></div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<title>Clear on block-level replaced element</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="help" href="https://www.w3.org/TR/CSS22/conform.html#replaced-element">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../reference/ref-filled-green-100px-square.xht">
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-1500">
+<style>
+#wrapper {
+  width: 90px;
+  border: 5px solid green;
+  background-image: linear-gradient(
+    to bottom,
+    red 30px, green 30px,
+    green 50px, red 50px,
+    red 60px, green 60px,
+    green 70px, red 70px,
+    red 80px, green 80px
+  )
+}
+#wrapper > * {
+  display: block;
+  width: 100%;
+  background: green content-box;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div id="wrapper">
+  <div style="float: left; height: 20px"></div>
+  <canvas style="clear: both; height: 10px; margin: 10px 0"></canvas>
+  <canvas style="float: left; height: 10px; margin: 10px 0"></canvas>
+  <div style="clear: both; height: 10px; padding-bottom: 10px"></div>
+</div>

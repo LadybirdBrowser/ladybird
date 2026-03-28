@@ -1,0 +1,32 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Margin Collapsing with Clearance</title>
+  <link rel="author" title="Microsoft" href="http://microsoft.com/"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#collapsing-margins"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats"/>
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/margin-collapse-clear-003-ref.xht" />
+
+  <style type="text/css">
+    div.target1 { position: absolute; left: -15px; height: 50px; width: 0; border-left: 10px solid yellow; top: 0px; }
+    div.target2 { position: absolute; left: -15px; height: 20px; width: 0; border-left: 5px solid aqua; top: 90px; }
+    div.target3 { position: absolute; left: -15px; height: 50px; width: 0; border-left: 10px solid orange; top: 110px; }
+    div.container { width: 150px; position: relative; margin-left: 20px; border: solid thin; }
+    div.box1 { height: 50px; margin-bottom: 40px; background-color: yellow; }
+    div.box2 { background-color: aqua; float: left; width: 20px; height: 20px; }
+    div.box3 { overflow: hidden; clear: left; margin-top: 50px; height: 50px; background-color: orange; }
+  </style>
+ </head>
+ <body>
+  <p>The coloured bars on the left should match the coloured boxes in the black box.</p>
+  <div class="container">
+    <div class="target1"></div>
+    <div class="target2"></div>
+    <div class="target3"></div>
+    <div class="box1">A</div>
+    <div class="box2">B</div>
+    <div class="box3">C</div>
+  </div>
+ </body>
+</html>

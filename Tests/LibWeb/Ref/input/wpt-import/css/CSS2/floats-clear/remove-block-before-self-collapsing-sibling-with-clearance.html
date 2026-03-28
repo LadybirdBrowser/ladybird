@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#clearance">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#phantom-line-box">
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1003810">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../reference/ref-filled-green-100px-square.xht">
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="overflow:hidden;">
+  <div id="first" style="height:100px;"></div>
+  <div id="victim" style="width:100px; padding-bottom:1px; background:red;">
+    <span></span>
+    <div style="float:left; width:100%; height:100px; background:green;"></div>
+    <div style="clear:both;"></div>
+  </div>
+</div>
+<script>
+  document.body.offsetTop;
+  victim.style.paddingBottom = "0";
+  first.style.display = "none";
+</script>

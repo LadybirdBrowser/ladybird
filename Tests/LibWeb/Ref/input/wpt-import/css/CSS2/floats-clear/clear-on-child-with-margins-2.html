@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Child of block with clear</title>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="width: 100px;background: red;overflow: hidden;">
+  <div style="float: right; height: 20px; width: 50%; background: green;"></div>
+  <div>
+    <div style="float: left; height:100px; width: 50%; background: green;"></div>
+    <div>
+      <div style="clear: right; height: 80px; margin-top: 16px; background: green;"></div>
+    </div>
+  </div>
+</div>

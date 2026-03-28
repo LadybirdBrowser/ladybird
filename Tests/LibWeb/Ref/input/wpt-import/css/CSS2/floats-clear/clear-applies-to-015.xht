@@ -1,0 +1,41 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clear applied to element with 'display' set to 'table-caption'</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2013-01-10 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#propdef-clear" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-applies-to-001-ref.xht" />
+
+        <meta name="assert" content="The 'clear' property does not apply to elements with a display of 'table-caption' because an anonymous table wrapper box will be generated for a misparented table-caption element and such anonymous table wrapper box creates a block formatting context. Clear will not apply to floats outside a block formatting context." />
+        <style type="text/css">
+            body {margin: 8px;}
+
+            p
+            {
+                float: left;
+                line-height: 1.25;
+                margin: 1em 0;
+                width: 320px;
+            }
+
+            #caption
+            {
+                background: blue;
+                clear: both;
+                color: blue;
+                display: table-caption;
+                height: 1in;
+                width: 1in;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is a filled blue square to the right of this text.</p>
+
+        <div id="caption">C</div>
+
+    </body>
+</html>

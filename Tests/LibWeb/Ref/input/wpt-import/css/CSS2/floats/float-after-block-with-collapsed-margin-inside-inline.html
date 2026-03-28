@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<title>CSS Test: A float after a block which collapses its top margin with its grandparent, where the parent is an inline box</title>
+<link rel="author" href="mailto:obrufau@igalia.com" title="Oriol Brufau">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#floats">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#inline-formatting">
+<link rel="help" href="https://github.com/servo/servo/issues/41734">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats/../../reference/ref-filled-green-200px-square.html">
+
+<style>
+span > div {
+  width: 200px;
+  height: 100px;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div style="overflow: hidden">
+  <!-- This is just to avoid collapsing margins with the <p>. -->
+</div>
+
+<div style="width: 200px; height: 200px; margin-top: -100px; background: red">
+  <span>
+    <div style="margin-top: 100px"></div>
+    <div style="float: left"></div>
+  </span>
+</div>

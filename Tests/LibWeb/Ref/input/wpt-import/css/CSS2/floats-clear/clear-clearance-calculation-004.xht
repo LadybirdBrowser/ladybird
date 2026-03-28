@@ -1,0 +1,67 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: clear and clearance calculation - margin collapsing</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-clearance-calculation-004-ref.xht" />
+
+  <meta content="With clear: left, the top border edge of the last paragraph must be below the floating paragraph, i.e., 50px lower. That means that the margin-bottom of the first paragraph must not collapse with the margin-top of the last paragraph and clearance must be added such that clearance + margin-top of last paragraph = 50px, i.e., clearance = 50px - margin-top  of last paragraph = 50px - 75px = - 25px." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  body {margin: 8px;}
+
+  #overlapped-red
+  {
+  background-color: red;
+  height: 100px;
+  left: 8px;
+  position: absolute;
+  right: 8px;
+  top: 108px;
+  z-index: -1;
+  }
+
+  #firstParg
+  {
+  height: 25px;
+  margin-bottom: 25px;
+  margin-top: 0px;
+  }
+
+  #floatingParg
+  {
+  float: left;
+  height: 50px;
+  margin: 0;
+  }
+
+  #lastParg
+  {
+  background-color: green;
+  clear: left;
+  height: 100px;
+  margin-top: 75px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <div id="overlapped-red"></div>
+
+  <p id="firstParg"></p>
+
+  <p id="floatingParg"></p>
+
+  <p id="lastParg"></p>
+
+  <p>Test passes if there is a wide green rectangle above and <strong>no red</strong>.</p>
+
+ </body>
+</html>

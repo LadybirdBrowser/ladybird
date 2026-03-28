@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clear set to 'both' with later floated boxes</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-07-02 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-float-009-ref.xht" />
+
+        <meta name="assert" content="Boxes with 'clear: both' do not clear later floated boxes." />
+        <style type="text/css">
+            div
+            {
+                width: 4in;
+            }
+            span
+            {
+                height: 1in;
+                width: 1in;
+            }
+            #span1
+            {
+                background-color: blue;
+                clear: both;
+            }
+            #span1, #span2
+            {
+                float: right;
+            }
+            #span2, #span3
+            {
+                background: orange;
+            }
+            #span3
+            {
+                float: left;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the blue square is to the right of the orange squares.</p>
+        <div>
+            <span id="span1"></span>
+            <span id="span2"></span>
+            <span id="span3"></span>
+        </div>
+    </body>
+</html>

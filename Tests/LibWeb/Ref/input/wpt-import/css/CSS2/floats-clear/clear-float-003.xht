@@ -1,0 +1,47 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clear floats handled after margin collapsing</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+		<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-float-003-ref.xht" />
+
+        <meta name="assert" content="Clearance is introduced as spacing above the top margin after margin collapsing occurs." />
+        <style type="text/css">
+            #div1
+            {
+                height: 2in;
+                width: 2in;
+            }
+            #div2
+            {
+                background: red;
+            }
+            #div3
+            {
+                margin-top: 1in;
+                margin-bottom: 1in;
+            }
+            #div4
+            {
+                background: green;
+                clear: right;
+                margin-top: -1in;
+            }
+            #div2, #div4
+            {
+                float: right;
+                height: 1in;
+                width: 1in;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is <strong>no red</strong>.</p>
+        <div id="div1">
+            <div id="div2"></div>
+            <div id="div3"></div>
+            <div id="div4"></div>
+        </div>
+    </body>
+</html>

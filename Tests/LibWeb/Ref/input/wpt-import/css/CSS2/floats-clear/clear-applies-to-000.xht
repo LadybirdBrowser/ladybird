@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Clear on floats after floats with display:none blocks between them</title>
+  <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch"/>
+  <link rel="reviewer" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact" />
+  <link rel="alternate" href="http://www.hixie.ch/tests/adhoc/css/box/float/clear/002.html" type="text/html"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#display-prop" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-applies-to-000-ref.xht" />
+
+  <style type="text/css">
+   .float { float: left; margin: 0; }
+   .clear { clear: left; display: none; background: red; }
+  </style>
+ </head>
+ <body>
+  <p>Test passes if the word PASS appears on a single line.</p>
+  <div class="float">PA</div>
+  <div class="clear">| FAIL |</div>
+  <div class="float">SS</div>
+ </body>
+</html>
+
+

@@ -1,0 +1,69 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Test: clear and clearance calculation - margin collapsing</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-clearance-calculation-005-ref.xht" />
+
+  <meta content="With clear: none, the first and last paragraphs' margins collapse and the last paragraph's top border edge should be flush with the top of the floating paragraph." name="assert" />
+
+  <style type="text/css"><![CDATA[
+  body {margin: 8px;}
+
+  #overlapped-red
+  {
+  background-color: red;
+  height: 100px;
+  left: 8px;
+  position: absolute;
+  right: 8px;
+  top: 118px;
+  z-index: -1;
+  }
+
+  #firstParg
+  {
+  height: 20px;
+  margin-bottom: 90px;
+  margin-top: 0px;
+  }
+
+  #floatingParg
+  {
+  background-color: orange;
+  float: left;
+  height: 100px;
+  margin: 0;
+  width: 200px;
+  }
+
+  #lastParg
+  {
+  background-color: green;
+  clear: none;
+  height: 100px;
+  margin-top: 75px;
+  }
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <div id="overlapped-red"></div>
+
+  <p id="firstParg"></p>
+
+  <p id="floatingParg"></p>
+
+  <p id="lastParg"></p>
+
+  <p>Test passes if there is above an orange rectangle and a wide green rectangle side by side, touching each other. The top of the orange rectangle should be flush with the top of the green rectangle. There should be no red.</p>
+
+ </body>
+</html>

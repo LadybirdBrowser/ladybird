@@ -1,0 +1,86 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  table
+  {
+  border-collapse: separate;
+  border-spacing: 0px;
+  }
+
+  td#first-column {padding: 0px 4px 0px 6px;}
+
+  td#second-column
+  {
+  border: black solid thin;
+  padding: 0px;
+  width: 150px;
+  }
+
+  div {height: 50px;}
+
+  div.sliver-yellow {border-left: yellow solid 10px;}
+
+  div.sliver-aqua
+  {
+  border-left: 5px solid aqua;
+  height: 20px;
+  }
+
+  div.mid-container {height: 60px;}
+
+  div.white
+  {
+  border-left: 5px solid white;
+  height: 40px;
+  }
+
+  div.sliver-orange {border-left: orange solid 10px;}
+
+  div.yellow {background-color: yellow;}
+
+  div.aqua
+  {
+  background-color: aqua;
+  height: 20px;
+  width: 20px;
+  }
+
+  div.orange {background-color: orange;}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>The coloured bars on the left should match the coloured boxes in the black box.</p>
+
+  <table>
+   <tr>
+    <td id="first-column">
+      <div class="sliver-yellow"></div>
+      <div class="mid-container">
+        <div class="white"></div>
+        <div class="sliver-aqua"></div>
+      </div>
+      <div class="sliver-orange"></div>
+    </td>
+    <td id="second-column">
+      <div class="yellow">A</div>
+      <div class="mid-container">
+        <div class="white"></div>
+        <div class="aqua">B</div>
+      </div>
+      <div class="orange">C</div>
+    </td>
+   </tr>
+  </table>
+
+ </body>
+</html>

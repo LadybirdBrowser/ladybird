@@ -1,0 +1,48 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Clear set to 'both' with earlier floated boxes</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="reviewer" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" /> <!-- 2012-07-02 -->
+        <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/clear-float-006-ref.xht" />
+
+        <meta name="assert" content="Boxes with 'clear: both' need to clear earlier floated boxes." />
+        <style type="text/css">
+            div
+            {
+                width: 3in;
+            }
+            span
+            {
+                height: 1in;
+                width: 1in;
+            }
+            #span1, #span2
+            {
+                background-color: orange;
+            }
+            #span1
+            {
+                float: right;
+            }
+            #span2, #span3
+            {
+                float: left;
+            }
+            #span3
+            {
+                background: blue;
+                clear: both;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the blue box is below the orange boxes.</p>
+        <div>
+            <span id="span1"></span>
+            <span id="span2"></span>
+            <span id="span3"></span>
+        </div>
+    </body>
+</html>

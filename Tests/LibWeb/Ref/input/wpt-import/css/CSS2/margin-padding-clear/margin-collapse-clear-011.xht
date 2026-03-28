@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: Margin Collapsing with Clearance</title>
+  <link rel="author" title="Oriol Brufau" href="obrufau@igalia.com"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#flow-control"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/box.html#collapsing-margins"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/visuren.html#floats"/>
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/margin-padding-clear/margin-collapse-clear-011-ref.xht"/>
+  <meta name="assert" content="The magenta X appears below the cyan X due to clearance"/>
+  <link rel="stylesheet" type="text/css" href="../../../../../../Text/input/wpt-import/fonts/ahem.css"/>
+ </head>
+ <body style="font: 25px/1 Ahem">
+  <div style="margin-bottom: 1em">X</div>
+  <div style="float: left; color: cyan;">X</div>
+  <div style="margin-bottom: 1em; height: 0px;">
+    <div style="margin-bottom: -1em;"></div>
+  </div>
+  <div style="clear: both; color: magenta">X</div>
+ </body>
+</html>

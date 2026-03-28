@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property float has initial value none
+Pass	Property float does not inherit
+Pass	Property clear has initial value none
+Pass	Property clear does not inherit

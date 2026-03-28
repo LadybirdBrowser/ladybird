@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<style>
+#container {
+  width: 100px;
+  background: green;
+}
+#left {
+  float: left;
+  width: 25px;
+  height: 10px;
+}
+#right {
+  float: right;
+  width: 25px;
+  height: 20px;
+}
+#clears-left {
+  clear: left;
+}
+#zero {
+  margin-bottom: 40px;
+  margin-top: -20px;
+}
+#nested-float {
+  float: left;
+  width: 25px;
+  height: 20px;
+}
+#new-formatting-context {
+  overflow: hidden;
+  width: 60px;
+  height: 80px;
+  margin-top: -30px;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div id=container>
+  <div id=left></div>
+  <div id=right></div>
+  <div>
+    <div id=clears-left>
+      <div>
+        <div id=zero></div>
+        <div id=nested-float></div>
+        <!--
+          The margins up to this new formatting context are chosen to hit an
+          edge condition. At this point there are two possible margins:
+           - (adjoining) {-30px, 40px} => 10px
+           - (non-adjoining) {-20px, 40px} => 20px
+
+          The logic for placing this new formatting context however shouldn't
+          check these margins, as there is an ancestor ("clears-left") which
+          has clearance past adjoining floats ("left", and "right").
+
+          And "nested-float" should get placed at "10px".
+
+          However if we didn't have this logic the following would occur.
+           1. We'd try and place the formatting context using the "adjoining"
+              margins.
+           2. The new formatting context doesn't "fit" on the same edge as the
+              floats, so it would trigger a retry using with a new position
+              calculated using the "non-adjoining" margins.
+           3. During the next pass, it still doesn't think the margins have
+              been separated yet as the parent is still using the position
+              calculated by the forced clearance from above.
+           4. It will trigger a retry again (and if an implementation does this
+              in a loop, will timeout).
+        -->
+        <div id=new-formatting-context></div>
+      </div>
+    </div>
+  </div>
+</div>

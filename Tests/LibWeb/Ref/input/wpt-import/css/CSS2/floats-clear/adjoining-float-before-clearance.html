@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Float that would be adjoining if there were no clearance</title>
+<meta name="assert" content="If the clearance candidate would pull a float down with it (due to margin collapsing) if there were no clearance, clearance needs to be inserted to separate the two, so that the block can go past the float. No matter how large the margin is, it should still be just below the float.">
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="width:100px; background:red;">
+  <div>
+    <div style="float:left; width:100px; height:50px; background:green;"></div>
+  </div>
+  <div style="margin-top:400px; clear:left; height:50px; background:green;"></div>
+</div>

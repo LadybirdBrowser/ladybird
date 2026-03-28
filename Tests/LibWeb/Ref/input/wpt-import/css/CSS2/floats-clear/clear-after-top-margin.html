@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Clearance inside block with top margin</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins" title="8.3.1 Collapsing margins">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="float:right; width:100px; height:100px;"></div>
+<!-- Using padding to prevent the child margin from pulling the block down. -->
+<div style="padding-top:10px; width:100px; background:green;">
+  <div style="margin-top:80px;">
+    <div style="clear:right;"></div>
+  </div>
+</div>

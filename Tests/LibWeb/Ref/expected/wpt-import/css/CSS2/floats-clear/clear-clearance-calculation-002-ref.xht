@@ -1,0 +1,34 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+ <head>
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/" />
+
+  <style type="text/css"><![CDATA[
+  div
+  {
+  background-color: green;
+  height: 1.25em;
+  margin: 1em 0em 5em;
+  width: 6.25em;
+  }
+
+  div + div {height: 3.75em}
+  ]]></style>
+
+ </head>
+
+ <body>
+
+  <p>Test passes if there is no red.</p>
+
+  <div></div>
+
+  <div></div>
+
+ </body>
+</html>

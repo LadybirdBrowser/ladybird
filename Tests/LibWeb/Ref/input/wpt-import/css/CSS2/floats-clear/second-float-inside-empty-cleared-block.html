@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Float separated from float inside empty cleared block</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/CSS22/visuren.html#flow-control" title="9.5.2 Controlling flow next to floats: the 'clear' property">
+<link rel="help" href="https://www.w3.org/TR/CSS22/box.html#collapsing-margins" title="8.3.1 Collapsing margins">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/floats-clear/../../reference/ref-filled-green-100px-square-only.html">
+<p>Test passes if there is a filled green square.</p>
+<div style="float:left; width:100px; height:50px; background:green;"></div>
+<div style="height:1px;"></div>
+<div>
+  <div style="clear:left;">
+    <div style="float:left; width:100px; height:50px; background:green;"></div>
+  </div>
+</div>
