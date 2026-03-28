@@ -100,7 +100,7 @@ private:
     };
     MuteIconState m_mute_icon_state { MuteIconState::Empty };
 
-    double m_last_timeline_percentage { 0.0 };
+    double m_last_timeline_progress { 0.0 };
 };
 
 }

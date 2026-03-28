@@ -489,16 +489,19 @@ void MediaControls::update_timeline()
     VERIFY(m_media_element);
     VERIFY(m_dom->timeline_fill);
 
+    auto format_percent = [](double value) {
+        return MUST(String::formatted("{}%", value * 100));
+    };
+
     auto duration = m_media_element->duration();
-    double percentage = 0.0;
+    double progress = 0.0;
     if (!isnan(duration) && duration > 0.0)
-        percentage = (m_media_element->current_time() / duration) * 100.0;
+        progress = (m_media_element->current_time() / duration);
 
-    if (m_last_timeline_percentage == percentage)
-        return;
-
-    MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, MUST(String::formatted("{}%", percentage))));
-    m_last_timeline_percentage = percentage;
+    if (m_last_timeline_progress != progress) {
+        MUST(m_dom->timeline_fill->style_for_bindings()->set_property(CSS::PropertyID::Width, format_percent(progress)));
+        m_last_timeline_progress = progress;
+    }
 }
 
 void MediaControls::request_timeline_update()
