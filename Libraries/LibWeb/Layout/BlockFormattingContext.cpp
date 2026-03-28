@@ -1662,12 +1662,14 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
     if (box.children_are_inline()) {
         for (auto const& line_box : m_state.get(as<BlockContainer>(box)).line_boxes) {
             CSSPixels width_here = line_box.width();
+            auto line_top = line_box.bottom() - line_box.height();
+            auto line_bottom = line_box.bottom();
             CSSPixels extra_width_from_left_floats = 0;
             for (auto& left_float : m_left_floats.all_boxes) {
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (left_float->box->containing_block() != &box)
                     continue;
-                if (line_box.baseline() >= left_float->top_margin_edge || line_box.baseline() <= left_float->bottom_margin_edge) {
+                if (line_top < left_float->bottom_margin_edge && line_bottom > left_float->top_margin_edge) {
                     extra_width_from_left_floats = max(extra_width_from_left_floats, left_float->offset_from_edge + left_float->used_values.content_width() + left_float->used_values.margin_box_right());
                 }
             }
@@ -1676,7 +1678,7 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
                 // NOTE: Floats directly affect the automatic size of their containing block, but only indirectly anything above in the tree.
                 if (right_float->box->containing_block() != &box)
                     continue;
-                if (line_box.baseline() >= right_float->top_margin_edge || line_box.baseline() <= right_float->bottom_margin_edge) {
+                if (line_top < right_float->bottom_margin_edge && line_bottom > right_float->top_margin_edge) {
                     extra_width_from_right_floats = max(extra_width_from_right_floats, right_float->offset_from_edge + right_float->used_values.margin_box_left());
                 }
             }
