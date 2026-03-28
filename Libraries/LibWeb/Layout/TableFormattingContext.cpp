@@ -472,12 +472,36 @@ CSSPixels TableFormattingContext::compute_capmin()
     // The caption width minimum (CAPMIN) is the largest of the table captions min-content contribution:
     // https://drafts.csswg.org/css-tables-3/#computing-the-table-width
     CSSPixels capmin = 0;
+    auto width_of_table_wrapper_containing_block = table_wrapper_containing_block_width();
     for (auto* child = table_box().first_child(); child; child = child->next_sibling()) {
         if (!child->display().is_table_caption()) {
             continue;
         }
         VERIFY(child->is_box());
-        capmin = max(calculate_min_content_width(static_cast<Box const&>(*child)), capmin);
+        auto const& child_box = static_cast<Box const&>(*child);
+        auto const& computed_values = child_box.computed_values();
+
+        auto margin_left = computed_values.margin().left().resolved_or_auto(child_box, width_of_table_wrapper_containing_block).to_px_or_zero(child_box);
+        auto margin_right = computed_values.margin().right().resolved_or_auto(child_box, width_of_table_wrapper_containing_block).to_px_or_zero(child_box);
+        auto padding_left = computed_values.padding().left().to_px_or_zero(child_box, width_of_table_wrapper_containing_block);
+        auto padding_right = computed_values.padding().right().to_px_or_zero(child_box, width_of_table_wrapper_containing_block);
+        auto outer_size_for_inner_size = [&](CSSPixels inner_size) {
+            return inner_size
+                + margin_left
+                + computed_values.border_left().width
+                + padding_left
+                + padding_right
+                + computed_values.border_right().width
+                + margin_right;
+        };
+
+        auto caption_min_content_contribution = outer_size_for_inner_size(calculate_min_content_width(child_box));
+        if (!computed_values.width().is_auto() && !computed_values.width().contains_percentage()) {
+            auto preferred_inner_width = calculate_inner_width(child_box, AvailableSize::make_definite(width_of_table_wrapper_containing_block), computed_values.width());
+            caption_min_content_contribution = max(caption_min_content_contribution, outer_size_for_inner_size(preferred_inner_width));
+        }
+
+        capmin = max(caption_min_content_contribution, capmin);
     }
     return capmin;
 }
