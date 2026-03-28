@@ -8,15 +8,25 @@
 
 #include <AK/Atomic.h>
 #include <AK/HashMap.h>
+#include <AK/NonnullRefPtr.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventLoopImplementation.h>
+#include <LibThreading/Mutex.h>
 #include <jni.h>
+#include <pthread.h>
 
 extern "C" struct ALooper;
 
 namespace Ladybird {
+
+class ALooperEventLoopImplementation;
+
+struct TimerData {
+    WeakPtr<Core::EventReceiver> receiver;
+    NonnullRefPtr<Core::WeakEventLoopReference> event_loop;
+};
 
 class ALooperEventLoopManager : public Core::EventLoopManager {
 public:
@@ -32,6 +42,8 @@ public:
 
     virtual void did_post_event() override;
 
+    void timer_fired(long timer_id);
+
     Function<void()> on_did_post_event;
 
     // FIXME: These APIs only exist for obscure use-cases inside SerenityOS. Try to get rid of them.
@@ -39,6 +51,9 @@ public:
     virtual void unregister_signal(int) override { }
 
 private:
+    Threading::Mutex m_timers_lock;
+    HashMap<long, TimerData> m_timers;
+
     int m_pipe[2] = {};
     ALooper* m_main_looper { nullptr };
     jobject m_timer_service { nullptr };
@@ -48,16 +63,16 @@ private:
     jmethodID m_timer_constructor { nullptr };
 };
 
-struct TimerData {
-    WeakPtr<Core::EventReceiver> receiver;
-};
-
 struct EventLoopThreadData {
     static EventLoopThreadData& the();
+    static EventLoopThreadData* for_thread(pthread_t);
 
-    HashMap<long, TimerData> timers;
+    ~EventLoopThreadData();
+
+    Threading::Mutex mutex;
     HashTable<Core::Notifier*> notifiers;
-    Core::ThreadEventQueue* thread_queue = nullptr;
+    pthread_t thread_id {};
+    ALooperEventLoopImplementation* event_loop_impl { nullptr };
 };
 
 class ALooperEventLoopImplementation : public Core::EventLoopImplementation {
@@ -73,7 +88,7 @@ public:
 
     void post_event(Core::EventReceiver&, Core::Event::Type);
 
-    virtual bool was_exit_requested() const override { return false; }
+    virtual bool was_exit_requested() const override { return m_exit_requested.load(MemoryOrder::memory_order_acquire); }
 
     EventLoopThreadData& thread_data();
 

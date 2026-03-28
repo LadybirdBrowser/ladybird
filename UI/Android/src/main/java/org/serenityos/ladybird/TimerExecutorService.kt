@@ -9,6 +9,7 @@ package org.serenityos.ladybird
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 class TimerExecutorService {
 
@@ -24,28 +25,30 @@ class TimerExecutorService {
     }
 
     fun registerTimer(timer: Timer, singleShot: Boolean, milliseconds: Long): Long {
-        val id = ++nextId
+        val id = nextId.incrementAndGet()
         timer.id = id
-        val handle: ScheduledFuture<*> = if (singleShot) executor.schedule(
-            timer,
-            milliseconds,
-            TimeUnit.MILLISECONDS
-        ) else executor.scheduleWithFixedDelay(
-            timer,
-            milliseconds,
-            milliseconds,
-            TimeUnit.MILLISECONDS
-        )
+
+        val handle: ScheduledFuture<*> = if (singleShot) {
+            executor.schedule({
+                try {
+                    timer.run()
+                } finally {
+                    timers.remove(id)
+                }
+            }, milliseconds, TimeUnit.MILLISECONDS)
+        } else {
+            executor.scheduleWithFixedDelay(timer, milliseconds, milliseconds, TimeUnit.MILLISECONDS)
+        }
         timers[id] = handle
         return id
     }
 
     fun unregisterTimer(id: Long) {
-        val timer = timers[id] ?: return
+        val timer = timers.remove(id) ?: return
         timer.cancel(false)
     }
 
-    private var nextId: Long = 0
-    private val timers: HashMap<Long, ScheduledFuture<*>> = hashMapOf()
+    private val nextId = AtomicLong(0)
+    private val timers = java.util.concurrent.ConcurrentHashMap<Long, ScheduledFuture<*>>()
 
 }

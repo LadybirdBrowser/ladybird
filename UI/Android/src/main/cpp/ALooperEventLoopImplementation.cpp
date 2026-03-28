@@ -9,17 +9,44 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibThreading/Mutex.h>
+#include <LibThreading/RWLock.h>
 #include <android/log.h>
 #include <android/looper.h>
 #include <fcntl.h>
 #include <jni.h>
+#include <pthread.h>
 
 namespace Ladybird {
 
+static thread_local OwnPtr<EventLoopThreadData> s_this_thread_data;
+static HashMap<pthread_t, EventLoopThreadData*> s_thread_data;
+static Threading::RWLock s_thread_data_lock;
+static thread_local Optional<pthread_t> s_thread_id;
+
 EventLoopThreadData& EventLoopThreadData::the()
 {
-    static thread_local EventLoopThreadData s_thread_data { {}, {}, &Core::ThreadEventQueue::current() };
-    return s_thread_data;
+    if (!s_thread_id.has_value())
+        s_thread_id = pthread_self();
+    if (!s_this_thread_data) {
+        s_this_thread_data = make<EventLoopThreadData>();
+        s_this_thread_data->thread_id = s_thread_id.value();
+        Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+        s_thread_data.set(s_thread_id.value(), s_this_thread_data.ptr());
+    }
+    return *s_this_thread_data;
+}
+
+EventLoopThreadData* EventLoopThreadData::for_thread(pthread_t thread_id)
+{
+    Threading::RWLockLocker<Threading::LockMode::Read> locker(s_thread_data_lock);
+    return s_thread_data.get(thread_id).value_or(nullptr);
+}
+
+EventLoopThreadData::~EventLoopThreadData()
+{
+    Threading::RWLockLocker<Threading::LockMode::Write> locker(s_thread_data_lock);
+    s_thread_data.remove(thread_id);
 }
 
 static ALooperEventLoopImplementation& current_impl()
@@ -88,22 +115,57 @@ NonnullOwnPtr<Core::EventLoopImplementation> ALooperEventLoopManager::make_imple
 intptr_t ALooperEventLoopManager::register_timer(Core::EventReceiver& receiver, int milliseconds, bool should_reload)
 {
     JavaEnvironment env(global_vm);
-    auto& thread_data = EventLoopThreadData::the();
-
-    auto timer = env.get()->NewObject(m_timer_class, m_timer_constructor, reinterpret_cast<long>(&current_impl()));
+    auto timer = env.get()->NewObject(m_timer_class, m_timer_constructor, reinterpret_cast<long>(this));
 
     long millis = milliseconds;
     long timer_id = env.get()->CallLongMethod(m_timer_service, m_register_timer, timer, !should_reload, millis);
 
-    // FIXME: Is there a race condition here? Maybe we should take a lock on the timers...
-    thread_data.timers.set(timer_id, { receiver.make_weak_ptr() });
+    {
+        Threading::MutexLocker locker(m_timers_lock);
+        m_timers.set(timer_id, { receiver.make_weak_ptr(), Core::EventLoop::current_weak() });
+    }
 
     return timer_id;
 }
 
+void ALooperEventLoopManager::timer_fired(long timer_id)
+{
+    Optional<TimerData> timer_data;
+    {
+        Threading::MutexLocker locker(m_timers_lock);
+        auto timer_data_in_map = m_timers.get(timer_id);
+        if (timer_data_in_map.has_value())
+            timer_data = timer_data_in_map.copy();
+    }
+
+    if (!timer_data.has_value())
+        return;
+
+    auto receiver = timer_data->receiver.strong_ref();
+    if (!receiver) {
+        unregister_timer(timer_id);
+        return;
+    }
+
+    auto event_loop = timer_data->event_loop->take();
+    if (!event_loop || !*event_loop) {
+        unregister_timer(timer_id);
+        return;
+    }
+
+    auto& impl = as<ALooperEventLoopImplementation>((*event_loop)->impl());
+    impl.post_event(*receiver, Core::Event::Type::Timer);
+}
+
 void ALooperEventLoopManager::unregister_timer(intptr_t timer_id)
 {
-    if (auto timer = EventLoopThreadData::the().timers.take(timer_id); timer.has_value()) {
+    bool did_remove = false;
+    {
+        Threading::MutexLocker locker(m_timers_lock);
+        did_remove = m_timers.remove(timer_id);
+    }
+
+    if (did_remove) {
         JavaEnvironment env(global_vm);
         env.get()->CallVoidMethod(m_timer_service, m_unregister_timer, timer_id);
     }
@@ -111,19 +173,32 @@ void ALooperEventLoopManager::unregister_timer(intptr_t timer_id)
 
 void ALooperEventLoopManager::register_notifier(Core::Notifier& notifier)
 {
-    EventLoopThreadData::the().notifiers.set(&notifier);
+    auto& thread_data = EventLoopThreadData::the();
+    {
+        Threading::MutexLocker locker(thread_data.mutex);
+        thread_data.notifiers.set(&notifier);
+    }
+
     current_impl().register_notifier(notifier);
+    notifier.set_owner_thread(thread_data.thread_id);
 }
 
 void ALooperEventLoopManager::unregister_notifier(Core::Notifier& notifier)
 {
-    EventLoopThreadData::the().notifiers.remove(&notifier);
-
-    // This is being called incorrectly and crashes, not sure why
-    if (!Core::EventLoop::is_running())
+    auto* thread_data = EventLoopThreadData::for_thread(notifier.owner_thread());
+    if (!thread_data)
         return;
 
-    current_impl().unregister_notifier(notifier);
+    ALooperEventLoopImplementation* event_loop_impl = nullptr;
+    {
+        Threading::MutexLocker locker(thread_data->mutex);
+        if (!thread_data->notifiers.remove(&notifier))
+            return;
+        event_loop_impl = thread_data->event_loop_impl;
+    }
+
+    if (event_loop_impl)
+        event_loop_impl->unregister_notifier(notifier);
 }
 
 void ALooperEventLoopManager::did_post_event()
@@ -141,7 +216,8 @@ int looper_callback(int fd, int events, void* data)
         while (read(fd, &msg, sizeof(msg)) == sizeof(msg)) {
             // Do nothing, we don't actually care what the message was, just that it was posted
         }
-        manager.on_did_post_event();
+        if (manager.on_did_post_event)
+            manager.on_did_post_event();
     }
     return 1;
 }
@@ -150,11 +226,22 @@ ALooperEventLoopImplementation::ALooperEventLoopImplementation()
     : m_event_loop(ALooper_prepare(0))
     , m_thread_data(&EventLoopThreadData::the())
 {
+    {
+        Threading::MutexLocker locker(m_thread_data->mutex);
+        m_thread_data->event_loop_impl = this;
+    }
+
     ALooper_acquire(m_event_loop);
 }
 
 ALooperEventLoopImplementation::~ALooperEventLoopImplementation()
 {
+    {
+        Threading::MutexLocker locker(m_thread_data->mutex);
+        if (m_thread_data->event_loop_impl == this)
+            m_thread_data->event_loop_impl = nullptr;
+    }
+
     ALooper_release(m_event_loop);
 }
 
