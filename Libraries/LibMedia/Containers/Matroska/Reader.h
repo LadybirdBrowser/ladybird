@@ -25,6 +25,7 @@ enum class ElementIterationDecision : u8 {
     Continue,
     BreakHere,
     BreakAtEnd,
+    EndOfElement,
 };
 
 struct TrackCuePoint {
@@ -85,7 +86,7 @@ private:
     Optional<EBMLHeader> m_header;
 
     size_t m_segment_contents_position { 0 };
-    size_t m_segment_contents_size { 0 };
+    Optional<size_t> m_segment_contents_size { 0 };
 
     HashMap<u32, size_t> m_seek_entries;
     size_t m_last_top_level_element_position { 0 };
@@ -143,7 +144,9 @@ public:
 
     DecoderErrorOr<i16> read_i16();
 
-    DecoderErrorOr<u64> read_variable_size_integer(bool mask_length = true);
+    DecoderErrorOr<u32> read_element_id();
+    DecoderErrorOr<Optional<size_t>> read_element_size();
+    DecoderErrorOr<u64> read_variable_size_integer();
     DecoderErrorOr<i64> read_variable_size_signed_integer();
 
     DecoderErrorOr<u64> read_u64();

@@ -7,6 +7,7 @@
 
 #include <AK/Debug.h>
 #include <AK/Function.h>
+#include <AK/GenericShorthands.h>
 #include <AK/IntegralMath.h>
 #include <AK/Math.h>
 #include <AK/Optional.h>
@@ -33,16 +34,19 @@ DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> cons
 // Returns the position of the first element that is read from this master element.
 DecoderErrorOr<size_t> Reader::parse_master_element(Streamer& streamer, [[maybe_unused]] StringView element_name, Function<DecoderErrorOr<ElementIterationDecision>(u64)> element_consumer)
 {
-    auto element_data_size = TRY(streamer.read_variable_size_integer());
+    auto element_data_size = TRY(streamer.read_element_size());
     dbgln_if(MATROSKA_DEBUG, "{} has {} octets of data.", element_name, element_data_size);
 
     bool first_element = true;
     auto first_element_position = streamer.position();
-    auto element_data_end = first_element_position + element_data_size;
+    Optional<u64> element_data_end;
+    if (element_data_size.has_value())
+        element_data_end = first_element_position + element_data_size.value();
 
-    while (streamer.position() < element_data_end) {
+    while (!element_data_end.has_value() || streamer.position() < element_data_end.value()) {
         dbgln_if(MATROSKA_TRACE_DEBUG, "====== Reading  element ======");
-        auto element_id = TRY(streamer.read_variable_size_integer(false));
+        auto element_position = streamer.position();
+        auto element_id = TRY(streamer.read_element_id());
         dbgln_if(MATROSKA_TRACE_DEBUG, "{:s} element ID is {:#010x}", element_name, element_id);
 
         if (element_id == EBML_CRC32_ELEMENT_ID) {
@@ -80,8 +84,12 @@ DecoderErrorOr<size_t> Reader::parse_master_element(Streamer& streamer, [[maybe_
             return DecoderError::format(result.error().category(), "{} -> {}", element_name, result.error().description());
         if (result.value() == ElementIterationDecision::BreakHere)
             break;
-        if (result.value() == ElementIterationDecision::BreakAtEnd) {
-            TRY(streamer.seek_to_position(element_data_end));
+        if (result.value() == ElementIterationDecision::BreakAtEnd && element_data_end.has_value()) {
+            TRY(streamer.seek_to_position(element_data_end.value()));
+            break;
+        }
+        if (result.value() == ElementIterationDecision::EndOfElement) {
+            TRY(streamer.seek_to_position(element_position));
             break;
         }
 
@@ -124,7 +132,7 @@ bool Reader::is_matroska_or_webm(NonnullRefPtr<MediaStreamCursor> const& stream_
 {
     auto header = [&] -> DecoderErrorOr<EBMLHeader> {
         Streamer streamer { stream_cursor };
-        auto first_element_id = TRY(streamer.read_variable_size_integer(false));
+        auto first_element_id = TRY(streamer.read_element_id());
         if (first_element_id != EBML_MASTER_ELEMENT_ID)
             return DecoderError::corrupted("First element was not an EBML header"sv);
         return parse_ebml_header(streamer, ElementIterationDecision::BreakHere);
@@ -141,7 +149,7 @@ bool Reader::is_matroska_or_webm(NonnullRefPtr<MediaStreamCursor> const& stream_
 
 DecoderErrorOr<void> Reader::parse_initial_data(Streamer& streamer)
 {
-    auto first_element_id = TRY(streamer.read_variable_size_integer(false));
+    auto first_element_id = TRY(streamer.read_element_id());
     dbgln_if(MATROSKA_TRACE_DEBUG, "First element ID is {:#010x}\n", first_element_id);
     if (first_element_id != EBML_MASTER_ELEMENT_ID)
         return DecoderError::corrupted("First element was not an EBML header"sv);
@@ -149,11 +157,11 @@ DecoderErrorOr<void> Reader::parse_initial_data(Streamer& streamer)
     m_header = TRY(parse_ebml_header(streamer, ElementIterationDecision::BreakAtEnd));
     dbgln_if(MATROSKA_DEBUG, "Parsed EBML header");
 
-    auto root_element_id = TRY(streamer.read_variable_size_integer(false));
+    auto root_element_id = TRY(streamer.read_element_id());
     if (root_element_id != SEGMENT_ELEMENT_ID)
         return DecoderError::corrupted("Second element was not a segment element"sv);
 
-    m_segment_contents_size = TRY(streamer.read_variable_size_integer());
+    m_segment_contents_size = TRY(streamer.read_element_size());
     m_segment_contents_position = streamer.position();
     dbgln_if(MATROSKA_TRACE_DEBUG, "Segment is at {} with size {}", m_segment_contents_position, m_segment_contents_size);
 
@@ -233,10 +241,13 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
         TRY(streamer.seek_to_position(m_segment_contents_position));
 
     Optional<size_t> position;
+    Optional<size_t> segment_contents_end;
+    if (m_segment_contents_size.has_value())
+        segment_contents_end = m_segment_contents_position + m_segment_contents_size.value();
 
-    while (streamer.position() < m_segment_contents_position + m_segment_contents_size) {
+    while (!segment_contents_end.has_value() || streamer.position() < segment_contents_end.value()) {
         auto found_element_position = streamer.position();
-        auto found_element_id = TRY(streamer.read_variable_size_integer(false));
+        auto found_element_id = TRY(streamer.read_element_id());
         dbgln_if(MATROSKA_TRACE_DEBUG, "Found element ID {:#010x} with position {}.", found_element_id, found_element_position);
 
         if (found_element_id == SEEK_HEAD_ELEMENT_ID) {
@@ -250,6 +261,13 @@ DecoderErrorOr<Optional<size_t>> Reader::find_first_top_level_element_with_id(St
                 break;
             }
             continue;
+        }
+
+        if (first_is_one_of(found_element_id, EBML_MASTER_ELEMENT_ID, SEGMENT_ELEMENT_ID)) {
+            m_segment_contents_size = found_element_position - m_segment_contents_position;
+            m_last_top_level_element_position = found_element_position;
+            TRY(streamer.seek_to_position(found_element_position));
+            return position;
         }
 
         TRY(streamer.read_unknown_element());
@@ -306,7 +324,7 @@ DecoderErrorOr<void> Reader::parse_segment_information(Streamer& streamer)
     if (!position.has_value())
         return DecoderError::corrupted("No Segment Information element found"sv);
     TRY(streamer.seek_to_position(position.release_value()));
-    if (TRY(streamer.read_variable_size_integer(false)) != SEGMENT_INFORMATION_ELEMENT_ID)
+    if (TRY(streamer.read_element_id()) != SEGMENT_INFORMATION_ELEMENT_ID)
         return DecoderError::corrupted("Unexpected Matroska element when seeking to the Segment element"sv);
     m_segment_information = TRY(parse_segment_information_element(streamer));
     return {};
@@ -503,7 +521,7 @@ DecoderErrorOr<void> Reader::parse_tracks(Streamer& streamer)
         return DecoderError::corrupted("No Tracks element found"sv);
     TRY(streamer.seek_to_position(position.release_value()));
 
-    if (TRY(streamer.read_variable_size_integer(false)) != TRACK_ELEMENT_ID)
+    if (TRY(streamer.read_element_id()) != TRACK_ELEMENT_ID)
         return DecoderError::corrupted("Unexpected Matroska element when seeking to the Tracks element"sv);
 
     TRY(Reader::parse_master_element(streamer, "Tracks"sv, [&](u64 element_id) -> DecoderErrorOr<ElementIterationDecision> {
@@ -944,7 +962,7 @@ DecoderErrorOr<void> Reader::parse_cues(Streamer& streamer)
     if (!position.has_value())
         return {};
     TRY(streamer.seek_to_position(position.release_value()));
-    if (TRY(streamer.read_variable_size_integer(false)) != CUES_ID) {
+    if (TRY(streamer.read_element_id()) != CUES_ID) {
         dbgln("Unexpected Matroska element when seeking to the Cues element, skipping parsing.");
         return {};
     }
@@ -1107,7 +1125,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
 #if MATROSKA_TRACE_DEBUG
         auto element_position = streamer.position();
 #endif
-        auto element_id = TRY(streamer.read_variable_size_integer(false));
+        auto element_id = TRY(streamer.read_element_id());
 #if MATROSKA_TRACE_DEBUG
         dbgln("Iterator found element with ID {:#010x} at offset {} within the segment.", element_id, element_position);
 #endif
@@ -1161,7 +1179,7 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(m_segment_contents_position + cue_position.cluster_position()));
 
-    auto element_id = TRY(streamer.read_variable_size_integer(false));
+    auto element_id = TRY(streamer.read_element_id());
     if (element_id != CLUSTER_ELEMENT_ID)
         return DecoderError::corrupted("Cue point's cluster position didn't point to a cluster"sv);
 
@@ -1209,58 +1227,75 @@ DecoderErrorOr<i16> Streamer::read_i16()
     return (TRY(read_octet()) << 8) | TRY(read_octet());
 }
 
-DecoderErrorOr<u64> Streamer::read_variable_size_integer(bool mask_length)
+DecoderErrorOr<u32> Streamer::read_element_id()
 {
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Reading VINT from offset {:p}", position());
-    auto length_descriptor = TRY(read_octet());
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Reading VINT, first byte is {:#02x}", length_descriptor);
-    if (length_descriptor == 0)
-        return DecoderError::format(DecoderErrorCategory::Invalid, "read_variable_size_integer: Length descriptor has no terminating set bit");
-    size_t length = 0;
-    while (length < 8) {
-        if (((length_descriptor >> (8 - length)) & 1) == 1)
-            break;
-        length++;
+    auto length_byte = TRY(read_octet());
+    auto length = count_leading_zeroes_safe(length_byte) + 1;
+    if (length > 4)
+        return DecoderError::corrupted("Element ID must be 4 bytes or less"sv);
+    u32 result = length_byte;
+    auto bytes_left = length;
+    while (--bytes_left > 0) {
+        result <<= 8;
+        result |= TRY(read_octet());
     }
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Reading VINT of total length {}", length);
-    if (length > 8)
-        return DecoderError::format(DecoderErrorCategory::Invalid, "read_variable_size_integer: Length is too large");
 
-    u64 result;
-    if (mask_length)
-        result = length_descriptor & ~(1u << (8 - length));
-    else
-        result = length_descriptor;
-    dbgln_if(MATROSKA_TRACE_DEBUG, "Beginning of VINT is {:#02x}", result);
-    for (size_t i = 1; i < length; i++) {
-        u8 next_octet = TRY(read_octet());
-        dbgln_if(MATROSKA_TRACE_DEBUG, "Read octet of {:#02x}", next_octet);
-        result = (result << 8u) | next_octet;
-        dbgln_if(MATROSKA_TRACE_DEBUG, "New result is {:#010x}", result);
+    return result;
+}
+
+DecoderErrorOr<Optional<size_t>> Streamer::read_element_size()
+{
+    auto length_byte = TRY(read_octet());
+    auto length = count_leading_zeroes_safe(length_byte) + 1;
+    if (length > 8)
+        return DecoderError::corrupted("Element Data Size 8 bytes or less"sv);
+
+    size_t result = length_byte;
+    auto bytes_left = length;
+    while (--bytes_left > 0) {
+        result <<= 8;
+        result |= TRY(read_octet());
+    }
+
+    auto mask = 0xFFFFFFFFFFFFFFFF >> (64 - (7 * length));
+    result &= mask;
+
+    if (result == mask)
+        return OptionalNone();
+
+    return result;
+}
+
+DecoderErrorOr<u64> Streamer::read_variable_size_integer()
+{
+    auto length_byte = TRY(read_octet());
+    auto length = count_leading_zeroes_safe(length_byte) + 1;
+    if (length > 8)
+        return DecoderError::corrupted("VINT is too large"sv);
+
+    auto bytes_left = length;
+    auto result = length_byte & (0xFF >> length);
+    while (--bytes_left > 0) {
+        result <<= 8;
+        result |= TRY(read_octet());
     }
     return result;
 }
 
 DecoderErrorOr<i64> Streamer::read_variable_size_signed_integer()
 {
-    auto length_descriptor = TRY(read_octet());
-    if (length_descriptor == 0)
-        return DecoderError::format(DecoderErrorCategory::Invalid, "read_variable_sized_signed_integer: Length descriptor has no terminating set bit");
-    i64 length = 0;
-    while (length < 8) {
-        if (((length_descriptor >> (8 - length)) & 1) == 1)
-            break;
-        length++;
-    }
+    auto length_byte = TRY(read_octet());
+    auto length = count_leading_zeroes_safe(length_byte) + 1;
     if (length > 8)
-        return DecoderError::format(DecoderErrorCategory::Invalid, "read_variable_size_integer: Length is too large");
+        return DecoderError::corrupted("VINT is too large"sv);
 
-    i64 result = length_descriptor & ~(1u << (8 - length));
-    for (i64 i = 1; i < length; i++) {
-        u8 next_octet = TRY(read_octet());
-        result = (result << 8u) | next_octet;
+    auto bytes_left = length;
+    i64 result = length_byte & (0xFF >> length);
+    while (--bytes_left > 0) {
+        result <<= 8;
+        result |= TRY(read_octet());
     }
-    result -= AK::exp2<i64>(length * 7 - 1) - 1;
+    result -= AK::exp2<i64>((length * 7) - 1) - 1;
     return result;
 }
 
