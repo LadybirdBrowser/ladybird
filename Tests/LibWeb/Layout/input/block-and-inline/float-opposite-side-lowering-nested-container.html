@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    width: 800px;
+}
+
+.outer-right {
+    background: rgba(255, 140, 80, 0.6);
+    float: right;
+    width: 250px;
+    height: 100px;
+}
+
+.container {
+    margin-left: 300px;
+    outline: 1px solid #666;
+    width: 400px;
+}
+
+.inner-left {
+    background: rgba(80, 140, 255, 0.6);
+    float: left;
+    width: 250px;
+    height: 50px;
+}
+
+.clear {
+    clear: both;
+    height: 0;
+}
+</style>
+<div class="outer-right"></div>
+<div class="container"><div class="inner-left"></div><div class="clear"></div></div>
+<div class="clear"></div>

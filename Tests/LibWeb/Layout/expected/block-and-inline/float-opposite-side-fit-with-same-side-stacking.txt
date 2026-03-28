@@ -1,0 +1,23 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 70 0+0+0] children: not-inline
+      BlockContainer <div.container> at [0,0] [0+0+0 600 0+0+200] [0+0+0 70 0+0+0] children: not-inline
+        BlockContainer <div.left.first-left> at [0,0] floating [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.right.first-right> at [300,0] floating [0+0+0 300 0+0+0] [0+0+0 40 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.left.second-left> at [0,40] floating [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div.clear> at [0,70] [0+0+0 600 0+0+0] [0+0+0 0 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [0,70] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x70]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x70]
+      PaintableWithLines (BlockContainer<DIV>.container) [0,0 600x70]
+        PaintableWithLines (BlockContainer<DIV>.left.first-left) [0,0 300x40]
+        PaintableWithLines (BlockContainer<DIV>.right.first-right) [300,0 300x40]
+        PaintableWithLines (BlockContainer<DIV>.left.second-left) [0,40 200x30]
+        PaintableWithLines (BlockContainer<DIV>.clear) [0,70 600x0]
+      PaintableWithLines (BlockContainer(anonymous)) [0,70 800x0]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x70] [children: 0] (z-index: auto)

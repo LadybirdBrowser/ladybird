@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+}
+
+.container {
+    outline: 1px solid #666;
+    width: 600px;
+}
+
+.left {
+    background: rgba(80, 140, 255, 0.6);
+    float: left;
+}
+
+.right {
+    background: rgba(255, 140, 80, 0.6);
+    float: right;
+}
+
+.first-left {
+    width: 100px;
+    height: 100px;
+}
+
+.first-right {
+    width: 300px;
+    height: 100px;
+}
+
+.second-right {
+    width: 50px;
+    height: 200px;
+}
+
+.second-left {
+    clear: left;
+    width: 260px;
+    height: 40px;
+}
+
+.clear {
+    clear: both;
+    height: 0;
+}
+</style>
+<div class="container"><div class="left first-left"></div><div class="right first-right"></div><div class="right second-right"></div><div class="left second-left"></div><div class="clear"></div></div>

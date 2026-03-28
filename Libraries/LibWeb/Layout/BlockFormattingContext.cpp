@@ -1287,6 +1287,10 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
     }
 
     // Then we float it to the left or right.
+    // FIXME: This algorithm is fundamentally flawed. It tracks left and right floats independently,
+    //        then patches up cross-side interactions after the fact. A better approach would be to
+    //        find the first Y position where the float fits considering ALL existing floats on both
+    //        sides in a single unified pass.
     auto float_box = [&](FloatSide side, FloatSideData& side_data) {
         CSSPixels offset_from_edge = 0;
         auto float_to_edge = [&] {
@@ -1297,8 +1301,16 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         };
 
         auto box_in_root_rect = margin_box_rect_in_ancestor_coordinate_space(box_state, root());
+        auto const initial_box_margin_y_in_root = box_in_root_rect.y();
         CSSPixels y_in_root = box_in_root_rect.y();
         CSSPixels y = box_state.offset.y();
+
+        auto has_clearance = false;
+        if (side == FloatSide::Left) {
+            has_clearance = computed_values.clear() == CSS::Clear::Left || computed_values.clear() == CSS::Clear::Both;
+        } else if (side == FloatSide::Right) {
+            has_clearance = computed_values.clear() == CSS::Clear::Right || computed_values.clear() == CSS::Clear::Both;
+        }
 
         if (side_data.current_boxes.is_empty()) {
             // This is the first floating box on this side. Go all the way to the edge.
@@ -1346,13 +1358,6 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
                 break;
             }
 
-            auto has_clearance = false;
-            if (side == FloatSide::Left) {
-                has_clearance = computed_values.clear() == CSS::Clear::Left || computed_values.clear() == CSS::Clear::Both;
-            } else if (side == FloatSide::Right) {
-                has_clearance = computed_values.clear() == CSS::Clear::Right || computed_values.clear() == CSS::Clear::Both;
-            }
-
             if (!did_touch_preceding_float || !did_place_next_to_preceding_float || has_clearance) {
                 // One of three things happened:
                 // - This box does not touch another floating box.
@@ -1377,13 +1382,100 @@ void BlockFormattingContext::layout_floating_box(Box const& box, BlockContainer 
         //       In block layout, we adjust by the side's current Y offset here.
         // FIXME: It's annoying that we have different behavior for inline vs block here.
         //        Find a way to unify the behavior so we don't need to branch here.
-
         if (!line_builder)
             y += side_data.y_offset;
 
         // NOTE: We don't set the X position here, that happens later, once we know the root block width.
         //       See parent_context_did_dimension_child_root_box() for that logic.
         box_state.set_content_y(y);
+
+        // CSS2 9.5.1: "If there is not enough horizontal room for the float, it is shifted downward
+        //              until either it fits or there are no more floats present."
+        // After same-side stacking, check if the float fits horizontally considering opposite-side
+        // floats. If not, push it below the shallowest blocking float and retry.
+        if (!line_builder && available_space.width.is_definite()) {
+            auto position_with_same_side_floats_after_lowering = [&](CSSPixels candidate_box_margin_y_in_root) {
+                while (true) {
+                    Vector<FloatingBox&> candidate_current_boxes;
+                    CSSPixels lowest_margin_edge = candidate_box_margin_y_in_root;
+                    for (auto const& existing_float : side_data.all_boxes) {
+                        if (!existing_float->margin_box_rect_in_root_coordinate_space.contains_vertically(candidate_box_margin_y_in_root))
+                            continue;
+                        candidate_current_boxes.append(*existing_float);
+                        lowest_margin_edge = max(lowest_margin_edge, existing_float->margin_box_rect_in_root_coordinate_space.bottom());
+                    }
+
+                    CSSPixels candidate_offset_from_edge = 0;
+                    if (side == FloatSide::Left)
+                        candidate_offset_from_edge = box_state.margin_box_left();
+                    else
+                        candidate_offset_from_edge = box_state.content_width() + box_state.margin_box_right();
+
+                    bool did_touch_preceding_float = false;
+                    bool did_place_next_to_preceding_float = false;
+                    for (auto& preceding_float : candidate_current_boxes.in_reverse()) {
+                        CSSPixels tentative_offset_from_edge = 0;
+                        bool fits_next_to_preceding_float = false;
+                        if (side == FloatSide::Left) {
+                            tentative_offset_from_edge = max(preceding_float.offset_from_edge + preceding_float.used_values.content_width() + preceding_float.used_values.margin_box_right(), 0) + box_state.margin_box_left();
+                            fits_next_to_preceding_float = (tentative_offset_from_edge + box_state.content_width() + box_state.margin_box_right()) <= available_space.width.to_px_or_zero();
+                        } else {
+                            tentative_offset_from_edge = preceding_float.offset_from_edge + preceding_float.used_values.margin_box_left() + box_state.margin_box_right() + box_state.content_width();
+                            fits_next_to_preceding_float = (tentative_offset_from_edge + box_state.margin_box_left()) <= available_space.width.to_px_or_zero();
+                        }
+
+                        did_touch_preceding_float = true;
+                        if (!fits_next_to_preceding_float)
+                            break;
+                        candidate_offset_from_edge = tentative_offset_from_edge;
+                        did_place_next_to_preceding_float = true;
+                        break;
+                    }
+
+                    if ((has_clearance && !candidate_current_boxes.is_empty()) || (did_touch_preceding_float && !did_place_next_to_preceding_float)) {
+                        candidate_box_margin_y_in_root = lowest_margin_edge;
+                        continue;
+                    }
+
+                    side_data.current_boxes.clear();
+                    for (auto& current_float : candidate_current_boxes)
+                        side_data.current_boxes.append(current_float);
+
+                    side_data.y_offset = max<CSSPixels>(0, candidate_box_margin_y_in_root - initial_box_margin_y_in_root);
+                    offset_from_edge = candidate_offset_from_edge;
+                    auto box_in_root_rect = margin_box_rect_in_ancestor_coordinate_space(box_state, root());
+                    y = box_state.offset.y() + candidate_box_margin_y_in_root - box_in_root_rect.y();
+                    box_state.set_content_y(y);
+                    break;
+                }
+            };
+
+            while (true) {
+                auto box_in_root_rect = margin_box_rect_in_ancestor_coordinate_space(box_state, root());
+                auto space_used_by_floats = space_used_and_containing_margin_for_floats(box_in_root_rect.y());
+                auto const* containing_block = box_state.containing_block_used_values();
+                VERIFY(containing_block);
+                auto current_containing_block_in_root_rect = content_box_rect_in_ancestor_coordinate_space(*containing_block, root());
+                auto used_by_this_side = (side == FloatSide::Left)
+                    ? offset_from_edge + box_state.content_width() + box_state.margin_box_right()
+                    : offset_from_edge + box_state.margin_box_left();
+                auto used_by_opposite_side = (side == FloatSide::Left)
+                    ? max<CSSPixels>(0, space_used_by_floats.right_used_space + space_used_by_floats.right_total_containing_margin - (m_state.get(root()).content_width() - current_containing_block_in_root_rect.right()))
+                    : max<CSSPixels>(0, space_used_by_floats.left_total_containing_margin + space_used_by_floats.left_used_space - current_containing_block_in_root_rect.x());
+                if (used_by_this_side + used_by_opposite_side <= available_space.width.to_px_or_zero())
+                    break;
+
+                // Find the shallowest (topmost) opposite-side float blocking us and move below it.
+                auto opposite_float_box = (side == FloatSide::Left)
+                    ? space_used_by_floats.matching_right_float_box
+                    : space_used_by_floats.matching_left_float_box;
+                if (!opposite_float_box)
+                    break;
+                auto const& opposite_float_used_values = m_state.get(*opposite_float_box);
+                auto opposite_float_bottom = margin_box_rect_in_ancestor_coordinate_space(opposite_float_used_values, root()).bottom();
+                position_with_same_side_floats_after_lowering(opposite_float_bottom);
+            }
+        }
 
         auto top_margin_edge = y - box_state.margin_box_top();
         side_data.all_boxes.append(adopt_own(*new FloatingBox {
