@@ -174,8 +174,7 @@ void SVGScriptElement::process_the_script_element()
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
-    if (!m_document->ready_to_run_scripts())
-        HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+    VERIFY(m_document->ready_to_run_scripts());
 
     m_script = HTML::ClassicScript::create(script_url.basename(), script_content, realm(), m_document->base_url(), m_source_line_number);
 

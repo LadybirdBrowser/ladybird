@@ -798,7 +798,8 @@ public:
     WebIDL::ExceptionOr<Vector<GC::Ref<Animations::Animation>>> get_animations();
 
     bool ready_to_run_scripts() const { return m_ready_to_run_scripts; }
-    void set_ready_to_run_scripts() { m_ready_to_run_scripts = true; }
+    void set_ready_to_run_scripts();
+    void set_deferred_parser_start(GC::Ref<GC::Function<void()>>);
 
     GC::Ptr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
     void set_latest_entry(GC::Ptr<HTML::SessionHistoryEntry> e) { m_latest_entry = e; }
@@ -1364,6 +1365,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#scripts-may-run-for-the-newly-created-document
     bool m_ready_to_run_scripts { false };
+    GC::Ptr<GC::Function<void()>> m_deferred_parser_start;
 
     Vector<HTML::FormAssociatedElement*> m_form_associated_elements_with_form_attribute;
 

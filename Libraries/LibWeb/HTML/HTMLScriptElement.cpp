@@ -122,8 +122,7 @@ void HTMLScriptElement::execute_script()
 {
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#read-html
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
-    if (!m_document->ready_to_run_scripts())
-        main_thread_event_loop().spin_until(GC::create_function(heap(), [&] { return m_document->ready_to_run_scripts(); }));
+    VERIFY(document().ready_to_run_scripts());
 
     // 1. Let document be el's node document.
     GC::Ref<DOM::Document> document = this->document();

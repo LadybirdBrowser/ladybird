@@ -683,6 +683,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_render_blocking_elements);
     visitor.visit(m_policy_container);
     visitor.visit(m_style_invalidator);
+    visitor.visit(m_deferred_parser_start);
     visitor.visit(m_custom_element_registry);
 }
 
@@ -5805,7 +5806,7 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
         try_to_scroll_to_the_fragment();
 
         // 4. At this point scripts may run for the newly-created document document.
-        m_ready_to_run_scripts = true;
+        set_ready_to_run_scripts();
     }
 
     // 9. Otherwise, if documentsEntryChanged is false and doNotReactivate is false, then:
@@ -5814,6 +5815,21 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
         // FIXME: 1. Assert: entriesForNavigationAPI is given.
         // FIXME: 2. Reactivate document given entry and entriesForNavigationAPI.
     }
+}
+
+void Document::set_ready_to_run_scripts()
+{
+    m_ready_to_run_scripts = true;
+    if (auto callback = m_deferred_parser_start) {
+        m_deferred_parser_start = nullptr;
+        callback->function()();
+    }
+}
+
+void Document::set_deferred_parser_start(GC::Ref<GC::Function<void()>> callback)
+{
+    VERIFY(!m_deferred_parser_start);
+    m_deferred_parser_start = callback;
 }
 
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()

@@ -79,6 +79,7 @@ GC::Ref<DOM::Document> create_document_for_inline_content(GC::Ptr<HTML::Navigabl
 
     // 6. Either associate document with a custom rendering that is not rendered using the normal Document rendering
     //    rules, or mutate document until it represents the content the user agent wants to render.
+    document->set_ready_to_run_scripts();
     mutate_document(*document);
 
     // FIXME: 7. Act as if the user agent had stopped parsing document.

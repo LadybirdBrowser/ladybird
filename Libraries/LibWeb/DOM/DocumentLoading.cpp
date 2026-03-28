@@ -101,7 +101,13 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
                 // NB: If document is part of a session history entry's traversal, resolve the signal_to_continue_session_history_processing.
                 signal_to_continue_session_history_processing->resolve({});
                 auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, data, mime_type);
-                parser->run(url);
+                if (document->ready_to_run_scripts()) {
+                    parser->run(url);
+                } else {
+                    document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, url] {
+                        parser->run(url);
+                    }));
+                }
             }));
         });
 
@@ -190,15 +196,22 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_xml_document(HTML::Navig
         }
         // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
         signal_to_continue_session_history_processing->resolve({});
-        XML::Parser parser(source.value(), { .preserve_cdata = true, .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
-        XMLDocumentBuilder builder { document };
-        auto result = parser.parse_with_listener(builder);
-        if (result.is_error()) {
-            // FIXME: Insert error message into the document.
-            dbgln("Failed to parse XML document: {}", result.error());
-            convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
+        auto run_xml_parser = [document, source_string = source.release_value()] {
+            XML::Parser parser(source_string, { .preserve_cdata = true, .preserve_comments = true, .resolve_named_html_entity = resolve_named_html_entity });
+            XMLDocumentBuilder builder { document };
+            auto result = parser.parse_with_listener(builder);
+            if (result.is_error()) {
+                // FIXME: Insert error message into the document.
+                dbgln("Failed to parse XML document: {}", result.error());
+                convert_to_xml_error_document(document, Utf16String::formatted("Failed to parse XML document: {}", result.error()));
 
-            // NB: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
+                // NB: XMLDocumentBuilder ensures that the `load` event gets fired. We don't need to do anything else here.
+            }
+        };
+        if (document->ready_to_run_scripts()) {
+            run_xml_parser();
+        } else {
+            document->set_deferred_parser_start(GC::create_function(document->heap(), move(run_xml_parser)));
         }
     });
 
@@ -246,26 +259,33 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_text_document(HTML::Navi
 
         // NB: If document is part of session history traversal, resolve the signal_to_continue_session_history_processing.
         signal_to_continue_session_history_processing->resolve({});
-        auto parser = HTML::HTMLParser::create_for_scripting(document);
-        parser->tokenizer().update_insertion_point();
+        auto run_text_parser = [document, data = move(data), url, encoding = move(encoding)] {
+            auto parser = HTML::HTMLParser::create_for_scripting(document);
+            parser->tokenizer().update_insertion_point();
 
-        parser->tokenizer().insert_input_at_insertion_point("<pre>\n"sv);
-        parser->run();
+            parser->tokenizer().insert_input_at_insertion_point("<pre>\n"sv);
+            parser->run();
 
-        parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
-        parser->tokenizer().insert_input_at_insertion_point(data);
-        parser->tokenizer().insert_eof();
-        parser->run(url);
+            parser->tokenizer().switch_to(HTML::HTMLTokenizer::State::PLAINTEXT);
+            parser->tokenizer().insert_input_at_insertion_point(data);
+            parser->tokenizer().insert_eof();
+            parser->run(url);
 
-        document->set_encoding(MUST(String::from_byte_string(encoding)));
+            document->set_encoding(MUST(String::from_byte_string(encoding)));
 
-        // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
-        //    script, or giving the document a title.
-        auto title = Utf16String::from_utf8_with_replacement_character(LexicalPath::basename(url.to_byte_string()));
-        auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
-        MUST(document->head()->append_child(title_element));
-        auto title_text = document->realm().create<DOM::Text>(document, move(title));
-        MUST(title_element->append_child(*title_text));
+            // 5. User agents may add content to the head element of document, e.g., linking to a style sheet, providing
+            //    script, or giving the document a title.
+            auto title = Utf16String::from_utf8_with_replacement_character(LexicalPath::basename(url.to_byte_string()));
+            auto title_element = MUST(DOM::create_element(document, HTML::TagNames::title, Namespace::HTML));
+            MUST(document->head()->append_child(title_element));
+            auto title_text = document->realm().create<DOM::Text>(document, move(title));
+            MUST(title_element->append_child(*title_text));
+        };
+        if (document->ready_to_run_scripts()) {
+            run_text_parser();
+        } else {
+            document->set_deferred_parser_start(GC::create_function(document->heap(), move(run_text_parser)));
+        }
     });
 
     auto process_body_error = GC::create_function(document->heap(), [](JS::Value) {
