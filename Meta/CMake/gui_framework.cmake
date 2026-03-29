@@ -9,7 +9,6 @@ else()
     set(_default_gui "Qt")
 endif()
 
-# Note: ladybird_option() doesn't play nicely with this variable, so we use set() directly.
 set(LADYBIRD_GUI_FRAMEWORK ${_default_gui} CACHE STRING "The GUI framework to use for the ladybird application. Possible values: ${_possible_guis}")
 
 if (NOT "${LADYBIRD_GUI_FRAMEWORK}" IN_LIST _possible_guis)
