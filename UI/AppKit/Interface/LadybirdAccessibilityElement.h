@@ -15,13 +15,13 @@ class AccessibilityTreeManager;
 
 }
 
-@class LadybirdWebView;
+#import <Interface/LadybirdAccessibilityViewProtocol.h>
 
 @interface LadybirdAccessibilityElement : NSObject
 
 - (instancetype)initWithNodeID:(int64_t)nodeID
                        manager:(WebView::AccessibilityTreeManager const*)manager
-                       webView:(LadybirdWebView*)webView;
+                          view:(id<LadybirdAccessibilityView>)view;
 
 @property (nonatomic, readonly) int64_t nodeID;
 

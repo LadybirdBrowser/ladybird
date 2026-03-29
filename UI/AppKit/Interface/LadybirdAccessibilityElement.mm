@@ -8,7 +8,6 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 #import <Interface/LadybirdAccessibilityElement.h>
-#import <Interface/LadybirdWebView.h>
 
 #include <LibWebView/AccessibilityNodeData.h>
 #include <LibWebView/AccessibilityTreeManager.h>
@@ -161,18 +160,18 @@ static NSString* nsStringFromAK(AK::String const& string)
 {
     int64_t _nodeID;
     WebView::AccessibilityTreeManager const* _manager;
-    __weak LadybirdWebView* _webView;
+    __unsafe_unretained id<LadybirdAccessibilityView> _view;
 }
 
 - (instancetype)initWithNodeID:(int64_t)nodeID
                        manager:(WebView::AccessibilityTreeManager const*)manager
-                       webView:(LadybirdWebView*)webView
+                          view:(id<LadybirdAccessibilityView>)view
 {
     self = [super init];
     if (self) {
         _nodeID = nodeID;
         _manager = manager;
-        _webView = webView;
+        _view = view;
     }
     return self;
 }
@@ -377,21 +376,21 @@ static NSString* nsStringFromAK(AK::String const& string)
 
     if ([attribute isEqualToString:NSAccessibilityParentAttribute]) {
         if (!data || data->parent_id == -1)
-            return _webView;
+            return _view;
 
         // Walk up past ignored ancestors to find the nearest visible parent.
         i64 parent_id = data->parent_id;
         while (parent_id != -1) {
             auto const* parent_data = _manager->node(parent_id);
             if (!parent_data)
-                return _webView;
+                return _view;
 
             if (!is_ignored_role(parent_data->role.bytes_as_string_view(), parent_data->name))
-                return [_webView accessibilityElementForNodeID:parent_id];
+                return [_view accessibilityElementForNodeID:parent_id];
 
             parent_id = parent_data->parent_id;
         }
-        return _webView;
+        return _view;
     }
 
     if ([attribute isEqualToString:NSAccessibilityChildrenAttribute]) {
@@ -403,10 +402,10 @@ static NSString* nsStringFromAK(AK::String const& string)
     }
 
     if ([attribute isEqualToString:NSAccessibilityWindowAttribute])
-        return [_webView window];
+        return [_view window];
 
     if ([attribute isEqualToString:NSAccessibilityTopLevelUIElementAttribute])
-        return [_webView window];
+        return [_view window];
 
     if ([attribute isEqualToString:NSAccessibilityPositionAttribute]) {
         if (!data)
@@ -414,7 +413,7 @@ static NSString* nsStringFromAK(AK::String const& string)
         NSRect viewRect = NSMakeRect(
             data->bounds.x(), data->bounds.y(),
             data->bounds.width(), data->bounds.height());
-        NSRect screenRect = [_webView accessibilityScreenRectForViewRect:viewRect];
+        NSRect screenRect = [_view accessibilityScreenRectForViewRect:viewRect];
         return [NSValue valueWithPoint:screenRect.origin];
     }
 
@@ -424,7 +423,7 @@ static NSString* nsStringFromAK(AK::String const& string)
         NSRect viewRect = NSMakeRect(
             data->bounds.x(), data->bounds.y(),
             data->bounds.width(), data->bounds.height());
-        NSRect screenRect = [_webView accessibilityScreenRectForViewRect:viewRect];
+        NSRect screenRect = [_view accessibilityScreenRectForViewRect:viewRect];
         return [NSValue valueWithSize:screenRect.size];
     }
 
@@ -530,11 +529,11 @@ static NSString* nsStringFromAK(AK::String const& string)
 
         if (is_ignored_role(child_data->role.bytes_as_string_view(), child_data->name)) {
             // Promote this element's children directly.
-            id child_element = [_webView accessibilityElementForNodeID:child_id];
+            id child_element = [_view accessibilityElementForNodeID:child_id];
             if ([child_element isKindOfClass:[LadybirdAccessibilityElement class]])
                 [(LadybirdAccessibilityElement*)child_element collectUnignoredChildren:result];
         } else {
-            id child_element = [_webView accessibilityElementForNodeID:child_id];
+            id child_element = [_view accessibilityElementForNodeID:child_id];
             if (child_element)
                 [result addObject:child_element];
         }
@@ -559,13 +558,13 @@ static NSString* nsStringFromAK(AK::String const& string)
             continue;
         auto child_role = child->role.bytes_as_string_view();
         if (child_role == "row"sv) {
-            [rows addObject:[_webView accessibilityElementForNodeID:child_id]];
+            [rows addObject:[_view accessibilityElementForNodeID:child_id]];
             maxColumns = MAX(maxColumns, (int)child->child_ids.size());
         } else if (child_role == "rowgroup"sv) {
             for (auto gc_id : child->child_ids) {
                 auto const* gc = _manager->node(gc_id);
                 if (gc && gc->role.bytes_as_string_view() == "row"sv) {
-                    [rows addObject:[_webView accessibilityElementForNodeID:gc_id]];
+                    [rows addObject:[_view accessibilityElementForNodeID:gc_id]];
                     maxColumns = MAX(maxColumns, (int)gc->child_ids.size());
                 }
             }
@@ -595,7 +594,7 @@ static NSString* nsStringFromAK(AK::String const& string)
                 for (auto cell_id : gc->child_ids) {
                     auto const* cell = _manager->node(cell_id);
                     if (cell && cell->role.bytes_as_string_view() == "columnheader"sv)
-                        return [_webView accessibilityElementForNodeID:gc_id];
+                        return [_view accessibilityElementForNodeID:gc_id];
                 }
             }
             break;
@@ -681,7 +680,7 @@ static NSString* nsStringFromAK(AK::String const& string)
         auto const* row_data = _manager->node(data->parent_id);
         if (!row_data)
             return [NSValue valueWithRange:NSMakeRange(0, MAX(1, data->row_span))];
-        LadybirdAccessibilityElement* rowElement = [_webView accessibilityElementForNodeID:row_data->id];
+        LadybirdAccessibilityElement* rowElement = [_view accessibilityElementForNodeID:row_data->id];
         int row_index = [[rowElement rowIndex] intValue];
         return [NSValue valueWithRange:NSMakeRange(row_index, MAX(1, data->row_span))];
     }
@@ -754,7 +753,7 @@ static NSString* nsStringFromAK(AK::String const& string)
                 continue;
             bool ignored = is_ignored_role(node->role.bytes_as_string_view(), node->name);
             if (!ignored)
-                [allElements addObject:[_webView accessibilityElementForNodeID:nid]];
+                [allElements addObject:[_view accessibilityElementForNodeID:nid]];
             // Only descend into children of container elements.
             // Leaf-like roles (links, buttons, headings) have their
             // text content in their accessible name already.
@@ -837,7 +836,7 @@ static NSString* nsStringFromAK(AK::String const& string)
 
     if ([attribute isEqualToString:@"AXUIElementForTextMarker"]) {
         auto md = dataFromTextMarker((__bridge AXTextMarkerRef)parameter);
-        return md.node_id != -1 ? [_webView accessibilityElementForNodeID:md.node_id] : nil;
+        return md.node_id != -1 ? [_view accessibilityElementForNodeID:md.node_id] : nil;
     }
 
     if ([attribute isEqualToString:@"AXNextTextMarkerForTextMarker"]) {
@@ -1005,7 +1004,7 @@ static NSString* nsStringFromAK(AK::String const& string)
         if (![parameter isKindOfClass:[NSValue class]])
             return nil;
         NSPoint screenPoint = [parameter pointValue];
-        NSRect viewRect = [_webView accessibilityViewRectForScreenPoint:screenPoint];
+        NSRect viewRect = [_view accessibilityViewRectForScreenPoint:screenPoint];
         auto point = Gfx::IntPoint {
             static_cast<int>(viewRect.origin.x),
             static_cast<int>(viewRect.origin.y)
@@ -1059,7 +1058,7 @@ static NSString* nsStringFromAK(AK::String const& string)
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString*)attribute
 {
     if ([attribute isEqualToString:NSAccessibilityFocusedAttribute] && [value boolValue])
-        [_webView performAccessibilityAction:@"focus" forNodeID:_nodeID];
+        [_view performAccessibilityAction:@"focus" forNodeID:_nodeID];
 }
 
 - (NSArray*)accessibilityActionNames
@@ -1084,12 +1083,12 @@ static NSString* nsStringFromAK(AK::String const& string)
 - (void)accessibilityPerformAction:(NSString*)action
 {
     if ([action isEqualToString:NSAccessibilityPressAction])
-        [_webView performAccessibilityAction:@"press" forNodeID:_nodeID];
+        [_view performAccessibilityAction:@"press" forNodeID:_nodeID];
 }
 
 - (id)accessibilityHitTest:(NSPoint)screenPoint
 {
-    NSRect viewRect = [_webView accessibilityViewRectForScreenPoint:screenPoint];
+    NSRect viewRect = [_view accessibilityViewRectForScreenPoint:screenPoint];
     auto point = Gfx::IntPoint { static_cast<int>(viewRect.origin.x), static_cast<int>(viewRect.origin.y) };
 
     auto const* hit = _manager->hit_test(point);
@@ -1104,7 +1103,7 @@ static NSString* nsStringFromAK(AK::String const& string)
     }
 
     if (hit)
-        return [_webView accessibilityElementForNodeID:hit->id];
+        return [_view accessibilityElementForNodeID:hit->id];
     return self;
 }
 
@@ -1190,12 +1189,12 @@ static NSString* nsStringFromAK(AK::String const& string)
 
 - (id)accessibilityWindow
 {
-    return [_webView window];
+    return [_view window];
 }
 
 - (id)accessibilityTopLevelUIElement
 {
-    return [_webView window];
+    return [_view window];
 }
 
 @end

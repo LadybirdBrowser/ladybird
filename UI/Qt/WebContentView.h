@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "AccessibilityInterface.h"
 #include <AK/ByteString.h>
 #include <AK/Function.h>
 #include <AK/OwnPtr.h>
@@ -15,6 +16,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
@@ -23,6 +25,7 @@
 #include <QWidget>
 
 class QKeyEvent;
+class QAccessibleInterface;
 class QSinglePointEvent;
 
 namespace Ladybird {
@@ -74,7 +77,12 @@ public:
 
     using ViewImplementation::client;
 
+    QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
+    void perform_accessibility_action(i64 node_id, String action);
+
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
+
+    void schedule_accessibility_tree_request();
 
 public slots:
     void select_dropdown_action();
@@ -102,6 +110,12 @@ private:
     void finish_handling_key_event(Web::KeyEvent const&);
 
     void update_screen_rects();
+
+    friend class WebContentViewAccessible;
+
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    QHash<i64, AccessibilityInterface*> m_accessibility_elements;
+    QTimer m_accessibility_request_timer;
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

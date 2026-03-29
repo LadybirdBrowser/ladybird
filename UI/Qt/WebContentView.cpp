@@ -29,6 +29,10 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
+#if defined(Q_OS_MACOS)
+#    include "WebContentViewAccessibilityMac.h"
+#endif
+
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
@@ -81,6 +85,71 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     });
 
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
+
+    // Register the accessibility factory so Qt knows how to create
+    // an accessible interface for WebContentView.
+    static bool accessibility_factory_installed = false;
+    if (!accessibility_factory_installed) {
+        QAccessible::installFactory(accessibility_factory);
+        accessibility_factory_installed = true;
+    }
+
+    m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+
+#if defined(Q_OS_MACOS)
+    install_native_accessibility(this, m_accessibility_manager.ptr());
+#endif
+
+    m_accessibility_request_timer.setSingleShot(true);
+    m_accessibility_request_timer.setInterval(500);
+    QObject::connect(&m_accessibility_request_timer, &QTimer::timeout, this, [this] { request_accessibility_tree(); });
+
+    on_load_finish = [this](auto const&) {
+        m_accessibility_request_timer.stop();
+        request_accessibility_tree();
+    };
+
+    on_accessibility_tree_received = [this](auto nodes) {
+        m_accessibility_manager->update_tree(AK::move(nodes));
+        m_accessibility_request_timer.stop();
+
+        // Prune interfaces for nodes that no longer exist in the
+        // tree. These are stale entries from previous pages.
+        QList<i64> stale_ids;
+        for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
+            if (!it.value()->isValid())
+                stale_ids.append(it.key());
+        }
+        for (auto id : stale_ids) {
+            auto* iface = m_accessibility_elements.take(id);
+            QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(iface));
+        }
+
+        // Give the web content view keyboard focus and notify
+        // VoiceOver after a short delay (to let Qt finish
+        // processing the current event loop iteration).
+        QTimer::singleShot(100, this, [this] {
+            setFocus(Qt::OtherFocusReason);
+#if defined(Q_OS_MACOS)
+            notify_accessibility_tree_loaded(this, m_accessibility_manager.ptr());
+#endif
+        });
+    };
+
+    on_accessibility_focus_changed = [this](i64 node_id) {
+        if (m_accessibility_manager->is_empty())
+            return;
+        m_accessibility_manager->set_focused_node(node_id);
+#if defined(Q_OS_MACOS)
+        post_accessibility_focus_changed(this, node_id);
+#endif
+    };
+
+#if defined(Q_OS_MACOS)
+    m_accessibility_manager->on_live_region_changed = [](auto text, auto live_value) {
+        post_accessibility_announcement(text, live_value);
+    };
+#endif
 
     on_ready_to_paint = [this]() {
         update();
@@ -630,6 +699,31 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 void WebContentView::update_palette(PaletteMode mode)
 {
     client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
+}
+
+void WebContentView::schedule_accessibility_tree_request()
+{
+    m_accessibility_request_timer.start();
+}
+
+QAccessibleInterface* WebContentView::accessibility_interface_for_node(i64 node_id)
+{
+    auto it = m_accessibility_elements.find(node_id);
+    if (it != m_accessibility_elements.end())
+        return *it;
+
+    auto const* data = m_accessibility_manager->node(node_id);
+    if (!data)
+        return nullptr;
+
+    auto* iface = new AccessibilityInterface(node_id, m_accessibility_manager.ptr(), this);
+    m_accessibility_elements.insert(node_id, iface);
+    return iface;
+}
+
+void WebContentView::perform_accessibility_action(i64 node_id, String action)
+{
+    ViewImplementation::perform_accessibility_action(node_id, AK::move(action));
 }
 
 void WebContentView::update_screen_rects()
