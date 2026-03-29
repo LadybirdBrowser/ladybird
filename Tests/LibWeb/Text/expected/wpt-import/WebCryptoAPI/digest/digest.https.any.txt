@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 92 tests
+Found 116 tests
 
-92 Pass
+116 Pass
 Pass	SHA-1 with empty source data
 Pass	sha-1 with empty source data
 Pass	Sha-1 with empty source data
@@ -20,61 +20,85 @@ Pass	sha-1 with short source data
 Pass	Sha-1 with short source data
 Pass	SHA-1 with short source data and altered buffer during call
 Pass	SHA-1 with short source data and altered buffer after call
+Pass	SHA-1 with short source data and transferred buffer during call
+Pass	SHA-1 with short source data and transferred buffer after call
 Pass	SHA-256 with short source data
 Pass	sha-256 with short source data
 Pass	Sha-256 with short source data
 Pass	SHA-256 with short source data and altered buffer during call
 Pass	SHA-256 with short source data and altered buffer after call
+Pass	SHA-256 with short source data and transferred buffer during call
+Pass	SHA-256 with short source data and transferred buffer after call
 Pass	SHA-384 with short source data
 Pass	sha-384 with short source data
 Pass	Sha-384 with short source data
 Pass	SHA-384 with short source data and altered buffer during call
 Pass	SHA-384 with short source data and altered buffer after call
+Pass	SHA-384 with short source data and transferred buffer during call
+Pass	SHA-384 with short source data and transferred buffer after call
 Pass	SHA-512 with short source data
 Pass	sha-512 with short source data
 Pass	Sha-512 with short source data
 Pass	SHA-512 with short source data and altered buffer during call
 Pass	SHA-512 with short source data and altered buffer after call
+Pass	SHA-512 with short source data and transferred buffer during call
+Pass	SHA-512 with short source data and transferred buffer after call
 Pass	SHA-1 with medium source data
 Pass	sha-1 with medium source data
 Pass	Sha-1 with medium source data
 Pass	SHA-1 with medium source data and altered buffer during call
 Pass	SHA-1 with medium source data and altered buffer after call
+Pass	SHA-1 with medium source data and transferred buffer during call
+Pass	SHA-1 with medium source data and transferred buffer after call
 Pass	SHA-256 with medium source data
 Pass	sha-256 with medium source data
 Pass	Sha-256 with medium source data
 Pass	SHA-256 with medium source data and altered buffer during call
 Pass	SHA-256 with medium source data and altered buffer after call
+Pass	SHA-256 with medium source data and transferred buffer during call
+Pass	SHA-256 with medium source data and transferred buffer after call
 Pass	SHA-384 with medium source data
 Pass	sha-384 with medium source data
 Pass	Sha-384 with medium source data
 Pass	SHA-384 with medium source data and altered buffer during call
 Pass	SHA-384 with medium source data and altered buffer after call
+Pass	SHA-384 with medium source data and transferred buffer during call
+Pass	SHA-384 with medium source data and transferred buffer after call
 Pass	SHA-512 with medium source data
 Pass	sha-512 with medium source data
 Pass	Sha-512 with medium source data
 Pass	SHA-512 with medium source data and altered buffer during call
 Pass	SHA-512 with medium source data and altered buffer after call
+Pass	SHA-512 with medium source data and transferred buffer during call
+Pass	SHA-512 with medium source data and transferred buffer after call
 Pass	SHA-1 with long source data
 Pass	sha-1 with long source data
 Pass	Sha-1 with long source data
 Pass	SHA-1 with long source data and altered buffer during call
 Pass	SHA-1 with long source data and altered buffer after call
+Pass	SHA-1 with long source data and transferred buffer during call
+Pass	SHA-1 with long source data and transferred buffer after call
 Pass	SHA-256 with long source data
 Pass	sha-256 with long source data
 Pass	Sha-256 with long source data
 Pass	SHA-256 with long source data and altered buffer during call
 Pass	SHA-256 with long source data and altered buffer after call
+Pass	SHA-256 with long source data and transferred buffer during call
+Pass	SHA-256 with long source data and transferred buffer after call
 Pass	SHA-384 with long source data
 Pass	sha-384 with long source data
 Pass	Sha-384 with long source data
 Pass	SHA-384 with long source data and altered buffer during call
 Pass	SHA-384 with long source data and altered buffer after call
+Pass	SHA-384 with long source data and transferred buffer during call
+Pass	SHA-384 with long source data and transferred buffer after call
 Pass	SHA-512 with long source data
 Pass	sha-512 with long source data
 Pass	Sha-512 with long source data
 Pass	SHA-512 with long source data and altered buffer during call
 Pass	SHA-512 with long source data and altered buffer after call
+Pass	SHA-512 with long source data and transferred buffer during call
+Pass	SHA-512 with long source data and transferred buffer after call
 Pass	AES-GCM with empty
 Pass	RSA-OAEP with empty
 Pass	PBKDF2 with empty

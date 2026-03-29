@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 109 tests
+Found 181 tests
 
-109 Pass
+181 Pass
 Pass	setup
 Pass	RSA-OAEP with SHA-1 and no label decryption
 Pass	RSA-OAEP with SHA-256 and no label decryption
@@ -16,18 +16,54 @@ Pass	RSA-OAEP with SHA-1 and a label decryption
 Pass	RSA-OAEP with SHA-256 and a label decryption
 Pass	RSA-OAEP with SHA-384 and a label decryption
 Pass	RSA-OAEP with SHA-512 and a label decryption
-Pass	RSA-OAEP with SHA-1 and no label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-256 and no label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-384 and no label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-512 and no label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-1 and empty label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-256 and empty label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-384 and empty label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-512 and empty label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-1 and a label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-256 and a label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-384 and a label decryption with altered ciphertext
-Pass	RSA-OAEP with SHA-512 and a label decryption with altered ciphertext
+Pass	RSA-OAEP with SHA-1 and no label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-256 and no label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-384 and no label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-512 and no label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-1 and empty label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-256 and empty label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-384 and empty label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-512 and empty label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-1 and a label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-256 and a label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-384 and a label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-512 and a label decryption with altered ciphertext during call
+Pass	RSA-OAEP with SHA-1 and no label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-256 and no label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-384 and no label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-512 and no label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-1 and empty label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-256 and empty label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-384 and empty label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-512 and empty label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-1 and a label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-256 and a label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-384 and a label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-512 and a label decryption with altered ciphertext after call
+Pass	RSA-OAEP with SHA-1 and no label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-256 and no label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-384 and no label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-512 and no label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-1 and empty label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-256 and empty label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-384 and empty label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-512 and empty label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-1 and a label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-256 and a label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-384 and a label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-512 and a label decryption with transferred ciphertext during call
+Pass	RSA-OAEP with SHA-1 and no label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-256 and no label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-384 and no label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-512 and no label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-1 and empty label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-256 and empty label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-384 and empty label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-512 and empty label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-1 and a label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-256 and a label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-384 and a label decryption with transferred ciphertext after call
+Pass	RSA-OAEP with SHA-512 and a label decryption with transferred ciphertext after call
 Pass	RSA-OAEP with SHA-1 and no label using publicKey to decrypt
 Pass	RSA-OAEP with SHA-256 and no label using publicKey to decrypt
 Pass	RSA-OAEP with SHA-384 and no label using publicKey to decrypt
@@ -52,18 +88,54 @@ Pass	RSA-OAEP with SHA-1 and a label no decrypt usage
 Pass	RSA-OAEP with SHA-256 and a label no decrypt usage
 Pass	RSA-OAEP with SHA-384 and a label no decrypt usage
 Pass	RSA-OAEP with SHA-512 and a label no decrypt usage
-Pass	RSA-OAEP with SHA-1 and no label with altered plaintext
-Pass	RSA-OAEP with SHA-256 and no label with altered plaintext
-Pass	RSA-OAEP with SHA-384 and no label with altered plaintext
-Pass	RSA-OAEP with SHA-512 and no label with altered plaintext
-Pass	RSA-OAEP with SHA-1 and empty label with altered plaintext
-Pass	RSA-OAEP with SHA-256 and empty label with altered plaintext
-Pass	RSA-OAEP with SHA-384 and empty label with altered plaintext
-Pass	RSA-OAEP with SHA-512 and empty label with altered plaintext
-Pass	RSA-OAEP with SHA-1 and a label with altered plaintext
-Pass	RSA-OAEP with SHA-256 and a label with altered plaintext
-Pass	RSA-OAEP with SHA-384 and a label with altered plaintext
-Pass	RSA-OAEP with SHA-512 and a label with altered plaintext
+Pass	RSA-OAEP with SHA-1 and no label with altered plaintext during call
+Pass	RSA-OAEP with SHA-256 and no label with altered plaintext during call
+Pass	RSA-OAEP with SHA-384 and no label with altered plaintext during call
+Pass	RSA-OAEP with SHA-512 and no label with altered plaintext during call
+Pass	RSA-OAEP with SHA-1 and empty label with altered plaintext during call
+Pass	RSA-OAEP with SHA-256 and empty label with altered plaintext during call
+Pass	RSA-OAEP with SHA-384 and empty label with altered plaintext during call
+Pass	RSA-OAEP with SHA-512 and empty label with altered plaintext during call
+Pass	RSA-OAEP with SHA-1 and a label with altered plaintext during call
+Pass	RSA-OAEP with SHA-256 and a label with altered plaintext during call
+Pass	RSA-OAEP with SHA-384 and a label with altered plaintext during call
+Pass	RSA-OAEP with SHA-512 and a label with altered plaintext during call
+Pass	RSA-OAEP with SHA-1 and no label with altered plaintext after call
+Pass	RSA-OAEP with SHA-256 and no label with altered plaintext after call
+Pass	RSA-OAEP with SHA-384 and no label with altered plaintext after call
+Pass	RSA-OAEP with SHA-512 and no label with altered plaintext after call
+Pass	RSA-OAEP with SHA-1 and empty label with altered plaintext after call
+Pass	RSA-OAEP with SHA-256 and empty label with altered plaintext after call
+Pass	RSA-OAEP with SHA-384 and empty label with altered plaintext after call
+Pass	RSA-OAEP with SHA-512 and empty label with altered plaintext after call
+Pass	RSA-OAEP with SHA-1 and a label with altered plaintext after call
+Pass	RSA-OAEP with SHA-256 and a label with altered plaintext after call
+Pass	RSA-OAEP with SHA-384 and a label with altered plaintext after call
+Pass	RSA-OAEP with SHA-512 and a label with altered plaintext after call
+Pass	RSA-OAEP with SHA-1 and no label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-256 and no label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-384 and no label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-512 and no label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-1 and empty label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-256 and empty label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-384 and empty label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-512 and empty label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-1 and a label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-256 and a label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-384 and a label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-512 and a label with transferred plaintext during call
+Pass	RSA-OAEP with SHA-1 and no label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-256 and no label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-384 and no label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-512 and no label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-1 and empty label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-256 and empty label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-384 and empty label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-512 and empty label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-1 and a label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-256 and a label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-384 and a label with transferred plaintext after call
+Pass	RSA-OAEP with SHA-512 and a label with transferred plaintext after call
 Pass	RSA-OAEP with SHA-1 and no label
 Pass	RSA-OAEP with SHA-256 and no label
 Pass	RSA-OAEP with SHA-384 and no label

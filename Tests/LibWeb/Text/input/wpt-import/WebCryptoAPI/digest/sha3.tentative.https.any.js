@@ -1,4 +1,5 @@
 // META: title=WebCryptoAPI: digest() SHA-3 algorithms
+// META: script=../util/helpers.js
 // META: timeout=long
 
 var subtle = crypto.subtle; // Change to test prefixed implementations
@@ -132,29 +133,47 @@ Object.keys(sourceData).forEach(function (size) {
 
       promise_test(function (test) {
         var buffer = new Uint8Array(sourceData[size]);
-        return crypto.subtle.digest(alg, buffer).then(function (result) {
-          // Alter the buffer after calling digest
-          buffer[0] = ~buffer[0];
+        var promise = crypto.subtle.digest(alg, buffer).then(function (result) {
           assert_true(
             equalBuffers(result, digestedData[alg][size]),
             'digest matches expected'
           );
         });
+        // Alter the buffer after calling digest
+        buffer[0] = ~buffer[0];
+        return promise;
       }, alg + ' with ' + size + ' source data and altered buffer after call');
+
+      promise_test(function (test) {
+        var buffer = new Uint8Array(sourceData[size]);
+        return crypto.subtle
+          .digest({
+            get name() {
+              // Transfer the buffer while calling digest
+              buffer.buffer.transfer();
+              return alg;
+            }
+          }, buffer)
+          .then(function (result) {
+            assert_true(
+              equalBuffers(result, digestedData[alg].empty),
+              'digest on transferred buffer should match result for empty buffer'
+            );
+          });
+      }, alg + ' with ' + size + ' source data and transferred buffer during call');
+
+      promise_test(function (test) {
+        var buffer = new Uint8Array(sourceData[size]);
+        var promise = crypto.subtle.digest(alg, buffer).then(function (result) {
+          assert_true(
+            equalBuffers(result, digestedData[alg][size]),
+            'digest matches expected'
+          );
+        });
+        // Transfer the buffer after calling digest
+        buffer.buffer.transfer();
+        return promise;
+      }, alg + ' with ' + size + ' source data and transferred buffer after call');
     }
   });
 });
-
-function equalBuffers(a, b) {
-  if (a.byteLength !== b.byteLength) {
-    return false;
-  }
-  var aBytes = new Uint8Array(a);
-  var bBytes = new Uint8Array(b);
-  for (var i = 0; i < a.byteLength; i++) {
-    if (aBytes[i] !== bBytes[i]) {
-      return false;
-    }
-  }
-  return true;
-}

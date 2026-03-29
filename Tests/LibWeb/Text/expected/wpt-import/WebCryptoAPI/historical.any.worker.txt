@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Pass
-Pass	Non-secure context window does not have access to crypto.subtle
-Pass	Non-secure context window does not have access to SubtleCrypto
-Pass	Non-secure context window does not have access to CryptoKey
+3 Fail
+Fail	Non-secure context window does not have access to crypto.subtle
+Fail	Non-secure context window does not have access to SubtleCrypto
+Fail	Non-secure context window does not have access to CryptoKey

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 409 tests
+Found 577 tests
 
-409 Pass
+577 Pass
 Pass	setup
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv
@@ -130,6 +130,90 @@ Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with altered plaintext after ca
 Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with altered plaintext after call
 Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with altered plaintext after call
 Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with altered plaintext after call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext during call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv with transferred plaintext after call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv with transferred plaintext after call
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption
 Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption
@@ -256,6 +340,90 @@ Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with altered ciphert
 Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with altered ciphertext after call
 Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with altered ciphertext after call
 Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with altered ciphertext after call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext during call
+Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 128-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 192-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 32-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 64-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 96-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 104-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 112-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 120-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
+Pass	AES-GCM 256-bit key, no additional data, 128-bit tag, 96-bit iv decryption with transferred ciphertext after call
 Pass	AES-GCM 128-bit key, 32-bit tag, 96-bit iv without encrypt usage
 Pass	AES-GCM 128-bit key, no additional data, 32-bit tag, 96-bit iv without encrypt usage
 Pass	AES-GCM 128-bit key, 64-bit tag, 96-bit iv without encrypt usage

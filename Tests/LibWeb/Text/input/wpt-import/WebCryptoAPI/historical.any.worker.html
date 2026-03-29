@@ -5,7 +5,5 @@
 <script src="../resources/testharnessreport.js"></script>
 <div id=log></div>
 <script>
-// Hack for test import - override top level URL so that we're not running from a SecureContext when starting the Worker.
-internals.setEnvironmentsTopLevelURL('http://ladybird.org');
 fetch_tests_from_worker(new Worker("../WebCryptoAPI/historical.any.worker.js"));
 </script>

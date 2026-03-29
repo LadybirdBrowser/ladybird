@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 205 tests
+Found 277 tests
 
-205 Pass
+277 Pass
 Pass	setup
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv
@@ -58,6 +58,42 @@ Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with altered plaintext after ca
 Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext after call
 Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with altered plaintext after call
 Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext after call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext during call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with transferred plaintext after call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with transferred plaintext after call
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption
 Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption
@@ -112,6 +148,42 @@ Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with altered ciphert
 Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext after call
 Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext after call
 Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext after call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext during call
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with transferred ciphertext after call
 Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv without encrypt usage
 Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv without encrypt usage
 Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv without encrypt usage

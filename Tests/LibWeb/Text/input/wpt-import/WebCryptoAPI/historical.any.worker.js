@@ -4,7 +4,7 @@ self.GLOBAL = {
   isWorker: function() { return true; },
   isShadowRealm: function() { return false; },
 };
-importScripts("../resources/testharness.js");
+importScripts("/resources/testharness.js");
 
-importScripts("../WebCryptoAPI/historical.any.js");
+importScripts("/WebCryptoAPI/historical.any.js");
 done();
