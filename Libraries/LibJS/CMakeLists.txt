@@ -318,9 +318,9 @@ endif()
 # AsmInterpreter: generate platform-specific assembly from DSL
 # NB: Win64 uses a different ABI (shadow space, different arg registers)
 #     from SysV AMD64, and the x86_64 backend only supports SysV for now.
-if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "AMD64"))
+if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$"))
     set(ASMINT_ARCH "x86_64")
-elseif ("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "aarch64" OR "${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "arm64")
+elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64)$")
     set(ASMINT_ARCH "aarch64")
 endif()
 
