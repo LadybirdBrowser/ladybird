@@ -12,7 +12,7 @@
 
 namespace Media::Matroska {
 
-SampleIterator::SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, u64 track_number, TrackBlockContexts&& track_contexts, u64 timestamp_scale, size_t segment_contents_position, size_t position)
+SampleIterator::SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, Optional<u64> track_number, TrackBlockContexts&& track_contexts, u64 timestamp_scale, size_t segment_contents_position, size_t position)
     : m_stream_cursor(stream_cursor)
     , m_track_number(track_number)
     , m_track_block_contexts(move(track_contexts))
@@ -41,7 +41,7 @@ DecoderErrorOr<Block> SampleIterator::next_block()
 #endif
 
         auto maybe_set_block = [&](Block&& candidate_block) {
-            if (candidate_block.track_number() != m_track_number)
+            if (m_track_number.has_value() && candidate_block.track_number() != m_track_number)
                 return;
             block = move(candidate_block);
         };

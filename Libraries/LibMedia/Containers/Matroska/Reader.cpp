@@ -864,13 +864,18 @@ DecoderErrorOr<Block> Reader::parse_block_group(Streamer& streamer, AK::Duration
     return block;
 }
 
-DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number)
+DecoderErrorOr<SampleIterator> Reader::create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& cursor, Optional<u64> track_number)
 {
     dbgln_if(MATROSKA_DEBUG, "Creating sample iterator starting at {} relative to segment at {}", m_first_cluster_position, m_segment_contents_position);
-    auto track_entry = TRY(track_for_track_number(track_number));
     TrackBlockContexts track_contexts;
-    track_contexts.set(track_number, TrackBlockContext::from_track_entry(track_entry));
-    return SampleIterator(stream_consumer, track_number, move(track_contexts), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
+    if (track_number.has_value()) {
+        auto track = TRY(track_for_track_number(track_number.value()));
+        track_contexts.set(track_number.value(), TrackBlockContext::from_track_entry(*track));
+    } else {
+        for (auto const& [number, track_entry] : m_tracks)
+            track_contexts.set(number, TrackBlockContext::from_track_entry(*track_entry));
+    }
+    return SampleIterator(cursor, track_number, move(track_contexts), m_segment_information.timestamp_scale(), m_segment_contents_position, m_first_cluster_position);
 }
 
 static DecoderErrorOr<CueTrackPosition> parse_cue_track_position(Streamer& streamer)
@@ -1083,10 +1088,12 @@ bool Reader::has_cues_for_track(u64 track_number)
 
 DecoderErrorOr<SampleIterator> Reader::seek_to_random_access_point(SampleIterator iterator, AK::Duration timestamp)
 {
-    auto seek_pre_roll = iterator.m_track_block_contexts.get(iterator.m_track_number)->seek_pre_roll;
+    VERIFY(iterator.m_track_number.has_value());
+    auto track_number = iterator.m_track_number.value();
+    auto seek_pre_roll = iterator.m_track_block_contexts.get(track_number)->seek_pre_roll;
     timestamp -= AK::Duration::from_nanoseconds(AK::clamp_to<i64>(seek_pre_roll));
 
-    auto cue_points = cue_points_for_track(iterator.m_track_number);
+    auto cue_points = cue_points_for_track(track_number);
     auto seek_target = CuePointTarget::Block;
 
     // If no cues are present for the track, use the first track's cues.
