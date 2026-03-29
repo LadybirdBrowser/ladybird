@@ -63,6 +63,7 @@ private:
     TrackStatus& get_track_status(Track const&);
 
     NonnullRefPtr<MediaStream> m_stream;
+    NonnullRefPtr<MediaStreamCursor> m_buffered_scan_cursor;
     Reader m_reader;
 
     mutable Sync::Mutex m_track_statuses_mutex;

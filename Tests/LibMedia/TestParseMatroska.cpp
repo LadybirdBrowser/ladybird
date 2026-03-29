@@ -483,3 +483,204 @@ TEST_CASE(opus_frame_duration)
         EXPECT_EQ(block.duration().value(), expected_duration);
     }
 }
+
+static ByteBuffer load_test_file_data(StringView path)
+{
+    auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
+    return MUST(file->read_until_eof());
+}
+
+static constexpr size_t CUES_START = 298382;
+
+static auto create_incremental_demuxer(ByteBuffer const& file_data, NonnullRefPtr<Media::IncrementallyPopulatedStream>& stream, size_t initial_end)
+{
+    stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->add_chunk_at(0, file_data.bytes().slice(0, initial_end));
+    stream->add_chunk_at(CUES_START, file_data.bytes().slice(CUES_START));
+    return MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+}
+
+TEST_CASE(buffered_time_ranges_full_file)
+{
+    auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+
+    auto ranges = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, AK::Duration::from_microseconds(500));
+    EXPECT_EQ(ranges[0].end, AK::Duration::from_microseconds(1021500));
+}
+
+TEST_CASE(buffered_time_ranges_incremental_thirds)
+{
+    auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
+    auto start = AK::Duration::from_microseconds(500);
+    size_t one_third = file_data.size() / 3;
+    size_t two_thirds = one_third * 2;
+
+    NonnullRefPtr<Media::IncrementallyPopulatedStream> stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto demuxer = create_incremental_demuxer(file_data, stream, one_third);
+
+    // Stage 1: first third.
+    auto ranges_1 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_1.size(), 1u);
+    EXPECT_EQ(ranges_1[0].start, start);
+    EXPECT_EQ(ranges_1[0].end, AK::Duration::from_microseconds(91000));
+
+    // Stage 2: extend to two thirds.
+    stream->add_chunk_at(one_third, file_data.bytes().slice(one_third, two_thirds - one_third));
+    auto ranges_2 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_2.size(), 1u);
+    EXPECT_EQ(ranges_2[0].start, start);
+    EXPECT(ranges_2[0].end > ranges_1[0].end);
+    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_microseconds(571000));
+
+    // Stage 3: complete the file.
+    stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
+    stream->close();
+    auto ranges_3 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_3.size(), 1u);
+    EXPECT_EQ(ranges_3[0].start, start);
+    EXPECT(ranges_3[0].end > ranges_2[0].end);
+    EXPECT_EQ(ranges_3[0].end, AK::Duration::from_microseconds(1021500));
+}
+
+// big_buck_bunny_5s.webm cluster layout:
+//   Cluster 0 (0ms):    byte 482
+//   Cluster 1 (500ms):  byte 6128
+//   Cluster 2 (1000ms): byte 13177
+//   Cluster 3 (1500ms): byte 21628
+//   Cluster 4 (2000ms): byte 31913
+//   Cluster 5 (2500ms): byte 49246
+//   Cluster 6 (3000ms): byte 59860
+//   Cluster 7 (3500ms): byte 71977
+//   Cluster 8 (4000ms): byte 91687
+//   Cluster 9 (4500ms): byte 102297
+//   Cues:               byte 113303
+//   File size:          113491
+
+static constexpr size_t BBB_CUES_START = 113303;
+
+TEST_CASE(buffered_time_ranges_gap_then_fill)
+{
+    auto file_data = load_test_file_data("./big_buck_bunny_5s.webm"sv);
+
+    // Buffer clusters 0-3 (0-2s) and clusters 7-9 (3.5-5s), leaving a gap at clusters 4-6 (2-3.5s).
+    constexpr size_t first_chunk_end = 31913;
+    constexpr size_t second_chunk_start = 71977;
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->add_chunk_at(0, file_data.bytes().slice(0, first_chunk_end));
+    stream->add_chunk_at(BBB_CUES_START, file_data.bytes().slice(BBB_CUES_START));
+    stream->close();
+    stream->add_chunk_at(second_chunk_start, file_data.bytes().slice(second_chunk_start, BBB_CUES_START - second_chunk_start));
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+
+    auto ranges_gap = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_gap.size(), 2u);
+    EXPECT_EQ(ranges_gap[0].start, AK::Duration::zero());
+    EXPECT_EQ(ranges_gap[1].start, AK::Duration::from_milliseconds(3500));
+
+    // Fill the gap with clusters 4-6.
+    stream->add_chunk_at(first_chunk_end, file_data.bytes().slice(first_chunk_end, second_chunk_start - first_chunk_end));
+    auto ranges_filled = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_filled.size(), 1u);
+    EXPECT_EQ(ranges_filled[0].start, AK::Duration::zero());
+    EXPECT_EQ(ranges_filled[0].end, AK::Duration::from_nanoseconds(4999666666));
+}
+
+TEST_CASE(buffered_time_ranges_reverse_order_chunks)
+{
+    auto file_data = load_test_file_data("./big_buck_bunny_5s.webm"sv);
+
+    // Buffer init + clusters 0-2 (0-1.5s) and clusters 7-9 (3.5-5s), then fill the middle.
+    constexpr size_t first_chunk_end = 21628;
+    constexpr size_t second_chunk_start = 71977;
+    NonnullRefPtr<Media::IncrementallyPopulatedStream> stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->add_chunk_at(0, file_data.bytes().slice(0, first_chunk_end));
+    stream->add_chunk_at(second_chunk_start, file_data.bytes().slice(second_chunk_start));
+    stream->close();
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+
+    auto ranges_1 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_1.size(), 2u);
+    EXPECT_EQ(ranges_1[0].start, AK::Duration::zero());
+    EXPECT_EQ(ranges_1[1].start, AK::Duration::from_milliseconds(3500));
+
+    // Fill the gap with clusters 3-6.
+    stream->add_chunk_at(first_chunk_end, file_data.bytes().slice(first_chunk_end, second_chunk_start - first_chunk_end));
+    auto ranges_2 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_2.size(), 1u);
+    EXPECT_EQ(ranges_2[0].start, AK::Duration::zero());
+    EXPECT(ranges_2[0].end > AK::Duration::from_milliseconds(4900));
+}
+
+TEST_CASE(buffered_time_ranges_repeated_query)
+{
+    auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+    auto demuxer = MUST(Media::Matroska::MatroskaDemuxer::from_stream(stream));
+
+    // Query multiple times — results should be identical and stable.
+    auto ranges_1 = demuxer->buffered_time_ranges();
+    auto ranges_2 = demuxer->buffered_time_ranges();
+    auto ranges_3 = demuxer->buffered_time_ranges();
+    EXPECT_EQ(ranges_1, ranges_2);
+    EXPECT_EQ(ranges_2, ranges_3);
+}
+
+TEST_CASE(buffered_time_ranges_evicted_start)
+{
+    // Simulate data eviction by calling buffered_time_ranges with the full file first,
+    // then with a byte range whose start is later (as if the beginning was evicted).
+    auto file_data = load_test_file_data("./big_buck_bunny_5s.webm"sv);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto cursor = stream->create_cursor();
+
+    // Get buffered ranges for the full file.
+    Vector<Media::MediaStream::ByteRange> byte_ranges;
+    byte_ranges.append({ 0, file_data.size() });
+    auto time_ranges = reader.buffered_time_ranges(cursor, byte_ranges);
+    EXPECT_EQ(time_ranges.size(), 1u);
+    EXPECT_EQ(time_ranges[0].start, AK::Duration::zero());
+    EXPECT_EQ(time_ranges[0].end, AK::Duration::from_nanoseconds(4999666666));
+
+    // Simulate eviction of the first four clusters.
+    byte_ranges[0] = { 31913, file_data.size() };
+    time_ranges = reader.buffered_time_ranges(cursor, byte_ranges);
+    EXPECT_EQ(time_ranges.size(), 1u);
+    EXPECT_EQ(time_ranges[0].start, AK::Duration::from_milliseconds(2000));
+    EXPECT_EQ(time_ranges[0].end, AK::Duration::from_nanoseconds(4999666666));
+}
+
+TEST_CASE(buffered_time_ranges_evicted_start_appended_end)
+{
+    // Simulate data eviction by calling buffered_time_ranges with an early portion of the file,
+    // then again with a new range that does not overlap.
+    auto file_data = load_test_file_data("./big_buck_bunny_5s.webm"sv);
+    auto stream = Media::IncrementallyPopulatedStream::create_from_buffer(file_data);
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto cursor = stream->create_cursor();
+
+    // Get buffered ranges with only the first two clusters available.
+    Vector<Media::MediaStream::ByteRange> byte_ranges;
+    byte_ranges.append({ 0, 21628 });
+    auto time_ranges = reader.buffered_time_ranges(cursor, byte_ranges);
+    EXPECT_EQ(time_ranges.size(), 1u);
+    EXPECT_EQ(time_ranges[0].start, AK::Duration::zero());
+    EXPECT_EQ(time_ranges[0].end, AK::Duration::from_nanoseconds(1499666666));
+
+    // Get buffered ranges with only clusters 8 and 9 available.
+    byte_ranges[0] = { 91687, 113303 };
+    time_ranges = reader.buffered_time_ranges(cursor, byte_ranges);
+    EXPECT_EQ(time_ranges.size(), 1u);
+    EXPECT_EQ(time_ranges[0].start, AK::Duration::from_milliseconds(4000));
+    EXPECT_EQ(time_ranges[0].end, AK::Duration::from_nanoseconds(4999666666));
+
+    // Get buffered ranges with a byte range containing no clusters.
+    byte_ranges[0] = { 113303, file_data.size() };
+    time_ranges = reader.buffered_time_ranges(cursor, byte_ranges);
+    EXPECT_EQ(time_ranges.size(), 0u);
+}
