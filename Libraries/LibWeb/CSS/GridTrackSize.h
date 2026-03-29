@@ -151,12 +151,12 @@ enum class GridRepeatType {
 
 struct GridRepeatParams {
     GridRepeatType type;
-    size_t count { 0 };
+    RefPtr<StyleValue const> count { nullptr };
 };
 
 class GridRepeat {
 public:
-    GridRepeat(GridRepeatType, GridTrackSizeList&&, size_t repeat_count);
+    GridRepeat(GridRepeatType, GridTrackSizeList&&, RefPtr<StyleValue const> repeat_count);
     GridRepeat(GridTrackSizeList&&, GridRepeatParams const&);
 
     bool is_auto_fill() const { return m_type == GridRepeatType::AutoFill; }
@@ -165,7 +165,7 @@ public:
     size_t repeat_count() const
     {
         VERIFY(is_fixed());
-        return m_repeat_count;
+        return int_from_style_value(*m_repeat_count);
     }
     GridTrackSizeList const& grid_track_size_list() const& { return m_grid_track_size_list; }
     GridRepeatType type() const& { return m_type; }
@@ -175,12 +175,12 @@ public:
     GridRepeat absolutized(ComputationContext const&) const;
     bool operator==(GridRepeat const& other) const = default;
 
-    bool is_computationally_independent() const { return m_grid_track_size_list.is_computationally_independent(); }
+    bool is_computationally_independent() const { return m_grid_track_size_list.is_computationally_independent() && (!m_repeat_count || m_repeat_count->is_computationally_independent()); }
 
 private:
     GridRepeatType m_type;
     GridTrackSizeList m_grid_track_size_list;
-    size_t m_repeat_count { 0 };
+    ValueComparingRefPtr<StyleValue const> m_repeat_count;
 };
 
 class ExplicitGridTrack {

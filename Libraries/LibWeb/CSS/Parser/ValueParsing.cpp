@@ -4785,16 +4785,13 @@ Optional<GridRepeat> Parser::parse_grid_track_repeat(TokenStream<ComponentValue>
     // <track-repeat> = repeat( [ <integer [1,∞]> ] , [ <line-names>? <track-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [this](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
-        auto maybe_integer = parse_integer(tokens);
-        if (!maybe_integer.has_value())
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::GridTrackRepeatCount);
+
+        auto maybe_integer = parse_integer_value(tokens);
+        if (!maybe_integer || (maybe_integer->is_integer() && maybe_integer->as_integer().integer() < 1))
             return {};
-        if (maybe_integer->is_calculated()) {
-            // FIXME: Support calculated repeat counts.
-            return {};
-        }
-        if (maybe_integer->value() < 1)
-            return {};
-        return GridRepeatParams { GridRepeatType::Fixed, static_cast<size_t>(maybe_integer->value()) };
+
+        return GridRepeatParams { GridRepeatType::Fixed, maybe_integer };
     };
     GridTrackParser parse_track = [this](TokenStream<ComponentValue>& tokens) {
         return parse_grid_track_size(tokens);
@@ -4832,16 +4829,13 @@ Optional<GridRepeat> Parser::parse_grid_fixed_repeat(TokenStream<ComponentValue>
     // <fixed-repeat> = repeat( [ <integer [1,∞]> ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [this](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
-        auto maybe_integer = parse_integer(tokens);
-        if (!maybe_integer.has_value())
+        auto context_guard = push_temporary_value_parsing_context(SpecialContext::GridTrackRepeatCount);
+
+        auto maybe_integer = parse_integer_value(tokens);
+        if (!maybe_integer || (maybe_integer->is_integer() && maybe_integer->as_integer().integer() < 1))
             return {};
-        if (maybe_integer->is_calculated()) {
-            // FIXME: Support calculated repeat counts.
-            return {};
-        }
-        if (maybe_integer->value() < 1)
-            return {};
-        return GridRepeatParams { GridRepeatType::Fixed, static_cast<size_t>(maybe_integer->value()) };
+
+        return GridRepeatParams { GridRepeatType::Fixed, maybe_integer };
     };
     GridTrackParser parse_track = [this](TokenStream<ComponentValue>& tokens) {
         return parse_grid_fixed_size(tokens);
@@ -5158,6 +5152,8 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
                 case SpecialContext::FontStyleAngle:
                     return CalculationContext { .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } } };
+                case SpecialContext::GridTrackRepeatCount:
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
                 case SpecialContext::RadialSizeLengthPercentage:
                     // Radial size length-percentages are nonnegative
                     return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };

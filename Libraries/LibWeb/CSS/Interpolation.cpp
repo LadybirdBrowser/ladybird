@@ -639,7 +639,7 @@ static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationC
             if (!interpolated_repeat_grid_tracks.has_value())
                 return {};
 
-            ExplicitGridTrack interpolated_grid_track { GridRepeat { from_repeat.type(), move(*interpolated_repeat_grid_tracks), from_repeat.repeat_count() } };
+            ExplicitGridTrack interpolated_grid_track { GridRepeat { from_repeat.type(), move(*interpolated_repeat_grid_tracks), IntegerStyleValue::create(from_repeat.repeat_count()) } };
             append_grid_track_with_line_names(result, move(interpolated_grid_track), move(interpolated_line_names));
         } else if (from_track.is_minmax() && to_track.is_minmax()) {
             auto from_minmax = from_track.minmax();
@@ -2428,7 +2428,7 @@ static Optional<GridTrackSizeList> composite_grid_track_size_list(CalculationCon
             if (!composited_repeat_grid_tracks.has_value())
                 return {};
 
-            ExplicitGridTrack composited_grid_track { GridRepeat { underlying_repeat.type(), move(*composited_repeat_grid_tracks), underlying_repeat.repeat_count() } };
+            ExplicitGridTrack composited_grid_track { GridRepeat { underlying_repeat.type(), move(*composited_repeat_grid_tracks), IntegerStyleValue::create(underlying_repeat.repeat_count()) } };
             append_grid_track_with_line_names(result, move(composited_grid_track), move(composited_line_names));
             continue;
         }

@@ -78,6 +78,7 @@ enum SpecialContext : u8 {
     CubicBezierFunctionXCoordinate,
     DOMMatrixInitString,
     FontStyleAngle,
+    GridTrackRepeatCount,
     MediaCondition,
     RadialSizeLengthPercentage,
     RandomValueSharingFixedValue,
