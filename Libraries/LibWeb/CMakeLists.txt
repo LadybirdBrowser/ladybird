@@ -1239,7 +1239,4 @@ if (HAS_FONTCONFIG)
     target_link_libraries(LibWeb PRIVATE Fontconfig::Fontconfig)
 endif()
 
-# FIXME: https://github.com/microsoft/vcpkg/issues/42324
-target_include_directories(LibWeb PRIVATE ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include)
-
 generate_js_bindings(LibWeb)

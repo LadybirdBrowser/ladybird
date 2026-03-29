@@ -398,6 +398,7 @@ set(_possibleTargets EGL GLESv2 ANGLE)
 foreach(_target IN LISTS _possibleTargets)
     if(TARGET ${_target})
         list(APPEND _installableTargets "${_target}")
+        target_include_directories(${_target} INTERFACE $<INSTALL_INTERFACE:include>)
     endif()
 endforeach()
 
