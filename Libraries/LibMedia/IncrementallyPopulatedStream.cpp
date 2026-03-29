@@ -101,6 +101,15 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     m_state_changed.broadcast();
 }
 
+Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
+{
+    Sync::MutexLocker locker { m_mutex };
+    Vector<ByteRange> ranges;
+    for (auto it = m_chunks.begin(); it != m_chunks.end(); ++it)
+        ranges.empend(it->offset(), it->end());
+    return ranges;
+}
+
 void IncrementallyPopulatedStream::close()
 {
     Sync::MutexLocker locker { m_mutex };
