@@ -51,6 +51,8 @@ void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_session_history_entries);
     visitor.visit(m_session_history_traversal_queue);
     visitor.visit(m_storage_shed);
+    visitor.visit(m_apply_history_step_state);
+    visitor.visit(m_paused_apply_history_step_state);
 }
 
 static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -440,119 +442,187 @@ struct ChangingNavigableContinuationState : public JS::Cell {
 
 GC_DEFINE_ALLOCATOR(ChangingNavigableContinuationState);
 
-// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
-void TraversableNavigable::apply_the_history_step(
-    int step,
-    bool check_for_cancelation,
-    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
-    GC::Ptr<Navigable> initiator_to_check,
-    IGNORE_USE_IN_ESCAPING_LAMBDA UserNavigationInvolvement user_involvement,
-    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
-    IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation,
-    GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
-{
-    // FIXME: 1. Assert: This is running within traversable's session history traversal queue.
+class ApplyHistoryStepState : public GC::Cell {
+    GC_CELL(ApplyHistoryStepState, GC::Cell);
+    GC_DECLARE_ALLOCATOR(ApplyHistoryStepState);
 
-    // 2. Let targetStep be the result of getting the used step given traversable and step.
-    auto target_step = get_the_used_step(step);
+public:
+    static constexpr int TIMEOUT_MS = 15000;
 
-    // Note: Calling this early so we can re-use the same list in 3.2 and 6.
-    auto change_or_reload_navigables = get_all_navigables_whose_current_session_history_entry_will_change_or_reload(target_step);
-
-    // 3. If initiatorToCheck is not null, then:
-    if (initiator_to_check != nullptr) {
-        // 1. Assert: sourceSnapshotParams is not null.
-        VERIFY(source_snapshot_params);
-
-        // 2. For each navigable of get all navigables whose current session history entry will change or reload:
-        //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return "initiator-disallowed".
-        for (auto const& navigable : change_or_reload_navigables) {
-            if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params)) {
-                if (on_complete)
-                    on_complete->function()(HistoryStepResult::InitiatorDisallowed);
-                return;
+    ApplyHistoryStepState(
+        GC::Ref<TraversableNavigable> traversable, int step, int target_step,
+        GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+        UserNavigationInvolvement user_involvement,
+        Optional<Bindings::NavigationType> navigation_type,
+        TraversableNavigable::SynchronousNavigation synchronous_navigation,
+        GC::Ref<OnApplyHistoryStepComplete> on_complete)
+        : m_traversable(traversable)
+        , m_step(step)
+        , m_target_step(target_step)
+        , m_source_snapshot_params(source_snapshot_params)
+        , m_user_involvement(user_involvement)
+        , m_navigation_type(navigation_type)
+        , m_synchronous_navigation(synchronous_navigation)
+        , m_on_complete(on_complete)
+        , m_timeout(Platform::Timer::create_single_shot(heap(), TIMEOUT_MS, GC::create_function(heap(), [this] {
+            if (m_phase != Phase::Completed) {
+                dbgln("FIXME: ApplyHistoryStepState timed out in phase {} step={} changing={}/{} completed={}/{} cont={}/{} non_changing={}/{} url={}",
+                    to_underlying(m_phase), m_step,
+                    m_changing_navigables.size(), m_changing_navigables.size(),
+                    m_completed_change_jobs, m_changing_navigables.size(),
+                    m_continuation_index, m_continuations.size(),
+                    m_completed_non_changing_jobs, m_non_changing_navigables.size(),
+                    m_traversable->active_document() ? m_traversable->active_document()->url() : URL::URL {});
             }
+        })))
+    {
+        m_timeout->start();
+    }
+
+    void start();
+
+    void did_receive_continuation(GC::Ref<ChangingNavigableContinuationState> continuation)
+    {
+        m_continuations.append(continuation);
+        signal_progress();
+    }
+
+    void signal_progress()
+    {
+        switch (m_phase) {
+        case Phase::WaitingForDocumentPopulation:
+            // Population progress is tracked by m_continuations.size() + m_completed_change_jobs.
+            // The caller either appended a continuation or incremented m_completed_change_jobs before calling.
+            break;
+        case Phase::ProcessingContinuations:
+        case Phase::WaitingForChangeJobCompletion:
+            ++m_completed_change_jobs;
+            break;
+        case Phase::WaitingForNonChangingJobs:
+            ++m_completed_non_changing_jobs;
+            break;
+        case Phase::Completed:
+            return;
+        }
+        try_advance();
+    }
+
+    enum class Phase {
+        WaitingForDocumentPopulation,
+        ProcessingContinuations,
+        WaitingForChangeJobCompletion,
+        WaitingForNonChangingJobs,
+        Completed,
+    };
+
+private:
+    void visit_edges(Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_traversable);
+        visitor.visit(m_source_snapshot_params);
+        visitor.visit(m_on_complete);
+        visitor.visit(m_timeout);
+        visitor.visit(m_changing_navigables);
+        visitor.visit(m_non_changing_navigables);
+        visitor.visit(m_continuations);
+        for (auto& navigable : m_navigables_that_must_wait_before_handling_sync_navigation)
+            visitor.visit(navigable);
+    }
+
+    void try_advance()
+    {
+        switch (m_phase) {
+        case Phase::WaitingForDocumentPopulation:
+            if (m_continuations.size() + m_completed_change_jobs == m_changing_navigables.size()) {
+                m_phase = Phase::ProcessingContinuations;
+                process_continuations();
+            }
+            break;
+        case Phase::ProcessingContinuations:
+        case Phase::WaitingForChangeJobCompletion:
+            if (m_completed_change_jobs == m_changing_navigables.size() && m_continuation_index >= m_continuations.size()) {
+                m_phase = Phase::WaitingForNonChangingJobs;
+                enter_waiting_for_non_changing_jobs();
+            }
+            break;
+        case Phase::WaitingForNonChangingJobs:
+            if (m_completed_non_changing_jobs == m_non_changing_navigables.size())
+                complete();
+            break;
+        case Phase::Completed:
+            break;
         }
     }
 
-    // 4. Let navigablesCrossingDocuments be the result of getting all navigables that might experience a cross-document traversal given traversable and targetStep.
-    auto navigables_crossing_documents = get_all_navigables_that_might_experience_a_cross_document_traversal(target_step);
+    void process_continuations();
+    void enter_waiting_for_non_changing_jobs();
+    void complete();
 
-    // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
-    //    and userInvolvement is not "continue", then return that result.
-    if (check_for_cancelation) {
-        check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement,
-            GC::create_function(heap(), [this, step, target_step, source_snapshot_params, changing_navigables = move(change_or_reload_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
-                if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload) {
-                    if (on_complete)
-                        on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
-                    return;
-                }
-                if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate) {
-                    if (on_complete)
-                        on_complete->function()(HistoryStepResult::CanceledByNavigate);
-                    return;
-                }
-                apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, move(changing_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete);
-            }));
-        return;
-    }
+    Phase m_phase { Phase::WaitingForDocumentPopulation };
+    GC::Ref<TraversableNavigable> m_traversable;
+    int m_step;
+    int m_target_step;
+    GC::Ptr<SourceSnapshotParams> m_source_snapshot_params;
+    UserNavigationInvolvement m_user_involvement;
+    Optional<Bindings::NavigationType> m_navigation_type;
+    TraversableNavigable::SynchronousNavigation m_synchronous_navigation;
+    GC::Ptr<OnApplyHistoryStepComplete> m_on_complete;
+    GC::Ref<Platform::Timer> m_timeout;
 
-    // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change or reload given traversable and targetStep.
-    apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, move(change_or_reload_navigables), user_involvement, navigation_type, synchronous_navigation, on_complete);
-}
+    Vector<GC::Ref<Navigable>> m_changing_navigables;
+    Vector<GC::Ref<Navigable>> m_non_changing_navigables;
 
-void TraversableNavigable::apply_the_history_step_after_unload_check(
-    int step,
-    int target_step,
-    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
-    Vector<GC::Root<Navigable>> changing_navigables,
-    UserNavigationInvolvement user_involvement,
-    IGNORE_USE_IN_ESCAPING_LAMBDA Optional<Bindings::NavigationType> navigation_type,
-    IGNORE_USE_IN_ESCAPING_LAMBDA SynchronousNavigation synchronous_navigation,
-    GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
+    size_t m_completed_change_jobs { 0 };
+    Vector<GC::Ref<ChangingNavigableContinuationState>> m_continuations;
+    size_t m_continuation_index { 0 };
+
+    RefPtr<Core::Promise<Empty>> m_pending_sync_nav_promise;
+    HashTable<GC::Ref<Navigable>> m_navigables_that_must_wait_before_handling_sync_navigation;
+
+    size_t m_completed_non_changing_jobs { 0 };
+};
+
+GC_DEFINE_ALLOCATOR(ApplyHistoryStepState);
+
+void ApplyHistoryStepState::start()
 {
-    auto& vm = this->vm();
-
     // 7. Let nonchangingNavigablesThatStillNeedUpdates be the result of getting all navigables that only need history object length/index update given traversable and targetStep.
-    auto non_changing_navigables_that_still_need_updates = get_all_navigables_that_only_need_history_object_length_index_update(target_step);
+    auto non_changing_navigables = m_traversable->get_all_navigables_that_only_need_history_object_length_index_update(m_target_step);
+    for (auto& nav : non_changing_navigables)
+        m_non_changing_navigables.append(*nav);
 
     // 8. For each navigable of changingNavigables:
+    auto changing_navigables = m_traversable->get_all_navigables_whose_current_session_history_entry_will_change_or_reload(m_target_step);
     for (auto& navigable : changing_navigables) {
         // 1. Let targetEntry be the result of getting the target history entry given navigable and targetStep.
-        auto target_entry = navigable->get_the_target_history_entry(target_step);
+        auto target_entry = navigable->get_the_target_history_entry(m_target_step);
 
         // 2. Set navigable's current session history entry to targetEntry.
         navigable->set_current_session_history_entry(target_entry);
 
         // 3. Set navigable's ongoing navigation to "traversal".
-        navigable->set_ongoing_navigation(Traversal::Tag);
+        navigable->set_ongoing_navigation(HTML::Navigable::Traversal::Tag);
+
+        m_changing_navigables.append(*navigable);
     }
 
-    // 9. Let totalChangeJobs be the size of changingNavigables.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_change_jobs = changing_navigables.size();
-
-    // 10. Let completedChangeJobs be 0.
-    IGNORE_USE_IN_ESCAPING_LAMBDA size_t completed_change_jobs = 0;
-
-    // 11. Let changingNavigableContinuations be an empty queue of changing navigable continuation states.
-    // NOTE: This queue is used to split the operations on changingNavigables into two parts. Specifically, changingNavigableContinuations holds data for the second part.
-    IGNORE_USE_IN_ESCAPING_LAMBDA Queue<GC::Root<ChangingNavigableContinuationState>> changing_navigable_continuations;
-
-    // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source of navigable's active window to run the steps:
-    for (auto& navigable : changing_navigables) {
+    // 12. For each navigable of changingNavigables, queue a global task on the navigation and traversal task source.
+    for (auto& navigable : m_changing_navigables) {
         // AD-HOC: If the navigable has been destroyed, or has no active window, skip it.
         //         We must increment completed_change_jobs here rather than relying on the queued
         //         task, because Document::destroy() removes tasks associated with a document from
         //         the task queue, which can cause those tasks to never run.
         if (navigable->has_been_destroyed() || !navigable->active_window()) {
-            completed_change_jobs++;
+            ++m_completed_change_jobs;
+            signal_progress();
             continue;
         }
-        queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [&] {
+        queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [this, navigable] {
             // NOTE: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
             if (navigable->has_been_destroyed()) {
-                completed_change_jobs++;
+                ++m_completed_change_jobs;
+                signal_progress();
                 return;
             }
 
@@ -563,7 +633,7 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             auto target_entry = navigable->current_session_history_entry();
 
             // 3. Let changingNavigableContinuation be a changing navigable continuation state with:
-            auto changing_navigable_continuation = vm.heap().allocate<ChangingNavigableContinuationState>();
+            auto changing_navigable_continuation = heap().allocate<ChangingNavigableContinuationState>();
             changing_navigable_continuation->displayed_document = displayed_entry->document();
             changing_navigable_continuation->target_entry = target_entry;
             changing_navigable_continuation->navigable = navigable;
@@ -571,20 +641,20 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             changing_navigable_continuation->population_output = nullptr;
 
             // 4. If displayedEntry is targetEntry and targetEntry's document state's reload pending is false, then:
-            if (synchronous_navigation == SynchronousNavigation::Yes && !target_entry->document_state()->reload_pending()) {
+            if (m_synchronous_navigation == TraversableNavigable::SynchronousNavigation::Yes && !target_entry->document_state()->reload_pending()) {
                 // 1. Set changingNavigableContinuation's update-only to true.
                 changing_navigable_continuation->update_only = true;
 
                 // 2. Enqueue changingNavigableContinuation on changingNavigableContinuations.
-                changing_navigable_continuations.enqueue(move(changing_navigable_continuation));
+                did_receive_continuation(changing_navigable_continuation);
 
                 // 3. Abort these steps.
                 return;
             }
 
             // 5. Switch on navigationType:
-            if (navigation_type.has_value()) {
-                switch (navigation_type.value()) {
+            if (m_navigation_type.has_value()) {
+                switch (m_navigation_type.value()) {
                 case Bindings::NavigationType::Reload:
                     // - "reload": Assert: targetEntry's document state's reload pending is true.
                     VERIFY(target_entry->document_state()->reload_pending());
@@ -618,15 +688,14 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             if (!navigable->is_traversable()
                 && target_entry != navigable->current_session_history_entry()
                 && old_origin == navigable->current_session_history_entry()->document_state()->origin()) {
-
                 // 1. Let navigation be navigable's active window's navigation API.
-                auto navigation = active_window()->navigation();
+                auto navigation = m_traversable->active_window()->navigation();
 
                 // 2. Fire a traverse navigate event at navigation given targetEntry and userInvolvement.
-                navigation->fire_a_traverse_navigate_event(*target_entry, user_involvement);
+                navigation->fire_a_traverse_navigate_event(*target_entry, m_user_involvement);
             }
 
-            auto after_document_populated = [old_origin, changing_navigable_continuation, &changing_navigable_continuations, target_entry](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
+            auto after_document_populated = GC::create_function(heap(), [this, old_origin, changing_navigable_continuation, target_entry](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
                 changing_navigable_continuation->population_output = output;
                 changing_navigable_continuation->old_origin = old_origin;
 
@@ -644,8 +713,8 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
                 // NOTE: Steps 2-3 are deferred to after_potential_unload to avoid exposing mutations during unload.
 
                 // 4. Enqueue changingNavigableContinuation on changingNavigableContinuations.
-                changing_navigable_continuations.enqueue(move(changing_navigable_continuation));
-            };
+                did_receive_continuation(changing_navigable_continuation);
+            });
 
             // 8. If targetEntry's document is null, or targetEntry's document state's reload pending is true, then:
             if (!target_entry->document() || target_entry->document_state()->reload_pending()) {
@@ -655,12 +724,11 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
                 auto target_snapshot_params = navigable->snapshot_target_snapshot_params();
 
                 // 3. Let potentiallyTargetSpecificSourceSnapshotParams be sourceSnapshotParams.
-                GC::Ptr<SourceSnapshotParams> potentially_target_specific_source_snapshot_params = source_snapshot_params;
+                auto potentially_target_specific_source_snapshot_params = m_source_snapshot_params;
 
                 // 4. If potentiallyTargetSpecificSourceSnapshotParams is null, then set it to the result of snapshotting source snapshot params given navigable's active document.
-                if (!potentially_target_specific_source_snapshot_params) {
+                if (!potentially_target_specific_source_snapshot_params)
                     potentially_target_specific_source_snapshot_params = navigable->active_document()->snapshot_source_snapshot_params();
-                }
 
                 // 5. Set targetEntry's document state's reload pending to false.
                 target_entry->document_state()->set_reload_pending(false);
@@ -686,31 +754,19 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
                 //    targetSnapshotParams, userInvolvement, with allowPOST set to allowPOST and completionSteps set to
                 //    queue a global task on the navigation and traversal task source given navigable's active window to
                 //    run afterDocumentPopulated.
-                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(this->heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated = GC::create_function(this->heap(), move(after_document_populated)), user_involvement] {
-                    auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+                Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = m_user_involvement] {
+                    auto signal = Core::Promise<Empty>::construct();
                     navigable->populate_session_history_entry_document(
-                        move(input_url),
-                        move(input_document_resource),
-                        move(input_request_referrer),
-                        input_request_referrer_policy,
-                        move(input_initiator_origin),
-                        move(input_origin),
-                        input_history_policy_container,
-                        move(input_about_base_url),
-                        move(input_navigable_target_name),
-                        false, // reload_pending was set to false above
-                        input_ever_populated,
-                        *potentially_target_specific_source_snapshot_params,
-                        target_snapshot_params,
-                        user_involvement,
-                        signal_to_continue_session_history_processing,
-                        {},
-                        Navigable::NullOrError {},
-                        ContentSecurityPolicy::Directives::Directive::NavigationType::Other,
-                        allow_POST,
+                        move(input_url), move(input_document_resource), move(input_request_referrer),
+                        input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
+                        input_history_policy_container, move(input_about_base_url), move(input_navigable_target_name),
+                        false, input_ever_populated,
+                        *potentially_target_specific_source_snapshot_params, target_snapshot_params,
+                        user_involvement, signal, {}, Navigable::NullOrError {},
+                        ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
                         GC::create_function(this->heap(), [this, after_document_populated](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
-                            VERIFY(active_window());
-                            queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(this->heap(), [after_document_populated, output]() {
+                            VERIFY(m_traversable->active_window());
+                            queue_global_task(Task::Source::NavigationAndTraversal, *m_traversable->active_window(), GC::create_function(heap(), [after_document_populated, output]() {
                                 after_document_populated->function()(output);
                             }));
                         }));
@@ -718,97 +774,109 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             }
             // Otherwise, run afterDocumentPopulated immediately.
             else {
-                after_document_populated(nullptr);
+                after_document_populated->function()(nullptr);
             }
         }));
     }
 
-    auto check_if_document_population_tasks_completed = GC::create_function(heap(), [&] {
-        return changing_navigable_continuations.size() + completed_change_jobs == total_change_jobs;
-    });
+    try_advance();
+}
 
-    if (synchronous_navigation == SynchronousNavigation::Yes) {
-        // NOTE: Synchronous navigation should never require document population, so it is safe to process only NavigationAndTraversal source.
-        main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, check_if_document_population_tasks_completed);
-    } else {
-        // NOTE: Process all task sources while waiting because reloading or back/forward navigation might require fetching to populate a document.
-        main_thread_event_loop().spin_until(check_if_document_population_tasks_completed);
-    }
-
-    // 13. Let navigablesThatMustWaitBeforeHandlingSyncNavigation be an empty set.
-    HashTable<GC::Ref<Navigable>> navigables_that_must_wait_before_handling_sync_navigation;
-
-    // 14. While completedChangeJobs does not equal totalChangeJobs:
-    while (!changing_navigable_continuations.is_empty()) {
+void ApplyHistoryStepState::process_continuations()
+{
+    for (;;) {
         // NOTE: Synchronous navigations that are intended to take place before this traversal jump the queue at this point,
         //       so they can be added to the correct place in traversable's session history entries before this traversal
         //       potentially unloads their document. More details can be found here (https://html.spec.whatwg.org/multipage/browsing-the-web.html#sync-navigation-steps-queue-jumping-examples)
         // 1. If traversable's running nested apply history step is false, then:
-        if (!m_running_nested_apply_history_step) {
+        if (!m_traversable->m_paused_apply_history_step_state) {
             // 1. While traversable's session history traversal queue's algorithm set contains one or more synchronous
             //    navigation steps with a target navigable not contained in navigablesThatMustWaitBeforeHandlingSyncNavigation:
             //   1. Let steps be the first item in traversable's session history traversal queue's algorithm set
             //    that is synchronous navigation steps with a target navigable not contained in navigablesThatMustWaitBeforeHandlingSyncNavigation.
             //   2. Remove steps from traversable's session history traversal queue's algorithm set.
-            for (auto entry = m_session_history_traversal_queue->first_synchronous_navigation_steps_with_target_navigable_not_contained_in(navigables_that_must_wait_before_handling_sync_navigation);
-                entry;
-                entry = m_session_history_traversal_queue->first_synchronous_navigation_steps_with_target_navigable_not_contained_in(navigables_that_must_wait_before_handling_sync_navigation)) {
+            while (true) {
+                auto entry = m_traversable->m_session_history_traversal_queue->first_synchronous_navigation_steps_with_target_navigable_not_contained_in(m_navigables_that_must_wait_before_handling_sync_navigation);
+                if (!entry)
+                    break;
 
-                // 3. Set traversable's running nested apply history step to true.
-                m_running_nested_apply_history_step = true;
+                VERIFY(!m_traversable->m_paused_apply_history_step_state);
+                m_traversable->m_paused_apply_history_step_state = this;
 
                 // 4. Run steps.
-                entry->execute_steps()->await().release_value_but_fixme_should_propagate_errors();
+                auto promise = Core::Promise<Empty>::construct();
+                entry->execute_steps(promise);
 
-                // 5. Set traversable's running nested apply history step to false.
-                m_running_nested_apply_history_step = false;
+                // GC safety: `this` is kept alive by m_paused_apply_history_step_state (visited).
+                // The promise is kept alive by m_pending_sync_nav_promise (RefPtr).
+                VERIFY(!m_pending_sync_nav_promise);
+                m_pending_sync_nav_promise = promise;
+                promise->when_resolved([this](Empty) {
+                    // 5. Set traversable's running nested apply history step to false.
+                    VERIFY(m_pending_sync_nav_promise);
+                    m_pending_sync_nav_promise = nullptr;
+                    m_traversable->m_apply_history_step_state = this;
+                    m_traversable->m_paused_apply_history_step_state = nullptr;
+                    process_continuations();
+                });
+                return;
             }
         }
 
-        // 2. Let changingNavigableContinuation be the result of dequeuing from changingNavigableContinuations.
-        auto changing_navigable_continuation = changing_navigable_continuations.dequeue();
+        if (m_continuation_index == m_continuations.size()) {
+            if (m_phase == Phase::ProcessingContinuations) {
+                m_phase = Phase::WaitingForChangeJobCompletion;
+                try_advance();
+            }
+            return;
+        }
 
         // 3. If changingNavigableContinuation is nothing, then continue.
 
+        auto continuation = m_continuations[m_continuation_index++];
+
         // 4. Let displayedDocument be changingNavigableContinuation's displayed document.
-        auto displayed_document = changing_navigable_continuation->displayed_document;
+        auto displayed_document = continuation->displayed_document;
 
         // 5. Let targetEntry be changingNavigableContinuation's target entry.
-        GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> const population_output = changing_navigable_continuation->population_output;
-        auto old_origin = changing_navigable_continuation->old_origin;
+        auto population_output = continuation->population_output;
+        auto old_origin = continuation->old_origin;
 
         // 6. Let navigable be changingNavigableContinuation's navigable.
-        auto navigable = changing_navigable_continuation->navigable;
+        auto navigable = continuation->navigable;
 
         // AD-HOC: We should not continue navigation if navigable has been destroyed.
-        if (navigable->has_been_destroyed())
+        if (navigable->has_been_destroyed()) {
+            signal_progress();
             continue;
-
+        }
         // AD-HOC: The displayed document may have been destroyed during the nested step execution above.
-        if (!displayed_document->navigable())
+        if (!displayed_document->navigable()) {
+            signal_progress();
             continue;
+        }
 
         // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
         //         This can happen if navigables are destroyed while we wait for tasks to complete.
-        target_step = get_the_used_step(step);
+        m_target_step = m_traversable->get_the_used_step(m_step);
 
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
-        auto history_object_length_and_index = get_the_history_object_length_and_index(target_step);
+        auto history_object_length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
         auto script_history_length = history_object_length_and_index.script_history_length;
         auto script_history_index = history_object_length_and_index.script_history_index;
 
         // 8. Append navigable to navigablesThatMustWaitBeforeHandlingSyncNavigation.
-        navigables_that_must_wait_before_handling_sync_navigation.set(*navigable);
+        m_navigables_that_must_wait_before_handling_sync_navigation.set(*navigable);
 
         // 9. Let entriesForNavigationAPI be the result of getting session history entries for the navigation API given navigable and targetStep.
-        auto entries_for_navigation_api = get_session_history_entries_for_the_navigation_api(*navigable, target_step);
+        auto entries_for_navigation_api = m_traversable->get_session_history_entries_for_the_navigation_api(*navigable, m_target_step);
 
         // NOTE: Steps 10 and 11 come after step 12.
 
         // 12. In both cases, let afterPotentialUnloads be the following steps:
-        bool const update_only = changing_navigable_continuation->update_only;
-        GC::Ptr<SessionHistoryEntry> const target_entry = changing_navigable_continuation->target_entry;
-        auto after_potential_unload = GC::create_function(this->heap(), [navigable, update_only, target_entry, population_output, old_origin, displayed_document, &completed_change_jobs, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), &heap = this->heap(), navigation_type] {
+        bool const update_only = continuation->update_only;
+        GC::Ptr<SessionHistoryEntry> const target_entry = continuation->target_entry;
+        auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, population_output, old_origin, displayed_document, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = m_navigation_type] {
             if (population_output)
                 population_output->apply_to(*target_entry);
 
@@ -836,7 +904,7 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             }
 
             // 1. Let previousEntry be navigable's active session history entry.
-            GC::Ptr<SessionHistoryEntry> const previous_entry = navigable->active_session_history_entry();
+            auto previous_entry = navigable->active_session_history_entry();
 
             // 2. If changingNavigableContinuation's update-only is false, then activate history entry targetEntry for navigable.
             if (!update_only)
@@ -846,76 +914,70 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
             //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and previousEntry.
             auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry] {
-                target_entry->document()->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry);
+                target_entry->document()->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, navigation_type.has_value());
             };
 
-            // 3. If targetEntry's document is equal to displayedDocument, then perform updateDocument.
+            // 4. If targetEntry's document is equal to displayedDocument, then perform updateDocument.
             if (target_entry->document().ptr() == displayed_document.ptr()) {
                 update_document();
             }
             // 5. Otherwise, queue a global task on the navigation and traversal task source given targetEntry's document's relevant global object to perform updateDocument
             else {
-                queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*target_entry->document()), GC::create_function(heap, move(update_document)));
+                queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*target_entry->document()), GC::create_function(heap(), move(update_document)));
             }
 
             // 6. Increment completedChangeJobs.
-            completed_change_jobs++;
+            signal_progress();
         });
 
         auto populated_document = population_output ? population_output->document : target_entry->document();
 
         // 10. If changingNavigableContinuation's update-only is true, or targetEntry's document is displayedDocument, then:
-        if (changing_navigable_continuation->update_only || populated_document.ptr() == displayed_document.ptr()) {
+        if (continuation->update_only || populated_document.ptr() == displayed_document.ptr()) {
             // 1. Set the ongoing navigation for navigable to null.
             navigable->set_ongoing_navigation({});
 
             // 2. Queue a global task on the navigation and traversal task source given navigable's active window to perform afterPotentialUnloads.
-            VERIFY(navigable->active_window());
             queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), after_potential_unload);
         }
         // 11. Otherwise:
         else {
             // 1. Assert: navigationType is not null.
-            VERIFY(navigation_type.has_value());
+            VERIFY(m_navigation_type.has_value());
 
             // 2. Deactivate displayedDocument, given userInvolvement, targetEntry, navigationType, and afterPotentialUnloads.
-            deactivate_a_document_for_cross_document_navigation(*displayed_document, user_involvement, *target_entry, populated_document, after_potential_unload);
+            deactivate_a_document_for_cross_document_navigation(*displayed_document, m_user_involvement, *target_entry, populated_document, after_potential_unload);
         }
     }
+}
 
-    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, GC::create_function(heap(), [&] {
-        return completed_change_jobs == total_change_jobs;
-    }));
-
-    // 15. Let totalNonchangingJobs be the size of nonchangingNavigablesThatStillNeedUpdates.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto total_non_changing_jobs = non_changing_navigables_that_still_need_updates.size();
-
-    // 16. Let completedNonchangingJobs be 0.
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto completed_non_changing_jobs = 0u;
-
+void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
+{
     // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
     //         This can happen if navigables are destroyed while we wait for tasks to complete.
-    target_step = get_the_used_step(step);
+    m_target_step = m_traversable->get_the_used_step(m_step);
 
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
-    auto length_and_index = get_the_history_object_length_and_index(target_step);
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto script_history_length = length_and_index.script_history_length;
-    IGNORE_USE_IN_ESCAPING_LAMBDA auto script_history_index = length_and_index.script_history_index;
+    auto length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
+    auto script_history_length = length_and_index.script_history_length;
+    auto script_history_index = length_and_index.script_history_index;
 
     // 18. For each navigable of nonchangingNavigablesThatStillNeedUpdates, queue a global task on the navigation and traversal task source given navigable's active window to run the steps:
-    for (auto& navigable : non_changing_navigables_that_still_need_updates) {
+    for (auto& navigable : m_non_changing_navigables) {
         // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
         //         or if there's no active window.
         if (navigable->has_been_destroyed() || !navigable->active_window()) {
-            ++completed_non_changing_jobs;
+            ++m_completed_non_changing_jobs;
             continue;
         }
-
-        queue_global_task(Task::Source::NavigationAndTraversal, *navigable->active_window(), GC::create_function(heap(), [&] {
-            // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed,
-            //         or if there's no active window.
-            if (navigable->has_been_destroyed() || !navigable->active_window()) {
-                ++completed_non_changing_jobs;
+        // AD-HOC: Queue with null document instead of using queue_global_task.
+        //         Tasks associated with a document are only runnable when fully active.
+        //         In the async state machine, documents can become non-fully-active between
+        //         queue time and execution, causing the task to be permanently stuck.
+        //         A null-document task is always runnable; we check validity inside.
+        queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, navigable, script_history_length, script_history_index] {
+            if (navigable->has_been_destroyed() || !navigable->active_window() || !navigable->active_document()->is_fully_active()) {
+                signal_progress();
                 return;
             }
 
@@ -929,32 +991,115 @@ void TraversableNavigable::apply_the_history_step_after_unload_check(
             document->history()->m_length = script_history_length;
 
             // 4. Increment completedNonchangingJobs.
-            ++completed_non_changing_jobs;
+            signal_progress();
         }));
     }
 
-    // 19. Wait for completedNonchangingJobs to equal totalNonchangingJobs.
-    // AD-HOC: Since currently populate_session_history_entry_document does not run in parallel
-    //         we call spin_until to interrupt execution of this function and let document population
-    //         to complete.
-    main_thread_event_loop().spin_processing_tasks_with_source_until(Task::Source::NavigationAndTraversal, GC::create_function(heap(), [&] {
-        return completed_non_changing_jobs == total_non_changing_jobs;
-    }));
+    try_advance();
+}
+
+void ApplyHistoryStepState::complete()
+{
+    if (m_phase == Phase::Completed)
+        return;
+    m_phase = Phase::Completed;
+    m_timeout->stop();
 
     // 20. Set traversable's current session history step to targetStep.
-    m_current_session_history_step = target_step;
+    m_traversable->m_current_session_history_step = m_target_step;
 
     // Not in the spec:
-    auto back_enabled = m_current_session_history_step > 0;
-    VERIFY(m_session_history_entries.size() > 0);
-    auto forward_enabled = can_go_forward();
-    page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
+    auto back_enabled = m_traversable->m_current_session_history_step > 0;
+    VERIFY(m_traversable->m_session_history_entries.size() > 0);
+    auto forward_enabled = m_traversable->can_go_forward();
+    m_traversable->page().client().page_did_update_navigation_buttons_state(back_enabled, forward_enabled);
+    m_traversable->page().client().page_did_change_url(m_traversable->current_session_history_entry()->url());
 
-    page().client().page_did_change_url(current_session_history_entry()->url());
+    // Clear state BEFORE on_complete, because on_complete may resolve a promise
+    // that triggers the next session history traversal queue entry.
+    // For nested states, the outer state is restored by the when_resolved callback
+    // on the sync nav step's promise in process_continuations().
+    m_traversable->m_apply_history_step_state = nullptr;
 
     // 21. Return "applied".
-    if (on_complete)
-        on_complete->function()(HistoryStepResult::Applied);
+    if (m_on_complete)
+        m_on_complete->function()(HistoryStepResult::Applied);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step
+void TraversableNavigable::apply_the_history_step(
+    int step,
+    bool check_for_cancelation,
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+    GC::Ptr<Navigable> initiator_to_check,
+    UserNavigationInvolvement user_involvement,
+    Optional<Bindings::NavigationType> navigation_type,
+    SynchronousNavigation synchronous_navigation,
+    GC::Ref<OnApplyHistoryStepComplete> on_complete)
+{
+    // FIXME: 1. Assert: This is running within traversable's session history traversal queue.
+
+    VERIFY(!m_apply_history_step_state || m_paused_apply_history_step_state);
+
+    // 2. Let targetStep be the result of getting the used step given traversable and step.
+    auto target_step = get_the_used_step(step);
+
+    // 3. If initiatorToCheck is not null, then:
+    if (initiator_to_check != nullptr) {
+        // 1. Assert: sourceSnapshotParams is not null.
+        VERIFY(source_snapshot_params);
+
+        // 2. For each navigable of get all navigables whose current session history entry will change or reload:
+        //    if initiatorToCheck is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then return "initiator-disallowed".
+        for (auto const& navigable : get_all_navigables_whose_current_session_history_entry_will_change_or_reload(target_step)) {
+            if (!initiator_to_check->allowed_by_sandboxing_to_navigate(*navigable, *source_snapshot_params)) {
+                on_complete->function()(HistoryStepResult::InitiatorDisallowed);
+                return;
+            }
+        }
+    }
+
+    // 4. Let navigablesCrossingDocuments be the result of getting all navigables that might experience a cross-document traversal given traversable and targetStep.
+    auto navigables_crossing_documents = get_all_navigables_that_might_experience_a_cross_document_traversal(target_step);
+
+    // 5. If checkForCancelation is true, and the result of checking if unloading is canceled given navigablesCrossingDocuments, traversable, targetStep,
+    //    and userInvolvement is not "continue", then return that result.
+    if (check_for_cancelation) {
+        check_if_unloading_is_canceled(navigables_crossing_documents, *this, target_step, user_involvement,
+            GC::create_function(heap(), [this, step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, on_complete](CheckIfUnloadingIsCanceledResult result) mutable {
+                if (result == CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload) {
+                    on_complete->function()(HistoryStepResult::CanceledByBeforeUnload);
+                    return;
+                }
+                if (result == CheckIfUnloadingIsCanceledResult::CanceledByNavigate) {
+                    on_complete->function()(HistoryStepResult::CanceledByNavigate);
+                    return;
+                }
+                apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, on_complete);
+            }));
+        return;
+    }
+
+    // 6. Let changingNavigables be the result of get all navigables whose current session history entry will change or reload given traversable and targetStep.
+    apply_the_history_step_after_unload_check(step, target_step, source_snapshot_params, user_involvement, navigation_type, synchronous_navigation, on_complete);
+}
+
+void TraversableNavigable::apply_the_history_step_after_unload_check(
+    int step,
+    int target_step,
+    GC::Ptr<SourceSnapshotParams> source_snapshot_params,
+    UserNavigationInvolvement user_involvement,
+    Optional<Bindings::NavigationType> navigation_type,
+    SynchronousNavigation synchronous_navigation,
+    GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
+{
+    auto state = heap().allocate<ApplyHistoryStepState>(*this, step, target_step, source_snapshot_params,
+        user_involvement, navigation_type, synchronous_navigation, on_complete);
+
+    VERIFY(!m_apply_history_step_state || m_paused_apply_history_step_state);
+    m_apply_history_step_state = state;
+
+    state->start();
 }
 
 class CheckUnloadingCanceledState : public GC::Cell {
@@ -1329,9 +1474,7 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
     }
 
     // 4. Append the following session history traversal steps to traversable:
-    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement] {
-        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+    append_session_history_traversal_steps(GC::create_function(heap(), [this, delta, source_snapshot_params, initiator_to_check, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
         // 1. Let allSteps be the result of getting all used history steps for traversable.
         auto all_steps = get_all_used_history_steps();
 
@@ -1343,32 +1486,31 @@ void TraversableNavigable::traverse_the_history_by_delta(int delta, GC::Ptr<DOM:
 
         // 4. If allSteps[targetStepIndex] does not exist, then abort these steps.
         if (target_step_index >= all_steps.size()) {
-            signal_to_continue_session_history_processing->resolve({});
-            return signal_to_continue_session_history_processing;
+            signal->resolve({});
+            return;
         }
 
         // 5. Apply the traverse history step allSteps[targetStepIndex] to traversable, given sourceSnapshotParams,
         //    initiatorToCheck, and userInvolvement.
         apply_the_traverse_history_step(all_steps[target_step_index], source_snapshot_params, initiator_to_check, user_involvement,
-            GC::create_function(heap(), [signal_to_continue_session_history_processing](HistoryStepResult) {
-                signal_to_continue_session_history_processing->resolve({});
+            GC::create_function(heap(), [signal](HistoryStepResult) {
+                signal->resolve({});
             }));
-        return signal_to_continue_session_history_processing;
     }));
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-for-navigable-creation/destruction
-void TraversableNavigable::update_for_navigable_creation_or_destruction()
+void TraversableNavigable::update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
 
     // 2. Return the result of applying the history step to traversable given false, null, null, null, and null.
-    apply_the_history_step(step, false, {}, {}, UserNavigationInvolvement::None, {}, SynchronousNavigation::No, {});
+    apply_the_history_step(step, false, {}, {}, UserNavigationInvolvement::None, {}, SynchronousNavigation::No, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-reload-history-step
-void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
+void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Let step be traversable's current session history step.
     auto step = current_session_history_step();
@@ -1378,14 +1520,14 @@ void TraversableNavigable::apply_the_reload_history_step(UserNavigationInvolveme
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-push/replace-history-step
-void TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation)
+void TraversableNavigable::apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, SynchronousNavigation synchronous_navigation, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given false, null, null, userInvolvement, and historyHandling.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Replace ? Bindings::NavigationType::Replace : Bindings::NavigationType::Push;
-    apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, {});
+    apply_the_history_step(step, false, {}, {}, user_involvement, navigation_type, synchronous_navigation, on_complete);
 }
 
-void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete)
+void TraversableNavigable::apply_the_traverse_history_step(int step, GC::Ptr<SourceSnapshotParams> source_snapshot_params, GC::Ptr<Navigable> initiator_to_check, UserNavigationInvolvement user_involvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete)
 {
     // 1. Return the result of applying the history step step to traversable given true, sourceSnapshotParams, initiatorToCheck, userInvolvement, and "traverse".
     apply_the_history_step(step, true, source_snapshot_params, initiator_to_check, user_involvement, Bindings::NavigationType::Traverse, SynchronousNavigation::No, on_complete);
@@ -1419,9 +1561,7 @@ void TraversableNavigable::definitely_close_top_level_traversable()
             return;
 
         // 3. Append the following session history traversal steps to traversable:
-        append_session_history_traversal_steps(GC::create_function(heap(), [this] {
-            // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+        append_session_history_traversal_steps(GC::create_function(heap(), [this](NonnullRefPtr<Core::Promise<Empty>> signal) {
             // 1. Let afterAllUnloads be an algorithm step which destroys traversable.
             auto after_all_unloads = GC::create_function(heap(), [this] {
                 destroy_top_level_traversable();
@@ -1429,8 +1569,7 @@ void TraversableNavigable::definitely_close_top_level_traversable()
 
             // 2. Unload a document and its descendants given traversable's active document, null, and afterAllUnloads.
             active_document()->unload_a_document_and_its_descendants({}, after_all_unloads);
-            signal_to_continue_session_history_processing->resolve({});
-            return signal_to_continue_session_history_processing;
+            signal->resolve({});
         }));
     }));
 }
@@ -1475,11 +1614,13 @@ void TraversableNavigable::destroy_top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement)
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
-    if (target_navigable->has_been_destroyed())
+    if (target_navigable->has_been_destroyed()) {
+        on_complete->function()(HistoryStepResult::Applied);
         return;
+    }
 
     // FIXME: 1. Assert: this is running on traversable's session history traversal queue.
 
@@ -1494,6 +1635,7 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
                 *it = target_entry;
             }
         }
+        on_complete->function()(HistoryStepResult::Applied);
         return;
     }
 
@@ -1530,7 +1672,7 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     }
 
     // 6. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(*target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::Yes);
+    traversable->apply_the_push_or_replace_history_step(*target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::Yes, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#system-visibility-state

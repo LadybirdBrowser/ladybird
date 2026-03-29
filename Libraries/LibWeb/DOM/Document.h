@@ -544,6 +544,7 @@ public:
     void set_ready_for_post_load_tasks(bool ready);
 
     void completely_finish_loading();
+    bool completely_loaded_deferred() const { return m_completely_loaded_deferred; }
 
     DOMImplementation* implementation();
 
@@ -1291,6 +1292,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/document-lifecycle.html#completely-loaded-time
     Optional<AK::UnixDateTime> m_completely_loaded_time;
+    bool m_completely_loaded_deferred { false };
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-navigation-id
     Optional<String> m_navigation_id;

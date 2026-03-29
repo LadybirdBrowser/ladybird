@@ -419,12 +419,10 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() {
-            // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
             if (timer->is_timed_out()) {
-                signal_to_continue_session_history_processing->resolve({});
-                return signal_to_continue_session_history_processing;
+                signal->resolve({});
+                return;
             }
 
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
@@ -438,8 +436,7 @@ Messages::WebDriverClient::BackResponse WebDriverConnection::back()
                 });
             }
 
-            signal_to_continue_session_history_processing->resolve({});
-            return signal_to_continue_session_history_processing;
+            signal->resolve({});
         }));
     });
 
@@ -496,12 +493,10 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
 
         // 7. If the previous step completed results in a pageHide event firing, wait until pageShow event fires or
         //    timer' timeout fired flag to be set, whichever occurs first.
-        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete]() {
-            // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+        current_top_level_browsing_context()->top_level_traversable()->append_session_history_traversal_steps(GC::create_function(realm.heap(), [this, timer, on_complete](NonnullRefPtr<Core::Promise<Empty>> signal) {
             if (timer->is_timed_out()) {
-                signal_to_continue_session_history_processing->resolve({});
-                return signal_to_continue_session_history_processing;
+                signal->resolve({});
+                return;
             }
 
             if (auto* document = current_top_level_browsing_context()->active_document(); document->page_showing()) {
@@ -515,8 +510,7 @@ Messages::WebDriverClient::ForwardResponse WebDriverConnection::forward()
                 });
             }
 
-            signal_to_continue_session_history_processing->resolve({});
-            return signal_to_continue_session_history_processing;
+            signal->resolve({});
         }));
     });
 

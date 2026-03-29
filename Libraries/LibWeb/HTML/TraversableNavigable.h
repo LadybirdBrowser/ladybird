@@ -28,6 +28,8 @@
 
 namespace Web::HTML {
 
+class ApplyHistoryStepState;
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#traversable-navigable
 class WEB_API TraversableNavigable final : public Navigable {
     GC_CELL(TraversableNavigable, Navigable);
@@ -44,7 +46,6 @@ public:
     int current_session_history_step() const { return m_current_session_history_step; }
     Vector<GC::Ref<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
     Vector<GC::Ref<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
-    bool running_nested_apply_history_step() const { return m_running_nested_apply_history_step; }
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
@@ -58,21 +59,14 @@ public:
     };
     HistoryObjectLengthAndIndex get_the_history_object_length_and_index(int) const;
 
-    enum class HistoryStepResult {
-        InitiatorDisallowed,
-        CanceledByBeforeUnload,
-        CanceledByNavigate,
-        Applied,
-    };
-
-    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete = {});
-    void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete = {});
+    void apply_the_traverse_history_step(int, GC::Ptr<SourceSnapshotParams>, GC::Ptr<Navigable>, UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
+    void apply_the_reload_history_step(UserNavigationInvolvement, GC::Ref<GC::Function<void(HistoryStepResult)>> on_complete);
     enum class SynchronousNavigation : bool {
         Yes,
         No,
     };
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation);
-    void update_for_navigable_creation_or_destruction();
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
     Vector<GC::Root<Navigable>> get_all_navigables_whose_current_session_history_entry_will_change_or_reload(int) const;
@@ -87,12 +81,12 @@ public:
     void definitely_close_top_level_traversable();
     void destroy_top_level_traversable();
 
-    void append_session_history_traversal_steps(GC::Ref<GC::Function<NonnullRefPtr<Core::Promise<Empty>>()>> steps)
+    void append_session_history_traversal_steps(GC::Ref<SessionHistoryTraversalSteps> steps)
     {
         m_session_history_traversal_queue->append(steps);
     }
 
-    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<GC::Function<NonnullRefPtr<Core::Promise<Empty>>()>> steps)
+    void append_session_history_synchronous_navigation_steps(GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryTraversalSteps> steps)
     {
         m_session_history_traversal_queue->append_sync(steps, target_navigable);
     }
@@ -124,6 +118,8 @@ public:
     }
 
 private:
+    friend class ApplyHistoryStepState;
+
     TraversableNavigable(GC::Ref<Page>);
 
     virtual bool is_traversable() const override { return true; }
@@ -139,17 +135,16 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
-        GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete);
+        GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void apply_the_history_step_after_unload_check(
         int step,
         int target_step,
         GC::Ptr<SourceSnapshotParams> source_snapshot_params,
-        Vector<GC::Root<Navigable>> changing_navigables,
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
-        GC::Ptr<GC::Function<void(HistoryStepResult)>> on_complete);
+        GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
@@ -165,8 +160,8 @@ private:
 
     // FIXME: https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
 
-    // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-running-nested-apply-history-step
-    bool m_running_nested_apply_history_step { false };
+    GC::Ptr<ApplyHistoryStepState> m_paused_apply_history_step_state;
+    GC::Ptr<ApplyHistoryStepState> m_apply_history_step_state;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     VisibilityState m_system_visibility_state { VisibilityState::Hidden };
@@ -197,7 +192,7 @@ struct BrowsingContextAndDocument {
 };
 
 WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement);
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
 template<>
 inline bool Navigable::fast_is<TraversableNavigable>() const { return is_traversable(); }

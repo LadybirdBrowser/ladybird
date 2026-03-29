@@ -111,29 +111,18 @@ void HTMLIFrameElement::post_connection()
 
     // The iframe HTML element post-connection steps, given insertedNode, are:
     // 1. Create a new child navigable for insertedNode.
-    MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
-        // 2. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
-        //    value and insertedNode's iframe sandboxing flag set.
-        if (has_attribute(AttributeNames::sandbox)) {
-            auto sandbox_attribute = attribute(AttributeNames::sandbox);
-            VERIFY(sandbox_attribute.has_value());
-            m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox_attribute.value());
-        }
+    MUST(create_new_child_navigable());
 
-        // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
-        process_the_iframe_attributes(InitialInsertion::Yes);
+    // 2. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
+    //    value and insertedNode's iframe sandboxing flag set.
+    if (has_attribute(AttributeNames::sandbox)) {
+        auto sandbox_attribute = attribute(AttributeNames::sandbox);
+        VERIFY(sandbox_attribute.has_value());
+        m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox_attribute.value());
+    }
 
-        if (auto navigable = content_navigable()) {
-            auto traversable = navigable->traversable_navigable();
-            traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this] {
-                // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-                auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
-                set_content_navigable_has_session_history_entry_and_ready_for_navigation();
-                signal_to_continue_session_history_processing->resolve({});
-                return signal_to_continue_session_history_processing;
-            }));
-        }
-    })));
+    // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
+    process_the_iframe_attributes(InitialInsertion::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#process-the-iframe-attributes

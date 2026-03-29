@@ -62,7 +62,7 @@ GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr<GC::Function<void()>> after_session_history_update)
+WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -116,9 +116,12 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
     document->update_the_visibility_state(traversable->system_visibility_state());
 
     // 12. Append the following session history traversal steps to traversable:
-    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable, navigable, parent_navigable, history_entry, after_session_history_update] {
-        // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-        auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+    traversable->append_session_history_traversal_steps(GC::create_function(heap(), [this, navigable, parent_navigable, history_entry, traversable](NonnullRefPtr<Core::Promise<Empty>> signal) mutable {
+        if (navigable->has_been_destroyed() || parent_navigable->has_been_destroyed()) {
+            signal->resolve({});
+            return;
+        }
+
         // 1. Let parentDocState be parentNavigable's active session history entry's document state.
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
@@ -143,13 +146,19 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable(GC::Ptr
         parent_doc_state->nested_histories().append(move(nested_history));
 
         // 7. Update for navigable creation/destruction given traversable
-        traversable->update_for_navigable_creation_or_destruction();
+        traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+            signal->resolve({});
+        }));
 
-        if (after_session_history_update) {
-            after_session_history_update->function()();
-        }
-        signal_to_continue_session_history_processing->resolve({});
-        return signal_to_continue_session_history_processing;
+        traversable->append_session_history_traversal_steps(GC::create_function(traversable->heap(), [this, navigable](NonnullRefPtr<Core::Promise<Empty>> signal) {
+            if (navigable->has_been_destroyed() || content_navigable() != navigable) {
+                signal->resolve({});
+                return;
+            }
+
+            set_content_navigable_has_session_history_entry_and_ready_for_navigation();
+            signal->resolve({});
+        }));
     }));
 
     return {};
@@ -212,7 +221,12 @@ Optional<URL::URL> NavigableContainer::shared_attribute_processing_steps_for_ifr
     if (!m_content_navigable)
         return {};
 
-    if (initial_insertion == InitialInsertion::Yes && m_content_navigable->has_pending_navigations()) {
+    // AD-HOC: If the content navigable already has a navigation in progress or pending,
+    //         skip the initial attribute processing. Without this, the about:blank URL update
+    //         from perform_url_and_history_update_steps creates a state machine that clobbers the
+    //         navigable's ongoing_navigation, causing the real navigation to be dropped when its
+    //         populate completion callback checks ongoing_navigation != navigation_id.
+    if (initial_insertion == InitialInsertion::Yes && (m_content_navigable->has_pending_navigations() || !m_content_navigable->ongoing_navigation().has<Empty>())) {
         return {};
     }
 
@@ -305,6 +319,12 @@ void NavigableContainer::destroy_the_child_navigable()
     //         block the parent document's load event indefinitely.
     navigable->set_delaying_load_events(false);
 
+    // AD-HOC: Clear the navigation load event guard that may have been set by
+    //         finalize_a_cross_document_navigation. Without this, the guard's
+    //         DocumentLoadEventDelayer on the parent document persists until GC,
+    //         blocking the parent's load event indefinitely.
+    navigable->clear_navigation_load_event_guard();
+
     // 4. Inform the navigation API about child navigable destruction given navigable.
     navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
@@ -329,13 +349,11 @@ void NavigableContainer::destroy_the_child_navigable()
         auto traversable = this->navigable()->traversable_navigable();
 
         // 9. Append the following session history traversal steps to traversable:
-        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable] {
-            // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-            auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
+        traversable->append_session_history_traversal_steps(GC::create_function(heap(), [traversable](NonnullRefPtr<Core::Promise<Empty>> signal) {
             // 1. Update for navigable creation/destruction given traversable.
-            traversable->update_for_navigable_creation_or_destruction();
-            signal_to_continue_session_history_processing->resolve({});
-            return signal_to_continue_session_history_processing;
+            traversable->update_for_navigable_creation_or_destruction(GC::create_function(traversable->heap(), [signal](HistoryStepResult) {
+                signal->resolve({});
+            }));
         }));
     }));
 }

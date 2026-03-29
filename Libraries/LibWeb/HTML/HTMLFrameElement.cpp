@@ -49,11 +49,10 @@ void HTMLFrameElement::inserted()
         return;
 
     // 3. Create a new child navigable for insertedNode.
-    MUST(create_new_child_navigable(GC::create_function(realm().heap(), [this] {
-        // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
-        process_the_frame_attributes(InitialInsertion::Yes);
-        set_content_navigable_has_session_history_entry_and_ready_for_navigation();
-    })));
+    MUST(create_new_child_navigable());
+
+    // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
+    process_the_frame_attributes(InitialInsertion::Yes);
 }
 
 // https://html.spec.whatwg.org/multipage/obsolete.html#frames:html-element-removing-steps

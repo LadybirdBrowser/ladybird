@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-3 Pass
-1 Fail
-Fail	Insertion steps: load event fires synchronously *after* iframe DOM insertion, as part of the iframe element's insertion steps
+4 Pass
+Pass	Insertion steps: load event fires synchronously *after* iframe DOM insertion, as part of the iframe element's insertion steps
 Pass	Removing steps (innerHTML): script does not run synchronously during iframe destruction
 Pass	Removing steps (replaceChildren): script does not run synchronously during iframe destruction
 Pass	Removing steps (remove): script does not run synchronously during iframe destruction

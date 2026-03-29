@@ -791,15 +791,6 @@ WebIDL::ExceptionOr<void> Document::run_the_document_write_steps(Vector<TrustedT
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#dom-document-open
 WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<String> const&)
 {
-    // If document belongs to a child navigable, we need to make sure its initial navigation is done,
-    // because subsequent steps will modify "initial about:blank" to false, which would cause
-    // initial navigation to fail in case it was "about:blank".
-    if (auto navigable = this->navigable(); navigable && navigable->container() && !navigable->container()->content_navigable_has_session_history_entry_and_ready_for_navigation()) {
-        HTML::main_thread_event_loop().spin_processing_tasks_with_source_until(HTML::Task::Source::NavigationAndTraversal, GC::create_function(heap(), [navigable_container = navigable->container()] {
-            return navigable_container->content_navigable_has_session_history_entry_and_ready_for_navigation();
-        }));
-    }
-
     // 1. If document is an XML document, then throw an "InvalidStateError" DOMException.
     if (m_type == Type::XML)
         return WebIDL::InvalidStateError::create(realm(), "open() called on XML document."_utf16);
@@ -827,7 +818,13 @@ WebIDL::ExceptionOr<Document*> Document::open(Optional<String> const&, Optional<
     if (m_active_parser_was_aborted)
         return this;
 
-    // FIXME: 8. If document's browsing context is non-null and there is an existing attempt to navigate document's browsing context, then stop document loading given document.
+    // 8. If document's node navigable is non-null and document's node navigable's ongoing navigation is a navigation ID, then stop loading document's node navigable.
+    // AD-HOC: Pending navigations can also sit in m_pending_navigations, so we need to cancel those too.
+    if (auto navigable = this->navigable()) {
+        navigable->clear_pending_navigations();
+        if (navigable->ongoing_navigation().has<String>())
+            navigable->stop_loading();
+    }
 
     // FIXME: 9. For each shadow-including inclusive descendant node of document, erase all event listeners and handlers given node.
 
@@ -3434,9 +3431,21 @@ bool Document::is_completely_loaded() const
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
+    // 2. Set document's completely loaded time to the current time.
+    // AD-HOC: Set this unconditionally, even if the document has no navigable yet.
+    //         In the async state machine, documents created during populate may complete
+    //         loading before they are activated. The timestamp must still be recorded so
+    //         that activate_history_entry can detect this and re-trigger the container
+    //         notification steps.
+    if (!m_completely_loaded_time.has_value())
+        m_completely_loaded_time = AK::UnixDateTime::now();
+
     auto navigable = this->navigable();
-    if (!navigable)
+    if (!navigable) {
+        m_completely_loaded_deferred = true;
         return;
+    }
+    m_completely_loaded_deferred = false;
 
     ScopeGuard notify_observers = [this] {
         notify_each_document_observer([&](auto const& document_observer) {
@@ -3446,9 +3455,6 @@ void Document::completely_finish_loading()
 
     // 1. Assert: document's browsing context is non-null.
     VERIFY(browsing_context());
-
-    // 2. Set document's completely loaded time to the current time.
-    m_completely_loaded_time = AK::UnixDateTime::now();
 
     // NOTE: See the end of shared_declarative_refresh_steps.
     if (m_active_refresh_timer)
@@ -4648,7 +4654,7 @@ struct DocumentLifecycleState : public GC::Cell {
         if (--remaining_children > 0)
             return;
         timeout->stop();
-        queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(document), finish_callback);
+        queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr, finish_callback);
     }
 
     size_t remaining_children { 0 };
@@ -4904,8 +4910,10 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
     });
 
     // AD-HOC: We avoid allocating a DocumentLifecycleState in case there's no child navigables.
+    //         Queue with null document to ensure the task is always runnable. The document
+    //         can become non-fully-active during unloading, which would make the task stuck.
     if (child_navigables.is_empty()) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, relevant_global_object(*this), finish_callback);
+        HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr, finish_callback);
         return;
     }
 
@@ -4915,7 +4923,7 @@ void Document::unload_a_document_and_its_descendants(GC::Ptr<Document> new_docum
     // 4. For each childNavigable of childNavigables [[ in what order? ]], queue a global task on the navigation and
     //    traversal task source given childNavigable's active window to perform the following steps:
     for (auto& child_navigable : child_navigables) {
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, *child_navigable->active_window(),
+        HTML::queue_a_task(HTML::Task::Source::NavigationAndTraversal, nullptr, nullptr,
             GC::create_function(heap(), [&heap = heap(), unload_state, child_navigable = child_navigable.ptr()] {
                 // 1. Let incrementUnloaded be an algorithm step which increments numberUnloaded.
                 auto increment_unloaded = GC::create_function(heap, [unload_state] { unload_state->did_process_child(); });
@@ -5734,11 +5742,10 @@ void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryE
             // NOTE: Not in the spec, but otherwise document's url won't be updated in case of a same-document back/forward navigation.
             set_url(entry->url());
 
-            // 1. Assert: navigationType is not null.
-            VERIFY(navigation_type.has_value());
-
             // AD HOC: Skip this in situations the spec steps don't account for
             if (update_navigation_api) {
+                // 1. Assert: navigationType is not null.
+                VERIFY(navigation_type.has_value());
                 // 2. Update the navigation API entries for a same-document navigation given navigation, entry, and navigationType.
                 navigation->update_the_navigation_api_entries_for_a_same_document_navigation(entry, navigation_type.value());
             }

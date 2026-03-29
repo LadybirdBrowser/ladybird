@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 10 tests
 
-7 Pass
-3 Fail
+8 Pass
+2 Fail
 Pass	Adding/removing disabled content attribute
 Fail	Relationship with FIELDSET
 Pass	A disabled form-associated custom element should not provide an entry for it
-Fail	A disabled form-associated custom element should not submit an entry for it
+Pass	A disabled form-associated custom element should not submit an entry for it
 Fail	Disabled attribute affects focus-capability
 Pass	Upgrading an element with disabled content attribute
 Pass	Toggling "disabled" attribute on a custom element inside disabled <fieldset> does not trigger a callback
