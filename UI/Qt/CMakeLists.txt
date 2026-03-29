@@ -23,6 +23,20 @@ target_sources(ladybird PRIVATE
     WebContentView.cpp
     ladybird.qrc
 )
+if (APPLE)
+    target_sources(ladybird PRIVATE
+        WebContentViewAccessibility.mm
+        ${CMAKE_SOURCE_DIR}/UI/AppKit/Interface/LadybirdAccessibilityElement.mm
+    )
+    target_include_directories(ladybird PRIVATE ${CMAKE_SOURCE_DIR}/UI/AppKit)
+    target_link_libraries(ladybird PRIVATE "-framework AppKit" "-framework ApplicationServices")
+    set_source_files_properties(
+        WebContentViewAccessibility.mm
+        ${CMAKE_SOURCE_DIR}/UI/AppKit/Interface/LadybirdAccessibilityElement.mm
+        PROPERTIES COMPILE_FLAGS "-fobjc-arc"
+    )
+endif()
+
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 create_ladybird_bundle(ladybird)
 

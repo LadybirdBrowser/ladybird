@@ -15,6 +15,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QMenu>
@@ -76,6 +77,8 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
+    void schedule_accessibility_tree_request();
+
 public slots:
     void select_dropdown_action();
 
@@ -102,6 +105,13 @@ private:
     void finish_handling_key_event(Web::KeyEvent const&);
 
     void update_screen_rects();
+
+    friend void install_accessibility(WebContentView*);
+    friend void update_accessibility_tree(WebContentView*);
+    friend void post_accessibility_focus_changed(WebContentView*, i64);
+
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    QTimer m_accessibility_request_timer;
 
     bool m_tooltip_override { false };
     Optional<ByteString> m_tooltip_text;

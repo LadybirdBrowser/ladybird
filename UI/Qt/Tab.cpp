@@ -183,10 +183,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
         m_location_edit->set_url(url);
         m_location_edit->setCursorPosition(0);
+
+        view().schedule_accessibility_tree_request();
     };
 
     view().on_url_change = [this](auto const& url) {
         m_location_edit->set_url(url);
+        view().schedule_accessibility_tree_request();
     };
 
     QObject::connect(m_location_edit, &QLineEdit::returnPressed, this, &Tab::location_edit_return_pressed);
@@ -194,6 +197,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     view().on_title_change = [this](auto const& title) {
         m_title = qstring_from_utf16_string(title);
         emit title_changed(tab_index(), m_title);
+        view().schedule_accessibility_tree_request();
     };
 
     view().on_favicon_change = [this](auto const& bitmap) {

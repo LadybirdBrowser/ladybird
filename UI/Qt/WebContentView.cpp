@@ -29,6 +29,10 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
+#if defined(Q_OS_MACOS)
+#    include "WebContentViewAccessibility.h"
+#endif
+
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
@@ -81,6 +85,50 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     });
 
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
+
+    fprintf(stderr, "A11Y CONSTRUCTOR: about to create accessibility manager\n");
+    m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+
+#if defined(Q_OS_MACOS)
+    fprintf(stderr, "A11Y CONSTRUCTOR: Q_OS_MACOS is defined, calling install_accessibility\n");
+    install_accessibility(this);
+#endif
+
+    m_accessibility_request_timer.setSingleShot(true);
+    m_accessibility_request_timer.setInterval(500);
+    QObject::connect(&m_accessibility_request_timer, &QTimer::timeout, this, [this] { request_accessibility_tree(); });
+
+    on_load_finish = [this](auto const&) {
+        m_accessibility_request_timer.stop();
+        request_accessibility_tree();
+    };
+
+    on_accessibility_tree_received = [this](auto nodes) {
+        m_accessibility_manager->update_tree(AK::move(nodes));
+        m_accessibility_request_timer.stop();
+
+#if defined(Q_OS_MACOS)
+        QTimer::singleShot(100, this, [this] {
+            setFocus(Qt::OtherFocusReason);
+            update_accessibility_tree(this);
+        });
+#endif
+    };
+
+    on_accessibility_focus_changed = [this](i64 node_id) {
+        if (m_accessibility_manager->is_empty())
+            return;
+        m_accessibility_manager->set_focused_node(node_id);
+#if defined(Q_OS_MACOS)
+        Ladybird::post_accessibility_focus_changed(this, node_id);
+#endif
+    };
+
+#if defined(Q_OS_MACOS)
+    m_accessibility_manager->on_live_region_changed = [](auto text, auto live_value) {
+        Ladybird::post_accessibility_announcement(text, live_value);
+    };
+#endif
 
     on_ready_to_paint = [this]() {
         update();
@@ -630,6 +678,11 @@ static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, 
 void WebContentView::update_palette(PaletteMode mode)
 {
     client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
+}
+
+void WebContentView::schedule_accessibility_tree_request()
+{
+    m_accessibility_request_timer.start();
 }
 
 void WebContentView::update_screen_rects()

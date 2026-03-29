@@ -1639,7 +1639,7 @@ struct HideCursor {
 
     auto* element = [[LadybirdAccessibilityElement alloc] initWithNodeID:nodeID
                                                                  manager:m_accessibility_manager.ptr()
-                                                                 webView:self];
+                                                                    view:self];
     m_accessibility_elements[key] = element;
     return element;
 }
