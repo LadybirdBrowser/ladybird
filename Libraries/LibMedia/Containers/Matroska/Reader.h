@@ -13,6 +13,8 @@
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/MediaStream.h>
+#include <LibMedia/TimeRanges.h>
 
 #include "Document.h"
 #include "SampleIterator.h"
@@ -51,11 +53,14 @@ public:
     DecoderErrorOr<size_t> track_count() const;
 
     DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& cursor, Optional<u64> track_number = {}) const;
+    DecoderErrorOr<SampleIterator> create_sample_iterator_at_byte_position(NonnullRefPtr<MediaStreamCursor> const& cursor, size_t position, Optional<u64> track_number = {}) const;
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration) const;
 
     Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number) const;
 
     static size_t find_cue_point_index_at_or_before(Vector<TrackCuePoint> const&, Optional<AK::Duration> total_duration, AK::Duration target);
+
+    TimeRanges buffered_time_ranges(NonnullRefPtr<MediaStreamCursor> const&, Vector<MediaStream::ByteRange> const& byte_ranges) const;
 
 private:
     Reader() = default;
@@ -90,6 +95,15 @@ private:
 
     // The vectors must be sorted by timestamp at all times.
     HashMap<u64, Vector<TrackCuePoint>> m_cues;
+
+    struct BufferedRange {
+        size_t start { 0 };
+        size_t end { 0 };
+        Optional<SampleIterator> iterator;
+        Optional<AK::Duration> time_start { OptionalNone() };
+        AK::Duration time_end { AK::Duration::zero() };
+    };
+    mutable Vector<BufferedRange> m_buffered_ranges;
 };
 
 }

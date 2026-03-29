@@ -25,8 +25,10 @@ DecoderErrorOr<NonnullRefPtr<MatroskaDemuxer>> MatroskaDemuxer::from_stream(Nonn
 
 MatroskaDemuxer::MatroskaDemuxer(NonnullRefPtr<MediaStream> const& stream, Reader&& reader)
     : m_stream(stream)
+    , m_buffered_scan_cursor(stream->create_cursor())
     , m_reader(move(reader))
 {
+    m_buffered_scan_cursor->set_is_blocking(false);
 }
 
 MatroskaDemuxer::~MatroskaDemuxer() = default;
@@ -177,12 +179,10 @@ DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
 
 TimeRanges MatroskaDemuxer::buffered_time_ranges() const
 {
-    // FIXME: Scan the stream for buffered ranges.
-    TimeRanges ranges;
-    auto duration = m_reader.duration();
-    if (duration.has_value())
-        ranges.add_range(AK::Duration::zero(), duration.value());
-    return ranges;
+    auto byte_ranges = m_stream->available_byte_ranges();
+    if (byte_ranges.is_empty())
+        return {};
+    return m_reader.buffered_time_ranges(m_buffered_scan_cursor, byte_ranges);
 }
 
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)
