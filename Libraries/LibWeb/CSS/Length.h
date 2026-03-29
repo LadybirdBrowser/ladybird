@@ -151,6 +151,7 @@ public:
     }
 
     static LengthOrAuto make_auto() { return LengthOrAuto { OptionalNone {} }; }
+    static LengthOrAuto from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis);
 
     bool is_length() const { return m_length.has_value(); }
     bool is_auto() const { return !m_length.has_value(); }

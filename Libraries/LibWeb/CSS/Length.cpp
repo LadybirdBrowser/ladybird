@@ -282,6 +282,13 @@ Length Length::from_style_value(NonnullRefPtr<StyleValue const> const& style_val
     VERIFY_NOT_REACHED();
 }
 
+LengthOrAuto LengthOrAuto::from_style_value(NonnullRefPtr<StyleValue const> const& style_value, Optional<Length> percentage_basis)
+{
+    if (style_value->has_auto())
+        return make_auto();
+    return LengthOrAuto { Length::from_style_value(style_value, percentage_basis) };
+}
+
 Length Length::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Length const& reference_value)
 {
     CalculationResolutionContext context {
