@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+    <head>
+        <link
+            rel="match"
+            href="../expected/iframe-render-blocked-child-not-painted-ref.html"
+        />
+        <script src="../../Text/input/include.js"></script>
+        <style>
+            body {
+                margin: 0;
+                background: rgb(240, 240, 240);
+            }
+
+            #indicator {
+                width: 240px;
+                height: 24px;
+                margin: 16px;
+                background: rgb(255, 0, 0);
+            }
+
+            iframe {
+                display: block;
+                width: 240px;
+                height: 120px;
+                margin: 16px;
+                border: 4px solid rgb(40, 40, 40);
+                background: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="indicator"></div>
+        <iframe></iframe>
+        <script>
+            document.addEventListener("DOMContentLoaded", async () => {
+                const server = httpTestServer();
+                const stylesheetURL = await server.createEcho("GET", "/iframe-render-blocked-child-not-painted.css", {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "text/css",
+                    },
+                    body: "body { margin: 0; }",
+                    delay_ms: 1000,
+                });
+
+                const childURL = await server.createEcho("GET", "/iframe-render-blocked-child-not-painted-child.html", {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "text/html",
+                    },
+                    body: `<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="${stylesheetURL}">
+    </head>
+    <body>
+        <div
+            style="
+                margin: 0;
+                font: 700 64px/1 serif;
+                color: rgb(220, 0, 0);
+            "
+        >
+            FAIL
+        </div>
+    </body>
+</html>`,
+                });
+
+                document.querySelector("iframe").src = childURL;
+
+                requestAnimationFrame(() => {
+                    document.getElementById("indicator").style.background = "rgb(0, 0, 255)";
+                    requestAnimationFrame(() => {
+                        document.documentElement.className = "";
+                    });
+                });
+            });
+        </script>
+    </body>
+</html>

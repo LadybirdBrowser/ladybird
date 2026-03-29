@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
@@ -45,6 +44,9 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         auto const& navigable_container = this->navigable_container();
         auto* hosted_document = const_cast<DOM::Document*>(navigable_container.content_document_without_origin_check());
         if (!hosted_document)
+            return;
+
+        if (hosted_document->is_render_blocked())
             return;
 
         // NB: The hosted document's layout may have been invalidated during the parent
