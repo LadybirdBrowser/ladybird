@@ -123,8 +123,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LINKER_FLAGS}")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${LINKER_FLAGS}")
 set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
-configure_file(AK/Debug.h.in AK/Debug.h @ONLY)
-
 include_directories(${LADYBIRD_SOURCE_DIR})
 include_directories(Libraries)
 include_directories(Services)

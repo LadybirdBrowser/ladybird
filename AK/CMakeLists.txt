@@ -48,6 +48,8 @@ endif()
 
 ladybird_lib(AK ak)
 
+configure_file(Debug.h.in Debug.h @ONLY)
+
 find_package(cpptrace CONFIG)
 find_package(Backtrace)
 
