@@ -1210,19 +1210,33 @@ DecoderErrorOr<Block> SampleIterator::next_block()
         dbgln("Iterator found element with ID {:#010x} at offset {} within the segment.", element_id, element_position);
 #endif
 
+        auto maybe_set_block = [&](Block&& candidate_block) {
+            if (candidate_block.track_number() != m_track_number)
+                return;
+            block = move(candidate_block);
+        };
+
         if (element_id == CLUSTER_ELEMENT_ID) {
             dbgln_if(MATROSKA_DEBUG, "  Iterator is parsing new cluster.");
             m_current_cluster = TRY(Reader::parse_cluster_element(streamer, m_segment_timestamp_scale));
         } else if (element_id == SIMPLE_BLOCK_ID) {
-            dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new simple block.");
-            auto candidate_block = TRY(Reader::parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
-            if (candidate_block.track_number() == m_track_number)
-                block = move(candidate_block);
+            if (!m_current_cluster.has_value()) {
+                dbgln("  Iterator encountered a simple block before parsing a Cluster.");
+                TRY(streamer.read_unknown_element());
+            } else {
+                dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new simple block.");
+                auto candidate_block = TRY(Reader::parse_simple_block(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
+                maybe_set_block(move(candidate_block));
+            }
         } else if (element_id == BLOCK_GROUP_ID) {
-            dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new block group.");
-            auto candidate_block = TRY(Reader::parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
-            if (candidate_block.track_number() == m_track_number)
-                block = move(candidate_block);
+            if (!m_current_cluster.has_value()) {
+                dbgln("  Iterator encountered a BlockGroup before parsing a Cluster.");
+                TRY(streamer.read_unknown_element());
+            } else {
+                dbgln_if(MATROSKA_TRACE_DEBUG, "  Iterator is parsing a new block group.");
+                auto candidate_block = TRY(Reader::parse_block_group(streamer, m_current_cluster->timestamp(), m_segment_timestamp_scale, m_track_block_contexts));
+                maybe_set_block(move(candidate_block));
+            }
         } else if (element_id == SEGMENT_ELEMENT_ID) {
             dbgln("Malformed file, found a segment element within the root segment element. Jumping into it.");
             [[maybe_unused]] auto segment_size = TRY(streamer.read_variable_size_integer());
