@@ -46,12 +46,12 @@ public:
 private:
     friend class Reader;
 
-    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, u64 track_number, TrackBlockContexts&&, u64 timestamp_scale, size_t segment_contents_position, size_t position);
+    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, Optional<u64> track_number, TrackBlockContexts&&, u64 timestamp_scale, size_t segment_contents_position, size_t position);
 
     DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
 
     NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
-    u64 m_track_number;
+    Optional<u64> m_track_number;
     TrackBlockContexts m_track_block_contexts;
     u64 m_segment_timestamp_scale { 0 };
     size_t m_segment_contents_position { 0 };

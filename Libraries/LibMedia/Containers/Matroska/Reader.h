@@ -50,7 +50,7 @@ public:
     DecoderErrorOr<NonnullRefPtr<TrackEntry>> track_for_track_number(u64);
     DecoderErrorOr<size_t> track_count();
 
-    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& stream_consumer, u64 track_number);
+    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& cursor, Optional<u64> track_number = {});
     DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
 
     Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
