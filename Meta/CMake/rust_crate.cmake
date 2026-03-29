@@ -7,11 +7,14 @@
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "")
 
     set(ARG_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
     if (NOT ARG_FFI_OUTPUT_DIR)
         set(ARG_FFI_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
+    if (ARG_FFI_HEADER)
+        set(ffi_output "${ARG_FFI_OUTPUT_DIR}/${ARG_FFI_HEADER}")
     endif()
 
     # Find the workspace Cargo.lock to track as a dependency.
@@ -77,7 +80,7 @@ function(import_rust_crate)
     endif()
 
     add_custom_command(
-        OUTPUT "${output_lib}"
+        OUTPUT "${output_lib}" ${ffi_output}
         COMMAND
             ${CMAKE_COMMAND} -E env ${cargo_env}
             "${RUST_CARGO}"
@@ -91,6 +94,13 @@ function(import_rust_crate)
                 --
                 -Cdefault-linker-libraries=yes
                 --emit=dep-info
+        COMMAND
+            ${CMAKE_COMMAND}
+                -DCARGO_BUILD_SCRIPT_DIR=${cargo_output_dir}/build
+                -DCRATE_NAME=${ARG_CRATE_NAME}
+                -DFFI_HEADER=${ARG_FFI_HEADER}
+                -DFFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}
+                -P "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/sync_rust_ffi_header.cmake"
         DEPENDS "${ARG_MANIFEST_PATH}"
             "${workspace_dir}/Cargo.lock" "${workspace_dir}/Cargo.toml"
         DEPFILE "${depfile}"
@@ -99,7 +109,7 @@ function(import_rust_crate)
         COMMAND_EXPAND_LISTS
     )
 
-    add_custom_target(${ARG_CRATE_NAME}-build DEPENDS "${output_lib}")
+    add_custom_target(${ARG_CRATE_NAME}-build DEPENDS "${output_lib}" ${ffi_output})
 
     add_library(${ARG_CRATE_NAME} STATIC IMPORTED GLOBAL)
     set_target_properties(${ARG_CRATE_NAME} PROPERTIES

@@ -30,7 +30,7 @@ ladybird_lib(LibUnicode unicode)
 find_package(ICU 78.2 EXACT REQUIRED COMPONENTS data i18n uc)
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libunicode_rust)
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libunicode_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibUnicode PRIVATE libunicode_rust)
 
 # FIXME: Add support for building LibGfx in sanitize

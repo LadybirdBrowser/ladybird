@@ -14,6 +14,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=cbindgen.toml");
+    println!("cargo:rerun-if-env-changed=FFI_OUTPUT_DIR");
+    println!("cargo:rerun-if-changed=src");
 
     let ffi_out_dir = env::var("FFI_OUTPUT_DIR")
         .map(PathBuf::from)
@@ -25,7 +27,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             e => panic!("{e:?}"),
         },
         |bindings| {
-            bindings.write_to_file(ffi_out_dir.join("RustFFI.h"));
+            let header_path = out_dir.join("RustFFI.h");
+            bindings.write_to_file(&header_path);
+
+            if ffi_out_dir != out_dir {
+                bindings.write_to_file(ffi_out_dir.join("RustFFI.h"));
+            }
         },
     );
 

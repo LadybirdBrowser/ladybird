@@ -295,7 +295,7 @@ endif()
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
 if (ENABLE_RUST)
-    import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust)
+    import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust FFI_HEADER RustFFI.h)
     target_link_libraries(LibJS PRIVATE libjs_rust)
     target_compile_definitions(LibJS PRIVATE ENABLE_RUST)
 
@@ -352,7 +352,15 @@ if (DEFINED ASMINT_ARCH)
         COMMENT "Generating asm struct offsets"
     )
 
-    file(GLOB ASMINTGEN_SOURCES "${ASMINTGEN_DIR}/src/*.rs" "${ASMINTGEN_DIR}/Cargo.toml")
+    file(GLOB ASMINTGEN_RUST_SOURCES CONFIGURE_DEPENDS "${ASMINTGEN_DIR}/src/*.rs")
+    file(GLOB ASMINTGEN_BYTECODE_DEF_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/BytecodeDef/src/*.rs")
+    set(ASMINTGEN_SOURCES
+        "${ASMINTGEN_DIR}/Cargo.toml"
+        "${ASMINTGEN_DIR}/Cargo.lock"
+        "${CMAKE_CURRENT_SOURCE_DIR}/BytecodeDef/Cargo.toml"
+        ${ASMINTGEN_RUST_SOURCES}
+        ${ASMINTGEN_BYTECODE_DEF_SOURCES}
+    )
     # NB: Clear linker-related env vars so cargo uses the default host
     # linker. The CI may set CC/CXX or CARGO_TARGET_*_LINKER to a
     # compiler that isn't available in all build configurations (e.g.
