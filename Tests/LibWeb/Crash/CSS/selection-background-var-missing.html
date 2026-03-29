@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+::selection {
+    background: var(--color-accent);
+    color: #fff;
+}
+</style>
+<span id="text">oh-no</span>
+<script>
+    const text = document.getElementById("text").firstChild;
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, text.length);
+    getSelection().addRange(range);
+</script>

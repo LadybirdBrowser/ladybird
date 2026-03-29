@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" style="--border: 3px solid red; border: var(--border);"></div>
+<script>
+    test(() => {
+        const targetStyle = getComputedStyle(document.getElementById("target"));
+        println(`borderTopWidth: ${targetStyle.borderTopWidth}`);
+        println(`borderTopStyle: ${targetStyle.borderTopStyle}`);
+        println(`borderTopColor: ${targetStyle.borderTopColor}`);
+        println(`borderRightWidth: ${targetStyle.borderRightWidth}`);
+        println(`borderRightStyle: ${targetStyle.borderRightStyle}`);
+        println(`borderRightColor: ${targetStyle.borderRightColor}`);
+    });
+</script>

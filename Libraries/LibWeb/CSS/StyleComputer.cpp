@@ -484,6 +484,13 @@ void StyleComputer::cascade_declarations(
     AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
     auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
         seen_properties.fill(false);
+
+        HashMap<StyleValue const*, PropertyID> shorthand_properties_by_value;
+        for (auto const& property : declaration.properties()) {
+            if (property_is_shorthand(property.property_id))
+                shorthand_properties_by_value.set(property.value.ptr(), property.property_id);
+        }
+
         for (auto const& property : declaration.properties()) {
             if (important != property.important)
                 continue;
@@ -492,6 +499,28 @@ void StyleComputer::cascade_declarations(
                 continue;
 
             auto property_value = property.value;
+
+            // `convert_declarations_to_specified_order()` keeps unresolved shorthands around as both the original
+            // shorthand value and a set of PendingSubstitutionStyleValues for the longhands. If the shorthand itself
+            // doesn't participate in the cascade for this target, resolve the matching longhand from the shorthand now
+            // so we don't let a placeholder value survive into computed style.
+            if (property_value->is_pending_substitution() && !property_is_shorthand(property.property_id) && !seen_properties.get(to_underlying(property.property_id))) {
+                auto const& original_shorthand_value = property_value->as_pending_substitution().original_shorthand_value();
+                if (auto shorthand_property_id = shorthand_properties_by_value.get(&original_shorthand_value); shorthand_property_id.has_value()) {
+                    property_value = original_shorthand_value;
+                    if (property_value->is_unresolved())
+                        property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(*shorthand_property_id), property_value->as_unresolved());
+
+                    if (!property_value->is_guaranteed_invalid()) {
+                        RefPtr<StyleValue const> resolved_longhand_value;
+                        for_each_property_expanding_shorthands(*shorthand_property_id, *property_value, [&](PropertyID longhand_id, StyleValue const& longhand_value) {
+                            if (longhand_id == property.property_id)
+                                resolved_longhand_value = longhand_value;
+                        });
+                        property_value = resolved_longhand_value ? resolved_longhand_value.release_nonnull() : KeywordStyleValue::create(Keyword::Unset);
+                    }
+                }
+            }
 
             if (property_value->is_unresolved())
                 property_value = Parser::Parser::resolve_unresolved_style_value(Parser::ParsingParams { abstract_element.document() }, abstract_element, PropertyNameAndID::from_id(property.property_id), property_value->as_unresolved());

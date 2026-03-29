@@ -1,0 +1,6 @@
+borderTopWidth: 3px
+borderTopStyle: solid
+borderTopColor: rgb(255, 0, 0)
+borderRightWidth: 3px
+borderRightStyle: solid
+borderRightColor: rgb(255, 0, 0)
