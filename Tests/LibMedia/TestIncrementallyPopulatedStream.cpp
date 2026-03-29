@@ -273,6 +273,136 @@ TEST_CASE(redundant_chunk_within_existing_chunk_at_nonzero_offset)
         EXPECT_EQ(buffer[i], static_cast<u8>(100 + i));
 }
 
+TEST_CASE(add_touching_chunks_forward)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(0, data.bytes().trim(50));
+    stream->add_chunk_at(50, data.bytes().slice(50));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+}
+
+TEST_CASE(add_touching_chunks_reverse)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(50, data.bytes().slice(50));
+    stream->add_chunk_at(0, data.bytes().trim(50));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+
+    // Verify the data is contiguous and correct.
+    auto cursor = stream->create_cursor();
+    Array<u8, 100> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 100u);
+    for (size_t i = 0; i < 100; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+}
+
+TEST_CASE(add_disjoint_chunks)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(0, data.bytes().trim(30));
+    stream->add_chunk_at(70, data.bytes().slice(70));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 30u);
+    EXPECT_EQ(ranges[1].start, 70u);
+    EXPECT_EQ(ranges[1].end, 100u);
+}
+
+TEST_CASE(add_chunk_fills_gap)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(100);
+
+    stream->add_chunk_at(0, data.bytes().trim(30));
+    stream->add_chunk_at(70, data.bytes().slice(70));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+
+    // Fill the gap.
+    stream->add_chunk_at(30, data.bytes().slice(30, 40));
+
+    ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 100u);
+
+    // Verify data integrity.
+    auto cursor = stream->create_cursor();
+    Array<u8, 100> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 100u);
+    for (size_t i = 0; i < 100; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+}
+
+TEST_CASE(add_chunk_spans_multiple_existing_chunks)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(120);
+
+    stream->add_chunk_at(0, data.bytes().trim(10));
+    stream->add_chunk_at(20, data.bytes().slice(20, 10));
+    stream->add_chunk_at(40, data.bytes().slice(40, 10));
+    stream->add_chunk_at(10, data.bytes().slice(10, 60));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 70u);
+
+    auto cursor = stream->create_cursor();
+    Array<u8, 70> buffer;
+    auto bytes_read = MUST(cursor->read_into(buffer));
+    EXPECT_EQ(bytes_read, 70u);
+    for (size_t i = 0; i < 70; i++)
+        EXPECT_EQ(buffer[i], static_cast<u8>(i));
+}
+
+TEST_CASE(add_three_disjoint_then_connect)
+{
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    auto data = make_test_data(150);
+
+    stream->add_chunk_at(0, data.bytes().trim(30));
+    stream->add_chunk_at(60, data.bytes().slice(60, 30));
+    stream->add_chunk_at(120, data.bytes().slice(120));
+
+    auto ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 3u);
+
+    // Connect first and second with a chunk that touches both.
+    stream->add_chunk_at(30, data.bytes().slice(30, 30));
+    ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 2u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 90u);
+
+    // Connect second and third.
+    stream->add_chunk_at(90, data.bytes().slice(90, 30));
+    ranges = stream->available_byte_ranges();
+    EXPECT_EQ(ranges.size(), 1u);
+    EXPECT_EQ(ranges[0].start, 0u);
+    EXPECT_EQ(ranges[0].end, 150u);
+}
+
 TEST_CASE(data_request_callback_invoked)
 {
     Core::EventLoop loop;
