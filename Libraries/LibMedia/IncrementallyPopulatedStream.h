@@ -43,6 +43,8 @@ public:
 
     void close();
 
+    virtual Vector<ByteRange> available_byte_ranges() const override;
+
     u64 size();
     void set_expected_size(u64);
     Optional<u64> expected_size() const;

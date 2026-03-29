@@ -32,9 +32,16 @@ public:
 
 class MediaStream : public AtomicRefCounted<MediaStream> {
 public:
+    struct ByteRange {
+        size_t start { 0 };
+        size_t end { 0 };
+    };
+
     virtual ~MediaStream() = default;
 
     virtual NonnullRefPtr<MediaStreamCursor> create_cursor() = 0;
+
+    virtual Vector<ByteRange> available_byte_ranges() const = 0;
 };
 
 }
