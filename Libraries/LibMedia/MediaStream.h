@@ -17,6 +17,8 @@ class MediaStreamCursor : public AtomicRefCounted<MediaStreamCursor> {
 public:
     virtual ~MediaStreamCursor() = default;
 
+    virtual void set_is_blocking(bool) = 0;
+
     virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode) = 0;
     virtual DecoderErrorOr<size_t> read_into(Bytes) = 0;
     virtual size_t position() const = 0;

@@ -19,6 +19,8 @@ public:
     {
     }
 
+    virtual void set_is_blocking(bool) override { }
+
     virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode mode) override
     {
         auto target_position = [&] -> size_t {
