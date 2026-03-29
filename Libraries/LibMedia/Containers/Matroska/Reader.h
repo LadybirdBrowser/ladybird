@@ -47,13 +47,13 @@ public:
 
     DecoderErrorOr<void> for_each_track(TrackEntryCallback);
     DecoderErrorOr<void> for_each_track_of_type(TrackEntry::TrackType, TrackEntryCallback);
-    DecoderErrorOr<NonnullRefPtr<TrackEntry>> track_for_track_number(u64);
-    DecoderErrorOr<size_t> track_count();
+    DecoderErrorOr<NonnullRefPtr<TrackEntry const>> track_for_track_number(u64) const;
+    DecoderErrorOr<size_t> track_count() const;
 
-    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& cursor, Optional<u64> track_number = {});
-    DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration);
+    DecoderErrorOr<SampleIterator> create_sample_iterator(NonnullRefPtr<MediaStreamCursor> const& cursor, Optional<u64> track_number = {}) const;
+    DecoderErrorOr<SampleIterator> seek_to_random_access_point(SampleIterator, AK::Duration) const;
 
-    Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number);
+    Optional<Vector<TrackCuePoint> const&> cue_points_for_track(u64 track_number) const;
 
     static size_t find_cue_point_index_at_or_before(Vector<TrackCuePoint> const&, Optional<AK::Duration> total_duration, AK::Duration target);
 
@@ -72,8 +72,7 @@ private:
 
     DecoderErrorOr<void> parse_cues(Streamer&);
 
-    bool has_cues_for_track(u64 track_number);
-    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget);
+    DecoderErrorOr<void> seek_to_cue_for_timestamp(SampleIterator&, AK::Duration const&, Vector<TrackCuePoint> const&, CuePointTarget) const;
 
     Optional<EBMLHeader> m_header;
 
