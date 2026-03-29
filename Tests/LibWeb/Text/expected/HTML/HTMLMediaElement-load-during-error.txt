@@ -5,10 +5,10 @@ Events:
   error handler: src setter returned: readyState=0
   emptied: readyState=0
   loadstart: readyState=0
-  durationchange: readyState=2 duration=12.043
-  loadedmetadata: readyState=2
-  loadeddata: readyState=2
-  document load: readyState=2
+  durationchange: readyState=4 duration=12.043
+  loadedmetadata: readyState=4
+  loadeddata: readyState=4
   canplay: readyState=4
   canplaythrough: readyState=4
+  document load: readyState=4
 Final: readyState=4 duration=12.043
