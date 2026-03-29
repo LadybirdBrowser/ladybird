@@ -4,6 +4,8 @@ set(SOURCES
     Audio/AudioDevices.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
+    Containers/Matroska/SampleIterator.cpp
+    Containers/Matroska/Streamer.cpp
     GenericTimeProvider.cpp
     IncrementallyPopulatedStream.cpp
     PlaybackManager.cpp

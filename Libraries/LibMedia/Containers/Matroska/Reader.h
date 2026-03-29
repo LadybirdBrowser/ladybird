@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2021, Hunter Salyer <thefalsehonesty@gmail.com>
- * Copyright (c) 2022, Gregory Bertilson <Zaggy1024@gmail.com>
+ * Copyright (c) 2022-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,27 +15,16 @@
 #include <LibMedia/Forward.h>
 
 #include "Document.h"
+#include "SampleIterator.h"
+#include "Streamer.h"
 
 namespace Media::Matroska {
-
-class SampleIterator;
-class Streamer;
 
 enum class ElementIterationDecision : u8 {
     Continue,
     BreakHere,
     BreakAtEnd,
     EndOfElement,
-};
-
-struct TrackCuePoint {
-    AK::Duration timestamp;
-    CueTrackPosition position;
-};
-
-enum class CuePointTarget : u8 {
-    Cluster,
-    Block,
 };
 
 class MEDIA_API Reader {
@@ -102,72 +91,6 @@ private:
 
     // The vectors must be sorted by timestamp at all times.
     HashMap<u64, Vector<TrackCuePoint>> m_cues;
-};
-
-class MEDIA_API SampleIterator {
-    AK_MAKE_DEFAULT_MOVABLE(SampleIterator);
-    AK_MAKE_DEFAULT_COPYABLE(SampleIterator);
-
-public:
-    ~SampleIterator();
-
-    DecoderErrorOr<Block> next_block();
-    DecoderErrorOr<Vector<ByteBuffer>> get_frames(Block);
-    Cluster const& current_cluster() const { return *m_current_cluster; }
-    Optional<AK::Duration> const& last_timestamp() const { return m_last_timestamp; }
-    MediaStreamCursor& cursor() { return m_stream_cursor; }
-
-private:
-    friend class Reader;
-
-    SampleIterator(NonnullRefPtr<MediaStreamCursor> const& stream_cursor, u64 track_number, TrackBlockContexts&&, u64 timestamp_scale, size_t segment_contents_position, size_t position);
-
-    DecoderErrorOr<void> seek_to_cue_point(TrackCuePoint const& cue_point, CuePointTarget);
-
-    NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
-    u64 m_track_number;
-    TrackBlockContexts m_track_block_contexts;
-    u64 m_segment_timestamp_scale { 0 };
-    size_t m_segment_contents_position { 0 };
-
-    // Must always point to an element ID or the end of the stream.
-    size_t m_position { 0 };
-
-    Optional<AK::Duration> m_last_timestamp;
-
-    Optional<Cluster> m_current_cluster;
-};
-
-class MEDIA_API Streamer {
-public:
-    Streamer(NonnullRefPtr<MediaStreamCursor> const& stream_cursor);
-    ~Streamer();
-
-    DecoderErrorOr<u8> read_octet();
-
-    DecoderErrorOr<i16> read_i16();
-
-    DecoderErrorOr<u32> read_element_id();
-    DecoderErrorOr<Optional<size_t>> read_element_size();
-    DecoderErrorOr<u64> read_variable_size_integer();
-    DecoderErrorOr<i64> read_variable_size_signed_integer();
-
-    DecoderErrorOr<u64> read_u64();
-    DecoderErrorOr<i64> read_i64();
-    DecoderErrorOr<double> read_float();
-
-    DecoderErrorOr<String> read_string();
-
-    DecoderErrorOr<void> read_unknown_element();
-
-    DecoderErrorOr<ByteBuffer> read_raw_octets(size_t num_octets);
-
-    size_t position() const;
-
-    DecoderErrorOr<void> seek_to_position(size_t position);
-
-private:
-    NonnullRefPtr<MediaStreamCursor> m_stream_cursor;
 };
 
 }
