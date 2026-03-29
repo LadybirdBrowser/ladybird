@@ -132,6 +132,8 @@ Optional<u64> IncrementallyPopulatedStream::expected_size() const
 
 void IncrementallyPopulatedStream::begin_new_request_while_locked(u64 position)
 {
+    if (!m_callback_event_loop)
+        return;
     if (position == m_currently_requested_position)
         return;
 
