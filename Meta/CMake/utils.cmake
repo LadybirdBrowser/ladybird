@@ -204,3 +204,50 @@ function(add_lagom_library_install_rules target_name)
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 endfunction()
+
+# When compiling for Android, vpckg likes to use the host libc++, which breaks
+# cross-compiling across architectures. This needs to be fixed in upstream vcpckg.
+function(filter_android_libcxx_list output_var)
+    if (NOT ANDROID)
+        set(${output_var} ${ARGN} PARENT_SCOPE)
+        return()
+    endif()
+
+    set(filtered_libs)
+    foreach(lib ${ARGN})
+        if (TARGET ${lib})
+            filter_android_libcxx(${lib})
+        elseif (lib MATCHES [[(^|/)libc[+][+][.]so$]])
+            continue()
+        endif()
+
+        list(APPEND filtered_libs ${lib})
+    endforeach()
+
+    set(${output_var} ${filtered_libs} PARENT_SCOPE)
+endfunction()
+
+function(filter_android_libcxx target)
+    if (ANDROID AND TARGET ${target})
+        get_target_property(is_filtered ${target} LADYBIRD_ANDROID_LIBCXX_FILTERED)
+        if (is_filtered)
+            return()
+        endif()
+
+        set_property(TARGET ${target} PROPERTY LADYBIRD_ANDROID_LIBCXX_FILTERED TRUE)
+
+        foreach(link_property
+            INTERFACE_LINK_LIBRARIES
+            IMPORTED_LINK_INTERFACE_LIBRARIES
+            IMPORTED_LINK_INTERFACE_LIBRARIES_DEBUG
+            IMPORTED_LINK_INTERFACE_LIBRARIES_RELEASE
+            IMPORTED_LINK_INTERFACE_LIBRARIES_RELWITHDEBINFO
+            IMPORTED_LINK_INTERFACE_LIBRARIES_MINSIZEREL)
+            get_target_property(link_libs ${target} ${link_property})
+            if (link_libs AND NOT link_libs STREQUAL "link_libs-NOTFOUND")
+                filter_android_libcxx_list(filtered_libs ${link_libs})
+                set_property(TARGET ${target} PROPERTY ${link_property} "${filtered_libs}")
+            endif()
+        endforeach()
+    endif()
+endfunction()
