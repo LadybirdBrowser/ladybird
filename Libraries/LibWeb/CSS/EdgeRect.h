@@ -20,7 +20,7 @@ struct WEB_API EdgeRect {
     LengthOrAuto right_edge;
     LengthOrAuto bottom_edge;
     LengthOrAuto left_edge;
-    CSSPixelRect resolved(Layout::Node const&, CSSPixelRect) const;
+    CSSPixelRect resolved(CSSPixelRect) const;
     bool operator==(EdgeRect const&) const = default;
 };
 

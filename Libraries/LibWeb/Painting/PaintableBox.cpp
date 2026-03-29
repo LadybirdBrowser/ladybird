@@ -438,7 +438,7 @@ Optional<CSSPixelRect> PaintableBox::get_clip_rect() const
     auto clip = computed_values().clip();
     if (clip.is_rect() && layout_node_with_style_and_box_metrics().is_absolutely_positioned()) {
         auto border_box = absolute_border_box_rect();
-        return clip.to_rect().resolved(layout_node(), border_box);
+        return clip.to_rect().resolved(border_box);
     }
     return {};
 }
