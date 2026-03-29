@@ -19,7 +19,7 @@ namespace Web::HTML {
 SourceSet::SourceSet()
     // Note: m_source_size always gets reassigned to its proper value during one of the construction algorithms.
     //       0px is just a fake value here so that we don't have to muddy the type system by using Optional.
-    : m_source_size(CSS::Length::make_px(0))
+    : m_source_size(CSS::LengthStyleValue::create(CSS::Length::make_px(0)))
 {
 }
 
@@ -341,7 +341,7 @@ descriptor_parser:
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
-CSS::LengthOrCalculated parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
+NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Element const& element, StringView sizes, HTML::HTMLImageElement const* img)
 {
     auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { element.document() }, sizes);
     return css_parser.parse_as_sizes_attribute(element, img);
@@ -401,7 +401,7 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
     // results of declarations.
     auto const& length_resolution_context = CSS::Length::ResolutionContext::for_window(*element.document().window());
 
-    auto source_size = m_source_size.resolved({ .length_resolution_context = length_resolution_context })->to_px(length_resolution_context);
+    auto source_size = CSS::Length::from_style_value(m_source_size->absolutized({ length_resolution_context }), {}).absolute_length_to_px();
 
     // 2. For each image source in source set:
     for (auto& image_source : m_sources) {
