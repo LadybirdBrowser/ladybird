@@ -264,6 +264,7 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         "Distribution": build_root_dir / "distribution",
         "Release": build_root_dir / "release",
         "Sanitizer": build_root_dir / "sanitizers",
+        "Host_Tools": build_root_dir / "host-tools-build",
     }
 
     build_preset_dir = known_presets.get(preset, None)
@@ -280,6 +281,11 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         # With it set vcpkg will use the system provided CMake and Ninja binaries but will still download,
         # build and use its own pinned versions of gn, meson and pkg-config.
         os.environ["VCPKG_FORCE_SYSTEM_BINARIES"] = "1"
+
+    if "XDG_CACHE_HOME" not in os.environ:
+        # vcpkg requires this variable to set and in some cases like the Android build environment it might
+        # not be present, so we need to ensure that it is set
+        os.environ["XDG_CACHE_HOME"] = str(ladybird_source_dir / "Build" / "caches")
 
     return ladybird_source_dir, build_preset_dir
 

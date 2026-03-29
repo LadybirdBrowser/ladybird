@@ -55,6 +55,13 @@
         "unix_base",
         "All_Debug_base"
       ]
+    },
+    {
+      "name": "Host_Tools",
+      "inherits": [
+        "unix_base",
+        "Host_Tools_base"
+      ]
     }
   ],
   "buildPresets": [

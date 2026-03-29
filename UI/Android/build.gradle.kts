@@ -9,16 +9,14 @@ var buildDir = layout.buildDirectory.get()
 var cacheDir = System.getenv("LADYBIRD_CACHE_DIR") ?: "$buildDir/caches"
 var sourceDir = layout.projectDirectory.dir("../../").toString()
 
-task<Exec>("buildLagomTools") {
-    commandLine = listOf("./BuildLagomTools.sh")
+task<Exec>("buildHostTools") {
+    commandLine = listOf("$sourceDir/Meta/ladybird.py", "install", "--preset", "Host_Tools")
     environment = mapOf(
-        "BUILD_DIR" to buildDir,
-        "CACHE_DIR" to cacheDir,
         "PATH" to System.getenv("PATH")!!
     )
 }
-tasks.named("preBuild").dependsOn("buildLagomTools")
-tasks.named("prepareKotlinBuildScriptModel").dependsOn("buildLagomTools")
+tasks.named("preBuild").dependsOn("buildHostTools")
+tasks.named("prepareKotlinBuildScriptModel").dependsOn("buildHostTools")
 
 android {
     namespace = "org.serenityos.ladybird"
@@ -38,7 +36,7 @@ android {
             cmake {
                 cppFlags += "-std=c++23"
                 arguments += listOf(
-                    "-DLagomTools_DIR=$buildDir/lagom-tools-install/share/LagomTools",
+                    "-DLagomTools_DIR=$buildDir/host-tools/share/LagomTools",
                     "-DANDROID_STL=c++_shared",
                     "-DLADYBIRD_CACHE_DIR=$cacheDir",
                     "-DVCPKG_ROOT=$sourceDir/Build/vcpkg",
