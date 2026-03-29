@@ -942,7 +942,13 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::wrap_key(Bindings::KeyFormat format, GC::
         }
 
         // Otherwise:
-        else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::Pkcs8 || format == Bindings::KeyFormat::Spki) {
+        else if (format == Bindings::KeyFormat::Raw
+            || format == Bindings::KeyFormat::RawPublic
+            || format == Bindings::KeyFormat::RawPrivate
+            || format == Bindings::KeyFormat::RawSeed
+            || format == Bindings::KeyFormat::RawSecret
+            || format == Bindings::KeyFormat::Pkcs8
+            || format == Bindings::KeyFormat::Spki) {
             // Let bytes be exportedKey.
             bytes = as<JS::ArrayBuffer>(*exported_key).buffer();
         } else {
@@ -1100,7 +1106,13 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
         }
 
         // Otherwise:
-        else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::Pkcs8 || format == Bindings::KeyFormat::Spki) {
+        else if (format == Bindings::KeyFormat::Raw
+            || format == Bindings::KeyFormat::RawPublic
+            || format == Bindings::KeyFormat::RawPrivate
+            || format == Bindings::KeyFormat::RawSeed
+            || format == Bindings::KeyFormat::RawSecret
+            || format == Bindings::KeyFormat::Pkcs8
+            || format == Bindings::KeyFormat::Spki) {
             // Let key be bytes.
             key = bytes->buffer();
         } else {
