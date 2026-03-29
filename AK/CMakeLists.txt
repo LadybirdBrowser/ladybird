@@ -50,8 +50,6 @@ ladybird_lib(AK ak)
 
 configure_file(Debug.h.in Debug.h @ONLY)
 
-find_package(cpptrace CONFIG)
-find_package(Backtrace)
 
 if(cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_link_libraries(AK PRIVATE cpptrace::cpptrace)
@@ -68,14 +66,7 @@ else()
 endif()
 configure_file(Backtrace.h.in Backtrace.h @ONLY)
 
-find_package(simdutf REQUIRED)
-target_link_libraries(AK PRIVATE simdutf::simdutf)
-
-find_package(FastFloat CONFIG REQUIRED)
-target_link_libraries(AK PRIVATE FastFloat::fast_float)
-
-find_package(fmt CONFIG REQUIRED)
-target_link_libraries(AK PRIVATE fmt::fmt)
+target_link_libraries(AK PRIVATE FastFloat::fast_float fmt::fmt simdutf::simdutf)
 
 set(MIMALLOC_VISIBILITY PRIVATE)
 if (NOT BUILD_SHARED_LIBS)

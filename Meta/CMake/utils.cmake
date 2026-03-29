@@ -93,7 +93,6 @@ endfunction()
 
 function(invoke_py_generator name script primary_source header implementation)
     cmake_parse_arguments(invoke_py_generator "" "EXTRA_HEADER" "arguments;dependencies" ${ARGN})
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
     set(py_generator_arguments ${invoke_py_generator_arguments})
     if (invoke_py_generator_EXTRA_HEADER)

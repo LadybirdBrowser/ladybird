@@ -7,5 +7,4 @@ set(SOURCES
 ladybird_lib(LibTLS tls)
 target_link_libraries(LibTLS PRIVATE LibCore LibCrypto LibFileSystem)
 
-find_package(OpenSSL REQUIRED)
 target_link_libraries(LibTLS PUBLIC OpenSSL::SSL)

@@ -15,7 +15,6 @@ set(SOURCES
 ladybird_lib(LibGC gc EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibGC PRIVATE LibCore)
 
-find_package(cpptrace CONFIG)
 if(cpptrace_FOUND AND LADYBIRD_ENABLE_CPPTRACE)
     target_link_libraries(LibGC PRIVATE cpptrace::cpptrace)
     target_compile_definitions(LibGC PRIVATE LIBGC_HAS_CPPTRACE=1)

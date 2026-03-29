@@ -42,9 +42,6 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# We need to find OpenSSL in order to link it explicitly with all targets.
-find_package(OpenSSL REQUIRED)
-
 # Ensure that when single-value arguments are passed to `cmake_parse_arguments()`
 # with no or empty string arguments, they are still defined.
 if (POLICY CMP0174)
@@ -62,8 +59,6 @@ include(compile_options)
 if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)
 endif()
-
-find_package(Threads REQUIRED)
 
 if (ENABLE_LAGOM_CCACHE)
     include(setup_ccache)
@@ -129,13 +124,6 @@ include_directories(${CMAKE_BINARY_DIR}/Services)
 
 include(lagom_install)
 
-if (WIN32)
-    find_package(pthread REQUIRED)
-    find_package(mman REQUIRED)
-endif()
-
-find_package(mimalloc CONFIG REQUIRED)
-
 include(rust_crate)
 include(targets)
 
@@ -184,7 +172,6 @@ add_custom_target(lint-shell-scripts
     USES_TERMINAL
 )
 
-find_package(Python3 COMPONENTS Interpreter)
 if (Python3_FOUND)
     add_custom_target(check-style
         COMMAND ${Python3_EXECUTABLE} "${ladybird_SOURCE_DIR}/Meta/check-style.py"

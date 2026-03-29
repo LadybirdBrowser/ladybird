@@ -83,8 +83,6 @@ target_link_libraries(LibGfx PRIVATE LibCompress LibCore LibCrypto LibFileSystem
 set(generated_sources TIFFMetadata.h TIFFTagHandler.cpp)
 list(TRANSFORM generated_sources PREPEND "ImageFormats/")
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
 add_custom_command(
         OUTPUT  ${generated_sources}
         COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/TIFFGenerator.py" -o "${CMAKE_CURRENT_BINARY_DIR}/ImageFormats"
@@ -104,16 +102,6 @@ if (ENABLE_INSTALL_HEADERS)
     list(TRANSFORM generated_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
     install(FILES ${generated_sources} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibGfx/ImageFormats")
 endif()
-
-# Third-party
-find_package(PkgConfig)
-
-pkg_check_modules(WOFF2 REQUIRED IMPORTED_TARGET libwoff2dec)
-find_package(JPEG REQUIRED)
-find_package(PNG REQUIRED)
-find_package(LIBAVIF REQUIRED)
-find_package(WebP REQUIRED)
-find_package(harfbuzz REQUIRED)
 
 target_link_libraries(LibGfx PRIVATE PkgConfig::WOFF2 JPEG::JPEG PNG::PNG avif WebP::webp WebP::webpdecoder
             WebP::webpdemux WebP::libwebpmux skia harfbuzz)
@@ -140,7 +128,6 @@ if (NOT LIBPNG_HAS_APNG)
 endif()
 
 if (NOT ANDROID)
-    pkg_check_modules(Jxl REQUIRED IMPORTED_TARGET libjxl)
     # FIXME: Build vcpkg libraries with clang-cl so they can also build in sanitize.
     # https://github.com/LadybirdBrowser/ladybird/issues/5224
     if (WIN32 AND ENABLE_ADDRESS_SANITIZER)
@@ -150,8 +137,6 @@ if (NOT ANDROID)
     endif()
     target_link_libraries(LibGfx PRIVATE PkgConfig::Jxl)
 else()
-    find_package(libjxl REQUIRED)
-    find_package(hwy REQUIRED)
     target_link_libraries(LibGfx PRIVATE libjxl::libjxl hwy::hwy)
 endif()
 
