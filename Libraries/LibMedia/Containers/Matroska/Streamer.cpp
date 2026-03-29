@@ -36,7 +36,9 @@ DecoderErrorOr<u8> Streamer::read_octet()
 {
     u8 result;
     Bytes bytes { &result, 1 };
-    TRY(m_stream_cursor->read_into(bytes));
+    auto bytes_read = TRY(m_stream_cursor->read_into(bytes));
+    if (bytes_read != 1)
+        return DecoderError::corrupted("Failed to read octet"sv);
     return bytes[0];
 }
 
