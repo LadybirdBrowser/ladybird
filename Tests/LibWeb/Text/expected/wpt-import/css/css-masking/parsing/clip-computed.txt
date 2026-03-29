@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Property clip value 'auto'
+Pass	Property clip value 'rect(10px, 20px, -30px, 40px)'
+Pass	Property clip value 'rect(10px, 20px, calc(-1em + 10px), 1em)'
+Pass	Property clip value 'rect(10px, -20px, auto, auto)'

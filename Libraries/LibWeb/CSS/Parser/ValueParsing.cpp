@@ -1544,7 +1544,9 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
 
     auto context_guard = push_temporary_value_parsing_context(FunctionContext { "rect"sv });
 
-    Vector<LengthOrAuto, 4> params;
+    StyleValueVector params;
+    params.ensure_capacity(4);
+
     auto argument_tokens = TokenStream { function_token.function().value };
 
     enum class CommaRequirement {
@@ -1572,16 +1574,13 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
         // Negative lengths are permitted.
         if (argument_tokens.next_token().is_ident("auto"sv)) {
             (void)argument_tokens.consume_a_token(); // `auto`
-            params.append(LengthOrAuto::make_auto());
+            params.append(KeywordStyleValue::create(Keyword::Auto));
         } else {
-            auto maybe_length = parse_length(argument_tokens);
-            if (!maybe_length.has_value())
+            auto maybe_length = parse_length_value(argument_tokens);
+            if (!maybe_length)
                 return nullptr;
-            if (maybe_length.value().is_calculated()) {
-                dbgln("FIXME: Support calculated lengths in rect(): {}", maybe_length.value().calculated()->to_string(CSS::SerializationMode::Normal));
-                return nullptr;
-            }
-            params.append(maybe_length.value().value());
+
+            params.append(maybe_length.release_nonnull());
         }
         argument_tokens.discard_whitespace();
 
@@ -1614,7 +1613,7 @@ RefPtr<StyleValue const> Parser::parse_rect_value(TokenStream<ComponentValue>& t
     }
 
     transaction.commit();
-    return RectStyleValue::create(EdgeRect { params[0], params[1], params[2], params[3] });
+    return RectStyleValue::create(params[0], params[1], params[2], params[3]);
 }
 
 // https://www.w3.org/TR/css-color-4/#typedef-hue

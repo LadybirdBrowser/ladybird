@@ -16,24 +16,49 @@ namespace Web::CSS {
 
 class RectStyleValue : public StyleValueWithDefaultOperators<RectStyleValue> {
 public:
-    static ValueComparingNonnullRefPtr<RectStyleValue const> create(EdgeRect rect);
+    static ValueComparingNonnullRefPtr<RectStyleValue const> create(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left);
     virtual ~RectStyleValue() override = default;
 
-    EdgeRect rect() const { return m_rect; }
+    NonnullRefPtr<StyleValue const> top() const { return m_top; }
+    NonnullRefPtr<StyleValue const> right() const { return m_right; }
+    NonnullRefPtr<StyleValue const> bottom() const { return m_bottom; }
+    NonnullRefPtr<StyleValue const> left() const { return m_left; }
+
+    EdgeRect rect() const { return { LengthOrAuto::from_style_value(m_top, {}), LengthOrAuto::from_style_value(m_right, {}), LengthOrAuto::from_style_value(m_bottom, {}), LengthOrAuto::from_style_value(m_left, {}) }; }
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
-    bool properties_equal(RectStyleValue const& other) const { return m_rect == other.m_rect; }
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
 
-    virtual bool is_computationally_independent() const override { return m_rect.is_computationally_independent(); }
+    bool properties_equal(RectStyleValue const& other) const
+    {
+        return m_top == other.m_top
+            && m_right == other.m_right
+            && m_bottom == other.m_bottom
+            && m_left == other.m_left;
+    }
+
+    virtual bool is_computationally_independent() const override
+    {
+        return m_top->is_computationally_independent()
+            && m_right->is_computationally_independent()
+            && m_bottom->is_computationally_independent()
+            && m_left->is_computationally_independent();
+    }
 
 private:
-    explicit RectStyleValue(EdgeRect rect)
+    explicit RectStyleValue(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
         : StyleValueWithDefaultOperators(Type::Rect)
-        , m_rect(move(rect))
+        , m_top(move(top))
+        , m_right(move(right))
+        , m_bottom(move(bottom))
+        , m_left(move(left))
     {
     }
 
-    EdgeRect m_rect;
+    ValueComparingNonnullRefPtr<StyleValue const> m_top;
+    ValueComparingNonnullRefPtr<StyleValue const> m_right;
+    ValueComparingNonnullRefPtr<StyleValue const> m_bottom;
+    ValueComparingNonnullRefPtr<StyleValue const> m_left;
 };
 
 }

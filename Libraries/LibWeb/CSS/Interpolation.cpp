@@ -1964,26 +1964,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return RatioStyleValue::create(NumberStyleValue::create(pow(M_E, interpolated_value)), NumberStyleValue::create(1));
     }
     case StyleValue::Type::Rect: {
-        auto from_rect = from.as_rect().rect();
-        auto to_rect = to.as_rect().rect();
+        auto const& from_rect = from.as_rect();
+        auto const& to_rect = to.as_rect();
 
-        if (from_rect.top_edge.is_auto() != to_rect.top_edge.is_auto() || from_rect.right_edge.is_auto() != to_rect.right_edge.is_auto() || from_rect.bottom_edge.is_auto() != to_rect.bottom_edge.is_auto() || from_rect.left_edge.is_auto() != to_rect.left_edge.is_auto())
+        auto interpolated_top = interpolate_value_impl(element, calculation_context, from_rect.top(), to_rect.top(), delta, allow_discrete);
+        auto interpolated_right = interpolate_value_impl(element, calculation_context, from_rect.right(), to_rect.right(), delta, allow_discrete);
+        auto interpolated_bottom = interpolate_value_impl(element, calculation_context, from_rect.bottom(), to_rect.bottom(), delta, allow_discrete);
+        auto interpolated_left = interpolate_value_impl(element, calculation_context, from_rect.left(), to_rect.left(), delta, allow_discrete);
+
+        if (!interpolated_top || !interpolated_right || !interpolated_bottom || !interpolated_left)
             return {};
 
-        auto interpolate_length_or_auto = [](LengthOrAuto const& from, LengthOrAuto const& to, CalculationContext const& calculation_context, float delta) {
-            if (from.is_auto() && to.is_auto())
-                return LengthOrAuto::make_auto();
-            // FIXME: Actually handle the units not matching.
-            auto interpolated_value = interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Rect));
-            return LengthOrAuto { Length { interpolated_value, from.length().unit() } };
-        };
-
-        return RectStyleValue::create({
-            interpolate_length_or_auto(from_rect.top_edge, to_rect.top_edge, calculation_context, delta),
-            interpolate_length_or_auto(from_rect.right_edge, to_rect.right_edge, calculation_context, delta),
-            interpolate_length_or_auto(from_rect.bottom_edge, to_rect.bottom_edge, calculation_context, delta),
-            interpolate_length_or_auto(from_rect.left_edge, to_rect.left_edge, calculation_context, delta),
-        });
+        return RectStyleValue::create(interpolated_top.release_nonnull(), interpolated_right.release_nonnull(), interpolated_bottom.release_nonnull(), interpolated_left.release_nonnull());
     }
     case StyleValue::Type::TextIndent: {
         auto& from_text_indent = from.as_text_indent();

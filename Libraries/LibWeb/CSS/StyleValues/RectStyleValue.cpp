@@ -11,14 +11,35 @@
 
 namespace Web::CSS {
 
-ValueComparingNonnullRefPtr<RectStyleValue const> RectStyleValue::create(EdgeRect rect)
+ValueComparingNonnullRefPtr<RectStyleValue const> RectStyleValue::create(NonnullRefPtr<StyleValue const> top, NonnullRefPtr<StyleValue const> right, NonnullRefPtr<StyleValue const> bottom, NonnullRefPtr<StyleValue const> left)
 {
-    return adopt_ref(*new (nothrow) RectStyleValue(move(rect)));
+    return adopt_ref(*new (nothrow) RectStyleValue(move(top), move(right), move(bottom), move(left)));
 }
 
-void RectStyleValue::serialize(StringBuilder& builder, SerializationMode) const
+ValueComparingNonnullRefPtr<StyleValue const> RectStyleValue::absolutized(ComputationContext const& context) const
 {
-    builder.appendff("rect({}, {}, {}, {})", m_rect.top_edge, m_rect.right_edge, m_rect.bottom_edge, m_rect.left_edge);
+    auto top_absolutized = m_top->absolutized(context);
+    auto right_absolutized = m_right->absolutized(context);
+    auto bottom_absolutized = m_bottom->absolutized(context);
+    auto left_absolutized = m_left->absolutized(context);
+
+    if (top_absolutized == m_top && right_absolutized == m_right && bottom_absolutized == m_bottom && left_absolutized == m_left)
+        return *this;
+
+    return RectStyleValue::create(top_absolutized, right_absolutized, bottom_absolutized, left_absolutized);
+}
+
+void RectStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
+{
+    builder.append("rect("sv);
+    m_top->serialize(builder, mode);
+    builder.append(", "sv);
+    m_right->serialize(builder, mode);
+    builder.append(", "sv);
+    m_bottom->serialize(builder, mode);
+    builder.append(", "sv);
+    m_left->serialize(builder, mode);
+    builder.append(")"sv);
 }
 
 }
