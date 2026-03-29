@@ -148,17 +148,16 @@ If you do run into such an error, the rest of this section explains how to deal 
       ```diff
       $ patch -p1 <<EOF
       diff --git a/Meta/CMake/compile_options.cmake b/Meta/CMake/compile_options.cmake
-      index 7fec47ac843..45c3af87493 100644
+      index 0bb2be833b6..modified 100644
       --- a/Meta/CMake/compile_options.cmake
       +++ b/Meta/CMake/compile_options.cmake
-      @@ -29,7 +29,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+      @@ -235,7 +235,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
            if (NOT MSVC)
                add_cxx_compile_options(-ggdb3)
+      -        add_cxx_compile_options(-Og)
+      +        add_cxx_compile_options(-O0)
            endif()
-      -    add_cxx_compile_options(-Og)
-      +    add_cxx_compile_options(-O0)
        elseif (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-           add_cxx_compile_options(-O2)
            if (NOT MSVC)
       EOF
       ```
