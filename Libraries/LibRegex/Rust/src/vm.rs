@@ -521,6 +521,32 @@ pub fn execute_into_with_scratch<I: Input>(
     execute_into_impl(program, input, start_pos, hints, out, scratch)
 }
 
+/// Execute the program at exactly `start_pos`.
+/// This is used for sticky regexes, which must not scan forward for later
+/// match positions.
+pub fn execute_anchored_into_with_scratch<I: Input>(
+    program: &Program,
+    input: I,
+    start_pos: usize,
+    hints: &PatternHints,
+    out: &mut [i32],
+    scratch: &mut VmScratch,
+) -> VmResult {
+    if fails_trailing_literal_hint(input, hints) {
+        return VmResult::NoMatch;
+    }
+    if fails_required_literal_hint(input, start_pos, hints) {
+        return VmResult::NoMatch;
+    }
+
+    let mut vm = Vm::new(program, input, start_pos, scratch);
+    let result = vm.run();
+    if result == VmResult::Match {
+        copy_captures_to_out(vm.registers, program.capture_count, out);
+    }
+    result
+}
+
 /// Find all non-overlapping matches, writing (start, end) i32 pairs into result_buf.
 /// Returns number of matches found, or -1 if buffer is too small, or -2 if step limit exceeded.
 /// Keeps the VM alive across matches to avoid per-match setup overhead.

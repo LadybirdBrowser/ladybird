@@ -76,6 +76,18 @@ impl Regex {
         start: usize,
         out: &mut [i32],
     ) -> vm::VmResult {
+        if self.flags.sticky {
+            let scratch = &mut *self.scratch.borrow_mut();
+            return vm::execute_anchored_into_with_scratch(
+                &self.program,
+                input,
+                start,
+                &self.hints,
+                out,
+                scratch,
+            );
+        }
+
         // Fast path for literal patterns: use fast substring search.
         // NB: Literal searches never hit the step limit.
         if let Some(ref needle) = self.literal_u16 {
@@ -114,6 +126,19 @@ impl Regex {
     }
 
     pub(crate) fn test_input<I: vm::Input>(&self, input: I, start: usize) -> vm::VmResult {
+        if self.flags.sticky {
+            let mut out = [-1i32; 2];
+            let scratch = &mut *self.scratch.borrow_mut();
+            return vm::execute_anchored_into_with_scratch(
+                &self.program,
+                input,
+                start,
+                &self.hints,
+                &mut out,
+                scratch,
+            );
+        }
+
         if let Some(ref needle) = self.literal_u16 {
             return if Self::literal_test(input, start, needle, &self.flags) {
                 vm::VmResult::Match
