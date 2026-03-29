@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Export.h>
 

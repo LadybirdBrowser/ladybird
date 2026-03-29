@@ -33,8 +33,7 @@ After parsing and style computation, longhand properties are stored as `StyleVal
 `ComputedProperties`. Any shorthands have been expanded out, and so we do not need to store them directly.
 
 These longhands then need to be converted to a more usable form. To do this, add a getter to `ComputedProperties` with
-the same name as the property. It should return a type that holds the value in a compact form. Be aware that anything
-involving numbers or dimensions may be a calculation, so store it in one of the `FooOrCalculated` types.
+the same name as the property. It should return a type that holds the value in a compact form.
 
 Then, `CSS/ComputedValues.h` contains three classes that are relevant:
 - `ComputedValues` holds the computed value of each property, in a flat format. Depending on whether the property is

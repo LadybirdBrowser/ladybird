@@ -7,6 +7,7 @@
 #include "EasingFunction.h"
 #include <AK/Math.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

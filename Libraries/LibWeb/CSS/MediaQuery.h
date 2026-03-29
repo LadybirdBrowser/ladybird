@@ -12,7 +12,6 @@
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <LibWeb/CSS/BooleanExpression.h>
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/MediaFeatureID.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
 #include <LibWeb/CSS/Ratio.h>

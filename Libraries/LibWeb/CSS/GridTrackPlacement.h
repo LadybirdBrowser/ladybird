@@ -9,7 +9,8 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibWeb/CSS/CalculatedOr.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::CSS {
 

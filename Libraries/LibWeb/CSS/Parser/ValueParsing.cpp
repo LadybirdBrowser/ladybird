@@ -252,17 +252,6 @@ Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_valu
     return {};
 }
 
-Optional<AngleOrCalculated> Parser::parse_angle(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_angle_value(tokens)) {
-        if (value->is_angle())
-            return value->as_angle().angle();
-        if (value->is_calculated())
-            return AngleOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
 Optional<AnglePercentage> Parser::parse_angle_percentage(TokenStream<ComponentValue>& tokens)
 {
     if (auto value = parse_angle_percentage_value(tokens)) {
@@ -276,28 +265,6 @@ Optional<AnglePercentage> Parser::parse_angle_percentage(TokenStream<ComponentVa
     return {};
 }
 
-Optional<FlexOrCalculated> Parser::parse_flex(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_flex_value(tokens)) {
-        if (value->is_flex())
-            return value->as_flex().flex();
-        if (value->is_calculated())
-            return FlexOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
-Optional<FrequencyOrCalculated> Parser::parse_frequency(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_frequency_value(tokens)) {
-        if (value->is_frequency())
-            return value->as_frequency().frequency();
-        if (value->is_calculated())
-            return FrequencyOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
 Optional<FrequencyPercentage> Parser::parse_frequency_percentage(TokenStream<ComponentValue>& tokens)
 {
     if (auto value = parse_frequency_percentage_value(tokens)) {
@@ -307,32 +274,6 @@ Optional<FrequencyPercentage> Parser::parse_frequency_percentage(TokenStream<Com
             return value->as_percentage().percentage();
         if (value->is_calculated())
             return FrequencyPercentage { value->as_calculated() };
-    }
-    return {};
-}
-
-Optional<IntegerOrCalculated> Parser::parse_integer(TokenStream<ComponentValue>& tokens)
-{
-    // FIXME: We don't have a way to represent tree counting functions within IntegerOrCalculated, we should avoid
-    //        parsing directly to IntegerOrCalculated unless tree counting functions are disallowed in the relevant
-    //        context
-    if (auto value = parse_integer_value(tokens)) {
-        if (value->is_integer())
-            return value->as_integer().integer();
-        if (value->is_calculated())
-            return IntegerOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
-Optional<LengthOrCalculated> Parser::parse_length(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_length_value(tokens)) {
-        if (value->is_length())
-            return value->as_length().length();
-        if (value->is_calculated())
-            return LengthOrCalculated { value->as_calculated() };
-        // FIXME: Deal with ->is_anchor_size()
     }
     return {};
 }
@@ -351,20 +292,6 @@ Optional<LengthPercentage> Parser::parse_length_percentage(TokenStream<Component
     return {};
 }
 
-Optional<NumberOrCalculated> Parser::parse_number(TokenStream<ComponentValue>& tokens)
-{
-    // FIXME: We don't have a way to represent tree counting functions within NumberOrCalculated, we should avoid
-    //        parsing directly to NumberOrCalculated unless tree counting functions are disallowed in the relevant
-    //        context
-    if (auto value = parse_number_value(tokens)) {
-        if (value->is_number())
-            return value->as_number().number();
-        if (value->is_calculated())
-            return NumberOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
 Optional<NumberPercentage> Parser::parse_number_percentage(TokenStream<ComponentValue>& tokens)
 {
     if (auto value = parse_number_percentage_value(tokens)) {
@@ -374,28 +301,6 @@ Optional<NumberPercentage> Parser::parse_number_percentage(TokenStream<Component
             return value->as_percentage().percentage();
         if (value->is_calculated())
             return NumberPercentage { value->as_calculated() };
-    }
-    return {};
-}
-
-Optional<ResolutionOrCalculated> Parser::parse_resolution(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_resolution_value(tokens)) {
-        if (value->is_resolution())
-            return value->as_resolution().resolution();
-        if (value->is_calculated())
-            return ResolutionOrCalculated { value->as_calculated() };
-    }
-    return {};
-}
-
-Optional<TimeOrCalculated> Parser::parse_time(TokenStream<ComponentValue>& tokens)
-{
-    if (auto value = parse_time_value(tokens)) {
-        if (value->is_time())
-            return value->as_time().time();
-        if (value->is_calculated())
-            return TimeOrCalculated { value->as_calculated() };
     }
     return {};
 }

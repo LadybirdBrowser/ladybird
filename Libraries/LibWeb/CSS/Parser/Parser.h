@@ -332,18 +332,10 @@ private:
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
 
     Optional<Dimension> parse_dimension(ComponentValue const&);
-    Optional<AngleOrCalculated> parse_angle(TokenStream<ComponentValue>&);
     Optional<AnglePercentage> parse_angle_percentage(TokenStream<ComponentValue>&);
-    Optional<FlexOrCalculated> parse_flex(TokenStream<ComponentValue>&);
-    Optional<FrequencyOrCalculated> parse_frequency(TokenStream<ComponentValue>&);
     Optional<FrequencyPercentage> parse_frequency_percentage(TokenStream<ComponentValue>&);
-    Optional<IntegerOrCalculated> parse_integer(TokenStream<ComponentValue>&);
-    Optional<LengthOrCalculated> parse_length(TokenStream<ComponentValue>&);
     Optional<LengthPercentage> parse_length_percentage(TokenStream<ComponentValue>&);
-    Optional<NumberOrCalculated> parse_number(TokenStream<ComponentValue>&);
     Optional<NumberPercentage> parse_number_percentage(TokenStream<ComponentValue>&);
-    Optional<ResolutionOrCalculated> parse_resolution(TokenStream<ComponentValue>&);
-    Optional<TimeOrCalculated> parse_time(TokenStream<ComponentValue>&);
     Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue const> parse_source_size_value(TokenStream<ComponentValue>&);

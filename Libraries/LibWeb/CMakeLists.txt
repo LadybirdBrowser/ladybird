@@ -100,7 +100,6 @@ set(SOURCES
     CSS/Angle.cpp
     CSS/AnimationEvent.cpp
     CSS/BooleanExpression.cpp
-    CSS/CalculatedOr.cpp
     CSS/CascadedProperties.cpp
     CSS/Clip.cpp
     CSS/ComputedProperties.cpp

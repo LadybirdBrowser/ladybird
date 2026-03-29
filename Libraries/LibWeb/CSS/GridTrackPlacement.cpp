@@ -8,6 +8,7 @@
 
 #include "GridTrackPlacement.h"
 #include <AK/StringBuilder.h>
+#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 
 namespace Web::CSS {

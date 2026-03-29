@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/CSS/CalculatedOr.h>
+#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {

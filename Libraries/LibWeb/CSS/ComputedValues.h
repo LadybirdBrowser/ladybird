@@ -12,7 +12,6 @@
 #include <AK/Optional.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/ScalingMode.h>
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Clip.h>
 #include <LibWeb/CSS/ColumnCount.h>
 #include <LibWeb/CSS/CounterStyle.h>

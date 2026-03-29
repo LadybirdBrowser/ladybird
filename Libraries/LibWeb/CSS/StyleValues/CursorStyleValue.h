@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <LibGfx/Color.h>
 #include <LibGfx/Cursor.h>
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Forward.h>

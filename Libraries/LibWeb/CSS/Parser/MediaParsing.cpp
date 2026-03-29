@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
-#include <LibWeb/CSS/CalculatedOr.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/MediaQuery.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
