@@ -416,7 +416,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     // Collect logged messages
     auto user_output = MUST(realm->global_object().get("__UserOutput__"_utf16_fly_string));
 
-    auto& arr = user_output.as_array();
+    auto& arr = user_output.as_array_exotic_object();
     for (u32 i = 0; i < arr.indexed_array_like_size(); ++i) {
         auto message = MUST(arr.get(i));
         file_result.logged_messages.append(message.to_string_without_side_effects().to_byte_string());

@@ -253,7 +253,7 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
     return false;
 }
 
-Array& Value::as_array()
+Array& Value::as_array_exotic_object()
 {
     auto ptr = as_if<Array>();
     ASSERT(ptr);

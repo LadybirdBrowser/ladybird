@@ -395,7 +395,7 @@ public:
         return *extract_pointer<BigInt>();
     }
 
-    Array& as_array();
+    Array& as_array_exotic_object();
     FunctionObject& as_function();
     FunctionObject const& as_function() const;
 

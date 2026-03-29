@@ -1423,7 +1423,7 @@ inline ThrowCompletionOr<void> append(VM& vm, Value lhs, Value rhs, bool is_spre
     //                 d. Append nextArg to precedingArgs.
 
     // Note: We know from codegen, that lhs is a plain array with only indexed properties
-    auto& lhs_array = lhs.as_array();
+    auto& lhs_array = lhs.as_array_exotic_object();
     auto lhs_size = lhs_array.indexed_array_like_size();
 
     if (is_spread) {
@@ -2808,7 +2808,7 @@ NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(
     auto& vm = interpreter.vm();
     auto& function = callee.as_function();
 
-    auto& argument_array = arguments.as_array();
+    auto& argument_array = arguments.as_array_exotic_object();
     auto argument_array_length = argument_array.indexed_array_like_size();
 
     size_t argument_count = argument_array_length;
@@ -2887,7 +2887,7 @@ ThrowCompletionOr<void> SuperCallWithArgumentArray::execute_impl(Bytecode::Inter
     auto& function = static_cast<FunctionObject&>(*func);
 
     // 4. Let argList be ? ArgumentListEvaluation of Arguments.
-    auto& argument_array = interpreter.get(m_arguments).as_array();
+    auto& argument_array = interpreter.get(m_arguments).as_array_exotic_object();
     size_t argument_array_length = 0;
 
     if (m_is_synthetic) {
