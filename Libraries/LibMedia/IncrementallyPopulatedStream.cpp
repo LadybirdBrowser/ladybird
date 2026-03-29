@@ -62,42 +62,36 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
 
     auto previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
 
-    // Add a new chunk to the collection if there are none.
+    // Add a new chunk to the collection if there's no overlapping previous chunk.
     if (previous_chunk_iter.is_end() || previous_chunk_iter->end() < offset) {
         DataChunk new_chunk { offset, MUST(ByteBuffer::copy(data)) };
         m_chunks.insert(offset, move(new_chunk));
-        m_state_changed.broadcast();
+        previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
+    } else if (previous_chunk_iter->end() >= new_chunk_end) {
+        // The chunk is fully covered by the existing chunk, skip until after it.
+        begin_new_request_while_locked(previous_chunk_iter->end());
         return;
     }
 
     auto& chunk = *previous_chunk_iter;
     auto& buffer = chunk.data();
 
-    if (chunk.end() >= new_chunk_end) {
-        // The chunk is fully covered by the existing chunk, skip until after it.
-        begin_new_request_while_locked(chunk.end());
-        return;
-    }
-
     // Expand the existing chunk to contain this new data.
     buffer.resize(new_chunk_end - chunk.offset());
     data.copy_to(buffer.bytes().slice(offset - chunk.offset()));
 
-    // Join the chunk to the next one if they intersect.
+    // Join the chunk to any following intersecting chunks.
     auto next_chunk_iter = previous_chunk_iter;
     ++next_chunk_iter;
 
-    if (!next_chunk_iter.is_end() && next_chunk_iter->offset() <= previous_chunk_iter->end()) {
-        auto& next_chunk = *next_chunk_iter;
-
-        buffer.resize(next_chunk.end() - chunk.offset());
+    while (!next_chunk_iter.is_end() && next_chunk_iter->offset() <= chunk.end()) {
+        auto next_chunk = m_chunks.remove_and_advance(next_chunk_iter);
+        auto joined_chunk_end = max(chunk.end(), next_chunk.end());
+        buffer.resize(joined_chunk_end - chunk.offset());
         next_chunk.data().bytes().copy_to(buffer.bytes().slice(next_chunk.offset() - chunk.offset()));
-
-        VERIFY(m_chunks.remove(next_chunk.offset()));
-
-        begin_new_request_while_locked(chunk.end());
     }
 
+    begin_new_request_while_locked(chunk.end());
     m_state_changed.broadcast();
 }
 
