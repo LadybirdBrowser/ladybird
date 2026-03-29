@@ -64,9 +64,6 @@ if(ENABLE_ALL_THE_DEBUG_MACROS)
 endif()
 
 find_package(Threads REQUIRED)
-# FIXME: This global link libraries is required to workaround linker issues (on some systems)
-# from the Ladybird import. See https://github.com/SerenityOS/serenity/issues/16847
-link_libraries(Threads::Threads)
 
 if (ENABLE_LAGOM_CCACHE)
     include(setup_ccache)
