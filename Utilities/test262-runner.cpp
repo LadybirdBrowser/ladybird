@@ -287,7 +287,31 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
 
     Vector<StringView> include_list;
     bool parsing_includes_list = false;
+    bool parsing_flags_block = false;
     bool has_phase = false;
+
+    auto apply_flag = [&](StringView flag) {
+        if (flag == "raw"sv) {
+            metadata.strict_mode = StrictMode::NoStrict;
+            metadata.harness_files.clear();
+        } else if (flag == "noStrict"sv) {
+            metadata.strict_mode = StrictMode::NoStrict;
+        } else if (flag == "onlyStrict"sv) {
+            metadata.strict_mode = StrictMode::OnlyStrict;
+        } else if (flag == "module"sv) {
+            VERIFY(metadata.strict_mode == StrictMode::Both);
+            metadata.program_type = JS::RustIntegration::ProgramType::Module;
+            metadata.strict_mode = StrictMode::NoStrict;
+        } else if (flag == "async"sv) {
+            metadata.harness_files.append(async_include);
+            metadata.is_async = true;
+        } else if (flag == "CanBlockIsFalse"sv) {
+            // NOTE: This should only be skipped if AgentCanSuspend is set to true. This is currently always the case.
+            //       Ideally we would check that, but we don't have the VM by this stage. So for now, we rely on that
+            //       assumption.
+            metadata.skip_test = SkipTest::Yes;
+        }
+    };
 
     for (auto raw_line : lines) {
         if (!failed_message.is_empty())
@@ -352,30 +376,22 @@ static ErrorOr<TestMetadata, String> extract_metadata(StringView source)
             }
         }
 
+        if (parsing_flags_block) {
+            if (line.starts_with('-')) {
+                apply_flag(second_word(line));
+                continue;
+            } else {
+                parsing_flags_block = false;
+            }
+        }
+
         if (line.starts_with("flags:"sv)) {
             auto flags = parse_list(line);
-
-            for (auto flag : flags) {
-                if (flag == "raw"sv) {
-                    metadata.strict_mode = StrictMode::NoStrict;
-                    metadata.harness_files.clear();
-                } else if (flag == "noStrict"sv) {
-                    metadata.strict_mode = StrictMode::NoStrict;
-                } else if (flag == "onlyStrict"sv) {
-                    metadata.strict_mode = StrictMode::OnlyStrict;
-                } else if (flag == "module"sv) {
-                    VERIFY(metadata.strict_mode == StrictMode::Both);
-                    metadata.program_type = JS::RustIntegration::ProgramType::Module;
-                    metadata.strict_mode = StrictMode::NoStrict;
-                } else if (flag == "async"sv) {
-                    metadata.harness_files.append(async_include);
-                    metadata.is_async = true;
-                } else if (flag == "CanBlockIsFalse"sv) {
-                    // NOTE: This should only be skipped if AgentCanSuspend is set to true. This is currently always the case.
-                    //       Ideally we would check that, but we don't have the VM by this stage. So for now, we rely on that
-                    //       assumption.
-                    metadata.skip_test = SkipTest::Yes;
-                }
+            if (!flags.is_empty()) {
+                for (auto flag : flags)
+                    apply_flag(flag);
+            } else if (!line.contains('[')) {
+                parsing_flags_block = true;
             }
         } else if (line.starts_with("includes:"sv)) {
             auto files = parse_list(line);
