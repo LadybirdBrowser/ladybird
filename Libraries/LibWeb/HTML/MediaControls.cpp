@@ -439,7 +439,10 @@ void MediaControls::toggle_playback()
 {
     if (m_scrubbing_timeline != Scrubbing::No)
         return;
-    m_media_element->toggle_playback();
+    if (m_media_element->paused())
+        m_media_element->play();
+    else
+        m_media_element->pause();
     show_controls();
 }
 
