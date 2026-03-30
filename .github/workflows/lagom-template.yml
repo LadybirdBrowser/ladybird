@@ -210,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: libweb-test-artifacts-${{ inputs.os_name }}-${{ inputs.arch }}-${{ inputs.build_preset }}-${{ inputs.toolchain }}-${{ inputs.clang_plugins }}
-          path: ${{ github.workspace }}/Build/Lagom/Tests/LibWeb/test-web/test-dumps/
+          path: ${{ github.workspace }}/Build/Tests/LibWeb/test-web/test-dumps/
           retention-days: 0
           if-no-files-found: ignore
 
