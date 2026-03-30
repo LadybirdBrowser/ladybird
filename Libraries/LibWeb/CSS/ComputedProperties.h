@@ -58,6 +58,8 @@ public:
         }
     }
 
+    void for_each_anchor_name(Function<void(FlyString const&)>) const;
+
     enum class Inherited {
         No,
         Yes

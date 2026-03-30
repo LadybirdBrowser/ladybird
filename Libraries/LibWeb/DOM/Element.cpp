@@ -896,6 +896,23 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
     }
 
+    // https://drafts.csswg.org/css-anchor-position-1/#determining
+    // Update the anchor name registry when anchor-name changes.
+    // FIXME: The tree root should be determined by the stylesheet origin, not the element's position in the tree.
+    if (is_connected()) {
+        auto& anchor_names = as_if<ShadowRoot>(root())
+            ? as<ShadowRoot>(root()).anchor_name_map()
+            : document().anchor_name_map();
+        if (m_computed_properties) {
+            m_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+                anchor_names.unregister_name(name, *this);
+            });
+        }
+        new_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+            anchor_names.register_name(name, *this);
+        });
+    }
+
     auto old_display_is_none = m_computed_properties ? m_computed_properties->display().is_none() : true;
     auto new_display_is_none = new_computed_properties->display().is_none();
 
@@ -1613,6 +1630,14 @@ void Element::removed_from(Node* old_parent, Node& old_root)
             document().element_with_id_was_removed({}, *this);
         if (m_name.has_value())
             document().element_with_name_was_removed({}, *this);
+        if (m_computed_properties) {
+            auto& anchor_names = is<ShadowRoot>(old_root)
+                ? as<ShadowRoot>(old_root).anchor_name_map()
+                : document().anchor_name_map();
+            m_computed_properties->for_each_anchor_name([&](FlyString const& name) {
+                anchor_names.unregister_name(name, *this);
+            });
+        }
     }
 
     play_or_cancel_animations_after_display_property_change();

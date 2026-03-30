@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/EnvironmentVariable.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/ViewportClient.h>
@@ -812,6 +813,10 @@ public:
     void element_with_name_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
     void element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
 
+    // https://drafts.csswg.org/css-anchor-position-1/#determining
+    AnchorNameMap& anchor_name_map() { return m_anchor_name_map; }
+    GC::Ptr<Element> element_by_anchor_name(FlyString const& name, Node const& querying_node) const;
+
     void add_form_associated_element_with_form_attribute(HTML::FormAssociatedElement&);
     void remove_form_associated_element_with_form_attribute(HTML::FormAssociatedElement&);
 
@@ -1372,6 +1377,8 @@ private:
     Vector<HTML::FormAssociatedElement*> m_form_associated_elements_with_form_attribute;
 
     Vector<GC::Ref<DOM::Element>> m_potentially_named_elements;
+
+    AnchorNameMap m_anchor_name_map;
 
     bool m_design_mode_enabled { false };
 

@@ -190,6 +190,7 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     m_style_scope.visit_edges(visitor);
     visitor.visit(m_style_sheets);
     visitor.visit(m_adopted_style_sheets);
+    m_anchor_name_map.visit_edges(visitor);
     for (auto const& [key, elements] : m_part_element_map) {
         for (auto const& element : elements)
             element.visit(visitor);

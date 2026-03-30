@@ -302,6 +302,19 @@ LengthBox ComputedProperties::length_box(PropertyID left_id, PropertyID top_id, 
     };
 }
 
+void ComputedProperties::for_each_anchor_name(Function<void(FlyString const&)> callback) const
+{
+    auto const& value = property(PropertyID::AnchorName);
+    if (value.is_custom_ident()) {
+        callback(value.as_custom_ident().custom_ident());
+    } else if (value.is_value_list()) {
+        for (auto const& item : value.as_value_list().values()) {
+            if (item->is_custom_ident())
+                callback(item->as_custom_ident().custom_ident());
+        }
+    }
+}
+
 Color ComputedProperties::color(PropertyID id, ColorResolutionContext color_resolution_context) const
 {
     return property(id).to_color(color_resolution_context).value();

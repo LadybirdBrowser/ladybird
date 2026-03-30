@@ -649,6 +649,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
         visitor.visit(form_associated_element->form_associated_element_to_html_element());
 
     visitor.visit(m_potentially_named_elements);
+    m_anchor_name_map.visit_edges(visitor);
 
     for (auto& event : m_pending_animation_event_queue) {
         visitor.visit(event.event);
@@ -6163,6 +6164,24 @@ void Document::element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::E
             return;
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
     }
+}
+
+GC::Ptr<Element> Document::element_by_anchor_name(FlyString const& name, Node const& querying_node) const
+{
+    // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
+    // If a tree-scoped name is global (such as @font-face names), then when a tree-scoped reference is dereferenced to
+    // find it, first search only the tree-scoped names associated with the same root as the tree-scoped reference. If
+    // no relevant tree-scoped name is found, and the root is a shadow root, then repeat this search in the root's
+    // host's node tree (recursively).
+    auto const* node = &querying_node;
+    while (auto const* shadow_root = as_if<ShadowRoot>(node->root())) {
+        if (auto element = shadow_root->anchor_name_map().element_by_name(name))
+            return element;
+        node = shadow_root->host();
+        if (!node)
+            return {};
+    }
+    return m_anchor_name_map.element_by_name(name);
 }
 
 void Document::add_form_associated_element_with_form_attribute(HTML::FormAssociatedElement& form_associated_element)
