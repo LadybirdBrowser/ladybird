@@ -98,6 +98,7 @@ runs:
             llvm-${{ inputs.llvm_version }} \
             nasm \
             ninja-build \
+            pulseaudio \
             qt6-base-dev \
             qt6-tools-dev-tools \
             tar \

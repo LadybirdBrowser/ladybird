@@ -188,6 +188,10 @@ jobs:
 
       # === TEST ===
 
+      - name: Start PulseAudio
+        if: ${{ inputs.os_name == 'Linux' }}
+        run: pulseaudio -D --exit-idle-time=1800 --load="module-null-sink sink_name=virtual_sink"
+
       - name: Test
         if: ${{ inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
