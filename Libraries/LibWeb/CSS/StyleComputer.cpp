@@ -1450,7 +1450,7 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
             m_cached_font_computation_context = {
                 .length_resolution_context = inheritance_parent.has_value()
                     ? Length::ResolutionContext::for_element(inheritance_parent.value())
-                    : Length::ResolutionContext::for_window(*m_document->window()),
+                    : Length::ResolutionContext::for_document(m_document),
                 .abstract_element = abstract_element
             };
         }

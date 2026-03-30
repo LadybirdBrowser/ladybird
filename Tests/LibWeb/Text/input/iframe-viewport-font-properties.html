@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="include.js"></script>
+<iframe id="frame" style="width: 400px"></iframe>
+<script>
+    asyncTest(done => {
+        frame.onload = () => {
+            println(getComputedStyle(frame.contentDocument.documentElement).fontSize);
+            done();
+        };
+
+        frame.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                :root {
+                    font-size: 10vw;
+                }
+            </style>
+        `;
+    });
+</script>
