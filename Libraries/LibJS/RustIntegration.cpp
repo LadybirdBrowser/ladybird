@@ -681,11 +681,12 @@ static JS::Value decode_constant(JS::VM& vm, uint8_t const*& cursor, uint8_t con
         memcpy(&len, cursor, 4);
         cursor += 4;
         VERIFY(cursor + len * 2 <= end);
+        if (len == 0)
+            return JS::PrimitiveString::create(vm, Utf16String {});
         // NB: cursor may not be 2-byte aligned, so copy to an aligned buffer.
         Vector<char16_t> aligned_buf;
         aligned_buf.resize(len);
-        if (len > 0)
-            memcpy(aligned_buf.data(), cursor, len * 2);
+        memcpy(aligned_buf.data(), cursor, len * 2);
         auto str = Utf16String::from_utf16(Utf16View(aligned_buf.data(), len));
         cursor += len * 2;
         return JS::PrimitiveString::create(vm, move(str));
