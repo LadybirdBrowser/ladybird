@@ -106,6 +106,29 @@ test("basic functionality", () => {
     expect(RegExp(undefined, "g").toString()).toBe("/(?:)/g");
 });
 
+test("anchored regexes behave correctly on long ASCII subjects", () => {
+    const longFoo = "foo".repeat(262_144);
+    const cases = [
+        [/^bar/, false],
+        [/^foo|^bar|^baz/, true],
+        [/(^bar)/, false],
+        [/(?=^bar)\w+/, false],
+    ];
+
+    for (const [regex, expected] of cases) expect(regex.test(longFoo)).toBe(expected);
+});
+
+test("anchored and sticky regexes still prune missing required literals", () => {
+    const subject = "a".repeat(5000);
+
+    expect(/^(a+)+b/.exec(subject)).toBeNull();
+
+    const sticky = /(a+)+b/y;
+    expect(sticky.exec(subject)).toBeNull();
+
+    expect(subject.match(/^(a+)+b/g)).toBeNull();
+});
+
 test("regexp object as pattern parameter", () => {
     expect(RegExp(/foo/).toString()).toBe("/foo/");
     expect(RegExp(/foo/g).toString()).toBe("/foo/g");

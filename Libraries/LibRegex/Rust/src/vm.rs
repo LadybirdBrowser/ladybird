@@ -397,6 +397,25 @@ fn fails_required_literal_hint<I: Input>(input: I, start: usize, hints: &Pattern
     !matched
 }
 
+// Detect a leading input-start assertion even when it is wrapped in the
+// non-consuming setup instructions emitted for captures or lookahead.
+#[inline(always)]
+fn leading_start_anchor_at(instructions: &[Instruction], pc: usize) -> Option<bool> {
+    match instructions.get(pc)? {
+        Instruction::AssertStart { multiline } => Some(*multiline),
+        Instruction::Save(_)
+        | Instruction::Nop
+        | Instruction::ClearRegister(_)
+        | Instruction::PushModifiers { .. } => leading_start_anchor_at(instructions, pc + 1),
+        Instruction::LookStart {
+            positive: true,
+            forward: true,
+            ..
+        } => leading_start_anchor_at(instructions, pc + 1),
+        _ => None,
+    }
+}
+
 #[inline(always)]
 fn first_char_matches<I: Input>(
     program: &Program,
@@ -602,6 +621,23 @@ pub fn find_all_with_scratch<I: Input>(
         return count;
     }
 
+    // Anchored non-multiline: only try the requested start position.
+    if hints.starts_with_anchor && !hints.anchor_multiline {
+        vm.reset(start_pos);
+        match vm.run() {
+            VmResult::Match => {
+                if capacity >= 2 {
+                    result_buf[0] = vm.registers[0];
+                    result_buf[1] = vm.registers[1];
+                    return 1;
+                }
+                return -1;
+            }
+            VmResult::LimitExceeded => return -2,
+            VmResult::NoMatch => return 0,
+        }
+    }
+
     // Fast path: non-unicode pattern starting with a literal character.
     if let Some((ch, false)) = hints.first_char
         && !program.unicode
@@ -630,23 +666,6 @@ pub fn find_all_with_scratch<I: Input>(
             }
         }
         return count;
-    }
-
-    // Anchored non-multiline: only try pos 0.
-    if hints.starts_with_anchor && !hints.anchor_multiline {
-        vm.reset(start_pos);
-        match vm.run() {
-            VmResult::Match => {
-                if capacity >= 2 {
-                    result_buf[0] = vm.registers[0];
-                    result_buf[1] = vm.registers[1];
-                    return 1;
-                }
-                return -1;
-            }
-            VmResult::LimitExceeded => return -2,
-            VmResult::NoMatch => return 0,
-        }
     }
 
     // General loop.
@@ -740,6 +759,16 @@ fn execute_into_impl<I: Input>(
     let mut vm = Vm::new(program, input, start_pos, scratch);
     let mut hit_limit = false;
 
+    // Anchored non-multiline: only try the requested start position.
+    if hints.starts_with_anchor && !hints.anchor_multiline {
+        vm.reset(start_pos);
+        let result = vm.run();
+        if result == VmResult::Match {
+            copy_captures_to_out(vm.registers, program.capture_count, out);
+        }
+        return result;
+    }
+
     if let Some(ref start_hint) = hints.start_position_hint
         && !program.unicode
     {
@@ -788,16 +817,6 @@ fn execute_into_impl<I: Input>(
         } else {
             VmResult::NoMatch
         };
-    }
-
-    // Anchored non-multiline: only try pos 0.
-    if hints.starts_with_anchor && !hints.anchor_multiline {
-        vm.reset(start_pos);
-        let result = vm.run();
-        if result == VmResult::Match {
-            copy_captures_to_out(vm.registers, program.capture_count, out);
-        }
-        return result;
     }
 
     // General start-position loop.
@@ -1207,10 +1226,11 @@ pub(crate) fn analyze_pattern(
         None
     };
 
-    let (starts_with_anchor, anchor_multiline) = match first_inst {
-        Some(Instruction::AssertStart { multiline }) => (true, *multiline || program.multiline),
-        _ => (false, false),
-    };
+    let (starts_with_anchor, anchor_multiline) =
+        match leading_start_anchor_at(&program.instructions, skip) {
+            Some(multiline) => (true, multiline || program.multiline),
+            _ => (false, false),
+        };
 
     let trailing_literal = match program.instructions.as_slice() {
         [
