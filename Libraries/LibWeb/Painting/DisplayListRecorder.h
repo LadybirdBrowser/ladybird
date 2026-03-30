@@ -112,7 +112,7 @@ public:
     CommandCapture begin_command_capture();
 
     void save();
-    void save_layer();
+    void save_layer(Optional<Gfx::IntRect> bounds = {});
     void restore();
 
     void paint_nested_display_list(RefPtr<DisplayList> display_list, Gfx::IntRect rect);

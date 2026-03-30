@@ -326,12 +326,31 @@ void StackingContext::paint(DisplayListRecordingContext& context) const
     auto effective_context_index = paintable_box().accumulated_visual_context_index();
     context.display_list_recorder().set_accumulated_visual_context(effective_context_index);
 
+    // Check if any descendant has a blend mode that would require this stacking context to be isolated
+    auto has_blend_mode_in_subtree = [&]() -> bool {
+        bool found = false;
+        paintable_box().for_each_in_inclusive_subtree([&](Paintable const& paintable) {
+            if (auto const* box = as_if<PaintableBox>(paintable)) {
+                if (box->computed_values().mix_blend_mode() != CSS::MixBlendMode::Normal) {
+                    found = true;
+                    return TraversalDecision::Break;
+                }
+            }
+            return TraversalDecision::Continue;
+        });
+        return found;
+    };
+
     // Stacking contexts need to create a layer to ensure proper backdrop for child blend modes
     // https://drafts.csswg.org/compositing-1/#csscompositingrules_CSS
     // Per spec: "Everything in CSS that creates a stacking context must be considered an 'isolated' group."
-    bool needs_stacking_context_layer = paintable_box().stacking_context() != nullptr;
+    // However, we only need to create the layer if there are actual blend modes in the subtree.
+    bool needs_stacking_context_layer = paintable_box().stacking_context() != nullptr && has_blend_mode_in_subtree();
     if (needs_stacking_context_layer) {
-        context.display_list_recorder().save_layer();
+        // FIXME: Use bounded layers for better performance, but need to correctly calculate bounds
+        // that include all descendant stacking contexts and absolutely positioned content.
+        // For now, use unbounded layers to ensure correctness.
+        context.display_list_recorder().save_layer({});
     }
 
     // For elements with SVG filters, emit a transparent FillRect to trigger filter application.

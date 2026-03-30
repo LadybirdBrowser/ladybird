@@ -201,10 +201,16 @@ void DisplayListPlayerSkia::save(Save const&)
     canvas.save();
 }
 
-void DisplayListPlayerSkia::save_layer(SaveLayer const&)
+void DisplayListPlayerSkia::save_layer(SaveLayer const& command)
 {
     auto& canvas = surface().canvas();
-    canvas.saveLayer(nullptr, nullptr);
+    if (command.bounds.has_value()) {
+        auto const& bounds = command.bounds.value();
+        SkRect sk_bounds = SkRect::MakeXYWH(bounds.x(), bounds.y(), bounds.width(), bounds.height());
+        canvas.saveLayer(&sk_bounds, nullptr);
+    } else {
+        canvas.saveLayer(nullptr, nullptr);
+    }
 }
 
 void DisplayListPlayerSkia::restore(Restore const&)

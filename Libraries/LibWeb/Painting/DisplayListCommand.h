@@ -110,6 +110,8 @@ struct SaveLayer {
     static constexpr StringView command_name = "SaveLayer"sv;
     static constexpr int nesting_level_change = 1;
 
+    Optional<Gfx::IntRect> bounds;
+
     void dump(StringBuilder&) const;
 };
 

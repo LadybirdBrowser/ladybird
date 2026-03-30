@@ -5,14 +5,8 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  SaveLayer@0
-    SaveLayer@1
-      SaveLayer@2
-        FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
-        DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0)
-      Restore@2
-    Restore@1
-  Restore@0
+  FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+  DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0)
 Restore@0
 
 After clip-path change:
@@ -22,13 +16,7 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 SaveLayer@0
-  SaveLayer@0
-    SaveLayer@1
-      SaveLayer@2
-        FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
-        DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0)
-      Restore@2
-    Restore@1
-  Restore@0
+  FillRect@2 rect=[8,8 100x100] color=rgb(173, 216, 230)
+  DrawGlyphRun@2 rect=[8,8 30x18] translation=[8,21.796875] color=rgb(0, 0, 0)
 Restore@0
 

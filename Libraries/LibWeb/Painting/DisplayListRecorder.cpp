@@ -327,9 +327,9 @@ void DisplayListRecorder::save()
     APPEND(Save {});
 }
 
-void DisplayListRecorder::save_layer()
+void DisplayListRecorder::save_layer(Optional<Gfx::IntRect> bounds)
 {
-    APPEND(SaveLayer {});
+    APPEND(SaveLayer { .bounds = bounds });
 }
 
 void DisplayListRecorder::restore()
