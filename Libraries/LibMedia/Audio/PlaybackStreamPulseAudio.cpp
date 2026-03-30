@@ -18,6 +18,8 @@ namespace Audio {
         if (__temporary_result.is_error()) [[unlikely]] {                                                               \
             warnln("Failure in PulseAudio control thread: {}", __temporary_result.error().string_literal());            \
             auto event_loop = main_thread_event_loop->take();                                                           \
+            if (!event_loop)                                                                                            \
+                return 1;                                                                                               \
             event_loop->deferred_invoke([promise = move(promise), error = __temporary_result.release_error()] mutable { \
                 promise->reject(move(error));                                                                           \
             });                                                                                                         \
