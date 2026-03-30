@@ -333,7 +333,16 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     });
                 }
 
-                keyframe_set->keyframes_by_key.insert(key, resolved_keyframe);
+                if (auto* existing_keyframe = keyframe_set->keyframes_by_key.find(key)) {
+                    for (auto& [property_id, value] : resolved_keyframe.properties)
+                        existing_keyframe->properties.set(property_id, move(value));
+                    if (resolved_keyframe.easing.has_value())
+                        existing_keyframe->easing = move(resolved_keyframe.easing);
+                    if (resolved_keyframe.composite != Bindings::CompositeOperationOrAuto::Auto)
+                        existing_keyframe->composite = resolved_keyframe.composite;
+                } else {
+                    keyframe_set->keyframes_by_key.insert(key, resolved_keyframe);
+                }
             }
 
             Animations::KeyframeEffect::generate_initial_and_final_frames(keyframe_set, animated_properties);

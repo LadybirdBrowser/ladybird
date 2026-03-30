@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/duplicate-keyframe-offset-merge-ref.html" />
+<style>
+@keyframes test {
+    0% { background-color: green; }
+    0% { border: 5px solid red; }
+}
+div {
+    animation: test 1s linear paused;
+    width: 100px;
+    height: 100px;
+    background: green;
+}
+</style>
+<div></div>
