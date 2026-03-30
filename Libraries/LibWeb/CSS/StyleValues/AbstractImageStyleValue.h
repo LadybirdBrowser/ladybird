@@ -10,7 +10,6 @@
 #pragma once
 
 #include <LibWeb/CSS/PercentageOr.h>
-#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
