@@ -253,6 +253,23 @@ test("global unicode matches keep low-surrogate empty matches that V8 finds", ()
     expect(subject.match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(new Array(24).fill(""));
 });
 
+test("backward v-mode class-set operations inspect the consumed code point", () => {
+    expect("A n".match(/(?<=[[^A-Z]--[A-Z]])\P{N}/gv)).toEqual(["n"]);
+    expect("A n".match(/(?<=[[^0-9]&&[^A-Z]])\P{N}/gv)).toEqual(["n"]);
+    expect("В Β".match(/(?<=[[^А-Я]--[А-Я]])\P{N}/gv)).toEqual(["Β"]);
+    expect("Дnह".match(/(?<=[[^А-Я]--[А-Я]])\P{N}/gv)).toEqual(["ह"]);
+
+    const subject =
+        "🤔🤔🤔🤔🤔 💫🎊✨🎈🎀Γ 5 208549 😂ש ∂∂∂∂ В ΒβιηδγΓ\\nYזااااا1טתזעוש M αα שלום 8🔤😐 P¥~μμμ سمвшДnहर`7*️⃣*️⃣*️⃣ 🙃🙃🙃🙃🙃привет";
+    const matches = subject.match(/(?<=[[^А-Я]--[А-Я]])(\P{N})/gv);
+    const positions = Array.from(subject.matchAll(/(?<=[[^А-Я]--[А-Я]])(\P{N})/gv), match => match.index);
+
+    expect(matches).not.toBeNull();
+    expect(matches.length).toBe(95);
+    expect(positions.includes(subject.indexOf("Β"))).toBeTrue();
+    expect(positions.includes(subject.indexOf("ह"))).toBeTrue();
+});
+
 test("regexp object as pattern parameter", () => {
     expect(RegExp(/foo/).toString()).toBe("/foo/");
     expect(RegExp(/foo/g).toString()).toBe("/foo/g");

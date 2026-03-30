@@ -1106,20 +1106,24 @@ impl Compiler {
                         self.emit(Instruction::Fail);
                         return;
                     }
+                    // NB: In backward mode the already-consumed text sits to
+                    // the right of the current position, so these checks need
+                    // to flip from lookbehind to lookahead.
+                    let forward = self.backward;
                     let look_start = self.emit(Instruction::LookStart {
                         positive: true,
-                        forward: false,
+                        forward,
                         end: u32::MAX,
                     });
                     let saved_backward = self.backward;
-                    self.backward = true;
+                    self.backward = !forward;
                     self.compile_class_set_operand_at_length(operand, length);
                     self.backward = saved_backward;
                     self.emit(Instruction::LookEnd);
                     let end = self.current_offset();
                     self.program.instructions[look_start as usize] = Instruction::LookStart {
                         positive: true,
-                        forward: false,
+                        forward,
                         end,
                     };
                 }
@@ -1134,20 +1138,21 @@ impl Compiler {
                     if !self.class_set_operand_lengths(operand).contains(&length) {
                         continue;
                     }
+                    let forward = self.backward;
                     let look_start = self.emit(Instruction::LookStart {
                         positive: false,
-                        forward: false,
+                        forward,
                         end: u32::MAX,
                     });
                     let saved_backward = self.backward;
-                    self.backward = true;
+                    self.backward = !forward;
                     self.compile_class_set_operand_at_length(operand, length);
                     self.backward = saved_backward;
                     self.emit(Instruction::LookEnd);
                     let end = self.current_offset();
                     self.program.instructions[look_start as usize] = Instruction::LookStart {
                         positive: false,
-                        forward: false,
+                        forward,
                         end,
                     };
                 }
