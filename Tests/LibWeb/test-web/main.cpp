@@ -511,6 +511,7 @@ if (!hasTestWaitClass()) {{
 }} else {{
     const observer = new MutationObserver(() => {{
         if (!hasTestWaitClass()) {{
+            observer.disconnect();
             internals.signalTestIsDone("PASS");
         }}
     }});
