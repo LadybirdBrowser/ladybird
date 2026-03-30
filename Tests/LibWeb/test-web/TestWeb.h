@@ -61,6 +61,7 @@ struct Test {
     bool did_start_test { false };
     bool did_finish_test { false };
     bool did_finish_loading { false };
+    bool did_inject_js { false };
     bool did_check_variants { false };
 
     Optional<RefTestExpectationType> ref_test_expectation_type {};

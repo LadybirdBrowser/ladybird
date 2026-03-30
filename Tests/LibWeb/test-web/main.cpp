@@ -1111,8 +1111,16 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
             view.on_test_complete({ test_index, result.value() });
     };
 
-    view.on_load_finish = [&view](auto const&) {
-        view.run_javascript(wait_for_reftest_completion);
+    view.on_load_finish = [&view, &context, test_index, url](auto const& loaded_url) {
+        // We don't want subframe loads to trigger this.
+        if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+            return;
+
+        auto& test = context.tests[test_index];
+        if (!test.did_inject_js) {
+            test.did_inject_js = true;
+            view.run_javascript(wait_for_reftest_completion);
+        }
     };
 
     view.on_test_finish = [&view, &context, test_index, on_test_complete = move(on_test_complete)](auto const&) {
