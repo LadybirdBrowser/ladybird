@@ -14,6 +14,7 @@
 //! - <https://tc39.es/ecma262/#sec-compilepattern>
 use crate::ast::*;
 use crate::bytecode::*;
+use std::collections::BTreeSet;
 
 /// Resolve a Unicode property name/value pair to an ICU enum ID.
 /// Returns None if the property could not be resolved (falls back to
@@ -111,6 +112,13 @@ impl Compiler {
         strings
     }
 
+    fn get_string_property_strings_of_length(name: &str, len: usize) -> Vec<Vec<u32>> {
+        Self::get_string_property_strings(name)
+            .into_iter()
+            .filter(|string| string.len() == len)
+            .collect()
+    }
+
     /// Emit code for a Unicode string property match.
     /// Compiles as: (longest_multi_cp_string | ... | shortest_multi_cp_string | single_cp_property)
     /// This ensures longest match is tried first (v-flag semantics).
@@ -160,6 +168,91 @@ impl Compiler {
                 resolved: None,
             },
         )));
+    }
+
+    fn emit_char_string(&mut self, chars: &[char]) {
+        let iter: Box<dyn Iterator<Item = &char>> = if self.backward {
+            Box::new(chars.iter().rev())
+        } else {
+            Box::new(chars.iter())
+        };
+        for c in iter {
+            self.emit_char_maybe_case_fold(*c as u32);
+        }
+    }
+
+    fn emit_code_point_string(&mut self, string: &[u32]) {
+        let iter: Box<dyn Iterator<Item = &u32>> = if self.backward {
+            Box::new(string.iter().rev())
+        } else {
+            Box::new(string.iter())
+        };
+        for cp in iter {
+            self.emit_char_maybe_case_fold(*cp);
+        }
+    }
+
+    fn singleton_length_set() -> BTreeSet<usize> {
+        [1usize].into_iter().collect()
+    }
+
+    fn class_set_expression_lengths(&self, expr: &ClassSetExpression) -> BTreeSet<usize> {
+        match expr {
+            ClassSetExpression::Union(operands) => {
+                operands
+                    .iter()
+                    .fold(BTreeSet::new(), |mut lengths, operand| {
+                        lengths.extend(self.class_set_operand_lengths(operand));
+                        lengths
+                    })
+            }
+            ClassSetExpression::Intersection(operands) => {
+                let Some((first, rest)) = operands.split_first() else {
+                    return BTreeSet::new();
+                };
+                let mut lengths = self.class_set_operand_lengths(first);
+                for operand in rest {
+                    let operand_lengths = self.class_set_operand_lengths(operand);
+                    lengths.retain(|len| operand_lengths.contains(len));
+                }
+                lengths
+            }
+            ClassSetExpression::Subtraction(operands) => operands
+                .first()
+                .map(|operand| self.class_set_operand_lengths(operand))
+                .unwrap_or_default(),
+        }
+    }
+
+    fn class_set_operand_lengths(&self, operand: &ClassSetOperand) -> BTreeSet<usize> {
+        match operand {
+            ClassSetOperand::Char(_)
+            | ClassSetOperand::Range(_, _)
+            | ClassSetOperand::BuiltinClass(_) => Self::singleton_length_set(),
+            ClassSetOperand::NestedClass(cc) => {
+                if cc.negated {
+                    return Self::singleton_length_set();
+                }
+                match &cc.body {
+                    CharacterClassBody::Ranges(_) => Self::singleton_length_set(),
+                    CharacterClassBody::UnicodeSet(expr) => self.class_set_expression_lengths(expr),
+                }
+            }
+            ClassSetOperand::UnicodeProperty(up) => {
+                if self.program.unicode_sets
+                    && !up.negated
+                    && crate::unicode_ffi::is_string_property(&up.name)
+                {
+                    let mut lengths = Self::singleton_length_set();
+                    for string in Self::get_string_property_strings(&up.name) {
+                        lengths.insert(string.len());
+                    }
+                    return lengths;
+                }
+                Self::singleton_length_set()
+            }
+            ClassSetOperand::StringLiteral(chars) => [chars.len()].into_iter().collect(),
+        }
     }
 
     /// Emit a split/jump chain for N items, calling `compile_one` for each.
@@ -967,28 +1060,50 @@ impl Compiler {
     /// - <https://tc39.es/ecma262/#sec-compilecharacterclass>
     /// - <https://tc39.es/ecma262/#sec-compileclasssetstring>
     fn compile_class_set_expression(&mut self, expr: &ClassSetExpression) {
+        // NB: Compile each exact match length separately, longest first, so
+        // intersection/subtraction only compare equal-length alternatives.
+        let mut lengths: Vec<_> = self
+            .class_set_expression_lengths(expr)
+            .into_iter()
+            .collect();
+        lengths.sort_unstable_by(|a, b| b.cmp(a));
+
+        if lengths.is_empty() {
+            self.emit(Instruction::Fail);
+            return;
+        }
+
+        self.emit_split_chain(&lengths, |s, len| {
+            s.compile_class_set_expression_at_length(expr, *len)
+        });
+    }
+
+    fn compile_class_set_expression_at_length(&mut self, expr: &ClassSetExpression, length: usize) {
         match expr {
             ClassSetExpression::Union(operands) => {
-                // Union: match any of the operands.
-                // Sort so longer string literals come first (greedy longest-match semantics).
-                let mut sorted: Vec<&ClassSetOperand> = operands.iter().collect();
-                sorted.sort_by(|a, b| {
-                    fn operand_len(op: &ClassSetOperand) -> usize {
-                        match op {
-                            ClassSetOperand::StringLiteral(chars) => chars.len(),
-                            _ => 1,
-                        }
-                    }
-                    operand_len(b).cmp(&operand_len(a))
+                let filtered: Vec<&ClassSetOperand> = operands
+                    .iter()
+                    .filter(|operand| self.class_set_operand_lengths(operand).contains(&length))
+                    .collect();
+                if filtered.is_empty() {
+                    self.emit(Instruction::Fail);
+                    return;
+                }
+                self.emit_split_chain(&filtered, |s, operand| {
+                    s.compile_class_set_operand_at_length(operand, length)
                 });
-                self.emit_split_chain(&sorted, |s, op| s.compile_class_set_operand(op));
             }
             ClassSetExpression::Intersection(operands) => {
-                // Intersection: match if ALL operands match the same text.
-                // Match A first, then use positive lookbehind for each B operand
-                // to verify the same consumed text is also in B.
-                self.compile_class_set_operand(&operands[0]);
-                for op in &operands[1..] {
+                let Some((first, rest)) = operands.split_first() else {
+                    self.emit(Instruction::Fail);
+                    return;
+                };
+                self.compile_class_set_operand_at_length(first, length);
+                for operand in rest {
+                    if !self.class_set_operand_lengths(operand).contains(&length) {
+                        self.emit(Instruction::Fail);
+                        return;
+                    }
                     let look_start = self.emit(Instruction::LookStart {
                         positive: true,
                         forward: false,
@@ -996,7 +1111,7 @@ impl Compiler {
                     });
                     let saved_backward = self.backward;
                     self.backward = true;
-                    self.compile_class_set_operand(op);
+                    self.compile_class_set_operand_at_length(operand, length);
                     self.backward = saved_backward;
                     self.emit(Instruction::LookEnd);
                     let end = self.current_offset();
@@ -1008,13 +1123,15 @@ impl Compiler {
                 }
             }
             ClassSetExpression::Subtraction(operands) => {
-                // Subtraction: match first operand but NOT the rest.
-                // Match A first, then use negative lookbehind for B.
-                // This correctly handles multi-char strings: A may match a
-                // multi-char string starting with a char in B, but the
-                // lookbehind only excludes if B matches the same text.
-                self.compile_class_set_operand(&operands[0]);
-                for op in &operands[1..] {
+                let Some((first, rest)) = operands.split_first() else {
+                    self.emit(Instruction::Fail);
+                    return;
+                };
+                self.compile_class_set_operand_at_length(first, length);
+                for operand in rest {
+                    if !self.class_set_operand_lengths(operand).contains(&length) {
+                        continue;
+                    }
                     let look_start = self.emit(Instruction::LookStart {
                         positive: false,
                         forward: false,
@@ -1022,7 +1139,7 @@ impl Compiler {
                     });
                     let saved_backward = self.backward;
                     self.backward = true;
-                    self.compile_class_set_operand(op);
+                    self.compile_class_set_operand_at_length(operand, length);
                     self.backward = saved_backward;
                     self.emit(Instruction::LookEnd);
                     let end = self.current_offset();
@@ -1036,15 +1153,20 @@ impl Compiler {
         }
     }
 
-    /// Lower one `ClassSetOperand`.
-    /// - <https://tc39.es/ecma262/#sec-compilecharacterclass>
-    /// - <https://tc39.es/ecma262/#sec-compileclasssetstring>
-    fn compile_class_set_operand(&mut self, operand: &ClassSetOperand) {
+    fn compile_class_set_operand_at_length(&mut self, operand: &ClassSetOperand, length: usize) {
         match operand {
             ClassSetOperand::Char(c) => {
+                if length != 1 {
+                    self.emit(Instruction::Fail);
+                    return;
+                }
                 self.emit_char_maybe_case_fold(*c as u32);
             }
             ClassSetOperand::Range(lo, hi) => {
+                if length != 1 {
+                    self.emit(Instruction::Fail);
+                    return;
+                }
                 self.emit(Instruction::CharClass {
                     ranges: vec![CharRange {
                         start: *lo as u32,
@@ -1054,9 +1176,33 @@ impl Compiler {
                 });
             }
             ClassSetOperand::NestedClass(cc) => {
-                self.compile_character_class(cc);
+                if cc.negated {
+                    if length != 1 {
+                        self.emit(Instruction::Fail);
+                        return;
+                    }
+                    self.compile_character_class(cc);
+                    return;
+                }
+
+                match &cc.body {
+                    CharacterClassBody::Ranges(_) => {
+                        if length != 1 {
+                            self.emit(Instruction::Fail);
+                            return;
+                        }
+                        self.compile_character_class(cc);
+                    }
+                    CharacterClassBody::UnicodeSet(expr) => {
+                        self.compile_class_set_expression_at_length(expr, length);
+                    }
+                }
             }
             ClassSetOperand::BuiltinClass(bc) => {
+                if length != 1 {
+                    self.emit(Instruction::Fail);
+                    return;
+                }
                 self.emit(Instruction::BuiltinClass(*bc));
             }
             ClassSetOperand::UnicodeProperty(up) => {
@@ -1064,22 +1210,32 @@ impl Compiler {
                     && !up.negated
                     && crate::unicode_ffi::is_string_property(&up.name)
                 {
-                    self.emit_string_property_match(&up.name, up.value.as_deref());
+                    if length == 1 {
+                        self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
+                    } else {
+                        let strings = Self::get_string_property_strings_of_length(&up.name, length);
+                        if strings.is_empty() {
+                            self.emit(Instruction::Fail);
+                            return;
+                        }
+                        self.emit_split_chain(&strings, |s, string| {
+                            s.emit_code_point_string(string)
+                        });
+                    }
+                    return;
+                }
+                if length != 1 {
+                    self.emit(Instruction::Fail);
                     return;
                 }
                 self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
             }
             ClassSetOperand::StringLiteral(chars) => {
-                // Match the literal string, respecting case-insensitive mode.
-                // In backward mode (lookbehind), emit chars in reverse order.
-                let iter: Box<dyn Iterator<Item = &char>> = if self.backward {
-                    Box::new(chars.iter().rev())
-                } else {
-                    Box::new(chars.iter())
-                };
-                for c in iter {
-                    self.emit_char_maybe_case_fold(*c as u32);
+                if chars.len() != length {
+                    self.emit(Instruction::Fail);
+                    return;
                 }
+                self.emit_char_string(chars);
             }
         }
     }

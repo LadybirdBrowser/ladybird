@@ -444,6 +444,14 @@ test("RegExp string literal", () => {
         { pattern: /[[\d+]--[\q{1}]]/gv, match: "12", expected: ["2"] },
         { pattern: /[[\d]&&[\q{1}]]/gv, match: "21", expected: ["1"] },
         { pattern: /[\d\q{a}]/gv, match: "a1", expected: ["a", "1"] },
+        { pattern: /[[a-z]--\q{abc}]/gv, match: "abcde", expected: ["a", "b", "c", "d", "e"] },
+        { pattern: /[[a-z]--\q{a|bc}]/gv, match: "abcde", expected: ["b", "c", "d", "e"] },
+        { pattern: /[[a-z]&&\q{abc}]/gv, match: "abcde", expected: null },
+        { pattern: /[\q{abc}&&[a-z]]/gv, match: "abcde", expected: null },
+        { pattern: /[\q{a|bc}&&[a-z]]/gv, match: "abcde", expected: ["a"] },
+        { pattern: /[\q{bc|x}--\q{abc}]/gv, match: "abcde", expected: ["bc"] },
+        { pattern: /[\q{abc}--[a-z]]/gv, match: "abcde", expected: ["abc"] },
+        { pattern: /[\q{a|bc}--[a-z]]/gv, match: "abcde", expected: ["bc"] },
     ].forEach(test => {
         const result = test.match.match(test.pattern);
         expect(result).toEqual(test.expected);
