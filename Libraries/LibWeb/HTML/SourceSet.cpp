@@ -399,7 +399,7 @@ void SourceSet::normalize_source_densities(DOM::Element const& element)
     // https://drafts.csswg.org/mediaqueries/#units
     // Relative length units in media queries are based on the initial value, which means that units are never based on
     // results of declarations.
-    auto const& length_resolution_context = CSS::Length::ResolutionContext::for_window(*element.document().window());
+    auto const& length_resolution_context = CSS::Length::ResolutionContext::for_document(element.document());
 
     auto source_size = CSS::Length::from_style_value(m_source_size->absolutized({ length_resolution_context }), {}).absolute_length_to_px();
 
