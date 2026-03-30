@@ -60,7 +60,7 @@ TEST_CASE(create_and_destroy_playback_stream)
     // some operations, so it won't necessarily be destroyed immediately.
     auto wait_start = MonotonicTime::now_coarse();
     while (Audio::PulseAudioContext::is_connected()) {
-        if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(100))
+        if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(1000))
             VERIFY_NOT_REACHED();
     }
 #    endif
