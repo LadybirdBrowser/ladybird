@@ -129,6 +129,35 @@ test("anchored and sticky regexes still prune missing required literals", () => 
     expect(subject.match(/^(a+)+b/g)).toBeNull();
 });
 
+test("repeated simple loops do not exceed the backtrack limit", () => {
+    const source = "a+".repeat(100) + "x";
+    const match = "a".repeat(100) + "x";
+    const subject = match.repeat(3);
+
+    expect(new RegExp(source).exec(subject)).toEqual([match]);
+    expect(new RegExp(source, "g").exec(subject)).toEqual([match]);
+    expect(subject.replace(new RegExp(source, "g"), "")).toBe("");
+    expect(
+        subject.replace(new RegExp(source, "g"), () => {
+            return "";
+        })
+    ).toBe("");
+});
+
+test("bounded repeated simple loops keep already-available suffix chars", () => {
+    const regex = /a{1,3}a{2,4}a+x/;
+
+    expect(regex.exec("aaaax")).toEqual(["aaaax"]);
+    expect(new RegExp(regex.source, "g").exec("aaaax")).toEqual(["aaaax"]);
+});
+
+test("adjacent bounded repeated simple loops fail without exhausting backtracking", () => {
+    const regex = /a{1,3}a{2,4}z/;
+
+    expect(regex.exec("aaaaay")).toBeNull();
+    expect(new RegExp(regex.source, "g").exec("aaaaay")).toBeNull();
+});
+
 test("regexp object as pattern parameter", () => {
     expect(RegExp(/foo/).toString()).toBe("/foo/");
     expect(RegExp(/foo/g).toString()).toBe("/foo/g");
