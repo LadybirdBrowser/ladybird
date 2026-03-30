@@ -263,7 +263,7 @@ static GC::Ref<HTML::BrowsingContext> obtain_a_browsing_context_to_use_for_a_nav
     }
 
     // 10. Let newBrowsingContext be the first return value of creating a new top-level browsing context and document.
-    auto browsing_context_and_document = MUST(HTML::create_a_new_top_level_browsing_context_and_document(browsing_context.page()));
+    auto browsing_context_and_document = HTML::create_a_new_top_level_browsing_context_and_document(browsing_context.page());
     auto new_browsing_context = browsing_context_and_document.browsing_context;
 
     // 11. Let navigationCOOP be navigationParams's cross-origin opener policy.

@@ -24,7 +24,7 @@ public:
     };
     static constexpr bool OVERRIDES_FINALIZE = true;
 
-    static WebIDL::ExceptionOr<BrowsingContextGroupAndDocument> create_a_new_browsing_context_group_and_document(GC::Ref<Page>);
+    static BrowsingContextGroupAndDocument create_a_new_browsing_context_group_and_document(GC::Ref<Page>);
 
     Page& page() { return m_page; }
     Page const& page() const { return m_page; }

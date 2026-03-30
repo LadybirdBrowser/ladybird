@@ -40,14 +40,14 @@ void BrowsingContextGroup::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-browsing-context-group-and-document
-auto BrowsingContextGroup::create_a_new_browsing_context_group_and_document(GC::Ref<Page> page) -> WebIDL::ExceptionOr<BrowsingContextGroupAndDocument>
+BrowsingContextGroup::BrowsingContextGroupAndDocument BrowsingContextGroup::create_a_new_browsing_context_group_and_document(GC::Ref<Page> page)
 {
     // 1. Let group be a new browsing context group.
     // 2. Append group to the user agent's browsing context group set.
     auto group = Bindings::main_thread_vm().heap().allocate<BrowsingContextGroup>(page);
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document with null, null, and group.
-    auto [browsing_context, document] = TRY(BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, group));
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr, group);
 
     // 4. Append browsingContext to group.
     group->append(browsing_context);

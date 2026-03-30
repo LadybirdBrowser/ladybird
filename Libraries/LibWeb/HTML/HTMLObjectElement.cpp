@@ -442,7 +442,7 @@ void HTMLObjectElement::run_object_representation_handler_steps(Fetch::Infrastru
     if (can_load_document_with_type(resource_type) && (resource_type.is_xml() || !resource_type.is_image())) {
         // If the object element's content navigable is null, then create a new child navigable for the element.
         if (!m_content_navigable && in_a_document_tree()) {
-            MUST(create_new_child_navigable());
+            create_new_child_navigable();
         }
 
         // NOTE: Creating a new nested browsing context can fail if the document is not attached to a browsing context

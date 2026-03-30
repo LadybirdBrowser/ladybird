@@ -49,7 +49,7 @@ void HTMLFrameElement::inserted()
         return;
 
     // 3. Create a new child navigable for insertedNode.
-    MUST(create_new_child_navigable());
+    create_new_child_navigable();
 
     // 4. Process the frame attributes for insertedNode, with initialInsertion set to true.
     process_the_frame_attributes(InitialInsertion::Yes);
