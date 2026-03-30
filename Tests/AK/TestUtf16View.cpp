@@ -99,6 +99,15 @@ TEST_CASE(null_view)
         FAIL("Iterating a null UTF-16 string should not produce any values");
 }
 
+TEST_CASE(default_empty_view_is_empty_ascii_string)
+{
+    Utf16View view;
+    EXPECT(view.has_ascii_storage());
+    EXPECT_EQ(view.ascii_span().data(), "");
+    EXPECT_EQ(view.length_in_code_units(), 0zu);
+    EXPECT_EQ(view, ""sv);
+}
+
 TEST_CASE(utf16_literal)
 {
     {
