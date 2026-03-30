@@ -1,0 +1,12 @@
+With fallback values:
+left: 42
+top: 60
+Without fallback values:
+left: 0
+top: 0
+Wrong axis falls back:
+left: 77
+top: 88
+Nested anchor fallback chain:
+left: 200
+top: 33

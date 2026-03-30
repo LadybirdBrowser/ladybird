@@ -170,6 +170,7 @@ public:
     static TextAlign text_align() { return TextAlign::Start; }
     static TextJustify text_justify() { return TextJustify::Auto; }
     static Positioning position() { return Positioning::Static; }
+    static Optional<FlyString> position_anchor() { return {}; }
     static TextDecorationLine text_decoration_line() { return TextDecorationLine::None; }
     static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
     static TextDecorationStyle text_decoration_style() { return TextDecorationStyle::Solid; }
@@ -545,6 +546,7 @@ public:
     TextOverflow text_overflow() const { return m_noninherited.text_overflow; }
     Vector<ShadowData> const& text_shadow() const { return m_inherited.text_shadow; }
     Positioning position() const { return m_noninherited.position; }
+    Optional<FlyString> const& position_anchor() const { return m_noninherited.position_anchor; }
     WhiteSpaceCollapse white_space_collapse() const { return m_inherited.white_space_collapse; }
     WhiteSpaceTrimData white_space_trim() const { return m_noninherited.white_space_trim; }
     WordBreak word_break() const { return m_inherited.word_break; }
@@ -787,6 +789,7 @@ protected:
         Clear clear { InitialValues::clear() };
         TextOverflow text_overflow { InitialValues::text_overflow() };
         Positioning position { InitialValues::position() };
+        Optional<FlyString> position_anchor { InitialValues::position_anchor() };
         Optional<int> z_index;
         Display display_before_box_type_transformation { InitialValues::display() };
         Clip clip { InitialValues::clip() };
@@ -980,6 +983,7 @@ public:
     void set_text_underline_position(TextUnderlinePosition value) { m_inherited.text_underline_position = value; }
     void set_webkit_text_fill_color(Color value) { m_inherited.webkit_text_fill_color = value; }
     void set_position(Positioning position) { m_noninherited.position = position; }
+    void set_position_anchor(Optional<FlyString> value) { m_noninherited.position_anchor = move(value); }
     void set_white_space_collapse(WhiteSpaceCollapse value) { m_inherited.white_space_collapse = value; }
     void set_white_space_trim(WhiteSpaceTrimData value) { m_noninherited.white_space_trim = value; }
     void set_word_spacing(CSSPixels value) { m_inherited.word_spacing = value; }

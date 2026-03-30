@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    .target {
+        position: absolute;
+        position-anchor: --a;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div class="cb">
+    <div id="t-fallback" class="target" style="left: anchor(center, 42px); top: anchor(center, 10%)"></div>
+    <div id="t-no-fallback" class="target" style="left: anchor(center); top: anchor(center)"></div>
+    <div id="anchor" style="anchor-name: --b; position: absolute; top: 100px; left: 200px; width: 50px; height: 50px"></div>
+    <div id="t-wrong-axis" class="target" style="position-anchor: --b; left: anchor(top, 77px); top: anchor(left, 88px)"></div>
+    <div id="t-chain" class="target" style="left: anchor(--nonexistent center, anchor(--b left)); top: anchor(--also-missing center, anchor(--nope center, 33px))"></div>
+</div>
+<script>
+    test(() => {
+        // No anchor element exists for --a, so anchor() is unresolvable.
+        // With a fallback value, the fallback is used as the inset.
+        println("With fallback values:");
+        let t = document.getElementById("t-fallback").getBoundingClientRect();
+        println(`left: ${t.left}`);
+        println(`top: ${t.top}`);
+
+        // Without a fallback value, the declaration is invalid at computed-value time, which means the inset resolves
+        // to auto (static positioning).
+        println("Without fallback values:");
+        t = document.getElementById("t-no-fallback").getBoundingClientRect();
+        println(`left: ${t.left}`);
+        println(`top: ${t.top}`);
+
+        // Physical anchor side in the wrong axis triggers the fallback.
+        println("Wrong axis falls back:");
+        t = document.getElementById("t-wrong-axis").getBoundingClientRect();
+        println(`left: ${t.left}`);
+        println(`top: ${t.top}`);
+
+        // Nested anchor() fallback chain: first anchor fails, falls back to second anchor which succeeds.
+        // For top: both anchors fail, falls through to the 33px literal.
+        println("Nested anchor fallback chain:");
+        t = document.getElementById("t-chain").getBoundingClientRect();
+        println(`left: ${t.left}`);
+        println(`top: ${t.top}`);
+    });
+</script>

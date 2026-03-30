@@ -1,0 +1,13 @@
+anchor: left=100 top=50 right=300 bottom=130
+start (LTR):
+left: 100 top: 50
+end (LTR):
+left: 300 top: 130
+self-start (LTR):
+left: 100 top: 50
+self-start (RTL):
+left: 300 top: 50
+25% (LTR):
+left: 150 top: 70
+25% (RTL container):
+left: 250 top: 70

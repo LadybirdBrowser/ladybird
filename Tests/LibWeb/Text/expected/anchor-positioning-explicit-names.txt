@@ -1,0 +1,12 @@
+Default anchor name (--a1):
+top: 50 left: 0
+a1.bottom: 50 a1.left: 0
+Explicit anchor name (--a2) overrides default:
+top: 250 left: 300
+a2.bottom: 250 a2.left: 300
+Mixed default and explicit:
+top: 50 left: 300
+a1.bottom: 50 a2.left: 300
+No position-anchor, explicit name only:
+top: 250 left: 300
+a2.bottom: 250 a2.left: 300

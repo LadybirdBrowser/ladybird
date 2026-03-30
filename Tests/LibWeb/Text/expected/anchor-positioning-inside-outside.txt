@@ -1,0 +1,9 @@
+anchor: left=100 top=50 right=300 bottom=130
+inside (left/top):
+left: 100 top: 50
+outside (left/top):
+left: 300 top: 130
+inside (right/bottom):
+right: 300 bottom: 130
+outside (right/bottom):
+right: 100 bottom: 50

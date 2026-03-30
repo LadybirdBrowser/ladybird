@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        top: 50px;
+        left: 100px;
+        width: 200px;
+        height: 80px;
+    }
+    .target {
+        position: absolute;
+        position-anchor: --a;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div class="cb">
+    <div id="anchor"></div>
+    <div id="t-inside" class="target" style="left: anchor(inside); top: anchor(inside)"></div>
+    <div id="t-outside" class="target" style="left: anchor(outside); top: anchor(outside)"></div>
+    <div id="t-inside-end" class="target" style="right: anchor(inside); bottom: anchor(inside)"></div>
+    <div id="t-outside-end" class="target" style="right: anchor(outside); bottom: anchor(outside)"></div>
+</div>
+<script>
+    test(() => {
+        const a = document.getElementById("anchor").getBoundingClientRect();
+        println(`anchor: left=${a.left} top=${a.top} right=${a.right} bottom=${a.bottom}`);
+
+        // inside refers to the same side as the inset property
+        // left: anchor(inside) -> anchor's left; top: anchor(inside) -> anchor's top
+        println("inside (left/top):");
+        let t = document.getElementById("t-inside").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // outside refers to the opposite side
+        // left: anchor(outside) -> anchor's right; top: anchor(outside) -> anchor's bottom
+        println("outside (left/top):");
+        t = document.getElementById("t-outside").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // right: anchor(inside) -> anchor's right; bottom: anchor(inside) -> anchor's bottom
+        println("inside (right/bottom):");
+        t = document.getElementById("t-inside-end").getBoundingClientRect();
+        println(`right: ${t.right} bottom: ${t.bottom}`);
+
+        // right: anchor(outside) -> anchor's left; bottom: anchor(outside) -> anchor's top
+        println("outside (right/bottom):");
+        t = document.getElementById("t-outside-end").getBoundingClientRect();
+        println(`right: ${t.right} bottom: ${t.bottom}`);
+    });
+</script>

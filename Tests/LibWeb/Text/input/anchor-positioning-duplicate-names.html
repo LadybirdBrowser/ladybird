@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    .anchor { position: absolute; anchor-name: --a; width: 100px; height: 50px; }
+    #a1 { top: 0; left: 0; }
+    #a2 { top: 200px; left: 300px; }
+    #target {
+        position: absolute;
+        position-anchor: --a;
+        width: 50px;
+        height: 50px;
+        top: anchor(bottom);
+        left: anchor(left);
+    }
+</style>
+<div class="cb">
+    <div id="a1" class="anchor"></div>
+    <div id="a2" class="anchor"></div>
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        const a2 = document.getElementById("a2").getBoundingClientRect();
+        let t = document.getElementById("target").getBoundingClientRect();
+
+        // With duplicate anchor names, the last element in tree order (a2) wins.
+        println("Last in tree order wins:");
+        println(`target.top: ${t.top}`);
+        println(`a2.bottom: ${a2.bottom}`);
+        println(`target.left: ${t.left}`);
+        println(`a2.left: ${a2.left}`);
+
+        // After recomputing a1's style, a2 should still win since it's later in tree order.
+        println("After recomputing earlier element's style:");
+        document.getElementById("a1").style.width = "110px";
+        t = document.getElementById("target").getBoundingClientRect();
+        println(`target.top: ${t.top}`);
+        println(`a2.bottom: ${a2.bottom}`);
+        println(`target.left: ${t.left}`);
+        println(`a2.left: ${a2.left}`);
+
+        // After removing a2, the target should fall back to a1.
+        println("After removing last element:");
+        document.getElementById("a2").remove();
+        const a1 = document.getElementById("a1").getBoundingClientRect();
+        t = document.getElementById("target").getBoundingClientRect();
+        println(`target.top: ${t.top}`);
+        println(`a1.bottom: ${a1.bottom}`);
+        println(`target.left: ${t.left}`);
+        println(`a1.left: ${a1.left}`);
+    });
+</script>

@@ -1,0 +1,15 @@
+Last in tree order wins:
+target.top: 250
+a2.bottom: 250
+target.left: 300
+a2.left: 300
+After recomputing earlier element's style:
+target.top: 250
+a2.bottom: 250
+target.left: 300
+a2.left: 300
+After removing last element:
+target.top: 50
+a1.bottom: 50
+target.left: 0
+a1.left: 0

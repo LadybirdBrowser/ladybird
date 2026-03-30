@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        bottom: 0;
+        left: 100px;
+        width: 200px;
+        height: 80px;
+    }
+    .target {
+        position: absolute;
+        position-anchor: --a;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div class="cb">
+    <div id="anchor"></div>
+    <div id="t1" class="target" style="bottom: anchor(top); left: anchor(center)"></div>
+    <div id="t2" class="target" style="top: anchor(bottom); right: anchor(left)"></div>
+</div>
+<script>
+    test(() => {
+        const a = document.getElementById("anchor").getBoundingClientRect();
+
+        // bottom: anchor(top), left: anchor(center)
+        println("bottom/left anchor sides:");
+        let t = document.getElementById("t1").getBoundingClientRect();
+        println(`target.bottom: ${t.bottom}`);
+        println(`anchor.top: ${a.top}`);
+        println(`target.left: ${t.left}`);
+        println(`anchor.left: ${a.left}`);
+        println(`anchor.width: ${a.width}`);
+
+        // top: anchor(bottom), right: anchor(left)
+        println("top/right anchor sides:");
+        t = document.getElementById("t2").getBoundingClientRect();
+        println(`target.top: ${t.top}`);
+        println(`anchor.bottom: ${a.bottom}`);
+        println(`target.right: ${t.right}`);
+        println(`anchor.left: ${a.left}`);
+
+        // Anchor name removal: target falls back to auto (static) positioning
+        println("After anchor-name removal:");
+        document.getElementById("anchor").style.anchorName = "none";
+        t = document.getElementById("t1").getBoundingClientRect();
+        println(`target.top: ${t.top}`);
+        println(`target.left: ${t.left}`);
+
+        // Restoring anchor-name re-establishes the relationship
+        println("After anchor-name restore:");
+        document.getElementById("anchor").style.anchorName = "--a";
+        t = document.getElementById("t1").getBoundingClientRect();
+        println(`target.bottom: ${t.bottom}`);
+        println(`anchor.top: ${a.top}`);
+
+        // anchor-name and position-anchor are not inherited by children
+        println("Non-inheritance:");
+        const child = document.createElement("div");
+        document.getElementById("anchor").appendChild(child);
+        println(`child anchor-name: ${getComputedStyle(child).anchorName}`);
+        const child2 = document.createElement("div");
+        document.getElementById("t1").appendChild(child2);
+        println(`child position-anchor: ${getComputedStyle(child2).positionAnchor}`);
+    });
+</script>

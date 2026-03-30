@@ -1,0 +1,20 @@
+bottom/left anchor sides:
+target.bottom: 520
+anchor.top: 520
+target.left: 200
+anchor.left: 100
+anchor.width: 200
+top/right anchor sides:
+target.top: 600
+anchor.bottom: 600
+target.right: 100
+anchor.left: 100
+After anchor-name removal:
+target.top: 0
+target.left: 0
+After anchor-name restore:
+target.bottom: 520
+anchor.top: 520
+Non-inheritance:
+child anchor-name: none
+child position-anchor: normal

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    #a1 { anchor-name: --a1; position: absolute; top: 0; left: 0; width: 100px; height: 50px; }
+    #a2 { anchor-name: --a2; position: absolute; top: 200px; left: 300px; width: 100px; height: 50px; }
+    .target { position: absolute; width: 20px; height: 20px; }
+</style>
+<div class="cb">
+    <div id="a1"></div>
+    <div id="a2"></div>
+    <div id="t-default" class="target"
+         style="position-anchor: --a1; top: anchor(bottom); left: anchor(left)"></div>
+    <div id="t-explicit" class="target"
+         style="position-anchor: --a1; top: anchor(--a2 bottom); left: anchor(--a2 left)"></div>
+    <div id="t-mixed" class="target"
+         style="position-anchor: --a1; top: anchor(bottom); left: anchor(--a2 left)"></div>
+    <div id="t-no-default" class="target"
+         style="top: anchor(--a2 bottom); left: anchor(--a2 left)"></div>
+</div>
+<script>
+    test(() => {
+        const a1 = document.getElementById("a1").getBoundingClientRect();
+        const a2 = document.getElementById("a2").getBoundingClientRect();
+
+        // Uses default anchor (--a1) for both insets
+        println("Default anchor name (--a1):");
+        let t = document.getElementById("t-default").getBoundingClientRect();
+        println(`top: ${t.top} left: ${t.left}`);
+        println(`a1.bottom: ${a1.bottom} a1.left: ${a1.left}`);
+
+        // Explicit name (--a2) overrides position-anchor (--a1)
+        println("Explicit anchor name (--a2) overrides default:");
+        t = document.getElementById("t-explicit").getBoundingClientRect();
+        println(`top: ${t.top} left: ${t.left}`);
+        println(`a2.bottom: ${a2.bottom} a2.left: ${a2.left}`);
+
+        // Mixed: top uses default (--a1), left uses explicit (--a2)
+        println("Mixed default and explicit:");
+        t = document.getElementById("t-mixed").getBoundingClientRect();
+        println(`top: ${t.top} left: ${t.left}`);
+        println(`a1.bottom: ${a1.bottom} a2.left: ${a2.left}`);
+
+        // No position-anchor set, explicit name (--a2) still works
+        println("No position-anchor, explicit name only:");
+        t = document.getElementById("t-no-default").getBoundingClientRect();
+        println(`top: ${t.top} left: ${t.left}`);
+        println(`a2.bottom: ${a2.bottom} a2.left: ${a2.left}`);
+    });
+</script>

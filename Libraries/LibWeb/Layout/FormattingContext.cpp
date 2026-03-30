@@ -4,7 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/ComputedProperties.h>
+#include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -1367,23 +1372,225 @@ AbsposContainingBlockInfo FormattingContext::resolve_abspos_containing_block_inf
     return { rect, horizontal_axis_mode, vertical_axis_mode, {}, {} };
 }
 
+// https://drafts.csswg.org/css-anchor-position-1/#anchor-pos
+void FormattingContext::resolve_anchor_insets(Box& box) const
+{
+    // https://drafts.csswg.org/css-anchor-position-1/#resolving-anchor
+    // An anchor() function is a resolvable anchor function only if all the following conditions are true:
+    //   - It's applied to an absolutely positioned box.
+    //   - If its <anchor-side> specifies a physical keyword, it's specified in an inset property applicable to that
+    //     axis.
+    //   - There is a target anchor element for the box it's used on, and the <anchor-name> value specified in the
+    //     function.
+    // NB: The first two conditions are guaranteed: this function is called from layout_absolutely_positioned_element(),
+    //     and we only resolve anchor() values in inset properties.
+    // FIXME: Support anchor-scope, position-try-fallbacks, anchor-size(), and other anchor positioning features.
+
+    auto const* element = as_if<DOM::Element>(box.dom_node());
+    if (!element)
+        return;
+
+    auto computed = element->computed_properties();
+    if (!computed)
+        return;
+    auto const& top = computed->property(CSS::PropertyID::Top);
+    auto const& right = computed->property(CSS::PropertyID::Right);
+    auto const& bottom = computed->property(CSS::PropertyID::Bottom);
+    auto const& left = computed->property(CSS::PropertyID::Left);
+    if (!top.is_anchor() && !right.is_anchor() && !bottom.is_anchor() && !left.is_anchor())
+        return;
+
+    auto containing_block = box.containing_block();
+    if (!containing_block)
+        return;
+
+    auto const& default_anchor_name = box.computed_values().position_anchor();
+    auto const& containing_block_state = m_state.get(*containing_block);
+
+    // https://drafts.csswg.org/css-anchor-position-1/#determining
+    // Several features of this specification refer to the position and size of an anchor box. Unless otherwise
+    // specified, this refers to the border box edge of the principal box of relevant anchor element.
+    // https://drafts.csswg.org/css-anchor-position-1/#acceptable-anchor-element
+    // FIXME: An element possible anchor is an acceptable anchor element for an absolutely positioned element positioned
+    //        el if all of the following are true:
+    //        - possible anchor is laid out strictly before positioned el [...]
+    auto resolve_anchor_rect = [&](CSS::AnchorStyleValue const& anchor) -> Optional<CSSPixelRect> {
+        auto const& name = anchor.anchor_name().has_value() ? anchor.anchor_name() : default_anchor_name;
+        if (!name.has_value())
+            return {};
+
+        auto anchor_element = element->document().element_by_anchor_name(name.value(), *element);
+        if (!anchor_element)
+            return {};
+
+        // NB: We use unsafe_layout_node() because we are in the middle of layout.
+        auto anchor_layout_node = anchor_element->unsafe_layout_node();
+        if (!anchor_layout_node || !is<Box>(*anchor_layout_node))
+            return {};
+
+        auto const& anchor_box = as<Box>(*anchor_layout_node);
+        auto const& anchor_state = m_state.get(anchor_box);
+        auto anchor_border_box_origin = anchor_state.cumulative_offset()
+            - CSSPixelPoint { anchor_state.border_box_left(), anchor_state.border_box_top() };
+        auto containing_block_padding_box_origin = containing_block_state.cumulative_offset()
+            - CSSPixelPoint { containing_block_state.padding_left, containing_block_state.padding_top };
+        return CSSPixelRect {
+            anchor_border_box_origin - containing_block_padding_box_origin,
+            { anchor_state.border_box_width(), anchor_state.border_box_height() },
+        };
+    };
+
+    // https://drafts.csswg.org/css-anchor-position-1/#anchor-pos
+    // An anchor() function representing a resolvable anchor function resolves at computed value time (using style &
+    // layout interleaving) to the <length> that would align the edge of the positioned boxes' inset-modified containing
+    // block corresponding to the property the function appears in with the specified edge of the target anchor
+    // element's anchor box.
+    auto containing_block_direction = containing_block->computed_values().direction();
+    auto box_direction = box.computed_values().direction();
+    auto resolve_anchor_side = [&](CSS::AnchorStyleValue const& anchor, bool is_from_end, bool is_horizontal_axis)
+        -> Optional<CSSPixels> {
+        auto maybe_rect = resolve_anchor_rect(anchor);
+        if (!maybe_rect.has_value())
+            return {};
+        auto const& rect = maybe_rect.value();
+        auto const& side = *anchor.anchor_side();
+        if (side.is_keyword()) {
+            switch (side.to_keyword()) {
+            // https://drafts.csswg.org/css-anchor-position-1/#typedef-anchor-side
+            // top | right | bottom | left
+            //     Refers to the specified side of the anchor box.
+            // If its <anchor-side> specifies a physical keyword, it's specified in an inset property applicable to that
+            // axis.
+            case CSS::Keyword::Top:
+                return is_horizontal_axis ? Optional<CSSPixels> {} : rect.top();
+            case CSS::Keyword::Bottom:
+                return is_horizontal_axis ? Optional<CSSPixels> {} : rect.bottom();
+            case CSS::Keyword::Left:
+                return is_horizontal_axis ? rect.left() : Optional<CSSPixels> {};
+            case CSS::Keyword::Right:
+                return is_horizontal_axis ? rect.right() : Optional<CSSPixels> {};
+
+            // center
+            //     Equivalent to 50%.
+            case CSS::Keyword::Center:
+                if (is_horizontal_axis)
+                    return rect.left() + rect.width() / 2;
+                return rect.top() + rect.height() / 2;
+
+            // start | end
+            //     Refers to one of the sides of the anchor box in the same axis as the inset property it's used in,
+            //     by resolving the keyword against the writing mode of the positioned box's containing block.
+            case CSS::Keyword::Start:
+            case CSS::Keyword::End: {
+                bool is_start = side.to_keyword() == CSS::Keyword::Start;
+                if (is_horizontal_axis) {
+                    bool use_left = (containing_block_direction == CSS::Direction::Ltr) == is_start;
+                    return use_left ? rect.left() : rect.right();
+                }
+                return is_start ? rect.top() : rect.bottom();
+            }
+
+            // self-start | self-end
+            //     Refers to one of the sides of the anchor box in the same axis as the inset property it's used in,
+            //     by resolving the keyword against the writing mode of the positioned box.
+            case CSS::Keyword::SelfStart:
+            case CSS::Keyword::SelfEnd: {
+                bool is_start = side.to_keyword() == CSS::Keyword::SelfStart;
+                if (is_horizontal_axis) {
+                    bool use_left = (box_direction == CSS::Direction::Ltr) == is_start;
+                    return use_left ? rect.left() : rect.right();
+                }
+                return is_start ? rect.top() : rect.bottom();
+            }
+
+            // inside | outside
+            //     Resolves to one of the anchor box's sides, depending on which inset property it's used in. inside
+            //     refers to the same side as the inset property, while outside refers to the opposite.
+            case CSS::Keyword::Inside:
+            case CSS::Keyword::Outside: {
+                bool same_side = side.to_keyword() == CSS::Keyword::Inside;
+                if (is_horizontal_axis) {
+                    return (is_from_end == same_side) ? rect.right() : rect.left();
+                }
+                return (is_from_end == same_side) ? rect.bottom() : rect.top();
+            }
+
+            default:
+                VERIFY_NOT_REACHED();
+            }
+        }
+        if (side.is_percentage()) {
+            // <percentage>
+            //     Refers to a position a corresponding percentage between the start and end sides, with 0% being
+            //     equivalent to start and 100% being equivalent to end.
+            auto percentage = side.as_percentage().percentage().as_fraction();
+            if (is_horizontal_axis) {
+                auto start = containing_block_direction == CSS::Direction::Ltr ? rect.left() : rect.right();
+                auto end = containing_block_direction == CSS::Direction::Ltr ? rect.right() : rect.left();
+                return start + CSSPixels::nearest_value_for((end - start).to_double() * percentage);
+            }
+            return rect.top() + CSSPixels::nearest_value_for(rect.height().to_double() * percentage);
+        }
+        return {};
+    };
+
+    auto resolve_anchor_for_inset = [&](CSS::AnchorStyleValue const& anchor, bool is_from_end, bool is_horizontal_axis)
+        -> CSS::LengthPercentageOrAuto {
+        auto maybe_side_px = resolve_anchor_side(anchor, is_from_end, is_horizontal_axis);
+
+        // If any of these conditions are false, the anchor() function computes to its specified fallback value. If no
+        // fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
+        // NB: The fallback value can itself be an anchor(), so we walk the chain.
+        auto const* current = &anchor;
+        while (!maybe_side_px.has_value()) {
+            auto const& fallback = current->fallback_value();
+            if (!fallback)
+                return CSS::LengthPercentageOrAuto::make_auto();
+            if (!fallback->is_anchor())
+                return CSS::LengthPercentageOrAuto::from_style_value(*fallback);
+            current = &fallback->as_anchor();
+            maybe_side_px = resolve_anchor_side(*current, is_from_end, is_horizontal_axis);
+        }
+
+        // For inset properties measuring from the end edge (right, bottom), the resolved length is the distance from
+        // the anchor side to the corresponding edge of the containing block's padding box.
+        auto side_px = maybe_side_px.release_value();
+        if (is_from_end) {
+            auto containing_block_extent = is_horizontal_axis
+                ? containing_block_state.padding_box_width()
+                : containing_block_state.padding_box_height();
+            return { CSS::LengthPercentage { CSS::Length::make_px(containing_block_extent - side_px) } };
+        }
+        return { CSS::LengthPercentage { CSS::Length::make_px(side_px) } };
+    };
+
+    auto const& existing_inset = box.computed_values().inset();
+    box.mutable_computed_values().set_inset({
+        top.is_anchor() ? resolve_anchor_for_inset(top.as_anchor(), false, false) : existing_inset.top(),
+        right.is_anchor() ? resolve_anchor_for_inset(right.as_anchor(), true, true) : existing_inset.right(),
+        bottom.is_anchor() ? resolve_anchor_for_inset(bottom.as_anchor(), true, false) : existing_inset.bottom(),
+        left.is_anchor() ? resolve_anchor_for_inset(left.as_anchor(), false, true) : existing_inset.left(),
+    });
+}
+
 void FormattingContext::layout_absolutely_positioned_children()
 {
     if (m_layout_mode != LayoutMode::Normal)
         return;
     for (auto& child : context_box().contained_abspos_children()) {
         auto& box = as<Box>(*child);
-        auto containing_block_info = resolve_abspos_containing_block_info(box);
-        layout_absolutely_positioned_element(box, containing_block_info);
+        layout_absolutely_positioned_element(box);
     }
 }
 
-void FormattingContext::layout_absolutely_positioned_element(Box const& box, AbsposContainingBlockInfo const& containing_block_info)
+void FormattingContext::layout_absolutely_positioned_element(Box& box)
 {
-    if (box.is_svg_box()) {
-        // SVG elements cannot be absolutely positioned.
-        VERIFY_NOT_REACHED();
-    }
+    // SVG elements cannot be absolutely positioned.
+    VERIFY(!box.is_svg_box());
+
+    resolve_anchor_insets(box);
+
+    auto containing_block_info = resolve_abspos_containing_block_info(box);
 
     auto const available_space = AvailableSpace(AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.width())), AvailableSize::make_definite(clamp_to_max_dimension_value(containing_block_info.rect.height())));
 

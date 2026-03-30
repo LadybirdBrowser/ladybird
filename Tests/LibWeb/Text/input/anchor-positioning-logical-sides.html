@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    #anchor {
+        anchor-name: --a;
+        position: absolute;
+        top: 50px;
+        left: 100px;
+        width: 200px;
+        height: 80px;
+    }
+    .target {
+        position: absolute;
+        position-anchor: --a;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<div class="cb">
+    <div id="anchor"></div>
+    <div id="t-start" class="target" style="left: anchor(start); top: anchor(start)"></div>
+    <div id="t-end" class="target" style="left: anchor(end); top: anchor(end)"></div>
+    <div id="t-self-start" class="target" style="left: anchor(self-start); top: anchor(self-start)"></div>
+    <div id="t-rtl" class="target" style="direction: rtl; left: anchor(self-start); top: anchor(self-start)"></div>
+</div>
+<script>
+    test(() => {
+        const a = document.getElementById("anchor").getBoundingClientRect();
+        println(`anchor: left=${a.left} top=${a.top} right=${a.right} bottom=${a.bottom}`);
+
+        // In LTR (default): start=left, end=right for horizontal; start=top, end=bottom for vertical
+        println("start (LTR):");
+        let t = document.getElementById("t-start").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        println("end (LTR):");
+        t = document.getElementById("t-end").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // self-start in LTR: same as start
+        println("self-start (LTR):");
+        t = document.getElementById("t-self-start").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // self-start in RTL: flips horizontal axis (start=right), vertical unchanged
+        println("self-start (RTL):");
+        t = document.getElementById("t-rtl").getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // Percentage in LTR: 25% = left + width * 0.25
+        println("25% (LTR):");
+        const pct = document.createElement("div");
+        pct.className = "target";
+        pct.style.left = "anchor(25%)";
+        pct.style.top = "anchor(25%)";
+        document.querySelector(".cb").appendChild(pct);
+        t = pct.getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+
+        // Percentage in RTL: 25% from start (right) = right - width * 0.25
+        println("25% (RTL container):");
+        const rtlCb = document.createElement("div");
+        rtlCb.className = "cb";
+        rtlCb.style.direction = "rtl";
+        const anchor2 = document.getElementById("anchor").cloneNode();
+        anchor2.id = "";
+        const pctRtl = document.createElement("div");
+        pctRtl.className = "target";
+        pctRtl.style.left = "anchor(25%)";
+        pctRtl.style.top = "anchor(25%)";
+        rtlCb.appendChild(anchor2);
+        rtlCb.appendChild(pctRtl);
+        document.body.appendChild(rtlCb);
+        t = pctRtl.getBoundingClientRect();
+        println(`left: ${t.left} top: ${t.top}`);
+    });
+</script>
