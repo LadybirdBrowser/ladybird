@@ -23,6 +23,31 @@ describe("errors", () => {
         }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid character class");
     });
 
+    test("invalid pattern (negated v-mode class cannot contain nested strings)", () => {
+        for (const pattern of [
+            "[^[[\\p{Emoji_Keycap_Sequence}]]]",
+            "[^[[\\q{ab}]]]",
+            String.raw`[[[\p{Emoji_Presentation}]][\p{Math}]].*\p{Script=Hebrew}*\t[[^a-z]]?(?:\s{3}.+?[^[[\p{Emoji_Keycap_Sequence}]--[А-Я]][[\p{Script=Hebrew}]--[\p{Script=Latin}]]]??)`,
+        ]) {
+            expect(() => {
+                RegExp(pattern, "v");
+            }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid character class");
+        }
+    });
+
+    test("valid pattern (negated v-mode class set ops can eliminate strings)", () => {
+        for (const pattern of [
+            "[^[[a-z]--[\\q{ab}]]]",
+            "[^[[\\q{ab}]&&[a-z]]]",
+            "[^[[\\q{ab}]--[\\q{ab}]]]",
+            "[^[[\\q{ab}]&&[\\q{cd}]]]",
+        ]) {
+            expect(() => {
+                RegExp(pattern, "v");
+            }).not.toThrow();
+        }
+    });
+
     test("invalid pattern (invalid quantifier)", () => {
         expect(() => {
             RegExp("a{2,1}");

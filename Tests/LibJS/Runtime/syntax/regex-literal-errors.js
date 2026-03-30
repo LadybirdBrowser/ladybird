@@ -76,6 +76,31 @@ test("large quantifier bounds clamp before regex literal order validation", () =
     }
 });
 
+test("negated v-mode classes containing nested strings are syntax errors", () => {
+    for (const source of [
+        "/[^[[\\p{Emoji_Keycap_Sequence}]]]/v",
+        "/[^[[\\q{ab}]]]/v",
+        String.raw`/[[[\p{Emoji_Presentation}]][\p{Math}]].*\p{Script=Hebrew}*\t[[^a-z]]?(?:\s{3}.+?[^[[\p{Emoji_Keycap_Sequence}]--[А-Я]][[\p{Script=Hebrew}]--[\p{Script=Latin}]]]??)/gv`,
+    ]) {
+        expect(source).not.toEval();
+        expect(() => eval(source)).toThrow(SyntaxError);
+        expect(() => new Function(source)).toThrow(SyntaxError);
+    }
+});
+
+test("negated v-mode class set ops that eliminate strings are valid", () => {
+    for (const source of [
+        "/[^[[a-z]--[\\q{ab}]]]/v",
+        "/[^[[\\q{ab}]&&[a-z]]]/v",
+        "/[^[[\\q{ab}]--[\\q{ab}]]]/v",
+        "/[^[[\\q{ab}]&&[\\q{cd}]]]/v",
+    ]) {
+        expect(source).toEval();
+        expect(() => eval(source)).not.toThrow();
+        expect(() => new Function(source)).not.toThrow();
+    }
+});
+
 test("valid regex literals parse and execute correctly", () => {
     expect("/foo/g").toEval();
     expect("/[a-z]+/gims").toEval();
