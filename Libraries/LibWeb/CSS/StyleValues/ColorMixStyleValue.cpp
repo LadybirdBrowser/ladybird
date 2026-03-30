@@ -134,19 +134,11 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
-ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_percentages() const
+ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_percentages(ComputationContext const& computation_context) const
 {
-    auto resolve_percentage = [&](RefPtr<StyleValue const> const& percentage_or_calculated) -> Optional<Percentage> {
-        if (!percentage_or_calculated)
-            return {};
-        if (!percentage_or_calculated->is_calculated())
-            return percentage_or_calculated->as_percentage().percentage();
-        return percentage_or_calculated->as_calculated().resolve_percentage({});
-    };
-
     // 1. Let p1 be the first percentage and p2 the second one.
-    auto p1 = resolve_percentage(m_properties.first_component.percentage);
-    auto p2 = resolve_percentage(m_properties.second_component.percentage);
+    auto p1 = m_properties.first_component.percentage ? Percentage::from_style_value(m_properties.first_component.percentage->absolutized(computation_context)) : Optional<Percentage> {};
+    auto p2 = m_properties.second_component.percentage ? Percentage::from_style_value(m_properties.second_component.percentage->absolutized(computation_context)) : Optional<Percentage> {};
     double alpha_multiplier = 0;
 
     // 2. If both percentages are omitted, they each default to 50% (an equal mix of the two colors).
@@ -203,7 +195,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
 {
     // FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
 
-    auto normalized_percentages = normalize_percentages();
+    auto normalized_percentages = normalize_percentages(context);
     ColorResolutionContext color_resolution_context {
         .color_scheme = context.color_scheme,
         .current_color = {},

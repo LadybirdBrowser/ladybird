@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    #a {
+        color: color-mix(in oklab, red 25%, blue);
+    }
+
+    #b {
+        color: color-mix(in oklab, red calc(100% * (1em / 64px)), blue);
+    }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(a).color === getComputedStyle(b).color ? "PASS" : "FALSE");
+    });
+</script>

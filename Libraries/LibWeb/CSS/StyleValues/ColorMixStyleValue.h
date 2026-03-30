@@ -52,7 +52,7 @@ private:
         ValueComparingNonnullRefPtr<StyleValue const> p2;
         double alpha_multiplier;
     };
-    PercentageNormalizationResult normalize_percentages() const;
+    PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
 
     Properties m_properties;
 };
