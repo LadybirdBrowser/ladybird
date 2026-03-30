@@ -1734,14 +1734,15 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     auto* target = document->active_input_events_target();
     if (target) {
         if (key == UIEvents::KeyCode::Key_Backspace) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentBackward, m_navigable, code_point));
-            target->handle_delete(UIEvents::InputTypes::deleteContentBackward);
+            auto input_type = (modifiers & UIEvents::Mod_PlatformWordJump) == 0 ? UIEvents::InputTypes::deleteContentBackward : UIEvents::InputTypes::deleteWordBackward;
+            FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
+            target->handle_delete(input_type);
             return EventResult::Handled;
         }
-
         if (key == UIEvents::KeyCode::Key_Delete) {
-            FIRE(input_event(UIEvents::EventNames::beforeinput, UIEvents::InputTypes::deleteContentForward, m_navigable, code_point));
-            target->handle_delete(UIEvents::InputTypes::deleteContentForward);
+            auto input_type = (modifiers & UIEvents::Mod_PlatformWordJump) == 0 ? UIEvents::InputTypes::deleteContentForward : UIEvents::InputTypes::deleteWordForward;
+            FIRE(input_event(UIEvents::EventNames::beforeinput, input_type, m_navigable, code_point));
+            target->handle_delete(input_type);
             return EventResult::Handled;
         }
 

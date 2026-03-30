@@ -1078,9 +1078,29 @@ void FormAssociatedTextControlElement::handle_delete(FlyString const& input_type
         if (input_type == UIEvents::InputTypes::deleteContentBackward) {
             if (auto offset = text_node->grapheme_segmenter().previous_boundary(m_selection_end); offset.has_value())
                 selection_start = *offset;
-        } else {
+        } else if (input_type == UIEvents::InputTypes::deleteWordBackward) {
+            while (true) {
+                if (auto offset = text_node->word_segmenter().previous_boundary(selection_start); offset.has_value()) {
+                    auto word = text_node->data().substring_view(*offset, selection_start - *offset);
+                    selection_start = *offset;
+                    if (Unicode::Segmenter::should_continue_beyond_word(word))
+                        continue;
+                }
+                break;
+            }
+        } else if (input_type == UIEvents::InputTypes::deleteContentForward) {
             if (auto offset = text_node->grapheme_segmenter().next_boundary(m_selection_end); offset.has_value())
                 selection_end = *offset;
+        } else if (input_type == UIEvents::InputTypes::deleteWordForward) {
+            while (true) {
+                if (auto offset = text_node->word_segmenter().next_boundary(selection_end); offset.has_value()) {
+                    auto word = text_node->data().substring_view(*offset, selection_end - *offset);
+                    selection_end = *offset;
+                    if (Unicode::Segmenter::should_continue_beyond_word(word))
+                        continue;
+                }
+                break;
+            }
         }
     }
 
