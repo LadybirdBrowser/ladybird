@@ -333,7 +333,7 @@ Optional<Painting::PaintStyle> SVGPatternElement::to_gfx_paint_style(SVGPaintCon
         }
     }
 
-    return Painting::SVGPatternPaintStyle::create(display_list, tile_rect, device_pattern_transform);
+    return Painting::PaintStyle(Painting::SVGPatternPaintStyle(display_list, tile_rect, device_pattern_transform));
 }
 
 // https://svgwg.org/svg2-draft/pservers.html#PatternElementXAttribute

@@ -107,7 +107,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             context.display_list_recorder().fill_path({
                 .path = path,
                 .opacity = fill_opacity,
-                .paint_style_or_color = *paint_style,
+                .paint_style_or_color = PaintStyleOrColor(*paint_style),
                 .winding_rule = winding_rule,
                 .should_anti_alias = should_anti_alias(),
             });
@@ -168,7 +168,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
                 .dash_offset = stroke_dashoffset,
                 .path = path,
                 .opacity = stroke_opacity,
-                .paint_style_or_color = *paint_style,
+                .paint_style_or_color = PaintStyleOrColor(*paint_style),
                 .thickness = stroke_thickness,
                 .should_anti_alias = should_anti_alias(),
             });

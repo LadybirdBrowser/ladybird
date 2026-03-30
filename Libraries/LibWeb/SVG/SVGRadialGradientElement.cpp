@@ -33,22 +33,22 @@ void SVGRadialGradientElement::attribute_changed(FlyString const& name, Optional
     // and unitless values.
     if (name == SVG::AttributeNames::cx) {
         m_cx = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     } else if (name == SVG::AttributeNames::cy) {
         m_cy = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     } else if (name == SVG::AttributeNames::fx) {
         m_fx = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     } else if (name == SVG::AttributeNames::fy) {
         m_fy = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     } else if (name == SVG::AttributeNames::fr) {
         m_fr = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     } else if (name == SVG::AttributeNames::r) {
         m_r = AttributeParser::parse_number_percentage(value.value_or(String {}));
-        m_paint_style = nullptr;
+        m_paint_style = {};
     }
 }
 
@@ -207,20 +207,20 @@ Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGP
         end_radius = end_circle_radius().resolve_relative_to(paint_context.viewport.width());
     }
 
-    if (!m_paint_style) {
-        m_paint_style = Painting::SVGRadialGradientPaintStyle::create(start_center, start_radius, end_center, end_radius);
+    if (!m_paint_style.has_value()) {
+        m_paint_style = Painting::SVGRadialGradientPaintStyle { .gradient = {}, .start_center = start_center, .start_radius = start_radius, .end_center = end_center, .end_radius = end_radius };
         // FIXME: Update stops in DOM changes:
-        add_color_stops(*m_paint_style);
+        add_color_stops(m_paint_style->gradient);
     } else {
-        m_paint_style->set_start_center(start_center);
-        m_paint_style->set_start_radius(start_radius);
-        m_paint_style->set_end_center(end_center);
-        m_paint_style->set_end_radius(end_radius);
+        m_paint_style->start_center = start_center;
+        m_paint_style->start_radius = start_radius;
+        m_paint_style->end_center = end_center;
+        m_paint_style->end_radius = end_radius;
     }
-    m_paint_style->set_gradient_transform(gradient_paint_transform(paint_context));
-    m_paint_style->set_spread_method(to_painting_spread_method(spread_method()));
-    m_paint_style->set_color_space(color_space());
-    return *m_paint_style;
+    m_paint_style->gradient.gradient_transform = gradient_paint_transform(paint_context);
+    m_paint_style->gradient.spread_method = to_painting_spread_method(spread_method());
+    m_paint_style->gradient.color_space = color_space();
+    return Painting::PaintStyle(*m_paint_style);
 }
 
 GC::Ref<SVGAnimatedLength> SVGRadialGradientElement::cx() const

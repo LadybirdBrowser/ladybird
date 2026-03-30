@@ -56,7 +56,7 @@ private:
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
 
-    SkPaint paint_style_to_skia_paint(SVGPaintServerPaintStyle const&, Gfx::FloatRect const& bounding_rect);
+    SkPaint paint_style_to_skia_paint(PaintStyleOrColor const&, Gfx::FloatRect const& bounding_rect);
 };
 
 }

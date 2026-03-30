@@ -46,12 +46,7 @@ class DisplayList;
 class DisplayListPlayerSkia;
 class DisplayListRecorder;
 class ExternalContentSource;
-class SVGGradientPaintStyle;
-class SVGPaintServerPaintStyle;
-class SVGPatternPaintStyle;
 class ScrollStateSnapshot;
-using PaintStyle = RefPtr<SVGPaintServerPaintStyle>;
-using PaintStyleOrColor = Variant<PaintStyle, Gfx::Color>;
 using ScrollStateSnapshotByDisplayList = HashMap<NonnullRefPtr<DisplayList>, ScrollStateSnapshot>;
 
 }

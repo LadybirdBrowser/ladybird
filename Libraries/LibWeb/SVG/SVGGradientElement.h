@@ -21,15 +21,15 @@ struct SVGPaintContext {
     Gfx::AffineTransform paint_transform;
 };
 
-inline Painting::SVGGradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
+inline Painting::GradientPaintData::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
 {
     switch (spread_method) {
     case SpreadMethod::Pad:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Pad;
+        return Painting::GradientPaintData::SpreadMethod::Pad;
     case SpreadMethod::Reflect:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Reflect;
+        return Painting::GradientPaintData::SpreadMethod::Reflect;
     case SpreadMethod::Repeat:
-        return Painting::SVGGradientPaintStyle::SpreadMethod::Repeat;
+        return Painting::GradientPaintData::SpreadMethod::Repeat;
     default:
         VERIFY_NOT_REACHED();
     }
@@ -72,7 +72,7 @@ protected:
         return for_each_color_stop_impl(callback, seen_gradients);
     }
 
-    void add_color_stops(Painting::SVGGradientPaintStyle&) const;
+    void add_color_stops(Painting::GradientPaintData&) const;
 
 private:
     template<VoidFunction<SVGStopElement> Callback>
