@@ -301,16 +301,6 @@ EasingFunction EasingFunction::ease()
 
 EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 {
-    auto const resolve_percentage = [](StyleValue const& style_value) {
-        if (style_value.is_percentage())
-            return style_value.as_percentage().percentage().as_fraction();
-
-        if (style_value.is_calculated())
-            return style_value.as_calculated().resolve_percentage({})->as_fraction();
-
-        VERIFY_NOT_REACHED();
-    };
-
     if (style_value.is_easing()) {
         return style_value.as_easing().function().visit(
             [&](EasingStyleValue::Linear const& linear) -> EasingFunction {
@@ -321,7 +311,7 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
 
                     Optional<double> input;
                     if (control_point.input)
-                        input = resolve_percentage(*control_point.input);
+                        input = Percentage::from_style_value(*control_point.input).as_fraction();
 
                     resolved_control_points.append({ input, output });
                 }

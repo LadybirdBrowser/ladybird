@@ -20,6 +20,8 @@ public:
     {
     }
 
+    static Percentage from_style_value(NonnullRefPtr<StyleValue const> const& value);
+
     double value() const { return m_value; }
     double as_fraction() const { return m_value * 0.01; }
 
