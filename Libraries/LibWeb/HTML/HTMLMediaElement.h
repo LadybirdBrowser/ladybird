@@ -125,7 +125,6 @@ public:
     bool potentially_playing() const;
     GC::Ref<WebIDL::Promise> play();
     void pause();
-    void toggle_playback();
 
     double volume() const { return m_volume; }
     WebIDL::ExceptionOr<void> set_volume(double);

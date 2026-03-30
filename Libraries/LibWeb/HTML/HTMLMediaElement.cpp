@@ -547,17 +547,6 @@ void HTMLMediaElement::pause()
     pause_element();
 }
 
-void HTMLMediaElement::toggle_playback()
-{
-    // AD-HOC: An execution context is required for Promise creation hooks.
-    TemporaryExecutionContext execution_context { realm() };
-
-    if (potentially_playing())
-        pause();
-    else
-        play();
-}
-
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-volume
 WebIDL::ExceptionOr<void> HTMLMediaElement::set_volume(double volume)
 {
