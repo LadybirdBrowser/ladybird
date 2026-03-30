@@ -59,8 +59,8 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamPulseAudio::create(Ou
             auto event_loop = main_thread_event_loop->take();
             if (!event_loop)
                 return 1;
-            event_loop->deferred_invoke([promise = move(promise), playback_stream] {
-                promise->resolve(playback_stream);
+            event_loop->deferred_invoke([promise = move(promise), playback_stream = move(playback_stream)] mutable {
+                promise->resolve(move(playback_stream));
             });
         }
 
