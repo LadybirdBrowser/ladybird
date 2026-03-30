@@ -2,6 +2,8 @@ include(audio)
 
 set(SOURCES
     Audio/AudioDevices.cpp
+    Containers/ConstantBitrateContainerNavigator.cpp
+    Containers/IndexedContainerNavigator.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
     Containers/Matroska/Reader.cpp
     Containers/Matroska/SampleIterator.cpp
