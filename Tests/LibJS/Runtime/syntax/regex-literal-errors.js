@@ -28,6 +28,34 @@ test("regex literal errors in new Function()", () => {
     expect(() => new Function("/foo/x")).toThrow(SyntaxError);
 });
 
+test("mixed surrogate forms in named group names are syntax errors", () => {
+    for (const source of [
+        "/(?<a\\uD835\udcf8>.)/",
+        "/(?<a\ud835\\uDCF8>.)/",
+        "/(?<a\\uD835\\u{DCF8}>.)/",
+        "/(?<a\\u{D835}\\uDCF8>.)/",
+        "/(?<a\\u{D835}\\u{DCF8}>.)/",
+    ]) {
+        expect(source).not.toEval();
+        expect(() => eval(source)).toThrow(SyntaxError);
+        expect(() => new Function(source)).toThrow(SyntaxError);
+    }
+});
+
+test("mixed surrogate forms in named backreferences are syntax errors", () => {
+    for (const source of [
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\udcf8>/",
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\ud835\\uDCF8>/",
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\\u{DCF8}>/",
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\\u{D835}\\uDCF8>/",
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\\u{D835}\\u{DCF8}>/",
+    ]) {
+        expect(source).not.toEval();
+        expect(() => eval(source)).toThrow(SyntaxError);
+        expect(() => new Function(source)).toThrow(SyntaxError);
+    }
+});
+
 test("valid regex literals parse and execute correctly", () => {
     expect("/foo/g").toEval();
     expect("/[a-z]+/gims").toEval();
@@ -35,6 +63,34 @@ test("valid regex literals parse and execute correctly", () => {
     expect("/hello world/").toEval();
     expect("/foo/dgimsuy").toEval();
     expect("/foo/v").toEval();
+});
+
+test("named group names accept literal and escaped surrogate pairs in regex literals", () => {
+    for (const source of ["/(?<a\ud835\udcf8>.)/", "/(?<a\\uD835\\uDCF8>.)/", "/(?<a\\u{1D4F8}>.)/"]) {
+        expect(source).toEval();
+        expect(() => eval(source)).not.toThrow();
+        expect(() => new Function(source)).not.toThrow();
+    }
+});
+
+test("named backreferences accept literal and escaped surrogate pairs in regex literals", () => {
+    for (const source of [
+        "/(?<a\ud835\udcf8>.)\\k<a\ud835\udcf8>/",
+        "/(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\\uDCF8>/",
+        "/(?<a\\u{1D4F8}>.)\\k<a\\u{1D4F8}>/",
+    ]) {
+        expect(source).toEval();
+        expect(() => eval(source)).not.toThrow();
+        expect(() => new Function(source)).not.toThrow();
+    }
+});
+
+test("legacy \\k identity escapes remain valid regex literals", () => {
+    const source = "/\\k<\\uDC00>/";
+
+    expect(source).toEval();
+    expect(() => eval(source)).not.toThrow();
+    expect(() => new Function(source)).not.toThrow();
 });
 
 test("regex literals work inside functions", () => {

@@ -1049,9 +1049,15 @@ impl Parser {
         let ch = self.advance().ok_or(Error::InvalidGroupName)?;
         if ch == '\\' {
             if self.eat('u') {
+                let first_is_braced = self.peek() == Some('{');
                 let cp = self.parse_unicode_escape_in_name()?;
-                // Handle surrogate pairs: \uD800\uDC00
-                if (0xD800..=0xDBFF).contains(&cp) && self.eat('\\') && self.eat('u') {
+                // Handle surrogate pairs only for \uHHHH\uHHHH, not \u{...}.
+                if !first_is_braced
+                    && (0xD800..=0xDBFF).contains(&cp)
+                    && self.eat('\\')
+                    && self.eat('u')
+                    && self.peek() != Some('{')
+                {
                     let low = self.parse_unicode_escape_in_name()?;
                     if (0xDC00..=0xDFFF).contains(&low) {
                         let combined = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);

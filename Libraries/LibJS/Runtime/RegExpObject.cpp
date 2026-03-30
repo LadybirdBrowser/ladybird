@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/Function.h>
 #include <AK/UnicodeUtils.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -19,6 +20,215 @@
 namespace JS {
 
 GC_DEFINE_ALLOCATOR(RegExpObject);
+
+namespace {
+
+enum class RegExpNameElementKind {
+    CodePoint,
+    HighSurrogate,
+    LowSurrogate,
+};
+
+enum class RegExpNameElementOrigin {
+    Literal,
+    FixedEscape,
+    BracedEscape,
+};
+
+struct RegExpNameElement {
+    RegExpNameElementKind kind;
+    RegExpNameElementOrigin origin;
+    size_t next_index { 0 };
+};
+
+static ParseRegexPatternError invalid_group_name_error()
+{
+    return ParseRegexPatternError { "invalid group name"_string };
+}
+
+static ErrorOr<RegExpNameElement, ParseRegexPatternError> parse_regexp_name_element(Utf16View const& pattern, size_t index)
+{
+    auto const length = pattern.length_in_code_units();
+    if (index >= length)
+        return invalid_group_name_error();
+
+    auto code_unit = pattern.code_unit_at(index);
+    if (code_unit != '\\') {
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(code_unit)) {
+            if (index + 1 < length) {
+                auto next_code_unit = pattern.code_unit_at(index + 1);
+                if (AK::UnicodeUtils::is_utf16_low_surrogate(next_code_unit))
+                    return RegExpNameElement { RegExpNameElementKind::CodePoint, RegExpNameElementOrigin::Literal, index + 2 };
+            }
+            return RegExpNameElement { RegExpNameElementKind::HighSurrogate, RegExpNameElementOrigin::Literal, index + 1 };
+        }
+        if (AK::UnicodeUtils::is_utf16_low_surrogate(code_unit))
+            return RegExpNameElement { RegExpNameElementKind::LowSurrogate, RegExpNameElementOrigin::Literal, index + 1 };
+        return RegExpNameElement { RegExpNameElementKind::CodePoint, RegExpNameElementOrigin::Literal, index + 1 };
+    }
+
+    if (index + 1 >= length || pattern.code_unit_at(index + 1) != 'u')
+        return invalid_group_name_error();
+
+    auto escape_index = index + 2;
+    if (escape_index < length && pattern.code_unit_at(escape_index) == '{') {
+        ++escape_index;
+
+        u32 value = 0;
+        size_t digits = 0;
+        while (escape_index < length && pattern.code_unit_at(escape_index) != '}') {
+            auto digit = pattern.code_unit_at(escape_index);
+            if (!is_ascii_hex_digit(digit))
+                return invalid_group_name_error();
+            value = value * 16 + parse_ascii_hex_digit(digit);
+            if (value > 0x10FFFF)
+                return invalid_group_name_error();
+            ++digits;
+            ++escape_index;
+        }
+
+        if (digits == 0 || escape_index >= length || pattern.code_unit_at(escape_index) != '}')
+            return invalid_group_name_error();
+
+        ++escape_index;
+        if (AK::UnicodeUtils::is_utf16_high_surrogate(value))
+            return RegExpNameElement { RegExpNameElementKind::HighSurrogate, RegExpNameElementOrigin::BracedEscape, escape_index };
+        if (AK::UnicodeUtils::is_utf16_low_surrogate(value))
+            return RegExpNameElement { RegExpNameElementKind::LowSurrogate, RegExpNameElementOrigin::BracedEscape, escape_index };
+        return RegExpNameElement { RegExpNameElementKind::CodePoint, RegExpNameElementOrigin::BracedEscape, escape_index };
+    }
+
+    if (escape_index + 4 > length)
+        return invalid_group_name_error();
+
+    u32 value = 0;
+    for (size_t offset = 0; offset < 4; ++offset) {
+        auto digit = pattern.code_unit_at(escape_index + offset);
+        if (!is_ascii_hex_digit(digit))
+            return invalid_group_name_error();
+        value = value * 16 + parse_ascii_hex_digit(digit);
+    }
+
+    auto next_index = escape_index + 4;
+    if (AK::UnicodeUtils::is_utf16_high_surrogate(value))
+        return RegExpNameElement { RegExpNameElementKind::HighSurrogate, RegExpNameElementOrigin::FixedEscape, next_index };
+    if (AK::UnicodeUtils::is_utf16_low_surrogate(value))
+        return RegExpNameElement { RegExpNameElementKind::LowSurrogate, RegExpNameElementOrigin::FixedEscape, next_index };
+    return RegExpNameElement { RegExpNameElementKind::CodePoint, RegExpNameElementOrigin::FixedEscape, next_index };
+}
+
+static ErrorOr<size_t, ParseRegexPatternError> validate_regexp_name_surrogates(Utf16View const& pattern, size_t name_start)
+{
+    auto const length = pattern.length_in_code_units();
+    auto index = name_start;
+
+    while (index < length) {
+        if (pattern.code_unit_at(index) == '>')
+            return index + 1;
+
+        auto element = TRY(parse_regexp_name_element(pattern, index));
+        if (element.kind == RegExpNameElementKind::CodePoint) {
+            index = element.next_index;
+            continue;
+        }
+
+        if (element.kind == RegExpNameElementKind::LowSurrogate)
+            return invalid_group_name_error();
+
+        auto next_element = TRY(parse_regexp_name_element(pattern, element.next_index));
+        if (next_element.kind != RegExpNameElementKind::LowSurrogate)
+            return invalid_group_name_error();
+        if (element.origin != next_element.origin)
+            return invalid_group_name_error();
+        if (element.origin == RegExpNameElementOrigin::BracedEscape)
+            return invalid_group_name_error();
+
+        index = next_element.next_index;
+    }
+
+    return invalid_group_name_error();
+}
+
+static bool pattern_has_named_capture_groups(Utf16View const& pattern)
+{
+    auto const length = pattern.length_in_code_units();
+    bool in_character_class = false;
+
+    for (size_t index = 0; index < length; ++index) {
+        auto code_unit = pattern.code_unit_at(index);
+
+        if (code_unit == '\\') {
+            if (index + 1 < length)
+                ++index;
+            continue;
+        }
+
+        if (code_unit == '[' && !in_character_class) {
+            in_character_class = true;
+            continue;
+        }
+
+        if (code_unit == ']' && in_character_class) {
+            in_character_class = false;
+            continue;
+        }
+
+        if (in_character_class)
+            continue;
+
+        if (code_unit == '(' && index + 2 < length && pattern.code_unit_at(index + 1) == '?' && pattern.code_unit_at(index + 2) == '<') {
+            if (index + 3 >= length || (pattern.code_unit_at(index + 3) != '=' && pattern.code_unit_at(index + 3) != '!'))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+static ErrorOr<void, ParseRegexPatternError> validate_named_group_name_surrogates(Utf16View const& pattern, bool unicode_aware)
+{
+    auto const length = pattern.length_in_code_units();
+    bool in_character_class = false;
+    bool has_named_groups_or_unicode = unicode_aware || pattern_has_named_capture_groups(pattern);
+
+    for (size_t index = 0; index < length; ++index) {
+        auto code_unit = pattern.code_unit_at(index);
+
+        if (code_unit == '\\') {
+            if (has_named_groups_or_unicode && !in_character_class && index + 2 < length && pattern.code_unit_at(index + 1) == 'k' && pattern.code_unit_at(index + 2) == '<') {
+                index = TRY(validate_regexp_name_surrogates(pattern, index + 3)) - 1;
+                continue;
+            }
+
+            if (index + 1 < length)
+                ++index;
+            continue;
+        }
+
+        if (code_unit == '[' && !in_character_class) {
+            in_character_class = true;
+            continue;
+        }
+
+        if (code_unit == ']' && in_character_class) {
+            in_character_class = false;
+            continue;
+        }
+
+        if (in_character_class)
+            continue;
+
+        if (code_unit == '(' && index + 2 < length && pattern.code_unit_at(index + 1) == '?' && pattern.code_unit_at(index + 2) == '<') {
+            if (index + 3 < length && pattern.code_unit_at(index + 3) != '=' && pattern.code_unit_at(index + 3) != '!') {
+                index = TRY(validate_regexp_name_surrogates(pattern, index + 3)) - 1;
+            }
+        }
+    }
+
+    return {};
+}
+
+}
 
 static Result<RegExpObject::Flags, String> validate_flags(Utf16View const& flags)
 {
@@ -54,6 +264,8 @@ ErrorOr<String, ParseRegexPatternError> parse_regex_pattern(Utf16View const& pat
 {
     if (unicode && unicode_sets)
         return ParseRegexPatternError { MUST(String::formatted(ErrorType::RegExpObjectIncompatibleFlags.format(), 'u', 'v')) };
+
+    TRY(validate_named_group_name_surrogates(pattern, unicode || unicode_sets));
 
     StringBuilder builder;
 

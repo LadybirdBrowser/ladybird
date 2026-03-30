@@ -35,6 +35,34 @@ describe("errors", () => {
         }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid group name");
     });
 
+    test("invalid pattern (mixed surrogate forms in named group names)", () => {
+        for (const pattern of [
+            "(?<a\\uD835\udcf8>.)",
+            "(?<a\ud835\\uDCF8>.)",
+            "(?<a\\uD835\\u{DCF8}>.)",
+            "(?<a\\u{D835}\\uDCF8>.)",
+            "(?<a\\u{D835}\\u{DCF8}>.)",
+        ]) {
+            expect(() => {
+                RegExp(pattern);
+            }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid group name");
+        }
+    });
+
+    test("invalid pattern (mixed surrogate forms in named backreferences)", () => {
+        for (const pattern of [
+            "(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\udcf8>",
+            "(?<a\\uD835\\uDCF8>.)\\k<a\ud835\\uDCF8>",
+            "(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\\u{DCF8}>",
+            "(?<a\\uD835\\uDCF8>.)\\k<a\\u{D835}\\uDCF8>",
+            "(?<a\\uD835\\uDCF8>.)\\k<a\\u{D835}\\u{DCF8}>",
+        ]) {
+            expect(() => {
+                RegExp(pattern);
+            }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid group name");
+        }
+    });
+
     test("invalid flag", () => {
         expect(() => {
             RegExp("", "x");
@@ -130,6 +158,30 @@ test("Unicode non-ASCII matching", () => {
         const result = test.match.match(test.pattern);
         expect(result).toEqual(test.expected);
     }
+});
+
+test("named group names accept literal and escaped surrogate pairs", () => {
+    for (const pattern of ["(?<a\ud835\udcf8>.)", "(?<a\\uD835\\uDCF8>.)", "(?<a\\u{1D4F8}>.)"]) {
+        const match = RegExp(pattern).exec("x");
+        expect(match.groups["a\u{1D4F8}"]).toBe("x");
+    }
+});
+
+test("named backreferences accept literal and escaped surrogate pairs", () => {
+    for (const pattern of [
+        "(?<a\ud835\udcf8>.)\\k<a\ud835\udcf8>",
+        "(?<a\\uD835\\uDCF8>.)\\k<a\\uD835\\uDCF8>",
+        "(?<a\\u{1D4F8}>.)\\k<a\\u{1D4F8}>",
+    ]) {
+        expect(RegExp(pattern).test("xx")).toBeTrue();
+    }
+});
+
+test("legacy \\k identity escapes bypass named backreference surrogate validation", () => {
+    const subject = "k<\uDC00>";
+
+    expect(new RegExp("\\k<\uDC00>").exec(subject)).toEqual([subject]);
+    expect(/\k<\uDC00>/.exec(subject)).toEqual([subject]);
 });
 
 // https://github.com/tc39/test262/tree/main/test/built-ins/RegExp/unicodeSets/generated
