@@ -1926,12 +1926,28 @@ void HTMLMediaElement::process_media_data(FetchingStatus fetching_status)
         // Set the networkState to NETWORK_IDLE and fire an event named suspend at the media element.
         m_network_state = NetworkState::Idle;
         dispatch_event(DOM::Event::create(realm, HTML::EventNames::suspend));
+
+        update_ready_state();
     } else if (fetching_status == FetchingStatus::Ongoing) {
-        // If the user agent ever discards any media data and then needs to resume the network activity to obtain it again, then it must queue a media
-        // element task given the media element to set the networkState to NETWORK_LOADING.
+        // If the user agent ever discards any media data and then needs to resume the network activity to obtain it
+        // again, then it must queue a media element task given the media element to set the networkState to NETWORK_LOADING.
         queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
             self.m_network_state = NetworkState::Loading;
         }));
+
+        // While the load is not suspended (see below), every 350ms (±200ms) or for every byte received, whichever is
+        // least frequent, queue a media element task given the media element to:
+        auto now = MonotonicTime::now();
+        if (!m_last_progress_event_time.has_value() || now - m_last_progress_event_time.value() > AK::Duration::from_milliseconds(350)) {
+            m_last_progress_event_time = now;
+            queue_a_media_element_task(GC::weak_callback(*this, [](auto& self) {
+                // FIXME: 1. Set the element's is currently stalled to false.
+                // 2. Fire an event named progress at the element.
+                self.dispatch_event(DOM::Event::create(self.realm(), HTML::EventNames::progress));
+            }));
+
+            update_ready_state();
+        }
     }
 
     // -> If the connection is interrupted after some media data has been received, causing the user agent to give up trying
