@@ -37,7 +37,7 @@ private:
     class InternalState : public AtomicRefCounted<InternalState> {
     public:
         void set_stream(NonnullRefPtr<PulseAudioStream>&&);
-        RefPtr<PulseAudioStream> stream();
+        RefPtr<PulseAudioStream> const& stream();
 
         void enqueue(Function<void()>&&);
         void thread_loop();

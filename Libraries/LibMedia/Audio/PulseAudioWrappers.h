@@ -133,8 +133,8 @@ public:
 private:
     friend class PulseAudioContext;
 
-    explicit PulseAudioStream(NonnullRefPtr<PulseAudioContext>&& context, pa_stream* stream);
-    PulseAudioStream(PulseAudioStream const& other) = delete;
+    explicit PulseAudioStream(PulseAudioContext&, pa_stream*);
+    PulseAudioStream(PulseAudioStream const&) = delete;
 
     ErrorOr<void> wait_for_operation(pa_operation*, StringView error_message);
 

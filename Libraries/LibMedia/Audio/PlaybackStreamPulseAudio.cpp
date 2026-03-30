@@ -165,10 +165,10 @@ ErrorOr<void> PlaybackStreamPulseAudio::InternalState::check_is_running()
 
 void PlaybackStreamPulseAudio::InternalState::set_stream(NonnullRefPtr<PulseAudioStream>&& stream)
 {
-    m_stream = stream;
+    m_stream = move(stream);
 }
 
-RefPtr<PulseAudioStream> PlaybackStreamPulseAudio::InternalState::stream()
+RefPtr<PulseAudioStream> const& PlaybackStreamPulseAudio::InternalState::stream()
 {
     return m_stream;
 }
