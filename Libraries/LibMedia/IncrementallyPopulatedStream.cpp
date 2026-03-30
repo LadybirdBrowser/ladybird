@@ -207,7 +207,7 @@ bool IncrementallyPopulatedStream::check_if_data_is_available_or_begin_request_w
         cursor.m_active_timeout = now + CURSOR_ACTIVE_TIME;
 
         auto potential_request_position = adjust_request_position(position);
-        potential_request_position = max(chunk->end(), position);
+        potential_request_position = max(chunk->end(), potential_request_position);
         for (size_t i = 0; i < m_cursors.size(); i++) {
             auto const& other_cursor = m_cursors[i];
             if (!other_cursor.m_is_blocking)
