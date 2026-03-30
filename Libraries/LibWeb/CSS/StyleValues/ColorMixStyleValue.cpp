@@ -189,10 +189,9 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
 {
     // FIXME: Take the color space and hue interpolation method into account.
     // The current implementation only uses oklab interpolation.
-    auto normalized_percentages = normalize_percentages();
     auto from_color = m_properties.first_component.color->to_color(color_resolution_context);
     auto to_color = m_properties.second_component.color->to_color(color_resolution_context);
-    auto delta = Percentage::from_style_value(normalized_percentages.p2).as_fraction();
+    auto delta = Percentage::from_style_value(*m_properties.second_component.percentage).as_fraction();
 
     if (!from_color.has_value() || !to_color.has_value())
         return {};
