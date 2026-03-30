@@ -60,9 +60,6 @@ public:
     struct ResolutionContext {
         [[nodiscard]] static ResolutionContext for_document(DOM::Document const&);
         [[nodiscard]] static ResolutionContext for_element(DOM::AbstractElement const&);
-        // FIXME: Anywhere we use this we probably want to use `for_document` instead since this uses the window's
-        //        viewport rather than the documents which can differ e.g. with iframes.
-        [[nodiscard]] static ResolutionContext for_window(HTML::Window const&);
         [[nodiscard]] static ResolutionContext for_layout_node(Layout::Node const&);
 
         CSSPixelRect viewport_rect;
