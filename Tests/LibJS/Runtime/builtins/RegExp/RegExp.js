@@ -158,6 +158,35 @@ test("adjacent bounded repeated simple loops fail without exhausting backtrackin
     expect(new RegExp(regex.source, "g").exec("aaaaay")).toBeNull();
 });
 
+test("negated unicode property lookbehind keeps backward direction", () => {
+    expect("a2".match(/(?<=[^\p{Emoji}])2/v)).toEqual(["2"]);
+    expect("{2".match(/(?<=[^\p{Emoji}])2/v)).toEqual(["2"]);
+    expect("🆎2".match(/(?<=[^\p{Emoji}])2/v)).toBeNull();
+    expect("🆎{2".match(/(?<=[^\p{Emoji}])2/v)).toEqual(["2"]);
+
+    expect("a2".match(/(?<=[[^\p{Emoji}]])2/v)).toEqual(["2"]);
+    expect("{2".match(/(?<=[[^\p{Emoji}]])2/v)).toEqual(["2"]);
+    expect("🆎2".match(/(?<=[[^\p{Emoji}]])2/v)).toBeNull();
+    expect("🆎{2".match(/(?<=[[^\p{Emoji}]])2/v)).toEqual(["2"]);
+});
+
+test("complex v-mode lookbehind with negated emoji class finds the V8 match", () => {
+    const subject =
+        "🆎🔢🔢🆑🔢🔢= מנד{2130 地地地 *=+#~^/ ش-[#####✈️?🎉ежГ😇עברית سلام ×∂∏≥≠=שززז 漢字? yaqamby 日本語\t%%%% ##\tPBZمرحباΒΒΒ@%`|^#]\n\n\n\n\nηηηη3226858 ";
+    const regex =
+        /(?<![А-Яα-ω[\p{Script=Cyrillic}][[\p{Letter_Number}]]])(?<=[[^\p{Emoji}]])(?<g65>\p{N}??)(\w)(?:[[\p{Decimal_Number}]]\p{N}+?\s+\p{Symbol}*?).*\k<g65>/v;
+    const expected =
+        "2130 地地地 *=+#~^/ ش-[#####✈️?🎉ежГ😇עברית سلام ×∂∏≥≠=שززז 漢字? yaqamby 日本語\t%%%% ##\tPBZمرحباΒΒΒ@%`|^#]";
+
+    const result = regex.exec(subject);
+    expect(result).not.toBeNull();
+    expect(result[0]).toBe(expected);
+    expect(result[2]).toBe("2");
+    expect(result.groups.g65).toBe("");
+
+    expect(subject.match(new RegExp(regex.source, "gv"))).toEqual([expected]);
+});
+
 test("regexp object as pattern parameter", () => {
     expect(RegExp(/foo/).toString()).toBe("/foo/");
     expect(RegExp(/foo/g).toString()).toBe("/foo/g");

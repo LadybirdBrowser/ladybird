@@ -972,9 +972,10 @@ impl Compiler {
                 return;
             }
             // General case: [^\d\w] = (?!\d|\w).
+            let forward = !self.backward;
             let look_start = self.emit(Instruction::LookStart {
                 positive: false,
-                forward: true,
+                forward,
                 end: u32::MAX,
             });
             self.compile_class_components_as_disjunction(ranges);
@@ -982,7 +983,7 @@ impl Compiler {
             let end = self.current_offset();
             self.program.instructions[look_start as usize] = Instruction::LookStart {
                 positive: false,
-                forward: true,
+                forward,
                 end,
             };
             self.emit(Instruction::AnyChar { dot_all: true });
@@ -1037,9 +1038,10 @@ impl Compiler {
         // For now, compile unicode set classes as disjunctions of their operands.
         // This is correct but not optimal — future optimization can merge ranges.
         if negated {
+            let forward = !self.backward;
             let look_start = self.emit(Instruction::LookStart {
                 positive: false,
-                forward: true,
+                forward,
                 end: u32::MAX,
             });
             self.compile_class_set_expression(expr);
@@ -1047,7 +1049,7 @@ impl Compiler {
             let end = self.current_offset();
             self.program.instructions[look_start as usize] = Instruction::LookStart {
                 positive: false,
-                forward: true,
+                forward,
                 end,
             };
             self.emit(Instruction::AnyChar { dot_all: true });
