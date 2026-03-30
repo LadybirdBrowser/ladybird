@@ -29,19 +29,6 @@ TEST_CASE(hash_compatible)
     static_assert(AK::Concepts::HashCompatible<ByteBuffer, StringView>);
 }
 
-TEST_CASE(matches_null)
-{
-    EXPECT(AK::StringUtils::matches(StringView(), StringView()));
-
-    EXPECT(!AK::StringUtils::matches(StringView(), ""sv));
-    EXPECT(!AK::StringUtils::matches(StringView(), "*"sv));
-    EXPECT(!AK::StringUtils::matches(StringView(), "?"sv));
-    EXPECT(!AK::StringUtils::matches(StringView(), "a"sv));
-
-    EXPECT(!AK::StringUtils::matches(""sv, StringView()));
-    EXPECT(!AK::StringUtils::matches("a"sv, StringView()));
-}
-
 TEST_CASE(matches_empty)
 {
     EXPECT(AK::StringUtils::matches(""sv, ""sv));

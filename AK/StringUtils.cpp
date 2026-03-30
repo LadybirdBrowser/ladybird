@@ -29,9 +29,6 @@ bool matches(StringView str, StringView mask, CaseSensitivity case_sensitivity, 
             match_spans->append({ start, length });
     };
 
-    if (str.is_null() || mask.is_null())
-        return str.is_null() && mask.is_null();
-
     if (mask == "*"sv) {
         record_span(0, str.length());
         return true;
@@ -148,7 +145,7 @@ bool starts_with(StringView str, StringView start, CaseSensitivity case_sensitiv
 
 bool contains(StringView str, StringView needle, CaseSensitivity case_sensitivity)
 {
-    if (str.is_null() || needle.is_null() || str.is_empty() || needle.length() > str.length())
+    if (str.is_empty() || needle.length() > str.length())
         return false;
     if (needle.is_empty())
         return true;

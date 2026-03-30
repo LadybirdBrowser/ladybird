@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Assertions.h>
+#include <AK/Badge.h>
 #include <AK/Checked.h>
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
@@ -28,6 +29,7 @@ public:
         , m_length(length)
     {
         if !consteval {
+            VERIFY(characters != nullptr);
             VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
         }
     }
@@ -36,6 +38,7 @@ public:
         : m_characters(reinterpret_cast<char const*>(characters))
         , m_length(length)
     {
+        VERIFY(characters != nullptr);
         VERIFY(!Checked<uintptr_t>::addition_would_overflow(reinterpret_cast<uintptr_t>(characters), length));
     }
 
@@ -43,6 +46,7 @@ public:
         : m_characters(reinterpret_cast<char const*>(bytes.data()))
         , m_length(bytes.size())
     {
+        VERIFY(bytes.data() != nullptr);
     }
 
     StringView(LIFETIME_BOUND ByteBuffer const&);
@@ -58,7 +62,6 @@ public:
     template<OneOf<String, FlyString, ByteString, ByteBuffer> StringType>
     StringView& operator=(StringType&&) = delete;
 
-    [[nodiscard]] constexpr bool is_null() const { return m_characters == nullptr; }
     [[nodiscard]] constexpr bool is_empty() const { return m_length == 0; }
 
     [[nodiscard]] constexpr char const* characters_without_null_termination() const { return m_characters; }
@@ -253,8 +256,6 @@ public:
 
     constexpr bool operator==(char const* cstring) const
     {
-        if (is_null())
-            return cstring == nullptr;
         if (!cstring)
             return false;
         // NOTE: `m_characters` is not guaranteed to be null-terminated, but `cstring` is.
@@ -279,12 +280,6 @@ public:
     {
         if (m_length == 0 && other.m_length == 0)
             return 0;
-
-        if (m_characters == nullptr)
-            return other.m_characters ? -1 : 0;
-
-        if (other.m_characters == nullptr)
-            return 1;
 
         size_t rlen = min(m_length, other.m_length);
         int c = __builtin_memcmp(m_characters, other.m_characters, rlen);
@@ -358,8 +353,28 @@ public:
 
 private:
     friend class ByteString;
-    char const* m_characters { nullptr };
+    friend struct SentinelOptionalTraits<StringView>;
+
+    explicit constexpr StringView(Badge<SentinelOptionalTraits<StringView>>, nullptr_t)
+        : m_characters(nullptr)
+        , m_length(0)
+    {
+    }
+
+    char const* m_characters { "" };
     size_t m_length { 0 };
+};
+
+template<>
+struct SentinelOptionalTraits<StringView> {
+    static constexpr StringView sentinel_value() { return StringView(Badge<SentinelOptionalTraits<StringView>> {}, nullptr); }
+    static constexpr bool is_sentinel(StringView const& value) { return value.m_characters == nullptr; }
+};
+
+template<>
+class Optional<StringView> : public SentinelOptional<StringView> {
+public:
+    using SentinelOptional::SentinelOptional;
 };
 
 template<>

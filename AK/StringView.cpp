@@ -41,6 +41,7 @@ StringView::StringView(ByteBuffer const& buffer)
     : m_characters((char const*)buffer.data())
     , m_length(buffer.size())
 {
+    VERIFY(buffer.data() != nullptr);
 }
 
 Vector<StringView> StringView::split_view(char const separator, SplitBehavior split_behavior) const

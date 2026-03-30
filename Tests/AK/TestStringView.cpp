@@ -11,9 +11,8 @@
 
 TEST_CASE(construct_empty)
 {
-    EXPECT(StringView().is_null());
     EXPECT(StringView().is_empty());
-    EXPECT(!StringView().characters_without_null_termination());
+    EXPECT_EQ(StringView().characters_without_null_termination(), "");
     EXPECT_EQ(StringView().length(), 0u);
 }
 
@@ -21,10 +20,27 @@ TEST_CASE(view_literal)
 {
     char const* truth = "cats rule dogs drool";
     StringView view { truth, strlen(truth) };
-    EXPECT_EQ(view.is_null(), false);
     EXPECT_EQ(view.characters_without_null_termination(), truth);
     EXPECT_EQ(view, view);
     EXPECT_EQ(view, truth);
+}
+
+TEST_CASE(optional_string_view)
+{
+    Optional<StringView> missing;
+    EXPECT(!missing.has_value());
+
+    Optional<StringView> empty = ""sv;
+    EXPECT(empty.has_value());
+    EXPECT(empty->is_empty());
+    EXPECT_EQ(empty.value(), ""sv);
+
+    Optional<StringView> value = "foo"sv;
+    EXPECT(value.has_value());
+    EXPECT_EQ(value.value(), "foo"sv);
+
+    value.clear();
+    EXPECT(!value.has_value());
 }
 
 TEST_CASE(compare_views)

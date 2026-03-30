@@ -110,7 +110,6 @@ public:
     Utf8View unicode_substring_view(size_t code_point_offset) const { return unicode_substring_view(code_point_offset, length() - code_point_offset); }
 
     bool is_empty() const { return m_string.is_empty(); }
-    bool is_null() const { return m_string.is_null(); }
     bool starts_with(Utf8View const&) const;
     bool contains(u32) const;
     bool contains_any_of(ReadonlySpan<u32>) const;

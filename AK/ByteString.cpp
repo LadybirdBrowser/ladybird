@@ -23,9 +23,6 @@ bool ByteString::operator==(ByteString const& other) const
 
 bool ByteString::operator==(StringView other) const
 {
-    if (other.is_null())
-        return is_empty();
-
     return view() == other;
 }
 
