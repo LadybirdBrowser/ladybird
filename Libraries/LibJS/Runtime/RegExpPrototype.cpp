@@ -130,6 +130,59 @@ static regex::ECMAScriptRegex const* get_or_compile_regex(RegExpObject& regexp_o
     return ptr;
 }
 
+struct ExecWithLastIndexResult {
+    regex::MatchResult result;
+    size_t effective_last_index;
+};
+
+static ExecWithLastIndexResult exec_with_unicode_last_index_retry(regex::ECMAScriptRegex const& compiled_regex, Utf16View const& utf16_view, size_t last_index, bool unicode_mode, bool sticky)
+{
+    auto exec_at = [&](size_t index) {
+        return ExecWithLastIndexResult {
+            .result = compiled_regex.exec(utf16_view, index),
+            .effective_last_index = index,
+        };
+    };
+
+    if (!unicode_mode || last_index == 0 || last_index >= utf16_view.length_in_code_units())
+        return exec_at(last_index);
+
+    auto current = utf16_view.code_unit_at(last_index);
+    auto previous = utf16_view.code_unit_at(last_index - 1);
+    if (!(current >= 0xDC00 && current <= 0xDFFF
+            && previous >= 0xD800 && previous <= 0xDBFF))
+        return exec_at(last_index);
+
+    if (!sticky && compiled_regex.is_single_non_bmp_literal())
+        return exec_at(last_index);
+
+    // NB: V8/SpiderMonkey first try the code point that starts at the
+    // surrogate pair boundary, but zero-width patterns can still match at the
+    // original low-surrogate index when that earlier retry fails. Consuming
+    // retries must still be rejected so /u and /v regexes never split the
+    // surrogate pair.
+    auto snapped_result = exec_at(last_index - 1);
+    if (snapped_result.result != regex::MatchResult::NoMatch)
+        return snapped_result;
+
+    auto retried_result = exec_at(last_index);
+    if (retried_result.result != regex::MatchResult::Match)
+        return retried_result;
+
+    auto match_start = compiled_regex.capture_slot(0);
+    auto match_end = compiled_regex.capture_slot(1);
+    if (match_start >= 0 && match_end >= 0
+        && static_cast<size_t>(match_start) == last_index
+        && static_cast<size_t>(match_end) == last_index) {
+        return retried_result;
+    }
+
+    return ExecWithLastIndexResult {
+        .result = regex::MatchResult::NoMatch,
+        .effective_last_index = last_index,
+    };
+}
+
 // 22.2.7.2 RegExpBuiltinExec ( R, S ), https://tc39.es/ecma262/#sec-regexpbuiltinexec
 // 22.2.7.2 RegExpBuiltInExec ( R, S ), https://github.com/tc39/proposal-regexp-legacy-features#regexpbuiltinexec--r-s-
 static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp_object, GC::Ref<PrimitiveString> string)
@@ -162,27 +215,17 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     if (!compiled_regex)
         return js_null();
 
-    // In Unicode mode, if lastIndex points into the middle of a surrogate pair,
-    // snap back to the start of the pair (matching V8/SpiderMonkey behavior).
     bool unicode_mode = has_flag(flag_bits, RegExpObject::Flags::Unicode)
         || has_flag(flag_bits, RegExpObject::Flags::UnicodeSets);
-    if (unicode_mode && last_index > 0 && last_index < utf16_view.length_in_code_units()) {
-        if (utf16_view.code_unit_at(last_index) >= 0xDC00 && utf16_view.code_unit_at(last_index) <= 0xDFFF
-            && utf16_view.code_unit_at(last_index - 1) >= 0xD800 && utf16_view.code_unit_at(last_index - 1) <= 0xDBFF
-            && !compiled_regex->is_single_non_bmp_literal()) {
-            --last_index;
-        }
-    }
-
-    auto match_result = compiled_regex->exec(utf16_view, last_index);
-    if (match_result == regex::MatchResult::LimitExceeded)
+    auto exec_result = exec_with_unicode_last_index_retry(*compiled_regex, utf16_view, last_index, unicode_mode, sticky);
+    if (exec_result.result == regex::MatchResult::LimitExceeded)
         return vm.throw_completion<InternalError>(ErrorType::RegExpBacktrackLimitExceeded);
-    bool matched = match_result == regex::MatchResult::Match;
+    bool matched = exec_result.result == regex::MatchResult::Match;
 
     // For sticky mode, the match must start at exactly lastIndex.
     if (matched && sticky) {
         auto match_start = compiled_regex->capture_slot(0);
-        if (match_start < 0 || static_cast<size_t>(match_start) != last_index)
+        if (match_start < 0 || static_cast<size_t>(match_start) != exec_result.effective_last_index)
             matched = false;
     }
 
@@ -746,13 +789,13 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                                 break;
                             }
 
-                            auto exec_result = compiled_regex->exec(utf16_view, last_index);
-                            if (exec_result == regex::MatchResult::LimitExceeded)
+                            auto exec_result = exec_with_unicode_last_index_retry(*compiled_regex, utf16_view, last_index, full_unicode, is_sticky);
+                            if (exec_result.result == regex::MatchResult::LimitExceeded)
                                 return vm.throw_completion<InternalError>(ErrorType::RegExpBacktrackLimitExceeded);
-                            bool matched = exec_result == regex::MatchResult::Match;
+                            bool matched = exec_result.result == regex::MatchResult::Match;
 
                             // For sticky, match must start at exactly lastIndex.
-                            if (matched && is_sticky && static_cast<size_t>(compiled_regex->capture_slot(0)) != last_index)
+                            if (matched && is_sticky && static_cast<size_t>(compiled_regex->capture_slot(0)) != exec_result.effective_last_index)
                                 matched = false;
 
                             if (!matched) {

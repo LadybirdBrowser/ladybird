@@ -2565,6 +2565,15 @@ impl<'a, I: Input> Vm<'a, I> {
             if self.pos == 0 {
                 return None;
             }
+            // NB: A lookbehind that starts between surrogate halves has no
+            // complete Unicode code point immediately to its left.
+            if self.program.unicode
+                && self.pos < self.input_len()
+                && is_low_surrogate(self.input_code_unit(self.pos))
+                && is_high_surrogate(self.input_code_unit(self.pos - 1))
+            {
+                return None;
+            }
             let cu = self.input_code_unit(self.pos - 1) as u32;
             // In Unicode mode, check for surrogate pair (low surrogate preceded by high).
             if self.program.unicode

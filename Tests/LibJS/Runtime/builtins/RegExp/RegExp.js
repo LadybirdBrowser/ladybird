@@ -187,6 +187,47 @@ test("complex v-mode lookbehind with negated emoji class finds the V8 match", ()
     expect(subject.match(new RegExp(regex.source, "gv"))).toEqual([expected]);
 });
 
+test("unicode lastIndex retries the original low-surrogate position after a failed snap-back", () => {
+    const regex = /\p{Script=Cyrillic}?(?<!\D)/vy;
+    regex.lastIndex = 2;
+
+    const result = regex.exec("A😘");
+    expect(result).not.toBeNull();
+    expect(result.index).toBe(2);
+    expect(result[0]).toBe("");
+    expect(regex.lastIndex).toBe(2);
+
+    expect("A😘".match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(["", ""]);
+});
+
+test("unicode lastIndex still snaps to the start of a surrogate pair when that matches", () => {
+    const regex = /😀/uy;
+    regex.lastIndex = 1;
+
+    const result = regex.exec("😀");
+    expect(result).not.toBeNull();
+    expect(result.index).toBe(0);
+    expect(result[0]).toBe("😀");
+    expect(regex.lastIndex).toBe(2);
+});
+
+test("unicode lastIndex does not retry consuming matches at low surrogates", () => {
+    const regex = /[^😀]/uy;
+    regex.lastIndex = 1;
+
+    expect(regex.exec("😀")).toBeNull();
+    expect(regex.lastIndex).toBe(0);
+
+    regex.lastIndex = 1;
+    expect("😀".replace(regex, "x")).toBe("😀");
+});
+
+test("global unicode matches keep low-surrogate empty matches that V8 finds", () => {
+    const subject =
+        "سلام 카차가≠ -YA😘🙂🤔 ذذذ/8️⃣ бшгА884 жЕ 🌟🎀🎀🎈✨🚀\n✨тест( \n\t \t },{ `:कगवचचजय mmmmm\t999\n⚡💢💥❤️💧;人बई÷{{😊😊🔢🔢🔢_";
+    expect(subject.match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(new Array(24).fill(""));
+});
+
 test("regexp object as pattern parameter", () => {
     expect(RegExp(/foo/).toString()).toBe("/foo/");
     expect(RegExp(/foo/g).toString()).toBe("/foo/g");
