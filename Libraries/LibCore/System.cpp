@@ -408,8 +408,6 @@ ErrorOr<void> symlink(StringView target, StringView link_path)
 
 ErrorOr<void> mkdir(StringView path, mode_t mode)
 {
-    if (path.is_null())
-        return Error::from_errno(EFAULT);
     ByteString path_string = path;
     if (::mkdir(path_string.characters(), mode) < 0)
         return Error::from_syscall("mkdir"sv, errno);
@@ -418,9 +416,6 @@ ErrorOr<void> mkdir(StringView path, mode_t mode)
 
 ErrorOr<void> chdir(StringView path)
 {
-    if (path.is_null())
-        return Error::from_errno(EFAULT);
-
     ByteString path_string = path;
     if (::chdir(path_string.characters()) < 0)
         return Error::from_syscall("chdir"sv, errno);
@@ -429,9 +424,6 @@ ErrorOr<void> chdir(StringView path)
 
 ErrorOr<void> rmdir(StringView path)
 {
-    if (path.is_null())
-        return Error::from_errno(EFAULT);
-
     ByteString path_string = path;
     if (::rmdir(path_string.characters()) < 0)
         return Error::from_syscall("rmdir"sv, errno);
@@ -448,9 +440,6 @@ ErrorOr<int> mkstemp(Span<char> pattern)
 
 ErrorOr<void> rename(StringView old_path, StringView new_path)
 {
-    if (old_path.is_null() || new_path.is_null())
-        return Error::from_errno(EFAULT);
-
     ByteString old_path_string = old_path;
     ByteString new_path_string = new_path;
     if (::rename(old_path_string.characters(), new_path_string.characters()) < 0)
@@ -460,9 +449,6 @@ ErrorOr<void> rename(StringView old_path, StringView new_path)
 
 ErrorOr<void> unlink(StringView path)
 {
-    if (path.is_null())
-        return Error::from_errno(EFAULT);
-
     ByteString path_string = path;
     if (::unlink(path_string.characters()) < 0)
         return Error::from_syscall("unlink"sv, errno);
@@ -471,15 +457,8 @@ ErrorOr<void> unlink(StringView path)
 
 ErrorOr<void> utimensat(int fd, StringView path, struct timespec const times[2], int flag)
 {
-    if (path.is_null())
-        return Error::from_errno(EFAULT);
-
-    StringBuilder builder;
-    TRY(builder.try_append(path));
-    TRY(builder.try_append('\0'));
-
-    // Note the explicit null terminators above.
-    if (::utimensat(fd, builder.string_view().characters_without_null_termination(), times, flag) < 0)
+    ByteString path_string = path;
+    if (::utimensat(fd, path_string.characters(), times, flag) < 0)
         return Error::from_syscall("utimensat"sv, errno);
     return {};
 }
@@ -660,9 +639,6 @@ ErrorOr<Array<int, 2>> pipe2(int flags)
 
 ErrorOr<void> access(StringView pathname, int mode, int flags)
 {
-    if (pathname.is_null())
-        return Error::from_syscall("access"sv, EFAULT);
-
     ByteString path_string = pathname;
     (void)flags;
 
