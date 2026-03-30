@@ -22,7 +22,6 @@ public:
     virtual ~ContentStyleValue() override = default;
 
     StyleValueList const& content() const { return *m_properties.content; }
-    bool has_alt_text() const { return !m_properties.alt_text.is_null(); }
     StyleValueList const* alt_text() const { return m_properties.alt_text; }
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;

@@ -15,9 +15,9 @@ namespace Web::CSS {
 void ContentStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const
 {
     m_properties.content->serialize(builder, mode);
-    if (has_alt_text()) {
+    if (auto alt_text = m_properties.alt_text) {
         builder.append(" / "sv);
-        m_properties.alt_text->serialize(builder, mode);
+        alt_text->serialize(builder, mode);
     }
 }
 

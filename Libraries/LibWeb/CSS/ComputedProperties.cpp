@@ -1199,9 +1199,9 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
         }
         content_data.type = ContentData::Type::List;
 
-        if (content_style_value.has_alt_text()) {
+        if (auto alt_text = content_style_value.alt_text()) {
             StringBuilder alt_text_builder;
-            for (auto const& item : content_style_value.alt_text()->values()) {
+            for (auto const& item : alt_text->values()) {
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value());
                 } else if (item->is_counter()) {
