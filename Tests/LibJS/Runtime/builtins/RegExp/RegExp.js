@@ -29,6 +29,27 @@ describe("errors", () => {
         }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid quantifier");
     });
 
+    test("large quantifier bounds clamp before order validation", () => {
+        for (const pattern of [
+            "a{2147483648}",
+            "a{2147483648,}",
+            "a{2147483648,2147483647}",
+            "a{2147483648,2147483648}",
+            "a{99999999999999999999999999999999999999999999999999}",
+        ]) {
+            expect(() => {
+                new RegExp(pattern);
+            }).not.toThrow();
+            expect(new RegExp(pattern).source).toBe(pattern);
+        }
+
+        for (const pattern of ["a{2147483647,2147483646}", "a{2147483648,2147483646}"]) {
+            expect(() => {
+                new RegExp(pattern);
+            }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid quantifier");
+        }
+    });
+
     test("invalid pattern (invalid group name)", () => {
         expect(() => {
             RegExp("(?<>a)");

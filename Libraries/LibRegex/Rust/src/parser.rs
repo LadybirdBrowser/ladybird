@@ -13,6 +13,8 @@
 //! - <https://tc39.es/ecma262/#sec-parsepattern>
 use crate::ast::*;
 
+const MAX_BRACED_QUANTIFIER: u32 = i32::MAX as u32;
+
 /// Parse a regex pattern string with the given flags.
 ///
 /// Spec entry point: `ParsePattern`.
@@ -447,18 +449,15 @@ impl Parser {
     /// - `Ok(None)` if no digits were found
     /// - `Ok(Some(n))` if a valid u32 was parsed
     ///
-    /// On overflow, saturates to `u32::MAX` instead of erroring,
-    /// since the spec allows arbitrarily large quantifier values.
+    /// Clamp braced quantifier bounds to 2^31 - 1 to match browser behavior.
     fn try_parse_decimal(&mut self) -> Result<Option<u32>, Error> {
         let start = self.pos;
         let mut value: u32 = 0;
         while let Some(ch) = self.peek() {
             if let Some(digit) = ch.to_digit(10) {
                 self.pos += 1;
-                value = value
-                    .checked_mul(10)
-                    .and_then(|v| v.checked_add(digit))
-                    .unwrap_or(u32::MAX);
+                value = value.saturating_mul(10).saturating_add(digit);
+                value = value.min(MAX_BRACED_QUANTIFIER);
             } else {
                 break;
             }

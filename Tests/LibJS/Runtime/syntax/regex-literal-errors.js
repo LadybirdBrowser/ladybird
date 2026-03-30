@@ -56,6 +56,26 @@ test("mixed surrogate forms in named backreferences are syntax errors", () => {
     }
 });
 
+test("large quantifier bounds clamp before regex literal order validation", () => {
+    for (const source of [
+        "/a{2147483648}/",
+        "/a{2147483648,}/",
+        "/a{2147483648,2147483647}/",
+        "/a{2147483648,2147483648}/",
+        "/a{99999999999999999999999999999999999999999999999999}/",
+    ]) {
+        expect(source).toEval();
+        expect(() => eval(source)).not.toThrow();
+        expect(() => new Function(source)).not.toThrow();
+    }
+
+    for (const source of ["/a{2147483647,2147483646}/", "/a{2147483648,2147483646}/"]) {
+        expect(source).not.toEval();
+        expect(() => eval(source)).toThrow(SyntaxError);
+        expect(() => new Function(source)).toThrow(SyntaxError);
+    }
+});
+
 test("valid regex literals parse and execute correctly", () => {
     expect("/foo/g").toEval();
     expect("/[a-z]+/gims").toEval();
