@@ -52,9 +52,6 @@ ErrorOr<ByteString> absolute_path(StringView path)
 #ifndef AK_OS_WINDOWS
 ErrorOr<ByteString> real_path(StringView path)
 {
-    if (path.is_null())
-        return Error::from_errno(ENOENT);
-
     ByteString dep_path = path;
     char* real_path = realpath(dep_path.characters(), nullptr);
     ScopeGuard free_path = [real_path]() { free(real_path); };
