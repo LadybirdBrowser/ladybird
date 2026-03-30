@@ -62,17 +62,17 @@ static OrderedHashTable<TraversableNavigable*>& user_agent_top_level_traversable
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-browsing-context
-WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page)
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page)
 {
     // 1. Let group and document be the result of creating a new browsing context group and document.
-    auto [group, document] = TRY(BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page));
+    auto [group, document] = BrowsingContextGroup::create_a_new_browsing_context_group_and_document(page);
 
     // 2. Return group's browsing context set[0] and document.
     return BrowsingContextAndDocument { **group->browsing_context_set().begin(), document };
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#creating-a-new-top-level-traversable
-WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
+GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_traversable(GC::Ref<Page> page, GC::Ptr<HTML::BrowsingContext> opener, String target_name)
 {
     auto& vm = Bindings::main_thread_vm();
 
@@ -81,12 +81,12 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
 
     // 2. If opener is null, then set document to the second return value of creating a new top-level browsing context and document.
     if (!opener) {
-        document = TRY(create_a_new_top_level_browsing_context_and_document(page)).document;
+        document = create_a_new_top_level_browsing_context_and_document(page).document;
     }
 
     // 3. Otherwise, set document to the second return value of creating a new auxiliary browsing context and document given opener.
     else {
-        document = TRY(BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(page, *opener)).document;
+        document = BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(page, *opener).document;
     }
 
     // 4. Let documentState be a new document state, with
@@ -111,7 +111,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
     auto traversable = vm.heap().allocate<TraversableNavigable>(page);
 
     // 6. Initialize the navigable traversable given documentState.
-    TRY_OR_THROW_OOM(vm, traversable->initialize_navigable(document_state, nullptr));
+    traversable->initialize_navigable(document_state, nullptr);
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
     auto initial_history_entry = traversable->active_session_history_entry();
@@ -134,10 +134,10 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-fresh-top-level-traversable
-WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> initial_navigation_post_resource)
+GC::Ref<TraversableNavigable> TraversableNavigable::create_a_fresh_top_level_traversable(GC::Ref<Page> page, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> initial_navigation_post_resource)
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
-    auto traversable = TRY(create_a_new_top_level_traversable(page, nullptr, {}));
+    auto traversable = create_a_new_top_level_traversable(page, nullptr, {});
     page->set_top_level_traversable(traversable);
 
     // AD-HOC: Set the default top-level emulated position data for the traversable, which points to Market St. SF.
@@ -174,7 +174,7 @@ WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> TraversableNavigable::create_
 
     else {
         // 2. Navigate traversable to initialNavigationURL using traversable's active document, with documentResource set to initialNavigationPostResource.
-        TRY(traversable->navigate({ .url = initial_navigation_url,
+        MUST(traversable->navigate({ .url = initial_navigation_url,
             .source_document = *traversable->active_document(),
             .document_resource = initial_navigation_post_resource }));
     }

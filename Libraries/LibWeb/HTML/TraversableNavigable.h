@@ -36,8 +36,8 @@ class WEB_API TraversableNavigable final : public Navigable {
     GC_DECLARE_ALLOCATOR(TraversableNavigable);
 
 public:
-    static WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, String target_name);
-    static WebIDL::ExceptionOr<GC::Ref<TraversableNavigable>> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
+    static GC::Ref<TraversableNavigable> create_a_new_top_level_traversable(GC::Ref<Page>, GC::Ptr<BrowsingContext> opener, String target_name);
+    static GC::Ref<TraversableNavigable> create_a_fresh_top_level_traversable(GC::Ref<Page>, URL::URL const& initial_navigation_url, Variant<Empty, String, POSTResource> = Empty {});
 
     virtual ~TraversableNavigable() override;
 
@@ -191,7 +191,7 @@ struct BrowsingContextAndDocument {
     GC::Ref<DOM::Document> document;
 };
 
-WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
+BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
 void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
 template<>

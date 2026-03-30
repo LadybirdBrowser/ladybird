@@ -27,8 +27,8 @@ public:
         GC::Ref<DOM::Document> document;
     };
 
-    static WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ref<BrowsingContextGroup> group);
-    static WebIDL::ExceptionOr<BrowsingContextAndDocument> create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ref<BrowsingContextGroup> group);
+    static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
 
     virtual ~BrowsingContext() override;
 

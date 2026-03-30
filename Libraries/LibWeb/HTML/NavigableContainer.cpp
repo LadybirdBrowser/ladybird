@@ -62,7 +62,7 @@ GC::Ptr<NavigableContainer> NavigableContainer::navigable_container_with_content
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#create-a-new-child-navigable
-WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
+void NavigableContainer::create_new_child_navigable()
 {
     // 1. Let parentNavigable be element's node navigable.
     auto parent_navigable = navigable();
@@ -74,7 +74,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
 
     // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
     auto& page = document().page();
-    auto [browsing_context, document] = TRY(BrowsingContext::create_a_new_browsing_context_and_document(page, this->document(), *this, *group));
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, this->document(), *this, *group);
 
     // 4. Let targetName be null.
     Optional<String> target_name;
@@ -101,7 +101,7 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
     GC::Ref<Navigable> navigable = *heap().allocate<Navigable>(page, false);
 
     // 8. Initialize the navigable navigable given documentState and parentNavigable.
-    TRY_OR_THROW_OOM(vm(), navigable->initialize_navigable(document_state, parent_navigable));
+    navigable->initialize_navigable(document_state, parent_navigable);
 
     // 9. Set element's content navigable to navigable.
     m_content_navigable = navigable;
@@ -160,8 +160,6 @@ WebIDL::ExceptionOr<void> NavigableContainer::create_new_child_navigable()
             signal->resolve({});
         }));
     }));
-
-    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#concept-bcc-content-document

@@ -64,7 +64,7 @@ public:
     using NullOrError = Optional<String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
-    ErrorOr<void> initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);
+    void initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
