@@ -96,7 +96,7 @@ CSSPixels LineBox::calculate_or_trim_trailing_whitespace(RemoveTrailingWhitespac
     }
 
     auto last_text = last_fragment->text();
-    if (last_text.is_null()) {
+    if (last_text.is_empty()) {
         // No text to trim, but we may have removed whitespace-only fragments.
         if (should_remove == RemoveTrailingWhitespace::Yes && trailing_whitespace_width > 0)
             last_fragment->set_has_trailing_whitespace(true);
