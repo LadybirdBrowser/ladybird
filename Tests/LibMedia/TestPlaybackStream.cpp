@@ -28,6 +28,8 @@ TEST_CASE(create_and_destroy_playback_stream)
     has_implementation = true;
 #    endif
 
+    bool done = false;
+
     Audio::PlaybackStream::create(Audio::OutputState::Playing, 100, [](Span<float> buffer) -> ReadonlySpan<float> { return buffer.trim(0); })
         ->when_resolved([&](auto& stream) {
             if (!has_implementation)
@@ -40,21 +42,27 @@ TEST_CASE(create_and_destroy_playback_stream)
                 stream->drain_buffer_and_suspend()->when_rejected([](Error const&) { VERIFY_NOT_REACHED(); });
             }
 
-#    if defined(HAVE_PULSEAUDIO)
-            // The PulseAudio context is kept alive by the PlaybackStream's control thread, which blocks on
-            // some operations, so it won't necessarily be destroyed immediately.
-            auto wait_start = MonotonicTime::now_coarse();
-            while (Audio::PulseAudioContext::is_connected()) {
-                if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(100))
-                    VERIFY_NOT_REACHED();
-            }
-#    endif
+            done = true;
         })
         .when_rejected([&](auto& error) {
             if (has_implementation) {
                 dbgln("Failed to create playback stream: {}", error);
                 VERIFY_NOT_REACHED();
             }
+
+            done = true;
         });
+
+    event_loop.spin_until([&] { return done; });
+
+#    if defined(HAVE_PULSEAUDIO)
+    // The PulseAudio context is kept alive by the PlaybackStream's control thread, which blocks on
+    // some operations, so it won't necessarily be destroyed immediately.
+    auto wait_start = MonotonicTime::now_coarse();
+    while (Audio::PulseAudioContext::is_connected()) {
+        if (MonotonicTime::now_coarse() - wait_start > AK::Duration::from_milliseconds(100))
+            VERIFY_NOT_REACHED();
+    }
+#    endif
 }
 #endif
