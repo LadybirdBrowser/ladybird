@@ -15,6 +15,7 @@ class AudioPlaybackSink;
 class AudioProducer;
 class AudioSink;
 class CodedFrame;
+class ContainerNavigator;
 class DecodedAudioProducer;
 class DecodedVideoProducer;
 class DecoderError;

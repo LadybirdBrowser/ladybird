@@ -9,6 +9,8 @@
 #include <AK/MemoryStream.h>
 #include <AK/Stream.h>
 #include <AK/Time.h>
+#include <LibMedia/Containers/ConstantBitrateContainerNavigator.h>
+#include <LibMedia/Containers/IndexedContainerNavigator.h>
 #include <LibMedia/FFmpeg/FFmpegDemuxer.h>
 #include <LibMedia/FFmpeg/FFmpegHelpers.h>
 #include <LibMedia/MediaStream.h>
@@ -39,6 +41,7 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     if (format_context == nullptr)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to allocate format context"sv);
     format_context->pb = &io_context;
+    format_context->flags |= AVFMT_FLAG_FAST_SEEK;
     if (avformat_open_input(&format_context, nullptr, nullptr, nullptr) < 0)
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to open input for format parsing"sv);
 
@@ -171,8 +174,90 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
             demuxer->m_preferred_track_for_type[type_index] = static_cast<int>(i);
     }
 
+    demuxer->m_container_navigator = create_container_navigator(*format_context);
+
     avformat_close_input(&format_context);
     return demuxer;
+}
+
+static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
+{
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
+}
+
+static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
+{
+    VERIFY(time_base.num > 0);
+    VERIFY(time_base.den > 0);
+    return duration.to_time_units(time_base.num, time_base.den);
+}
+
+OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatContext& context)
+{
+    auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
+
+    if (format_name == "wav"sv && context.nb_streams > 0) {
+        auto* stream = context.streams[0];
+        auto* codec_par = stream->codecpar;
+        if (codec_par->block_align <= 0)
+            return nullptr;
+        if (codec_par->sample_rate <= 0)
+            return nullptr;
+        if (Checked<u32>::multiplication_would_overflow(static_cast<u32>(codec_par->block_align), codec_par->sample_rate))
+            return nullptr;
+        auto bytes_per_second = static_cast<u32>(codec_par->block_align) * codec_par->sample_rate;
+        auto entry_count = avformat_index_get_entries_count(stream);
+        if (entry_count <= 0)
+            return nullptr;
+        auto data_offset = avformat_index_get_entry(stream, 0)->pos;
+        return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second);
+    }
+
+    return create_container_navigator_from_index(context);
+}
+
+OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator_from_index(AVFormatContext& context)
+{
+    Vector<IndexEntry> entries;
+    for (u32 i = 0; i < context.nb_streams; i++) {
+        auto* stream = context.streams[i];
+        auto entry_count = avformat_index_get_entries_count(stream);
+        if (entry_count <= 0)
+            continue;
+
+        MUST(entries.try_ensure_capacity(entries.size() + entry_count));
+        for (int j = 0; j < entry_count; j++) {
+            auto const* entry = avformat_index_get_entry(stream, j);
+            entries.unchecked_append({
+                .position = static_cast<size_t>(entry->pos),
+                .timestamp = time_units_to_duration(entry->timestamp, stream->time_base),
+            });
+        }
+    }
+
+    if (entries.is_empty())
+        return nullptr;
+
+    // Sort and ensure monotonic ordering of both positions and timestamps.
+    for (size_t i = 1; i < entries.size(); i++) {
+        size_t j = i;
+        for (; j > 0; --j) {
+            if (entries[j - 1].position == entries[j].position)
+                return nullptr;
+            if (entries[j - 1].position < entries[j].position)
+                break;
+            swap(entries[j], entries[j - 1]);
+        }
+        if (j > 0 && entries[j - 1].timestamp > entries[j].timestamp)
+            return nullptr;
+        if (j < i && entries[j].timestamp > entries[j + 1].timestamp)
+            return nullptr;
+    }
+
+    auto duration = AK::Duration::from_time_units(context.duration, 1, AV_TIME_BASE);
+    return make<IndexedContainerNavigator>(move(entries), duration);
 }
 
 DecoderErrorOr<void> FFmpegDemuxer::create_context_for_track(Track const& track)
@@ -203,20 +288,6 @@ FFmpegDemuxer::TrackContext& FFmpegDemuxer::get_track_context(Track const& track
     return *m_track_contexts.get(track).release_value();
 }
 
-static inline AK::Duration time_units_to_duration(i64 time_units, AVRational const& time_base)
-{
-    VERIFY(time_base.num > 0);
-    VERIFY(time_base.den > 0);
-    return AK::Duration::from_time_units(time_units, time_base.num, time_base.den);
-}
-
-static inline i64 duration_to_time_units(AK::Duration duration, AVRational const& time_base)
-{
-    VERIFY(time_base.num > 0);
-    VERIFY(time_base.den > 0);
-    return duration.to_time_units(time_base.num, time_base.den);
-}
-
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
 {
     return m_total_duration;
@@ -229,11 +300,15 @@ Optional<AK::UnixDateTime> FFmpegDemuxer::start_time_realtime() const
 
 TimeRanges FFmpegDemuxer::buffered_time_ranges() const
 {
-    // FIXME: Use the format context's index to determine the buffered ranges from the underlying stream.
-    TimeRanges ranges;
-    if (!m_total_duration.is_zero())
-        ranges.add_range(AK::Duration::zero(), m_total_duration);
-    return ranges;
+    if (!m_container_navigator) {
+        TimeRanges ranges;
+        if (!m_total_duration.is_zero())
+            ranges.add_range(AK::Duration::zero(), m_total_duration);
+        return ranges;
+    }
+
+    auto byte_ranges = m_stream->available_byte_ranges();
+    return m_container_navigator->buffered_time_ranges(byte_ranges);
 }
 
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
