@@ -217,6 +217,15 @@ DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
     return m_total_duration;
 }
 
+TimeRanges FFmpegDemuxer::buffered_time_ranges() const
+{
+    // FIXME: Use the format context's index to determine the buffered ranges from the underlying stream.
+    TimeRanges ranges;
+    if (!m_total_duration.is_zero())
+        ranges.add_range(AK::Duration::zero(), m_total_duration);
+    return ranges;
+}
+
 DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
 {
     auto const& track_info = get_track_info(track);

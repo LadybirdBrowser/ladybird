@@ -119,6 +119,11 @@ bool VideoDataProvider::is_blocked() const
     return m_thread_data->is_blocked();
 }
 
+TimeRanges VideoDataProvider::buffered_time_ranges() const
+{
+    return m_thread_data->buffered_time_ranges();
+}
+
 VideoDataProvider::ThreadData::~ThreadData() = default;
 
 void VideoDataProvider::ThreadData::set_error_handler(ErrorHandler&& handler)
@@ -561,6 +566,11 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
 bool VideoDataProvider::ThreadData::is_blocked() const
 {
     return m_demuxer->is_read_blocked_for_track(m_track);
+}
+
+TimeRanges VideoDataProvider::ThreadData::buffered_time_ranges() const
+{
+    return m_demuxer->buffered_time_ranges();
 }
 
 }

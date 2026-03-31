@@ -15,6 +15,7 @@
 #include "CodecID.h"
 #include "CodedFrame.h"
 #include "DecoderError.h"
+#include "TimeRanges.h"
 #include "Track.h"
 
 namespace Media {
@@ -55,6 +56,8 @@ public:
 
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
     virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
+
+    virtual TimeRanges buffered_time_ranges() const = 0;
 
     virtual void set_blocking_reads_aborted_for_track(Track const&) = 0;
     virtual void reset_blocking_reads_aborted_for_track(Track const&) = 0;

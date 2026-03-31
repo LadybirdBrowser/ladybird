@@ -155,6 +155,16 @@ DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
     return duration.value_or(AK::Duration::zero());
 }
 
+TimeRanges MatroskaDemuxer::buffered_time_ranges() const
+{
+    // FIXME: Scan the stream for buffered ranges.
+    TimeRanges ranges;
+    auto duration = m_reader.duration();
+    if (duration.has_value())
+        ranges.add_range(AK::Duration::zero(), duration.value());
+    return ranges;
+}
+
 DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)
 {
     return total_duration();

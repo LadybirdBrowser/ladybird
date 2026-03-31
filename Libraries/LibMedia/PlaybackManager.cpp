@@ -411,6 +411,29 @@ PlaybackState PlaybackManager::state()
     return m_handler->state();
 }
 
+TimeRanges PlaybackManager::buffered_time_ranges() const
+{
+    TimeRanges intersection;
+
+    auto intersect_ranges = [&](auto const& track_datas) {
+        for (auto const& track_data : track_datas) {
+            if (!track_is_enabled(track_data.track))
+                continue;
+
+            auto range = track_data.provider->buffered_time_ranges();
+            if (intersection.is_empty()) {
+                intersection = range;
+                continue;
+            }
+            intersection = intersection.intersection(range);
+        }
+    };
+    intersect_ranges(m_video_track_datas);
+    intersect_ranges(m_audio_track_datas);
+
+    return intersection;
+}
+
 void PlaybackManager::set_volume(double volume)
 {
     if (m_audio_sink)

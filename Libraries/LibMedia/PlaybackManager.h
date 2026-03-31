@@ -20,6 +20,7 @@
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/Providers/MediaTimeProvider.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/Mutex.h>
 
@@ -80,6 +81,7 @@ public:
 
     bool is_playing();
     PlaybackState state();
+    TimeRanges buffered_time_ranges() const;
 
     void set_volume(double);
 

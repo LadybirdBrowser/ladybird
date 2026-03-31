@@ -18,6 +18,7 @@
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/SeekMode.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibMedia/TimedImage.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
@@ -57,6 +58,8 @@ public:
 
     bool is_blocked() const;
 
+    TimeRanges buffered_time_ranges() const;
+
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
@@ -95,6 +98,8 @@ private:
         void resolve_seek(u32 seek_id, AK::Duration const& timestamp);
         void push_data_and_decode_some_frames();
         bool is_blocked() const;
+
+        TimeRanges buffered_time_ranges() const;
 
         [[nodiscard]] Threading::MutexLocker take_lock() const { return Threading::MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }

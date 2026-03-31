@@ -18,6 +18,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
+#include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibThreading/ConditionVariable.h>
 #include <LibThreading/Forward.h>
@@ -58,6 +59,8 @@ public:
     bool is_blocked() const;
     i64 queue_end_sample() const;
 
+    TimeRanges buffered_time_ranges() const;
+
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
@@ -95,6 +98,8 @@ private:
         void push_data_and_decode_a_block();
         bool is_blocked() const;
         i64 queue_end_sample() const;
+
+        TimeRanges buffered_time_ranges() const;
 
         void seek(AK::Duration timestamp, SeekCompletionHandler&&);
 

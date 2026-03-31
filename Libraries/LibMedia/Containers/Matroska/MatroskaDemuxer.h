@@ -34,6 +34,8 @@ public:
     virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
     virtual DecoderErrorOr<AK::Duration> total_duration() override;
 
+    virtual TimeRanges buffered_time_ranges() const override;
+
     virtual DecoderErrorOr<CodecID> get_codec_id_for_track(Track const&) override;
 
     virtual DecoderErrorOr<ReadonlyBytes> get_codec_initialization_data_for_track(Track const&) override;

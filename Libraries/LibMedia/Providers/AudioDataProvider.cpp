@@ -104,6 +104,11 @@ i64 AudioDataProvider::queue_end_sample() const
     return m_thread_data->queue_end_sample();
 }
 
+TimeRanges AudioDataProvider::buffered_time_ranges() const
+{
+    return m_thread_data->buffered_time_ranges();
+}
+
 bool AudioDataProvider::ThreadData::is_blocked() const
 {
     return m_demuxer->is_read_blocked_for_track(m_track);
@@ -548,6 +553,11 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         auto locker = take_lock();
         queue_block(move(block));
     }
+}
+
+TimeRanges AudioDataProvider::ThreadData::buffered_time_ranges() const
+{
+    return m_demuxer->buffered_time_ranges();
 }
 
 }
