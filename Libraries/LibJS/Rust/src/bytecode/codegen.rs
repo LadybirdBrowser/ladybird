@@ -1323,6 +1323,7 @@ enum ClassElementKind {
     Setter = 2,
     Field = 3,
     StaticInitializer = 4,
+    AutoAccessor = 5,
 }
 
 /// Iterator hint (ABI-compatible).
@@ -6177,24 +6178,52 @@ fn generate_class_expression(
 
     // Create private environment for private class elements.
     let mut has_private_env = false;
-    for element_node in &data.elements {
-        let priv_name = match &element_node.inner {
-            ClassElement::Method { key, .. } | ClassElement::Field { key, .. } => {
-                if let ExpressionKind::PrivateIdentifier(ident) = &key.inner {
-                    Some(ident.name.clone())
-                } else {
-                    None
-                }
-            }
+    // Track auto-accessor backing storage names so we can pass them through FFI.
+    let mut auto_accessor_backing_names: Vec<Option<Utf16String>> =
+        vec![None; data.elements.len()];
+    for (element_index, element_node) in data.elements.iter().enumerate() {
+        let key = match &element_node.inner {
+            ClassElement::Method { key, .. }
+            | ClassElement::Field { key, .. }
+            | ClassElement::AutoAccessor { key, .. } => Some(key),
             ClassElement::StaticInitializer { .. } => None,
         };
-        if let Some(name) = priv_name {
+
+        // Register private identifiers in the private environment.
+        if let Some(key) = key {
+            if let ExpressionKind::PrivateIdentifier(ident) = &key.inner {
+                if !has_private_env {
+                    generator.emit(Instruction::CreatePrivateEnvironment);
+                    has_private_env = true;
+                }
+                let name_id = generator.intern_identifier(&ident.name);
+                generator.emit(Instruction::AddPrivateName { name: name_id });
+            }
+        }
+
+        // Auto-accessors always need a private backing storage name.
+        if let ClassElement::AutoAccessor { key, .. } = &element_node.inner {
             if !has_private_env {
                 generator.emit(Instruction::CreatePrivateEnvironment);
                 has_private_env = true;
             }
-            let name_id = generator.intern_identifier(&name);
-            generator.emit(Instruction::AddPrivateName { name: name_id });
+            // Synthesize a unique backing name that cannot collide with user code.
+            // The embedded NUL ensures no valid identifier can match it.
+            let base = match &key.inner {
+                ExpressionKind::PrivateIdentifier(ident) => {
+                    String::from_utf16_lossy(&ident.name)
+                }
+                ExpressionKind::Identifier(ident) => String::from_utf16_lossy(&ident.name),
+                ExpressionKind::StringLiteral(s) => String::from_utf16_lossy(s),
+                _ => format!("accessor_{element_index}"),
+            };
+            let encoded: Vec<u16> = format!("\0auto_accessor_storage_{element_index}_{base}")
+                .encode_utf16()
+                .collect();
+            let backing_name = Utf16String::from(encoded);
+            let backing_name_id = generator.intern_identifier(&backing_name);
+            generator.emit(Instruction::AddPrivateName { name: backing_name_id });
+            auto_accessor_backing_names[element_index] = Some(backing_name);
         }
     }
 
@@ -6212,7 +6241,7 @@ fn generate_class_expression(
                     element_keys.push(None);
                 }
             }
-            ClassElement::Field { key, .. } => {
+            ClassElement::Field { key, .. } | ClassElement::AutoAccessor { key, .. } => {
                 if !is_private_key(key) {
                     let key_val = generate_class_part_expression(key, generator, None);
                     element_keys.push(key_val);
@@ -6244,7 +6273,7 @@ fn generate_class_expression(
     // Second pass: register method/field SFDs and build element descriptors.
     let mut class_elements = Vec::with_capacity(data.elements.len());
 
-    for element_node in &data.elements {
+    for (element_index, element_node) in data.elements.iter().enumerate() {
         match &element_node.inner {
             ClassElement::Method {
                 key,
@@ -6282,16 +6311,25 @@ fn generate_class_expression(
                     literal_value_kind: PendingLiteralValueKind::None,
                     literal_value_number: 0.0,
                     literal_value_string: None,
+                    backing_storage_name: None,
+                    decorator_count: 0,
                 });
             }
             ClassElement::Field {
                 key,
                 initializer,
                 is_static,
+            }
+            | ClassElement::AutoAccessor {
+                key,
+                initializer,
+                is_static,
             } => {
+                let is_auto_accessor =
+                    matches!(&element_node.inner, ClassElement::AutoAccessor { .. });
+
                 // Detect literal initializers and store the value directly,
                 // avoiding function creation for simple cases like x = 0.
-                // This avoids function creation for simple cases.
                 let mut literal_value_kind = PendingLiteralValueKind::None;
                 let mut literal_value_number: f64 = 0.0;
                 let mut literal_value_string = None;
@@ -6400,8 +6438,21 @@ fn generate_class_expression(
 
                 let is_private = is_private_key(key);
 
+                let ffi_kind = if is_auto_accessor {
+                    ClassElementKind::AutoAccessor as u8
+                } else {
+                    ClassElementKind::Field as u8
+                };
+
+                // For auto-accessors, capture backing storage name for FFI.
+                let backing_storage_name = if is_auto_accessor {
+                    auto_accessor_backing_names[element_index].clone()
+                } else {
+                    None
+                };
+
                 class_elements.push(PendingClassElement {
-                    kind: ClassElementKind::Field as u8,
+                    kind: ffi_kind,
                     is_static: *is_static,
                     is_private,
                     private_identifier: get_private_identifier_name(key),
@@ -6410,6 +6461,8 @@ fn generate_class_expression(
                     literal_value_kind,
                     literal_value_number,
                     literal_value_string,
+                    backing_storage_name,
+                    decorator_count: 0,
                 });
             }
             ClassElement::StaticInitializer { body } => {
@@ -6447,6 +6500,8 @@ fn generate_class_expression(
                     literal_value_kind: PendingLiteralValueKind::None,
                     literal_value_number: 0.0,
                     literal_value_string: None,
+                    backing_storage_name: None,
+                    decorator_count: 0,
                 });
             }
         }
@@ -6468,6 +6523,7 @@ fn generate_class_expression(
         has_super_class: has_super,
         has_name,
         elements: class_elements,
+        class_decorator_count: 0,
     });
 
     // Build element_keys operands for the NewClass instruction

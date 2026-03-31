@@ -85,6 +85,10 @@ pub struct PendingClassElement {
     pub literal_value_kind: PendingLiteralValueKind,
     pub literal_value_number: f64,
     pub literal_value_string: Option<Utf16String>,
+    // Auto-accessor backing storage private name (only for AutoAccessor kind).
+    pub backing_storage_name: Option<Utf16String>,
+    // Decorator count for this element (decorator values passed via NewClass operands).
+    pub decorator_count: u32,
 }
 
 pub struct PendingClassBlueprint {
@@ -95,6 +99,7 @@ pub struct PendingClassBlueprint {
     pub has_super_class: bool,
     pub has_name: bool,
     pub elements: Vec<PendingClassElement>,
+    pub class_decorator_count: u32,
 }
 
 struct EnvironmentCoordinateScope {

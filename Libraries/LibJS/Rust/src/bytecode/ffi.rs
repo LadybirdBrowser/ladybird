@@ -176,6 +176,10 @@ pub struct FFIClassElement {
     pub literal_value_number: f64,
     pub literal_value_string: *const u16,
     pub literal_value_string_len: usize,
+    // Auto-accessor backing storage private name (only for AutoAccessor kind).
+    pub backing_storage_name: *const u16,
+    pub backing_storage_name_len: usize,
+    pub decorator_count: u32,
 }
 
 /// Data for creating a C++ `SharedFunctionInstanceData`.
@@ -343,6 +347,7 @@ unsafe extern "C" {
         has_name: bool,
         elements: *const FFIClassElement,
         element_count: usize,
+        class_decorator_count: u32,
     ) -> *mut c_void;
 
     // Callbacks for populating Script GDI data from Rust.
@@ -595,6 +600,7 @@ pub unsafe fn materialize_class_blueprint(
             blueprint.has_name,
             ffi_elements.as_ptr(),
             ffi_elements.len(),
+            blueprint.class_decorator_count,
         );
         assert!(!bp_ptr.is_null(), "rust_create_class_blueprint returned null");
         bp_ptr
@@ -612,6 +618,11 @@ fn class_element_to_ffi(element: &PendingClassElement) -> FFIClassElement {
         .as_ref()
         .map(|string| (string.as_ptr(), string.len()))
         .unwrap_or((std::ptr::null(), 0));
+    let (backing_storage_name, backing_storage_name_len) = element
+        .backing_storage_name
+        .as_ref()
+        .map(|name| (name.as_ptr(), name.len()))
+        .unwrap_or((std::ptr::null(), 0));
     FFIClassElement {
         kind: element.kind,
         is_static: element.is_static,
@@ -627,6 +638,9 @@ fn class_element_to_ffi(element: &PendingClassElement) -> FFIClassElement {
         literal_value_number: element.literal_value_number,
         literal_value_string,
         literal_value_string_len,
+        backing_storage_name,
+        backing_storage_name_len,
+        decorator_count: element.decorator_count,
     }
 }
 

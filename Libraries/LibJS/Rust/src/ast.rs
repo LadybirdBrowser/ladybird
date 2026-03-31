@@ -609,7 +609,8 @@ impl FunctionTable {
                     self.collect_from_expression(key, result, scopes);
                     self.collect_from_expression(function, result, scopes);
                 }
-                ClassElement::Field { key, initializer, .. } => {
+                ClassElement::Field { key, initializer, .. }
+                | ClassElement::AutoAccessor { key, initializer, .. } => {
                     self.collect_from_expression(key, result, scopes);
                     if let Some(init) = initializer {
                         self.collect_from_expression(init, result, scopes);
@@ -1044,6 +1045,11 @@ pub enum ClassElement {
         is_static: bool,
     },
     Field {
+        key: Box<Expression>,
+        initializer: Option<Box<Expression>>,
+        is_static: bool,
+    },
+    AutoAccessor {
         key: Box<Expression>,
         initializer: Option<Box<Expression>>,
         is_static: bool,

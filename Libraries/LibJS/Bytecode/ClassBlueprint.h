@@ -22,6 +22,7 @@ struct ClassElementDescriptor {
         Setter,
         Field,
         StaticInitializer,
+        AutoAccessor,
     };
 
     Kind kind;
@@ -31,6 +32,7 @@ struct ClassElementDescriptor {
     Optional<u32> shared_function_data_index;
     bool has_initializer { false };
     Optional<Value> literal_value;
+    Optional<Utf16FlyString> backing_storage_name;
 };
 
 struct ClassBlueprint {
