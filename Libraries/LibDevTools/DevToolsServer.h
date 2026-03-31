@@ -13,6 +13,7 @@
 #include <AK/String.h>
 #include <LibCore/Socket.h>
 #include <LibDevTools/Actors/RootActor.h>
+#include <LibDevTools/Connection.h>
 #include <LibDevTools/Forward.h>
 
 namespace DevTools {
@@ -22,6 +23,7 @@ using ActorRegistry = HashMap<String, NonnullRefPtr<Actor>>;
 class DEVTOOLS_API DevToolsServer {
 public:
     static ErrorOr<NonnullOwnPtr<DevToolsServer>> create(DevToolsDelegate&, u16 port);
+    static ErrorOr<NonnullOwnPtr<DevToolsServer>> create(DevToolsDelegate&);
     ~DevToolsServer();
 
     RefPtr<Connection>& connection() { return m_connection; }
@@ -46,17 +48,19 @@ public:
         return actor;
     }
 
+    NonnullRefPtr<CallbackTransport> connect_pipe(Function<void(JsonValue const&)> send_handler);
+
     void refresh_tab_list();
 
 private:
-    explicit DevToolsServer(DevToolsDelegate&, NonnullRefPtr<Core::TCPServer>);
+    explicit DevToolsServer(DevToolsDelegate&, RefPtr<Core::TCPServer>);
 
     ErrorOr<void> on_new_client();
     void on_message_received(JsonObject);
 
     void close_connection();
 
-    NonnullRefPtr<Core::TCPServer> m_server;
+    RefPtr<Core::TCPServer> m_server;
     RefPtr<Connection> m_connection;
 
     DevToolsDelegate& m_delegate;

@@ -20,12 +20,14 @@ NonnullRefPtr<Connection> Connection::create(NonnullOwnPtr<Core::BufferedTCPSock
 Connection::Connection(NonnullOwnPtr<Core::BufferedTCPSocket> socket)
     : m_socket(move(socket))
 {
-    m_socket->on_ready_to_read = [this]() {
-        if (auto result = on_ready_to_read(); result.is_error()) {
-            if (on_connection_closed)
-                on_connection_closed();
-        }
-    };
+    if (m_socket) {
+        m_socket->on_ready_to_read = [this]() {
+            if (auto result = on_ready_to_read(); result.is_error()) {
+                if (on_connection_closed)
+                    on_connection_closed();
+            }
+        };
+    }
 }
 
 Connection::~Connection() = default;

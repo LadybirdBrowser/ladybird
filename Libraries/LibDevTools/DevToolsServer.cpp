@@ -15,6 +15,7 @@
 #include <LibDevTools/Actors/PreferenceActor.h>
 #include <LibDevTools/Actors/ProcessActor.h>
 #include <LibDevTools/Actors/TabActor.h>
+#include <LibDevTools/CallbackTransport.h>
 #include <LibDevTools/Connection.h>
 #include <LibDevTools/DevToolsServer.h>
 
@@ -32,15 +33,22 @@ ErrorOr<NonnullOwnPtr<DevToolsServer>> DevToolsServer::create(DevToolsDelegate& 
     return adopt_own(*new DevToolsServer(delegate, move(server)));
 }
 
-DevToolsServer::DevToolsServer(DevToolsDelegate& delegate, NonnullRefPtr<Core::TCPServer> server)
+ErrorOr<NonnullOwnPtr<DevToolsServer>> DevToolsServer::create(DevToolsDelegate& delegate)
+{
+    return adopt_own(*new DevToolsServer(delegate, nullptr));
+}
+
+DevToolsServer::DevToolsServer(DevToolsDelegate& delegate, RefPtr<Core::TCPServer> server)
     : m_server(move(server))
     , m_delegate(delegate)
     , m_server_id(s_server_count++)
 {
-    m_server->on_ready_to_accept = [this]() {
-        if (auto result = on_new_client(); result.is_error())
-            warnln("Failed to accept DevTools client: {}", result.error());
-    };
+    if (m_server) {
+        m_server->on_ready_to_accept = [this]() {
+            if (auto result = on_new_client(); result.is_error())
+                warnln("Failed to accept DevTools client: {}", result.error());
+        };
+    }
 }
 
 DevToolsServer::~DevToolsServer() = default;
@@ -106,6 +114,39 @@ void DevToolsServer::on_message_received(JsonObject message)
     }
 
     actor->value->message_received(*type, move(message));
+}
+
+NonnullRefPtr<CallbackTransport> DevToolsServer::connect_pipe(Function<void(JsonValue const&)> send_handler)
+{
+    if (m_connection) {
+        close_connection();
+    }
+
+    // Create transport with a no-op handler first. RootActor::create() sends a greeting
+    // message immediately, and we don't want it to reach the JS client before it's ready.
+    auto transport = CallbackTransport::create([](auto const&) { });
+
+    m_connection = transport;
+
+    m_root_actor = register_actor<RootActor>();
+
+    register_actor<DeviceActor>();
+    register_actor<PreferenceActor>();
+    register_actor<ProcessActor>(ProcessDescription { .is_parent = true });
+    register_actor<ParentAccessibilityActor>();
+
+    // Now install the real handler — greeting has already been swallowed.
+    transport->set_send_handler(move(send_handler));
+
+    transport->on_connection_closed = [this]() {
+        close_connection();
+    };
+
+    transport->on_message_received = [this](auto message) {
+        on_message_received(move(message));
+    };
+
+    return transport;
 }
 
 void DevToolsServer::close_connection()

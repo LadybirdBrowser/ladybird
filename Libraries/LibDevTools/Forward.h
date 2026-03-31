@@ -12,6 +12,7 @@ namespace DevTools {
 
 class Actor;
 class AccessibilityActor;
+class CallbackTransport;
 class AccessibilityNodeActor;
 class AccessibilityWalkerActor;
 class Connection;
