@@ -827,14 +827,13 @@ RefPtr<StyleValue const> Parser::parse_anchor(TokenStream<ComponentValue>& token
         argument_tokens.discard_a_token();
         argument_tokens.discard_whitespace();
         fallback_value = parse_length_percentage_value(argument_tokens);
-        if (!fallback_value) {
+        if (!fallback_value)
             fallback_value = parse_anchor(argument_tokens);
-            if (!fallback_value)
-                return {};
-            argument_tokens.discard_a_token();
-        }
+        if (!fallback_value)
+            return {};
     }
 
+    argument_tokens.discard_whitespace();
     if (argument_tokens.has_next_token())
         return {};
 

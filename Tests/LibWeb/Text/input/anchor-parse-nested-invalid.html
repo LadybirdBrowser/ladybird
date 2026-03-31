@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const el = document.createElement("div");
+
+        // No space before trailing garbage — must still be rejected.
+        el.style.top = "anchor(--foo top, anchor(--bar bottom)GARBAGE)";
+        println(`no space before garbage: ${el.style.top}`);
+
+        el.style.top = "anchor(--foo top, anchor(--bar bottom))";
+        println(`valid nested: ${el.style.top}`);
+
+        // Trailing whitespace after nested anchor() must be accepted.
+        el.style.top = "";
+        el.style.top = "anchor(--foo top, anchor(--bar bottom) )";
+        println(`trailing whitespace: ${el.style.top}`);
+    });
+</script>
