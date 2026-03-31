@@ -7,7 +7,6 @@
 #include <LibWebView/Application.h>
 
 #import <Application/ApplicationDelegate.h>
-#import <Interface/InfoBar.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
 #import <Interface/Tab.h>
@@ -24,8 +23,6 @@
 @property (nonatomic, weak) Tab* active_tab;
 
 @property (nonatomic, strong) NSMenu* bookmarks_menu;
-
-@property (nonatomic, strong) InfoBar* info_bar;
 
 - (NSMenuItem*)createApplicationMenu;
 - (NSMenuItem*)createFileMenu;
@@ -114,10 +111,6 @@
 
     self.active_tab = tab;
 
-    if (self.info_bar) {
-        [self.info_bar tabBecameActive:self.active_tab];
-    }
-
     WebView::Application::the().update_bookmark_action_for_current_web_view();
 }
 
@@ -147,30 +140,6 @@
         if (auto* tab = (Tab*)[controller window]; ([tab styleMask] & NSWindowStyleMaskFullScreen) == 0) {
             [tab updateBookmarksBarDisplay:show_bookmarks_bar];
         }
-    }
-}
-
-- (void)onDevtoolsEnabled
-{
-    if (!self.info_bar) {
-        self.info_bar = [[InfoBar alloc] init];
-    }
-
-    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
-
-    [self.info_bar showWithMessage:Ladybird::string_to_ns_string(message)
-                dismissButtonTitle:@"Disable"
-              dismissButtonClicked:^{
-                  MUST(WebView::Application::the().toggle_devtools_enabled());
-              }
-                         activeTab:self.active_tab];
-}
-
-- (void)onDevtoolsDisabled
-{
-    if (self.info_bar) {
-        [self.info_bar hide];
-        self.info_bar = nil;
     }
 }
 
@@ -439,9 +408,6 @@
 - (void)applicationDidFinishLaunching:(NSNotification*)notification
 {
     auto const& browser_options = WebView::Application::browser_options();
-
-    if (browser_options.devtools_port.has_value())
-        [self onDevtoolsEnabled];
 
     Tab* tab = nil;
 

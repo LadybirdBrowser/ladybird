@@ -35,9 +35,7 @@ private:
 
     virtual void rebuild_bookmarks_menu() const override;
     virtual void update_bookmarks_bar_display(bool) const override;
-
-    virtual void on_devtools_enabled() const override;
-    virtual void on_devtools_disabled() const override;
+    virtual void on_toggle_devtools_panel() const override;
 
     bool m_file_scheme_urls_have_tuple_origins { false };
 };

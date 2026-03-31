@@ -6,6 +6,7 @@
 
 #include <AK/String.h>
 #include <LibCore/Resource.h>
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Settings.h>
@@ -33,6 +34,9 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 
 @property (nonatomic, strong) NSTitlebarAccessoryViewController* bookmarks_bar_controller;
 @property (nonatomic, strong) SearchPanel* search_panel;
+@property (nonatomic, strong) NSStackView* content_stack_view;
+@property (nonatomic, strong) LadybirdWebView* devtools_web_view;
+@property (nonatomic, strong) NSLayoutConstraint* devtools_height_constraint;
 
 @end
 
@@ -96,15 +100,15 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
         self.search_panel = [[SearchPanel alloc] init];
         [self.search_panel setHidden:YES];
 
-        auto* stack_view = [NSStackView stackViewWithViews:@[
+        self.content_stack_view = [NSStackView stackViewWithViews:@[
             self.search_panel,
             self.web_view,
         ]];
 
-        [stack_view setOrientation:NSUserInterfaceLayoutOrientationVertical];
-        [stack_view setSpacing:0];
+        [self.content_stack_view setOrientation:NSUserInterfaceLayoutOrientationVertical];
+        [self.content_stack_view setSpacing:0];
 
-        [self setContentView:stack_view];
+        [self setContentView:self.content_stack_view];
 
         [[self.search_panel leadingAnchor] constraintEqualToAnchor:[self.contentView leadingAnchor]].active = YES;
     }
@@ -132,6 +136,26 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
 - (void)useSelectionForFind:(id)sender
 {
     [self.search_panel useSelectionForFind:sender];
+}
+
+- (void)toggleDevTools
+{
+    if (self.devtools_web_view == nil) {
+        self.devtools_web_view = [[LadybirdWebView alloc] init:nil];
+        [self.devtools_web_view view].set_inspected_view_id([[self web_view] view].view_id());
+        [self.devtools_web_view setHidden:YES];
+        [self.content_stack_view addArrangedSubview:self.devtools_web_view];
+        self.devtools_height_constraint = [self.devtools_web_view.heightAnchor constraintEqualToConstant:300];
+        self.devtools_height_constraint.active = YES;
+
+        auto devtools_url = URL::Parser::basic_parse("resource://ladybird/devtools/index.html"sv);
+        VERIFY(devtools_url.has_value());
+        [self.devtools_web_view loadURL:devtools_url.release_value()];
+    }
+
+    BOOL is_visible = [self.devtools_web_view isHidden];
+    [self.devtools_web_view setHidden:!is_visible];
+    [self.devtools_web_view handleVisibility:is_visible];
 }
 
 #pragma mark - Private methods

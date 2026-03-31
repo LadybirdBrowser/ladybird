@@ -19,6 +19,8 @@
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index;
 
+- (void)toggleDevTools;
+
 - (void)rebuildBookmarksBar;
 - (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar;
 

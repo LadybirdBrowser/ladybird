@@ -174,20 +174,11 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     [delegate updateBookmarksBarDisplay:show_bookmarks_bar];
 }
 
-void Application::on_devtools_enabled() const
+void Application::on_toggle_devtools_panel() const
 {
-    WebView::Application::on_devtools_enabled();
-
     ApplicationDelegate* delegate = [NSApp delegate];
-    [delegate onDevtoolsEnabled];
-}
-
-void Application::on_devtools_disabled() const
-{
-    WebView::Application::on_devtools_disabled();
-
-    ApplicationDelegate* delegate = [NSApp delegate];
-    [delegate onDevtoolsDisabled];
+    if (auto* tab = [delegate activeTab])
+        [tab toggleDevTools];
 }
 
 }

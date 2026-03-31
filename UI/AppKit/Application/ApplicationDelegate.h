@@ -40,7 +40,4 @@
 - (void)rebuildBookmarksMenu;
 - (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar;
 
-- (void)onDevtoolsEnabled;
-- (void)onDevtoolsDisabled;
-
 @end
