@@ -6003,6 +6003,7 @@ fn generate_class_expression(
                 function,
                 kind,
                 is_static,
+                ..
             } => {
                 let ffi_kind = match kind {
                     ClassMethodKind::Method => ClassElementKind::Method as u8,
@@ -6051,11 +6052,13 @@ fn generate_class_expression(
                 key,
                 initializer,
                 is_static,
+                ..
             }
             | ClassElement::AutoAccessor {
                 key,
                 initializer,
                 is_static,
+                ..
             } => {
                 let is_auto_accessor =
                     matches!(&element_node.inner, ClassElement::AutoAccessor { .. });

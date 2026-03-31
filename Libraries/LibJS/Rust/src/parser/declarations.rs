@@ -86,6 +86,15 @@ fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
 
 impl Parser<'_> {
     pub(crate) fn parse_declaration(&mut self) -> Statement {
+        if self.match_token(TokenType::At) {
+            let decorators = self.parse_decorator_list();
+            if self.match_token(TokenType::Class) {
+                return self.parse_class_declaration_with_decorators(decorators);
+            }
+            self.syntax_error("Decorators are only valid on class declarations");
+            // Fall through to parse whatever follows as a regular declaration.
+        }
+
         if self.match_token(TokenType::Async) {
             let next = self.next_token();
             if next.token_type == TokenType::Function && !next.trivia_has_line_terminator {
@@ -593,12 +602,113 @@ impl Parser<'_> {
     }
 
     // https://tc39.es/ecma262/#sec-class-definitions
+    // https://arai-a.github.io/ecma262-compare/?pr=2417
+    // DecoratorList : DecoratorList? Decorator
+    // Decorator : `@` DecoratorMemberExpression
+    //           | `@` DecoratorParenthesizedExpression
+    //           | `@` DecoratorCallExpression
+    // DecoratorMemberExpression : IdentifierReference
+    //                           | DecoratorMemberExpression `.` IdentifierName
+    //                           | DecoratorMemberExpression `.` PrivateIdentifier
+    // DecoratorParenthesizedExpression : `(` Expression `)`
+    // DecoratorCallExpression : DecoratorMemberExpression Arguments
+    pub(crate) fn parse_decorator_list(&mut self) -> Vec<Expression> {
+        let mut decorators = Vec::new();
+        while self.match_token(TokenType::At) {
+            let start = self.position();
+            self.consume(); // consume '@'
+
+            let decorator_expr = if self.match_token(TokenType::ParenOpen) {
+                // DecoratorParenthesizedExpression : `(` Expression `)`
+                self.consume();
+                let expr = self.parse_expression_any();
+                self.consume_token(TokenType::ParenClose);
+                expr
+            } else if self.match_identifier() {
+                // DecoratorMemberExpression : IdentifierReference (.IdentifierName)*
+                let ident_start = self.position();
+                let token = self.consume();
+                let name = Utf16String::from(self.token_value(&token));
+                let ident = self.make_identifier(ident_start, name);
+                let mut expr = self.expression(
+                    ident_start,
+                    ExpressionKind::Identifier(ident),
+                );
+
+                // Chain dot access: DecoratorMemberExpression `.` IdentifierName
+                while self.match_token(TokenType::Period) {
+                    self.consume();
+                    if self.match_token(TokenType::PrivateIdentifier) {
+                        let member_start = self.position();
+                        let id = self.parse_private_identifier(member_start);
+                        let property = self.expression(
+                            member_start,
+                            ExpressionKind::PrivateIdentifier(Box::new(id)),
+                        );
+                        expr = self.expression(
+                            start,
+                            ExpressionKind::Member(Box::new(MemberExprData {
+                                object: Box::new(expr),
+                                property: Box::new(property),
+                                computed: false,
+                            })),
+                        );
+                    } else if self.match_identifier_name() {
+                        let member_start = self.position();
+                        let member_token = self.consume();
+                        let member_name = Utf16String::from(self.token_value(&member_token));
+                        let property = self.expression(
+                            member_start,
+                            ExpressionKind::Identifier(
+                                self.make_identifier(member_start, member_name),
+                            ),
+                        );
+                        expr = self.expression(
+                            start,
+                            ExpressionKind::Member(Box::new(MemberExprData {
+                                object: Box::new(expr),
+                                property: Box::new(property),
+                                computed: false,
+                            })),
+                        );
+                    } else {
+                        self.expected("identifier after '.' in decorator");
+                        break;
+                    }
+                }
+
+                // DecoratorCallExpression : DecoratorMemberExpression Arguments
+                if self.match_token(TokenType::ParenOpen) {
+                    expr = self.parse_call_expression(expr);
+                }
+
+                expr
+            } else {
+                self.expected("decorator expression after '@'");
+                self.expression(start, ExpressionKind::Identifier(
+                    self.make_identifier(start, Utf16String::new()),
+                ))
+            };
+
+            decorators.push(decorator_expr);
+        }
+        decorators
+    }
+
     // ClassDeclaration : `class` BindingIdentifier ClassTail
     // ClassExpression  : `class` BindingIdentifier? ClassTail
     // ClassTail        : ClassHeritage? `{` ClassBody `}`
     // https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     // NB: All code within a ClassBody is in strict mode.
     pub(crate) fn parse_class_expression(&mut self, expect_name: bool) -> Expression {
+        self.parse_class_expression_with_decorators(expect_name, Vec::new())
+    }
+
+    pub(crate) fn parse_class_expression_with_decorators(
+        &mut self,
+        expect_name: bool,
+        class_decorators: Vec<Expression>,
+    ) -> Expression {
         let start = self.position();
 
         let strict_before = self.flags.strict_mode;
@@ -727,13 +837,21 @@ impl Parser<'_> {
                 constructor: constructor.map(Box::new),
                 super_class,
                 elements,
+                decorators: class_decorators,
             })),
         )
     }
 
     pub(crate) fn parse_class_declaration(&mut self) -> Statement {
+        self.parse_class_declaration_with_decorators(Vec::new())
+    }
+
+    fn parse_class_declaration_with_decorators(
+        &mut self,
+        decorators: Vec<Expression>,
+    ) -> Statement {
         let start = self.position();
-        let class_expression = self.parse_class_expression(true);
+        let class_expression = self.parse_class_expression_with_decorators(true, decorators);
         // Convert the class expression into a class declaration by extracting ClassData.
         match class_expression.inner {
             ExpressionKind::Class(data) => {
@@ -868,6 +986,9 @@ impl Parser<'_> {
         class_start: Position,
         found_private_names: &mut HashMap<Utf16String, (Option<ClassMethodKind>, bool)>,
     ) -> (Option<Node<ClassElement>>, Option<Expression>) {
+        // Parse decorators before the element.
+        let element_decorators = self.parse_decorator_list();
+
         // C++ lexes "static" as Identifier and checks original_value() == "static".
         let mut is_static = if self.match_identifier()
             && self.token_original_value(&self.current_token) == utf16!("static")
@@ -904,6 +1025,9 @@ impl Parser<'_> {
                         in_strict_mode: self.flags.strict_mode,
                     },
                 );
+                if !element_decorators.is_empty() {
+                    self.syntax_error("Decorators are not valid on static class blocks");
+                }
                 // C++ uses static_start (after '{') for StaticInitializer position.
                 return (
                     Some(Node::new(
@@ -1129,6 +1253,9 @@ impl Parser<'_> {
             };
 
             if is_constructor {
+                if !element_decorators.is_empty() {
+                    self.syntax_error("Decorators are not valid on constructors");
+                }
                 return (None, Some(function));
             }
 
@@ -1140,6 +1267,7 @@ impl Parser<'_> {
                         function: Box::new(function),
                         kind: class_method_kind,
                         is_static,
+                        decorators: element_decorators,
                     },
                 )),
                 None,
@@ -1176,12 +1304,14 @@ impl Parser<'_> {
                 key: Box::new(key),
                 initializer: init,
                 is_static,
+                decorators: element_decorators,
             }
         } else {
             ClassElement::Field {
                 key: Box::new(key),
                 initializer: init,
                 is_static,
+                decorators: element_decorators,
             }
         };
 

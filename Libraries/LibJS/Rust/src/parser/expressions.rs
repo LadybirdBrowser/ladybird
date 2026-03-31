@@ -39,6 +39,7 @@ impl Parser<'_> {
             | TokenType::This
             | TokenType::Super
             | TokenType::New
+            | TokenType::At
             | TokenType::Class
             | TokenType::Function
             | TokenType::ParenOpen
@@ -354,6 +355,18 @@ impl Parser<'_> {
 
             TokenType::Class => {
                 let expression = self.parse_class_expression(false);
+                (expression, true)
+            }
+
+            // Decorated class expression: `@dec class { ... }`
+            TokenType::At => {
+                let decorators = self.parse_decorator_list();
+                if !self.match_token(TokenType::Class) {
+                    self.syntax_error("Decorators are only valid on class expressions");
+                    return (self.expression(start, ExpressionKind::Error), true);
+                }
+                let expression =
+                    self.parse_class_expression_with_decorators(false, decorators);
                 (expression, true)
             }
 

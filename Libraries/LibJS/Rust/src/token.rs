@@ -53,6 +53,7 @@ define_tokens! {
     Arrow                      => Operator,
     Asterisk                   => Operator,
     AsteriskEquals             => Operator,
+    At                         => Punctuation,
     Async                      => Keyword,
     Await                      => Keyword,
     BigIntLiteral              => Number,

@@ -368,6 +368,7 @@ fn single_char_token(ch: u16) -> TokenType {
     match ch as u8 {
         b'&' => TokenType::Ampersand,
         b'*' => TokenType::Asterisk,
+        b'@' => TokenType::At,
         b'[' => TokenType::BracketOpen,
         b']' => TokenType::BracketClose,
         b'^' => TokenType::Caret,

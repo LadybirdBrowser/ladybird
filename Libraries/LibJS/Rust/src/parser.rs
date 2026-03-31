@@ -1182,7 +1182,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn match_declaration(&mut self) -> bool {
         match self.current_token_type() {
-            TokenType::Function | TokenType::Class | TokenType::Const => true,
+            TokenType::Function | TokenType::Class | TokenType::Const | TokenType::At => true,
             TokenType::Let => {
                 if !self.flags.strict_mode {
                     self.try_match_let_declaration()

@@ -85,10 +85,10 @@ test("indirect eval with syntax error can be called multiple times", function ()
     }
     expect(f).toThrowWithMessage(
         SyntaxError,
-        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+        "Unexpected token At. Expected decorator expression after '@' (line: 1, column: 2)"
     );
     expect(f).toThrowWithMessage(
         SyntaxError,
-        "Unexpected token Invalid. Expected statement or declaration (line: 1, column: 1)"
+        "Unexpected token At. Expected decorator expression after '@' (line: 1, column: 2)"
     );
 });
