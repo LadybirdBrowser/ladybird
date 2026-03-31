@@ -107,9 +107,6 @@ public:
 
     double refresh_rate() const { return m_refresh_rate; }
 
-    void on_devtools_enabled();
-    void on_devtools_disabled();
-
 public slots:
     void device_pixel_ratio_changed(qreal dpi);
     void refresh_rate_changed(qreal refresh_rate);

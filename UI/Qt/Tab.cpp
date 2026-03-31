@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
@@ -82,6 +83,10 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     };
 
     m_view = new WebContentView(this, parent_client, page_index, AK::move(view_initial_state));
+    m_splitter = new QSplitter(Qt::Vertical, this);
+    m_splitter->addWidget(m_view);
+    m_splitter->setChildrenCollapsible(false);
+    m_splitter->setHandleWidth(6);
     m_find_in_page = new FindInPageWidget(this, m_view);
     m_find_in_page->setVisible(false);
     m_toolbar = new QToolBar(this);
@@ -103,7 +108,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     m_layout->addWidget(m_toolbar);
     m_layout->addWidget(m_bookmarks_bar);
-    m_layout->addWidget(m_view);
+    m_layout->addWidget(m_splitter);
     m_layout->addWidget(m_find_in_page);
 
     m_hamburger_button = new HamburgerButton(m_toolbar);
@@ -560,6 +565,38 @@ void Tab::find_previous()
 void Tab::find_next()
 {
     m_find_in_page->find_next();
+}
+
+void Tab::toggle_devtools()
+{
+    if (m_devtools_view && m_devtools_view->isVisible())
+        hide_devtools();
+    else
+        show_devtools();
+}
+
+void Tab::show_devtools()
+{
+    if (!m_devtools_view) {
+        m_devtools_view = new WebContentView(this);
+        m_splitter->addWidget(m_devtools_view);
+        m_devtools_view->set_inspected_view_id(view().view_id());
+
+        auto devtools_url = URL::Parser::basic_parse("resource://ladybird/devtools/index.html"sv);
+        VERIFY(devtools_url.has_value());
+        m_devtools_view->load(devtools_url.release_value());
+    }
+
+    m_devtools_view->setVisible(true);
+    m_splitter->setSizes({ 600, 300 });
+}
+
+void Tab::hide_devtools()
+{
+    if (!m_devtools_view)
+        return;
+
+    m_devtools_view->setVisible(false);
 }
 
 void Tab::request_close()

@@ -17,6 +17,7 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPointer>
+#include <QSplitter>
 #include <QToolBar>
 #include <QToolButton>
 #include <QWidget>
@@ -62,6 +63,10 @@ public:
     void find_previous();
     void find_next();
 
+    void toggle_devtools();
+    void show_devtools();
+    void hide_devtools();
+
     BookmarksBar& bookmarks_bar() { return *m_bookmarks_bar; }
 
     void request_close();
@@ -100,7 +105,9 @@ private:
     QToolButton* m_hamburger_button { nullptr };
     QAction* m_hamburger_button_action { nullptr };
     LocationEdit* m_location_edit { nullptr };
+    QSplitter* m_splitter { nullptr };
     WebContentView* m_view { nullptr };
+    WebContentView* m_devtools_view { nullptr };
     FindInPageWidget* m_find_in_page { nullptr };
     BrowserWindow* m_window { nullptr };
     QString m_title;

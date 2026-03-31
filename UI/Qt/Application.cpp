@@ -251,20 +251,10 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     }
 }
 
-void Application::on_devtools_enabled() const
+void Application::on_toggle_devtools_panel() const
 {
-    WebView::Application::on_devtools_enabled();
-
-    if (m_active_window)
-        m_active_window->on_devtools_enabled();
-}
-
-void Application::on_devtools_disabled() const
-{
-    WebView::Application::on_devtools_disabled();
-
-    if (m_active_window)
-        m_active_window->on_devtools_disabled();
+    if (auto* tab = active_tab())
+        tab->toggle_devtools();
 }
 
 }

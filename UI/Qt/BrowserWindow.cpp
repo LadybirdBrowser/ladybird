@@ -165,8 +165,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     : m_tabs_container(new TabWidget(this))
     , m_is_popup_window(is_popup_window)
 {
-    auto const& browser_options = WebView::Application::browser_options();
-
     setWindowIcon(app_icon());
 
     // Listen for DPI changes
@@ -373,9 +371,6 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
 
     setCentralWidget(m_tabs_container);
     setContextMenuPolicy(Qt::PreventContextMenu);
-
-    if (browser_options.devtools_port.has_value())
-        on_devtools_enabled();
 }
 
 void BrowserWindow::rebuild_bookmarks_menu()
@@ -393,25 +388,6 @@ void BrowserWindow::update_bookmarks_bar_display(bool show_bookmarks_bar)
         if (tab.view().is_fullscreen() == Web::ViewportIsFullscreen::No)
             tab.bookmarks_bar().setVisible(show_bookmarks_bar);
     });
-}
-
-void BrowserWindow::on_devtools_enabled()
-{
-    auto* disable_button = new QPushButton("Disable", this);
-
-    connect(disable_button, &QPushButton::clicked, this, []() {
-        MUST(WebView::Application::the().toggle_devtools_enabled());
-    });
-
-    statusBar()->addPermanentWidget(disable_button);
-
-    auto message = MUST(String::formatted("DevTools is enabled on port {}", WebView::Application::browser_options().devtools_port));
-    statusBar()->showMessage(qstring_from_ak_string(message));
-}
-
-void BrowserWindow::on_devtools_disabled()
-{
-    setStatusBar(nullptr);
 }
 
 Tab& BrowserWindow::new_tab_from_url(URL::URL const& url, Web::HTML::ActivateTab activate_tab)
