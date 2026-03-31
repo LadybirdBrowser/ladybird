@@ -1466,7 +1466,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     s_is_tty = TRY(Core::System::isatty(STDOUT_FILENO));
 
     // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
-    bool use_live_display = s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
+    bool use_live_display = !app.quiet && s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
 
     if (use_live_display) {
         update_terminal_size();
@@ -1583,11 +1583,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                     s_view_display_states[view_id].start_time = test.start_time;
                 }
                 render_live_display();
-            } else if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
-                outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path);
-            } else {
-                // Non-TTY mode: print each test as it starts
-                outln("{}/{}: {}", test.index + 1, tests.size(), test.relative_path);
+            } else if (!app.quiet) {
+                if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
+                    outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path);
+                } else {
+                    // Non-TTY mode: print each test as it starts
+                    outln("{}/{}: {}", test.index + 1, tests.size(), test.relative_path);
+                }
             }
 
             // Reset promise and attach completion callback
@@ -1621,7 +1623,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                     (void)write_output_for_test(test, capture);
                 }
 
-                if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
+                if (!app.quiet && app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                     auto duration = test.end_time - test.start_time;
                     outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path, duration.to_milliseconds());
                 }
@@ -1770,7 +1772,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             outln("{}: {}", test_result_to_string(non_passing_test.result), test.relative_path);
     }
 
-    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
+    if (!app.quiet && app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
         auto tests_to_print = min(10uz, tests.size());
         outln("\nSlowest {} tests:", tests_to_print);
 
@@ -1800,7 +1802,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     // Generate result files (JSON data and HTML index)
-    if (app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty()) {
+    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty()) {
         if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
             warnln("Failed to generate result files: {}", result.error());
         else

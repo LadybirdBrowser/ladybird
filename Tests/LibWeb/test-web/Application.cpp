@@ -20,6 +20,9 @@ Application::Application(Optional<ByteString> ladybird_binary_path)
 {
     if (auto ladybird_source_dir = Core::Environment::get("LADYBIRD_SOURCE_DIR"sv); ladybird_source_dir.has_value())
         test_root_path = LexicalPath::join(*ladybird_source_dir, "Tests"sv, "LibWeb"sv).string();
+
+    if (Core::Environment::has("CLAUDECODE"sv) || Core::Environment::has("CODEX_SANDBOX"sv))
+        quiet = true;
 }
 
 Application::~Application()

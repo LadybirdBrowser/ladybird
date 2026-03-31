@@ -49,6 +49,7 @@ public:
     int per_test_timeout_in_seconds { 30 };
 
     u8 verbosity { 0 };
+    bool quiet { false };
 };
 
 }
