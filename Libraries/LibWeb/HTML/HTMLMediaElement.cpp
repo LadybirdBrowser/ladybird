@@ -1798,7 +1798,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
     // -> If the media data is corrupted
     m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.set_decoder_error(MUST(String::from_utf8(error.description())));
+        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+            if (!self)
+                return;
+            self->set_decoder_error(MUST(String::from_utf8(error.description())));
+        });
     });
 
     m_playback_manager->add_media_source(*m_remote_fetch_data->stream);
@@ -1857,7 +1861,11 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
 
     // -> If the media data is corrupted
     m_playback_manager->on_error = GC::weak_callback(*this, [](auto& self, Media::DecoderError&& error) {
-        self.set_decoder_error(MUST(String::from_utf8(error.description())));
+        self.queue_a_media_element_task([self = GC::Weak(self), error = move(error)] {
+            if (!self)
+                return;
+            self->set_decoder_error(MUST(String::from_utf8(error.description())));
+        });
     });
 
     m_playback_manager->on_playback_state_change = GC::weak_callback(*this, [](auto& self) {

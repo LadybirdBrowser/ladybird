@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+    const events = [];
+
+    function logEvent(name) {
+        let entry = `${name}: readyState=${video.readyState}`;
+        if (name === "durationchange")
+            entry += ` duration=${video.duration}`;
+        if (name === "error")
+            entry += ` code=${video.error.code}`;
+        events.push(entry);
+    }
+
+    for (const name of [
+        "loadstart", "abort", "error", "emptied",
+        "loadedmetadata", "loadeddata", "canplay",
+        "canplaythrough", "durationchange", "ended",
+    ]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+
+    let hasSetGoodSrc = false;
+    video.addEventListener("error", () => {
+        if (hasSetGoodSrc)
+            return;
+        hasSetGoodSrc = true;
+        logEvent("error handler: setting good src");
+        video.src = "../../../Assets/test-webm.webm";
+        logEvent("error handler: src setter returned");
+    });
+
+    let documentLoaded = false;
+    let videoCanPlayThrough = false;
+    let triggerCompletion = null;
+
+    function checkCompletion() {
+        if (documentLoaded && videoCanPlayThrough) {
+            println("Events:");
+            for (const e of events)
+                println(`  ${e}`);
+            println(`Final: readyState=${video.readyState} duration=${video.duration}`);
+            triggerCompletion();
+        }
+    }
+
+    window.addEventListener("load", () => {
+        logEvent("document load");
+        documentLoaded = true;
+        checkCompletion();
+    });
+
+    video.addEventListener("canplaythrough", () => {
+        videoCanPlayThrough = true;
+        checkCompletion();
+    });
+
+    asyncTest(done => {
+        triggerCompletion = done;
+        video.src = "../../../Assets/corrupt-video.webm";
+    });
+</script>
