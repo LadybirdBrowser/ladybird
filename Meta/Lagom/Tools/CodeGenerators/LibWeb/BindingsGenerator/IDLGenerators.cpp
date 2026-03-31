@@ -3691,12 +3691,12 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> @named_properties_class@
     if (interface.extended_attributes.contains("LegacyUnenumerableNamedProperties"))
         generator.append(R"~~~(
         // 7. If A implements an interface with the [LegacyUnenumerableNamedProperties] extended attribute, then set desc.[[Enumerable]] to false, otherwise set it to true.
-        descriptor.enumerable = true;
+        descriptor.enumerable = false;
 )~~~");
     else {
         generator.append(R"~~~(
         // 7. If A implements an interface with the [LegacyUnenumerableNamedProperties] extended attribute, then set desc.[[Enumerable]] to false, otherwise set it to true.
-        descriptor.enumerable = false;
+        descriptor.enumerable = true;
 )~~~");
     }
     generator.append(R"~~~(
