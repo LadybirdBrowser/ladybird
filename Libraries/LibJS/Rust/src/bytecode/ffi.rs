@@ -139,6 +139,9 @@ pub struct FFIClassElement {
     pub literal_value_number: f64,
     pub literal_value_string: *const u16,
     pub literal_value_string_len: usize,
+    // Auto-accessor backing storage private name (only for AutoAccessor kind).
+    pub backing_storage_name: *const u16,
+    pub backing_storage_name_len: usize,
 }
 
 /// Data for creating a C++ `SharedFunctionInstanceData`.

@@ -1284,6 +1284,26 @@ fn dump_class_element(
                 dump_expression(init, &child_state(&child_state(state, true), true));
             }
         }
+        ClassElement::AutoAccessor {
+            key,
+            initializer,
+            is_static,
+        } => {
+            let mut desc = color_node_name(root_state, "AutoAccessor");
+            if *is_static {
+                desc.push_str(" static");
+            }
+            desc.push_str(&format_position(root_state, range));
+            print_node(state, &desc);
+            dump_expression(key, &child_state(state, initializer.is_none()));
+            if let Some(init) = initializer {
+                print_node(
+                    &child_state(state, true),
+                    &color_label(root_state, "initializer"),
+                );
+                dump_expression(init, &child_state(&child_state(state, true), true));
+            }
+        }
         ClassElement::StaticInitializer { body } => {
             print_node(
                 state,

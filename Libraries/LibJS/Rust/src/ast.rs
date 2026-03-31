@@ -406,6 +406,9 @@ impl FunctionTable {
                 }
                 ClassElement::Field {
                     key, initializer, ..
+                }
+                | ClassElement::AutoAccessor {
+                    key, initializer, ..
                 } => {
                     self.collect_from_expression(key, result);
                     if let Some(init) = initializer {
@@ -828,6 +831,11 @@ pub enum ClassElement {
         is_static: bool,
     },
     Field {
+        key: Box<Expression>,
+        initializer: Option<Box<Expression>>,
+        is_static: bool,
+    },
+    AutoAccessor {
         key: Box<Expression>,
         initializer: Option<Box<Expression>>,
         is_static: bool,

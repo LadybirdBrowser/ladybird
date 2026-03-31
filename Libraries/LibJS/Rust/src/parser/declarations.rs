@@ -924,12 +924,20 @@ impl Parser<'_> {
         let mut is_generator = false;
         let mut is_getter = false;
         let mut is_setter = false;
+        let mut is_auto_accessor = false;
         let function_start = self.position();
 
         // Check modifiers (must not contain escape sequences).
         if self.match_identifier_name() {
             let value = self.token_original_value(&self.current_token).to_vec();
-            if value == utf16!("get") && self.match_property_key_ahead() {
+            if value == utf16!("accessor") && self.match_property_key_ahead() {
+                // FieldDefinition : `accessor` [no LineTerminator here] ClassElementName Initializer?
+                let next = self.next_token();
+                if !next.trivia_has_line_terminator {
+                    is_auto_accessor = true;
+                    self.consume();
+                }
+            } else if value == utf16!("get") && self.match_property_key_ahead() {
                 is_getter = true;
                 self.consume();
             } else if value == utf16!("set") && self.match_property_key_ahead() {
@@ -951,7 +959,7 @@ impl Parser<'_> {
             }
         }
 
-        if self.match_token(TokenType::Asterisk) {
+        if !is_auto_accessor && self.match_token(TokenType::Asterisk) {
             is_generator = true;
             self.consume();
         }
@@ -963,13 +971,16 @@ impl Parser<'_> {
             expression: key,
             name: key_value,
             ..
-        } = if (is_static || is_async || is_getter || is_setter)
+        } = if (is_static || is_async || is_getter || is_setter || is_auto_accessor)
             && (self.match_token(TokenType::Semicolon)
                 || self.match_token(TokenType::Equals)
                 || self.match_token(TokenType::ParenOpen)
                 || self.match_token(TokenType::CurlyClose))
         {
-            let name: &[u16] = if is_async {
+            let name: &[u16] = if is_auto_accessor {
+                is_auto_accessor = false;
+                utf16!("accessor")
+            } else if is_async {
                 is_async = false;
                 utf16!("async")
             } else if is_getter {
@@ -1066,6 +1077,11 @@ impl Parser<'_> {
             }
         }
 
+        // Auto-accessors are field-like; they cannot have a method body.
+        if is_auto_accessor && self.match_token(TokenType::ParenOpen) {
+            self.syntax_error("Auto-accessor cannot have a method body");
+        }
+
         if self.match_token(TokenType::ParenOpen) {
             let ctor_name = utf16!("constructor");
             let is_constructor =
@@ -1154,15 +1170,23 @@ impl Parser<'_> {
         };
 
         self.consume_or_insert_semicolon();
+
+        let element = if is_auto_accessor {
+            ClassElement::AutoAccessor {
+                key: Box::new(key),
+                initializer: init,
+                is_static,
+            }
+        } else {
+            ClassElement::Field {
+                key: Box::new(key),
+                initializer: init,
+                is_static,
+            }
+        };
+
         (
-            Some(Node::new(
-                self.range_from(class_start),
-                ClassElement::Field {
-                    key: Box::new(key),
-                    initializer: init,
-                    is_static,
-                },
-            )),
+            Some(Node::new(self.range_from(class_start), element)),
             None,
         )
     }

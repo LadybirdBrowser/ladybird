@@ -963,6 +963,8 @@ extern "C" void* rust_create_class_blueprint(
         if (elem.shared_function_data_index.has_value)
             desc.shared_function_data_index = elem.shared_function_data_index.value;
         desc.has_initializer = elem.has_initializer;
+        if (elem.backing_storage_name_len > 0)
+            desc.backing_storage_name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(elem.backing_storage_name), elem.backing_storage_name_len));
         switch (elem.literal_value_kind) {
         case LiteralValueKind::None:
             break;

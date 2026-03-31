@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/ClassConstruction.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
@@ -253,6 +254,90 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
                 static_elements.append(move(field));
             else
                 instance_fields.append(move(field));
+            break;
+        }
+
+        case Bytecode::ClassElementDescriptor::Kind::AutoAccessor: {
+            auto element_name = TRY(resolve_element_key(vm, descriptor, element_keys[element_index]));
+
+            // Resolve the backing storage private name from the private environment.
+            auto private_environment = vm.running_execution_context().private_environment;
+            VERIFY(private_environment);
+            auto backing_storage_name = private_environment->resolve_private_identifier(*descriptor.backing_storage_name);
+
+            // Create initializer for the backing storage field.
+            Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty> initializer;
+            if (descriptor.has_initializer) {
+                if (descriptor.literal_value.has_value()) {
+                    initializer = *descriptor.literal_value;
+                } else {
+                    auto shared_data = executable.shared_function_data[*descriptor.shared_function_data_index];
+
+                    if (!descriptor.is_private && !shared_data->m_class_field_initializer_name.has<PropertyKey>()
+                        && !shared_data->m_class_field_initializer_name.has<PrivateName>()) {
+                        shared_data->m_class_field_initializer_name = element_name.visit(
+                            [](PropertyKey const& key) -> Variant<PropertyKey, PrivateName, Empty> { return key; },
+                            [](PrivateName const& name) -> Variant<PropertyKey, PrivateName, Empty> { return name; });
+                    }
+
+                    auto function = ECMAScriptFunctionObject::create_from_function_data(
+                        realm,
+                        *shared_data,
+                        vm.lexical_environment(),
+                        vm.running_execution_context().private_environment);
+                    function->make_method(home_object);
+                    initializer = function;
+                }
+            }
+
+            // The backing storage is always a private field, initialized with the auto-accessor's initializer value.
+            ClassFieldDefinition backing_field {
+                ClassElementName(backing_storage_name),
+                move(initializer),
+            };
+
+            // MakeAutoAccessorGetter: create a getter that reads from the backing storage.
+            // NOTE: The base spec (ecma262 PR #2417) calls SetFunctionName to produce
+            // "get x" / "set x" names, but pzuraq/ecma262 PR #14 removes those calls.
+            // See tc39/proposal-decorators#502 for context on SetFunctionName in decorators.
+            auto getter_closure = [backing_storage_name](VM& vm) -> ThrowCompletionOr<Value> {
+                auto this_value = vm.this_value();
+                if (!this_value.is_object())
+                    return vm.throw_completion<TypeError>(ErrorType::NotAnObject, this_value);
+                return this_value.as_object().private_get(backing_storage_name);
+            };
+            auto getter = NativeFunction::create(realm, move(getter_closure), 0);
+
+            // MakeAutoAccessorSetter: create a setter that writes to the backing storage.
+            auto setter_closure = [backing_storage_name](VM& vm) -> ThrowCompletionOr<Value> {
+                auto this_value = vm.this_value();
+                if (!this_value.is_object())
+                    return vm.throw_completion<TypeError>(ErrorType::NotAnObject, this_value);
+                TRY(this_value.as_object().private_set(backing_storage_name, vm.argument(0)));
+                return js_undefined();
+            };
+            auto setter = NativeFunction::create(realm, move(setter_closure), 1);
+
+            if (element_name.has<PropertyKey>()) {
+                // Public auto-accessor: define an accessor property on the home object.
+                auto& property_key = element_name.get<PropertyKey>();
+                PropertyDescriptor property_descriptor { .get = getter, .set = setter, .enumerable = true, .configurable = true };
+                TRY(home_object.define_property_or_throw(property_key, property_descriptor));
+            } else {
+                // Private auto-accessor: add getter/setter as a private accessor element.
+                auto& private_name = element_name.get<PrivateName>();
+                auto accessor = Accessor::create(vm, getter, setter);
+                PrivateElement private_element { private_name, PrivateElement::Kind::Accessor, Value(accessor) };
+
+                auto& container = descriptor.is_static ? static_private_methods : instance_private_methods;
+                container.append(move(private_element));
+            }
+
+            // Add the backing storage field to the appropriate list.
+            if (descriptor.is_static)
+                static_elements.append(move(backing_field));
+            else
+                instance_fields.append(move(backing_field));
             break;
         }
 
