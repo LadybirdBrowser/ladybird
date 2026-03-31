@@ -318,8 +318,15 @@ def ensure_ladybird_source_dir() -> Path:
     return ladybird_source_dir
 
 
+def is_running_under_coding_agent() -> bool:
+    return "CLAUDECODE" in os.environ or "CODEX_SANDBOX" in os.environ
+
+
 def build_main(build_dir: Path, jobs: Optional[str], target: Optional[str] = None, args: Optional[list[str]] = None):
     build_args = ["ninja", "-C", str(build_dir)]
+
+    if is_running_under_coding_agent():
+        build_args.append("--quiet")
 
     if not jobs:
         jobs = os.environ.get("MAKEJOBS", None)
