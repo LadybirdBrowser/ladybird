@@ -318,16 +318,6 @@ void PlaybackManager::disable_audio()
         track_stopped_buffering(track);
 }
 
-PlaybackManager::VideoTrackData& PlaybackManager::get_video_data_for_track(Track const& track)
-{
-    for (auto& track_data : m_video_track_datas) {
-        if (track_data.track == track)
-            return track_data;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying_video_sink_for_track(Track const& track)
 {
     auto& track_data = get_video_data_for_track(track);
@@ -353,16 +343,6 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
     track_stopped_buffering(track);
 }
 
-PlaybackManager::AudioTrackData& PlaybackManager::get_audio_data_for_track(Track const& track)
-{
-    for (auto& track_data : m_audio_track_datas) {
-        if (track_data.track == track)
-            return track_data;
-    }
-
-    VERIFY_NOT_REACHED();
-}
-
 void PlaybackManager::enable_an_audio_track(Track const& track)
 {
     if (!m_audio_sink)
@@ -384,6 +364,25 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     VERIFY(track_data.provider == m_audio_sink->provider(track));
     m_audio_sink->set_provider(track, nullptr);
     track_stopped_buffering(track);
+}
+
+bool PlaybackManager::track_is_enabled(Track const& track) const
+{
+    if (track.type() == TrackType::Video) {
+        auto const& track_data = get_video_data_for_track(track);
+        return track_data.display != nullptr;
+    }
+
+    VERIFY(track.type() == TrackType::Audio);
+    if (!m_audio_sink)
+        return false;
+
+    auto const& track_data = get_audio_data_for_track(track);
+    auto const& assigned_provider = m_audio_sink->provider(track);
+    if (assigned_provider == nullptr)
+        return false;
+    VERIFY(track_data.provider == assigned_provider);
+    return true;
 }
 
 void PlaybackManager::play()

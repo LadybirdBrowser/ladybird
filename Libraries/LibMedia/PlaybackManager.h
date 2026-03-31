@@ -72,6 +72,8 @@ public:
     void enable_an_audio_track(Track const&);
     void disable_an_audio_track(Track const&);
 
+    bool track_is_enabled(Track const&) const;
+
     void play();
     void pause();
     void seek(AK::Duration timestamp, SeekMode);
@@ -118,8 +120,26 @@ private:
     void check_for_duration_change(AK::Duration);
     void dispatch_error(DecoderError&&);
 
-    VideoTrackData& get_video_data_for_track(Track const&);
-    AudioTrackData& get_audio_data_for_track(Track const&);
+    template<typename Self>
+    decltype(auto) get_video_data_for_track(this Self&& self, Track const& track)
+    {
+        for (auto& track_data : self.m_video_track_datas) {
+            if (track_data.track == track)
+                return track_data;
+        }
+
+        VERIFY_NOT_REACHED();
+    }
+    template<typename Self>
+    decltype(auto) get_audio_data_for_track(this Self&& self, Track const& track)
+    {
+        for (auto& track_data : self.m_audio_track_datas) {
+            if (track_data.track == track)
+                return track_data;
+        }
+
+        VERIFY_NOT_REACHED();
+    }
 
     static DecoderErrorOr<NonnullRefPtr<Demuxer>> create_demuxer_for_stream(NonnullRefPtr<MediaStream> const&);
     static DecoderErrorOr<void> prepare_playback_from_demuxer(WeakPlaybackManager const&, NonnullRefPtr<Demuxer> const&, NonnullRefPtr<Core::WeakEventLoopReference> const&);
