@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+  <iframe id="if" src="about:blank"></iframe>
+  <script>
+    var t = async_test("document.cookie behavior on documents without browser context");
+    t.add_cleanup(function() {
+      document.cookie = "nav_away_test=yes;max-age=0";
+    });
+
+    function step2() {
+      t.step(function() {
+        // Get from saved doc should fail.
+        assert_equals(window.iframeDoc.cookie, "");
+
+        // Try set from saved doc, should do nothing.
+        window.iframeDoc.cookie = "nav_away_test=second";
+        assert_equals(window.iframeDoc.cookie, "");
+        assert_not_equals(document.cookie.indexOf("nav_away_test=yes"), -1);
+      });
+      t.done();
+    }
+
+    t.step(function() {
+      document.cookie = "nav_away_test=yes";
+      var iframe = document.getElementById("if");
+      // Save original document.
+      window.iframeDoc = iframe.contentDocument;
+      assert_not_equals(window.iframeDoc.cookie.indexOf("nav_away_test=yes"), -1);
+
+      // Navigate away.
+      iframe.onload = step2;
+      iframe.contentWindow.location = "/common/blank.html";
+    })
+  </script>
+</body>
