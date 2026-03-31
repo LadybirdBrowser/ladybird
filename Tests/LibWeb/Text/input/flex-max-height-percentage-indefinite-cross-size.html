@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#wrapper {
+    width: 120px;
+}
+
+#container {
+    display: flex;
+    width: 100px;
+    max-height: 50%;
+}
+
+#item {
+    width: 20px;
+}
+
+#content {
+    width: 10px;
+    height: 80px;
+}
+</style>
+<div id="wrapper">
+    <div id="container">
+        <div id="item">
+            <div id="content"></div>
+        </div>
+    </div>
+</div>
+<script>
+test(() => {
+    const containerRect = document.getElementById("container").getBoundingClientRect();
+    const itemRect = document.getElementById("item").getBoundingClientRect();
+    const contentRect = document.getElementById("content").getBoundingClientRect();
+
+    println(`container height: ${containerRect.height}`);
+    println(`item height: ${itemRect.height}`);
+    println(`content height: ${contentRect.height}`);
+    println(`unresolved percentage max-height is ignored: ${containerRect.height === contentRect.height && itemRect.height === contentRect.height}`);
+});
+</script>

@@ -1,0 +1,4 @@
+container height: 80
+item height: 80
+content height: 80
+unresolved percentage max-height is ignored: true

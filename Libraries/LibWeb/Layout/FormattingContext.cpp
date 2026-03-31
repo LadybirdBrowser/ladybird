@@ -1626,13 +1626,13 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
 
     // If the box width and/or height is fixed and/or or resolved from inset properties,
     // mark the size as being definite (since layout was not required to resolve it, per CSS-SIZING-3).
-    auto is_length_but_not_auto = [](auto& length_percentage) {
-        return length_percentage.is_length() && !length_percentage.is_auto();
+    auto is_non_auto = [](auto const& length_percentage) {
+        return !length_percentage.is_auto();
     };
-    if (is_length_but_not_auto(computed_values.inset().left()) && is_length_but_not_auto(computed_values.inset().right())) {
+    if (is_non_auto(computed_values.inset().left()) && is_non_auto(computed_values.inset().right())) {
         box_state.set_has_definite_width(true);
     }
-    if (is_length_but_not_auto(computed_values.inset().top()) && is_length_but_not_auto(computed_values.inset().bottom())) {
+    if (is_non_auto(computed_values.inset().top()) && is_non_auto(computed_values.inset().bottom())) {
         box_state.set_has_definite_height(true);
     }
 
@@ -1641,8 +1641,12 @@ void FormattingContext::layout_absolutely_positioned_element(Box& box)
     //       See FormattingContext::compute_auto_height_for_absolutely_positioned_element()
     //       for the special-casing of BFC roots.
     if (!creates_block_formatting_context(box)) {
+        auto height_resolved_from_aspect_ratio = computed_values.height().is_auto()
+            && box.has_preferred_aspect_ratio()
+            && box_state.has_definite_width();
         box_state.set_has_definite_width(true);
-        box_state.set_has_definite_height(true);
+        if (!computed_values.height().is_auto() || height_resolved_from_aspect_ratio)
+            box_state.set_has_definite_height(true);
     }
 
     auto independent_formatting_context = layout_inside(box, LayoutMode::Normal, box_state.available_inner_space_or_constraints_from(available_space));

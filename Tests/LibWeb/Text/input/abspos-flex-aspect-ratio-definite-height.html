@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+}
+
+#containing-block {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+
+#container {
+    display: flex;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 160px;
+    aspect-ratio: 2 / 1;
+}
+
+#item {
+    width: 100%;
+    height: 50%;
+}
+
+#content {
+    width: 10px;
+    height: 10px;
+}
+</style>
+<div id="containing-block">
+    <div id="container">
+        <div id="item">
+            <div id="content"></div>
+        </div>
+    </div>
+</div>
+<script>
+test(() => {
+    const containerRect = document.getElementById("container").getBoundingClientRect();
+    const itemRect = document.getElementById("item").getBoundingClientRect();
+
+    println(`container height: ${containerRect.height}`);
+    println(`item height: ${itemRect.height}`);
+    println(`item height is 50% of resolved aspect-ratio height: ${itemRect.height === containerRect.height / 2}`);
+});
+</script>

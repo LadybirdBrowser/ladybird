@@ -1246,10 +1246,9 @@ void FlexFormattingContext::calculate_cross_size_of_each_flex_line()
     // AD-HOC: We don't do this when the flex container is being sized under a min-content or max-content constraint.
     if (is_single_line() && !m_available_space_for_items->cross.is_intrinsic_sizing_constraint()) {
         auto const& computed_min_size = this->computed_cross_min_size(flex_container());
-        auto const& computed_max_size = this->computed_cross_max_size(flex_container());
 
-        auto cross_min_size = (!computed_min_size.is_auto() && !computed_min_size.contains_percentage()) ? calculate_inner_flex_container_cross_min_size() : 0;
-        auto cross_max_size = (!computed_max_size.is_none() && !computed_max_size.contains_percentage()) ? calculate_inner_flex_container_cross_max_size() : CSSPixels::max();
+        auto cross_min_size = !computed_min_size.is_auto() ? calculate_inner_flex_container_cross_min_size() : 0;
+        auto cross_max_size = !should_treat_cross_max_size_as_none(flex_container()) ? calculate_inner_flex_container_cross_max_size() : CSSPixels::max();
         m_flex_lines[0].cross_size = css_clamp(m_flex_lines[0].cross_size, cross_min_size, cross_max_size);
     }
 }

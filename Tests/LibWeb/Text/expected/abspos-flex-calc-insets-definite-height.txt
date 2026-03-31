@@ -1,0 +1,3 @@
+container height: 120
+item height: 60
+item height is 50% of resolved inset height: true
