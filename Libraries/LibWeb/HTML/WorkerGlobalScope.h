@@ -72,6 +72,7 @@ public:
     GC::Ref<WorkerGlobalScope const> self() const { return *this; }
 
     virtual Optional<URL::Origin> extract_an_origin() const override { return window_or_worker_global_scope_extract_an_origin(); }
+    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
 
     GC::Ref<WorkerLocation> location() const;
     GC::Ref<WorkerNavigator> navigator() const;

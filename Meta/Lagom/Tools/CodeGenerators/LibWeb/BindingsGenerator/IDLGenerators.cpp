@@ -3729,7 +3729,10 @@ JS::ThrowCompletionOr<bool> @named_properties_class@::internal_delete(JS::Proper
 // https://webidl.spec.whatwg.org/#named-properties-object-setprototypeof
 JS::ThrowCompletionOr<bool> @named_properties_class@::internal_set_prototype_of(JS::Object* prototype)
 {
-    // 1. Return ? SetImmutablePrototype(O, V).
+    // 1. If O’s associated realm’s is global prototype chain mutable is true, return ? OrdinarySetPrototypeOf(O, V).
+    // NB: This is only ever true for ShadowRealms.
+
+    // 2. Return ? SetImmutablePrototype(O, V).
     return set_immutable_prototype(prototype);
 }
 
@@ -3747,6 +3750,17 @@ void @named_properties_class@::visit_edges(Visitor& visitor)
     visitor.visit(m_realm);
 }
 )~~~");
+}
+
+// https://webidl.spec.whatwg.org/#interface-prototype-object
+static bool interface_prototype_has_immutable_prototype(IDL::Interface const& interface)
+{
+    // 9. Otherwise, if interface is declared with the [Global] extended attribute, or interface is in the set of
+    //    inherited interfaces of an interface that is declared with the [Global] extended attribute, then:
+    // NB: This currently assumes only Workers and Window can be globals.
+    return interface.extended_attributes.contains("Global")
+        || interface.name == "WorkerGlobalScope"sv
+        || interface.name == "EventTarget"sv;
 }
 
 enum class GenerateUnforgeables {
@@ -5941,6 +5955,7 @@ void generate_prototype_header(IDL::Interface const& interface, StringBuilder& b
     SourceGenerator generator { builder };
 
     generator.set("prototype_class", interface.prototype_class);
+    auto has_immutable_prototype = interface_prototype_has_immutable_prototype(interface);
 
     generator.append(R"~~~(
 #pragma once
@@ -5958,8 +5973,14 @@ public:
     explicit @prototype_class@(JS::Realm&);
     virtual void initialize(JS::Realm&) override;
     virtual ~@prototype_class@() override;
-private:
 )~~~");
+
+    if (has_immutable_prototype) {
+        generator.append(R"~~~(
+private:
+    virtual JS::ThrowCompletionOr<bool> internal_set_prototype_of(JS::Object* prototype) override;
+)~~~");
+    }
 
     // Generate an empty prototype object for global interfaces.
     auto is_global_interface = interface.extended_attributes.contains("Global");
@@ -5986,6 +6007,7 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
     generator.set("parent_name", interface.parent_name);
     generator.set("prototype_class", interface.prototype_class);
     generator.set("prototype_base_class", interface.prototype_base_class);
+    auto has_immutable_prototype = interface_prototype_has_immutable_prototype(interface);
 
     generator.append(R"~~~(
 #include <AK/Function.h>
@@ -6098,6 +6120,17 @@ GC_DEFINE_ALLOCATOR(@prototype_class@);
 {
 }
 )~~~");
+
+    if (has_immutable_prototype) {
+        generator.append(R"~~~(
+
+// https://webidl.spec.whatwg.org/#es-interface-prototype-object
+JS::ThrowCompletionOr<bool> @prototype_class@::internal_set_prototype_of(JS::Object* prototype)
+{
+    return set_immutable_prototype(prototype);
+}
+)~~~");
+    }
 
     // Generate a mostly empty prototype object for global interfaces.
     auto is_global_interface = interface.extended_attributes.contains("Global");

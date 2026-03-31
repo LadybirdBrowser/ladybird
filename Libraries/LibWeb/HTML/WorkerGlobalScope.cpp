@@ -37,6 +37,16 @@ WorkerGlobalScope::WorkerGlobalScope(JS::Realm& realm, GC::Ref<Web::Page> page)
 
 WorkerGlobalScope::~WorkerGlobalScope() = default;
 
+// https://webidl.spec.whatwg.org/#platform-object-setprototypeof
+JS::ThrowCompletionOr<bool> WorkerGlobalScope::internal_set_prototype_of(JS::Object* prototype)
+{
+    // 1. If O’s associated realm’s is global prototype chain mutable is true, return ? OrdinarySetPrototypeOf(O, V).
+    // NB: This is never the case for WorkerGlobalScope.
+
+    // 2. Return ? SetImmutablePrototype(O, V).
+    return set_immutable_prototype(prototype);
+}
+
 void WorkerGlobalScope::initialize_web_interfaces_impl()
 {
     auto& realm = this->realm();
