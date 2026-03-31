@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>CSS Anchor Positioning: Crash with anchor functions flex-basis</title>
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1998436">
+<style>
+#dut1 {
+  display: flex;
+}
+#dut2 {
+  flex-basis: anchor-size(--a width, 10px);
+}
+#dut3 {
+  flex-basis: auto;
+  width: anchor-size(--a width, 10px);
+}
+</style>
+<div id=dut1>
+  <div id=dut2></div>
+  <div id=dut3></div>
+</div>
