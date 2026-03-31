@@ -8,6 +8,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
+#include <LibWebView/WebUI/DevToolsUI.h>
 #include <LibWebView/WebUI/ProcessesUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -25,11 +26,13 @@ static ErrorOr<NonnullRefPtr<WebUIType>> create_web_ui(WebContentClient& client,
     return web_ui;
 }
 
-ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
+ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host, Optional<u64> inspected_view_id)
 {
     RefPtr<WebUI> web_ui;
 
-    if (host == "processes"sv)
+    if (host == "devtools"sv)
+        web_ui = TRY(DevToolsUI::create_with_inspected_view_id(client, move(host), inspected_view_id));
+    else if (host == "processes"sv)
         web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
     else if (host == "settings"sv)
         web_ui = TRY(create_web_ui<SettingsUI>(client, move(host)));

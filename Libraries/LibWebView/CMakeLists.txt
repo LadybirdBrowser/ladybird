@@ -29,6 +29,7 @@ set(SOURCES
     ViewImplementation.cpp
     WebContentClient.cpp
     WebUI.cpp
+    WebUI/DevToolsUI.cpp
     WebUI/ProcessesUI.cpp
     WebUI/SettingsUI.cpp
 )

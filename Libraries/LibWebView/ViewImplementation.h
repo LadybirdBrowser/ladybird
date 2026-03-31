@@ -53,6 +53,8 @@ public:
     static Optional<ViewImplementation&> find_view_by_id(u64);
 
     u64 view_id() const { return m_view_id; }
+    Optional<u64> inspected_view_id() const { return m_inspected_view_id; }
+    void set_inspected_view_id(Optional<u64> inspected_view_id) { m_inspected_view_id = inspected_view_id; }
 
     void set_url(Badge<WebContentClient>, URL::URL url) { set_url(move(url)); }
     URL::URL const& url() const { return m_url; }
@@ -406,6 +408,7 @@ protected:
     // FIXME: Reconcile this ID with `page_id`. The latter is only unique per WebContent connection, whereas the view ID
     //        is required to be globally unique for Firefox DevTools.
     u64 m_view_id { 0 };
+    Optional<u64> m_inspected_view_id;
 
     HashMap<u64, NavigationListener> m_navigation_listeners;
     u64 m_next_navigation_listener_id { 1 };

@@ -119,14 +119,28 @@ void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redi
 
 void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 {
-    if (url.scheme() == "about"sv && url.paths().size() == 1) {
-        if (auto web_ui = WebUI::create(*this, url.paths().first()); web_ui.is_error())
+    auto view = view_for_page_id(page_id);
+
+    auto web_ui_host = [&]() -> Optional<String> {
+        if (url.scheme() == "about"sv && url.paths().size() == 1)
+            return url.paths().first();
+        if (url.scheme() == "resource"sv) {
+            auto path = url.serialize_path();
+            if (path.starts_with_bytes("/devtools/"sv))
+                return "devtools"_string;
+        }
+        return {};
+    }();
+
+    if (web_ui_host.has_value()) {
+        auto inspected_view_id = view.has_value() ? view->inspected_view_id() : Optional<u64> {};
+        if (auto web_ui = WebUI::create(*this, web_ui_host.release_value(), inspected_view_id); web_ui.is_error())
             warnln("Could not create WebUI for {}: {}", url, web_ui.error());
         else
             m_web_ui = web_ui.release_value();
     }
 
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    if (view.has_value()) {
         view->set_url({}, url);
 
         if (view->on_load_finish)

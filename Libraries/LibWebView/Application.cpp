@@ -63,6 +63,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
                 Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
             });
     }
+
+    virtual void remote_debugging_settings_changed() override
+    {
+        Application::the().remote_debugging_settings_changed({});
+    }
 };
 
 struct ApplicationBookmarkStoreObserver final : public BookmarkStoreObserver {
@@ -273,6 +278,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (debug_process_type == ProcessType::WebContent)
         disable_site_isolation = true;
 
+    m_remote_debugging_overridden_by_command_line = devtools_port.has_value();
+
+    if (!devtools_port.has_value()) {
+        auto const& remote_debugging_settings = m_settings.remote_debugging_settings();
+        if (remote_debugging_settings.enabled)
+            devtools_port = remote_debugging_settings.port;
+    }
+
     m_browser_options = {
         .urls = sanitize_urls(raw_urls, m_settings.new_tab_page_url()),
         .raw_urls = move(raw_urls),
@@ -423,6 +436,14 @@ ErrorOr<void> Application::launch_services()
     m_settings_observer = make<ApplicationSettingsObserver>();
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
+    if (m_remote_debugging_overridden_by_command_line && m_browser_options.devtools_port.has_value()) {
+        m_settings.set_remote_debugging_settings({
+                                                     .enabled = true,
+                                                     .port = *m_browser_options.devtools_port,
+                                                 },
+            true);
+    }
+
     m_process_manager = make<ProcessManager>();
     m_process_manager->on_process_exited = [this](Process&& process) {
         process_did_exit(move(process));
@@ -542,9 +563,39 @@ ErrorOr<void> Application::launch_devtools_server()
         m_browser_options.devtools_port = WebView::default_devtools_port;
 
     m_devtools = TRY(DevTools::DevToolsServer::create(*this, *m_browser_options.devtools_port));
-    on_devtools_enabled();
 
     return {};
+}
+
+void Application::update_remote_debugging_settings()
+{
+    auto const& remote_debugging_settings = m_settings.remote_debugging_settings();
+    Optional<u16> desired_port;
+    if (remote_debugging_settings.enabled)
+        desired_port = remote_debugging_settings.port;
+
+    if (m_browser_options.devtools_port == desired_port)
+        return;
+
+    if (m_devtools) {
+        m_devtools.clear();
+    }
+
+    m_browser_options.devtools_port = desired_port;
+
+    if (!m_browser_options.devtools_port.has_value())
+        return;
+
+    if (auto result = launch_devtools_server(); result.is_error())
+        warnln("Failed to update remote debugging server: {}", result.error());
+}
+
+void Application::ensure_devtools_server()
+{
+    if (m_devtools)
+        return;
+
+    m_devtools = MUST(DevTools::DevToolsServer::create(*this));
 }
 
 static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
@@ -958,9 +1009,8 @@ void Application::initialize_actions()
         open_url_in_new_tab(URL::about_processes(), Web::HTML::ActivateTab::Yes);
     }));
 
-    m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
-        if (auto result = toggle_devtools_enabled(); result.is_error())
-            display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
+    m_toggle_devtools_action = Action::create("Toggle DevTools"sv, ActionID::ToggleDevTools, [this]() {
+        on_toggle_devtools_panel();
     });
     m_inspect_menu->add_action(*m_toggle_devtools_action);
 
@@ -1071,6 +1121,11 @@ void Application::show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>)
     update_bookmarks_bar_display(m_settings.show_bookmarks_bar());
 }
 
+void Application::remote_debugging_settings_changed(Badge<ApplicationSettingsObserver>)
+{
+    update_remote_debugging_settings();
+}
+
 void Application::create_bookmark_menu_items(Menu* menu, Vector<BookmarkItem> const* items)
 {
     if (!menu) {
@@ -1102,28 +1157,6 @@ void Application::create_bookmark_menu_items(Menu* menu, Vector<BookmarkItem> co
                 menu->add_submenu(move(submenu));
             });
     }
-}
-
-ErrorOr<void> Application::toggle_devtools_enabled()
-{
-    if (m_devtools) {
-        m_devtools.clear();
-        on_devtools_disabled();
-    } else {
-        TRY(launch_devtools_server());
-    }
-
-    return {};
-}
-
-void Application::on_devtools_enabled() const
-{
-    m_toggle_devtools_action->set_text("Disable DevTools"sv);
-}
-
-void Application::on_devtools_disabled() const
-{
-    m_toggle_devtools_action->set_text("Enable DevTools"sv);
 }
 
 void Application::refresh_tab_list()

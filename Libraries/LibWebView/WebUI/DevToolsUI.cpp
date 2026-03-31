@@ -31,7 +31,8 @@ DevToolsUI::DevToolsUI(WebContentClient& client, NonnullOwnPtr<IPC::Transport> t
 
 DevToolsUI::~DevToolsUI()
 {
-    m_alive = false;
+    if (m_transport)
+        m_transport->set_send_handler({});
 }
 
 void DevToolsUI::register_interfaces()
@@ -41,9 +42,7 @@ void DevToolsUI::register_interfaces()
     if (!app.devtools_server())
         app.ensure_devtools_server();
 
-    app.devtools_server()->connect_pipe([this](JsonValue const& message) {
-        if (!m_alive)
-            return;
+    m_transport = app.devtools_server()->connect_pipe([this](JsonValue const& message) {
         async_send_message("devtools.receive"sv, message);
     });
 

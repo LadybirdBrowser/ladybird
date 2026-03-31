@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <LibDevTools/CallbackTransport.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/WebUI.h>
 
@@ -26,7 +27,7 @@ private:
     void set_remote_debugging_settings(JsonValue const&);
 
     Optional<u64> m_inspected_view_id;
-    bool m_alive { true };
+    RefPtr<DevTools::CallbackTransport> m_transport;
 };
 
 }

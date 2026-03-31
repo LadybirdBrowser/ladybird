@@ -30,6 +30,11 @@ struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
 
+struct RemoteDebuggingSettings {
+    bool enabled { false };
+    u16 port { default_devtools_port };
+};
+
 enum class GlobalPrivacyControl {
     No,
     Yes,
@@ -50,6 +55,7 @@ public:
     virtual void browsing_data_settings_changed() { }
     virtual void global_privacy_control_changed() { }
     virtual void dns_settings_changed() { }
+    virtual void remote_debugging_settings_changed() { }
 };
 
 class WEBVIEW_API Settings {
@@ -91,6 +97,9 @@ public:
     BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
     void set_browsing_data_settings(BrowsingDataSettings);
 
+    RemoteDebuggingSettings const& remote_debugging_settings() const { return m_remote_debugging_settings; }
+    void set_remote_debugging_settings(RemoteDebuggingSettings, bool override_by_command_line = false);
+
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
 
@@ -119,6 +128,8 @@ private:
     Optional<AutocompleteEngine> m_autocomplete_engine;
     SiteSetting m_autoplay;
     BrowsingDataSettings m_browsing_data_settings;
+    RemoteDebuggingSettings m_remote_debugging_settings;
+    bool m_remote_debugging_override_by_command_line { false };
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };

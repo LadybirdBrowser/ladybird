@@ -24,7 +24,7 @@ class WEBVIEW_API WebUI
     : public IPC::ConnectionToServer<WebUIClientEndpoint, WebUIServerEndpoint>
     , public WebUIClientEndpoint {
 public:
-    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, String host);
+    static ErrorOr<RefPtr<WebUI>> create(WebContentClient&, String host, Optional<u64> inspected_view_id = {});
     virtual ~WebUI();
 
     String const& host() const { return m_host; }

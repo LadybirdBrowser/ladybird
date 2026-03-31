@@ -66,9 +66,13 @@ public:
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
+    void remote_debugging_settings_changed(Badge<ApplicationSettingsObserver>);
 
     static CookieJar& cookie_jar() { return *the().m_cookie_jar; }
     static StorageJar& storage_jar() { return *the().m_storage_jar; }
+
+    DevTools::DevToolsServer* devtools_server() { return m_devtools.ptr(); }
+    void ensure_devtools_server();
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 #if defined(AK_OS_MACOS)
@@ -149,7 +153,6 @@ public:
 
     void apply_view_options(Badge<ViewImplementation>, ViewImplementation&);
 
-    ErrorOr<void> toggle_devtools_enabled();
     void refresh_tab_list();
 
     Optional<Core::TimeZoneWatcher&> time_zone_watcher();
@@ -170,8 +173,7 @@ protected:
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
 
-    virtual void on_devtools_enabled() const;
-    virtual void on_devtools_disabled() const;
+    virtual void on_toggle_devtools_panel() const { }
 
     Main::Arguments& arguments() { return m_arguments; }
 
@@ -181,6 +183,7 @@ private:
     ErrorOr<void> launch_request_server();
     ErrorOr<void> launch_image_decoder_server();
     ErrorOr<void> launch_devtools_server();
+    void update_remote_debugging_settings();
 
     void initialize_actions();
 
@@ -234,6 +237,7 @@ private:
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
+    bool m_remote_debugging_overridden_by_command_line { false };
     RequestServerOptions m_request_server_options;
     WebContentOptions m_web_content_options;
 

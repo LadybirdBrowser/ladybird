@@ -46,6 +46,8 @@ static constexpr auto browsing_data_key = "browsingData"sv;
 static constexpr auto disk_cache_key = "diskCache"sv;
 static constexpr auto disk_cache_maximum_size_key = "maxSize"sv;
 
+static constexpr auto remote_debugging_key = "remoteDebugging"sv;
+
 static constexpr auto global_privacy_control_key = "globalPrivacyControl"sv;
 
 static constexpr auto dns_settings_key = "dnsSettings"sv;
@@ -122,6 +124,13 @@ Settings Settings::create(Badge<Application>)
 
     if (auto browsing_data_settings = settings_json.value().get(browsing_data_key); browsing_data_settings.has_value())
         settings.m_browsing_data_settings = parse_browsing_data_settings(*browsing_data_settings);
+
+    if (auto remote_debugging_settings = settings_json.value().get_object(remote_debugging_key); remote_debugging_settings.has_value()) {
+        if (auto enabled = remote_debugging_settings->get_bool("enabled"sv); enabled.has_value())
+            settings.m_remote_debugging_settings.enabled = *enabled;
+        if (auto port = remote_debugging_settings->get_u16("port"sv); port.has_value())
+            settings.m_remote_debugging_settings.port = *port;
+    }
 
     if (auto global_privacy_control = settings_json.value().get_bool(global_privacy_control_key); global_privacy_control.has_value())
         settings.m_global_privacy_control = *global_privacy_control ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No;
@@ -205,6 +214,12 @@ JsonValue Settings::serialize_json() const
     JsonObject browsing_data;
     browsing_data.set(disk_cache_key, move(disk_cache_settings));
     settings.set(browsing_data_key, move(browsing_data));
+
+    JsonObject remote_debugging;
+    remote_debugging.set("enabled"sv, m_remote_debugging_settings.enabled);
+    remote_debugging.set("port"sv, m_remote_debugging_settings.port);
+    remote_debugging.set("forciblyEnabled"sv, m_remote_debugging_override_by_command_line);
+    settings.set(remote_debugging_key, move(remote_debugging));
 
     settings.set(global_privacy_control_key, m_global_privacy_control == GlobalPrivacyControl::Yes);
 
@@ -434,6 +449,18 @@ void Settings::set_browsing_data_settings(BrowsingDataSettings browsing_data_set
 
     for (auto& observer : m_observers)
         observer.browsing_data_settings_changed();
+}
+
+void Settings::set_remote_debugging_settings(RemoteDebuggingSettings remote_debugging_settings, bool override_by_command_line)
+{
+    m_remote_debugging_settings = remote_debugging_settings;
+    m_remote_debugging_override_by_command_line = override_by_command_line;
+
+    if (!override_by_command_line)
+        persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.remote_debugging_settings_changed();
 }
 
 void Settings::set_global_privacy_control(GlobalPrivacyControl global_privacy_control)
