@@ -35,23 +35,30 @@ namespace JS::RustIntegration {
 
 // --- Shared helpers ---
 
+static Utf16View utf16_view_from_bytes(uint16_t const* data, size_t len)
+{
+    if (len == 0)
+        return {};
+    return Utf16View { reinterpret_cast<char16_t const*>(data), len };
+}
+
 static Utf16FlyString utf16_fly_from(uint16_t const* data, size_t len)
 {
-    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(data), len });
+    return Utf16FlyString::from_utf16(utf16_view_from_bytes(data, len));
 }
 
 static Utf16FlyString utf16_fly_from_raw(uint16_t const* data, size_t len)
 {
     if (len == 0)
         return {};
-    return Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(data), len));
+    return Utf16FlyString::from_utf16(utf16_view_from_bytes(data, len));
 }
 
 static Utf16String utf16_from_raw(uint16_t const* data, size_t len)
 {
     if (len == 0)
         return {};
-    return Utf16String::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(data), len));
+    return Utf16String::from_utf16(utf16_view_from_bytes(data, len));
 }
 
 // --- Error collection callbacks ---
@@ -639,7 +646,7 @@ struct RustCompiledRegex {
 
 static Utf16View view_from_ffi(FFIUtf16Slice slice)
 {
-    return Utf16View { reinterpret_cast<char16_t const*>(slice.data), slice.length };
+    return JS::RustIntegration::utf16_view_from_bytes(slice.data, slice.length);
 }
 
 static Utf16String utf16_from_ffi(FFIUtf16Slice slice)
@@ -917,7 +924,7 @@ extern "C" void rust_sfd_set_class_field_initializer_name(
     bool is_private)
 {
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
-    auto utf16_name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(name), name_len));
+    auto utf16_name = Utf16FlyString::from_utf16(JS::RustIntegration::utf16_view_from_bytes(name, name_len));
     if (is_private) {
         shared.m_class_field_initializer_name = JS::PrivateName(0, utf16_name);
     } else {
@@ -944,7 +951,7 @@ extern "C" void* rust_create_class_blueprint(
     blueprint->has_name = has_name;
 
     if (name_len > 0)
-        blueprint->name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(name), name_len));
+        blueprint->name = Utf16FlyString::from_utf16(JS::RustIntegration::utf16_view_from_bytes(name, name_len));
 
     // Store source text as a view into the SourceCode buffer.
     if (source_text_len > 0) {
@@ -960,7 +967,7 @@ extern "C" void* rust_create_class_blueprint(
         desc.is_static = elem.is_static;
         desc.is_private = elem.is_private;
         if (elem.private_identifier_len > 0)
-            desc.private_identifier = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(elem.private_identifier), elem.private_identifier_len));
+            desc.private_identifier = Utf16FlyString::from_utf16(JS::RustIntegration::utf16_view_from_bytes(elem.private_identifier, elem.private_identifier_len));
         if (elem.shared_function_data_index.has_value)
             desc.shared_function_data_index = elem.shared_function_data_index.value;
         desc.has_initializer = elem.has_initializer;
@@ -981,7 +988,7 @@ extern "C" void* rust_create_class_blueprint(
             break;
         case LiteralValueKind::String: {
             auto& vm = *static_cast<JS::VM*>(vm_ptr);
-            auto str_view = Utf16View(reinterpret_cast<char16_t const*>(elem.literal_value_string), elem.literal_value_string_len);
+            auto str_view = JS::RustIntegration::utf16_view_from_bytes(elem.literal_value_string, elem.literal_value_string_len);
             desc.literal_value = JS::Value(JS::PrimitiveString::create(vm, str_view));
             break;
         }
@@ -998,7 +1005,7 @@ extern "C" void module_sfd_set_name(
     size_t name_len)
 {
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
-    shared.m_name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(name), name_len));
+    shared.m_name = Utf16FlyString::from_utf16(JS::RustIntegration::utf16_view_from_bytes(name, name_len));
 }
 
 extern "C" void* rust_compile_regex(
@@ -1007,8 +1014,8 @@ extern "C" void* rust_compile_regex(
     char const** error_out)
 {
     *error_out = nullptr;
-    auto pattern = Utf16View { reinterpret_cast<char16_t const*>(pattern_data), pattern_len };
-    auto flags_view = Utf16View { reinterpret_cast<char16_t const*>(flags_data), flags_len };
+    auto pattern = JS::RustIntegration::utf16_view_from_bytes(pattern_data, pattern_len);
+    auto flags_view = JS::RustIntegration::utf16_view_from_bytes(flags_data, flags_len);
 
     // Extract unicode/unicode_sets from flags for parse_regex_pattern.
     bool is_unicode = false;
@@ -1133,7 +1140,7 @@ extern "C" uint64_t get_abstract_operation_function(void* vm_ptr, uint16_t const
 {
     auto& vm = *static_cast<JS::VM*>(vm_ptr);
     auto& intrinsics = vm.current_realm()->intrinsics();
-    auto name_view = Utf16View(reinterpret_cast<char16_t const*>(name), name_len);
+    auto name_view = JS::RustIntegration::utf16_view_from_bytes(name, name_len);
     auto name_str = MUST(name_view.to_utf8());
 
 #define __JS_ENUMERATE(snake_name, functionName, length) \

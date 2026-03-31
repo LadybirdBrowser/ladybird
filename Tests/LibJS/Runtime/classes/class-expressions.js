@@ -66,3 +66,14 @@ test("class expression name", () => {
     let B = class C {};
     expect(B.name).toBe("C");
 });
+
+test("empty string literal field initializers", () => {
+    const A = class {
+        x = "";
+        static y = "";
+    };
+
+    const a = new A();
+    expect(a.x).toBe("");
+    expect(A.y).toBe("");
+});
