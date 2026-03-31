@@ -262,7 +262,9 @@ Each entry has the following properties:
 | `alias-for`          | No       | Nothing        | Use to specify that this should be treated as an alias for the named pseudo-element.                                                                                   |
 | `function-syntax`    | No       | Nothing        | Syntax for the function arguments if this is a function-type pseudo-element. Copied directly from the spec.                                                            |
 | `is-allowed-in-has`  | No       | `false`        | Whether this is a [`:has`-allowed pseudo-element](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element).                                                     |
+| `is-element-backed`  | No       | `false`        | Whether this is an [element-backed pseudo-element](https://drafts.csswg.org/css-pseudo-4/#element-backed).                                                             |
 | `is-pseudo-root`     | No       | `false`        | Whether this is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root).                                                           |
+| `is-tree-abiding`    | No       | `false`        | Whether this is a [tree-abiding pseudo-element](https://drafts.csswg.org/css-pseudo-4/#tree-abiding).                                                                  |
 | `property-whitelist` | No       | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
 | `spec`               | No       | Nothing        | Link to the spec definition, for reference. Not used in generated code.                                                                                                |
 | `type`               | No       | `"identifier"` | What type of pseudo-element is this. Either "identifier", "function", or "both".                                                                                       |
@@ -273,6 +275,8 @@ The generated code provides:
 - `Optional<PseudoElement> aliased_pseudo_element_from_string(StringView)` is similar, but returns the `PseudoElement` this name is an alias for
 - `StringView pseudo_element_name(PseudoElement)` to convert a `PseudoElement` back into a string
 - `bool is_has_allowed_pseudo_element(PseudoElement)` returns whether the pseudo-element is valid inside `:has()`
+- `bool is_element_backed_pseudo_element(PseudoElement)` returns whether the pseudo-element is element-backed
+- `bool is_tree_abiding_pseudo_element(PseudoElement)` returns whether the pseudo-element is tree-abiding
 - `bool is_pseudo_element_root(PseudoElement)` returns whether the pseudo-element is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root)
 - `bool pseudo_element_supports_property(PseudoElement, PropertyID)` returns whether the property can be applied to this pseudo-element
 
