@@ -3612,9 +3612,13 @@ RefPtr<StyleValue const> Parser::parse_place_self_value(TokenStream<ComponentVal
 // https://drafts.csswg.org/css-anchor-position/#position-anchor
 RefPtr<StyleValue const> Parser::parse_position_anchor_value(TokenStream<ComponentValue>& tokens)
 {
-    // auto | <anchor-name>
-    if (auto auto_keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
-        return auto_keyword;
+    // normal | none | auto | <anchor-name>
+    if (auto keyword = parse_all_as_single_keyword_value(tokens, Keyword::Normal))
+        return keyword;
+    if (auto keyword = parse_all_as_single_keyword_value(tokens, Keyword::None))
+        return keyword;
+    if (auto keyword = parse_all_as_single_keyword_value(tokens, Keyword::Auto))
+        return keyword;
 
     // <anchor-name> = <dashed-ident>
     return parse_dashed_ident_value(tokens);

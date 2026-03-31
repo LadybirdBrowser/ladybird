@@ -3627,12 +3627,14 @@
   "position-anchor": {
     "animation-type": "discrete",
     "inherited": false,
-    "initial": "auto",
+    "initial": "normal",
     "requires-computation": "never",
     "valid-types": [
       "dashed-ident"
     ],
     "valid-identifiers": [
+      "normal",
+      "none",
       "auto"
     ]
   },
