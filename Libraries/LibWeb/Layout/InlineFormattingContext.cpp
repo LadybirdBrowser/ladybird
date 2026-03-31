@@ -331,8 +331,8 @@ void InlineFormattingContext::apply_text_overflow_ellipsis(Vector<LineBox>& line
 
             fragment.set_inline_length(CSSPixels::nearest_value_for(last_kept_end + ellipsis_width));
 
-            if (i + 1 < fragments.size())
-                fragments.remove(i + 1, fragments.size() - i - 1);
+            for (size_t j = i + 1; j < fragments.size(); ++j)
+                fragments[j].set_fully_truncated(true);
 
             line_box.m_inline_length = available_width;
             break;

@@ -57,6 +57,9 @@ public:
     bool has_trailing_whitespace() const { return m_has_trailing_whitespace; }
     void set_has_trailing_whitespace(bool value) { m_has_trailing_whitespace = value; }
 
+    bool is_fully_truncated() const { return m_is_fully_truncated; }
+    void set_fully_truncated(bool value) { m_is_fully_truncated = value; }
+
 private:
     CSS::Direction resolve_glyph_run_direction(Gfx::GlyphRun::TextType) const;
     void append_glyph_run_ltr(RefPtr<Gfx::GlyphRun> const&, CSSPixels run_width);
@@ -78,6 +81,7 @@ private:
     float m_insert_position { 0 };
     CSS::Direction m_current_insert_direction { CSS::Direction::Ltr };
     bool m_has_trailing_whitespace { false };
+    bool m_is_fully_truncated { false };
 };
 
 }

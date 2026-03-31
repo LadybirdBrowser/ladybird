@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<style>
+    div {
+        width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
+<div>
+    This text is long enough to overflow <img src="" width="20" height="20">
+</div>
+<script>
+    document.querySelector("div").clientWidth;
+</script>
