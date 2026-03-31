@@ -5266,7 +5266,7 @@ static CSSPixelRect compute_intersection(GC::Ref<Element> target, IntersectionOb
 
     // 2. Let container be the containing block of target.
     // 3. While container is not root:
-    if (auto const* target_paintable = target->paintable_box()) {
+    if (auto const* target_paintable = target->paintable_box(); target_paintable && target->document().paintable()) {
         for (auto const* container = target_paintable->containing_block(); container; container = container->containing_block()) {
             // Stop when we reach the intersection root.
             if (container == root_paintable)
