@@ -973,8 +973,24 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             view.on_test_complete({ test_index, result.value() });
     };
 
-    view.on_load_finish = [&view](auto const&) {
-        view.run_javascript(wait_for_reftest_completion);
+    view.on_load_finish = [&view, &context, test_index, url](auto const& loaded_url) {
+        auto& test = context.tests[test_index];
+
+        // We don't want subframe loads to trigger this.
+        if (test.ref_test_expectation_url.has_value()) {
+            // Match against the expectation URL.
+            if (!test.ref_test_expectation_url->equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+        } else {
+            // Match against the test URL.
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+        }
+
+        if (!test.did_inject_js) {
+            test.did_inject_js = true;
+            view.run_javascript(wait_for_reftest_completion);
+        }
     };
 
     view.on_test_finish = [&view, &context, test_index, on_test_complete = move(on_test_complete)](auto const&) {
@@ -1044,7 +1060,10 @@ static void run_ref_test(TestWebView& view, TestRunContext& context, Test& test,
             test.ref_test_expectation_type = RefTestExpectationType::Mismatch;
             reference_to_load = mismatch_references->at(0).as_string();
         }
-        view.load(URL::Parser::basic_parse(reference_to_load).release_value());
+        // Clear flag so we can inject the JS into the reference page.
+        test.ref_test_expectation_url = URL::Parser::basic_parse(reference_to_load).release_value();
+        test.did_inject_js = false;
+        view.load(test.ref_test_expectation_url.value());
     };
 
     view.load(url);

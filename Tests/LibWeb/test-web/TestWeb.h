@@ -65,6 +65,7 @@ struct Test {
     bool did_check_variants { false };
 
     Optional<RefTestExpectationType> ref_test_expectation_type {};
+    Optional<URL::URL> ref_test_expectation_url {};
     Vector<FuzzyMatch> fuzzy_matches {};
 
     RefPtr<Gfx::Bitmap const> actual_screenshot {};
