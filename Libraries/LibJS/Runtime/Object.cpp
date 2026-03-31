@@ -783,6 +783,12 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
     }
     // 4. Else, let initValue be undefined.
 
+    // 4.1 (Decorators) For each element initializer of fieldRecord.[[Initializers]], do
+    //     Set initValue to Call(initializer, receiver, << initValue >>).
+    for (auto const& decorator_init : field.decorator_initializers) {
+        init_value = TRY(call(vm, *decorator_init, this, init_value));
+    }
+
     // 5. If fieldName is a Private Name, then
     if (field_name.has<PrivateName>()) {
         // a. Perform ? PrivateFieldAdd(receiver, fieldName, initValue).
@@ -795,7 +801,13 @@ ThrowCompletionOr<void> Object::define_field(ClassFieldDefinition const& field)
         TRY(create_data_property_or_throw(field_name.get<PropertyKey>(), init_value));
     }
 
-    // 7. Return unused.
+    // 7. (Decorators) For each element initializer of fieldRecord.[[ExtraInitializers]], do
+    //    Perform ? Call(initializer, receiver).
+    for (auto const& extra_init : field.extra_initializers) {
+        TRY(call(vm, *extra_init, this));
+    }
+
+    // 8. Return unused.
     return {};
 }
 
@@ -813,14 +825,20 @@ ThrowCompletionOr<void> Object::initialize_instance_elements(ECMAScriptFunctionO
         TRY(private_method_or_accessor_add(method));
     }
 
-    // 3. Let fields be the value of constructor.[[Fields]].
-    // 4. For each element fieldRecord of fields, do
+    // 3. For each element initializer of constructor.[[Initializers]], do
+    //    (Instance method extra initializers from decorators' addInitializer)
+    for (auto const& initializer : constructor.instance_extra_initializers()) {
+        TRY(call(vm(), *initializer, this));
+    }
+
+    // 4. Let fields be the value of constructor.[[Fields]].
+    // 5. For each element fieldRecord of fields, do
     for (auto const& field : constructor.fields()) {
         // a. Perform ? DefineField(O, fieldRecord).
         TRY(define_field(field));
     }
 
-    // 5. Return unused.
+    // 6. Return unused.
     return {};
 }
 

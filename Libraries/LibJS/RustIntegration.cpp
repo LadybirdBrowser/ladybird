@@ -1578,9 +1578,11 @@ extern "C" void* rust_create_class_blueprint(
     bool has_super_class,
     bool has_name,
     FFIClassElement const* elements,
-    size_t element_count)
+    size_t element_count,
+    uint32_t class_decorator_count)
 {
     auto* blueprint = new JS::Bytecode::ClassBlueprint();
+    blueprint->class_decorator_count = class_decorator_count;
     blueprint->constructor_shared_function_data_index = constructor_sfd_index;
     blueprint->has_super_class = has_super_class;
     blueprint->has_name = has_name;
@@ -1605,6 +1607,7 @@ extern "C" void* rust_create_class_blueprint(
         desc.has_initializer = elem.has_initializer;
         if (elem.backing_storage_name_len > 0)
             desc.backing_storage_name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(elem.backing_storage_name), elem.backing_storage_name_len));
+        desc.decorator_count = elem.decorator_count;
         switch (elem.literal_value_kind) {
         case LiteralValueKind::None:
             break;

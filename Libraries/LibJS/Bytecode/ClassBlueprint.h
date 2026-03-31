@@ -33,6 +33,7 @@ struct ClassElementDescriptor {
     bool has_initializer { false };
     Optional<Value> literal_value;
     Optional<Utf16FlyString> backing_storage_name;
+    u32 decorator_count { 0 };
 };
 
 struct ClassBlueprint {
@@ -44,6 +45,7 @@ struct ClassBlueprint {
     size_t source_text_offset { 0 };
     size_t source_text_length { 0 };
     Vector<ClassElementDescriptor> elements;
+    u32 class_decorator_count { 0 };
 };
 
 }

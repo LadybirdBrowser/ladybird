@@ -904,7 +904,9 @@ op NewClass < Instruction
     m_class_blueprint_index: u32
     m_lhs_name: Optional<IdentifierTableIndex>
     m_element_keys_count: u32
-    m_element_keys: Optional<Operand>[]
+    m_decorator_operands_count: u32
+    m_all_operands_count: u32
+    m_all_operands: Optional<Operand>[]
 endop
 
 op NewFunction < Instruction

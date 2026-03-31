@@ -309,6 +309,9 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 
         for (auto& private_element : m_class_data->private_methods)
             visitor.visit(private_element.value);
+
+        for (auto& initializer : m_class_data->instance_extra_initializers)
+            visitor.visit(initializer);
     }
 
     visitor.visit(m_script_or_module);

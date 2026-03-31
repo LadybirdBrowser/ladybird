@@ -179,6 +179,8 @@ pub struct FFIClassElement {
     // Auto-accessor backing storage private name (only for AutoAccessor kind).
     pub backing_storage_name: *const u16,
     pub backing_storage_name_len: usize,
+    // Number of decorators on this element (decorator values are passed as
+    // operands in the NewClass instruction, not through the blueprint).
     pub decorator_count: u32,
 }
 

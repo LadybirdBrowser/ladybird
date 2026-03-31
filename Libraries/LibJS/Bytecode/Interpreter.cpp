@@ -3565,13 +3565,27 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(VM& vm) const
     Value super_class;
     if (m_super_class.has_value())
         super_class = vm.get(m_super_class.value());
+
+    // The m_all_operands array contains element keys followed by decorator operand pairs.
+    // First m_element_keys_count entries are element keys.
     GC::RootVector<Value> element_keys;
     element_keys.ensure_capacity(m_element_keys_count);
     for (size_t i = 0; i < m_element_keys_count; ++i) {
         Value element_key;
-        if (m_element_keys[i].has_value())
-            element_key = vm.get(m_element_keys[i].value());
+        if (m_all_operands[i].has_value())
+            element_key = vm.get(m_all_operands[i].value());
         element_keys.unchecked_append(element_key);
+    }
+
+    // Next m_decorator_operands_count entries are decorator value/receiver pairs.
+    Vector<Value> decorator_values;
+    decorator_values.ensure_capacity(m_decorator_operands_count);
+    for (size_t i = 0; i < m_decorator_operands_count; ++i) {
+        Value decorator;
+        auto operand_index = m_element_keys_count + i;
+        if (m_all_operands[operand_index].has_value())
+            decorator = vm.get(m_all_operands[operand_index].value());
+        decorator_values.unchecked_append(decorator);
     }
 
     auto& running_execution_context = vm.running_execution_context();
@@ -3589,7 +3603,7 @@ NEVER_INLINE ThrowCompletionOr<void> NewClass::execute_impl(VM& vm) const
         binding_name = class_name;
     }
 
-    auto* retval = TRY(construct_class(vm, blueprint, vm.current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
+    auto* retval = TRY(construct_class(vm, blueprint, vm.current_executable(), class_environment, outer_environment, super_class, element_keys, decorator_values, binding_name, class_name));
     vm.set(dst(), retval);
     return {};
 }

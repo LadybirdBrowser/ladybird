@@ -110,6 +110,9 @@ public:
     Vector<PrivateElement> const& private_methods() const { return ensure_class_data().private_methods; }
     void add_private_method(PrivateElement method) { ensure_class_data().private_methods.append(move(method)); }
 
+    void add_instance_extra_initializer(GC::Ref<FunctionObject> fn) { ensure_class_data().instance_extra_initializers.append(fn); }
+    Vector<GC::Ref<FunctionObject>> const& instance_extra_initializers() const { return ensure_class_data().instance_extra_initializers; }
+
     [[nodiscard]] bool has_class_data() const { return m_class_data; }
 
     // This is for IsSimpleParameterList (static semantics)
@@ -170,8 +173,9 @@ private:
     ScriptOrModule m_script_or_module;                 // [[ScriptOrModule]]
     GC::Ptr<Object> m_home_object;                     // [[HomeObject]]
     struct ClassData {
-        Vector<ClassFieldDefinition> fields;    // [[Fields]]
-        Vector<PrivateElement> private_methods; // [[PrivateMethods]]
+        Vector<ClassFieldDefinition> fields;                              // [[Fields]] / [[Elements]]
+        Vector<PrivateElement> private_methods;                           // [[PrivateMethods]]
+        Vector<GC::Ref<FunctionObject>> instance_extra_initializers;      // [[Initializers]] (decorator addInitializer for methods)
     };
     ClassData& ensure_class_data() const;
     mutable OwnPtr<ClassData> m_class_data;

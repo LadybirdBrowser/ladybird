@@ -12,7 +12,7 @@
 
 namespace JS {
 
-ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
+ThrowCompletionOr<FunctionObject*> construct_class(
     VM&,
     Bytecode::ClassBlueprint const&,
     Bytecode::Executable const&,
@@ -20,6 +20,7 @@ ThrowCompletionOr<ECMAScriptFunctionObject*> construct_class(
     Environment* outer_environment,
     Value super_class,
     ReadonlySpan<Value> element_keys,
+    ReadonlySpan<Value> decorator_values,
     Optional<Utf16FlyString> const& binding_name,
     Utf16FlyString const& class_name);
 

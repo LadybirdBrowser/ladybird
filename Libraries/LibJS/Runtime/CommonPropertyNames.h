@@ -28,9 +28,11 @@ namespace JS {
     P($8)                                    \
     P($9)                                    \
     P(abs)                                   \
+    P(access)                                \
     P(acos)                                  \
     P(acosh)                                 \
     P(add)                                   \
+    P(addInitializer)                        \
     P(adopt)                                 \
     P(all)                                   \
     P(allSettled)                            \
@@ -272,6 +274,7 @@ namespace JS {
     P(indices)                               \
     P(Infinity)                              \
     P(info)                                  \
+    P(init)                                  \
     P(inLeapYear)                            \
     P(input)                                 \
     P(instant)                               \
@@ -301,6 +304,7 @@ namespace JS {
     P(JSON)                                  \
     P(keyFor)                                \
     P(keys)                                  \
+    P(kind)                                  \
     P(language)                              \
     P(languageDisplay)                       \
     P(largestUnit)                           \
@@ -621,7 +625,9 @@ struct CommonPropertyNames {
     PropertyKey for_ { "for"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey or_ { "or"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey register_ { "register"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey private_ { "private"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey return_ { "return"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
+    PropertyKey static_ { "static"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey throw_ { "throw"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey try_ { "try"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };
     PropertyKey union_ { "union"_utf16_fly_string, PropertyKey::StringMayBeNumber::No };

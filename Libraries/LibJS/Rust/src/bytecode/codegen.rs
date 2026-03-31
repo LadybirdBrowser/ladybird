@@ -6117,6 +6117,50 @@ fn generate_arguments_array(generator: &mut Generator, arguments: &[CallArgument
 // Class expression
 // =============================================================================
 
+/// Evaluate a decorator expression, returning (decorator_value, receiver) registers.
+///
+/// Per the spec's Decorator Evaluation:
+/// - `@member.expr` → receiver is the last-but-one object in the member chain
+/// - `@identifier`, `@(expr)`, `@call(args)` → receiver is undefined
+fn evaluate_decorator(
+    generator: &mut Generator,
+    decorator: &Expression,
+) -> (ScopedOperand, ScopedOperand) {
+    match &decorator.inner {
+        ExpressionKind::Member(data) => {
+            // DecoratorMemberExpression: evaluate object to get receiver,
+            // then resolve the property to get the decorator function.
+            let receiver = generate_expression_or_undefined(&data.object, generator, None);
+            let receiver = generator.copy_if_needed_to_preserve_evaluation_order(&receiver);
+            let base_id = intern_base_identifier(generator, &data.object);
+            let value = generator.allocate_register();
+            if data.computed {
+                let property =
+                    generate_expression_or_undefined(&data.property, generator, None);
+                emit_get_by_value(generator, &value, &receiver, &property, None);
+            } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
+                let arena = generator.arena.clone();
+                emit_get_by_id(generator, &value, &receiver, arena.name_slice(*ident), base_id);
+            } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &data.property.inner {
+                let id = generator.intern_identifier(&priv_ident.name);
+                generator.emit(Instruction::GetPrivateById {
+                    dst: value.operand(),
+                    base: receiver.operand(),
+                    property: id,
+                });
+            }
+            (value, receiver)
+        }
+        _ => {
+            // Identifier, call expression, or parenthesized expression:
+            // no receiver needed.
+            let value = generate_expression_or_undefined(decorator, generator, None);
+            let receiver = generator.add_constant_undefined();
+            (value, receiver)
+        }
+    }
+}
+
 /// Generate bytecode for a class expression or declaration.
 ///
 /// Creates a ClassBlueprint via FFI containing the constructor SFD,
@@ -6136,6 +6180,22 @@ fn generate_class_expression(
         generator.pending_lhs_name = None;
         None
     };
+
+    // Evaluate class-level decorator expressions in the enclosing scope, before
+    // the class environment is created. Per spec, DecoratorListEvaluation runs
+    // before ClassDefinitionEvaluation.
+    let class_decorator_count = data.decorators.len() as u32;
+    let mut class_decorator_operands: Vec<Option<ScopedOperand>> =
+        Vec::with_capacity(data.decorators.len() * 2);
+    for decorator in &data.decorators {
+        let (value, receiver) = evaluate_decorator(generator, decorator);
+        class_decorator_operands.push(Some(
+            generator.copy_if_needed_to_preserve_evaluation_order(&value),
+        ));
+        class_decorator_operands.push(Some(
+            generator.copy_if_needed_to_preserve_evaluation_order(&receiver),
+        ));
+    }
 
     // Step 2: Save parent environment, create class lexical environment.
     let parent_env = generator.current_lexical_environment();
@@ -6213,7 +6273,10 @@ fn generate_class_expression(
                 ExpressionKind::PrivateIdentifier(ident) => {
                     String::from_utf16_lossy(&ident.name)
                 }
-                ExpressionKind::Identifier(ident) => String::from_utf16_lossy(&ident.name),
+                ExpressionKind::Identifier(ident) => {
+                    let arena = generator.arena.clone();
+                    String::from_utf16_lossy(arena.name_slice(*ident))
+                }
                 ExpressionKind::StringLiteral(s) => String::from_utf16_lossy(s),
                 _ => format!("accessor_{element_index}"),
             };
@@ -6227,21 +6290,41 @@ fn generate_class_expression(
         }
     }
 
-    // First pass: evaluate all computed property keys.
-    // This must happen before registering the constructor and method SFDs,
-    // using a two-pass structure.
+    // First pass: evaluate all computed property keys and decorator expressions.
+    // Per spec, decorator expressions are evaluated in source order, interleaved
+    // with computed property keys. Each element's decorators are evaluated before
+    // that element's computed key.
     let mut element_keys: Vec<Option<ScopedOperand>> = Vec::with_capacity(data.elements.len());
+    // Decorator operand pairs (value, receiver) for all elements, then class decorators.
+    let mut decorator_operands: Vec<Option<ScopedOperand>> = Vec::new();
+    // Per-element decorator counts (parallel to data.elements).
+    let mut element_decorator_counts: Vec<u32> = Vec::with_capacity(data.elements.len());
+
     for element_node in &data.elements {
+        let decorators = match &element_node.inner {
+            ClassElement::Method { decorators, .. }
+            | ClassElement::Field { decorators, .. }
+            | ClassElement::AutoAccessor { decorators, .. } => decorators.as_slice(),
+            ClassElement::StaticInitializer { .. } => &[],
+        };
+
+        // Evaluate this element's decorators (source order: before the key).
+        element_decorator_counts.push(decorators.len() as u32);
+        for decorator in decorators {
+            let (value, receiver) = evaluate_decorator(generator, decorator);
+            decorator_operands.push(Some(
+                generator.copy_if_needed_to_preserve_evaluation_order(&value),
+            ));
+            decorator_operands.push(Some(
+                generator.copy_if_needed_to_preserve_evaluation_order(&receiver),
+            ));
+        }
+
+        // Evaluate computed key.
         match &element_node.inner {
-            ClassElement::Method { key, .. } => {
-                if !is_private_key(key) {
-                    let key_val = generate_class_part_expression(key, generator, None);
-                    element_keys.push(key_val);
-                } else {
-                    element_keys.push(None);
-                }
-            }
-            ClassElement::Field { key, .. } | ClassElement::AutoAccessor { key, .. } => {
+            ClassElement::Method { key, .. }
+            | ClassElement::Field { key, .. }
+            | ClassElement::AutoAccessor { key, .. } => {
                 if !is_private_key(key) {
                     let key_val = generate_class_part_expression(key, generator, None);
                     element_keys.push(key_val);
@@ -6254,6 +6337,10 @@ fn generate_class_expression(
             }
         }
     }
+
+    // Append pre-evaluated class decorator operands (evaluated above, before
+    // the class environment was created).
+    decorator_operands.extend(class_decorator_operands.into_iter());
 
     // Create SharedFunctionInstanceData for constructor
     let constructor_sfd_index = if let Some(ctor_expression) = &data.constructor {
@@ -6313,7 +6400,7 @@ fn generate_class_expression(
                     literal_value_number: 0.0,
                     literal_value_string: None,
                     backing_storage_name: None,
-                    decorator_count: 0,
+                    decorator_count: element_decorator_counts[element_index],
                 });
             }
             ClassElement::Field {
@@ -6465,7 +6552,7 @@ fn generate_class_expression(
                     literal_value_number,
                     literal_value_string,
                     backing_storage_name,
-                    decorator_count: 0,
+                    decorator_count: element_decorator_counts[element_index],
                 });
             }
             ClassElement::StaticInitializer { body } => {
@@ -6526,11 +6613,20 @@ fn generate_class_expression(
         has_super_class: has_super,
         has_name,
         elements: class_elements,
-        class_decorator_count: 0,
+        class_decorator_count,
     });
 
-    // Build element_keys operands for the NewClass instruction
-    let element_key_ops: Vec<Option<Operand>> = element_keys.iter().map(|k| k.as_ref().map(|s| s.operand())).collect();
+    // Build combined operands array: element keys followed by decorator pairs.
+    let element_keys_count = element_keys.len();
+    let decorator_operands_count = decorator_operands.len();
+    let mut all_operands: Vec<Option<Operand>> =
+        Vec::with_capacity(element_keys_count + decorator_operands_count);
+    for k in &element_keys {
+        all_operands.push(k.as_ref().map(|s| s.operand()));
+    }
+    for d in &decorator_operands {
+        all_operands.push(d.as_ref().map(|s| s.operand()));
+    }
 
     // Restore parent environment before emitting NewClass.
     generator.emit(Instruction::SetLexicalEnvironment {
@@ -6538,7 +6634,7 @@ fn generate_class_expression(
     });
     generator.pop_tracked_lexical_environment();
 
-    // Allocate dst after element keys.
+    // Allocate dst after all operands.
     let dst = choose_dst(generator, preferred_dst);
 
     // Emit NewClass instruction
@@ -6548,8 +6644,10 @@ fn generate_class_expression(
         class_environment: class_env.operand(),
         class_blueprint_index: blueprint_index,
         lhs_name,
-        element_keys_count: u32_from_usize(element_key_ops.len()),
-        element_keys: element_key_ops,
+        element_keys_count: u32_from_usize(element_keys_count),
+        decorator_operands_count: u32_from_usize(decorator_operands_count),
+        all_operands_count: u32_from_usize(element_keys_count + decorator_operands_count),
+        all_operands: all_operands,
     });
 
     if has_private_env {

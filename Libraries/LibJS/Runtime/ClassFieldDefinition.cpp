@@ -18,6 +18,10 @@ void ClassFieldDefinition::visit_edges(Cell::Visitor& visitor)
         [&](GC::Ref<ECMAScriptFunctionObject>& function) { visitor.visit(function); },
         [&](Value& value) { visitor.visit(value); },
         [&](Empty) {});
+    for (auto& fn : decorator_initializers)
+        visitor.visit(fn);
+    for (auto& fn : extra_initializers)
+        visitor.visit(fn);
 }
 
 }

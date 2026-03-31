@@ -38,6 +38,9 @@
     M(ConstructorWithoutNew, "{} constructor must be called with 'new'")                                                            \
     M(Convert, "Cannot convert {} to {}")                                                                                           \
     M(DataViewOutOfRangeByteOffset, "Data view byte offset {} is out of range for buffer with length {}")                           \
+    M(DecoratorAddInitializerAfterFinished, "addInitializer must not be called after decoration has finished")                      \
+    M(DecoratorAddInitializerNotCallable, "Argument to addInitializer must be a function")                                         \
+    M(DecoratorInvalidReturnValue, "Decorator must return a function or undefined")                           \
     M(DerivedConstructorReturningInvalidValue, "Derived constructor return invalid value")                                          \
     M(DescWriteNonWritable, "Cannot write to non-writable property '{}'")                                                           \
     M(DetachedArrayBuffer, "ArrayBuffer is detached")                                                                               \

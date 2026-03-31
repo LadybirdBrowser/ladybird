@@ -3710,6 +3710,7 @@ impl Encode for ClassBlueprintRecord<'_> {
         self.0.constructor_sfd_index.encode(encoder);
         self.0.has_super_class.encode(encoder);
         self.0.has_name.encode(encoder);
+        self.0.class_decorator_count.encode(encoder);
         encoder.sequence(&self.0.elements, |element, encoder| {
             ClassElementRecord(element).encode(encoder);
         });
@@ -3725,6 +3726,7 @@ impl ClassBlueprintRecord<'_> {
             constructor_sfd_index: u32::decode(decoder)?,
             has_super_class: bool::decode(decoder)?,
             has_name: bool::decode(decoder)?,
+            class_decorator_count: u32::decode(decoder)?,
             elements: decoder.sequence_values(ClassElementRecord::decode)?,
         })
     }
@@ -3737,6 +3739,7 @@ struct DecodedClassBlueprintRecord {
     constructor_sfd_index: u32,
     has_super_class: bool,
     has_name: bool,
+    class_decorator_count: u32,
     elements: Vec<DecodedClassElementRecord>,
 }
 
@@ -3763,6 +3766,7 @@ impl From<DecodedClassBlueprintRecord> for PendingClassBlueprint {
             constructor_sfd_index: record.constructor_sfd_index,
             has_super_class: record.has_super_class,
             has_name: record.has_name,
+            class_decorator_count: record.class_decorator_count,
             elements: record.elements.into_iter().map(PendingClassElement::from).collect(),
         }
     }
@@ -3781,6 +3785,8 @@ impl Encode for ClassElementRecord<'_> {
         literal_value_kind_tag(self.0.literal_value_kind).encode(encoder);
         self.0.literal_value_number.encode(encoder);
         self.0.literal_value_string.as_deref().map(Utf16).encode(encoder);
+        self.0.backing_storage_name.as_deref().map(Utf16).encode(encoder);
+        self.0.decorator_count.encode(encoder);
     }
 }
 
@@ -3796,6 +3802,8 @@ impl ClassElementRecord<'_> {
             literal_value_kind: PendingLiteralValueKind::decode(decoder)?,
             literal_value_number: f64::decode(decoder)?,
             literal_value_string: Option::<DecodedUtf16String>::decode(decoder)?,
+            backing_storage_name: Option::<DecodedUtf16String>::decode(decoder)?,
+            decorator_count: u32::decode(decoder)?,
         })
     }
 }
@@ -3810,6 +3818,8 @@ struct DecodedClassElementRecord {
     literal_value_kind: PendingLiteralValueKind,
     literal_value_number: f64,
     literal_value_string: Option<DecodedUtf16String>,
+    backing_storage_name: Option<DecodedUtf16String>,
+    decorator_count: u32,
 }
 
 impl DecodedClassElementRecord {
@@ -3821,7 +3831,7 @@ impl DecodedClassElementRecord {
 
         match self.kind {
             0 | 1 | 2 | 4 => shared_function_data_index_is_valid(),
-            3 => {
+            3 | 5 => {
                 if self.has_initializer && matches!(self.literal_value_kind, PendingLiteralValueKind::None) {
                     shared_function_data_index_is_valid()
                 } else {
@@ -3846,6 +3856,8 @@ impl From<DecodedClassElementRecord> for PendingClassElement {
             literal_value_kind: record.literal_value_kind,
             literal_value_number: record.literal_value_number,
             literal_value_string: record.literal_value_string.map(|value| value.to_utf16_string()),
+            backing_storage_name: record.backing_storage_name.map(|name| name.to_utf16_string()),
+            decorator_count: record.decorator_count,
         }
     }
 }
