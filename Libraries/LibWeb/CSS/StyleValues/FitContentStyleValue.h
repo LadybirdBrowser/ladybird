@@ -13,33 +13,13 @@ namespace Web::CSS {
 
 class FitContentStyleValue final : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create()
-    {
-        return adopt_ref(*new (nothrow) FitContentStyleValue());
-    }
-    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(LengthPercentage length_percentage)
-    {
-        return adopt_ref(*new (nothrow) FitContentStyleValue(move(length_percentage)));
-    }
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create();
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(LengthPercentage length_percentage);
     virtual ~FitContentStyleValue() override = default;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override
-    {
-        if (!m_length_percentage.has_value()) {
-            builder.append("fit-content"sv);
-            return;
-        }
-        builder.append("fit-content("sv);
-        m_length_percentage->serialize(builder, mode);
-        builder.append(')');
-    }
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override;
 
-    bool equals(StyleValue const& other) const override
-    {
-        if (type() != other.type())
-            return false;
-        return m_length_percentage == other.as_fit_content().m_length_percentage;
-    }
+    bool equals(StyleValue const& other) const override;
 
     virtual bool is_computationally_independent() const override { return !m_length_percentage.has_value() || m_length_percentage->is_computationally_independent(); }
 
