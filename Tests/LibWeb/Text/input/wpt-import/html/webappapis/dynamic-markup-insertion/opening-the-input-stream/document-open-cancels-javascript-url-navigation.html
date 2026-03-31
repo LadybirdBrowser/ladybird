@@ -1,0 +1,17 @@
+<body>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+async_test(t => {
+  window.onload = t.step_func_done(() => assert_equals(i.contentDocument.body.innerText, "PASS"));
+
+  var i = document.createElement('iframe');
+  i.id ='i';
+  i.src = "javascript:'FAIL'";
+  document.body.appendChild(i);
+  i.contentDocument.open();
+  i.contentDocument.write("PASS")
+  i.contentDocument.close();
+});
+</script>
+</body>
