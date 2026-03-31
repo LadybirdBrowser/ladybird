@@ -47,6 +47,13 @@ private:
 
     ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
 
+    struct NormalizedPercentages {
+        Percentage first_percentage;
+        Percentage second_percentage;
+        double alpha_multiplier;
+    };
+    static NormalizedPercentages normalize_percentage_pair(Optional<Percentage> p1, Optional<Percentage> p2);
+
     struct PercentageNormalizationResult {
         ValueComparingNonnullRefPtr<StyleValue const> p1;
         ValueComparingNonnullRefPtr<StyleValue const> p2;

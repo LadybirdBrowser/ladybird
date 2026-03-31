@@ -134,12 +134,12 @@ void ColorMixStyleValue::serialize(StringBuilder& builder, SerializationMode mod
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
-ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_percentages(ComputationContext const& computation_context) const
+ColorMixStyleValue::NormalizedPercentages ColorMixStyleValue::normalize_percentage_pair(Optional<Percentage> p1, Optional<Percentage> p2)
 {
+    double alpha_multiplier = 1.0;
+
     // 1. Let p1 be the first percentage and p2 the second one.
-    auto p1 = m_properties.first_component.percentage ? Percentage::from_style_value(m_properties.first_component.percentage->absolutized(computation_context)) : Optional<Percentage> {};
-    auto p2 = m_properties.second_component.percentage ? Percentage::from_style_value(m_properties.second_component.percentage->absolutized(computation_context)) : Optional<Percentage> {};
-    double alpha_multiplier = 0;
+    // NB: Provided by the caller.
 
     // 2. If both percentages are omitted, they each default to 50% (an equal mix of the two colors).
     if (!p1.has_value() && !p2.has_value()) {
@@ -173,7 +173,24 @@ ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_
     VERIFY(p1.has_value());
     VERIFY(p2.has_value());
 
-    return PercentageNormalizationResult { .p1 = PercentageStyleValue::create(*p1), .p2 = PercentageStyleValue::create(*p2), .alpha_multiplier = alpha_multiplier };
+    return { .first_percentage = *p1, .second_percentage = *p2, .alpha_multiplier = alpha_multiplier };
+}
+
+ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_percentages(ComputationContext const& computation_context) const
+{
+    auto p1 = m_properties.first_component.percentage
+        ? Percentage::from_style_value(m_properties.first_component.percentage->absolutized(computation_context))
+        : Optional<Percentage> {};
+    auto p2 = m_properties.second_component.percentage
+        ? Percentage::from_style_value(m_properties.second_component.percentage->absolutized(computation_context))
+        : Optional<Percentage> {};
+
+    auto result = normalize_percentage_pair(p1, p2);
+    return {
+        .p1 = PercentageStyleValue::create(result.first_percentage),
+        .p2 = PercentageStyleValue::create(result.second_percentage),
+        .alpha_multiplier = result.alpha_multiplier,
+    };
 }
 
 // https://drafts.csswg.org/css-color-5/#color-mix-result
@@ -183,12 +200,22 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
     // The current implementation only uses oklab interpolation.
     auto from_color = m_properties.first_component.color->to_color(color_resolution_context);
     auto to_color = m_properties.second_component.color->to_color(color_resolution_context);
-    auto delta = Percentage::from_style_value(*m_properties.second_component.percentage).as_fraction();
 
     if (!from_color.has_value() || !to_color.has_value())
         return {};
 
-    return interpolate_color(from_color.value(), to_color.value(), delta, ColorSyntax::Modern);
+    auto p1 = m_properties.first_component.percentage
+        ? Optional<Percentage>(Percentage::from_style_value(*m_properties.first_component.percentage))
+        : Optional<Percentage> {};
+    auto p2 = m_properties.second_component.percentage
+        ? Optional<Percentage>(Percentage::from_style_value(*m_properties.second_component.percentage))
+        : Optional<Percentage> {};
+    auto normalized = normalize_percentage_pair(p1, p2);
+
+    auto result = interpolate_color(from_color.value(), to_color.value(), normalized.second_percentage.as_fraction(), ColorSyntax::Modern);
+    if (normalized.alpha_multiplier < 1.0)
+        result.set_alpha(static_cast<u8>(result.alpha() * normalized.alpha_multiplier));
+    return result;
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(ComputationContext const& context) const
