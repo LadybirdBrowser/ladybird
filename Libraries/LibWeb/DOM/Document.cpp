@@ -3509,7 +3509,7 @@ WebIDL::ExceptionOr<String> Document::cookie()
             return m_cookie;
     }
 
-    auto [cookie_version, cookie] = page().client().page_did_request_cookie(m_url, HTTP::Cookie::Source::NonHttp);
+    auto [cookie_version, cookie] = page().client().page_did_request_cookie(fallback_base_url(), HTTP::Cookie::Source::NonHttp);
 
     if (cookie_version.has_value()) {
         m_cookie_version = *cookie_version;
@@ -3532,8 +3532,9 @@ WebIDL::ExceptionOr<void> Document::set_cookie(StringView cookie_string)
 
     // Otherwise, the user agent must act as it would when receiving a set-cookie-string for the document's URL via a
     // "non-HTTP" API, consisting of the new value encoded as UTF-8.
-    if (auto cookie = HTTP::Cookie::parse_cookie(url(), cookie_string); cookie.has_value())
-        page().client().page_did_set_cookie(m_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
+    auto cookie_url = fallback_base_url();
+    if (auto cookie = HTTP::Cookie::parse_cookie(cookie_url, cookie_string); cookie.has_value())
+        page().client().page_did_set_cookie(cookie_url, cookie.value(), HTTP::Cookie::Source::NonHttp);
 
     return {};
 }
@@ -3547,8 +3548,12 @@ bool Document::is_cookie_averse() const
     if (!browsing_context())
         return true;
 
+    // A stale Document kept alive by script after cross-document navigation must not retain cookie access.
+    if (!is_active())
+        return true;
+
     // * A Document whose URL's scheme is not an HTTP(S) scheme.
-    if (!url().scheme().is_one_of("http"sv, "https"sv))
+    if (!fallback_base_url().scheme().is_one_of("http"sv, "https"sv))
         return true;
 
     return false;
