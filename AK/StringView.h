@@ -43,10 +43,9 @@ public:
     }
 
     ALWAYS_INLINE StringView(ReadonlyBytes bytes)
-        : m_characters(reinterpret_cast<char const*>(bytes.data()))
+        : m_characters(bytes.is_empty() ? "" : reinterpret_cast<char const*>(bytes.data()))
         , m_length(bytes.size())
     {
-        VERIFY(bytes.data() != nullptr);
     }
 
     StringView(LIFETIME_BOUND ByteBuffer const&);
