@@ -174,11 +174,16 @@ DOM::Document const* NavigableContainer::content_document() const
     // 2. Let document be container's content navigable's active document.
     auto document = m_content_navigable->active_document();
 
-    // 4. If document's origin and container's node document's origin are not same origin-domain, then return null.
+    // AD-HOC: The active document can be null during navigation, after the old document
+    //         has been destroyed but before the new document has been set.
+    if (!document)
+        return nullptr;
+
+    // 3. If document's origin and container's node document's origin are not same origin-domain, then return null.
     if (!document->origin().is_same_origin_domain(m_document->origin()))
         return nullptr;
 
-    // 5. Return document.
+    // 4. Return document.
     return document;
 }
 
