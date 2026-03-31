@@ -22,6 +22,7 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -1855,6 +1856,18 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         }
 
         return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()));
+    }
+    case StyleValue::Type::FitContent: {
+        auto const& from_length_percentage = from.as_fit_content().length_percentage_style_value();
+        auto const& to_length_percentage = to.as_fit_content().length_percentage_style_value();
+        if (!from_length_percentage || !to_length_percentage)
+            return {};
+
+        auto interpolated_length_percentage = interpolate_value_impl(element, calculation_context, *from_length_percentage, *to_length_percentage, delta, allow_discrete);
+        if (!interpolated_length_percentage)
+            return {};
+
+        return FitContentStyleValue::create(interpolated_length_percentage.release_nonnull());
     }
     case StyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers

@@ -24,6 +24,7 @@ public:
     virtual bool is_computationally_independent() const override { return !m_length_percentage || m_length_percentage->is_computationally_independent(); }
 
     [[nodiscard]] Optional<LengthPercentage> length_percentage() const;
+    RefPtr<StyleValue const> length_percentage_style_value() const { return m_length_percentage; }
 
 private:
     FitContentStyleValue(ValueComparingRefPtr<StyleValue const> length_percentage = {})
