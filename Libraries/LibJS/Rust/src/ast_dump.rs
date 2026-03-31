@@ -1141,12 +1141,24 @@ fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, ro
 }
 
 fn dump_class_element(element: &ClassElement, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
+    let element_decorators = match element {
+        ClassElement::Method { decorators, .. }
+        | ClassElement::Field { decorators, .. }
+        | ClassElement::AutoAccessor { decorators, .. } => decorators.as_slice(),
+        ClassElement::StaticInitializer { .. } => &[],
+    };
+    for decorator in element_decorators {
+        print_node(state, &color_label(root_state, "decorator"));
+        dump_expression(decorator, &child_state(state, true));
+    }
+
     match element {
         ClassElement::Method {
             key,
             function,
             kind,
             is_static,
+            ..
         } => {
             let mut desc = color_node_name(root_state, "ClassMethod");
             if *is_static {
@@ -1167,6 +1179,7 @@ fn dump_class_element(element: &ClassElement, range: &SourceRange, state: &DumpS
             key,
             initializer,
             is_static,
+            ..
         } => {
             let mut desc = color_node_name(root_state, "ClassField");
             if *is_static {
@@ -1184,6 +1197,7 @@ fn dump_class_element(element: &ClassElement, range: &SourceRange, state: &DumpS
             key,
             initializer,
             is_static,
+            ..
         } => {
             let mut desc = color_node_name(root_state, "AutoAccessor");
             if *is_static {

@@ -603,14 +603,28 @@ impl FunctionTable {
         if let Some(ref constructor) = class_data.constructor {
             self.collect_from_expression(constructor, result, scopes);
         }
+        for decorator in &class_data.decorators {
+            self.collect_from_expression(decorator, result, scopes);
+        }
         for element in &class_data.elements {
             match &element.inner {
-                ClassElement::Method { key, function, .. } => {
+                ClassElement::Method {
+                    key,
+                    function,
+                    decorators,
+                    ..
+                } => {
+                    for d in decorators {
+                        self.collect_from_expression(d, result, scopes);
+                    }
                     self.collect_from_expression(key, result, scopes);
                     self.collect_from_expression(function, result, scopes);
                 }
-                ClassElement::Field { key, initializer, .. }
-                | ClassElement::AutoAccessor { key, initializer, .. } => {
+                ClassElement::Field { key, initializer, decorators, .. }
+                | ClassElement::AutoAccessor { key, initializer, decorators, .. } => {
+                    for d in decorators {
+                        self.collect_from_expression(d, result, scopes);
+                    }
                     self.collect_from_expression(key, result, scopes);
                     if let Some(init) = initializer {
                         self.collect_from_expression(init, result, scopes);
@@ -1034,6 +1048,7 @@ pub struct ClassData {
     pub constructor: Option<Box<Expression>>,
     pub super_class: Option<Box<Expression>>,
     pub elements: Vec<Node<ClassElement>>,
+    pub decorators: Vec<Expression>,
 }
 
 #[derive(Clone, Debug)]
@@ -1043,16 +1058,19 @@ pub enum ClassElement {
         function: Box<Expression>,
         kind: ClassMethodKind,
         is_static: bool,
+        decorators: Vec<Expression>,
     },
     Field {
         key: Box<Expression>,
         initializer: Option<Box<Expression>>,
         is_static: bool,
+        decorators: Vec<Expression>,
     },
     AutoAccessor {
         key: Box<Expression>,
         initializer: Option<Box<Expression>>,
         is_static: bool,
+        decorators: Vec<Expression>,
     },
     StaticInitializer {
         body: Box<Statement>,
