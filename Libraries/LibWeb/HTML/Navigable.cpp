@@ -201,11 +201,11 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(GC::Ref<SessionHistoryE
     if (resource_cleared)
         entry->document_state()->set_resource(Empty {});
 
-    entry->document_state()->set_document(document);
-
     // Step from populate_session_history_entry_document()
     // 7. If entry's document state's document is not null, then:
     if (document) {
+        entry->document_state()->set_document_id(document->unique_id());
+
         // 1. Set entry's document state's ever populated to true.
         entry->document_state()->set_ever_populated(true);
 
@@ -312,6 +312,7 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parent);
     visitor.visit(m_current_session_history_entry);
     visitor.visit(m_active_session_history_entry);
+    visitor.visit(m_active_document);
     visitor.visit(m_container);
     visitor.visit(m_backing_store_manager);
     m_event_handler.visit_edges(visitor);
@@ -378,26 +379,28 @@ GC::Ptr<Navigable> Navigable::navigable_with_active_document(GC::Ref<DOM::Docume
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent)
+void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document)
 {
     static int next_id = 0;
     m_id = String::number(next_id++);
 
     // 1. Assert: documentState's document is non-null.
-    VERIFY(document_state->document());
+    // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the Navigable.
 
     // 2. Let entry be a new session history entry, with
     GC::Ref<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
     // URL: document's URL
-    entry->set_url(document_state->document()->url());
+    entry->set_url(document->url());
     // document state: documentState
     entry->set_document_state(document_state);
+    document_state->set_document_id(document->unique_id());
 
     // 3. Set navigable's current session history entry to entry.
     m_current_session_history_entry = entry;
 
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
+    m_active_document = document;
 
     // 5. Set navigable's parent to parent.
     m_parent = parent;
@@ -424,12 +427,12 @@ GC::Ptr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
+void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // FIXME: 1. Save persisted state to the navigable's active session history entry.
 
     // 2. Let newDocument be entry's document.
-    GC::Ptr<DOM::Document> new_document = entry->document().ptr();
+    auto new_document = document;
 
     // 3. Assert: newDocument's is initial about:blank is false, i.e., we never traverse
     //    back to the initial about:blank Document because it always gets replaced when we
@@ -438,6 +441,7 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
 
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
+    m_active_document = new_document;
 
     // 5. Make active newDocument.
     new_document->make_active();
@@ -469,7 +473,25 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry)
 GC::Ptr<DOM::Document> Navigable::active_document() const
 {
     // A navigable's active document is its active session history entry's document.
-    return m_active_session_history_entry->document();
+    return m_active_document;
+}
+
+Optional<UniqueNodeID> Navigable::active_document_id() const
+{
+    if (!m_active_document)
+        return {};
+    return m_active_document->unique_id();
+}
+
+void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
+{
+    m_active_document = document;
+
+    VERIFY(m_active_session_history_entry);
+    Optional<UniqueNodeID> document_id;
+    if (document)
+        document_id = document->unique_id();
+    m_active_session_history_entry->document_state()->set_document_id(document_id);
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-bc
@@ -2116,8 +2138,9 @@ void Navigable::begin_navigation(NavigateParams params)
                     source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                         if (output)
                             output->apply_to(*history_entry);
+                        auto pending_document = output ? output->document : GC::Ptr<DOM::Document> {};
                         // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
-                        traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
+                        traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement, pending_document](NonnullRefPtr<Core::Promise<Empty>> signal) {
                             if (this->has_been_destroyed()) {
                                 // AD-HOC: This check is not in the spec but we should not continue navigation if navigable has been destroyed.
                                 set_delaying_load_events(false);
@@ -2130,7 +2153,7 @@ void Navigable::begin_navigation(NavigateParams params)
                                 signal->resolve({});
                                 return;
                             }
-                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, GC::create_function(heap(), [signal](HistoryStepResult) {
+                            finalize_a_cross_document_navigation(*this, to_history_handling_behavior(history_handling), user_involvement, history_entry, pending_document, GC::create_function(heap(), [signal](HistoryStepResult) {
                                 signal->resolve({});
                             }));
                         }));
@@ -2406,7 +2429,6 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     //     ever populated: true
     //     navigable target name: oldDocState's navigable target name
     GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
-    document_state->set_document(new_document);
     document_state->set_history_policy_container(old_doc_state->history_policy_container());
     document_state->set_request_referrer(old_doc_state->request_referrer());
     document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());
@@ -2415,6 +2437,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     document_state->set_about_base_url(old_doc_state->about_base_url());
     document_state->set_ever_populated(true);
     document_state->set_navigable_target_name(old_doc_state->navigable_target_name());
+    document_state->set_document_id(new_document->unique_id());
 
     // 13. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
@@ -2424,8 +2447,8 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     history_entry->set_document_state(document_state);
 
     // 14. Append session history traversal steps to targetNavigable's traversable to finalize a cross-document navigation with targetNavigable, historyHandling, userInvolvement, and historyEntry.
-    traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, history_entry, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
-        finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, GC::create_function(heap(), [signal](HistoryStepResult) {
+    traversable_navigable()->append_session_history_traversal_steps(GC::create_function(heap(), [this, new_document, history_entry, history_handling, user_involvement](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        finalize_a_cross_document_navigation(*this, history_handling, user_involvement, history_entry, new_document, GC::create_function(heap(), [signal](HistoryStepResult) {
             signal->resolve({});
         }));
     }));
@@ -2558,7 +2581,7 @@ TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<SessionHistoryEntry> history_entry, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -2573,13 +2596,15 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     //         on the parent, which can see the about:blank (ready_for_post_load_tasks=true) before the session
     //         history traversal activates the new document. The guard is cleared when the new document becomes ready
     //         for post-load tasks (via set_ready_for_post_load_tasks).
-    if (auto container_doc = navigable->container_document(); container_doc && history_entry->document())
+    if (auto container_doc = navigable->container_document(); container_doc && pending_document)
         navigable->set_navigation_load_event_guard(*container_doc);
 
     navigable->set_delaying_load_events(false);
 
     // 3. If historyEntry's document is null, then return.
-    if (!history_entry->document()) {
+    // NOTE: pending_document corresponds to historyEntry's document — it is the document produced by
+    //       populate_session_history_entry_document, threaded here explicitly instead of being stored on the entry.
+    if (!pending_document) {
         on_complete->function()(HistoryStepResult::Applied);
         return;
     }
@@ -2590,8 +2615,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     //    - historyEntry's document's origin is not navigable's active document's origin
     //    then set historyEntry's document state's navigable target name to the empty string.
     if (navigable->parent() == nullptr
-        && !(history_entry->document()->browsing_context()->is_auxiliary() && history_entry->document()->browsing_context()->opener_browsing_context() != nullptr)
-        && history_entry->document()->origin() != navigable->active_document()->origin()) {
+        && !(pending_document->browsing_context()->is_auxiliary() && pending_document->browsing_context()->opener_browsing_context() != nullptr)
+        && pending_document->origin() != navigable->active_document()->origin()) {
         history_entry->document_state()->set_navigable_target_name(String {});
     }
 
@@ -2638,7 +2663,7 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
     }
 
     // 10. Apply the push/replace history step targetStep to traversable given historyHandling and userInvolvement.
-    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No,
+    traversable->apply_the_push_or_replace_history_step(target_step, history_handling, user_involvement, TraversableNavigable::SynchronousNavigation::No, pending_document,
         GC::create_function(navigable->heap(), [on_complete, navigable](HistoryStepResult result) {
             // AD-HOC: Trigger a relayout in the container document for size negotiation with SVG documents.
             if (auto container = navigable->container())

@@ -37,8 +37,6 @@ public:
 
     void visit_edges(Cell::Visitor&) override;
 
-    GC::Ptr<DOM::Document> document() const;
-
     enum class Pending {
         Tag,
     };

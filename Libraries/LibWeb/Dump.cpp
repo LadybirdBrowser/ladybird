@@ -59,8 +59,7 @@ namespace Web {
 static void dump_session_history_entry(StringBuilder& builder, HTML::SessionHistoryEntry const& session_history_entry, int indent_levels)
 {
     dump_indent(builder, indent_levels);
-    auto const& document = session_history_entry.document();
-    builder.appendff("step=({}) url=({}) is-active=({})\n", session_history_entry.step().get<int>(), session_history_entry.url(), document && document->is_active());
+    builder.appendff("step=({}) url=({})\n", session_history_entry.step().get<int>(), session_history_entry.url());
     for (auto const& nested_history : session_history_entry.document_state()->nested_histories()) {
         for (auto const& nested_she : nested_history.entries) {
             dump_session_history_entry(builder, *nested_she, indent_levels + 1);

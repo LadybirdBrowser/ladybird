@@ -35,8 +35,8 @@ public:
         Tag,
     };
 
-    [[nodiscard]] GC::Ptr<DOM::Document> document() const { return m_document; }
-    void set_document(GC::Ptr<DOM::Document> document) { m_document = document; }
+    [[nodiscard]] Optional<UniqueNodeID> document_id() const { return m_document_id; }
+    void set_document_id(Optional<UniqueNodeID> document_id) { m_document_id = document_id; }
 
     [[nodiscard]] Variant<GC::Ref<PolicyContainer>, Client> history_policy_container() const { return m_history_policy_container; }
     void set_history_policy_container(Variant<GC::Ref<PolicyContainer>, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
@@ -77,7 +77,9 @@ private:
     void visit_edges(Cell::Visitor&) override;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
-    GC::Ptr<DOM::Document> m_document;
+    // NOTE: We store the document's unique ID rather than a pointer to the document, because DocumentState is
+    //       decoupled from the document's lifetime (Navigable owns the document directly).
+    Optional<UniqueNodeID> m_document_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
     Variant<GC::Ref<PolicyContainer>, Client> m_history_policy_container { Client::Tag };

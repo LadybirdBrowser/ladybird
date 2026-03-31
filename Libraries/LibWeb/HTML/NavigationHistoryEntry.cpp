@@ -10,6 +10,7 @@
 #include <LibWeb/Bindings/NavigationHistoryEntryPrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/Navigation.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -61,7 +62,7 @@ Optional<String> NavigationHistoryEntry::url() const
 
     // 4. If she's document does not equal document, and she's document state's request referrer policy
     //    is "no-referrer" or "origin", then return null.
-    if ((she->document() != &document)
+    if ((she->document_state()->document_id() != document.unique_id())
         && (she->document_state()->request_referrer_policy() == ReferrerPolicy::ReferrerPolicy::NoReferrer
             || she->document_state()->request_referrer_policy() == ReferrerPolicy::ReferrerPolicy::Origin))
         return OptionalNone {};
@@ -122,7 +123,7 @@ bool NavigationHistoryEntry::same_document() const
         return false;
 
     // 3. Return true if this's session history entry's document equals document, and false otherwise.
-    return m_session_history_entry->document() == &document;
+    return m_session_history_entry->document_state()->document_id() == document.unique_id();
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-getstate

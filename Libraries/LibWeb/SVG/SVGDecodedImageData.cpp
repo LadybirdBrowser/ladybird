@@ -59,7 +59,7 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(JS::Realm& rea
     auto document = MUST(DOM::Document::create_and_initialize(DOM::Document::Type::XML, "image/svg+xml"_string, navigation_params));
     navigable->set_ongoing_navigation({});
     navigable->active_document()->destroy();
-    navigable->active_session_history_entry()->document_state()->set_document(document);
+    navigable->set_active_document(document);
     auto& window = as<HTML::Window>(HTML::relevant_global_object(document));
     document->browsing_context()->window_proxy()->set_window(window);
 

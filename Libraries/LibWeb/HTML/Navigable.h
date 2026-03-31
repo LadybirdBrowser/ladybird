@@ -64,7 +64,7 @@ public:
     using NullOrError = Optional<String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
-    void initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent);
+    void initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document);
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
@@ -96,9 +96,11 @@ public:
 
     Vector<GC::Ref<SessionHistoryEntry>>& get_session_history_entries() const;
 
-    void activate_history_entry(GC::Ptr<SessionHistoryEntry>);
+    void activate_history_entry(GC::Ptr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
 
     GC::Ptr<DOM::Document> active_document() const;
+    Optional<UniqueNodeID> active_document_id() const;
+    void set_active_document(GC::Ptr<DOM::Document>);
     GC::Ptr<BrowsingContext> active_browsing_context();
     GC::Ptr<WindowProxy> active_window_proxy();
     GC::Ptr<Window> active_window();
@@ -284,6 +286,10 @@ private:
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
     GC::Ptr<SessionHistoryEntry> m_active_session_history_entry;
 
+    // AD-HOC: Direct reference to the active document, decoupled from session history.
+    //         This is the authoritative source for active_document().
+    GC::Ptr<DOM::Document> m_active_document;
+
     // https://html.spec.whatwg.org/multipage/document-sequences.html#is-closing
     bool m_closing { false };
 
@@ -343,7 +349,7 @@ private:
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

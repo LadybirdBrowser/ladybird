@@ -65,7 +65,7 @@ public:
         Yes,
         No,
     };
-    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+    void apply_the_push_or_replace_history_step(int step, HistoryHandlingBehavior history_handling, UserNavigationInvolvement, SynchronousNavigation, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
     void update_for_navigable_creation_or_destruction(GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     int get_the_used_step(int step) const;
@@ -135,6 +135,7 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
+        GC::Ptr<DOM::Document> pending_document,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void apply_the_history_step_after_unload_check(
@@ -144,6 +145,7 @@ private:
         UserNavigationInvolvement user_involvement,
         Optional<Bindings::NavigationType> navigation_type,
         SynchronousNavigation,
+        GC::Ptr<DOM::Document> pending_document,
         GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
     void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
