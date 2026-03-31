@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>

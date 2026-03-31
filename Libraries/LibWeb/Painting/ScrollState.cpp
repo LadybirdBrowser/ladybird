@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Vector.h>
 #include <LibWeb/Painting/ScrollState.h>
 
 namespace Web::Painting {

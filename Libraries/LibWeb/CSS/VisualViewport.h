@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGfx/AffineTransform.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/PixelUnits.h>
 

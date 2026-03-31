@@ -9,7 +9,6 @@
 #include <AK/Format.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
-#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/Orientation.h>
 #include <LibIPC/Forward.h>
@@ -68,8 +67,6 @@ public:
     ALWAYS_INLINE void scale_by(T dboth) { scale_by(dboth, dboth); }
     ALWAYS_INLINE void scale_by(Point<T> const& delta) { scale_by(delta.x(), delta.y()); }
 
-    void transform_by(AffineTransform const& transform) { *this = transform.map(*this); }
-
     [[nodiscard]] Point<T> translated(Point<T> const& delta) const
     {
         Point<T> point = *this;
@@ -109,13 +106,6 @@ public:
     {
         Point<T> point = *this;
         point.scale_by(sx, sy);
-        return point;
-    }
-
-    [[nodiscard]] Point<T> transformed(AffineTransform const& transform) const
-    {
-        Point<T> point = *this;
-        point.transform_by(transform);
         return point;
     }
 

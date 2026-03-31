@@ -53,8 +53,6 @@ public:
         m_height *= dy;
     }
 
-    constexpr void transform_by(AffineTransform const& transform) { *this = transform.map(*this); }
-
     ALWAYS_INLINE constexpr void scale_by(T dboth) { scale_by(dboth, dboth); }
     ALWAYS_INLINE constexpr void scale_by(Point<T> const& s) { scale_by(s.x(), s.y()); }
 
@@ -76,13 +74,6 @@ public:
     {
         Size<T> size = *this;
         size.scale_by(s);
-        return size;
-    }
-
-    [[nodiscard]] constexpr Size transformed_by(AffineTransform const& transform) const
-    {
-        Size<T> size = *this;
-        size.transform_by(transform);
         return size;
     }
 

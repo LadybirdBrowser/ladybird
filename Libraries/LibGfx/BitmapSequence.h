@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/RefPtr.h>
+#include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/Size.h>
 #include <LibIPC/Forward.h>
