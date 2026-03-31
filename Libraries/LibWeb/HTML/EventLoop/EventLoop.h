@@ -59,7 +59,6 @@ public:
     GC::Ref<HTML::Task> dequeue_microtask() { return m_microtask_queue.dequeue(); }
 
     void spin_until(GC::Ref<GC::Function<bool()>> goal_condition);
-    void spin_processing_tasks_with_source_until(Task::Source, GC::Ref<GC::Function<bool()>> goal_condition);
     void process();
     void queue_task_to_update_the_rendering();
 

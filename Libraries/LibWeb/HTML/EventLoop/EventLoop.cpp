@@ -116,42 +116,6 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     // NOTE: This is achieved by returning from the function.
 }
 
-void EventLoop::spin_processing_tasks_with_source_until(Task::Source source, GC::Ref<GC::Function<bool()>> goal_condition)
-{
-    auto& vm = this->vm();
-    vm.save_execution_context_stack();
-    vm.clear_execution_context_stack();
-
-    perform_a_microtask_checkpoint();
-
-    // NOTE: HTML event loop processing steps could run a task with arbitrary source. We could end up re-entering into
-    //       this method; this makes sure we restore the skip value to its original value.
-    TemporaryChange saved_skip(m_skip_event_loop_processing_steps, true);
-
-    Platform::EventLoopPlugin::the().spin_until(GC::create_function(heap(), [this, source, goal_condition] {
-        if (goal_condition->function()())
-            return true;
-        while (auto task = m_task_queue->take_first_runnable_matching([&](auto& candidate_task) {
-            return candidate_task.source() == source;
-        })) {
-            m_currently_running_task = task.ptr();
-            task->execute();
-            m_currently_running_task = nullptr;
-
-            if (goal_condition->function()())
-                break;
-        }
-
-        // FIXME: Remove the platform event loop plugin so that this doesn't look out of place
-        Core::EventLoop::current().wake();
-        return goal_condition->function()();
-    }));
-
-    schedule();
-
-    vm.restore_execution_context_stack();
-}
-
 // https://html.spec.whatwg.org/multipage/webappapis.html#event-loop-processing-model
 void EventLoop::process()
 {
