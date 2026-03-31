@@ -20,8 +20,8 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async done => {
-        if (iframe.contentDocument?.readyState !== "complete")
-            await new Promise(resolve => iframe.addEventListener("load", resolve));
+        while (!iframe.contentDocument?.querySelector("#target"))
+            await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
 
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
