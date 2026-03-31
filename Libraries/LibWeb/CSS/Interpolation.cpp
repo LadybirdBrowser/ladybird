@@ -2668,6 +2668,18 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
 
         return {};
     }
+    case StyleValue::Type::FitContent: {
+        auto underlying_length_percentage = underlying_value.as_fit_content().length_percentage_style_value();
+        auto animated_length_percentage = animated_value.as_fit_content().length_percentage_style_value();
+        if (!underlying_length_percentage || !animated_length_percentage)
+            return {};
+
+        auto composited_length_percentage = composite_value(property_id, *underlying_length_percentage, *animated_length_percentage, composite_operation);
+        if (!composited_length_percentage)
+            return {};
+
+        return FitContentStyleValue::create(composited_length_percentage.release_nonnull());
+    }
     case StyleValue::Type::GridTrackSizeList: {
         auto underlying_list = underlying_value.as_grid_track_size_list().grid_track_size_list();
         auto animated_list = animated_value.as_grid_track_size_list().grid_track_size_list();
