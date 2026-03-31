@@ -5,11 +5,12 @@
  */
 
 #include <LibWebView/Application.h>
+#include <LibWebView/Menu.h>
 
+#import <Interface/BookmarkFolder.h>
 #import <Interface/BookmarksBar.h>
 #import <Interface/Menu.h>
 #import <Utilities/Conversions.h>
-#import <objc/runtime.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
@@ -20,11 +21,31 @@ static constexpr CGFloat const BOOKMARK_ITEM_SPACING = 2;
 static constexpr CGFloat const BOOKMARK_LEADING_INSET = 8;
 static constexpr CGFloat const OVERFLOW_TRAILING_INSET = 4;
 
-static char BOOKMARK_FOLDER_KEY = 0;
+static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, StringView id)
+{
+    for (auto& item : menu.items()) {
+        auto* submenu_ptr = item.get_pointer<NonnullRefPtr<WebView::Menu>>();
+        if (!submenu_ptr)
+            continue;
+
+        auto& submenu = **submenu_ptr;
+
+        if (auto submenu_id = submenu.properties().get("id"sv); submenu_id.has_value() && *submenu_id == id)
+            return submenu;
+
+        if (auto descendant = find_bookmark_folder_by_id(submenu, id); descendant.has_value())
+            return descendant;
+    }
+
+    return {};
+}
 
 @interface BookmarksBar ()
 
 @property (nonatomic, strong) NSStackView* bookmark_items;
+@property (nonatomic, strong) BookmarkFolderPopover* bookmark_folder_popover;
+@property (nonatomic, weak) NSButton* active_bookmark_folder_button;
+
 @property (nonatomic, strong) NSButton* overflow_button;
 @property (nonatomic, strong) NSMenu* overflow_menu;
 
@@ -86,6 +107,7 @@ static char BOOKMARK_FOLDER_KEY = 0;
 
 - (void)rebuild
 {
+    [self closeBookmarkFolders];
     [self.bookmark_items setSubviews:@[]];
 
     auto set_button_properties = [](NSButton* button, StringView title) {
@@ -118,9 +140,6 @@ static char BOOKMARK_FOLDER_KEY = 0;
                                                   target:self
                                                   action:@selector(openFolder:)];
                 set_button_properties(button, folder->title());
-
-                auto* submenu = Ladybird::create_application_menu(folder);
-                objc_setAssociatedObject(button, &BOOKMARK_FOLDER_KEY, submenu, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
                 return button;
             },
@@ -189,13 +208,61 @@ static char BOOKMARK_FOLDER_KEY = 0;
 
 - (void)openFolder:(NSButton*)sender
 {
-    NSMenu* folder = objc_getAssociatedObject(sender, &BOOKMARK_FOLDER_KEY);
-    if (!folder)
+    auto* item_id = Ladybird::get_control_property(sender, @"id");
+    if (!item_id)
         return;
 
-    [folder popUpMenuPositioningItem:nil
-                          atLocation:NSMakePoint(0, [sender bounds].size.height)
-                              inView:sender];
+    auto id = Ladybird::ns_string_to_string(item_id);
+    auto folder = find_bookmark_folder_by_id(WebView::Application::the().bookmarks_menu(), id);
+    if (!folder.has_value())
+        return;
+
+    [self openFolderMenu:*folder anchoredToView:sender preferredEdge:NSRectEdgeMaxY];
+}
+
+- (void)openFolderMenu:(WebView::Menu&)menu
+        anchoredToView:(NSView*)view
+         preferredEdge:(NSRectEdge)preferredEdge
+{
+    if (menu.size() == 0)
+        return;
+
+    [self closeBookmarkFolders];
+
+    if ([view isKindOfClass:[NSButton class]]) {
+        self.active_bookmark_folder_button = (NSButton*)view;
+        [self.active_bookmark_folder_button setShowsBorderOnlyWhileMouseInside:NO];
+        [self.active_bookmark_folder_button highlight:YES];
+    }
+
+    self.bookmark_folder_popover = [[BookmarkFolderPopover alloc] init:menu bookmarksBar:self parentFolder:nil];
+    [self.bookmark_folder_popover showRelativeToView:view preferredEdge:preferredEdge];
+}
+
+- (void)closeBookmarkFolders
+{
+    [self.bookmark_folder_popover close];
+    self.bookmark_folder_popover = nil;
+
+    [self clearActiveBookmarkFolder];
+}
+
+- (void)bookmarkFolderDidClose:(BookmarkFolderPopover*)folder
+{
+    if (self.bookmark_folder_popover == folder)
+        self.bookmark_folder_popover = nil;
+
+    [self clearActiveBookmarkFolder];
+}
+
+- (void)clearActiveBookmarkFolder
+{
+    if (!self.active_bookmark_folder_button)
+        return;
+
+    [self.active_bookmark_folder_button highlight:NO];
+    [self.active_bookmark_folder_button setShowsBorderOnlyWhileMouseInside:YES];
+    self.active_bookmark_folder_button = nil;
 }
 
 - (void)layout

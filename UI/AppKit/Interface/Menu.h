@@ -22,6 +22,7 @@ NSMenu* create_context_menu(LadybirdWebView*, WebView::Menu&);
 
 NSMenuItem* create_application_menu_item(WebView::Action&);
 NSButton* create_application_button(WebView::Action&);
+NSImageView* create_application_icon(WebView::Action&);
 
 void set_control_image(id control, NSString*);
 

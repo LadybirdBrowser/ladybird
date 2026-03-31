@@ -8,10 +8,15 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class BookmarkFolderPopover;
+
 @interface BookmarksBar : NSView
 
 - (instancetype)init;
 
 - (void)rebuild;
+
+- (void)closeBookmarkFolders;
+- (void)bookmarkFolderDidClose:(BookmarkFolderPopover*)folder;
 
 @end

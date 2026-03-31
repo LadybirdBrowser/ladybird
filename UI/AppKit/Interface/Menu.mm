@@ -167,7 +167,7 @@ static NSImage* image_from_base64_png(StringView favicon_base64_png)
     return image;
 }
 
-static void initialize_native_control(WebView::Action& action, id control)
+static void initialize_native_icon(WebView::Action& action, id control)
 {
     switch (action.id()) {
     case WebView::ActionID::NavigateBack:
@@ -306,6 +306,11 @@ static void initialize_native_control(WebView::Action& action, id control)
     default:
         break;
     }
+}
+
+static void initialize_native_control(WebView::Action& action, id control)
+{
+    initialize_native_icon(action, control);
 
     auto observer = ActionObserver::create(action, control);
 
@@ -391,7 +396,15 @@ NSButton* create_application_button(WebView::Action& action)
 {
     auto* button = [[NSButton alloc] init];
     initialize_native_control(action, button);
+    set_properties(button, action);
     return button;
+}
+
+NSImageView* create_application_icon(WebView::Action& action)
+{
+    auto* icon = [[NSImageView alloc] initWithFrame:NSZeroRect];
+    initialize_native_icon(action, icon);
+    return icon;
 }
 
 void set_control_image(id control, NSString* image)
