@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>DevTools</title>
+    <link rel="stylesheet" href="shared.css">
+    <link rel="stylesheet" href="console.css">
+    <link rel="stylesheet" href="inspector.css">
+</head>
+<body>
+    <div id="tab-bar">
+        <button class="tab-button active" data-panel="elements">Elements</button>
+        <button class="tab-button" data-panel="console">Console</button>
+        <button class="tab-button" data-panel="settings">Settings</button>
+    </div>
+
+    <div id="panel-elements" class="panel">
+        <div id="dom-tree"></div>
+    </div>
+
+    <div id="panel-console" class="panel" hidden>
+        <div class="toolbar">
+            <button id="clear-btn">Clear</button>
+        </div>
+        <div id="output"></div>
+        <div id="input-area">
+            <span class="prompt">&gt;&gt;</span>
+            <textarea id="input" rows="1" autofocus spellcheck="false"></textarea>
+        </div>
+    </div>
+
+    <div id="panel-settings" class="panel" hidden>
+        <div class="settings-row settings-row-checkbox">
+            <label for="remote-debugging-enabled">
+                <input id="remote-debugging-enabled" type="checkbox">
+                <span>Enable Remote Debugging</span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <label for="remote-debugging-port">Port</label>
+            <input id="remote-debugging-port" type="number" min="1" max="65535" value="6000">
+        </div>
+        <div id="remote-debugging-note" class="settings-note" hidden></div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

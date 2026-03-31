@@ -1,0 +1,62 @@
+#dom-tree {
+    flex: 1;
+    overflow: auto;
+    padding: 4px 0;
+}
+
+.dom-line {
+    line-height: 1.6;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.dom-line:hover {
+    background: var(--dom-hover-color);
+}
+
+.dom-toggle {
+    display: inline-block;
+    width: 14px;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    color: var(--muted-text-color);
+    font-size: 10px;
+}
+
+.dom-toggle:hover {
+    color: var(--text-color);
+}
+
+.dom-tag {
+    color: var(--dom-tag-color);
+}
+
+.dom-bracket {
+    color: var(--muted-text-color);
+}
+
+.dom-attr-name {
+    color: var(--dom-attr-name-color);
+}
+
+.dom-attr-value {
+    color: var(--dom-attr-value-color);
+}
+
+.dom-text {
+    color: var(--text-color);
+}
+
+.dom-comment {
+    color: var(--dom-comment-color);
+    font-style: italic;
+}
+
+.dom-doctype {
+    color: var(--muted-text-color);
+}
+
+.dom-children.collapsed {
+    display: none;
+}

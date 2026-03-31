@@ -1,0 +1,193 @@
+@media (prefers-color-scheme: light) {
+    :root {
+        --background-color: #fff;
+        --panel-chrome: #f3f3f3;
+        --panel-hover: #e8e8e8;
+        --border-color: #ccc;
+        --text-color: #333;
+        --muted-text-color: #666;
+        --input-background-color: #fff;
+        --tab-accent-color: #1a73e8;
+        --button-background-color: #e8e8e8;
+        --button-hover-color: #ddd;
+        --entry-border-color: #eee;
+        --error-color: #d93025;
+        --error-background-color: #fce8e6;
+        --info-color: #1a73e8;
+        --prompt-color: #1a73e8;
+        --result-prefix-color: #999;
+        --input-echo-color: #1a1aa6;
+        --warn-color: #e37400;
+        --warn-background-color: #fef7e0;
+        --dom-hover-color: #edf4fc;
+        --dom-tag-color: #881280;
+        --dom-attr-name-color: #c80000;
+        --dom-attr-value-color: #1a1aa6;
+        --dom-comment-color: #236e25;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-color: #1f1f1f;
+        --panel-chrome: #2a2a2a;
+        --panel-hover: #353535;
+        --border-color: #444;
+        --text-color: #e6e6e6;
+        --muted-text-color: #b3b3b3;
+        --input-background-color: #242424;
+        --tab-accent-color: #6ea8fe;
+        --button-background-color: #353535;
+        --button-hover-color: #404040;
+        --entry-border-color: #303030;
+        --error-color: #ff8f87;
+        --error-background-color: #43211f;
+        --info-color: #8ab4f8;
+        --prompt-color: #8ab4f8;
+        --result-prefix-color: #888;
+        --input-echo-color: #a8c7fa;
+        --warn-color: #f6c26b;
+        --warn-background-color: #46351b;
+        --dom-hover-color: #2c3440;
+        --dom-tag-color: #ff9cf0;
+        --dom-attr-name-color: #ff8f8f;
+        --dom-attr-value-color: #a8c7fa;
+        --dom-comment-color: #7bd88f;
+    }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: monospace;
+    font-size: 13px;
+    background: var(--background-color);
+    color: var(--text-color);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#tab-bar {
+    display: flex;
+    background: var(--panel-chrome);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 4px;
+    flex-shrink: 0;
+}
+
+.tab-button {
+    background: transparent;
+    color: var(--muted-text-color);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: system-ui, sans-serif;
+}
+
+.tab-button:hover {
+    color: var(--text-color);
+    background: var(--panel-hover);
+}
+
+.tab-button.active {
+    color: var(--text-color);
+    border-bottom-color: var(--tab-accent-color);
+}
+
+.panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.panel[hidden] {
+    display: none;
+}
+
+.toolbar,
+#input-area,
+#dom-tree,
+#output,
+#panel-settings {
+    font: inherit;
+}
+
+#panel-settings {
+    padding: 16px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 0;
+}
+
+.settings-row + .settings-row {
+    border-top: 1px solid var(--border-color);
+}
+
+.settings-row label {
+    color: var(--text-color);
+}
+
+.settings-row-checkbox {
+    justify-content: flex-start;
+}
+
+.settings-row-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-row input[type="number"] {
+    width: 120px;
+    background: var(--input-background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    padding: 6px 8px;
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    background: var(--panel-chrome);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.toolbar button {
+    background: var(--button-background-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    padding: 2px 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+}
+
+.toolbar button:hover {
+    background: var(--button-hover-color);
+}
+
+.settings-row input:disabled {
+    opacity: 0.6;
+}
+
+.settings-note {
+    margin-top: 12px;
+    color: var(--muted-text-color);
+}

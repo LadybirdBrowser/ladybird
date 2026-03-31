@@ -76,6 +76,19 @@ set(ABOUT_PAGES
 )
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 
+set(DEVTOOLS_RESOURCES
+    index.html
+    main.js
+    settings-pane.js
+    transport.js
+    shared.css
+    console.css
+    console-pane.js
+    inspector.css
+    elements-pane.js
+)
+list(TRANSFORM DEVTOOLS_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/devtools/")
+
 set(ABOUT_SETTINGS_RESOURCES
     default-zoom-level.js
     languages.js
@@ -177,6 +190,10 @@ function(copy_resources_to_build base_directory bundle_target)
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
 
+    copy_resource_set(ladybird/devtools RESOURCES ${DEVTOOLS_RESOURCES}
+        DESTINATION ${base_directory} TARGET ${bundle_target}
+    )
+
     copy_resource_set(ladybird/about-pages/settings RESOURCES ${ABOUT_SETTINGS_RESOURCES}
         DESTINATION ${base_directory} TARGET ${bundle_target}
     )
@@ -203,6 +220,7 @@ function(install_ladybird_resources destination component)
     install(FILES ${INTERNAL_RESOURCES} DESTINATION "${destination}/ladybird" COMPONENT ${component})
     install(FILES ${ABOUT_PAGES} DESTINATION "${destination}/ladybird/about-pages" COMPONENT ${component})
     install(FILES ${ABOUT_SETTINGS_RESOURCES} DESTINATION "${destination}/ladybird/about-pages/settings" COMPONENT ${component})
+    install(FILES ${DEVTOOLS_RESOURCES} DESTINATION "${destination}/ladybird/devtools" COMPONENT ${component})
     install(FILES ${WEB_TEMPLATES} DESTINATION "${destination}/ladybird/templates" COMPONENT ${component})
     install(FILES ${CONFIG_RESOURCES} DESTINATION "${destination}/ladybird/default-config" COMPONENT ${component})
 endfunction()
