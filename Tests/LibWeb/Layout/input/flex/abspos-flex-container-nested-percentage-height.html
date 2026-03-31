@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<title>Nested percentage heights in abspos flex container</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: flex; position: absolute; top: 0; left: 0; width: 100%; }
+    .outer { width: 100%; height: 50%; }
+    .inner { width: 100%; height: 50%; }
+    .content { height: 30px; width: 50px; }
+</style>
+<body>
+    <div class="outer">
+        <div class="inner">
+            <div class="content"></div>
+        </div>
+    </div>
+</body>

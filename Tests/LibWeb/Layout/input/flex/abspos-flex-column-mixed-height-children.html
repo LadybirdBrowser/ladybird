@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<title>Mixed fixed and percentage height children in abspos flex column</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: flex; flex-direction: column; position: absolute; top: 0; left: 0; width: 200px; }
+    .fixed { height: 80px; width: 100%; }
+    .pct { height: 50%; width: 100%; }
+    .content { height: 20px; width: 50px; }
+</style>
+<body><div class="fixed"></div><div class="pct"><div class="content"></div></div></body>

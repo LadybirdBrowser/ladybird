@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>Deeply nested percentage heights should all fail to resolve</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: flex; position: absolute; top: 0; left: 0; width: 200px; }
+    .l1 { height: 100%; width: 100%; }
+    .l2 { height: 100%; width: 100%; }
+    .l3 { height: 50%; width: 100%; }
+    .content { height: 30px; width: 50px; }
+</style>
+<body><div class="l1"><div class="l2"><div class="l3"><div class="content"></div></div></div></div></body>

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Percentage width in abspos grid container with auto width</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: grid; position: absolute; top: 0; left: 0; height: 100%; }
+    .child { width: 50%; }
+    .content { width: 40px; height: 50px; }
+</style>
+<body><div class="child"><div class="content"></div></div></body>

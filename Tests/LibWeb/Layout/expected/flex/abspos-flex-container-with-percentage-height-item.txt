@@ -1,0 +1,15 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] positioned [0+0+0 500 0+0+300] [0+0+0 300 0+0+0] [BFC] children: not-inline
+    Box <body> at [0,0] positioned flex-container(row) [0+0+0 500 0+0+0] [0+0+0 55 0+0+0] [FFC] children: not-inline
+      BlockContainer <main> at [0,0] positioned flex-item [0+0+0 500 0+0+0] [0+0+0 55 0+0+0] [BFC] children: not-inline
+        BlockContainer <article> at [0,0] [0+0+0 250 0+0+250] [0+0+0 55 0+0+0] children: inline
+          TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 500x300]
+    PaintableBox (Box<BODY>) [0,0 500x55]
+      PaintableWithLines (BlockContainer<MAIN>) [0,0 500x55]
+        PaintableWithLines (BlockContainer<ARTICLE>) [0,0 250x55]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 500x300] [children: 0] (z-index: auto)

@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Both axes auto: percentages should not resolve in either axis</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: flex; position: absolute; top: 0; left: 0; }
+    .child { width: 50%; height: 50%; }
+    .content { width: 60px; height: 40px; }
+</style>
+<body><div class="child"><div class="content"></div></div></body>

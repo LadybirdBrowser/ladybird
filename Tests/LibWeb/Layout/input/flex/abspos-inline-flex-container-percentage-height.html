@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Percentage height in abspos inline-flex container with auto height</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: inline-flex; position: absolute; top: 0; left: 0; width: 100%; }
+    .child { height: 50%; width: 100%; }
+    .content { height: 40px; width: 50px; }
+</style>
+<body><div class="child"><div class="content"></div></div></body>

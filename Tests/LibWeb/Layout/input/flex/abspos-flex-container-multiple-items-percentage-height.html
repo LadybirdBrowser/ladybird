@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>Multiple flex items with percentage heights in abspos flex container</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: flex; position: absolute; top: 0; left: 0; width: 100%; }
+    .a { height: 50%; width: 100px; }
+    .b { height: 100%; width: 100px; }
+    .c { width: 100px; }
+    .content { height: 60px; width: 50px; }
+</style>
+<body>
+    <div class="a"><div class="content"></div></div>
+    <div class="b"><div class="content"></div></div>
+    <div class="c"><div class="content"></div></div>
+</body>

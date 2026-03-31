@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<title>Grid item should not stretch to content-derived auto height</title>
+<style>
+    * { margin: 0; padding: 0; }
+    html { position: relative; width: 400px; height: 200px; }
+    body { display: grid; position: absolute; top: 0; left: 0; width: 200px; }
+    .item { /* default stretch alignment */ }
+    .content { height: 30px; width: 50px; }
+</style>
+<body><div class="item"><div class="content"></div></div></body>
