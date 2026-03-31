@@ -62,6 +62,7 @@ static constexpr CGFloat const BOOKMARK_FOLDER_ROOT_VERTICAL_SHIFT = 10;
         m_action = action.make_weak_ptr();
         m_hovered = NO;
 
+        Ladybird::add_control_properties(self, action);
         [self setToolTip:Ladybird::string_to_ns_string(action.tooltip())];
 
         self.icon_view = Ladybird::create_application_icon(action);
@@ -86,6 +87,8 @@ static constexpr CGFloat const BOOKMARK_FOLDER_ROOT_VERTICAL_SHIFT = 10;
 
         m_menu = menu.make_weak_ptr();
         m_hovered = NO;
+
+        Ladybird::add_control_properties(self, menu);
 
         self.icon_view = [[NSImageView alloc] initWithFrame:NSZeroRect];
         [self.icon_view setImage:[NSImage imageWithSystemSymbolName:@"folder" accessibilityDescription:@""]];
@@ -137,12 +140,22 @@ static constexpr CGFloat const BOOKMARK_FOLDER_ROOT_VERTICAL_SHIFT = 10;
 
 - (void)mouseDown:(NSEvent*)event
 {
+    if ([event modifierFlags] & NSEventModifierFlagControl) {
+        [self.bookmarks_bar showContextMenu:self event:event];
+        return;
+    }
+
     if (auto submenu = m_menu.strong_ref(); submenu && submenu->size() > 0) {
         [self.parent_folder openChildFolder:*submenu relativeToView:self];
     } else if (auto action = m_action.strong_ref()) {
         [self.bookmarks_bar closeBookmarkFolders];
         action->activate();
     }
+}
+
+- (void)rightMouseDown:(NSEvent*)event
+{
+    [self.bookmarks_bar showContextMenu:self event:event];
 }
 
 - (void)updateTrackingAreas

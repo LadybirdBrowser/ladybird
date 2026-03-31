@@ -49,11 +49,21 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 @property (nonatomic, strong) NSButton* overflow_button;
 @property (nonatomic, strong) NSMenu* overflow_menu;
 
+@property (nonatomic, strong) NSMenu* bookmarks_bar_context_menu;
+@property (nonatomic, strong) NSMenu* bookmark_context_menu;
+@property (nonatomic, strong) NSMenu* bookmark_folder_context_menu;
+
+@property (nonatomic, strong, readwrite) NSString* bookmark_context_menu_item_id;
+@property (nonatomic, strong, readwrite) NSString* bookmark_context_menu_target_folder_id;
+
 @end
 
 @implementation BookmarksBar
 
 @synthesize overflow_menu = _overflow_menu;
+@synthesize bookmarks_bar_context_menu = _bookmarks_bar_context_menu;
+@synthesize bookmark_context_menu = _bookmark_context_menu;
+@synthesize bookmark_folder_context_menu = _bookmark_folder_context_menu;
 
 - (instancetype)init
 {
@@ -141,6 +151,7 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
                                                   action:@selector(openFolder:)];
                 set_button_properties(button, folder->title());
 
+                Ladybird::add_control_properties(button, *folder);
                 return button;
             },
             [](WebView::Separator) -> NSButton* {
@@ -263,6 +274,90 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
     [self.active_bookmark_folder_button highlight:NO];
     [self.active_bookmark_folder_button setShowsBorderOnlyWhileMouseInside:YES];
     self.active_bookmark_folder_button = nil;
+}
+
+- (void)showContextMenu:(id)control event:(NSEvent*)event
+{
+    self.bookmark_context_menu_item_id = Ladybird::get_control_property(control, @"id");
+    self.bookmark_context_menu_target_folder_id = Ladybird::get_control_property(control, @"target_folder_id");
+
+    if (auto* type = Ladybird::get_control_property(control, @"type"); [type isEqualToString:@"bookmark"])
+        [NSMenu popUpContextMenu:self.bookmark_context_menu withEvent:event forView:control];
+    else if ([type isEqualToString:@"folder"])
+        [NSMenu popUpContextMenu:self.bookmark_folder_context_menu withEvent:event forView:control];
+}
+
+- (void)showContextMenuForEvent:(NSEvent*)event
+{
+    auto location = [event locationInWindow];
+
+    for (NSView* button in [self.bookmark_items views]) {
+        if ([button isHidden])
+            continue;
+
+        auto point = [button convertPoint:location fromView:nil];
+        if (!NSPointInRect(point, [button bounds]))
+            continue;
+
+        [self showContextMenu:button event:event];
+        return;
+    }
+
+    self.bookmark_context_menu_item_id = @"";
+    self.bookmark_context_menu_target_folder_id = nil;
+
+    [NSMenu popUpContextMenu:self.bookmarks_bar_context_menu withEvent:event forView:self];
+}
+
+- (void)rightMouseDown:(NSEvent*)event
+{
+    [self showContextMenuForEvent:event];
+}
+
+- (void)mouseDown:(NSEvent*)event
+{
+    if ([event modifierFlags] & NSEventModifierFlagControl) {
+        [self showContextMenuForEvent:event];
+        return;
+    }
+
+    [super mouseDown:event];
+}
+
+- (nullable NSView*)hitTest:(NSPoint)point
+{
+    auto* hit = [super hitTest:point];
+    if (!hit)
+        return nil;
+
+    // Route ctrl+left-clicks to the BookmarksBar so we can show the appropriate context menu, rather than letting
+    // NSButton swallow the event for its own click tracking.
+    auto* event = [NSApp currentEvent];
+    if ([event type] == NSEventTypeLeftMouseDown && ([event modifierFlags] & NSEventModifierFlagControl))
+        return self;
+
+    return hit;
+}
+
+- (NSMenu*)bookmarks_bar_context_menu
+{
+    if (!_bookmarks_bar_context_menu)
+        _bookmarks_bar_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmarks_bar_context_menu());
+    return _bookmarks_bar_context_menu;
+}
+
+- (NSMenu*)bookmark_context_menu
+{
+    if (!_bookmark_context_menu)
+        _bookmark_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmark_context_menu());
+    return _bookmark_context_menu;
+}
+
+- (NSMenu*)bookmark_folder_context_menu
+{
+    if (!_bookmark_folder_context_menu)
+        _bookmark_folder_context_menu = Ladybird::create_application_menu(WebView::Application::the().bookmark_folder_context_menu());
+    return _bookmark_folder_context_menu;
 }
 
 - (void)layout

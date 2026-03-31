@@ -8,10 +8,13 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/ThreadEventQueue.h>
+#include <LibWebView/URL.h>
+#include <LibWebView/ViewImplementation.h>
 #include <Utilities/Conversions.h>
 
 #import <Application/Application.h>
 #import <Application/ApplicationDelegate.h>
+#import <Interface/BookmarksBar.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
@@ -172,6 +175,194 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
 {
     ApplicationDelegate* delegate = [NSApp delegate];
     [delegate updateBookmarksBarDisplay:show_bookmarks_bar];
+}
+
+Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu() const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+
+    if (auto* tab = [delegate activeTab]) {
+        auto* bookmarks_bar = [tab bookmarksBar];
+
+        return Application::BookmarkID {
+            .id = Ladybird::ns_string_to_string([bookmarks_bar bookmark_context_menu_item_id]),
+            .target_folder_id = [bookmarks_bar bookmark_context_menu_target_folder_id]
+                ? Optional<String> { Ladybird::ns_string_to_string([bookmarks_bar bookmark_context_menu_target_folder_id]) }
+                : Optional<String> {},
+        };
+    }
+
+    return {};
+}
+
+static constexpr CGFloat BOOKMARK_LABEL_WIDTH = 40;
+static constexpr CGFloat BOOKMARK_TEXT_WIDTH = 300;
+static constexpr CGFloat BOOKMARK_SPACING = 8;
+
+static NSTextField* create_bookmark_dialog_text_field(Optional<String const&> text)
+{
+    auto* text_field = [[NSTextField alloc] init];
+    [[text_field cell] setScrollable:YES];
+    [[text_field cell] setWraps:NO];
+    [[text_field widthAnchor] constraintEqualToConstant:BOOKMARK_TEXT_WIDTH].active = YES;
+
+    if (text.has_value())
+        [text_field setStringValue:Ladybird::string_to_ns_string(*text)];
+
+    return text_field;
+}
+
+static NSView* create_bookmark_dialog_row(NSString* label_text, NSTextField* text_field)
+{
+    auto* row = [[NSStackView alloc] init];
+    [row setAlignment:NSLayoutAttributeCenterY];
+    [row setOrientation:NSUserInterfaceLayoutOrientationHorizontal];
+    [row setSpacing:BOOKMARK_SPACING];
+
+    auto* label = [NSTextField labelWithString:label_text];
+    [label setAlignment:NSTextAlignmentRight];
+    [[label widthAnchor] constraintEqualToConstant:BOOKMARK_LABEL_WIDTH].active = YES;
+
+    [row addArrangedSubview:label];
+    [row addArrangedSubview:text_field];
+
+    auto size = [row fittingSize];
+    [row setFrame:NSMakeRect(0, 0, size.width, size.height)];
+    return row;
+}
+
+static NSAlert* create_bookmark_dialog(NSString* title, NSView* first_responder, NSArray<NSView*>* rows)
+{
+    auto* container = [[NSStackView alloc] init];
+    [container setAlignment:NSLayoutAttributeLeading];
+    [container setOrientation:NSUserInterfaceLayoutOrientationVertical];
+    [container setSpacing:BOOKMARK_SPACING];
+
+    for (NSView* row in rows)
+        [container addArrangedSubview:row];
+
+    auto size = [container fittingSize];
+    [container setFrame:NSMakeRect(0, 0, size.width, size.height)];
+
+    auto* dialog = [[NSAlert alloc] init];
+    [dialog setAccessoryView:container];
+    [dialog setMessageText:title];
+    [[dialog addButtonWithTitle:@"OK"] setTag:NSModalResponseOK];
+    [[dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+    [[dialog window] setInitialFirstResponder:first_responder];
+
+    return dialog;
+}
+
+template<typename PromiseType>
+static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_dialog(
+    Tab* parent,
+    NSString* title,
+    Optional<URL::URL const&> current_url,
+    Optional<String const&> current_title)
+{
+    auto promise = PromiseType::construct();
+
+    auto* url_field = create_bookmark_dialog_text_field(current_url.map([](auto const& url) { return url.serialize(); }));
+    auto* title_field = create_bookmark_dialog_text_field(current_title);
+
+    auto* dialog = create_bookmark_dialog(title, url_field, @[
+        create_bookmark_dialog_row(@"URL:", url_field),
+        create_bookmark_dialog_row(@"Title:", title_field),
+    ]);
+
+    [dialog beginSheetModalForWindow:parent
+                   completionHandler:^(NSModalResponse response) {
+                       if (response != NSModalResponseOK) {
+                           promise->reject(Error::from_errno(ECANCELED));
+                           return;
+                       }
+
+                       auto url = WebView::sanitize_url(Ladybird::ns_string_to_string([url_field stringValue]));
+                       if (!url.has_value()) {
+                           promise->reject(Error::from_errno(EINVAL));
+                           return;
+                       }
+
+                       Optional<String> bookmark_title;
+                       if (auto text = Ladybird::ns_string_to_string([title_field stringValue]); !text.is_empty())
+                           bookmark_title = move(text);
+
+                       promise->resolve(WebView::BookmarkItem::Bookmark {
+                           .url = url.release_value(),
+                           .title = move(bookmark_title),
+                           .favicon_base64_png = {},
+                       });
+                   }];
+
+    return promise;
+}
+
+NonnullRefPtr<Application::BookmarkPromise> Application::display_add_bookmark_dialog() const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+
+    Optional<URL::URL> current_url;
+    Optional<String> current_title;
+
+    if (auto view = active_web_view(); view.has_value()) {
+        current_url = view->url();
+        current_title = view->title().to_utf8();
+    }
+
+    return display_add_or_edit_bookmark_dialog<BookmarkPromise>([delegate activeTab], @"Add Bookmark", current_url, current_title);
+}
+
+NonnullRefPtr<Application::BookmarkPromise> Application::display_edit_bookmark_dialog(WebView::BookmarkItem::Bookmark const& current_bookmark) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    return display_add_or_edit_bookmark_dialog<BookmarkPromise>([delegate activeTab], @"Edit Bookmark", current_bookmark.url, current_bookmark.title);
+}
+
+template<typename PromiseType>
+static NonnullRefPtr<PromiseType> display_add_or_edit_bookmark_folder_dialog(
+    Tab* parent,
+    NSString* title,
+    Optional<String const&> current_title)
+{
+    auto promise = PromiseType::construct();
+
+    auto* title_field = create_bookmark_dialog_text_field(current_title);
+
+    auto* dialog = create_bookmark_dialog(title, title_field, @[
+        create_bookmark_dialog_row(@"Title:", title_field),
+    ]);
+
+    [dialog beginSheetModalForWindow:parent
+                   completionHandler:^(NSModalResponse response) {
+                       if (response != NSModalResponseOK) {
+                           promise->reject(Error::from_errno(ECANCELED));
+                           return;
+                       }
+
+                       Optional<String> folder_title;
+                       if (auto text = Ladybird::ns_string_to_string([title_field stringValue]); !text.is_empty())
+                           folder_title = move(text);
+
+                       promise->resolve(WebView::BookmarkItem::Folder {
+                           .title = move(folder_title),
+                           .children = {},
+                       });
+                   }];
+
+    return promise;
+}
+
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_add_bookmark_folder_dialog() const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>([delegate activeTab], @"Add Folder", {});
+}
+
+NonnullRefPtr<Application::BookmarkFolderPromise> Application::display_edit_bookmark_folder_dialog(WebView::BookmarkItem::Folder const& current_folder) const
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+    return display_add_or_edit_bookmark_folder_dialog<BookmarkFolderPromise>([delegate activeTab], @"Edit Folder", current_folder.title);
 }
 
 void Application::on_devtools_enabled() const

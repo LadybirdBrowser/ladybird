@@ -11,6 +11,7 @@
 #import <Cocoa/Cocoa.h>
 #import <Interface/LadybirdWebViewWindow.h>
 
+@class BookmarksBar;
 @class LadybirdWebView;
 
 @interface Tab : LadybirdWebViewWindow
@@ -18,6 +19,8 @@
 - (instancetype)init;
 - (instancetype)initAsChild:(Tab*)parent
                   pageIndex:(u64)page_index;
+
+- (BookmarksBar*)bookmarksBar;
 
 - (void)rebuildBookmarksBar;
 - (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar;

@@ -90,6 +90,42 @@
 
 namespace Ladybird {
 
+static char PROPERTIES_KEY = 0;
+
+template<typename T>
+static void set_properties(id control, T const& item)
+{
+    if (item.properties().is_empty())
+        return;
+
+    auto* properties = [[NSMutableDictionary alloc] init];
+
+    for (auto const& [key, value] : item.properties())
+        [properties setObject:string_to_ns_string(value) forKey:string_to_ns_string(key)];
+
+    objc_setAssociatedObject(control, &PROPERTIES_KEY, properties, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+void add_control_properties(id control, WebView::Action const& action)
+{
+    set_properties(control, action);
+}
+
+void add_control_properties(id control, WebView::Menu const& menu)
+{
+    set_properties(control, menu);
+}
+
+NSString* get_control_property(id control, NSString* key)
+{
+    NSDictionary* properties = objc_getAssociatedObject(control, &PROPERTIES_KEY);
+
+    if (properties)
+        return [properties objectForKey:key];
+
+    return nil;
+}
+
 class ActionObserver final : public WebView::Action::Observer {
 public:
     static NonnullOwnPtr<ActionObserver> create(WebView::Action& action, id control)
@@ -334,6 +370,7 @@ static void add_items_to_menu(NSMenu* menu, Span<WebView::Menu::MenuItem> menu_i
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
                 auto* application_submenu = [[NSMenu alloc] init];
+                set_properties(application_submenu, *submenu);
                 add_items_to_menu(application_submenu, submenu->items());
 
                 auto* item = [[NSMenuItem alloc] initWithTitle:string_to_ns_string(submenu->title())
@@ -355,6 +392,7 @@ static void add_items_to_menu(NSMenu* menu, Span<WebView::Menu::MenuItem> menu_i
 NSMenu* create_application_menu(WebView::Menu& menu)
 {
     auto* application_menu = [[NSMenu alloc] initWithTitle:string_to_ns_string(menu.title())];
+    set_properties(application_menu, menu);
     add_items_to_menu(application_menu, menu.items());
     return application_menu;
 }
@@ -389,6 +427,7 @@ NSMenuItem* create_application_menu_item(WebView::Action& action)
 {
     auto* item = [[NSMenuItem alloc] init];
     initialize_native_control(action, item);
+    set_properties(item, action);
     return item;
 }
 

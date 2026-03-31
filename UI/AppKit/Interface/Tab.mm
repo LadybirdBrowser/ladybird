@@ -289,10 +289,14 @@ static constexpr CGFloat const WINDOW_HEIGHT = 800;
     [self updateTabTitleAndFavicon];
 }
 
+- (BookmarksBar*)bookmarksBar
+{
+    return (BookmarksBar*)[self.bookmarks_bar_controller view];
+}
+
 - (void)rebuildBookmarksBar
 {
-    auto* bookmarks_bar = (BookmarksBar*)[self.bookmarks_bar_controller view];
-    [bookmarks_bar rebuild];
+    [[self bookmarksBar] rebuild];
 }
 
 - (void)updateBookmarksBarDisplay:(bool)show_bookmarks_bar
