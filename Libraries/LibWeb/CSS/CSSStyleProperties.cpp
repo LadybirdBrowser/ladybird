@@ -316,7 +316,7 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
         return KeywordStyleValue::create(Keyword::MaxContent);
     if (size.is_fit_content()) {
         if (auto available_space = size.fit_content_available_space(); available_space.has_value())
-            return FitContentStyleValue::create(available_space.release_value());
+            return FitContentStyleValue::create(style_value_for_length_percentage(available_space.release_value()));
         return FitContentStyleValue::create();
     }
     TODO();

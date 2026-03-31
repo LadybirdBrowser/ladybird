@@ -3618,15 +3618,15 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
         return nullptr;
     TokenStream argument_tokens { function.value };
     argument_tokens.discard_whitespace();
-    auto maybe_length = parse_length_percentage(argument_tokens);
-    if (!maybe_length.has_value())
+    auto length_percentage_value = parse_length_percentage_value(argument_tokens);
+    if (!length_percentage_value)
         return nullptr;
     argument_tokens.discard_whitespace();
     if (argument_tokens.has_next_token())
         return nullptr;
 
     transaction.commit();
-    return FitContentStyleValue::create(maybe_length.release_value());
+    return FitContentStyleValue::create(length_percentage_value.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
