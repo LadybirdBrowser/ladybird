@@ -26,6 +26,7 @@ public:
     NonnullRefPtr<StyleValue const> track_color() const { return m_track_color; }
 
 private:
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;
     explicit ScrollbarColorStyleValue(NonnullRefPtr<StyleValue const> thumb_color, NonnullRefPtr<StyleValue const> track_color)
         : StyleValueWithDefaultOperators(Type::ScrollbarColor)
         , m_thumb_color(move(thumb_color))
