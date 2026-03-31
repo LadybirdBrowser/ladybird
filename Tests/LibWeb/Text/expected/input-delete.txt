@@ -4,3 +4,9 @@ After: foobar
 --- b ---
 Before: foo👩🏼‍❤️‍👨🏻bar
 After: foobar
+--- c ---
+Before: foo bar
+After: foo 
+--- d ---
+Before: foo bar
+After:  bar

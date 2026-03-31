@@ -2,9 +2,11 @@
 <script src="include.js"></script>
 <input id="a" value="foo👩🏼‍❤️‍👨🏻bar" />
 <input id="b" value="foo👩🏼‍❤️‍👨🏻bar" />
+<input id="c" value="foo bar" />
+<input id="d" value="foo bar" />
 <script>
     test(() => {
-        const testDelete = function (id, position, key) {
+        const testDelete = function (id, position, key, modifiers) {
             println(`--- ${id} ---`);
             const input = document.querySelector(`input#${id}`);
             println(`Before: ${input.value}`);
@@ -13,12 +15,14 @@
             input.setSelectionRange(position, position);
 
             // Press backspace
-            internals.sendKey(input, key);
+            internals.sendKey(input, key, modifiers);
 
             println(`After: ${input.value}`);
         };
 
         testDelete("a", 15, "Backspace");
         testDelete("b", 3, "Delete");
+        testDelete("c", 20, "Backspace", internals.MOD_CTRL);
+        testDelete("d", 0, "Delete", internals.MOD_CTRL);
     });
 </script>
