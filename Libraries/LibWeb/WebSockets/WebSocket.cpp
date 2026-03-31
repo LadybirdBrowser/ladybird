@@ -88,6 +88,8 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
         // The elements that comprise this value MUST be non-empty strings with characters in the range U+0021 to U+007E not including
         // separator characters as defined in [RFC2616] and MUST all be unique strings.
         auto protocol = sorted_protocols[i];
+        if (protocol.is_empty())
+            return WebIDL::SyntaxError::create(realm, "Found empty protocol name"_utf16);
         if (i < sorted_protocols.size() - 1 && protocol == sorted_protocols[i + 1])
             return WebIDL::SyntaxError::create(realm, "Found a duplicate protocol name in the specified list"_utf16);
         for (auto code_point : protocol.code_points()) {
