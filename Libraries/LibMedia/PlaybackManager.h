@@ -53,6 +53,8 @@ public:
     static NonnullOwnPtr<PlaybackManager> create();
     ~PlaybackManager();
 
+    void set_audio_output_disabled(bool disabled) { m_audio_output_disabled = disabled; }
+
     AK::Duration duration() const { return m_duration; }
     void set_duration(AK::Duration duration) { m_duration = duration; }
     AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
@@ -157,6 +159,8 @@ private:
     NonnullRefPtr<WeakPlaybackManagerLink> m_weak_link;
 
     NonnullRefPtr<MediaTimeProvider> m_time_provider;
+
+    bool m_audio_output_disabled { false };
 
     VideoTracks m_video_tracks;
     VideoTrackDatas m_video_track_datas;

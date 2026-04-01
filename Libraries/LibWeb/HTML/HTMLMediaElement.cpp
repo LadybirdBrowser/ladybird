@@ -1751,6 +1751,7 @@ void HTMLMediaElement::on_metadata_parsed()
 void HTMLMediaElement::set_up_playback_manager_for_remote()
 {
     m_playback_manager = Media::PlaybackManager::create();
+    m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
 
     m_has_enabled_preferred_audio_track = false;
     m_has_selected_preferred_video_track = false;
@@ -1816,6 +1817,7 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 void HTMLMediaElement::set_up_playback_manager_for_local()
 {
     m_playback_manager = Media::PlaybackManager::create();
+    m_playback_manager->set_audio_output_disabled(document().page().client().is_headless());
 
     m_has_enabled_preferred_audio_track = false;
     m_has_selected_preferred_video_track = false;

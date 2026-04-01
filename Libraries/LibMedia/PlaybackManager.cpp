@@ -113,7 +113,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
 
         self->set_up_data_providers();
 
-        if (!self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
+        if (!self->m_audio_output_disabled && !self->m_audio_sink && !self->m_audio_tracks.is_empty()) {
             self->m_audio_sink = MUST(AudioMixingSink::try_create());
             self->set_time_provider(make_ref_counted<WrapperTimeProvider<AudioMixingSink>>(*self->m_audio_sink));
             self->m_audio_sink->on_audio_output_error = [self](Error&& error) {

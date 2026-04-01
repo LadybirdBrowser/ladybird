@@ -327,6 +327,8 @@ NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStream::create(OutputState 
 NonnullRefPtr<PlaybackStream::CreatePromise> PlaybackStreamAudioUnit::create(OutputState initial_output_state, u32, AudioDataRequestCallback&& data_request_callback)
 {
     auto promise = CreatePromise::construct();
+    // FIXME: Create the AudioState off this thread. It sets up the audio output synchronously, which can take up to
+    //        50ms under normal circumstances.
     auto state_or_error = AudioState::create(move(data_request_callback), initial_output_state);
     if (state_or_error.is_error()) {
         promise->reject(state_or_error.release_error());
