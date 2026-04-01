@@ -13,3 +13,8 @@ interface CacheStorage {
 //dictionary MultiCacheQueryOptions : CacheQueryOptions {
 //    DOMString cacheName;
 //};
+
+// https://w3c.github.io/ServiceWorker/#self-caches
+partial interface mixin WindowOrWorkerGlobalScope {
+    [SecureContext, SameObject, Experimental] readonly attribute CacheStorage caches;
+};
