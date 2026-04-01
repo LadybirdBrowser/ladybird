@@ -18,8 +18,6 @@ class Application final : public WebView::Application {
 private:
     explicit Application();
 
-    virtual void create_platform_arguments(Core::ArgsParser&) override;
-    virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop() override;
 
     virtual Optional<WebView::ViewImplementation&> active_web_view() const override;
@@ -43,8 +41,6 @@ private:
 
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
-
-    bool m_file_scheme_urls_have_tuple_origins { false };
 };
 
 }
