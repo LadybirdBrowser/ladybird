@@ -38,7 +38,7 @@
 
 namespace Web::SelectorEngine {
 
-static inline bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor = nullptr);
+static inline bool matches_compound_selector(CSS::Selector const& selector, int component_list_index, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor = nullptr);
 
 // Upward traversal for descendant (' ') and immediate child combinator ('>')
 // If we're starting inside a shadow tree, traversal stops at the nearest shadow host.
@@ -181,7 +181,7 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
             if (!child.is_element())
                 return IterationDecision::Continue;
             auto const& child_element = static_cast<DOM::Element const&>(child);
-            if (!matches(selector, compound_index, child_element, shadow_host, context, scope, SelectorKind::Relative, anchor))
+            if (!matches_compound_selector(selector, compound_index, child_element, shadow_host, context, scope, SelectorKind::Relative, anchor))
                 return IterationDecision::Continue;
             if (matches_relative_selector(selector, compound_index + 1, child_element, shadow_host, context, anchor, scope)) {
                 has = true;
@@ -198,7 +198,7 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         auto* sibling = element.next_element_sibling();
         if (!sibling)
             return false;
-        if (!matches(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
+        if (!matches_compound_selector(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
             return false;
         return matches_relative_selector(selector, compound_index + 1, *sibling, shadow_host, context, anchor, scope);
     }
@@ -207,7 +207,7 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
             const_cast<DOM::Element&>(*anchor).set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(true);
         }
         for (auto const* sibling = element.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
-            if (!matches(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
+            if (!matches_compound_selector(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
                 continue;
             if (matches_relative_selector(selector, compound_index + 1, *sibling, shadow_host, context, anchor, scope))
                 return true;
@@ -1108,7 +1108,7 @@ static ALWAYS_INLINE bool matches_namespace(
     VERIFY_NOT_REACHED();
 }
 
-static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, [[maybe_unused]] GC::Ptr<DOM::Element const> anchor)
+static inline bool matches_simple_selector(CSS::Selector::SimpleSelector const& component, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, [[maybe_unused]] GC::Ptr<DOM::Element const> anchor)
 {
     if (should_block_shadow_host_matching(component, shadow_host, element))
         return false;
@@ -1197,7 +1197,7 @@ static inline bool matches(CSS::Selector::SimpleSelector const& component, DOM::
     VERIFY_NOT_REACHED();
 }
 
-bool matches(CSS::Selector const& selector, int component_list_index, DOM::Element const& initial_element,
+bool matches_compound_selector(CSS::Selector const& selector, int component_list_index, DOM::Element const& initial_element,
     GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope,
     SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor)
 {
@@ -1245,7 +1245,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
 
     NonnullRawPtr element_for_compound_matching { initial_element };
     for (auto& simple_selector : compound_selector.simple_selectors.in_reverse()) {
-        if (!matches(simple_selector, *element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
+        if (!matches_simple_selector(simple_selector, *element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
             return false;
         }
         if (context.part_owning_parent) {
@@ -1285,7 +1285,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
                 continue;
             if (ancestor == anchor)
                 return false;
-            if (matches(selector, component_list_index - 1, static_cast<DOM::Element const&>(*ancestor), shadow_host, context, scope, selector_kind, anchor))
+            if (matches_compound_selector(selector, component_list_index - 1, static_cast<DOM::Element const&>(*ancestor), shadow_host, context, scope, selector_kind, anchor))
                 return true;
         }
         return false;
@@ -1294,7 +1294,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
         auto parent = traverse_up(element, shadow_host);
         if (!parent || !parent->is_element())
             return false;
-        return matches(selector, component_list_index - 1, static_cast<DOM::Element const&>(*parent), shadow_host, context, scope, selector_kind, anchor);
+        return matches_compound_selector(selector, component_list_index - 1, static_cast<DOM::Element const&>(*parent), shadow_host, context, scope, selector_kind, anchor);
     }
     case CSS::Selector::Combinator::NextSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
@@ -1304,7 +1304,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
         }
         VERIFY(component_list_index != 0);
         if (auto* sibling = element.previous_element_sibling())
-            return matches(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor);
+            return matches_compound_selector(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor);
         return false;
     case CSS::Selector::Combinator::SubsequentSibling:
         if (context.collect_per_element_selector_involvement_metadata) {
@@ -1312,7 +1312,7 @@ bool matches(CSS::Selector const& selector, int component_list_index, DOM::Eleme
         }
         VERIFY(component_list_index != 0);
         for (auto* sibling = element.previous_element_sibling(); sibling; sibling = sibling->previous_element_sibling()) {
-            if (matches(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor))
+            if (matches_compound_selector(selector, component_list_index - 1, *sibling, shadow_host, context, scope, selector_kind, anchor))
                 return true;
         }
         return false;
@@ -1353,7 +1353,7 @@ bool matches(CSS::Selector const& selector, DOM::AbstractElement const& target, 
             return false;
     }
 
-    return matches(selector, selector.compound_selectors().size() - 1, target.element(), shadow_host, context, scope, selector_kind, anchor);
+    return matches_compound_selector(selector, selector.compound_selectors().size() - 1, target.element(), shadow_host, context, scope, selector_kind, anchor);
 }
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
