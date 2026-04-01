@@ -501,6 +501,10 @@ GC::Ptr<DOM::Document> load_document(HTML::NavigationParams const& navigation_pa
     //        response, navigationParams's navigable, navigationParams's final sandboxing flag set,
     //        sourceSnapshotParams's has transient activation, and initiatorOrigin.
 
+    // AD-HOC: In lieu of an implementation for steps 3. and 4., fall back to loading a file of an unrecognized
+    //         type as a plain text document.
+    return load_text_document(navigation_params, type).release_value_but_fixme_should_propagate_errors();
+
     // 5. Return null.
     return nullptr;
 }
