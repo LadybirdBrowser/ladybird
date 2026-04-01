@@ -215,7 +215,7 @@ public:
     ~Selector() = default;
 
     Vector<CompoundSelector> const& compound_selectors() const { return m_compound_selectors; }
-    Optional<PseudoElementSelector> const& pseudo_element() const { return m_pseudo_element; }
+    Optional<PseudoElementSelector> const& target_pseudo_element() const { return m_target_pseudo_element; }
     NonnullRefPtr<Selector> relative_to(SimpleSelector const&) const;
     bool contains_the_nesting_selector() const { return m_contains_the_nesting_selector; }
     bool contains_pseudo_class(PseudoClass pseudo_class) const { return m_contained_pseudo_classes.get(pseudo_class); }
@@ -231,7 +231,8 @@ public:
 
     size_t sibling_invalidation_distance() const;
 
-    bool is_slotted() const { return m_pseudo_element.has_value() && m_pseudo_element->type() == PseudoElement::Slotted; }
+    // FIXME: Assess these once we fully support multiple pseudo-elements in one selector.
+    bool is_slotted() const { return m_target_pseudo_element.has_value() && m_target_pseudo_element->type() == PseudoElement::Slotted; }
     bool has_part_pseudo_element() const { return m_contains_part_pseudo_element; }
 
 private:
@@ -239,7 +240,7 @@ private:
 
     Vector<CompoundSelector> m_compound_selectors;
     mutable Optional<u32> m_specificity;
-    Optional<Selector::PseudoElementSelector> m_pseudo_element;
+    Optional<PseudoElementSelector> m_target_pseudo_element;
     mutable Optional<size_t> m_sibling_invalidation_distance;
     bool m_can_use_fast_matches { false };
     bool m_can_use_ancestor_filter { false };

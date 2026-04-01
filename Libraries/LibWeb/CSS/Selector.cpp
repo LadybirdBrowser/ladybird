@@ -83,7 +83,7 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
             if (simple_selector.type == SimpleSelector::Type::PseudoElement) {
                 if (simple_selector.pseudo_element().type() == PseudoElement::Part)
                     m_contains_part_pseudo_element = true;
-                m_pseudo_element = simple_selector.pseudo_element();
+                m_target_pseudo_element = simple_selector.pseudo_element();
             }
         }
     }

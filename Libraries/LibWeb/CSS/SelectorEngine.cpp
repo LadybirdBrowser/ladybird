@@ -1347,9 +1347,9 @@ bool matches(CSS::Selector const& selector, DOM::Element const& element, GC::Ptr
         if (target_pseudo != pseudo_element)
             return false;
     } else {
-        if (pseudo_element.has_value() && selector.pseudo_element().has_value() && selector.pseudo_element().value().type() != pseudo_element)
+        if (pseudo_element.has_value() && selector.target_pseudo_element().has_value() && selector.target_pseudo_element().value().type() != pseudo_element)
             return false;
-        if (!pseudo_element.has_value() && selector.pseudo_element().has_value())
+        if (!pseudo_element.has_value() && selector.target_pseudo_element().has_value())
             return false;
     }
 
