@@ -1128,6 +1128,7 @@ struct SerialPortInfo;
 namespace Web::ServiceWorker {
 
 class Cache;
+class CacheStorage;
 class ServiceWorker;
 class ServiceWorkerContainer;
 class ServiceWorkerRegistration;

@@ -19,7 +19,6 @@
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntryTuple.h>
-#include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/WebSockets/WebSocket.h>
 
 namespace Web::HTML {
