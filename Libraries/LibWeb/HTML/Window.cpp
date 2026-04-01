@@ -719,7 +719,7 @@ BrowsingContext* Window::browsing_context()
 GC::Ptr<Navigable> Window::navigable() const
 {
     // A Window's navigable is the navigable whose active document is the Window's associated Document's, or null if there is no such navigable.
-    return Navigable::navigable_with_active_document(*m_associated_document);
+    return m_associated_document->navigable();
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#pdf-viewer-plugin-objects

@@ -299,6 +299,18 @@ Navigable::Navigable(GC::Ref<Page> page, bool is_svg_page)
 
 Navigable::~Navigable() = default;
 
+void Navigable::set_has_been_destroyed()
+{
+    m_has_been_destroyed = true;
+}
+
+void Navigable::remove_from_all_navigables()
+{
+    if (m_active_document)
+        m_active_document->set_navigable(nullptr);
+    all_navigables().remove(*this);
+}
+
 void Navigable::finalize()
 {
     all_navigables().remove(*this);
@@ -369,15 +381,6 @@ void Navigable::clear_navigation_load_event_guard()
     m_navigation_load_event_guard.clear();
 }
 
-GC::Ptr<Navigable> Navigable::navigable_with_active_document(GC::Ref<DOM::Document> document)
-{
-    for (auto navigable : all_navigables()) {
-        if (navigable->active_document() == document)
-            return navigable;
-    }
-    return nullptr;
-}
-
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
 void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document)
 {
@@ -401,6 +404,7 @@ void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
     m_active_document = document;
+    document->set_navigable(this);
 
     // 5. Set navigable's parent to parent.
     m_parent = parent;
@@ -441,7 +445,10 @@ void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry, GC::R
 
     // 4. Set navigable's active session history entry to entry.
     m_active_session_history_entry = entry;
+    if (m_active_document && m_active_document != new_document)
+        m_active_document->set_navigable(nullptr);
     m_active_document = new_document;
+    new_document->set_navigable(this);
 
     // 5. Make active newDocument.
     new_document->make_active();
@@ -485,7 +492,11 @@ Optional<UniqueNodeID> Navigable::active_document_id() const
 
 void Navigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
+    if (m_active_document && m_active_document != document)
+        m_active_document->set_navigable(nullptr);
     m_active_document = document;
+    if (document)
+        document->set_navigable(this);
 
     VERIFY(m_active_session_history_entry);
     Optional<UniqueNodeID> document_id;

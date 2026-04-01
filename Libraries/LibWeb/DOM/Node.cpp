@@ -398,17 +398,9 @@ WebIDL::ExceptionOr<void> Node::set_node_value(Optional<String> const& maybe_val
 // https://html.spec.whatwg.org/multipage/document-sequences.html#node-navigable
 GC::Ptr<HTML::Navigable> Node::navigable() const
 {
-    auto& document = const_cast<Document&>(this->document());
-    if (auto cached_navigable = document.cached_navigable()) {
-        if (cached_navigable->active_document() == &document)
-            return cached_navigable;
-    }
-
     // To get the node navigable of a node node, return the navigable whose active document is node's node document,
     // or null if there is no such navigable.
-    auto navigable = HTML::Navigable::navigable_with_active_document(document);
-    document.set_cached_navigable(navigable);
-    return navigable;
+    return document().navigable();
 }
 
 [[maybe_unused]] static StringView to_string(StyleInvalidationReason reason)

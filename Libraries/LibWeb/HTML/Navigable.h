@@ -128,8 +128,6 @@ public:
 
     GC::Ptr<Navigable> find_a_navigable_by_target_name(StringView name);
 
-    static GC::Ptr<Navigable> navigable_with_active_document(GC::Ref<DOM::Document>);
-
     enum class Traversal {
         Tag
     };
@@ -186,7 +184,8 @@ public:
 
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
-    void set_has_been_destroyed() { m_has_been_destroyed = true; }
+    void set_has_been_destroyed();
+    void remove_from_all_navigables();
 
     CSSPixelPoint to_top_level_position(CSSPixelPoint);
     CSSPixelRect to_top_level_rect(CSSPixelRect const&);

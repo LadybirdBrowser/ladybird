@@ -901,10 +901,10 @@ public:
 
     bool cursor_blink_state() const { return m_cursor_blink_state; }
 
-    // Cached pointer to the last known node navigable.
-    // If this document is currently the "active document" of the cached navigable, the cache is still valid.
-    GC::Ptr<HTML::Navigable> cached_navigable();
-    void set_cached_navigable(GC::Ptr<HTML::Navigable>);
+    // Back-pointer to the navigable whose active document is this document.
+    // Maintained by Navigable when it sets/clears its active document.
+    GC::Ptr<HTML::Navigable> navigable() const;
+    void set_navigable(GC::Ptr<HTML::Navigable>);
 
     template<OneOf<Painting::Paintable, HTML::Navigable, CSS::VisualViewport, Web::EventHandler> T>
     void set_needs_repaint(Badge<T>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
@@ -1416,7 +1416,7 @@ private:
     bool m_cursor_blink_state { false };
 
     // NOTE: This is GC::Weak, not GC::Ptr, on purpose. We don't want the document to keep some old detached navigable alive.
-    GC::Weak<HTML::Navigable> m_cached_navigable;
+    GC::Weak<HTML::Navigable> m_navigable;
 
     Core::SharedVersion m_cookie_version { Core::INVALID_SHARED_VERSION };
     Optional<Core::SharedVersionIndex> m_cookie_version_index;
