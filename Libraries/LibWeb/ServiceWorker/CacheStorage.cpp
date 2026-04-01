@@ -35,10 +35,25 @@ void CacheStorage::visit_edges(Visitor& visitor)
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-has
-GC::Ref<WebIDL::Promise> CacheStorage::has(String const&)
+GC::Ref<WebIDL::Promise> CacheStorage::has(String const& cache_name)
 {
-    dbgln("FIXME: CacheStorage::has() is not implemented yet");
-    return WebIDL::create_rejected_promise(realm(), JS::Value(false));
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 2. Run the following substeps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, cache_name]() {
+        HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. For each key → value of the relevant name to cache map:
+        //     1. If cacheName matches key, resolve promise with true and abort these steps.
+        // 2. Resolve promise with false.
+        WebIDL::resolve_promise(realm, promise, JS::Value { relevant_name_to_cache_map().contains(cache_name) });
+    }));
+
+    // 3. Return promise.
+    return promise;
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-open

@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-1 Pass
-9 Fail
+2 Pass
+8 Fail
 Fail	CacheStorage.open
 Fail	CacheStorage.delete dooms, but does not delete immediately
 Fail	CacheStorage.open with an empty name
 Pass	CacheStorage.open with no arguments
 Fail	CacheStorage.has with existing cache
-Fail	CacheStorage.has with nonexistent cache
+Pass	CacheStorage.has with nonexistent cache
 Fail	CacheStorage.open with existing cache
 Fail	CacheStorage.delete with existing cache
 Fail	CacheStorage.delete with nonexistent cache
