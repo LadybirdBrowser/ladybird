@@ -1522,7 +1522,6 @@ void Navigable::populate_session_history_entry_document(
     GC::Ref<SourceSnapshotParams> source_snapshot_params,
     TargetSnapshotParams const& target_snapshot_params,
     UserNavigationInvolvement user_involvement,
-    NonnullRefPtr<Core::Promise<Empty>> signal_to_continue_session_history_processing,
     Optional<String> navigation_id,
     NavigationParamsVariant navigation_params,
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type,
@@ -1542,20 +1541,18 @@ void Navigable::populate_session_history_entry_document(
     // 3. Let documentResource be entry's document state's resource.
     // NOTE: documentResource is passed as a parameter.
 
-    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing](GC::Ref<InternalNavigationResult> result) {
+    auto received_navigation_params = GC::create_function(heap(), [this, url, navigation_id, user_involvement, completion_steps, csp_navigation_type](GC::Ref<InternalNavigationResult> result) {
         // AD-HOC: Not in the spec but subsequent steps will fail if the navigable doesn't have an active window.
         if (!active_window())
             return;
 
         // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run these steps:
-        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type, signal_to_continue_session_history_processing]() mutable {
+        queue_global_task(Task::Source::NavigationAndTraversal, *active_window(), GC::create_function(heap(), [this, url, result, navigation_id, user_involvement, completion_steps, csp_navigation_type]() mutable {
             auto& navigation_params = result->navigation_params;
 
             // 1. If navigable's ongoing navigation no longer equals navigationId, then run completionSteps and abort these steps.
             if (navigation_id.has_value() && ongoing_navigation() != navigation_id) {
                 if (completion_steps) {
-                    // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-                    signal_to_continue_session_history_processing->resolve({});
                     completion_steps->function()(nullptr);
                 }
                 return;
@@ -1655,12 +1652,11 @@ void Navigable::populate_session_history_entry_document(
                 if (!sniff_bytes.has_value()) {
                     // Async path: bytes not yet available, wait for them
                     body->wait_for_sniff_bytes(GC::create_function(heap(),
-                        [output, nav_params, signal_to_continue_session_history_processing,
-                            navigation_params, completion_steps](ReadonlyBytes sniff_bytes) {
+                        [output, nav_params, navigation_params, completion_steps](ReadonlyBytes sniff_bytes) {
                             // AD-HOC: The document may have been destroyed between when the fetch started and when the
                             //         bytes arrived.
                             if (nav_params->navigable->active_browsing_context())
-                                output->document = load_document(nav_params, signal_to_continue_session_history_processing, sniff_bytes);
+                                output->document = load_document(nav_params, sniff_bytes);
                             output->navigation_params = navigation_params;
                             if (completion_steps)
                                 completion_steps->function()(output);
@@ -1669,7 +1665,7 @@ void Navigable::populate_session_history_entry_document(
                 }
 
                 // Sync path: bytes available immediately
-                output->document = load_document(nav_params, signal_to_continue_session_history_processing, sniff_bytes.value());
+                output->document = load_document(nav_params, sniff_bytes.value());
             }
 
             output->navigation_params = navigation_params;
@@ -2105,9 +2101,6 @@ void Navigable::begin_navigation(NavigateParams params)
                 // 9. Attempt to populate the history entry's document for historyEntry, given navigable, "navigate",
                 //    sourceSnapshotParams, targetSnapshotParams, userInvolvement, navigationId, navigationParams,
                 //    cspNavigationType, with allowPOST set to true and completionSteps set to the following step:
-
-                // NB: Use Core::Promise to signal SessionHistoryTraversalQueue that it can continue to execute next entry.
-                auto signal_to_continue_session_history_processing = Core::Promise<Empty>::construct();
                 populate_session_history_entry_document(
                     history_entry->url(),
                     history_entry->document_state()->resource(),
@@ -2120,7 +2113,7 @@ void Navigable::begin_navigation(NavigateParams params)
                     history_entry->document_state()->navigable_target_name(),
                     history_entry->document_state()->reload_pending(),
                     history_entry->document_state()->ever_populated(),
-                    source_snapshot_params, target_snapshot_params, user_involvement, signal_to_continue_session_history_processing, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, signal_to_continue_session_history_processing, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
+                    source_snapshot_params, target_snapshot_params, user_involvement, navigation_id, navigation_params, csp_navigation_type, true, GC::create_function(heap(), [this, history_entry, history_handling, navigation_id, user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                         if (output)
                             output->apply_to(*history_entry);
                         // 1. Append session history traversal steps to navigable's traversable to finalize a cross-document navigation given navigable, historyHandling, userInvolvement, and historyEntry.
@@ -2336,7 +2329,7 @@ GC::Ptr<DOM::Document> Navigable::evaluate_javascript_url(URL::URL const& url, U
 
     // 17. Return the result of loading an HTML document given navigationParams.
     // NB: The response body is a known byte sequence, so we can pass it directly for sniffing.
-    return load_document(navigation_params, Core::Promise<Empty>::construct(), result.bytes());
+    return load_document(navigation_params, result.bytes());
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-to-a-javascript:-url

@@ -755,14 +755,13 @@ void ApplyHistoryStepState::start()
                 //    queue a global task on the navigation and traversal task source given navigable's active window to
                 //    run afterDocumentPopulated.
                 Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [input_url = move(input_url), input_document_resource = move(input_document_resource), input_request_referrer = move(input_request_referrer), input_request_referrer_policy, input_initiator_origin = move(input_initiator_origin), input_origin = move(input_origin), input_history_policy_container = move(input_history_policy_container), input_about_base_url = move(input_about_base_url), input_navigable_target_name = move(input_navigable_target_name), input_ever_populated, potentially_target_specific_source_snapshot_params, target_snapshot_params, this, allow_POST, navigable, after_document_populated, user_involvement = m_user_involvement] {
-                    auto signal = Core::Promise<Empty>::construct();
                     navigable->populate_session_history_entry_document(
                         move(input_url), move(input_document_resource), move(input_request_referrer),
                         input_request_referrer_policy, move(input_initiator_origin), move(input_origin),
                         input_history_policy_container, move(input_about_base_url), move(input_navigable_target_name),
                         false, input_ever_populated,
                         *potentially_target_specific_source_snapshot_params, target_snapshot_params,
-                        user_involvement, signal, {}, Navigable::NullOrError {},
+                        user_involvement, {}, Navigable::NullOrError {},
                         ContentSecurityPolicy::Directives::Directive::NavigationType::Other, allow_POST,
                         GC::create_function(this->heap(), [this, after_document_populated](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) {
                             VERIFY(m_traversable->active_window());
