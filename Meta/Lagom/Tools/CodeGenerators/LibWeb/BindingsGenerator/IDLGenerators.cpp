@@ -124,6 +124,7 @@ static bool is_platform_object(Type const& type)
         "Range"sv,
         "ReadableStream"sv,
         "Request"sv,
+        "Response"sv,
         "Selection"sv,
         "ServiceWorkerContainer"sv,
         "ServiceWorkerRegistration"sv,

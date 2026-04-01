@@ -1,0 +1,20 @@
+#import <Fetch/Request.idl>
+#import <Fetch/Response.idl>
+
+// https://w3c.github.io/ServiceWorker/#cache-interface
+[SecureContext, Exposed=(Window,Worker)]
+interface Cache {
+    // [NewObject] Promise<(Response or undefined)> match(RequestInfo request, optional CacheQueryOptions options = {});
+    // [NewObject] Promise<FrozenArray<Response>> matchAll(optional RequestInfo request, optional CacheQueryOptions options = {});
+    // [NewObject] Promise<undefined> add(RequestInfo request);
+    // [NewObject] Promise<undefined> addAll(sequence<RequestInfo> requests);
+    // [NewObject] Promise<undefined> put(RequestInfo request, Response response);
+    // [NewObject] Promise<boolean> delete(RequestInfo request, optional CacheQueryOptions options = {});
+    // [NewObject] Promise<FrozenArray<Request>> keys(optional RequestInfo request, optional CacheQueryOptions options = {});
+};
+
+dictionary CacheQueryOptions {
+    boolean ignoreSearch = false;
+    boolean ignoreMethod = false;
+    boolean ignoreVary = false;
+};

@@ -94,6 +94,7 @@ CSSTranslate
 CSSUnitValue
 CSSUnparsedValue
 CSSVariableReferenceValue
+Cache
 CacheStorage
 CanvasGradient
 CanvasPattern
