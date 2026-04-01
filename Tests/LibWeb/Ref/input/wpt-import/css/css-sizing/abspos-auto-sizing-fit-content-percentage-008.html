@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<link rel="author" title="Brandon Stewart" href="mailto:brandonstewart@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-auto-size">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#valdef-width-max-content">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Absolutely positioned block with height: max-content should treat percentage height children as indefinite, sizing to content rather than containing block height.">
+<style>
+.container {
+  position: relative;
+  width: 100px;
+  height: 50px;
+}
+
+.background {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+
+.abs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: max-content;
+  width: 100px;
+  background: green;
+}
+
+.child {
+  height: 100%;
+}
+
+.content {
+  height: 100px;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="background">
+  <div class="container">
+    <div class="abs">
+      <div class="child">
+        <div class="content"></div>
+      </div>
+    </div>
+  </div>
+</div>

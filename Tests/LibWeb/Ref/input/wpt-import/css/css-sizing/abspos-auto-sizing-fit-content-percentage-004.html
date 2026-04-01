@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<link rel="author" title="David Shin" href="mailto:dshin@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-auto-size">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1936450">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Ensures that abspos elements with fit-content sizing disallows percent-size resolution in its children.">
+<style>
+.container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+
+.abs {
+  position: absolute;
+  background: green;
+}
+
+.child {
+  width: 100px;
+  height: 100px;
+  padding-right: 50%;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="container">
+  <div class="abs">
+    <div class="child"></div>
+  </div>
+</div>

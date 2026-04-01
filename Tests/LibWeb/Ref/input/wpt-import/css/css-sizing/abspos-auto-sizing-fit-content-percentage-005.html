@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<link rel="author" title="Brandon Stewart" href="mailto:brandonstewart@apple.com">
+<link rel="help" href="https://drafts.csswg.org/css-position-3/#abspos-auto-size">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#valdef-width-fit-content">
+<link rel="match" href="../../../../expected/wpt-import/css/css-sizing/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="Absolutely positioned block with height: fit-content should treat percentage height children as indefinite, sizing to content rather than containing block height.">
+<style>
+/*
+  The containing block (.container) is 50px tall. The abs-pos element has
+  height: fit-content. Its child has height: 100%, which should resolve as
+  indefinite (auto) since the parent has an intrinsic height. The child then
+  sizes to its content (100px), making the abs-pos element 100px tall.
+
+  If the bug exists, height: 100% resolves against the containing block (50px),
+  making the abs-pos element only 50px, exposing 50px of red below.
+*/
+.container {
+  position: relative;
+  width: 100px;
+  height: 50px;
+}
+
+.background {
+  width: 100px;
+  height: 100px;
+  background: red;
+}
+
+.abs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: fit-content;
+  width: 100px;
+  background: green;
+}
+
+.child {
+  height: 100%;
+}
+
+.content {
+  height: 100px;
+}
+</style>
+<p>Test passes if there is a filled green square.</p>
+<div class="background">
+  <div class="container">
+    <div class="abs">
+      <div class="child">
+        <div class="content"></div>
+      </div>
+    </div>
+  </div>
+</div>
