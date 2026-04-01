@@ -1,31 +1,30 @@
-Harness status: Error
+Harness status: OK
 
 Found 25 tests
 
-1 Fail
-24 Not Run
+25 Fail
 Fail	Cache.match with no matching entries
-Not Run	Cache.match with URL
-Not Run	Cache.match with Request
-Not Run	Cache.match with multiple cache hits
-Not Run	Cache.match with new Request
-Not Run	Cache.match with HEAD
-Not Run	Cache.match with ignoreSearch option (request with no search parameters)
-Not Run	Cache.match with ignoreSearch option (request with search parameter)
-Not Run	Cache.match supports ignoreMethod
-Not Run	Cache.match supports ignoreVary
-Not Run	Cache.match does not support cacheName option
-Not Run	Cache.match with URL containing fragment
-Not Run	Cache.match with string fragment "http" as query
-Not Run	Cache.match with responses containing "Vary" header
-Not Run	Cache.match with Request and Response objects with different URLs
-Not Run	Cache.match invoked multiple times for the same Request/Response
-Not Run	Cache.match blob should be sliceable
-Not Run	Cache.match with POST Request
-Not Run	Cache.match with a non-2xx Response
-Not Run	Cache.match with a network error Response
-Not Run	Cache produces large Responses that can be cloned and read correctly.
-Not Run	cors-exposed header should be stored correctly.
-Not Run	MIME type should be set from content-header correctly.
-Not Run	MIME type should reflect Content-Type headers of response.
-Not Run	Cache.match ignores vary headers on opaque response.
+Fail	Cache.match with URL
+Fail	Cache.match with Request
+Fail	Cache.match with multiple cache hits
+Fail	Cache.match with new Request
+Fail	Cache.match with HEAD
+Fail	Cache.match with ignoreSearch option (request with no search parameters)
+Fail	Cache.match with ignoreSearch option (request with search parameter)
+Fail	Cache.match supports ignoreMethod
+Fail	Cache.match supports ignoreVary
+Fail	Cache.match does not support cacheName option
+Fail	Cache.match with URL containing fragment
+Fail	Cache.match with string fragment "http" as query
+Fail	Cache.match with responses containing "Vary" header
+Fail	Cache.match with Request and Response objects with different URLs
+Fail	Cache.match invoked multiple times for the same Request/Response
+Fail	Cache.match blob should be sliceable
+Fail	Cache.match with POST Request
+Fail	Cache.match with a non-2xx Response
+Fail	Cache.match with a network error Response
+Fail	Cache produces large Responses that can be cloned and read correctly.
+Fail	cors-exposed header should be stored correctly.
+Fail	MIME type should be set from content-header correctly.
+Fail	MIME type should reflect Content-Type headers of response.
+Fail	Cache.match ignores vary headers on opaque response.

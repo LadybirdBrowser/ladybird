@@ -1,17 +1,16 @@
-Harness status: Error
+Harness status: OK
 
 Found 11 tests
 
-1 Fail
-10 Not Run
+11 Fail
 Fail	CacheStorageMatch with no cache name provided
-Not Run	CacheStorageMatch from one of many caches
-Not Run	CacheStorageMatch from one of many caches by name
-Not Run	CacheStorageMatch a string request
-Not Run	CacheStorageMatch a HEAD request
-Not Run	CacheStorageMatch with no cached entry
-Not Run	CacheStorageMatch with no caches available but name provided
-Not Run	CacheStorageMatch with empty cache name provided
-Not Run	CacheStorageMatch supports ignoreSearch
-Not Run	Cache.match supports ignoreMethod
-Not Run	CacheStorageMatch supports ignoreVary
+Fail	CacheStorageMatch from one of many caches
+Fail	CacheStorageMatch from one of many caches by name
+Fail	CacheStorageMatch a string request
+Fail	CacheStorageMatch a HEAD request
+Fail	CacheStorageMatch with no cached entry
+Fail	CacheStorageMatch with no caches available but name provided
+Fail	CacheStorageMatch with empty cache name provided
+Fail	CacheStorageMatch supports ignoreSearch
+Fail	Cache.match supports ignoreMethod
+Fail	CacheStorageMatch supports ignoreVary

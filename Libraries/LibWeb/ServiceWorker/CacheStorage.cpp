@@ -95,6 +95,47 @@ GC::Ref<WebIDL::Promise> CacheStorage::open(String const& cache_name)
     return promise;
 }
 
+// https://w3c.github.io/ServiceWorker/#cache-storage-open
+GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let promise be the result of running the algorithm specified in has(cacheName) method with cacheName.
+    auto promise = has(cache_name);
+
+    // 2. Return the result of reacting to promise with a fulfillment handler that, when called with argument cacheExists,
+    //    performs the following substeps:
+    return WebIDL::upon_fulfillment(promise, GC::create_function(realm.heap(), [this, &realm, cache_name](JS::Value cache_exists) mutable -> WebIDL::ExceptionOr<JS::Value> {
+        // 1. If cacheExists is false, then:
+        if (!cache_exists.as_bool()) {
+            // 1. Return false.
+            return false;
+        }
+
+        HTML::TemporaryExecutionContext context { realm };
+
+        // 1. Let cacheJobPromise be a new promise.
+        auto cache_job_promise = WebIDL::create_promise(realm);
+
+        // 2. Run the following substeps in parallel:
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, cache_job_promise, cache_name]() {
+            HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+            // 1. Remove the relevant name to cache map[cacheName].
+            relevant_name_to_cache_map().remove(cache_name);
+
+            // 2. Resolve cacheJobPromise with true.
+            WebIDL::resolve_promise(realm, cache_job_promise, JS::Value { true });
+
+            // Note: After this step, the existing DOM objects (i.e. the currently referenced Cache, Request, and
+            //       Response objects) should remain functional.
+        }));
+
+        // 3. Return cacheJobPromise.
+        return cache_job_promise->promise();
+    }));
+}
+
 // https://w3c.github.io/ServiceWorker/#relevant-name-to-cache-map
 NameToCacheMap& CacheStorage::relevant_name_to_cache_map()
 {
