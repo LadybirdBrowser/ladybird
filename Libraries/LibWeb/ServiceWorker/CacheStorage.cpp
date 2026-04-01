@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/CacheStoragePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -134,6 +135,34 @@ GC::Ref<WebIDL::Promise> CacheStorage::delete_(String const& cache_name)
         // 3. Return cacheJobPromise.
         return cache_job_promise->promise();
     }));
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-storage-keys
+GC::Ref<WebIDL::Promise> CacheStorage::keys()
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 2. Run the following substeps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise]() {
+        HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+        // 1. Let cacheKeys be the result of getting the keys of the relevant name to cache map.
+        auto cache_keys = relevant_name_to_cache_map().keys();
+
+        // Note: The items in the result ordered set are in the order that their corresponding entry was added to the
+        //       name to cache map.
+
+        // 2. Resolve promise with cacheKeys.
+        WebIDL::resolve_promise(realm, promise, JS::Array::create_from<String>(realm, cache_keys, [&](String const& cache_key) {
+            return JS::PrimitiveString::create(realm.vm(), cache_key);
+        }));
+    }));
+
+    // 3. Return promise.
+    return promise;
 }
 
 // https://w3c.github.io/ServiceWorker/#relevant-name-to-cache-map

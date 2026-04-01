@@ -22,6 +22,7 @@ public:
     GC::Ref<WebIDL::Promise> has(String const& cache_name);
     GC::Ref<WebIDL::Promise> open(String const& cache_name);
     GC::Ref<WebIDL::Promise> delete_(String const& cache_name);
+    GC::Ref<WebIDL::Promise> keys();
 
 private:
     explicit CacheStorage(JS::Realm&);
