@@ -406,9 +406,9 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             GC::Ptr<DOM::Element const> slot_shadow_host;
             if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(matching_slot->root()))
                 slot_shadow_host = slot_shadow_root->host();
-            if (!SelectorEngine::matches(selector, *matching_slot, slot_shadow_host, context, PseudoElement::Slotted))
+            if (!SelectorEngine::matches(selector, { *matching_slot, PseudoElement::Slotted }, slot_shadow_host, context))
                 continue;
-        } else if (!SelectorEngine::matches(selector, abstract_element.element(), shadow_host_to_use, context, abstract_element.pseudo_element()))
+        } else if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
             continue;
         matching_rules.append(&rule_to_run);
     }

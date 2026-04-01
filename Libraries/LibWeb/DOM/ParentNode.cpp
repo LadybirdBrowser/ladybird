@@ -91,7 +91,7 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
     node.for_each_in_subtree_of_type<Element>([&](auto& element) {
         for (auto const& selector : selectors) {
             SelectorEngine::MatchContext context;
-            if (SelectorEngine::matches(selector, element, nullptr, context, {}, node)) {
+            if (SelectorEngine::matches(selector, element, nullptr, context, node)) {
                 if (return_matches == ReturnMatches::First) {
                     single_result = &element;
                     return TraversalDecision::Break;
