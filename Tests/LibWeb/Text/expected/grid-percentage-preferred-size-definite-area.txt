@@ -1,0 +1,16 @@
+row-single-start: 10x50
+row-single-start matches 10x50: true
+row-single-stretch: 10x50
+row-single-stretch matches 10x50: true
+row-span-start: 10x50
+row-span-start matches 10x50: true
+row-span-stretch: 10x50
+row-span-stretch matches 10x50: true
+column-single-start: 50x10
+column-single-start matches 50x10: true
+column-single-stretch: 50x10
+column-single-stretch matches 50x10: true
+column-span-start: 50x10
+column-span-start matches 50x10: true
+column-span-stretch: 50x10
+column-span-stretch matches 50x10: true

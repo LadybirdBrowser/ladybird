@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+body {
+    margin: 0;
+    font-size: 0;
+}
+
+.grid {
+    display: inline-grid;
+    justify-items: stretch;
+    align-items: stretch;
+}
+
+.row-single {
+    grid-template-columns: 10px;
+    grid-template-rows: 100px;
+}
+
+.row-span {
+    grid-template-columns: 10px;
+    grid-template-rows: 60px 40px;
+}
+
+.column-single {
+    grid-template-columns: 100px;
+    grid-template-rows: 10px;
+}
+
+.column-span {
+    grid-template-columns: 60px 40px;
+    grid-template-rows: 10px;
+}
+
+.row-item {
+    width: 10px;
+    min-height: 0;
+    height: 50%;
+}
+
+.column-item {
+    min-width: 0;
+    width: 50%;
+    height: 10px;
+}
+
+.row-span-item {
+    grid-row: 1 / span 2;
+}
+
+.column-span-item {
+    grid-column: 1 / span 2;
+}
+
+.start-row {
+    align-self: start;
+}
+
+.stretch-row {
+    align-self: stretch;
+}
+
+.start-column {
+    justify-self: start;
+}
+
+.stretch-column {
+    justify-self: stretch;
+}
+</style>
+<div class="grid row-single">
+    <div id="row-single-start" class="row-item start-row"></div>
+</div>
+<div class="grid row-single">
+    <div id="row-single-stretch" class="row-item stretch-row"></div>
+</div>
+<div class="grid row-span">
+    <div id="row-span-start" class="row-item row-span-item start-row"></div>
+</div>
+<div class="grid row-span">
+    <div id="row-span-stretch" class="row-item row-span-item stretch-row"></div>
+</div>
+<div class="grid column-single">
+    <div id="column-single-start" class="column-item start-column"></div>
+</div>
+<div class="grid column-single">
+    <div id="column-single-stretch" class="column-item stretch-column"></div>
+</div>
+<div class="grid column-span">
+    <div id="column-span-start" class="column-item column-span-item start-column"></div>
+</div>
+<div class="grid column-span">
+    <div id="column-span-stretch" class="column-item column-span-item stretch-column"></div>
+</div>
+<script>
+function printCase(id, expectedWidth, expectedHeight) {
+    const rect = document.getElementById(id).getBoundingClientRect();
+    const width = Math.round(rect.width);
+    const height = Math.round(rect.height);
+    println(`${id}: ${width}x${height}`);
+    println(`${id} matches ${expectedWidth}x${expectedHeight}: ${width === expectedWidth && height === expectedHeight}`);
+}
+
+test(() => {
+    printCase("row-single-start", 10, 50);
+    printCase("row-single-stretch", 10, 50);
+    printCase("row-span-start", 10, 50);
+    printCase("row-span-stretch", 10, 50);
+    printCase("column-single-start", 50, 10);
+    printCase("column-single-stretch", 50, 10);
+    printCase("column-span-start", 50, 10);
+    printCase("column-span-stretch", 50, 10);
+});
+</script>

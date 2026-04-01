@@ -1744,15 +1744,10 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
             // OPTIMIZATION: For auto-sized items with stretch/normal alignment and no auto margins, the item stretches
             //               to fill the containing block. We can compute this directly without the expensive
             //               calculate_fit_content_width/height calls that trigger intrinsic sizing.
-            auto should_treat_preferred_size_as_auto = [&] {
-                if (preferred_size.is_auto())
-                    return true;
-                if (dimension == GridDimension::Column)
-                    return should_treat_width_as_auto(item.box, available_space);
-                return should_treat_height_as_auto(item.box, available_space);
-            }();
-
-            bool can_stretch_directly = should_treat_preferred_size_as_auto
+            // NB: Final grid item alignment works with the resolved grid area size. Percentage preferred sizes
+            //     must resolve against that definite area instead of being reclassified as auto from the outer
+            //     grid container's own definiteness.
+            bool can_stretch_directly = preferred_size.is_auto()
                 && (alignment == Alignment::Stretch || alignment == Alignment::Normal)
                 && !item.margin_start(dimension).is_auto()
                 && !item.margin_end(dimension).is_auto();
@@ -1763,7 +1758,7 @@ void GridFormattingContext::resolve_grid_item_sizes(GridDimension dimension)
                     .margin_end = item.used_margin_end(dimension),
                     .size = stretched_size
                 };
-            } else if (should_treat_preferred_size_as_auto || preferred_size.is_fit_content()) {
+            } else if (preferred_size.is_auto() || preferred_size.is_fit_content()) {
                 CSSPixels fit_content_size;
                 if (dimension == GridDimension::Column) {
                     fit_content_size = calculate_fit_content_width(item.box, available_space);
