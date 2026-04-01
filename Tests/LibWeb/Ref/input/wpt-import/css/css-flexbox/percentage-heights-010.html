@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>A height: 100% descendant should trigger a relayout when stretching.</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#definite-sizes" />
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1043071" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht" />
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flex; width: 100px;">
+  <div style="display: flex; flex-direction: column; flex: 1; min-height: 100px;">
+    <div style="flex: 1; background: red;">
+      <div style="height: 100%; background-color: green;"></div>
+    </div>
+  </div>
+</div>

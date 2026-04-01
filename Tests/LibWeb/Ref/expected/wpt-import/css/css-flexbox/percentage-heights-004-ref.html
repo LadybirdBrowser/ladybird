@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<title>CSS Flexbox: Percentages in stretched container</title>
+<link rel="author" title="Google" href="https://www.google.com/" />
+
+<style>
+#outer {
+  height: 10em;
+  display: inline-block;
+  background: tan;
+  vertical-align: top;
+}
+
+#middle {
+  overflow-x: scroll;
+  height: 100%;
+}
+
+#inner {
+  width: 200px;
+  height: 100%;
+  background: green;
+}
+
+#outer2 {
+  height: 10em;
+  display: inline-block;
+  background: tan;
+}
+
+#middle2 {
+  overflow-x: scroll;
+  height: 10em;
+}
+
+#inner2 {
+  width: 200px;
+  height: 100%;
+  background: green;
+}
+</style>
+
+<p>You should not see tan (except perhaps as the background of a horizontal
+   scrollbar), and you should not see a vertical scrollbar.</p>
+
+<div id="outer">
+  <div id="middle">
+    <div id="inner">
+      hello
+    </div>
+  </div>
+</div>
+
+<div id="outer2">
+  <div id="middle2">
+    <div id="inner2">
+      hello
+    </div>
+  </div>
+</div>
+

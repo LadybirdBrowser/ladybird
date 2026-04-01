@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Percentage rows indefinite height 2nd pass</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#track-sizing">
+<meta name="assert" content="This test checkds that when we have percentage rows in indefinite height grid containers, we need to do a second pass of the track sizing algorithm to get the expected results.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  display: grid;
+  border: solid 5px;
+  position: relative;
+  font: 25px/1 Ahem;
+  margin: 50px 0;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<div class="grid" style="grid-template-rows: auto 60% auto;" data-expected-height="35">
+  <div style="grid-row: 1; grid-column: 1; background: cyan;" data-expected-height="5" data-offset-y="0"></div>
+  <div style="grid-row: 1 / 4; grid-column: 2; background: magenta;" data-expected-height="25" data-offset-y="0">X</div>
+  <div style="grid-row: 3; grid-column: 3; background: lime;" data-expected-height="5" data-offset-y="20"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 20% auto;" data-expected-height="60">
+  <div style="grid-row: 1; grid-column: 1; background: cyan;" data-expected-height="25" data-offset-y="0">X</div>
+  <div style="grid-row: 1 / 4; grid-column: 2; background: magenta;" data-expected-height="60" data-offset-y="0">X</div>
+  <div style="grid-row: 3; grid-column: 3; background: lime;" data-expected-height="25" data-offset-y="35">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 10% auto; grid-template-columns: repeat(3, 50px);" data-expected-height="110">
+  <div style="grid-row: 1; grid-column: 1; background: cyan;" data-expected-height="45"></div>
+  <div style="grid-row: 1 / 4; grid-column: 2; background: magenta;" data-expected-height="100">X X X X</div>
+  <div style="grid-row: 3; grid-column: 3; background: lime;" data-expected-height="45"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 10% auto; grid-template-columns: repeat(3, 50px);" data-expected-height="110">
+  <div style="grid-row: 1; grid-column: 1; background: cyan;" data-expected-height="45">X</div>
+  <div style="grid-row: 1 / 4; grid-column: 2; background: magenta;" data-expected-height="100">X X X X</div>
+  <div style="grid-row: 3; grid-column: 3; background: lime;" data-expected-height="45">X</div>
+</div>
+
+</body>

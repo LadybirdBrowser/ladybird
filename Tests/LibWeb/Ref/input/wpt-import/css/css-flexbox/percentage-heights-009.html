@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<title>height: 100% should not be considered indefinite on a second flex item (triggers an obscure bug in Blink)</title>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#definite-sizes" />
+<link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1019138" />
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht" />
+<style type="text/css">
+.container {
+  height: 100px;
+  width: 100px;
+}
+.flexbox {
+  background: red;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.first-item {
+  background: green;
+  display: flex;
+}
+.second-item {
+  /* This should not be considered indefinite */
+  height: 100%;
+  background: green;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div class="container">
+  <div class="flexbox">
+    <div class="first-item">
+      <div style="width: 100px; height: 20px;"></div>
+    </div>
+    <div class="second-item">
+    </div>
+  </div>
+</div>

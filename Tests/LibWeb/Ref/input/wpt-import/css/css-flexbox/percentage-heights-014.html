@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="A flex-item with a replaced height descendant should determine its flex-basis correctly when the height of the flexbox changes." />
+<p>Test passes if there is a filled green square.</p>
+<div id="target" style="display: flex; width: 100px; height: 100px;">
+  <div style="height: 50%; flex: 1; background: green;">
+    <canvas width=10 height=10 style="height: 100%;"></canvas>
+  </div>
+  <div style="flex: 1;"></div>
+</div>
+<script>
+  document.body.offsetTop;
+  document.getElementById('target').style.height = '200px';
+</script>

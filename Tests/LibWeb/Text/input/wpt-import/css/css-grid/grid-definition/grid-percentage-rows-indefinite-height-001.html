@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>CSS Grid Layout Test: Percentage rows indefinite height</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-grid-1/#track-sizing">
+<meta name="assert" content="This test checks that percentage rows on grid containers with indefinite height are treated as 'auto' to compute the intrinsic height, but are later resolved against the intrinsic height during layout.">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../css/support/grid.css">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+.grid {
+  position: relative;
+  font: 25px/1 Ahem;
+  margin: 50px 0;
+}
+
+.border {
+  border: 10px solid;
+}
+
+.padding {
+  padding: 5px;
+}
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<script type="text/javascript">
+  setup({ explicit_done: true });
+</script>
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+
+<div id="log"></div>
+
+<p>grid-template-rows: 60%;</p>
+
+<div class="grid" style="grid-template-rows: 60%;" data-expected-height="0">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 60%;" data-expected-height="25">
+  <div class="firstRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 60%;" data-expected-height="50">
+  <div class="firstRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 60%;" data-expected-height="20">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 60%;" data-expected-height="45">
+  <div class="firstRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 60%;" data-expected-height="70">
+  <div class="firstRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 60%;" data-expected-height="10">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 60%;" data-expected-height="35">
+  <div class="firstRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 60%;" data-expected-height="60">
+  <div class="firstRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 60%;" data-expected-height="30">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 60%;" data-expected-height="55">
+  <div class="firstRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 60%;" data-expected-height="80">
+  <div class="firstRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<p>grid-template-rows: 140%;</p>
+
+<div class="grid" style="grid-template-rows: 140%;" data-expected-height="0">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 140%;" data-expected-height="25">
+  <div class="firstRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 140%;" data-expected-height="50">
+  <div class="firstRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 140%;" data-expected-height="20">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 140%;" data-expected-height="45">
+  <div class="firstRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 140%;" data-expected-height="70">
+  <div class="firstRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 140%;" data-expected-height="10">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 140%;" data-expected-height="35">
+  <div class="firstRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 140%;" data-expected-height="60">
+  <div class="firstRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 140%;" data-expected-height="30">
+  <div class="firstRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 140%;" data-expected-height="55">
+  <div class="firstRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 140%;" data-expected-height="80">
+  <div class="firstRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<p>grid-template-rows: 100px 60%;</p>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="100">
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="125">
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="150">
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="100">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="125">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 60%;" data-expected-height="150">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="120">
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="145">
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="170">
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="120">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="145">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 60%;" data-expected-height="170">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="110">
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="135">
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="160">
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="110">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="135">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 60%;" data-expected-height="160">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="130">
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="155">
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="180">
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="130">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="60"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="155">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="75">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 60%;" data-expected-height="180">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="90">X<br>X</div>
+</div>
+
+<p>grid-template-rows: 100px 140%;</p>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="100">
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="125">
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="150">
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="100">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="125">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: 100px 140%;" data-expected-height="150">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="120">
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="145">
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="170">
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="120">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="145">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: 100px 140%;" data-expected-height="170">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="110">
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="135">
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="160">
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="110">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="135">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: 100px 140%;" data-expected-height="160">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="130">
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="155">
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="180">
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="130">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="140"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="155">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="175">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: 100px 140%;" data-expected-height="180">
+  <div class="firstRowFirstColumn" data-expected-height="100">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="210">X<br>X</div>
+</div>
+
+<p>grid-template-rows: auto 60%;</p>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="0">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="25">
+  <div class="secondRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="50">
+  <div class="secondRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="25">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="15"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="50">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="30">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 60%;" data-expected-height="75">
+  <div class="firstRowFirstColumn" data-expected-height="30">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="45">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="20">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="45">
+  <div class="secondRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="70">
+  <div class="secondRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="45">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="15"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="70">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="30">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 60%;" data-expected-height="95">
+  <div class="firstRowFirstColumn" data-expected-height="30">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="45">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="10">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="35">
+  <div class="secondRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="60">
+  <div class="secondRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="35">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="15"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="60">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="30">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 60%;" data-expected-height="85">
+  <div class="firstRowFirstColumn" data-expected-height="30">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="45">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="30">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="55">
+  <div class="secondRowFirstColumn" data-expected-height="15">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="80">
+  <div class="secondRowFirstColumn" data-expected-height="30">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="55">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="15"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="80">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="30">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 60%;" data-expected-height="105">
+  <div class="firstRowFirstColumn" data-expected-height="30">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="45">X<br>X</div>
+</div>
+
+<p>grid-template-rows: auto 140%;</p>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="0">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="25">
+  <div class="secondRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="50">
+  <div class="secondRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="25">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="35"></div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="50">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="70">X</div>
+</div>
+
+<div class="grid" style="grid-template-rows: auto 140%;" data-expected-height="75">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="105">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="20">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="45">
+  <div class="secondRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="70">
+  <div class="secondRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="45">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="35"></div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="70">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="70">X</div>
+</div>
+
+<div class="grid border" style="grid-template-rows: auto 140%;" data-expected-height="95">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="105">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="10">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="35">
+  <div class="secondRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="60">
+  <div class="secondRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="35">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="35"></div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="60">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="70">X</div>
+</div>
+
+<div class="grid padding" style="grid-template-rows: auto 140%;" data-expected-height="85">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="105">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="30">
+  <div class="secondRowFirstColumn" data-expected-height="0"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="55">
+  <div class="secondRowFirstColumn" data-expected-height="35">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="80">
+  <div class="secondRowFirstColumn" data-expected-height="70">X<br>X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="55">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="35"></div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="80">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="70">X</div>
+</div>
+
+<div class="grid border padding" style="grid-template-rows: auto 140%;" data-expected-height="105">
+  <div class="firstRowFirstColumn" data-expected-height="25">X</div>
+  <div class="secondRowFirstColumn" data-expected-height="105">X<br>X</div>
+</div>
+
+</body>

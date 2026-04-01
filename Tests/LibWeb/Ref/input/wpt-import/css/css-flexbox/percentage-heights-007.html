@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<title>Definite sizes with fixed flex-basis</title>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox-1/#definite-sizes">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square.xht" />
+<meta name="assert" content="In a column flexbox, the height of a fully inflexible item with fixed flex-basis is definite even when the heights of the item and the container are indefinite." />
+
+<style>
+x-flexbox {
+  display: flex;
+  flex-direction: column;
+}
+
+x-item {
+  flex: 0 0 100px;
+}
+
+x-item>div {
+  width: 100px;
+  height: 100%;
+  background: green;
+}
+
+#reference-overlapped-red {
+  position: absolute;
+  background-color: red;
+  width: 100px;
+  height: 100px;
+  z-index: -1;
+}
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div id="reference-overlapped-red"></div>
+
+<x-flexbox>
+  <x-item>
+    <div></div>
+  </x-item>
+</x-flexbox>
