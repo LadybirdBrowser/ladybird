@@ -191,6 +191,7 @@ private:
     void* m_curl_easy_handle { nullptr };
     Vector<curl_slist*> m_curl_string_lists;
     Optional<int> m_curl_result_code;
+    Vector<char> m_curl_error_buffer;
 
     NonnullRefPtr<Resolver> m_resolver;
     RefPtr<DNS::LookupResult const> m_dns_result;

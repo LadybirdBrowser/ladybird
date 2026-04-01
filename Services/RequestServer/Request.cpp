@@ -250,6 +250,8 @@ void Request::process()
 
 void Request::handle_initial_state()
 {
+    m_curl_error_buffer.resize(CURL_ERROR_SIZE);
+
     // Check for resource substitution before anything else.
     if (g_resource_substitution_map) {
         if (g_resource_substitution_map->lookup(m_url).has_value()) {
@@ -486,6 +488,8 @@ void Request::handle_connect_state()
     set_option(CURLOPT_PRIVATE, this);
 
     set_option(CURLOPT_NOSIGNAL, 1L);
+    m_curl_error_buffer[0] = '\0';
+    set_option(CURLOPT_ERRORBUFFER, m_curl_error_buffer.data());
 
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
@@ -522,6 +526,8 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_PRIVATE, this);
 
     set_option(CURLOPT_NOSIGNAL, 1L);
+    m_curl_error_buffer[0] = '\0';
+    set_option(CURLOPT_ERRORBUFFER, m_curl_error_buffer.data());
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
@@ -629,9 +635,18 @@ void Request::handle_complete_state()
 
         if (m_curl_result_code != CURLE_OK) {
             m_network_error = curl_code_to_network_error(*m_curl_result_code);
+            auto const* curl_error_message = curl_easy_strerror(static_cast<CURLcode>(*m_curl_result_code));
+            auto error_detail = StringView { m_curl_error_buffer.data(), strlen(m_curl_error_buffer.data()) };
+
+            if (!error_detail.is_empty()) {
+                dbgln("Request::handle_complete_state: Request failed for {} with curl error {} ({}): \"\033[31;1m{}\033[0m\"",
+                    m_url, *m_curl_result_code, curl_error_message, error_detail);
+            } else {
+                dbgln("Request::handle_complete_state: Request failed for {} with curl error {} ({}), but curl did not provide additional details",
+                    m_url, *m_curl_result_code, curl_error_message);
+            }
 
             if (m_network_error == Requests::NetworkError::Unknown) {
-                char const* curl_error_message = curl_easy_strerror(static_cast<CURLcode>(*m_curl_result_code));
                 dbgln("Request::handle_complete_state: Unable to map error ({}): \"\033[31;1m{}\033[0m\"", *m_curl_result_code, curl_error_message);
             }
 
