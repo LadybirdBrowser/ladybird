@@ -34,6 +34,7 @@ public:
     constexpr T y() const { return m_min_y; }
     constexpr T width() const { return m_max_x - m_min_x; }
     constexpr T height() const { return m_max_y - m_min_y; }
+    constexpr bool has_no_points() const { return m_has_no_points; }
 
     void add_point(Point<T> point)
     {
