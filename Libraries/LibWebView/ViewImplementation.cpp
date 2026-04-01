@@ -126,7 +126,6 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 {
     if (m_client_state.client) {
         m_client_state.client->unregister_view(m_client_state.page_index);
-        client().async_close_server();
     }
 
     initialize_client();
