@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test Reference</title>
+<link rel="author" href="mailto:dholbert@mozilla.com" title="Daniel Holbert">
+<style>
+  .outer {
+    margin-bottom: 2px;
+    height: 60px;
+  }
+  .inner {
+    background: lime;
+    height: 100%;
+  }
+</style>
+<p>Test passes if you see four 60px-tall lime rows (with platform-appropriate scrollbars on the last one).</p>
+
+<div class="outer"><div class="inner"></div></div>
+<div class="outer"><div class="inner"></div></div>
+<div class="outer"><div class="inner"></div></div>
+<div class="outer" style="overflow: scroll"><div class="inner"></div></div>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="author" title="David Grogan" href="mailto:dgrogan@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#flex-base-size">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="A flex container's block cross size of max-content is treated as indefinite when setting fit-content on an item for flex base sizing">
+
+<style>
+x-flexbox {
+  display: flex;
+  height: max-content;
+}
+
+.fit-content-item {
+  background: green;
+  width: 100px;
+  writing-mode: vertical-lr;
+}
+
+.height-setting-item {
+  height: 100px;
+}
+
+</style>
+
+<!-- This has to be a row flexbox whose item stretches and has vertical writing
+     mode to trigger:
+  * a cross size is needed to determine the main size (row flexbox's cross size
+    is vertical, which is the item's inline size because it has a vertical
+    writing mode)
+  * the flex item’s cross size is [...] not definite (if the item didn't
+    stretch, the definiteness of the container's cross size wouldn't matter
+    because the cross size would never be definite and the item would always get
+    fit-content)
+-->
+
+<p>Test passes if there is a filled green square.</p>
+
+<x-flexbox>
+  <div class="fit-content-item"></div>
+  <div class="height-setting-item"></div>
+</x-flexbox>

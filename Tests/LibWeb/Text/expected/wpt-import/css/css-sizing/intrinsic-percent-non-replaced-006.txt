@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	Axis consistency of intrinsic contributions
+Pass	Intrinsic contribution for width
+Pass	Intrinsic contribution for height
+Pass	Final size for width
+Pass	Final size for height

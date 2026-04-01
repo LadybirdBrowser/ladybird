@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Test: nested flex containers with definite max-height</title>
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/flexbox-definite-sizes-005-ref.html">
+<link rel="author" href="mailto:dholbert@mozilla.com" title="Daniel Holbert">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#definite-sizes">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1503173">
+<style>
+  .horizFlex {
+    display: flex;
+    margin-bottom: 2px;
+  }
+  .vertFlex {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    min-height: 60px;
+  }
+  .item {
+    background: lime;
+    height: 100%;
+  }
+</style>
+<p>Test passes if you see four 60px-tall lime rows (with platform-appropriate scrollbars on the last one).</p>
+
+<div class="horizFlex">
+  <div class="vertFlex">
+    <div class="item"></div>
+  </div>
+</div>
+
+<div class="horizFlex">
+  <div class="vertFlex" style="overflow: hidden">
+    <div class="item"></div>
+  </div>
+</div>
+<div class="horizFlex">
+  <div class="vertFlex" style="overflow: auto">
+    <div class="item"></div>
+  </div>
+</div>
+
+<div class="horizFlex">
+  <div class="vertFlex" style="overflow: scroll">
+    <div class="item"></div>
+  </div>
+</div>

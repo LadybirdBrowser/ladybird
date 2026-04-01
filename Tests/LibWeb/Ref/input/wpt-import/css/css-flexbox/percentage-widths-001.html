@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<title>CSS Test: Absolutely positioned children of flexboxes</title>
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#definite-sizes">
+<link rel="match" href="../../../../expected/wpt-import/css/css-flexbox/percentage-widths-001-ref.html">
+<meta name="assert" content="Checks that we correctly size percentage-sized
+children of absolute-positioned flex boxes">
+<style>
+body {
+  position: relative;
+  width: 600px;
+  height: 800px;
+}
+
+#container {
+  background-color: red;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+#top-bar {
+  background-color: green;
+  width: 20%;
+}
+
+#content {
+  background-color: blue;
+  flex-basis: 100%;
+}
+</style>
+
+
+<div id="container">
+  <div id="top-bar">
+  Tests that percentage widths get resolved correctly when the flexbox is
+  </div>
+  <div id="content">
+  absolutely positioned without an explicit width. You should see no red.
+  </div>
+</div>
+
+

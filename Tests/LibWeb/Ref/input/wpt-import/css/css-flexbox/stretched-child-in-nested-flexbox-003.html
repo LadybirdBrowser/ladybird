@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<title>css-flexbox: stretching of flex item in nested flexbox</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://github.com/servo/servo/issues/38023">
+<link rel="match" href="../../../../expected/wpt-import//css/reference/ref-filled-green-200px-square.html">
+<meta name="assert" content="Due to min-height, the outer flex container is 200px tall.
+  It's single-line, so its flex item stretched to that size, and is considered definite.
+  Therefore, the percentage in the nested flex container resolves as 200px.
+  And thus its flex item is also stretched to be 200px tall.
+">
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div style="display: flex; min-height: 200px">
+  <div>
+    <div style="display: flex; height: 100%; background-color: red">
+      <div style="width: 200px; background-color: green;"></div>
+    </div>
+  </div>
+</div>
