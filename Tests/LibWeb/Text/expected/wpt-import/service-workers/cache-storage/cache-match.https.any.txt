@@ -1,0 +1,31 @@
+Harness status: Error
+
+Found 25 tests
+
+1 Fail
+24 Not Run
+Fail	Cache.match with no matching entries
+Not Run	Cache.match with URL
+Not Run	Cache.match with Request
+Not Run	Cache.match with multiple cache hits
+Not Run	Cache.match with new Request
+Not Run	Cache.match with HEAD
+Not Run	Cache.match with ignoreSearch option (request with no search parameters)
+Not Run	Cache.match with ignoreSearch option (request with search parameter)
+Not Run	Cache.match supports ignoreMethod
+Not Run	Cache.match supports ignoreVary
+Not Run	Cache.match does not support cacheName option
+Not Run	Cache.match with URL containing fragment
+Not Run	Cache.match with string fragment "http" as query
+Not Run	Cache.match with responses containing "Vary" header
+Not Run	Cache.match with Request and Response objects with different URLs
+Not Run	Cache.match invoked multiple times for the same Request/Response
+Not Run	Cache.match blob should be sliceable
+Not Run	Cache.match with POST Request
+Not Run	Cache.match with a non-2xx Response
+Not Run	Cache.match with a network error Response
+Not Run	Cache produces large Responses that can be cloned and read correctly.
+Not Run	cors-exposed header should be stored correctly.
+Not Run	MIME type should be set from content-header correctly.
+Not Run	MIME type should reflect Content-Type headers of response.
+Not Run	Cache.match ignores vary headers on opaque response.

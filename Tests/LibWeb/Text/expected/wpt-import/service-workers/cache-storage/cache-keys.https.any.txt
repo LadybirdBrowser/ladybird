@@ -1,0 +1,22 @@
+Harness status: Error
+
+Found 16 tests
+
+1 Fail
+15 Not Run
+Fail	Cache.keys() called on an empty cache
+Not Run	Cache.keys with no matching entries
+Not Run	Cache.keys with URL
+Not Run	Cache.keys with Request
+Not Run	Cache.keys with new Request
+Not Run	Cache.keys with ignoreSearch option (request with no search parameters)
+Not Run	Cache.keys with ignoreSearch option (request with search parameters)
+Not Run	Cache.keys supports ignoreMethod
+Not Run	Cache.keys supports ignoreVary
+Not Run	Cache.keys with URL containing fragment
+Not Run	Cache.keys with string fragment "http" as query
+Not Run	Cache.keys without parameters
+Not Run	Cache.keys with explicitly undefined request
+Not Run	Cache.keys with explicitly undefined request and empty options
+Not Run	Cache.keys without parameters and VARY entries
+Not Run	Cache.keys with a HEAD Request

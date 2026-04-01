@@ -1,0 +1,22 @@
+Harness status: Error
+
+Found 16 tests
+
+1 Fail
+15 Not Run
+Fail	Cache.matchAll with no matching entries
+Not Run	Cache.matchAll with URL
+Not Run	Cache.matchAll with Request
+Not Run	Cache.matchAll with new Request
+Not Run	Cache.matchAll with HEAD
+Not Run	Cache.matchAll with ignoreSearch option (request with no search parameters)
+Not Run	Cache.matchAll with ignoreSearch option (request with search parameters)
+Not Run	Cache.matchAll supports ignoreMethod
+Not Run	Cache.matchAll supports ignoreVary
+Not Run	Cache.matchAll with URL containing fragment
+Not Run	Cache.matchAll with string fragment "http" as query
+Not Run	Cache.matchAll without parameters
+Not Run	Cache.matchAll with explicitly undefined request
+Not Run	Cache.matchAll with explicitly undefined request and empty options
+Not Run	Cache.matchAll with responses containing "Vary" header
+Not Run	Cache.matchAll with multiple vary pairs

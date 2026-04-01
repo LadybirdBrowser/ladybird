@@ -1,0 +1,33 @@
+Harness status: Error
+
+Found 27 tests
+
+1 Fail
+26 Not Run
+Fail	Cache.put called with simple Request and Response
+Not Run	Cache.put called with Request and Response from fetch()
+Not Run	Cache.put with Request without a body
+Not Run	Cache.put with Response without a body
+Not Run	Cache.put with a Response containing an empty URL
+Not Run	Cache.put with an empty response body
+Not Run	Cache.put with synthetic 206 response
+Not Run	Cache.put with HTTP 206 response
+Not Run	Cache.put with opaque-filtered HTTP 206 response
+Not Run	Cache.put with HTTP 500 response
+Not Run	Cache.put called twice with matching Requests and different Responses
+Not Run	Cache.put called multiple times with request URLs that differ only by a fragment
+Not Run	Cache.put with a string request
+Not Run	Cache.put with an invalid response
+Not Run	Cache.put with a non-HTTP/HTTPS request
+Not Run	Cache.put with a relative URL
+Not Run	Cache.put with a non-GET request
+Not Run	Cache.put with a null response
+Not Run	Cache.put with a POST request
+Not Run	Cache.put with a used response body
+Not Run	getReader() after Cache.put
+Not Run	Cache.put with a VARY:* Response
+Not Run	Cache.put with an embedded VARY:* Response
+Not Run	Cache.put with a VARY:* opaque response should not reject
+Not Run	Cache.put should store Response.redirect() correctly
+Not Run	Cache.put called with simple Request and blob Response
+Not Run	Cache.put called with simple Request and form data Response

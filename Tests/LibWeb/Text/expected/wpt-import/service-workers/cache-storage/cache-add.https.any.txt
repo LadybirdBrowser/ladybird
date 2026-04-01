@@ -1,0 +1,28 @@
+Harness status: Error
+
+Found 22 tests
+
+1 Fail
+21 Not Run
+Fail	Cache.add called with no arguments
+Not Run	Cache.add called with relative URL specified as a string
+Not Run	Cache.add called with non-HTTP/HTTPS URL
+Not Run	Cache.add called with Request object
+Not Run	Cache.add called with POST request
+Not Run	Cache.add called twice with the same Request object
+Not Run	Cache.add with request with null body (not consumed)
+Not Run	Cache.add with 206 response
+Not Run	Cache.addAll with 206 response
+Not Run	Cache.addAll with opaque-filtered 206 response
+Not Run	Cache.add with request that results in a status of 404
+Not Run	Cache.add with request that results in a status of 500
+Not Run	Cache.addAll with no arguments
+Not Run	Cache.addAll with a mix of valid and undefined arguments
+Not Run	Cache.addAll with an empty array
+Not Run	Cache.addAll with string URL arguments
+Not Run	Cache.addAll with Request arguments
+Not Run	Cache.addAll with a mix of succeeding and failing requests
+Not Run	Cache.addAll called with the same Request object specified twice
+Not Run	Cache.addAll should succeed when entries differ by vary header
+Not Run	Cache.addAll should reject when entries are duplicate by vary header
+Not Run	Cache.addAll should reject when one entry has a vary header matching another entry
