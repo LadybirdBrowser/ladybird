@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -1868,6 +1869,10 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             return {};
 
         return FitContentStyleValue::create(interpolated_length_percentage.release_nonnull());
+    }
+    case StyleValue::Type::Flex: {
+        auto interpolated_value = interpolate_raw(from.as_flex().flex().to_fr(), to.as_flex().flex().to_fr(), delta, calculation_context.accepted_type_ranges.get(ValueType::Flex));
+        return FlexStyleValue::create(Flex::make_fr(interpolated_value));
     }
     case StyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers
