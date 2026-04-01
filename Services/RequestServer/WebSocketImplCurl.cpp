@@ -6,6 +6,7 @@
 
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
@@ -62,11 +63,16 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     // FIXME: Add a header function to validate the Sec-WebSocket headers that curl currently doesn't validate
 
     auto const& url = info.url();
+    m_tls_verification_context.url = url;
     set_option(CURLOPT_URL, url.to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
+    set_option(CURLOPT_SSL_CTX_DATA, &m_tls_verification_context);
 
     if (auto root_certs = info.root_certificates_path(); root_certs.has_value())
         set_option(CURLOPT_CAINFO, root_certs->characters());
+
+    if (auto callback = ssl_ctx_setup_callback())
+        set_option(CURLOPT_SSL_CTX_FUNCTION, callback);
 
     auto const origin_header = ByteString::formatted("Origin: {}", info.origin());
     curl_slist* curl_headers = curl_slist_append(nullptr, origin_header.characters());

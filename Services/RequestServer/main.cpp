@@ -19,6 +19,7 @@
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
+#include <RequestServer/SystemTrustVerifier.h>
 
 namespace RequestServer {
 
@@ -58,6 +59,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     // FIXME: Update RequestServer to support multiple custom root certificates.
     if (!certificates.is_empty())
         RequestServer::set_default_certificate_path(certificates.first());
+
+#ifdef AK_OS_MACOS
+    if (RequestServer::default_certificate_path().is_empty())
+        RequestServer::set_ssl_ctx_setup_callback(RequestServer::setup_system_trust_verifier);
+#endif
 
     if (!resource_map_path.is_empty()) {
         auto map = RequestServer::ResourceSubstitutionMap::load_from_file(resource_map_path);

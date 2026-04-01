@@ -111,6 +111,7 @@ Request::Request(
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
     , m_url(move(url))
+    , m_tls_verification_context { .url = m_url }
     , m_method(move(method))
     , m_request_headers(move(request_headers))
     , m_request_body(move(request_body))
@@ -133,6 +134,7 @@ Request::Request(
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
     , m_url(move(url))
+    , m_tls_verification_context { .url = m_url }
     , m_request_headers(HTTP::HeaderList::create())
     , m_response_headers(HTTP::HeaderList::create())
 {
@@ -490,6 +492,7 @@ void Request::handle_connect_state()
     set_option(CURLOPT_NOSIGNAL, 1L);
     m_curl_error_buffer[0] = '\0';
     set_option(CURLOPT_ERRORBUFFER, m_curl_error_buffer.data());
+    set_option(CURLOPT_SSL_CTX_DATA, &m_tls_verification_context);
 
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
@@ -528,9 +531,13 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_NOSIGNAL, 1L);
     m_curl_error_buffer[0] = '\0';
     set_option(CURLOPT_ERRORBUFFER, m_curl_error_buffer.data());
+    set_option(CURLOPT_SSL_CTX_DATA, &m_tls_verification_context);
 
     if (auto const& path = default_certificate_path(); !path.is_empty())
         set_option(CURLOPT_CAINFO, path.characters());
+
+    if (auto callback = ssl_ctx_setup_callback())
+        set_option(CURLOPT_SSL_CTX_FUNCTION, callback);
 
     set_option(CURLOPT_ACCEPT_ENCODING, ""); // Empty string lets curl define the accepted encodings.
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());

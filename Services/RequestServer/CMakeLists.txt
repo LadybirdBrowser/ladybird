@@ -9,6 +9,7 @@ set(SOURCES
     RequestPipe.cpp
     Resolver.cpp
     ResourceSubstitutionMap.cpp
+    SystemTrustVerifier.cpp
     WebSocketImplCurl.cpp
 )
 
@@ -43,6 +44,10 @@ target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 if (WIN32)
     lagom_windows_bin(RequestServer CONSOLE)
+endif()
+
+if (APPLE)
+    target_link_libraries(requestserverservice PRIVATE "-framework Security")
 endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")

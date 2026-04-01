@@ -23,6 +23,7 @@
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestPipe.h>
+#include <RequestServer/SystemTrustVerifier.h>
 
 struct curl_slist;
 
@@ -197,6 +198,7 @@ private:
     RefPtr<DNS::LookupResult const> m_dns_result;
 
     URL::URL m_url;
+    TLSVerificationContext m_tls_verification_context;
     ByteString m_method;
 
     UnixDateTime m_request_start_time { UnixDateTime::now() };

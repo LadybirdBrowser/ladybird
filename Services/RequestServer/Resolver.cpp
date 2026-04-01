@@ -11,6 +11,7 @@
 namespace RequestServer {
 
 static ByteString g_default_certificate_path;
+static SSLCtxSetupCallback g_ssl_ctx_setup_callback = nullptr;
 
 ByteString const& default_certificate_path()
 {
@@ -20,6 +21,16 @@ ByteString const& default_certificate_path()
 void set_default_certificate_path(ByteString default_certificate_path)
 {
     g_default_certificate_path = move(default_certificate_path);
+}
+
+SSLCtxSetupCallback ssl_ctx_setup_callback()
+{
+    return g_ssl_ctx_setup_callback;
+}
+
+void set_ssl_ctx_setup_callback(SSLCtxSetupCallback callback)
+{
+    g_ssl_ctx_setup_callback = callback;
 }
 
 DNSInfo& DNSInfo::the()

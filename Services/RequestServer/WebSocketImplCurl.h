@@ -9,6 +9,7 @@
 #include <AK/MemoryStream.h>
 #include <LibCore/Forward.h>
 #include <LibWebSocket/Impl/WebSocketImpl.h>
+#include <RequestServer/SystemTrustVerifier.h>
 
 typedef void CURL;
 typedef void CURLM;
@@ -44,6 +45,7 @@ private:
     RefPtr<Core::Notifier> m_read_notifier;
     RefPtr<Core::Notifier> m_error_notifier;
     Vector<curl_slist*> m_curl_string_lists;
+    TLSVerificationContext m_tls_verification_context;
     AllocatingMemoryStream m_read_buffer;
 };
 

@@ -42,4 +42,8 @@ private:
 ByteString const& default_certificate_path();
 void set_default_certificate_path(ByteString);
 
+using SSLCtxSetupCallback = int (*)(void*, void*, void*);
+SSLCtxSetupCallback ssl_ctx_setup_callback();
+void set_ssl_ctx_setup_callback(SSLCtxSetupCallback);
+
 }
