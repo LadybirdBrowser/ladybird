@@ -9,6 +9,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/Time.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
@@ -17,7 +18,7 @@ struct TimingInfo {
     u64 call_count { 0 };
 };
 
-void log_timing_info(ByteString const& name, AK::Duration const& elapsed_time, u64 print_every_n_calls);
+CORE_API void log_timing_info(ByteString const& name, AK::Duration const& elapsed_time, u64 print_every_n_calls);
 
 #define CONCAT(a, b) a##b
 #define UNIQUE_NAME(base) CONCAT(base, __LINE__)
