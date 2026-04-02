@@ -16,6 +16,7 @@ public:
     static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(NonnullRefPtr<StyleValue const> length_percentage);
     virtual ~FitContentStyleValue() override = default;
 
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
     virtual void serialize(StringBuilder& builder, SerializationMode mode) const override;
 
     bool equals(StyleValue const& other) const override;
