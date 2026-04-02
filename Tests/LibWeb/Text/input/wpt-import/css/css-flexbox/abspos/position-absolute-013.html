@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<title>CSS Test: Absolutely positioned children of flexboxes</title>
+<link rel="author" title="Google Inc." href="http://www.google.com/">
+<link rel="help" href="https://drafts.csswg.org/css-flexbox/#abspos-items">
+<meta name="assert" content="Checks the abspos position of flex children in a number of writing modes, alignments, etc.">
+<style>
+.abspos {
+  height: 50px;
+  width: 50px;
+  background: lightblue;
+  position: absolute;
+  flex: none;
+}
+
+.relpos {
+  position: relative;
+}
+
+.title {
+    margin-top: 1em;
+}
+
+.flexbox {
+    display: flex;
+    background-color: #aaa;
+    height: 100px;
+    width: 100px;
+}
+
+.horizontal-tb {
+    writing-mode: horizontal-tb;
+}
+.vertical-rl {
+    writing-mode: vertical-rl;
+}
+.vertical-lr {
+    writing-mode: vertical-lr;
+}
+
+.rtl {
+    direction: rtl;
+}
+.ltr {
+    direction: ltr;
+}
+
+.align-items-flex-start {
+    align-items: flex-start;
+}
+.align-items-flex-end {
+    align-items: flex-end;
+}
+.align-items-stretch {
+    align-items: stretch;
+}
+.justify-content-flex-start {
+    justify-content: flex-start;
+}
+.justify-content-flex-end {
+    justify-content: flex-end;
+}
+
+.row {
+    flex-direction: row;
+}
+.row-reverse {
+    flex-direction: row-reverse;
+}
+.column {
+    flex-direction: column;
+}
+.column-reverse {
+    flex-direction: column-reverse;
+}
+
+.nowrap {
+    flex-wrap: nowrap;
+}
+.wrap {
+    flex-wrap: wrap;
+}
+.wrap-reverse {
+    flex-wrap: wrap-reverse;
+}
+
+</style>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<body onload="checkLayout('.flexbox')">
+<div id=log></div>
+<script>
+
+var writingModes = ['horizontal-tb', 'vertical-rl', 'vertical-lr'];
+var directions = ['ltr', 'rtl'];
+var justifyContents = ['flex-start', 'flex-end'];
+var alignItems = ['flex-start', 'flex-end', 'stretch'];
+var flexDirections = ['row', 'column', 'row-reverse', 'column-reverse'];
+var wraps = ['nowrap', 'wrap', 'wrap-reverse'];
+
+// These expected values were harvested from Chrome 85. Firefox 78b6 agrees
+// except when align-items:stretch and flex-wrap:wrap-reverse are both in
+// effect.
+// Chrome 83 and FF 78b6 agree with these values when the lone flex child is
+// position:static instead of position:absolute. That is evidence that these
+// values are all correct, because the position of a staticpos child is
+// specified to be identical to the abspos position when there are no other
+// children or specified offsets.
+var x = [0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,50,0,50,50,0,50,0,50,0,0,50,0,50,50,50,0,0,0,0,0,0,50,50,50,50,0,50,50,0,50,0,50,0,0,50,0,50,0,50,50,0,50,50,0,50,50,0,50,50,50,50,0,0,0,50,50,50,0,0,0,50,0,50,50,0,50,50,0,50,50,0,50,0,0,0,50,50,50,0,0,0,50,50,50,50,0,50,50,0,50,50,0,50,50,0,50,50,50,50,0,0,0,50,50,50,0,0,0,50,0,50,50,0,50,50,0,50,50,0,50,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,50,50,50,0,0,0,50,50,50,0,0,0,0,50,0,0,50,0,0,50,0,0,50,0,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,50,50,50,0,0,0,50,50,50,0,0,0,0,50,0,0,50,0,0,50,0,0,50,0,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,50,50,50,0,0,0,50,50,50,0,0,0,50,0,50,50,0,50,50,0,50,50,0,50,0,0,0,50,50,50,0,0,0,50,50,50,50,0,50,50,0,50,50,0,50,50,0,50,50,50,50,0,0,0,50,50,50,0,0,0];
+
+var y = [0,50,0,0,50,0,0,50,0,0,50,0,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,50,50,50,0,0,0,50,50,50,0,0,0,0,50,0,0,50,0,0,50,0,0,50,0,0,0,0,50,50,50,0,0,0,50,50,50,0,50,0,0,50,0,0,50,0,0,50,0,50,50,50,0,0,0,50,50,50,0,0,0,50,0,50,50,0,50,50,0,50,50,0,50,0,0,0,50,50,50,0,0,0,50,50,50,50,0,50,50,0,50,50,0,50,50,0,50,50,50,50,0,0,0,50,50,50,0,0,0,0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,50,0,50,50,0,50,0,50,0,0,50,0,50,50,50,0,0,0,0,0,0,50,50,50,50,0,50,50,0,50,0,50,0,0,50,0,0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,0,50,0,0,50,0,50,0,50,50,0,50,50,50,50,0,0,0,0,0,0,50,50,50,0,50,0,0,50,0,50,0,50,50,0,50,0,0,0,50,50,50,50,50,50,0,0,0,50,0,50,50,0,50,0,50,0,0,50,0,50,50,50,0,0,0,0,0,0,50,50,50,50,0,50,50,0,50,0,50,0,0,50,0];
+
+var test_number = 1;
+
+writingModes.forEach(function(flexWritingMode) {
+  wraps.forEach(function(wrap) {
+    flexDirections.forEach(function(flexDirection) {
+      directions.forEach(function(direction) {
+        justifyContents.forEach(function(justifyContent) {
+          alignItems.forEach(function(alignment) {
+            var flexboxClassName = flexWritingMode + ' ' + direction + ' ' + flexDirection + ' justify-content-' + justifyContent + ' align-items-' + alignment + ' ' + wrap;
+            var title = document.createElement('div');
+            title.className = 'title';
+            title.innerHTML = flexboxClassName + " .flexbox " + (test_number++);
+            document.body.appendChild(title);
+
+            var flexbox = document.createElement('div');
+            flexbox.className = 'flexbox ' + flexboxClassName;
+
+            var child = document.createElement('div');
+            child.setAttribute('class', 'abspos');
+            child.setAttribute("data-offset-x", x.shift());
+            child.setAttribute("data-offset-y", y.shift());
+            flexbox.appendChild(child);
+
+            var relpos = document.createElement('div');
+            relpos.className = 'relpos';
+            relpos.appendChild(flexbox);
+
+            document.body.appendChild(relpos);
+          })
+        })
+      })
+    })
+  })
+})
+
+// Print the x,y offsets for pasting into above x,y arrays.
+absposes = document.querySelectorAll('.abspos')
+lefts = Array.from(absposes).map(x => x.offsetLeft)
+tops = Array.from(absposes).map(x => x.offsetTop)
+
+</script>
+</body>
