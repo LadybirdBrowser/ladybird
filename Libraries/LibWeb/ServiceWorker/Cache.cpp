@@ -542,6 +542,92 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
     }));
 }
 
+// https://w3c.github.io/ServiceWorker/#cache-delete
+GC::Ref<WebIDL::Promise> Cache::delete_(Fetch::RequestInfo request, CacheQueryOptions options)
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let r be null.
+    GC::Ptr<Fetch::Infrastructure::Request> inner_request;
+
+    TRY(request.visit(
+        // 2. If request is a Request object, then:
+        [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            // 1. Set r to request’s request.
+            inner_request = request->request();
+
+            // 2. If r’s method is not `GET` and options.ignoreMethod is false, return a promise resolved with false.
+            if (inner_request->method() != "GET"sv && !options.ignore_method)
+                return WebIDL::create_resolved_promise(realm, JS::Value { false });
+
+            return {};
+        },
+        // 3. Else if request is a string, then:
+        [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            // 1. Set r to the associated request of the result of invoking the initial value of Request as constructor
+            //    with request as its argument. If this throws an exception, return a promise rejected with that
+            //    exception.
+            auto request_object = Fetch::Request::construct_impl(realm, request);
+            if (request_object.is_error())
+                return WebIDL::create_rejected_promise_from_exception(realm, request_object.release_error());
+
+            inner_request = request_object.value()->request();
+            return {};
+        }));
+
+    // 4. Let operations be an empty list.
+    auto operations = realm.heap().allocate<GC::HeapVector<GC::Ref<CacheBatchOperation>>>();
+
+    // 5. Let operation be a cache batch operation.
+    auto operation = realm.heap().allocate<CacheBatchOperation>(
+        // 6. Set operation’s type to "delete".
+        CacheBatchOperation::Type::Delete,
+        // 7. Set operation’s request to r.
+        *inner_request,
+        nullptr,
+        // 8. Set operation’s options to options.
+        options);
+
+    // 9. Append operation to operations.
+    operations->elements().append(operation);
+
+    // 10. Let realm be this’s relevant realm.
+    // 11. Let cacheJobPromise be a new promise.
+    auto cache_job_promise = WebIDL::create_promise(realm);
+
+    // 12. Run the following substeps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, operations, cache_job_promise]() {
+        // 1. Let errorData be null.
+        // 2. Let requestResponses be the result of running Batch Cache Operations with operations. If this throws an
+        //    exception, set errorData to the exception.
+        auto error_data = batch_cache_operations(operations);
+
+        // 3. Queue a task, on cacheJobPromise’s relevant settings object’s responsible event loop using the DOM
+        //    manipulation task source, to perform the following substeps:
+        HTML::queue_a_task(
+            HTML::Task::Source::DOMManipulation,
+            HTML::relevant_settings_object(cache_job_promise->promise()).responsible_event_loop(),
+            {},
+            GC::create_function(realm.heap(), [&realm, cache_job_promise, error_data = move(error_data)]() mutable {
+                HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                // 1. If errorData is null, then:
+                if (!error_data.is_error()) {
+                    // 1. If requestResponses is not empty, resolve cacheJobPromise with true.
+                    // 2. Else, resolve cacheJobPromise with false.
+                    WebIDL::resolve_promise(realm, cache_job_promise, JS::Value { error_data.value() });
+                }
+                // 2. Else, reject cacheJobPromise with a new exception with errorData, in realm.
+                else {
+                    WebIDL::reject_promise_with_exception(realm, cache_job_promise, error_data.release_error());
+                }
+            }));
+    }));
+
+    // 13. Return cacheJobPromise.
+    return cache_job_promise;
+}
+
 // https://w3c.github.io/ServiceWorker/#cache-keys
 GC::Ref<WebIDL::Promise> Cache::keys(Optional<Fetch::RequestInfo> request, CacheQueryOptions options)
 {

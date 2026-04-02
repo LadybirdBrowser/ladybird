@@ -2,12 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-8 Fail
-Fail	Cache.delete with no arguments
-Fail	Cache.delete called with a string URL
-Fail	Cache.delete called with a Request object
-Fail	Cache.delete called with a HEAD request
-Fail	Cache.delete supports ignoreVary
-Fail	Cache.delete with a non-existent entry
-Fail	Cache.delete with ignoreSearch option (request with search parameters)
-Fail	Cache.delete with ignoreSearch option (when it is specified as false)
+8 Pass
+Pass	Cache.delete with no arguments
+Pass	Cache.delete called with a string URL
+Pass	Cache.delete called with a Request object
+Pass	Cache.delete called with a HEAD request
+Pass	Cache.delete supports ignoreVary
+Pass	Cache.delete with a non-existent entry
+Pass	Cache.delete with ignoreSearch option (request with search parameters)
+Pass	Cache.delete with ignoreSearch option (when it is specified as false)
