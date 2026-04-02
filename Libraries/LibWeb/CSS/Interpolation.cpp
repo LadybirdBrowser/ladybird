@@ -2685,6 +2685,10 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
 
         return FitContentStyleValue::create(composited_length_percentage.release_nonnull());
     }
+    case StyleValue::Type::Flex: {
+        auto result = composite_raw_values(underlying_value.as_flex().flex().to_fr(), animated_value.as_flex().flex().to_fr());
+        return FlexStyleValue::create(Flex::make_fr(result));
+    }
     case StyleValue::Type::GridTrackSizeList: {
         auto underlying_list = underlying_value.as_grid_track_size_list().grid_track_size_list();
         auto animated_list = animated_value.as_grid_track_size_list().grid_track_size_list();
