@@ -214,7 +214,7 @@ struct WaitForAllResults : JS::Cell {
 GC_DEFINE_ALLOCATOR(WaitForAllResults);
 
 // https://webidl.spec.whatwg.org/#wait-for-all
-void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps)
+void wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps)
 {
     // FIXME: Fix spec typo, fullfilled --> fulfilled
     // 1. Let fullfilledCount be 0.
@@ -264,7 +264,7 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
     auto results = realm.create<WaitForAllResults>(GC::create_function(realm.heap(), move(success_steps)), total);
 
     // 9. For each promise of promises:
-    for (auto const& promise : promises) {
+    for (auto promise : promises) {
         // 1. Let promiseIndex be index.
         auto promise_index = index;
 
@@ -298,7 +298,7 @@ void wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises, Fu
 }
 
 // https://webidl.spec.whatwg.org/#waiting-for-all-promise
-GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, Vector<GC::Ref<Promise>> const& promises)
+GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm& realm, ReadonlySpan<GC::Ref<Promise>> promises)
 {
     // 1. Let promise be a new promise of type Promise<sequence<T>> in realm.
     auto promise = create_promise(realm);
