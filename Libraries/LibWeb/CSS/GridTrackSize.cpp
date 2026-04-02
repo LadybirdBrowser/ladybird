@@ -9,16 +9,12 @@
 #include "GridTrackSize.h"
 #include <AK/String.h>
 #include <LibWeb/CSS/Size.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 
 namespace Web::CSS {
 
-GridSize::GridSize(Size size)
+GridSize::GridSize(NonnullRefPtr<StyleValue const> size)
     : m_value(move(size))
-{
-}
-
-GridSize::GridSize(Flex flex_factor)
-    : m_value(move(flex_factor))
 {
 }
 
@@ -26,91 +22,69 @@ GridSize::~GridSize() = default;
 
 bool GridSize::is_auto(Layout::AvailableSize const& available_size) const
 {
-    if (auto const* size = m_value.get_pointer<Size>()) {
-        if (size->is_auto())
-            return true;
-        if (size->is_fit_content())
-            return false;
-        if (size->contains_percentage())
-            return !available_size.is_definite();
-        return false;
-    }
+    if (m_value->to_keyword() == Keyword::Auto)
+        return true;
+
+    if (m_value->is_percentage() || (m_value->is_calculated() && m_value->as_calculated().contains_percentage()))
+        return !available_size.is_definite();
 
     return false;
+}
+
+static bool is_length_percentage(NonnullRefPtr<StyleValue const> const& value)
+{
+    return value->is_length() || value->is_percentage() || (value->is_calculated() && value->as_calculated().resolves_to_length());
 }
 
 bool GridSize::is_fixed(Layout::AvailableSize const& available_size) const
 {
-    if (auto const* size = m_value.get_pointer<Size>()) {
-        if (!size->is_length_percentage())
-            return false;
-        if (size->contains_percentage())
-            return available_size.is_definite();
-        return true;
-    }
+    if (!is_length_percentage(m_value))
+        return false;
 
-    return false;
+    if (m_value->is_percentage() || (m_value->is_calculated() && m_value->as_calculated().contains_percentage()))
+        return available_size.is_definite();
+
+    return true;
 }
 
 bool GridSize::is_flexible_length() const
 {
-    return m_value.has<Flex>();
+    return m_value->is_flex() || (m_value->is_calculated() && m_value->as_calculated().resolves_to_flex());
 }
 
 bool GridSize::is_fit_content() const
 {
-    if (auto const* size = m_value.get_pointer<Size>())
-        return size->is_fit_content();
-
-    return false;
+    return m_value->is_fit_content();
 }
 
 bool GridSize::is_max_content() const
 {
-    if (auto const* size = m_value.get_pointer<Size>())
-        return size->is_max_content();
-
-    return false;
+    return m_value->to_keyword() == Keyword::MaxContent;
 }
 
 bool GridSize::is_min_content() const
 {
-    if (auto const* size = m_value.get_pointer<Size>())
-        return size->is_min_content();
-
-    return false;
+    return m_value->to_keyword() == Keyword::MinContent;
 }
 
 bool GridSize::is_intrinsic(Layout::AvailableSize const& available_size) const
 {
-    return m_value.visit(
-        [&available_size](Size const& size) {
-            return size.is_auto()
-                || size.is_max_content()
-                || size.is_min_content()
-                || size.is_fit_content()
-                || (size.contains_percentage() && !available_size.is_definite());
-        },
-        [](Flex const&) {
-            return false;
-        });
+    return is_auto(available_size) || is_max_content() || is_min_content() || is_fit_content();
 }
 
 bool GridSize::is_definite() const
 {
-    return m_value.visit(
-        [](Size const& size) { return size.is_length_percentage(); },
-        [](Flex const&) { return false; });
+    return is_length_percentage(m_value);
 }
 
 GridSize GridSize::make_auto()
 {
-    return GridSize(Size::make_auto());
+    return GridSize(KeywordStyleValue::create(Keyword::Auto));
 }
 
 void GridSize::serialize(StringBuilder& builder, SerializationMode mode) const
 {
-    m_value.visit([&builder, mode](auto const& it) { it.serialize(builder, mode); });
+    m_value->serialize(builder, mode);
 }
 
 String GridSize::to_string(SerializationMode mode) const
@@ -122,37 +96,12 @@ String GridSize::to_string(SerializationMode mode) const
 
 GridSize GridSize::absolutized(ComputationContext const& context) const
 {
-    auto absolutize_length_percentage = [&context](LengthPercentage const& length_percentage) -> Optional<LengthPercentage> {
-        if (length_percentage.is_length()) {
-            auto length = length_percentage.length().absolutize(context.length_resolution_context);
-            if (length.has_value())
-                return length.release_value();
-            return {};
-        }
+    auto absolutized_value = m_value->absolutized(context);
 
-        if (length_percentage.is_calculated())
-            return LengthPercentage::from_style_value(length_percentage.calculated()->absolutized(context));
+    if (absolutized_value == m_value)
+        return *this;
 
-        return {};
-    };
-    return m_value.visit(
-        [&](Size const& size) -> GridSize {
-            if (size.is_length_percentage()) {
-                if (auto result = absolutize_length_percentage(size.length_percentage()); result.has_value())
-                    return Size::make_length_percentage(result.release_value());
-            }
-
-            if (size.is_fit_content() && size.fit_content_available_space().has_value()) {
-                if (auto result = absolutize_length_percentage(size.fit_content_available_space().value()); result.has_value()) {
-                    return Size::make_fit_content(result.release_value());
-                }
-            }
-
-            return GridSize { size };
-        },
-        [](Flex const& flex) {
-            return GridSize { flex };
-        });
+    return GridSize { absolutized_value };
 }
 
 GridMinMax::GridMinMax(GridSize min_grid_size, GridSize max_grid_size)
