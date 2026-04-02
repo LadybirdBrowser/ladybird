@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 18 tests
 
-16 Pass
-2 Fail
+17 Pass
+1 Fail
 Pass	position of x
 Pass	position of y
 Pass	position of width
@@ -17,7 +17,7 @@ Pass	.flexbox 1
 Pass	.flexbox 2
 Pass	.flexbox 3
 Fail	.flexbox 4
-Fail	.flexbox 5
+Pass	.flexbox 5
 Pass	.flexbox 6
 Pass	.flexbox 7
 Pass	.flexbox 8

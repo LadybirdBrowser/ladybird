@@ -302,6 +302,17 @@ bool FlexFormattingContext::main_axis_is_parallel_to_inline_axis(Box const& box)
     return main_axis_is_horizontal() == inline_axis_is_horizontal(box);
 }
 
+bool FlexFormattingContext::cross_axis_is_reverse() const
+{
+    auto const& computed_values = flex_container().computed_values();
+    auto reverse = main_axis_is_parallel_to_inline_axis(flex_container())
+        ? block_axis_is_reverse(computed_values.writing_mode())
+        : inline_axis_is_reverse(computed_values.writing_mode(), computed_values.direction());
+    if (computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
+        reverse = !reverse;
+    return reverse;
+}
+
 bool FlexFormattingContext::is_direction_reverse() const
 {
     auto const& computed_values = flex_container().computed_values();
@@ -2359,16 +2370,20 @@ StaticPositionRect FlexFormattingContext::calculate_static_position_rect(Box con
     case CSS::AlignItems::Baseline:
         // FIXME: Implement this
         //  Fallthrough
-    case CSS::AlignItems::Start:
     case CSS::AlignItems::FlexStart:
-    case CSS::AlignItems::SelfStart:
     case CSS::AlignItems::Stretch:
     case CSS::AlignItems::Normal:
+        cross_axis_alignment = cross_axis_is_reverse() ? StaticPositionRect::Alignment::End : StaticPositionRect::Alignment::Start;
+        break;
+    case CSS::AlignItems::FlexEnd:
+        cross_axis_alignment = cross_axis_is_reverse() ? StaticPositionRect::Alignment::Start : StaticPositionRect::Alignment::End;
+        break;
+    case CSS::AlignItems::Start:
+    case CSS::AlignItems::SelfStart:
         cross_axis_alignment = StaticPositionRect::Alignment::Start;
         break;
     case CSS::AlignItems::End:
     case CSS::AlignItems::SelfEnd:
-    case CSS::AlignItems::FlexEnd:
         cross_axis_alignment = StaticPositionRect::Alignment::End;
         break;
     case CSS::AlignItems::Center:

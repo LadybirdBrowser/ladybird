@@ -210,6 +210,7 @@ private:
     bool main_axis_is_horizontal() const;
     bool cross_axis_is_horizontal() const { return !main_axis_is_horizontal(); }
     bool main_axis_is_parallel_to_inline_axis(Box const&) const;
+    bool cross_axis_is_reverse() const;
     bool is_direction_reverse() const;
     void populate_specified_margins(FlexItem&, CSS::FlexDirection) const;
 
