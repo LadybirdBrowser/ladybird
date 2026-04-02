@@ -10,7 +10,7 @@ interface Cache {
     [NewObject] Promise<undefined> addAll(sequence<RequestInfo> requests);
     [NewObject] Promise<undefined> put(RequestInfo request, Response response);
     // [NewObject] Promise<boolean> delete(RequestInfo request, optional CacheQueryOptions options = {});
-    // [NewObject] Promise<FrozenArray<Request>> keys(optional RequestInfo request, optional CacheQueryOptions options = {});
+    [NewObject] Promise<FrozenArray<Request>> keys(optional RequestInfo request, optional CacheQueryOptions options = {});
 };
 
 dictionary CacheQueryOptions {

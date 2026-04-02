@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 22 tests
 
-18 Pass
-4 Fail
+19 Pass
+3 Fail
 Pass	Cache.add called with no arguments
 Pass	Cache.add called with relative URL specified as a string
 Pass	Cache.add called with non-HTTP/HTTPS URL
@@ -18,7 +18,7 @@ Pass	Cache.add with request that results in a status of 404
 Pass	Cache.add with request that results in a status of 500
 Pass	Cache.addAll with no arguments
 Pass	Cache.addAll with a mix of valid and undefined arguments
-Fail	Cache.addAll with an empty array
+Pass	Cache.addAll with an empty array
 Pass	Cache.addAll with string URL arguments
 Pass	Cache.addAll with Request arguments
 Pass	Cache.addAll with a mix of succeeding and failing requests

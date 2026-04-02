@@ -7,6 +7,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/CachePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
@@ -539,6 +540,100 @@ GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::R
 
         return cache_job_promise->promise();
     }));
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-keys
+GC::Ref<WebIDL::Promise> Cache::keys(Optional<Fetch::RequestInfo> request, CacheQueryOptions options)
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let r be null.
+    GC::Ptr<Fetch::Infrastructure::Request> inner_request;
+
+    // 2. If the optional argument request is not omitted, then:
+    if (request.has_value()) {
+        TRY(request->visit(
+            // 1. If request is a Request object, then:
+            [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+                // 1. Set r to request’s request.
+                inner_request = request->request();
+
+                // 2. If r’s method is not `GET` and options.ignoreMethod is false, return a promise resolved with an
+                //    empty array.
+                if (inner_request->method() != "GET"sv && !options.ignore_method)
+                    return WebIDL::create_resolved_promise(realm, MUST(JS::Array::create(realm, 0)));
+
+                return {};
+            },
+            // 2. Else if request is a string, then:
+            [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+                // 1. Set r to the associated request of the result of invoking the initial value of Request as
+                //    constructor with request as its argument. If this throws an exception, return a promise rejected
+                //    with that exception.
+                auto request_object = Fetch::Request::construct_impl(realm, request);
+                if (request_object.is_error())
+                    return WebIDL::create_rejected_promise_from_exception(realm, request_object.release_error());
+
+                inner_request = request_object.value()->request();
+                return {};
+            }));
+    }
+
+    // 3. Let realm be this’s relevant realm.
+    // 4. Let promise be a new promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 5. Run these substeps in parallel:
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, inner_request, promise, request = move(request), options]() {
+        // 1. Let requests be an empty list.
+        auto requests = realm.heap().allocate<GC::HeapVector<GC::Ref<Fetch::Infrastructure::Request>>>();
+
+        // 2. If the optional argument request is omitted, then:
+        if (!request.has_value()) {
+            // 1. For each requestResponse of the relevant request response list:
+            for (auto& request_response : m_request_response_list->elements()) {
+                // 1. Add requestResponse’s request to requests.
+                requests->elements().append(request_response->request);
+            }
+        }
+        // 3. Else:
+        else {
+            // 1. Let requestResponses be the result of running Query Cache with r and options.
+            auto request_responses = query_cache(*inner_request, options);
+
+            // 2. For each requestResponse of requestResponses:
+            for (auto request_response : request_responses->elements()) {
+                // 1. Add requestResponse’s request to requests.
+                requests->elements().append(request_response->request);
+            }
+        }
+
+        // 4. Queue a task, on promise’s relevant settings object’s responsible event loop using the DOM manipulation
+        //    task source, to perform the following steps:
+        HTML::queue_a_task(
+            HTML::Task::Source::DOMManipulation,
+            HTML::relevant_settings_object(promise->promise()).responsible_event_loop(),
+            {},
+            GC::create_function(realm.heap(), [&realm, promise, requests]() {
+                HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                // 1. Let requestList be a list.
+                auto request_list = realm.heap().allocate<GC::HeapVector<JS::Value>>();
+
+                // 2. For each request of requests:
+                for (auto request : requests->elements()) {
+                    // 1. Add a new Request object associated with request and a new associated Headers object whose
+                    //    guard is "immutable" to requestList.
+                    request_list->elements().append(Fetch::Request::create(realm, request, Fetch::Headers::Guard::Immutable, MUST(DOM::AbortSignal::construct_impl(realm))));
+                }
+
+                // 3. Resolve promise with a frozen array created from requestList, in realm.
+                WebIDL::resolve_promise(realm, promise, JS::Array::create_from(realm, request_list->elements()));
+            }));
+    }));
+
+    // 6. Return promise.
+    return promise;
 }
 
 // https://w3c.github.io/ServiceWorker/#request-matches-cached-item-algorithm

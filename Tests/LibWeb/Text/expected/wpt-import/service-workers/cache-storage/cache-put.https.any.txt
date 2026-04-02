@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 27 tests
 
-23 Pass
-4 Fail
+24 Pass
+3 Fail
 Pass	Cache.put called with simple Request and Response
 Pass	Cache.put called with Request and Response from fetch()
 Pass	Cache.put with Request without a body
@@ -15,7 +15,7 @@ Fail	Cache.put with HTTP 206 response
 Pass	Cache.put with opaque-filtered HTTP 206 response
 Fail	Cache.put with HTTP 500 response
 Pass	Cache.put called twice with matching Requests and different Responses
-Fail	Cache.put called multiple times with request URLs that differ only by a fragment
+Pass	Cache.put called multiple times with request URLs that differ only by a fragment
 Pass	Cache.put with a string request
 Pass	Cache.put with an invalid response
 Pass	Cache.put with a non-HTTP/HTTPS request

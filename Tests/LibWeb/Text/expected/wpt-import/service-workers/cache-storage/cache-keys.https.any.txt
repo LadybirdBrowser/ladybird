@@ -2,20 +2,20 @@ Harness status: OK
 
 Found 16 tests
 
-16 Fail
-Fail	Cache.keys() called on an empty cache
-Fail	Cache.keys with no matching entries
-Fail	Cache.keys with URL
-Fail	Cache.keys with Request
-Fail	Cache.keys with new Request
-Fail	Cache.keys with ignoreSearch option (request with no search parameters)
-Fail	Cache.keys with ignoreSearch option (request with search parameters)
-Fail	Cache.keys supports ignoreMethod
-Fail	Cache.keys supports ignoreVary
-Fail	Cache.keys with URL containing fragment
-Fail	Cache.keys with string fragment "http" as query
-Fail	Cache.keys without parameters
-Fail	Cache.keys with explicitly undefined request
-Fail	Cache.keys with explicitly undefined request and empty options
-Fail	Cache.keys without parameters and VARY entries
-Fail	Cache.keys with a HEAD Request
+16 Pass
+Pass	Cache.keys() called on an empty cache
+Pass	Cache.keys with no matching entries
+Pass	Cache.keys with URL
+Pass	Cache.keys with Request
+Pass	Cache.keys with new Request
+Pass	Cache.keys with ignoreSearch option (request with no search parameters)
+Pass	Cache.keys with ignoreSearch option (request with search parameters)
+Pass	Cache.keys supports ignoreMethod
+Pass	Cache.keys supports ignoreVary
+Pass	Cache.keys with URL containing fragment
+Pass	Cache.keys with string fragment "http" as query
+Pass	Cache.keys without parameters
+Pass	Cache.keys with explicitly undefined request
+Pass	Cache.keys with explicitly undefined request and empty options
+Pass	Cache.keys without parameters and VARY entries
+Pass	Cache.keys with a HEAD Request

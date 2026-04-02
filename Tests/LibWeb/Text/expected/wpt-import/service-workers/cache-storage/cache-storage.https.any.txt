@@ -2,15 +2,14 @@ Harness status: OK
 
 Found 10 tests
 
-8 Pass
-2 Fail
+10 Pass
 Pass	CacheStorage.open
-Fail	CacheStorage.delete dooms, but does not delete immediately
+Pass	CacheStorage.delete dooms, but does not delete immediately
 Pass	CacheStorage.open with an empty name
 Pass	CacheStorage.open with no arguments
 Pass	CacheStorage.has with existing cache
 Pass	CacheStorage.has with nonexistent cache
-Fail	CacheStorage.open with existing cache
+Pass	CacheStorage.open with existing cache
 Pass	CacheStorage.delete with existing cache
 Pass	CacheStorage.delete with nonexistent cache
 Pass	CacheStorage names are DOMStrings not USVStrings
