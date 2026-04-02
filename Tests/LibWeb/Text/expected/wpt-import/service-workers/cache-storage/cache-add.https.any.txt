@@ -2,26 +2,27 @@ Harness status: OK
 
 Found 22 tests
 
-22 Fail
-Fail	Cache.add called with no arguments
+14 Pass
+8 Fail
+Pass	Cache.add called with no arguments
 Fail	Cache.add called with relative URL specified as a string
-Fail	Cache.add called with non-HTTP/HTTPS URL
-Fail	Cache.add called with Request object
-Fail	Cache.add called with POST request
-Fail	Cache.add called twice with the same Request object
-Fail	Cache.add with request with null body (not consumed)
-Fail	Cache.add with 206 response
-Fail	Cache.addAll with 206 response
-Fail	Cache.addAll with opaque-filtered 206 response
-Fail	Cache.add with request that results in a status of 404
-Fail	Cache.add with request that results in a status of 500
-Fail	Cache.addAll with no arguments
-Fail	Cache.addAll with a mix of valid and undefined arguments
+Pass	Cache.add called with non-HTTP/HTTPS URL
+Pass	Cache.add called with Request object
+Pass	Cache.add called with POST request
+Pass	Cache.add called twice with the same Request object
+Pass	Cache.add with request with null body (not consumed)
+Pass	Cache.add with 206 response
+Pass	Cache.addAll with 206 response
+Pass	Cache.addAll with opaque-filtered 206 response
+Pass	Cache.add with request that results in a status of 404
+Pass	Cache.add with request that results in a status of 500
+Pass	Cache.addAll with no arguments
+Pass	Cache.addAll with a mix of valid and undefined arguments
 Fail	Cache.addAll with an empty array
 Fail	Cache.addAll with string URL arguments
 Fail	Cache.addAll with Request arguments
 Fail	Cache.addAll with a mix of succeeding and failing requests
-Fail	Cache.addAll called with the same Request object specified twice
+Pass	Cache.addAll called with the same Request object specified twice
 Fail	Cache.addAll should succeed when entries differ by vary header
 Fail	Cache.addAll should reject when entries are duplicate by vary header
 Fail	Cache.addAll should reject when one entry has a vary header matching another entry
