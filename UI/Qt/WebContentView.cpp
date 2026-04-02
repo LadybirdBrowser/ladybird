@@ -31,6 +31,8 @@
 
 #if defined(Q_OS_MACOS)
 #    include "WebContentViewAccessibility.h"
+#else
+#    include "AccessibilityInterface.h"
 #endif
 
 #include <QApplication>
@@ -86,12 +88,16 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
 
-    fprintf(stderr, "A11Y CONSTRUCTOR: about to create accessibility manager\n");
     m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
 
 #if defined(Q_OS_MACOS)
-    fprintf(stderr, "A11Y CONSTRUCTOR: Q_OS_MACOS is defined, calling install_accessibility\n");
     install_accessibility(this);
+#else
+    static bool accessibility_factory_installed = false;
+    if (!accessibility_factory_installed) {
+        QAccessible::installFactory(accessibility_factory);
+        accessibility_factory_installed = true;
+    }
 #endif
 
     m_accessibility_request_timer.setSingleShot(true);
@@ -112,6 +118,33 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
             setFocus(Qt::OtherFocusReason);
             update_accessibility_tree(this);
         });
+#else
+        // Prune interfaces for nodes no longer in the tree.
+        QList<i64> stale_ids;
+        for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
+            if (!it.value()->isValid())
+                stale_ids.append(it.key());
+        }
+        for (auto id : stale_ids) {
+            auto* iface = m_accessibility_elements.take(id);
+            QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(iface));
+        }
+
+        // Post focus event on the document root so Orca sees it.
+        QTimer::singleShot(1000, this, [this] {
+            setFocus(Qt::OtherFocusReason);
+
+            if (m_accessibility_manager && !m_accessibility_manager->is_empty()) {
+                auto const* root = m_accessibility_manager->root();
+                if (root) {
+                    auto* root_iface = accessibility_interface_for_node(root->id);
+                    if (root_iface) {
+                        QAccessibleEvent focus_event(root_iface, QAccessible::Focus);
+                        QAccessible::updateAccessibility(&focus_event);
+                    }
+                }
+            }
+        });
 #endif
     };
 
@@ -121,6 +154,12 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         m_accessibility_manager->set_focused_node(node_id);
 #if defined(Q_OS_MACOS)
         Ladybird::post_accessibility_focus_changed(this, node_id);
+#else
+        auto* iface = accessibility_interface_for_node(node_id);
+        if (iface) {
+            QAccessibleEvent focus_event(iface, QAccessible::Focus);
+            QAccessible::updateAccessibility(&focus_event);
+        }
 #endif
     };
 
@@ -988,5 +1027,20 @@ void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
     if (!event.isAccepted())
         QApplication::sendEvent(parent(), &event);
 }
+
+#if !defined(Q_OS_MACOS)
+QAccessibleInterface* WebContentView::accessibility_interface_for_node(i64 node_id)
+{
+    if (auto* existing = m_accessibility_elements.value(node_id, nullptr))
+        return existing;
+
+    if (!m_accessibility_manager || !m_accessibility_manager->node(node_id))
+        return nullptr;
+
+    auto* iface = new AccessibilityInterface(node_id, m_accessibility_manager.ptr(), this);
+    m_accessibility_elements.insert(node_id, iface);
+    return iface;
+}
+#endif
 
 }

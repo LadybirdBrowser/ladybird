@@ -253,30 +253,6 @@ extern "C" void NSAccessibilityHandleFocusChanged();
 @end
 
 // ============================================================================
-// Minimal QAccessibleInterface so Qt's bridge creates a
-// QMacAccessibilityElement for the WebContentView widget.
-// ============================================================================
-
-class WebContentViewAccessible : public QAccessibleWidget {
-public:
-    explicit WebContentViewAccessible(QWidget* widget)
-        : QAccessibleWidget(widget, QAccessible::Grouping)
-    {
-    }
-    int childCount() const override { return 0; }
-    QAccessibleInterface* child(int) const override { return nullptr; }
-};
-
-static QAccessibleInterface* accessibility_factory(QString const& class_name, QObject* object)
-{
-    if (class_name == "Ladybird::WebContentView"_L1) {
-        if (auto* widget = qobject_cast<QWidget*>(object))
-            return new WebContentViewAccessible(widget);
-    }
-    return nullptr;
-}
-
-// ============================================================================
 // QMacAccessibilityElement swizzles: connect Qt's bridge to the overlay.
 //
 // Three swizzles make VoiceOver discover the overlay's LadybirdAccessibilityElement objects as web content:
@@ -390,6 +366,26 @@ static WebContentAccessibilityView* get_overlay(QWidget* widget)
 }
 
 namespace Ladybird {
+
+// Minimal QAccessibleInterface so Qt's bridge creates a QMacAccessibilityElement for the WebContentView widget.
+class WebContentViewAccessible : public QAccessibleWidget {
+public:
+    explicit WebContentViewAccessible(QWidget* widget)
+        : QAccessibleWidget(widget, QAccessible::Grouping)
+    {
+    }
+    int childCount() const override { return 0; }
+    QAccessibleInterface* child(int) const override { return nullptr; }
+};
+
+static QAccessibleInterface* accessibility_factory(QString const& class_name, QObject* object)
+{
+    if (class_name == "Ladybird::WebContentView"_L1) {
+        if (auto* widget = qobject_cast<QWidget*>(object))
+            return new WebContentViewAccessible(widget);
+    }
+    return nullptr;
+}
 
 void install_accessibility(WebContentView* view)
 {

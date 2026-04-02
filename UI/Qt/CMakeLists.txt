@@ -37,6 +37,12 @@ if (APPLE)
     )
 endif()
 
+if (NOT APPLE AND NOT WIN32 AND NOT ANDROID)
+    target_sources(ladybird PRIVATE
+        AccessibilityInterface.cpp
+    )
+endif()
+
 target_link_libraries(ladybird PRIVATE Qt::Core Qt::Gui Qt::Widgets)
 create_ladybird_bundle(ladybird)
 

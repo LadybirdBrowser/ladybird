@@ -23,6 +23,10 @@
 #include <QUrl>
 #include <QWidget>
 
+#if !defined(Q_OS_MACOS)
+#    include "AccessibilityInterface.h"
+#endif
+
 class QKeyEvent;
 class QSinglePointEvent;
 
@@ -75,6 +79,10 @@ public:
 
     using ViewImplementation::client;
 
+#if !defined(Q_OS_MACOS)
+    QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
+#endif
+
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
     void schedule_accessibility_tree_request();
@@ -109,6 +117,11 @@ private:
     friend void install_accessibility(WebContentView*);
     friend void update_accessibility_tree(WebContentView*);
     friend void post_accessibility_focus_changed(WebContentView*, i64);
+
+#if !defined(Q_OS_MACOS)
+    QHash<i64, AccessibilityInterface*> m_accessibility_elements;
+    friend class WebContentViewAccessible;
+#endif
 
     OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
     QTimer m_accessibility_request_timer;
