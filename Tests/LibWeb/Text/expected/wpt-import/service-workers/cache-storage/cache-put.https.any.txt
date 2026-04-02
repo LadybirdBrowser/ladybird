@@ -2,30 +2,31 @@ Harness status: OK
 
 Found 27 tests
 
-27 Fail
-Fail	Cache.put called with simple Request and Response
+13 Pass
+14 Fail
+Pass	Cache.put called with simple Request and Response
 Fail	Cache.put called with Request and Response from fetch()
-Fail	Cache.put with Request without a body
-Fail	Cache.put with Response without a body
+Pass	Cache.put with Request without a body
+Pass	Cache.put with Response without a body
 Fail	Cache.put with a Response containing an empty URL
 Fail	Cache.put with an empty response body
-Fail	Cache.put with synthetic 206 response
+Pass	Cache.put with synthetic 206 response
 Fail	Cache.put with HTTP 206 response
 Fail	Cache.put with opaque-filtered HTTP 206 response
 Fail	Cache.put with HTTP 500 response
 Fail	Cache.put called twice with matching Requests and different Responses
 Fail	Cache.put called multiple times with request URLs that differ only by a fragment
 Fail	Cache.put with a string request
-Fail	Cache.put with an invalid response
-Fail	Cache.put with a non-HTTP/HTTPS request
+Pass	Cache.put with an invalid response
+Pass	Cache.put with a non-HTTP/HTTPS request
 Fail	Cache.put with a relative URL
-Fail	Cache.put with a non-GET request
-Fail	Cache.put with a null response
-Fail	Cache.put with a POST request
-Fail	Cache.put with a used response body
-Fail	getReader() after Cache.put
-Fail	Cache.put with a VARY:* Response
-Fail	Cache.put with an embedded VARY:* Response
+Pass	Cache.put with a non-GET request
+Pass	Cache.put with a null response
+Pass	Cache.put with a POST request
+Pass	Cache.put with a used response body
+Pass	getReader() after Cache.put
+Pass	Cache.put with a VARY:* Response
+Pass	Cache.put with an embedded VARY:* Response
 Fail	Cache.put with a VARY:* opaque response should not reject
 Fail	Cache.put should store Response.redirect() correctly
 Fail	Cache.put called with simple Request and blob Response

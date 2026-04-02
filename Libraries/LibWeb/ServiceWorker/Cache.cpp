@@ -11,10 +11,13 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ServiceWorker/Cache.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
+#include <LibWeb/Streams/ReadableStream.h>
+#include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 
 namespace Web::ServiceWorker {
 
@@ -250,6 +253,136 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
         }));
 
         // 7. Return cacheJobPromise.
+        return cache_job_promise->promise();
+    }));
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-put
+GC::Ref<WebIDL::Promise> Cache::put(Fetch::RequestInfo request, GC::Ref<Fetch::Response> response)
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. Let innerRequest be null.
+    GC::Ptr<Fetch::Infrastructure::Request> inner_request;
+
+    TRY(request.visit(
+        // 2. If request is a Request object, then set innerRequest to request’s request.
+        [&](GC::Root<Fetch::Request> const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            inner_request = request->request();
+            return {};
+        },
+        // 3. Else:
+        [&](String const& request) -> ErrorOr<void, GC::Ref<WebIDL::Promise>> {
+            // 1. Let requestObj be the result of invoking Request’s constructor with request as its argument. If this
+            //    throws an exception, return a promise rejected with exception.
+            auto request_object = Fetch::Request::construct_impl(realm, request);
+            if (request_object.is_error())
+                return WebIDL::create_rejected_promise_from_exception(realm, request_object.release_error());
+
+            inner_request = request_object.value()->request();
+            return {};
+        }));
+
+    // 4. If innerRequest’s url’s scheme is not one of "http" and "https", or innerRequest’s method is not `GET`, return
+    //    a promise rejected with a TypeError.
+    if (!inner_request->url().scheme().is_one_of("http"sv, "https"sv) || inner_request->method() != "GET"sv)
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Request must be a GET request with an HTTP(S) URL"sv));
+
+    // 5. Let innerResponse be response’s response.
+    auto inner_response = response->response();
+
+    // 6. If innerResponse’s status is 206, return a promise rejected with a TypeError.
+    if (inner_response->status() == 206)
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Partial responses are not supported"sv));
+
+    // 7. If innerResponse’s header list contains a header named `Vary`, then:
+    //     1. Let fieldValues be the list containing the items corresponding to the Vary header’s field-values.
+    //     2. For each fieldValue in fieldValues:
+    bool found_vary_wildcard = false;
+
+    inner_response->header_list()->for_each_vary_header([&](StringView field_value) {
+        // 1. If fieldValue matches "*", return a promise rejected with a TypeError.
+        found_vary_wildcard = field_value == "*"sv;
+        return found_vary_wildcard ? IterationDecision::Break : IterationDecision::Continue;
+    });
+
+    if (found_vary_wildcard)
+        return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Vary '*' is not supported"sv));
+
+    // 8. If innerResponse’s body is disturbed or locked, return a promise rejected with a TypeError.
+    if (auto body = inner_response->body()) {
+        if (auto stream = body->stream(); stream->is_disturbed() || stream->is_locked())
+            return WebIDL::create_rejected_promise(realm, JS::TypeError::create(realm, "Response's body stream is disturbed or locked"sv));
+    }
+
+    // 9. Let clonedResponse be a clone of innerResponse.
+    auto cloned_response = inner_response->clone(realm);
+
+    // 10. Let bodyReadPromise be a promise resolved with undefined.
+    auto body_read_promise = WebIDL::create_resolved_promise(realm, JS::js_undefined());
+
+    // 11. If innerResponse’s body is non-null, run these substeps:
+    if (auto body = inner_response->body()) {
+        // 1. Let stream be innerResponse’s body’s stream.
+        auto stream = body->stream();
+
+        // 2. Let reader be the result of getting a reader for stream.
+        auto reader = MUST(stream->get_a_reader());
+
+        // 3. Set bodyReadPromise to the result of reading all bytes from reader.
+        body_read_promise = reader->read_all_bytes_deprecated();
+    }
+
+    // Note: This ensures that innerResponse’s body is locked, and we have a full buffered copy of the body in
+    //       clonedResponse. An implementation could optimize by streaming directly to disk rather than memory.
+
+    // 12. Let operations be an empty list.
+    auto operations = realm.heap().allocate<GC::HeapVector<GC::Ref<CacheBatchOperation>>>();
+
+    // 13. Let operation be a cache batch operation.
+    auto operation = realm.heap().allocate<CacheBatchOperation>(
+        // 14. Set operation’s type to "put".
+        CacheBatchOperation::Type::Put,
+        // 15. Set operation’s request to innerRequest.
+        *inner_request,
+        // 16. Set operation’s response to clonedResponse.
+        cloned_response);
+
+    // 17. Append operation to operations.
+    operations->elements().append(operation);
+
+    // 18. Let realm be this’s relevant realm.
+    // 19. Return the result of the fulfillment of bodyReadPromise:
+    return WebIDL::upon_fulfillment(body_read_promise, GC::create_function(realm.heap(), [this, &realm, operations](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+        HTML::TemporaryExecutionContext context { realm };
+
+        // 1. Let cacheJobPromise be a new promise.
+        auto cache_job_promise = WebIDL::create_promise(realm);
+
+        // 2. Return cacheJobPromise and run these steps in parallel:
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, operations, cache_job_promise]() {
+            // 1. Let errorData be null.
+            // 2. Invoke Batch Cache Operations with operations. If this throws an exception, set errorData to the exception.
+            auto error_data = batch_cache_operations(operations);
+
+            // 3. Queue a task, on cacheJobPromise’s relevant settings object’s responsible event loop using the DOM
+            //    manipulation task source, to perform the following substeps:
+            HTML::queue_a_task(
+                HTML::Task::Source::DOMManipulation,
+                HTML::relevant_settings_object(cache_job_promise->promise()).responsible_event_loop(),
+                {},
+                GC::create_function(realm.heap(), [&realm, cache_job_promise, error_data = move(error_data)]() mutable {
+                    HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                    // 1. If errorData is null, resolve cacheJobPromise with undefined.
+                    if (!error_data.is_error())
+                        WebIDL::resolve_promise(realm, cache_job_promise, JS::js_undefined());
+                    // 2. Else, reject cacheJobPromise with a new exception with errorData, in realm.
+                    else
+                        WebIDL::reject_promise_with_exception(realm, cache_job_promise, error_data.release_error());
+                }));
+        }));
+
         return cache_job_promise->promise();
     }));
 }

@@ -53,6 +53,7 @@ class Cache : public Bindings::PlatformObject {
 public:
     GC::Ref<WebIDL::Promise> add(Fetch::RequestInfo);
     GC::Ref<WebIDL::Promise> add_all(ReadonlySpan<Fetch::RequestInfo>);
+    GC::Ref<WebIDL::Promise> put(Fetch::RequestInfo, GC::Ref<Fetch::Response>);
 
 private:
     Cache(JS::Realm&, GC::Ref<RequestResponseList>);
