@@ -4,8 +4,8 @@
 // https://w3c.github.io/ServiceWorker/#cache-interface
 [SecureContext, Exposed=(Window,Worker)]
 interface Cache {
-    // [NewObject] Promise<(Response or undefined)> match(RequestInfo request, optional CacheQueryOptions options = {});
-    // [NewObject] Promise<FrozenArray<Response>> matchAll(optional RequestInfo request, optional CacheQueryOptions options = {});
+    [NewObject] Promise<(Response or undefined)> match(RequestInfo request, optional CacheQueryOptions options = {});
+    [NewObject] Promise<FrozenArray<Response>> matchAll(optional RequestInfo request, optional CacheQueryOptions options = {});
     [NewObject] Promise<undefined> add(RequestInfo request);
     [NewObject] Promise<undefined> addAll(sequence<RequestInfo> requests);
     [NewObject] Promise<undefined> put(RequestInfo request, Response response);

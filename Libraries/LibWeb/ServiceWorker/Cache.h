@@ -51,6 +51,8 @@ class Cache : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(Cache);
 
 public:
+    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, CacheQueryOptions);
+    GC::Ref<WebIDL::Promise> match_all(Optional<Fetch::RequestInfo>, CacheQueryOptions);
     GC::Ref<WebIDL::Promise> add(Fetch::RequestInfo);
     GC::Ref<WebIDL::Promise> add_all(ReadonlySpan<Fetch::RequestInfo>);
     GC::Ref<WebIDL::Promise> put(Fetch::RequestInfo, GC::Ref<Fetch::Response>);
