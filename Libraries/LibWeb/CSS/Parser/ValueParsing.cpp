@@ -4472,10 +4472,11 @@ Optional<GridSize> Parser::parse_grid_track_breadth(TokenStream<ComponentValue>&
     if (auto inflexible_breadth = parse_grid_inflexible_breadth(tokens); inflexible_breadth.has_value())
         return inflexible_breadth;
 
-    // FIXME: Handle calculated flex values.
-    if (auto flex_value = parse_flex_value(tokens); flex_value && flex_value->is_flex()) {
-        if (auto const& flex = flex_value->as_flex(); flex.raw_value() >= 0)
-            return GridSize(flex);
+    if (auto flex_value = parse_flex_value(tokens)) {
+        if (flex_value->is_flex() && flex_value->as_flex().raw_value() < 0)
+            return {};
+
+        return GridSize(flex_value.release_nonnull());
     }
 
     return {};
@@ -5229,18 +5230,8 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
                     return NumericCalculationNode::create(Angle { numeric_value, angle_type.release_value() }, context);
 
-                if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value()) {
-                    // https://www.w3.org/TR/css3-grid-layout/#fr-unit
-                    // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
-                    //       so they cannot be represented in or combined with other unit types in calc() expressions.
-                    // FIXME: Flex is allowed in calc(), so figure out what this spec text means and how to implement it.
-                    ErrorReporter::the().report(InvalidValueError {
-                        .value_type = "math-function"_fly_string,
-                        .value_string = component_value->to_string(),
-                        .description = "Rejecting <flex> in math function."_string,
-                    });
-                    return nullptr;
-                }
+                if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value())
+                    return NumericCalculationNode::create(Flex { numeric_value, flex_type.release_value() }, context);
 
                 if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
                     return NumericCalculationNode::create(Frequency { numeric_value, frequency_type.release_value() }, context);
