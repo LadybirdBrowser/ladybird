@@ -34,7 +34,8 @@ WEB_API bool is_promise_fulfilled(Promise const&);
 WEB_API void wait_for_all(JS::Realm&, ReadonlySpan<GC::Ref<Promise>> promises, Function<void(Vector<JS::Value> const&)> success_steps, Function<void(JS::Value)> failure_steps);
 WEB_API GC::Ref<Promise> get_promise_for_wait_for_all(JS::Realm&, ReadonlySpan<GC::Ref<Promise>> promises);
 
-// Non-spec, convenience method.
+// Non-spec, convenience methods.
 WEB_API GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm&, Exception);
+WEB_API void reject_promise_with_exception(JS::Realm&, Promise const&, Exception);
 
 }

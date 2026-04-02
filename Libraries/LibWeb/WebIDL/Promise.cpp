@@ -333,4 +333,10 @@ GC::Ref<Promise> create_rejected_promise_from_exception(JS::Realm& realm, Except
     return WebIDL::create_rejected_promise(realm, throw_completion.value());
 }
 
+void reject_promise_with_exception(JS::Realm& realm, Promise const& promise, Exception exception)
+{
+    auto throw_completion = Bindings::exception_to_throw_completion(realm.vm(), move(exception));
+    WebIDL::reject_promise(realm, promise, throw_completion.value());
+}
+
 }
