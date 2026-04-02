@@ -10,7 +10,6 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/ServiceWorker/Cache.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -33,6 +32,69 @@ void CacheStorage::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_relevant_name_to_cache_map);
+}
+
+// https://w3c.github.io/ServiceWorker/#cache-storage-match
+GC::Ref<WebIDL::Promise> CacheStorage::match(Fetch::RequestInfo request, MultiCacheQueryOptions options)
+{
+    auto& realm = HTML::relevant_realm(*this);
+
+    // 1. If options["cacheName"] exists, then:
+    if (options.cache_name.has_value()) {
+        // 1. Return a new promise promise and run the following substeps in parallel:
+        auto promise = WebIDL::create_promise(realm);
+
+        Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [this, &realm, promise, request = move(request), options = move(options)]() mutable {
+            HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+            // 1. For each cacheName → cache of the relevant name to cache map:
+            //     1. If options["cacheName"] matches cacheName, then:
+            if (auto result = relevant_name_to_cache_map().get(*options.cache_name); result.has_value()) {
+                // 1. Resolve promise with the result of running the algorithm specified in match(request, options)
+                //    method of Cache interface with request and options (providing cache as thisArgument to the
+                //    [[Call]] internal method of match(request, options).)
+                auto cache = realm.create<Cache>(realm, result.release_value());
+                auto match = cache->match(move(request), move(options));
+                WebIDL::resolve_promise(realm, promise, match->promise());
+
+                // 2. Abort these steps.
+                return;
+            }
+
+            // 2. Resolve promise with undefined.
+            WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+        }));
+
+        return promise;
+    }
+    // 2. Else:
+    else {
+        // 1. Let promise be a promise resolved with undefined.
+        auto promise = WebIDL::create_resolved_promise(realm, JS::js_undefined());
+
+        // 2. For each cacheName → cache of the relevant name to cache map:
+        for (auto const& [cache_name, cache_list] : relevant_name_to_cache_map()) {
+            // 1. Set promise to the result of reacting to itself with a fulfillment handler that, when called with
+            //    argument response, performs the following substeps:
+            promise = WebIDL::upon_fulfillment(promise, GC::create_function(realm.heap(), [&realm, cache_list, request, options](JS::Value response) mutable -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+                // 1. If response is not undefined, return response.
+                if (!response.is_undefined())
+                    return response;
+
+                // 2. Return the result of running the algorithm specified in match(request, options) method of Cache
+                //    interface with request and options as the arguments (providing cache as thisArgument to the
+                //    [[Call]] internal method of match(request, options).)
+                auto cache = realm.create<Cache>(realm, cache_list);
+                auto match = cache->match(move(request), move(options));
+                return match->promise();
+            }));
+        }
+
+        // 3. Return promise.
+        return *promise;
+    }
 }
 
 // https://w3c.github.io/ServiceWorker/#cache-storage-has

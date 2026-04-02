@@ -8,10 +8,15 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
+#include <LibWeb/ServiceWorker/Cache.h>
 #include <LibWeb/ServiceWorker/NameToCacheMap.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::ServiceWorker {
+
+struct MultiCacheQueryOptions : public CacheQueryOptions {
+    Optional<String> cache_name;
+};
 
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
 class CacheStorage : public Bindings::PlatformObject {
@@ -19,6 +24,7 @@ class CacheStorage : public Bindings::PlatformObject {
     GC_DECLARE_ALLOCATOR(CacheStorage);
 
 public:
+    GC::Ref<WebIDL::Promise> match(Fetch::RequestInfo, MultiCacheQueryOptions);
     GC::Ref<WebIDL::Promise> has(String const& cache_name);
     GC::Ref<WebIDL::Promise> open(String const& cache_name);
     GC::Ref<WebIDL::Promise> delete_(String const& cache_name);

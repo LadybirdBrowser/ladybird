@@ -4,16 +4,16 @@
 // https://w3c.github.io/ServiceWorker/#cachestorage-interface
 [SecureContext, Exposed=(Window,Worker), Experimental]
 interface CacheStorage {
-    //[NewObject] Promise<(Response or undefined)> match(RequestInfo request, optional MultiCacheQueryOptions options = {});
+    [NewObject] Promise<(Response or undefined)> match(RequestInfo request, optional MultiCacheQueryOptions options = {});
     [NewObject] Promise<boolean> has(DOMString cacheName);
     [NewObject] Promise<Cache> open(DOMString cacheName);
     [NewObject] Promise<boolean> delete(DOMString cacheName);
     [NewObject] Promise<sequence<DOMString>> keys();
 };
 
-//dictionary MultiCacheQueryOptions : CacheQueryOptions {
-//    DOMString cacheName;
-//};
+dictionary MultiCacheQueryOptions : CacheQueryOptions {
+    DOMString cacheName;
+};
 
 // https://w3c.github.io/ServiceWorker/#self-caches
 partial interface mixin WindowOrWorkerGlobalScope {
