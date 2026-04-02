@@ -6,15 +6,13 @@
 
 #pragma once
 
-#ifdef ENABLE_RUST
-
-#    include <AK/Error.h>
-#    include <AK/Noncopyable.h>
-#    include <AK/String.h>
-#    include <AK/Utf16View.h>
-#    include <AK/Vector.h>
-#    include <LibRegex/Export.h>
-#    include <RustFFI.h>
+#include <AK/Error.h>
+#include <AK/Noncopyable.h>
+#include <AK/String.h>
+#include <AK/Utf16View.h>
+#include <AK/Vector.h>
+#include <LibRegex/Export.h>
+#include <RustFFI.h>
 
 namespace regex {
 
@@ -74,5 +72,3 @@ private:
 };
 
 } // namespace regex
-
-#endif // ENABLE_RUST

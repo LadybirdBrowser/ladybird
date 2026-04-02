@@ -8,13 +8,10 @@
 #include <AK/Debug.h>
 #include <AK/Utf16String.h>
 #include <LibGfx/Palette.h>
+#include <LibJS/RustFFI.h>
 #include <LibJS/SourceCode.h>
 #include <LibJS/SyntaxHighlighter.h>
 #include <LibJS/Token.h>
-
-#ifdef ENABLE_RUST
-#    include <LibJS/RustFFI.h>
-#endif
 
 namespace JS {
 
@@ -143,12 +140,8 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         .folding_region_starts = {},
     };
 
-#ifdef ENABLE_RUST
     FFI::rust_tokenize(source_data, source_len, &state,
         [](void* ctx, FFI::FFIToken const* token) { on_token(ctx, token); });
-#else
-    (void)source_len;
-#endif
 
     m_client->do_set_spans(move(spans));
     m_client->do_set_folding_regions(move(folding_regions));

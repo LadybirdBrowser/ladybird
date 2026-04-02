@@ -1,7 +1,3 @@
-if (NOT ENABLE_RUST)
-    message(FATAL_ERROR "LibRegex requires ENABLE_RUST; the legacy C++ regex engine has been removed")
-endif()
-
 set(SOURCES
     ECMAScriptRegex.cpp
     RustRegex.cpp
@@ -12,4 +8,3 @@ target_link_libraries(LibRegex PRIVATE LibUnicode)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libregex_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibRegex PRIVATE libregex_rust)
-target_compile_definitions(LibRegex PRIVATE ENABLE_RUST)

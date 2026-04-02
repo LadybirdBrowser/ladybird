@@ -47,8 +47,6 @@ ladybird_option(LAGOM_LINK_POOL_SIZE "" CACHE STRING "The maximum number of para
 ladybird_option(ENABLE_LTO_FOR_RELEASE ${RELEASE_LTO_DEFAULT} CACHE BOOL "Enable link-time optimization for release builds")
 ladybird_option(ENABLE_LAGOM_COVERAGE_COLLECTION OFF CACHE STRING "Enable code coverage instrumentation for lagom binaries in clang")
 
-ladybird_option(ENABLE_RUST ON CACHE BOOL "Build Rust components")
-
 if (ENABLE_FUZZERS_LIBFUZZER)
     # With libfuzzer, we need to avoid a duplicate main() linker error giving false negatives
     set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY CACHE STRING "Type of target to use for try_compile()" FORCE)

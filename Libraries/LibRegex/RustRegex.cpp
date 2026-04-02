@@ -5,10 +5,7 @@
  */
 
 #include <LibRegex/RustRegex.h>
-
-#ifdef ENABLE_RUST
-
-#    include <LibUnicode/CharacterTypes.h>
+#include <LibUnicode/CharacterTypes.h>
 
 // Forward declarations for C++ functions called from Rust.
 extern "C" {
@@ -562,5 +559,3 @@ unsigned int CompiledRustRegex::capture_count() const
 }
 
 } // namespace regex
-
-#endif // ENABLE_RUST
