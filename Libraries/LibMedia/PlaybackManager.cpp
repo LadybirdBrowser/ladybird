@@ -338,9 +338,11 @@ NonnullRefPtr<DisplayingVideoSink> PlaybackManager::get_or_create_the_displaying
 void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& track)
 {
     auto& track_data = get_video_data_for_track(track);
+    VERIFY(track_data.display);
     track_data.display->set_provider(track, nullptr);
     track_data.display = nullptr;
     track_stopped_buffering(track);
+    m_handler->on_track_disabled(track);
 }
 
 void PlaybackManager::enable_an_audio_track(Track const& track)
@@ -364,6 +366,7 @@ void PlaybackManager::disable_an_audio_track(Track const& track)
     VERIFY(track_data.provider == m_audio_sink->provider(track));
     m_audio_sink->set_provider(track, nullptr);
     track_stopped_buffering(track);
+    m_handler->on_track_disabled(track);
 }
 
 bool PlaybackManager::track_is_enabled(Track const& track) const

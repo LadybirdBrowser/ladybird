@@ -36,6 +36,7 @@ public:
     virtual void exit_buffering() { VERIFY_NOT_REACHED(); }
 
     virtual void on_track_enabled(Track const&);
+    virtual void on_track_disabled(Track const&) { }
 
 protected:
     PlaybackManager& manager() const { return m_manager; }

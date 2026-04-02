@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video id="video"></video>
+<script>
+    // The WebM has two video tracks, 2 seconds, keyframes every ~0.52s.
+    // Cluster 0+1 cover 0-0.52s, cluster 2+3 cover the rest. Init segment is 632 bytes.
+    const SECOND_CLUSTER_END = 18677;
+
+    const mediaSource = new MediaSource();
+    video.src = URL.createObjectURL(mediaSource);
+
+    // If the seek completes without crashing, the test passes.
+    video.addEventListener("seeked", () => {
+        document.documentElement.classList.remove("test-wait");
+    });
+
+    video.addEventListener("error", () => {
+        document.documentElement.classList.remove("test-wait");
+    });
+
+    mediaSource.addEventListener("sourceopen", async () => {
+        const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+
+        const response = await fetch("../../Assets/two-video-tracks.webm");
+        const data = new Uint8Array(await response.arrayBuffer());
+
+        // Append init segment + first two clusters (covers ~0-0.52s).
+        sourceBuffer.appendBuffer(data.slice(0, SECOND_CLUSTER_END));
+        if (sourceBuffer.updating) {
+            await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+        }
+
+        // Set the duration so that seeking past the buffered range is possible.
+        mediaSource.duration = 2.0;
+
+        // Wait for the media element to be ready for seeking.
+        if (video.readyState < 1) {
+            await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+        }
+
+        // Seek to an unbuffered position, entering the SeekingStateHandler, which will wait indefinitely until
+        // data is available.
+        video.currentTime = 1.5;
+
+        // Switch video tracks twice while the seek is pending. Previously, this would defer the on_track_enabled()
+        // call in SeekingStateHandler until the seek completed before asking the enabled tracks to seek, and the
+        // the track that was selected and then deselected would hit a verify that it has a DisplayingVideoSink,
+        // which was removed by the deselect.
+        video.videoTracks[1].selected = true;
+        video.videoTracks[0].selected = true;
+
+        // Append the remaining clusters so the seek can complete.
+        sourceBuffer.appendBuffer(data.slice(SECOND_CLUSTER_END));
+
+        if (video.seeking) {
+            await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+        }
+
+        document.documentElement.classList.remove("test-wait");
+    });
+</script>
+</html>
