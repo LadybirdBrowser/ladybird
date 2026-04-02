@@ -9,6 +9,7 @@
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/SVGClipPaintable.h>
 #include <LibWeb/Painting/SVGGraphicsPaintable.h>
+#include <LibWeb/Painting/SVGPaintable.h>
 #include <LibWeb/Painting/StackingContext.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 
@@ -44,9 +45,15 @@ Optional<CSSPixelRect> SVGMaskable::get_svg_mask_area() const
 Optional<CSSPixelRect> SVGMaskable::get_svg_clip_area() const
 {
     auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*dom_node_of_svg());
-    if (auto* clip_box = get_clip_box(graphics_element))
-        return clip_box->paintable_box()->absolute_border_box_rect();
-    return {};
+    auto const* clip_box = get_clip_box(graphics_element);
+    if (!clip_box)
+        return {};
+
+    auto const& clip_paintable = as<SVGPaintable>(*clip_box->paintable_box());
+
+    auto clip_path_transform = Gfx::AffineTransform { target_svg_transform() }.multiply(clip_box->dom_node().element_transform());
+    // An empty clipping path will completely clip away the element that had the clip-path property applied.
+    return clip_paintable.clip_path_geometry_bounds(clip_path_transform).value_or(CSSPixelRect {});
 }
 
 static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)

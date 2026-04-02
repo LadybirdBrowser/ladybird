@@ -16,6 +16,8 @@ class SVGPaintable : public PaintableBox {
 
 public:
     Layout::SVGBox const& layout_box() const;
+    virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const;
+    bool contributes_to_clip_path() const;
 
 protected:
     virtual bool is_svg_paintable() const override { return true; }

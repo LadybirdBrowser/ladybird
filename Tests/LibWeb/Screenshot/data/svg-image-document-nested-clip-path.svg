@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+  <svg width="42" height="42" viewBox="-65.5 -178.5 302 357" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="ia" gradientUnits="userSpaceOnUse" r="59.1" cx="0" cy="0">
+        <stop offset="0%" stop-color="#00003b" />
+        <stop offset="100%" stop-color="#002f64" />
+      </radialGradient>
+      <clipPath id="ib">
+        <path d="m-25 0 300 300L575 0 275-300z" />
+      </clipPath>
+    </defs>
+    <circle r="59.1" fill="url(#ia)" />
+    <g clip-path="url(#ib)" fill="none">
+      <circle r="101" stroke="#003b6f" stroke-width="29" />
+      <circle r="156.5" stroke="#3b6fa0" stroke-width="30.4" />
+      <circle r="215.7" stroke="#6fa0d0" stroke-width="31.4" />
+    </g>
+  </svg>
+</svg>

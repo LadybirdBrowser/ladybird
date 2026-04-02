@@ -30,13 +30,30 @@ void SVGPathPaintable::reset_for_relayout()
     m_computed_path.clear();
 }
 
+Optional<CSSPixelRect> SVGPathPaintable::clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const
+{
+    if (!contributes_to_clip_path() || !computed_path().has_value())
+        return {};
+
+    auto const* svg_node = layout_box().first_ancestor_of_type<Layout::SVGSVGBox>();
+    if (!svg_node || !svg_node->paintable_box())
+        return {};
+
+    auto path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform(additional_transform));
+    path.offset(svg_node->paintable_box()->absolute_rect().location().to_type<float>());
+
+    return path.bounding_box().to_type<CSSPixels>();
+}
+
 TraversalDecision SVGPathPaintable::hit_test(CSSPixelPoint position, HitTestType type, Function<TraversalDecision(HitTestResult)> const& callback) const
 {
     if (!computed_path().has_value())
         return TraversalDecision::Continue;
-    auto transformed_bounding_box = computed_transforms().svg_to_css_pixels_transform().map_to_quad(computed_path()->bounding_box());
-    if (!transformed_bounding_box.contains(position.to_type<float>()))
+
+    auto transformed_path = computed_path()->copy_transformed(computed_transforms().svg_to_css_pixels_transform());
+    if (!transformed_path.bounding_box().contains(position.to_type<float>()))
         return TraversalDecision::Continue;
+
     return SVGGraphicsPaintable::hit_test(position, type, callback);
 }
 
@@ -54,8 +71,15 @@ static Gfx::WindingRule to_gfx_winding_rule(SVG::FillRule fill_rule)
 
 void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase phase) const
 {
-    if (!is_visible() || !computed_path().has_value())
+    if (!computed_path().has_value())
         return;
+
+    if (context.draw_svg_geometry_for_clip_path()) {
+        if (!contributes_to_clip_path())
+            return;
+    } else if (!is_visible()) {
+        return;
+    }
 
     SVGGraphicsPaintable::paint(context, phase);
 

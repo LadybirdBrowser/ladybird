@@ -21,6 +21,7 @@ public:
     static GC::Ref<SVGPathPaintable> create(Layout::SVGGraphicsBox const&);
 
     virtual TraversalDecision hit_test(CSSPixelPoint, HitTestType, Function<TraversalDecision(HitTestResult)> const& callback) const override;
+    virtual Optional<CSSPixelRect> clip_path_geometry_bounds(Gfx::AffineTransform const& additional_transform) const override;
 
     virtual void paint(DisplayListRecordingContext&, PaintPhase) const override;
 
