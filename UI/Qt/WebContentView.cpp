@@ -132,6 +132,15 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
             setFocus(Qt::OtherFocusReason);
 #if defined(Q_OS_MACOS)
             notify_accessibility_tree_loaded(this, m_accessibility_manager.ptr());
+#else
+            // Notify the accessibility system that the tree structure
+            // changed. Without this, Orca never re-queries the widget
+            // after its initial (empty) query.
+            auto* iface = QAccessible::queryAccessibleInterface(this);
+            if (iface) {
+                QAccessibleEvent event(this, QAccessible::ObjectShow);
+                QAccessible::updateAccessibility(&event);
+            }
 #endif
         });
     };
