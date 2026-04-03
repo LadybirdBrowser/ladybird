@@ -34,16 +34,7 @@ ByteString CanvasTextDrawingStyles<IncludingClass, CanvasType>::font() const
     }
 
     // On getting, the font attribute must return the serialized form of the current font of the context (with no 'line-height' component).
-    auto const& font_style_value = my_drawing_state().font_style_value->as_shorthand();
-    auto font_style = font_style_value.longhand(CSS::PropertyID::FontStyle);
-    auto font_weight = font_style_value.longhand(CSS::PropertyID::FontWeight);
-    auto font_size = font_style_value.longhand(CSS::PropertyID::FontSize);
-    auto font_family = font_style_value.longhand(CSS::PropertyID::FontFamily);
-    return ByteString::formatted("{} {} {} {}",
-        font_style->to_string(CSS::SerializationMode::Normal),
-        font_weight->to_string(CSS::SerializationMode::Normal),
-        font_size->to_string(CSS::SerializationMode::Normal),
-        font_family->to_string(CSS::SerializationMode::Normal));
+    return my_drawing_state().font_style_value->to_string(CSS::SerializationMode::ResolvedValue).to_byte_string();
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#font-style-source-object

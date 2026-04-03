@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	OffscreenCanvas test: 2d.text.font.parse.tiny
+1 Pass
+Pass	OffscreenCanvas test: 2d.text.font.parse.tiny
