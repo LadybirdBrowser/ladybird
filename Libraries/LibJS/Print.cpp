@@ -43,7 +43,6 @@
 #include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/Set.h>
-#include <LibJS/Runtime/ShadowRealm.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/StringPrototype.h>
@@ -416,13 +415,6 @@ ErrorOr<void> print_array_buffer(JS::PrintContext& print_context, JS::ArrayBuffe
         }
     }
 
-    return {};
-}
-
-ErrorOr<void> print_shadow_realm(JS::PrintContext& print_context, JS::ShadowRealm const&, HashTable<JS::Object*>&)
-{
-    // Not much we can show here that would be useful. Realm pointer address?!
-    TRY(print_type(print_context, "ShadowRealm"sv));
     return {};
 }
 
@@ -972,8 +964,6 @@ ErrorOr<void> print_value(JS::PrintContext& print_context, JS::Value value, Hash
             return print_promise(print_context, static_cast<JS::Promise&>(object), seen_objects);
         if (is<JS::ArrayBuffer>(object))
             return print_array_buffer(print_context, static_cast<JS::ArrayBuffer&>(object), seen_objects);
-        if (is<JS::ShadowRealm>(object))
-            return print_shadow_realm(print_context, static_cast<JS::ShadowRealm&>(object), seen_objects);
         if (is<JS::GeneratorObject>(object))
             return print_generator(print_context, static_cast<JS::GeneratorObject&>(object), seen_objects);
         if (is<JS::AsyncGenerator>(object))

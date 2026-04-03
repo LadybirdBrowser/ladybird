@@ -215,18 +215,6 @@ VM::VM(ErrorMessages error_messages)
         return HandledByHost::Unhandled;
     };
 
-    // 3.6.1 HostInitializeShadowRealm ( realm, context, O ), https://tc39.es/proposal-shadowrealm/#sec-hostinitializeshadowrealm
-    host_initialize_shadow_realm = [](Realm&, NonnullOwnPtr<ExecutionContext>, ShadowRealm&) -> ThrowCompletionOr<void> {
-        // The host-defined abstract operation HostInitializeShadowRealm takes arguments realm (a Realm Record),
-        // context (an execution context), and O (a ShadowRealm object) and returns either a normal completion
-        // containing unused or a throw completion. It is used to inform the host of any newly created realms
-        // from the ShadowRealm constructor. The idea of this hook is to initialize host data structures related
-        // to the ShadowRealm, e.g., for module loading.
-        //
-        // The host may use this hook to add properties to the ShadowRealm's global object. Those properties must be configurable.
-        return {};
-    };
-
     // 2.3.1 HostSystemUTCEpochNanoseconds ( global ), https://tc39.es/proposal-temporal/#sec-hostsystemutcepochnanoseconds
     host_system_utc_epoch_nanoseconds = [](Object const&) {
         // 1. Let ns be the approximate current UTC date and time, in nanoseconds since the epoch.

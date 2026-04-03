@@ -191,9 +191,6 @@ set(SOURCES
     Runtime/SetIterator.cpp
     Runtime/SetIteratorPrototype.cpp
     Runtime/SetPrototype.cpp
-    Runtime/ShadowRealm.cpp
-    Runtime/ShadowRealmConstructor.cpp
-    Runtime/ShadowRealmPrototype.cpp
     Runtime/Shape.cpp
     Runtime/SharedArrayBufferConstructor.cpp
     Runtime/SharedArrayBufferPrototype.cpp
@@ -257,7 +254,6 @@ set(SOURCES
     Runtime/WeakSetConstructor.cpp
     Runtime/WeakSetPrototype.cpp
     Runtime/WrapForValidIteratorPrototype.cpp
-    Runtime/WrappedFunction.cpp
     Script.cpp
     SourceCode.cpp
     SourceTextModule.cpp

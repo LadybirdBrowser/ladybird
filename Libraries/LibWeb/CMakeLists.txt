@@ -670,7 +670,6 @@ set(SOURCES
     HTML/SerializedPolicyContainer.cpp
     HTML/SessionHistoryEntry.cpp
     HTML/SessionHistoryTraversalQueue.cpp
-    HTML/ShadowRealmGlobalScope.cpp
     HTML/SharedResourceRequest.cpp
     HTML/AnimatedDecodedImageData.cpp
     HTML/SharedWorker.cpp

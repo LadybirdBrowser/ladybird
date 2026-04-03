@@ -443,32 +443,6 @@ Optional<Result<EvalResult, String>> compile_eval(
     return result;
 }
 
-Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
-    PrimitiveString& source_text, VM& vm)
-{
-    auto source_code = SourceCode::create({}, source_text.utf16_string());
-    auto const& code_view = source_code->code_view();
-    auto length = code_view.length_in_code_units();
-
-    GC::DeferGC defer_gc(vm.heap());
-    EvalGdiBuilder builder;
-    String parse_error;
-
-    auto const* source_ptr = source_code->utf16_data();
-
-    void* exec_ptr = rust_compile_eval(source_ptr, length, &vm, source_code.ptr(), &builder,
-        false, false, false, false, false,
-        &parse_error, collect_single_parse_error, nullptr, nullptr);
-
-    if (!exec_ptr)
-        return parse_error;
-
-    builder.executable = static_cast<Bytecode::Executable*>(exec_ptr);
-    builder.executable->name = "ShadowRealmEval"_utf16_fly_string;
-
-    return builder.to_result();
-}
-
 Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(ParsedProgram* parsed, NonnullRefPtr<SourceCode const> source_code, Realm& realm)
 {
     if (!parsed)

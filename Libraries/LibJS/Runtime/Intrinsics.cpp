@@ -94,8 +94,6 @@
 #include <LibJS/Runtime/SetConstructor.h>
 #include <LibJS/Runtime/SetIteratorPrototype.h>
 #include <LibJS/Runtime/SetPrototype.h>
-#include <LibJS/Runtime/ShadowRealmConstructor.h>
-#include <LibJS/Runtime/ShadowRealmPrototype.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/SharedArrayBufferConstructor.h>
 #include <LibJS/Runtime/SharedArrayBufferPrototype.h>

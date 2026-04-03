@@ -12,7 +12,6 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/ShadowRealmGlobalScope.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 
@@ -49,8 +48,7 @@ GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
 
     // 2. If object is a Window or a WorkerGlobalScope or a WorkletGlobalScope, return environment settings object’s
     //    policy container's CSP list.
-    // FIXME: File a spec issue to make this look at ShadowRealmGlobalScope to support ShadowRealm.
-    if (is<HTML::Window>(object) || is<HTML::WorkerGlobalScope>(object) || is<HTML::ShadowRealmGlobalScope>(object)) {
+    if (is<HTML::Window>(object) || is<HTML::WorkerGlobalScope>(object)) {
         auto& settings = HTML::relevant_principal_settings_object(object);
         return settings.policy_container()->csp_list;
     }

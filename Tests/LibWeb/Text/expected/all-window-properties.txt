@@ -461,7 +461,6 @@ ServiceWorker
 ServiceWorkerContainer
 ServiceWorkerRegistration
 Set
-ShadowRealm
 ShadowRoot
 SharedArrayBuffer
 SharedWorker

@@ -98,7 +98,6 @@ URL::URL Violation::url() const
         return URL::URL {};
     }
 
-    // FIXME: File a spec issue about what to do for ShadowRealms here.
     auto& universal_scope = as<HTML::UniversalGlobalScopeMixin>(*m_global_object);
     auto& principal_global = HTML::relevant_principal_global_object(universal_scope.this_impl());
 

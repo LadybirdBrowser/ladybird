@@ -132,8 +132,6 @@ describe("correct behavior", () => {
             new Proxy(function foo() {}, {}),
             // Bound function
             function foo() {}.bind(null),
-            // Wrapped function
-            new ShadowRealm().evaluate("function foo() {}; foo"),
         ];
         for (const fn of values) {
             // Inner function name is not exposed

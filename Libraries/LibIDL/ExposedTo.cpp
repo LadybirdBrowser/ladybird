@@ -42,8 +42,6 @@ ErrorOr<ExposedTo> parse_exposure_set(StringView interface_name, StringView expo
             return ExposedTo::PaintWorklet;
         if (string == "Worklet"sv)
             return ExposedTo::Worklet;
-        if (string == "ShadowRealm"sv)
-            return ExposedTo::ShadowRealm;
         return {};
     };
     if (auto parsed_exposed = exposed_from_string(exposed_trimmed); parsed_exposed.has_value())

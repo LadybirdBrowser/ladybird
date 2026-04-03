@@ -54,7 +54,7 @@ struct ScriptResult {
     Vector<Script::LexicalBinding> lexical_bindings;
 };
 
-// Result type for compile_eval() and compile_shadow_realm_eval().
+// Result type for compile_eval().
 // NB: Uses GC::Root to prevent collection while the result is in transit.
 struct EvalResult {
     GC::Root<Bytecode::Executable> executable;
@@ -109,11 +109,6 @@ Optional<Result<EvalResult, String>> compile_eval(
     PrimitiveString& code_string, VM& vm,
     CallerMode strict_caller, bool in_function, bool in_method,
     bool in_derived_constructor, bool in_class_field_initializer);
-
-// Compile ShadowRealm eval code. Returns nullopt if Rust is not available.
-// On success, the executable's name is set to "ShadowRealmEval".
-Optional<Result<EvalResult, String>> compile_shadow_realm_eval(
-    PrimitiveString& source_text, VM& vm);
 
 // Compile a previously parsed module. Must be called on the main thread.
 // Consumes and frees the Rust ParsedProgram.

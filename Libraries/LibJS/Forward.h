@@ -40,7 +40,6 @@
     __JS_ENUMERATE(Promise, promise, PromisePrototype, PromiseConstructor, void)                                                               \
     __JS_ENUMERATE(RegExpObject, regexp, RegExpPrototype, RegExpConstructor, void)                                                             \
     __JS_ENUMERATE(Set, set, SetPrototype, SetConstructor, void)                                                                               \
-    __JS_ENUMERATE(ShadowRealm, shadow_realm, ShadowRealmPrototype, ShadowRealmConstructor, void)                                              \
     __JS_ENUMERATE(SharedArrayBuffer, shared_array_buffer, SharedArrayBufferPrototype, SharedArrayBufferConstructor, void)                     \
     __JS_ENUMERATE(StringObject, string, StringPrototype, StringConstructor, void)                                                             \
     __JS_ENUMERATE(SuppressedError, suppressed_error, SuppressedErrorPrototype, SuppressedErrorConstructor, void)                              \
