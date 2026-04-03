@@ -5074,8 +5074,10 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::TranslateZArgument:
                     // Percentages are disallowed for the Z axis
                     return CalculationContext {};
+                case SpecialContext::CanvasContextGenericValue:
                 case SpecialContext::DOMMatrixInitString:
                 case SpecialContext::MediaCondition:
+                case SpecialContext::OnScreenCanvasContextFontValue:
                     return {};
                 }
                 VERIFY_NOT_REACHED();

@@ -74,7 +74,14 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     // FIXME: with the 'line-height' component forced to 'normal'
     // FIXME: with the 'font-size' component converted to CSS pixels
     // FIXME: Disallow tree counting functions if this is an offscreen canvas
-    auto font_style_value_result = parse_css_value(CSS::Parser::ParsingParams {}, font, CSS::PropertyID::Font);
+
+    auto const parsing_context = [&]() {
+        if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>)
+            return CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::OnScreenCanvasContextFontValue };
+        return CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue };
+    }();
+
+    auto font_style_value_result = parse_css_value(parsing_context, font, CSS::PropertyID::Font);
 
     // If the new value is syntactically incorrect (including using property-independent style sheet syntax like 'inherit' or 'initial'), then it must be ignored, without assigning a new font value.
     // NOTE: ShorthandStyleValue should be the only valid option here. We implicitly VERIFY this below.
@@ -163,7 +170,7 @@ template<typename IncludingClass, typename CanvasType>
 void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_letter_spacing(StringView letter_spacing)
 {
     // 1. Let parsed be the result of parsing the given value as a CSS <length>.
-    auto parsed = parse_css_type(CSS::Parser::ParsingParams {}, letter_spacing, CSS::ValueType::Length);
+    auto parsed = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, letter_spacing, CSS::ValueType::Length);
 
     // 2. If parsed is failure, then return.
     if (!parsed || !parsed->is_length())

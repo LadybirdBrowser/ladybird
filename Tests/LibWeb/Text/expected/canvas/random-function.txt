@@ -1,0 +1,14 @@
+10px sans-serif
+0px
+#000000
+#000000
+none
+SyntaxError
+rgba(0, 0, 0, 0)
+10px sans-serif
+0px
+#000000
+#000000
+none
+SyntaxError
+rgba(0, 0, 0, 0)

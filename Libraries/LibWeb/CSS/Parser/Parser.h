@@ -75,11 +75,13 @@ struct DescriptorContext {
 enum SpecialContext : u8 {
     AngularColorStopList,
     BorderRadius,
+    CanvasContextGenericValue,
     CubicBezierFunctionXCoordinate,
     DOMMatrixInitString,
     FontStyleAngle,
     GridTrackRepeatCount,
     MediaCondition,
+    OnScreenCanvasContextFontValue,
     RadialSizeLengthPercentage,
     RandomValueSharingFixedValue,
     RatioComponent,
@@ -103,6 +105,7 @@ enum class IsUAStyleSheet {
 
 struct ParsingParams {
     explicit ParsingParams(ParsingMode = ParsingMode::Normal);
+    explicit ParsingParams(ValueParsingContext);
     explicit ParsingParams(JS::Realm&, ParsingMode = ParsingMode::Normal);
     explicit ParsingParams(JS::Realm&, IsUAStyleSheet);
     explicit ParsingParams(DOM::Document const&, ParsingMode = ParsingMode::Normal);
