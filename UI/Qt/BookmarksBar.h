@@ -27,6 +27,8 @@ public:
 private:
     virtual bool eventFilter(QObject* object, QEvent* event) override;
 
+    bool handle_left_mouse_click(QMouseEvent*, QObject*);
+    bool handle_middle_mouse_click(QMouseEvent*, QObject*);
     bool handle_right_mouse_click(QMouseEvent*, QObject*);
     void extract_item_properties(QObject*);
 

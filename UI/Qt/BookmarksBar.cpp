@@ -95,11 +95,44 @@ bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
     if (event->type() == QEvent::MouseButtonPress) {
         auto& mouse_event = as<QMouseEvent>(*event);
 
+        if (mouse_event.button() == Qt::LeftButton)
+            return handle_left_mouse_click(&mouse_event, object);
+        if (mouse_event.button() == Qt::MiddleButton)
+            return handle_middle_mouse_click(&mouse_event, object);
         if (mouse_event.button() == Qt::RightButton)
             return handle_right_mouse_click(&mouse_event, object);
     }
 
     return QToolBar::eventFilter(object, event);
+}
+
+bool BookmarksBar::handle_left_mouse_click(QMouseEvent* event, QObject* item)
+{
+    if (event->modifiers().testFlag(Qt::ControlModifier))
+        return handle_middle_mouse_click(event, item);
+    return false;
+}
+
+bool BookmarksBar::handle_middle_mouse_click(QMouseEvent* event, QObject* item)
+{
+    auto activate_tab = event->modifiers().testFlag(Qt::ShiftModifier) ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes;
+
+    if (auto* button = as_if<QToolButton>(item)) {
+        auto* action = button->defaultAction();
+        extract_item_properties(action);
+
+        if (m_selected_bookmark_menu_item_type == "bookmark")
+            WebView::Application::the().open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
+    } else if (auto* menu = as_if<QMenu>(item)) {
+        if (auto* action = menu->actionAt(event->pos())) {
+            extract_item_properties(action);
+
+            if (m_selected_bookmark_menu_item_type == "bookmark")
+                WebView::Application::the().open_bookmark_in_new_tab(m_selected_bookmark_menu_item_id, activate_tab);
+        }
+    }
+
+    return true;
 }
 
 bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
