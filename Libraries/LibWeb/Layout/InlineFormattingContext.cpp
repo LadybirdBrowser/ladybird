@@ -80,12 +80,12 @@ CSSPixels InlineFormattingContext::automatic_content_height() const
     return m_automatic_content_height;
 }
 
-void InlineFormattingContext::run(AvailableSpace const& available_space)
+void InlineFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext const&> fragmentation_context)
 {
     FORMATTING_CONTEXT_TRACE();
     VERIFY(containing_block().children_are_inline());
     m_available_space = available_space;
-    generate_line_boxes();
+    generate_line_boxes(fragmentation_context);
 
     CSSPixels content_height = 0;
 
@@ -340,7 +340,7 @@ void InlineFormattingContext::apply_text_overflow_ellipsis(Vector<LineBox>& line
     }
 }
 
-void InlineFormattingContext::generate_line_boxes()
+void InlineFormattingContext::generate_line_boxes(Optional<FragmentationContext const&> fragmentation_context)
 {
     auto& line_boxes = m_containing_block_used_values.line_boxes;
     line_boxes.clear_with_capacity();
@@ -371,7 +371,7 @@ void InlineFormattingContext::generate_line_boxes()
             if (item.node->computed_values().text_wrap_mode() == CSS::TextWrapMode::Wrap) {
                 auto next_width = iterator.next_non_whitespace_sequence_width();
                 if (next_width > 0)
-                    line_builder.break_if_needed(next_width);
+                    line_builder.break_if_needed(next_width, fragmentation_context);
             }
             leading_margin_from_collapsible_whitespace += item.margin_start;
             leading_border_from_collapsible_whitespace += item.border_start;
@@ -388,7 +388,7 @@ void InlineFormattingContext::generate_line_boxes()
 
         switch (item.type) {
         case InlineLevelIterator::Item::Type::ForcedBreak: {
-            line_builder.break_line(LineBuilder::ForcedBreak::Yes);
+            line_builder.break_line(LineBuilder::ForcedBreak::Yes, fragmentation_context);
             if (item.node) {
                 auto introduce_clearance = parent().clear_floating_boxes(*item.node, *this);
                 if (introduce_clearance == BlockFormattingContext::DidIntroduceClearance::Yes) {
@@ -407,7 +407,7 @@ void InlineFormattingContext::generate_line_boxes()
                     minimum_space_needed_on_line += item.margin_start;
                 if (item.margin_end < 0)
                     minimum_space_needed_on_line += item.margin_end;
-                line_builder.break_if_needed(minimum_space_needed_on_line);
+                line_builder.break_if_needed(minimum_space_needed_on_line, fragmentation_context);
             }
             line_builder.append_box(box, item.border_start + item.padding_start, item.padding_end + item.border_end, item.margin_start, item.margin_end);
             break;
@@ -447,7 +447,7 @@ void InlineFormattingContext::generate_line_boxes()
                 }
 
                 // If whitespace caused us to break, don't put it on the next line.
-                if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width)) {
+                if (is_whitespace && next_width > 0 && line_builder.break_if_needed(item.border_box_width() + next_width, fragmentation_context)) {
                     // Record that the previous line has trailing whitespace for text selection.
                     line_builder.set_trailing_whitespace_on_previous_line();
                     break;
@@ -457,7 +457,7 @@ void InlineFormattingContext::generate_line_boxes()
                 // If a shortened line box is too small to contain any content, then the line box is shifted downward
                 // (and its width recomputed) until either some content fits or there are no more floats present.
                 if (!is_whitespace && (item.can_break_before || line_boxes.last().is_empty()))
-                    line_builder.break_if_needed(item.border_box_width());
+                    line_builder.break_if_needed(item.border_box_width(), fragmentation_context);
             }
             line_builder.append_text_chunk(
                 text_node,
@@ -503,7 +503,7 @@ void InlineFormattingContext::generate_line_boxes()
         }
     }
 
-    line_builder.update_last_line();
+    line_builder.update_last_line(fragmentation_context);
     m_containing_block_used_values.set_inline_end_static_position_rect(calculate_inline_end_static_position_rect());
 
     if (m_layout_mode == LayoutMode::Normal) {

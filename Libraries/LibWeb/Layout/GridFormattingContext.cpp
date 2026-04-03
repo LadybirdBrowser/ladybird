@@ -2751,8 +2751,11 @@ CSSPixelRect GridFormattingContext::get_grid_area_rect(GridItem const& grid_item
     return area_rect;
 }
 
-void GridFormattingContext::run(AvailableSpace const& available_space)
+void GridFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext const&> fragmentation_context)
 {
+    // FIXME: Actually deal with fragmentation
+    (void)fragmentation_context;
+
     // OPTIMIZATION: If we're in intrinsic sizing layout, but the grid container is not the
     //               box being measured, we can skip everything here.
     //               The parent formatting context has already figured out our size anyway.

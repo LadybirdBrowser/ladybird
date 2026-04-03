@@ -14,8 +14,11 @@ ReplacedWithChildrenFormattingContext::ReplacedWithChildrenFormattingContext(Lay
 {
 }
 
-void ReplacedWithChildrenFormattingContext::run(AvailableSpace const& available_space)
+void ReplacedWithChildrenFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext const&> fragmentation_context)
 {
+    // FIXME: Actually deal with fragmentation
+    (void)fragmentation_context;
+
     auto& root_state = m_state.get_mutable(context_box());
     auto content_width = root_state.content_width();
 
@@ -48,7 +51,7 @@ void ReplacedWithChildrenFormattingContext::run(AvailableSpace const& available_
     wrapper_state.set_content_offset({ 0, 0 });
 
     auto bfc = make<BlockFormattingContext>(m_state, m_layout_mode, *wrapper, this);
-    bfc->run(child_available_space);
+    bfc->run(child_available_space, {});
 
     m_automatic_content_width = content_width;
     m_automatic_content_height = bfc->automatic_content_height();
