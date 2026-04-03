@@ -12,6 +12,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>

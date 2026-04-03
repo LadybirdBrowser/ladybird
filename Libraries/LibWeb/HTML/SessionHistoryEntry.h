@@ -6,12 +6,10 @@
 
 #pragma once
 
-#include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
 
 namespace Web::HTML {
@@ -65,15 +63,6 @@ public:
     [[nodiscard]] ScrollRestorationMode scroll_restoration_mode() const { return m_scroll_restoration_mode; }
     void set_scroll_restoration_mode(ScrollRestorationMode scroll_restoration_mode) { m_scroll_restoration_mode = scroll_restoration_mode; }
 
-    [[nodiscard]] GC::Ptr<PolicyContainer> policy_container() const { return m_policy_container; }
-    void set_policy_container(GC::Ptr<PolicyContainer> policy_container) { m_policy_container = policy_container; }
-
-    [[nodiscard]] Optional<ByteString> const& browsing_context_name() const { return m_browsing_context_name; }
-    void set_browsing_context_name(Optional<ByteString> browsing_context_name) { m_browsing_context_name = move(browsing_context_name); }
-
-    [[nodiscard]] GC::Ptr<BrowsingContext> original_source_browsing_context() const { return m_original_source_browsing_context; }
-    void set_original_source_browsing_context(GC::Ptr<BrowsingContext> original_source_browsing_context) { m_original_source_browsing_context = original_source_browsing_context; }
-
 private:
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-step
     // step, a non-negative integer or "pending", initially "pending".
@@ -106,20 +95,12 @@ private:
     // scroll restoration mode, a scroll restoration mode, initially "auto"
     ScrollRestorationMode m_scroll_restoration_mode { ScrollRestorationMode::Auto };
 
-    // policy container, a policy container or null
-    GC::Ptr<PolicyContainer> m_policy_container;
-
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-scroll-position
     // FIXME: scroll position data, which is scroll position data for the document's restorable scrollable regions
-
-    // browsing context name, a browsing context name or null, initially null
-    Optional<ByteString> m_browsing_context_name;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-other
     // FIXME: persisted user state, which is implementation-defined, initially null
     // NOTE: This is where we could remember the state of form controls, for example.
-
-    GC::Ptr<BrowsingContext> m_original_source_browsing_context;
 };
 
 }
