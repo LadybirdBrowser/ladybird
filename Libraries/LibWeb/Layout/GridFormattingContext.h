@@ -299,6 +299,8 @@ private:
     LayoutState::UsedValues& m_grid_container_used_values;
 
     void determine_grid_container_height();
+    CSSPixels resolve_used_grid_container_height_for_second_row_layout() const;
+    void rerun_row_track_sizing_using_grid_container_height(CSSPixels);
     void determine_intrinsic_size_of_grid_container(AvailableSpace const& available_space);
 
     virtual AbsposContainingBlockInfo resolve_abspos_containing_block_info(Box const&) override;
@@ -333,6 +335,7 @@ private:
 
     void initialize_grid_tracks_from_definition(GridDimension);
     void initialize_grid_tracks_for_columns_and_rows();
+    void initialize_gap_tracks(GridDimension, AvailableSize const&);
     void initialize_gap_tracks(AvailableSpace const&);
 
     void collapse_auto_fit_tracks_if_needed(GridDimension);
