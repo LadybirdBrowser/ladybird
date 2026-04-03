@@ -22,6 +22,7 @@ set(SOURCES
     ParserError.cpp
     Print.cpp
     Profiler.cpp
+    GeckoProfileWriter.cpp
 )
 
 if (APPLE)
