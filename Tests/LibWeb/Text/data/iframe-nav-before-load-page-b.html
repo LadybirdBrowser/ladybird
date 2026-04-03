@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<script>
+var sessionHistory = (typeof internals !== "undefined" && internals.dumpSessionHistory) ? internals.dumpSessionHistory() : "n/a";
+parent.postMessage({ type: "page-b-ready", sessionHistory: sessionHistory }, "*");
+</script>

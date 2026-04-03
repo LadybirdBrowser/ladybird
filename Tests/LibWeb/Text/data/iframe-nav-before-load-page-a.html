@@ -1,0 +1,6 @@
+<!DOCTYPE html>
+<script>
+// This postMessage fires during parsing, BEFORE the load event.
+// The parent will navigate the iframe to page-b upon receiving this.
+parent.postMessage("page-a-ready", "*");
+</script>

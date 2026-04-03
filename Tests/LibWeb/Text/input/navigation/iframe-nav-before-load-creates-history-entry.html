@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- Test: navigating an iframe via src attribute change before the previous page's
+     load event should create a new history entry (push), not replace the current one.
+     Regression test for the "not completely loaded" check in navigate_an_iframe_or_frame
+     incorrectly forcing replace for attribute-driven navigations. -->
+<script>
+asyncTest(async done => {
+    const iframe = document.createElement("iframe");
+    document.body.appendChild(iframe);
+
+    let navigatedToB = false;
+
+    window.addEventListener("message", event => {
+        const data = event.data;
+        if (data === "page-a-ready" && !navigatedToB) {
+            navigatedToB = true;
+            // Navigate to page-b immediately, BEFORE page-a's load event fires.
+            // This should still create a new history entry (push), not replace page-a.
+            iframe.src = "../../data/iframe-nav-before-load-page-b.html";
+        } else if (data && data.type === "page-b-ready") {
+            // page-b reports the iframe's session history entries
+            println(data.sessionHistory);
+            done();
+        }
+    });
+
+    iframe.src = "../../data/iframe-nav-before-load-page-a.html";
+});
+</script>

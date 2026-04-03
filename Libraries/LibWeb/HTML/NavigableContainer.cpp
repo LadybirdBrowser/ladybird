@@ -268,7 +268,10 @@ void NavigableContainer::navigate_an_iframe_or_frame(URL::URL url, ReferrerPolic
     auto history_handling = Bindings::NavigationHistoryBehavior::Auto;
 
     // 2. If element's content navigable's active document is not completely loaded, then set historyHandling to "replace".
-    if (m_content_navigable->active_document() && !m_content_navigable->active_document()->is_completely_loaded()) {
+    // AD-HOC: Only apply this check during initial insertion. For subsequent attribute-driven navigations,
+    //         the previous document may have parsed and run scripts but not yet fired its load event;
+    //         forcing "replace" in that case would incorrectly discard the history entry.
+    if (initial_insertion == InitialInsertion::Yes && m_content_navigable->active_document() && !m_content_navigable->active_document()->is_completely_loaded()) {
         history_handling = Bindings::NavigationHistoryBehavior::Replace;
     }
 
