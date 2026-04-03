@@ -5,6 +5,7 @@
  */
 
 #include <AK/Math.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/Menu.h>
 
 #import <Interface/BookmarkFolder.h>
@@ -142,6 +143,18 @@ static constexpr CGFloat const BOOKMARK_FOLDER_ROOT_VERTICAL_SHIFT = 10;
 {
     if ([event modifierFlags] & NSEventModifierFlagControl) {
         [self.bookmarks_bar showContextMenu:self event:event];
+        return;
+    }
+
+    if ([event modifierFlags] & NSEventModifierFlagCommand) {
+        if (auto* type = Ladybird::get_control_property(self, @"type"); [type isEqualToString:@"bookmark"]) {
+            auto bookmark_id = Ladybird::ns_string_to_string(Ladybird::get_control_property(self, @"id"));
+            auto activate_tab = ([event modifierFlags] & NSEventModifierFlagShift) ? Web::HTML::ActivateTab::No : Web::HTML::ActivateTab::Yes;
+
+            WebView::Application::the().open_bookmark_in_new_tab(bookmark_id, activate_tab);
+            [self.bookmarks_bar closeBookmarkFolders];
+        }
+
         return;
     }
 
