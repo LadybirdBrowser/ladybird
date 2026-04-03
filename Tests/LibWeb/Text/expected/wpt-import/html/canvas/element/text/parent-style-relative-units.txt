@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Fail
+Fail	Font-size based on canvas element font-size
+Fail	Font-size based on canvas element line-height
