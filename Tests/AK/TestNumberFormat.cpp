@@ -112,6 +112,16 @@ TEST_CASE(base10_units)
     EXPECT_EQ(human_readable_size(1000000, AK::HumanReadableBasedOn::Base10), "1.0 MB");
 }
 
+TEST_CASE(use_thousands_separator)
+{
+    EXPECT_EQ(human_readable_size(1000 * KiB, AK::HumanReadableBasedOn::Base2, UseThousandsSeparator::Yes), "1,000.0 KiB");
+    EXPECT_EQ(human_readable_size(1024 * KiB - 51, AK::HumanReadableBasedOn::Base2, UseThousandsSeparator::Yes), "1,024.0 KiB");
+    EXPECT_EQ(human_readable_size(999950, AK::HumanReadableBasedOn::Base10, UseThousandsSeparator::Yes), "1,000.0 KB");
+
+    EXPECT_EQ(human_readable_size_long(1234, UseThousandsSeparator::Yes), "1.2 KiB (1,234 bytes)");
+    EXPECT_EQ(human_readable_size_long(1000000, UseThousandsSeparator::Yes), "976.6 KiB (1,000,000 bytes)");
+}
+
 TEST_CASE(rounding_boundaries_base2)
 {
     EXPECT_EQ(human_readable_size(1075), "1.0 KiB");
@@ -128,9 +138,9 @@ TEST_CASE(rounding_boundaries_base2)
 TEST_CASE(rounding_boundaries_base10)
 {
     EXPECT_EQ(human_readable_size(1049, AK::HumanReadableBasedOn::Base10), "1.0 KB");
-    EXPECT_EQ(human_readable_size(1050, AK::HumanReadableBasedOn::Base10), "1.0 KB");
+    EXPECT_EQ(human_readable_size(1050, AK::HumanReadableBasedOn::Base10), "1.1 KB");
     EXPECT_EQ(human_readable_size(1051, AK::HumanReadableBasedOn::Base10), "1.1 KB");
-    EXPECT_EQ(human_readable_size(1150, AK::HumanReadableBasedOn::Base10), "1.1 KB");
+    EXPECT_EQ(human_readable_size(1150, AK::HumanReadableBasedOn::Base10), "1.2 KB");
     EXPECT_EQ(human_readable_size(1151, AK::HumanReadableBasedOn::Base10), "1.2 KB");
 
     EXPECT_EQ(human_readable_size(999949, AK::HumanReadableBasedOn::Base10), "999.9 KB");

@@ -285,6 +285,10 @@ TEST_CASE(floating_point_numbers)
     EXPECT_EQ(ByteString::formatted("{:.1f}", 1.4), "1.4");
     EXPECT_EQ(ByteString::formatted("{:.1f}", 1.99), "2.0");
     EXPECT_EQ(ByteString::formatted("{:.1f}", 9.999), "10.0");
+    EXPECT_EQ(ByteString::formatted("{:'.1f}", 999.96), "1,000.0");
+    EXPECT_EQ(ByteString::formatted("{:'.1f}", 999999.96l), "1,000,000.0");
+    EXPECT_EQ(ByteString::formatted("{:0.3}", 1.12l), "1.12");
+    EXPECT_EQ(ByteString::formatted("{:0.3f}", 1.12l), "1.120");
 
     EXPECT_EQ(ByteString::formatted("{}", NAN), "nan");
     EXPECT_EQ(ByteString::formatted("{}", INFINITY), "inf");

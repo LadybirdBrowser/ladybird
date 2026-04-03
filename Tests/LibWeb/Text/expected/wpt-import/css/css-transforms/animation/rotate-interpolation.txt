@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 360 tests
 
-352 Pass
-8 Fail
+356 Pass
+4 Fail
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (-1) should be [20deg]
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (0) should be [100deg]
 Pass	CSS Transitions: property <rotate> from [100deg] to [180deg] at (0.125) should be [110deg]
@@ -33,25 +33,25 @@ Pass	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) sh
 Pass	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.125) should be [-0.136456 0.136456 0.981203 40.6037deg]
 Pass	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.875) should be [-0.70246 0.70246 0.114452 53.1994deg]
 Pass	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (1) should be [-0.71 0.71 0 60deg]
-Fail	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
+Pass	CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
 Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (-1) should be [0.447214 -0.447214 0.774597 104.478deg]
 Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) should be [45deg]
 Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.125) should be [-0.136456 0.136456 0.981203 40.6037deg]
 Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.875) should be [-0.70246 0.70246 0.114452 53.1994deg]
 Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (1) should be [-0.71 0.71 0 60deg]
-Fail	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
+Pass	CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
 Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (-1) should be [0.447214 -0.447214 0.774597 104.478deg]
 Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) should be [45deg]
 Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.125) should be [-0.136456 0.136456 0.981203 40.6037deg]
 Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.875) should be [-0.70246 0.70246 0.114452 53.1994deg]
 Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (1) should be [-0.71 0.71 0 60deg]
-Fail	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
+Pass	CSS Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
 Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (-1) should be [0.447214 -0.447214 0.774597 104.478deg]
 Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) should be [45deg]
 Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.125) should be [-0.136456 0.136456 0.981203 40.6037deg]
 Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (0.875) should be [-0.70246 0.70246 0.114452 53.1994deg]
 Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (1) should be [-0.71 0.71 0 60deg]
-Fail	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
+Pass	Web Animations: property <rotate> from [45deg] to [-1 1 0 60deg] at (2) should be [-0.637897 0.637897 -0.431479 124.975deg]
 Pass	CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (-1) should be [0.5 -0.57 0.65 -400grad]
 Pass	CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (0) should be [0.5 -0.57 0.65 0deg]
 Pass	CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (0.125) should be [0.5 -0.57 0.65 50grad]

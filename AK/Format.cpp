@@ -5,6 +5,7 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Error.h>
@@ -93,6 +94,63 @@ static constexpr size_t convert_unsigned_to_string(u64 value, Array<u8, 128>& bu
         swap(buffer[i], buffer[used - i - 1]);
 
     return used;
+}
+
+static ErrorOr<void> append_grouped_digits(StringBuilder& builder, StringView digits)
+{
+    if (digits.length() <= 3)
+        return builder.try_append(digits);
+
+    for (size_t i = 0; i < digits.length(); ++i) {
+        auto const index_from_end = digits.length() - i - 1;
+        TRY(builder.try_append(digits[i]));
+        if (index_from_end > 0 && index_from_end % 3 == 0)
+            TRY(builder.try_append(','));
+    }
+    return {};
+}
+
+static bool round_up_decimal_digits(ByteBuffer& digits)
+{
+    int current_position = digits.size() - 1;
+    while (current_position >= 0) {
+        ++digits[current_position];
+        if (digits[current_position] <= '9')
+            break;
+        digits[current_position] = '0';
+        --current_position;
+    }
+
+    if (current_position < 0) {
+        for (size_t i = 0; i < digits.size(); ++i)
+            digits[i] = '0';
+        return true;
+    }
+    return false;
+}
+
+static ErrorOr<void> append_formatted_integral_part(StringBuilder& builder, u64 whole_part, u8 base, bool upper_case, bool use_separator, FormatBuilder::SignMode sign_mode, bool is_negative)
+{
+    if (is_negative)
+        TRY(builder.try_append('-'));
+    else if (sign_mode == FormatBuilder::SignMode::Always)
+        TRY(builder.try_append('+'));
+    else if (sign_mode == FormatBuilder::SignMode::Reserved)
+        TRY(builder.try_append(' '));
+
+    StringBuilder digits_builder;
+    FormatBuilder format_builder { digits_builder };
+    TRY(format_builder.put_u64(whole_part, base, false, upper_case, false, false, FormatBuilder::Align::Right, 0, ' '));
+
+    if (use_separator)
+        return append_grouped_digits(builder, digits_builder.string_view());
+    return builder.try_append(digits_builder.string_view());
+}
+
+static void trim_trailing_zeroes(ByteBuffer& digits)
+{
+    while (!digits.is_empty() && digits[digits.size() - 1] == '0')
+        digits.trim(digits.size() - 1, false);
 }
 
 ErrorOr<void> vformat_impl(TypeErasedFormatParams& params, FormatBuilder& builder, FormatParser& parser)
@@ -461,29 +519,6 @@ ErrorOr<void> FormatBuilder::put_fixed_point(
     return {};
 }
 
-static ErrorOr<void> round_up_digits(StringBuilder& digits_builder)
-{
-    auto digits_buffer = TRY(digits_builder.to_byte_buffer());
-    int current_position = digits_buffer.size() - 1;
-
-    while (current_position >= 0) {
-        if (digits_buffer[current_position] == '.') {
-            --current_position;
-            continue;
-        }
-        ++digits_buffer[current_position];
-        if (digits_buffer[current_position] <= '9')
-            break;
-        digits_buffer[current_position] = '0';
-        --current_position;
-    }
-
-    digits_builder.clear();
-    if (current_position < 0)
-        TRY(digits_builder.try_append('1'));
-    return digits_builder.try_append(digits_buffer);
-}
-
 ErrorOr<void> FormatBuilder::put_f64_with_precision(
     double value,
     u8 base,
@@ -497,30 +532,30 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
     SignMode sign_mode,
     RealNumberDisplayMode display_mode)
 {
-    StringBuilder string_builder;
-    FormatBuilder format_builder { string_builder };
+    bool const is_fixed_point_base10 = base == 10 && display_mode == RealNumberDisplayMode::FixedPoint;
 
     bool is_negative = value < 0.0;
     if (is_negative)
         value = -value;
 
-    TRY(format_builder.put_u64(static_cast<u64>(value), base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
-    value -= static_cast<i64>(value);
+    u64 whole_part = static_cast<u64>(value);
+    if (!is_fixed_point_base10)
+        value -= static_cast<i64>(value);
 
-    bool did_emit_decimals = false;
+    auto fractional_digits = TRY(ByteBuffer::create_uninitialized(0));
 
     if (precision > 0) {
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
         // place to start would be the following video from CppCon 2019:
         // https://youtu.be/4P_kbF0EbZM (Stephan T. Lavavej “Floating-Point <charconv>: Making Your Code 10x Faster With C++17's Final Boss”)
         double epsilon = 0.5;
-        if (!zero_pad && display_mode != RealNumberDisplayMode::FixedPoint) {
+        if (!is_fixed_point_base10 && !zero_pad && display_mode != RealNumberDisplayMode::FixedPoint) {
             for (size_t i = 0; i < precision; ++i)
                 epsilon /= 10.0;
         }
 
         for (size_t digit = 0; digit < precision; ++digit) {
-            if (!zero_pad && display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
+            if (!is_fixed_point_base10 && !zero_pad && display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
                 break;
 
             value *= 10.0;
@@ -529,32 +564,25 @@ ErrorOr<void> FormatBuilder::put_f64_with_precision(
             if (value > NumericLimits<u32>::max())
                 value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
 
-            if (digit == 0)
-                TRY(string_builder.try_append('.'));
-
-            TRY(string_builder.try_append('0' + (static_cast<u32>(value) % 10)));
-            did_emit_decimals = true;
+            TRY(fractional_digits.try_append('0' + (static_cast<u32>(value) % 10)));
         }
     }
 
-    // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0) % 10 >= 5)
-        TRY(round_up_digits(string_builder));
+    if (static_cast<u64>(value * 10.0) % 10 >= 5) {
+        if (precision == 0)
+            ++whole_part;
+        else if (round_up_decimal_digits(fractional_digits))
+            ++whole_part;
+    }
 
-    if (did_emit_decimals && display_mode == RealNumberDisplayMode::Default) {
-        while (!string_builder.is_empty()) {
-            // Strip trailing zero decimals.
-            if (string_builder.string_view().ends_with('0')) {
-                string_builder.trim(1);
-                continue;
-            }
-            // Strip trailing decimal point.
-            if (string_builder.string_view().ends_with('.')) {
-                string_builder.trim(1);
-                break;
-            }
-            break;
-        }
+    if (display_mode == RealNumberDisplayMode::Default)
+        trim_trailing_zeroes(fractional_digits);
+
+    StringBuilder string_builder;
+    TRY(append_formatted_integral_part(string_builder, whole_part, base, upper_case, use_separator, sign_mode, is_negative));
+    if (!fractional_digits.is_empty()) {
+        TRY(string_builder.try_append('.'));
+        TRY(string_builder.try_append(StringView { fractional_digits }));
     }
 
     return put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill);
@@ -697,16 +725,16 @@ ErrorOr<void> FormatBuilder::put_f32_or_f64(
         integral_part_end = 1;
     }
 
-    if (use_separator && integral_part_end > 3) {
-        // Go backwards from the end of the integral part, inserting commas every 3 consecutive digits.
+    size_t integral_part_start = 0;
+    if (!builder.is_empty() && (builder.string_view()[0] == '-' || builder.string_view()[0] == '+' || builder.string_view()[0] == ' '))
+        integral_part_start = 1;
+
+    if (use_separator && integral_part_end - integral_part_start > 3) {
         StringBuilder separated_builder;
         auto const string_view = builder.string_view();
-        for (size_t i = 0; i < integral_part_end; ++i) {
-            auto const index_from_end = integral_part_end - i - 1;
-            if (index_from_end > 0 && index_from_end != integral_part_end - 1 && index_from_end % 3 == 2)
-                TRY(separated_builder.try_append(','));
-            TRY(separated_builder.try_append(string_view[i]));
-        }
+        if (integral_part_start == 1)
+            TRY(separated_builder.try_append(string_view[0]));
+        TRY(append_grouped_digits(separated_builder, string_view.substring_view(integral_part_start, integral_part_end - integral_part_start)));
         TRY(separated_builder.try_append(string_view.substring_view(integral_part_end)));
         builder = move(separated_builder);
     }
@@ -718,6 +746,7 @@ ErrorOr<void> FormatBuilder::put_f80(
     long double value,
     u8 base,
     bool upper_case,
+    bool zero_pad,
     bool use_separator,
     Align align,
     size_t min_width,
@@ -726,10 +755,9 @@ ErrorOr<void> FormatBuilder::put_f80(
     SignMode sign_mode,
     RealNumberDisplayMode display_mode)
 {
-    StringBuilder string_builder;
-    FormatBuilder format_builder { string_builder };
-
     if (isnan(value) || isinf(value)) [[unlikely]] {
+        StringBuilder string_builder;
+
         if (value < 0.0l)
             TRY(string_builder.try_append('-'));
         else if (sign_mode == SignMode::Always)
@@ -745,25 +773,30 @@ ErrorOr<void> FormatBuilder::put_f80(
         return {};
     }
 
+    bool const is_fixed_point_base10 = base == 10 && display_mode == RealNumberDisplayMode::FixedPoint;
+
     bool is_negative = value < 0.0l;
     if (is_negative)
         value = -value;
 
-    TRY(format_builder.put_u64(static_cast<u64>(value), base, false, upper_case, false, use_separator, Align::Right, 0, ' ', sign_mode, is_negative));
-    value -= static_cast<i64>(value);
+    u64 whole_part = static_cast<u64>(value);
+    if (!is_fixed_point_base10)
+        value -= static_cast<i64>(value);
+
+    auto fractional_digits = TRY(ByteBuffer::create_uninitialized(0));
 
     if (precision > 0) {
         // FIXME: This is a terrible approximation but doing it properly would be a lot of work. If someone is up for that, a good
         // place to start would be the following video from CppCon 2019:
         // https://youtu.be/4P_kbF0EbZM (Stephan T. Lavavej “Floating-Point <charconv>: Making Your Code 10x Faster With C++17's Final Boss”)
         long double epsilon = 0.5l;
-        if (display_mode != RealNumberDisplayMode::FixedPoint) {
+        if (!is_fixed_point_base10 && !zero_pad && display_mode != RealNumberDisplayMode::FixedPoint) {
             for (size_t i = 0; i < precision; ++i)
                 epsilon /= 10.0l;
         }
 
         for (size_t digit = 0; digit < precision; ++digit) {
-            if (display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
+            if (!is_fixed_point_base10 && !zero_pad && display_mode != RealNumberDisplayMode::FixedPoint && value - static_cast<i64>(value) < epsilon)
                 break;
 
             value *= 10.0l;
@@ -772,16 +805,26 @@ ErrorOr<void> FormatBuilder::put_f80(
             if (value > NumericLimits<u32>::max())
                 value -= static_cast<u64>(value) - (static_cast<u64>(value) % 10);
 
-            if (digit == 0)
-                TRY(string_builder.try_append('.'));
-
-            TRY(string_builder.try_append('0' + (static_cast<u32>(value) % 10)));
+            TRY(fractional_digits.try_append('0' + (static_cast<u32>(value) % 10)));
         }
     }
 
-    // Round up if the following decimal is 5 or higher
-    if (static_cast<u64>(value * 10.0l) % 10 >= 5)
-        TRY(round_up_digits(string_builder));
+    if (static_cast<u64>(value * 10.0l) % 10 >= 5) {
+        if (precision == 0)
+            ++whole_part;
+        else if (round_up_decimal_digits(fractional_digits))
+            ++whole_part;
+    }
+
+    if (display_mode == RealNumberDisplayMode::Default)
+        trim_trailing_zeroes(fractional_digits);
+
+    StringBuilder string_builder;
+    TRY(append_formatted_integral_part(string_builder, whole_part, base, upper_case, use_separator, sign_mode, is_negative));
+    if (!fractional_digits.is_empty()) {
+        TRY(string_builder.try_append('.'));
+        TRY(string_builder.try_append(StringView { fractional_digits }));
+    }
 
     TRY(put_string(string_builder.string_view(), align, min_width, NumericLimits<size_t>::max(), fill));
     return {};
@@ -1075,7 +1118,7 @@ ErrorOr<void> Formatter<long double>::format(FormatBuilder& builder, long double
     m_width = m_width.value_or(0);
     m_precision = m_precision.value_or(6);
 
-    return builder.put_f80(value, base, upper_case, m_use_separator, m_align, m_width.value(), m_precision.value(), m_fill, m_sign_mode, real_number_display_mode);
+    return builder.put_f80(value, base, upper_case, m_zero_pad, m_use_separator, m_align, m_width.value(), m_precision.value(), m_fill, m_sign_mode, real_number_display_mode);
 }
 
 ErrorOr<void> Formatter<f16>::format(FormatBuilder& builder, f16 value)
