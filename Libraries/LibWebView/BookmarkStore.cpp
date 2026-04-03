@@ -10,6 +10,7 @@
 #include <AK/Random.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
+#include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
@@ -115,12 +116,48 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
     return object;
 }
 
+static Vector<BookmarkItem> create_default_bookmarks()
+{
+    return {
+        {
+            .id = generate_random_uuid(),
+            .data = BookmarkItem::Bookmark {
+                .url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value(),
+                .title = "Ladybird"_string,
+                .favicon_base64_png = {},
+            },
+        },
+        {
+            .id = generate_random_uuid(),
+            .data = BookmarkItem::Bookmark {
+                .url = URL::Parser::basic_parse("https://github.com/LadybirdBrowser/ladybird"sv).release_value(),
+                .title = "Ladybird GitHub"_string,
+                .favicon_base64_png = {},
+            },
+        },
+        {
+            .id = generate_random_uuid(),
+            .data = BookmarkItem::Bookmark {
+                .url = URL::Parser::basic_parse("https://discord.com/invite/nvfjVJ4Svh"sv).release_value(),
+                .title = "Ladybird Discord"_string,
+                .favicon_base64_png = {},
+            },
+        },
+    };
+}
+
 BookmarkStore BookmarkStore::create(Badge<Application>)
 {
     auto bookmarks_directory = ByteString::formatted("{}/Ladybird", Core::StandardPaths::config_directory());
     auto bookmarks_path = ByteString::formatted("{}/Bookmarks.json", bookmarks_directory);
 
     BookmarkStore store { move(bookmarks_path) };
+
+    if (!FileSystem::exists(store.m_bookmarks_path)) {
+        store.m_items = create_default_bookmarks();
+        store.persist_bookmarks();
+        return store;
+    }
 
     auto bookmarks_json = read_json_file(store.m_bookmarks_path);
     if (bookmarks_json.is_error()) {
