@@ -853,6 +853,20 @@ test("surrogate pairs", () => {
     expect(eval(`/[\uD83D\\uDC38]/`).exec("\u{1F438}")?.[0]).toBe("\uD83D");
 });
 
+test("legacy \\8 and \\9 escapes fall back to literals when backreference exceeds group count", () => {
+    // \81 with 8 groups: 81 > 8, so \8 falls back to literal '8' and '1' is literal '1'.
+    const re = new RegExp("(.)(.)(.)(.)(.)(.)(.)(.)\\81");
+    const m = re.exec("abcdefgh81");
+    expect(m).not.toBeNull();
+    expect(m[0]).toBe("abcdefgh81");
+
+    // \8 as a valid backreference (exactly 8 groups) should still work.
+    const re8 = new RegExp("(a)(b)(c)(d)(e)(f)(g)(h)\\8");
+    const m8 = re8.exec("abcdefghh");
+    expect(m8).not.toBeNull();
+    expect(m8[0]).toBe("abcdefghh");
+});
+
 test("incomplete \\u and \\x escapes", () => {
     expect("u".match(/^\u$/)).toEqual(["u"]);
     expect("\\u\u0000".match(/[\u]+/)).toEqual(["u"]);

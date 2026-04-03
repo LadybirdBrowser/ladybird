@@ -633,8 +633,12 @@ impl Parser {
                     // Per Annex B, if the consumed number exceeds the total
                     // capture count, reinterpret as a legacy octal escape.
                     self.pos = backref_start;
-                    let value = self.parse_legacy_octal(ch);
-                    Ok(Atom::Literal(value as u32))
+                    if ch >= '8' {
+                        Ok(Atom::Literal(ch as u32))
+                    } else {
+                        let value = self.parse_legacy_octal(ch);
+                        Ok(Atom::Literal(value as u32))
+                    }
                 } else {
                     Ok(Atom::Backreference(Backreference::Index(n)))
                 }
