@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-fill-auto</title>
+<link rel="author" title="howcome@opera.com" href="http://www.opera.com/"/>
+<meta name="flags" content="ahem"/>
+<link rel="stylesheet" type="text/css" href="../../../../data/fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body>div {
+	font-family: Ahem;
+	font-size: 1.25em;
+	line-height: 1em;
+	color: green;
+	height: 3em;
+	width: 2em;
+	orphans: 1;
+	widows: 1;
+	position: relative;
+	margin: 1em;
+}
+div.col {
+	column-count: 2;
+	column-fill: auto;
+	column-gap: 0;
+}
+div.red {
+	background: red; position: absolute; z-index: -1;
+}
+]]></style>
+</head>
+
+<body>
+
+<div class='ref'>
+oo<br/>t<br/>o
+</div>
+
+<div class='ref'>
+oo<br/>t<br/>o
+</div>
+
+</body>
+</html>
