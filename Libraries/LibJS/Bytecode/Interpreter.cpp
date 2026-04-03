@@ -18,6 +18,7 @@
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Export.h>
+#include <LibJS/Profiler.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/Array.h>
@@ -424,7 +425,10 @@ void Interpreter::run_bytecode(size_t entry_point)
         return env && env[0] == '1';
     }();
 
-    if (!use_cpp_interpreter && AsmInterpreter::is_available()) {
+    auto* profiler = vm().profiler();
+    auto const force_cpp_interpreter = profiler && profiler->needs_bytecode_safe_points();
+
+    if (!use_cpp_interpreter && !force_cpp_interpreter && AsmInterpreter::is_available()) {
         AsmInterpreter::run(*this, entry_point);
         return;
     }
@@ -449,6 +453,11 @@ void Interpreter::run_bytecode(size_t entry_point)
         else                                                                                        \
             program_counter += sizeof(Op::name);                                                    \
         m_running_execution_context->program_counter = program_counter;                             \
+        /* sample_if_needed() is a flag-check no-op on platforms that sample asynchronously         \
+           (e.g. macOS Mach path); it only does work when m_sample_pending has been set             \
+           by a signal handler or explicitly via request_sample_for_test(). */                      \
+        if (auto* profiler = vm().profiler()) [[unlikely]]                                          \
+            profiler->sample_if_needed();                                                           \
         auto& next_instruction = *reinterpret_cast<Instruction const*>(&bytecode[program_counter]); \
         goto* bytecode_dispatch_table[static_cast<size_t>(next_instruction.type())];                \
     } while (0)
@@ -469,6 +478,8 @@ void Interpreter::run_bytecode(size_t entry_point)
     for (;;) {
     start:
         m_running_execution_context->program_counter = program_counter;
+        if (auto* profiler = vm().profiler()) [[unlikely]]
+            profiler->sample_if_needed();
         for (;;) {
             goto* bytecode_dispatch_table[static_cast<size_t>((*reinterpret_cast<Instruction const*>(&bytecode[program_counter])).type())];
 

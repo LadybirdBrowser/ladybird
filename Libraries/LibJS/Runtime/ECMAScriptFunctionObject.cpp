@@ -143,7 +143,9 @@ void ECMAScriptFunctionObject::get_stack_frame_info(size_t& registers_and_locals
         auto rust_executable = RustIntegration::compile_function(vm(), *m_shared_data, false);
         VERIFY(rust_executable);
         executable = rust_executable;
-        executable->name = m_shared_data->m_name;
+        executable->name = m_shared_data->m_display_name.is_empty()
+            ? m_shared_data->m_name
+            : m_shared_data->m_display_name;
         if (Bytecode::g_dump_bytecode)
             executable->dump();
         m_shared_data->clear_compile_inputs();

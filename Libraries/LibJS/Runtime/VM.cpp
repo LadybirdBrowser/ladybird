@@ -16,6 +16,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Profiler.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>

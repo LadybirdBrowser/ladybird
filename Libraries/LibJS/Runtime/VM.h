@@ -54,6 +54,8 @@ enum class CompilationType {
     Timer,
 };
 
+class Profiler;
+
 class JS_API VM : public RefCounted<VM> {
 public:
     static NonnullRefPtr<VM> create();
@@ -135,6 +137,9 @@ public:
     {
         m_execution_context_stack.append(&context);
     }
+
+    void set_profiler(Profiler* profiler) { m_profiler = profiler; }
+    Profiler* profiler() { return m_profiler; }
 
     void pop_execution_context()
     {
@@ -331,6 +336,8 @@ private:
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;
 
     GC::Heap m_heap;
+
+    Profiler* m_profiler { nullptr };
 
     Vector<ExecutionContext*> m_execution_context_stack;
 

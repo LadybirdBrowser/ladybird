@@ -21,6 +21,20 @@ set(SOURCES
     Module.cpp
     ParserError.cpp
     Print.cpp
+    Profiler.cpp
+)
+
+if (APPLE)
+    list(APPEND SOURCES ProfilerMacOS.cpp)
+elseif (WIN32)
+    list(APPEND SOURCES ProfilerWindows.cpp)
+elseif (LINUX)
+    list(APPEND SOURCES ProfilerLinux.cpp)
+else()
+    message(FATAL_ERROR "LibJS profiler backend is only implemented for APPLE, WIN32, and LINUX")
+endif()
+
+set(SOURCES ${SOURCES}
     RustIntegration.cpp
     Runtime/AbstractOperations.cpp
     Runtime/Accessor.cpp
@@ -274,7 +288,7 @@ ladybird_lib(LibJS js EXPLICIT_SYMBOL_EXPORT)
 find_package(simdjson CONFIG REQUIRED)
 target_link_libraries(LibJS PRIVATE simdjson::simdjson)
 
-target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC)
+target_link_libraries(LibJS PRIVATE LibCore LibCrypto LibFileSystem LibRegex LibSyntax LibGC LibThreading)
 
 # Link LibUnicode publicly to ensure ICU data (which is in libicudata.a) is available in any process using LibJS.
 target_link_libraries(LibJS PUBLIC LibUnicode)
