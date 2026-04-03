@@ -1291,7 +1291,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
-bool Navigation::fire_a_traverse_navigate_event(GC::Ref<SessionHistoryEntry> destination_she, UserNavigationInvolvement user_involvement)
+bool Navigation::fire_a_traverse_navigate_event(NonnullRefPtr<SessionHistoryEntry> destination_she, UserNavigationInvolvement user_involvement)
 {
     auto& realm = relevant_realm(*this);
     auto& vm = this->vm();
@@ -1425,7 +1425,7 @@ bool Navigation::fire_a_download_request_navigate_event(URL::URL destination_url
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#initialize-the-navigation-api-entries-for-a-new-document
-void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector<GC::Ref<SessionHistoryEntry>> const& new_shes, GC::Ref<SessionHistoryEntry> initial_she)
+void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she)
 {
     auto& realm = relevant_realm(*this);
 
@@ -1459,7 +1459,7 @@ void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#update-the-navigation-api-entries-for-a-same-document-navigation
 // https://whatpr.org/html/9893/nav-history-apis.html#update-the-navigation-api-entries-for-a-same-document-navigation
-void Navigation::update_the_navigation_api_entries_for_a_same_document_navigation(GC::Ref<SessionHistoryEntry> destination_she, Bindings::NavigationType navigation_type)
+void Navigation::update_the_navigation_api_entries_for_a_same_document_navigation(NonnullRefPtr<SessionHistoryEntry> destination_she, Bindings::NavigationType navigation_type)
 {
     auto& realm = relevant_realm(*this);
 

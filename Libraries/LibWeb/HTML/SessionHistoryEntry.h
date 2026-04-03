@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibGC/Ptr.h>
-#include <LibJS/Heap/Cell.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/StructuredSerializeTypes.h>
@@ -26,14 +26,12 @@ enum class ScrollRestorationMode {
 };
 
 // https://html.spec.whatwg.org/multipage/history.html#session-history-entry
-class SessionHistoryEntry final : public JS::Cell {
-    GC_CELL(SessionHistoryEntry, JS::Cell);
-    GC_DECLARE_ALLOCATOR(SessionHistoryEntry);
-
+class SessionHistoryEntry final : public RefCounted<SessionHistoryEntry> {
 public:
-    SessionHistoryEntry();
+    static NonnullRefPtr<SessionHistoryEntry> create();
 
-    void visit_edges(Cell::Visitor&) override;
+    SessionHistoryEntry();
+    ~SessionHistoryEntry();
 
     enum class Pending {
         Tag,
@@ -45,8 +43,8 @@ public:
     [[nodiscard]] URL::URL const& url() const { return m_url; }
     void set_url(URL::URL url) { m_url = move(url); }
 
-    [[nodiscard]] GC::Ptr<HTML::DocumentState> document_state() const { return m_document_state; }
-    void set_document_state(GC::Ptr<HTML::DocumentState> document_state) { m_document_state = document_state; }
+    [[nodiscard]] RefPtr<HTML::DocumentState> document_state() const;
+    void set_document_state(RefPtr<HTML::DocumentState>);
 
     [[nodiscard]] SerializationRecord const& classic_history_api_state() const { return m_classic_history_api_state; }
     void set_classic_history_api_state(SerializationRecord classic_history_api_state) { m_classic_history_api_state = move(classic_history_api_state); }
@@ -73,7 +71,7 @@ private:
     URL::URL m_url;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-document-state
-    GC::Ptr<HTML::DocumentState> m_document_state;
+    RefPtr<HTML::DocumentState> m_document_state;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#she-classic-history-api-state
     // classic history API state, which is serialized state, initially StructuredSerializeForStorage(null).

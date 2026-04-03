@@ -48,7 +48,6 @@ void TraversableNavigable::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     if (m_emulated_position_data.has<GC::Ref<Geolocation::GeolocationCoordinates>>())
         visitor.visit(m_emulated_position_data.get<GC::Ref<Geolocation::GeolocationCoordinates>>());
-    visitor.visit(m_session_history_entries);
     visitor.visit(m_session_history_traversal_queue);
     visitor.visit(m_storage_shed);
     visitor.visit(m_apply_history_step_state);
@@ -90,7 +89,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     }
 
     // 4. Let documentState be a new document state, with
-    auto document_state = vm.heap().allocate<DocumentState>();
+    auto document_state = DocumentState::create();
 
     // document: document (now owned by Navigable::m_active_document, not DocumentState)
 
@@ -198,7 +197,7 @@ Vector<int> TraversableNavigable::get_all_used_history_steps() const
     OrderedHashTable<int> steps;
 
     // 3. Let entryLists be the ordered set « traversable's session history entries ».
-    Vector<Vector<GC::Ref<SessionHistoryEntry>>> entry_lists { session_history_entries() };
+    Vector<Vector<NonnullRefPtr<SessionHistoryEntry>>> entry_lists { session_history_entries() };
 
     // 4. For each entryList of entryLists:
     while (!entry_lists.is_empty()) {
@@ -374,7 +373,7 @@ Vector<GC::Root<Navigable>> TraversableNavigable::get_all_navigables_that_might_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#deactivate-a-document-for-a-cross-document-navigation
-static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Document> displayed_document, Optional<UserNavigationInvolvement>, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<DOM::Document> populated_document, GC::Ref<GC::Function<void()>> after_potential_unloads)
+static void deactivate_a_document_for_cross_document_navigation(GC::Ref<DOM::Document> displayed_document, Optional<UserNavigationInvolvement>, NonnullRefPtr<SessionHistoryEntry> target_entry, GC::Ptr<DOM::Document> populated_document, GC::Ref<GC::Function<void()>> after_potential_unloads)
 {
     // 1. Let navigable be displayedDocument's node navigable.
     auto navigable = displayed_document->navigable();
@@ -423,7 +422,7 @@ struct ChangingNavigableContinuationState : public JS::Cell {
 
     GC::Ptr<DOM::Document> displayed_document;
     Optional<UniqueNodeID> displayed_document_id;
-    GC::Ptr<SessionHistoryEntry> target_entry;
+    RefPtr<SessionHistoryEntry> target_entry;
     GC::Ptr<Navigable> navigable;
     bool update_only = false;
 
@@ -435,7 +434,6 @@ struct ChangingNavigableContinuationState : public JS::Cell {
     {
         Base::visit_edges(visitor);
         visitor.visit(displayed_document);
-        visitor.visit(target_entry);
         visitor.visit(navigable);
         visitor.visit(population_output);
         visitor.visit(resolved_document);
@@ -896,7 +894,7 @@ void ApplyHistoryStepState::process_continuations()
 
         // 12. In both cases, let afterPotentialUnloads be the following steps:
         bool const update_only = continuation->update_only;
-        GC::Ptr<SessionHistoryEntry> const target_entry = continuation->target_entry;
+        RefPtr<SessionHistoryEntry> const target_entry = continuation->target_entry;
         auto const displayed_document_id = continuation->displayed_document_id;
         auto after_potential_unload = GC::create_function(heap(), [this, navigable, update_only, target_entry, continuation, population_output, old_origin, displayed_document_id, script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), navigation_type = m_navigation_type] {
             if (population_output)
@@ -1158,7 +1156,6 @@ public:
         for (auto& doc : m_phase2_documents)
             visitor.visit(doc);
         visitor.visit(m_traversable);
-        visitor.visit(m_target_entry);
         visitor.visit(m_callback);
         visitor.visit(m_timeout);
     }
@@ -1324,7 +1321,7 @@ private:
     size_t m_remaining_phase2_tasks { 0 };
     Vector<GC::Ref<DOM::Document>> m_phase2_documents;
     GC::Ptr<TraversableNavigable> m_traversable;
-    GC::Ptr<SessionHistoryEntry> m_target_entry;
+    RefPtr<SessionHistoryEntry> m_target_entry;
     Optional<UserNavigationInvolvement> m_user_involvement;
     GC::Ref<GC::Function<void(Result)>> m_callback;
     GC::Ref<Platform::Timer> m_timeout;
@@ -1352,7 +1349,7 @@ void TraversableNavigable::check_if_unloading_is_canceled(Vector<GC::Root<Naviga
     check_if_unloading_is_canceled(move(navigables_that_need_before_unload), {}, {}, {}, callback);
 }
 
-Vector<GC::Ref<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable> navigable, int target_step)
+Vector<NonnullRefPtr<SessionHistoryEntry>> TraversableNavigable::get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable> navigable, int target_step)
 {
     // 1. Let rawEntries be the result of getting session history entries for navigable.
     auto raw_entries = navigable->get_session_history_entries();
@@ -1361,7 +1358,7 @@ Vector<GC::Ref<SessionHistoryEntry>> TraversableNavigable::get_session_history_e
         return {};
 
     // 2. Let entriesForNavigationAPI be a new empty list.
-    Vector<GC::Ref<SessionHistoryEntry>> entries_for_navigation_api;
+    Vector<NonnullRefPtr<SessionHistoryEntry>> entries_for_navigation_api;
 
     // 3. Let startingIndex be the index of the session history entry in rawEntries who has the greatest step less than or equal to targetStep.
     // FIXME: Use min/max_element algorithm or some such here
@@ -1432,7 +1429,7 @@ void TraversableNavigable::clear_the_forward_session_history()
     auto step = current_session_history_step();
 
     // 3. Let entryLists be the ordered set « navigable's session history entries ».
-    Vector<Vector<GC::Ref<SessionHistoryEntry>>&> entry_lists;
+    Vector<Vector<NonnullRefPtr<SessionHistoryEntry>>&> entry_lists;
     entry_lists.append(session_history_entries());
 
     // 4. For each entryList of entryLists:
@@ -1458,7 +1455,7 @@ bool TraversableNavigable::can_go_forward() const
 {
     auto step = current_session_history_step();
 
-    Vector<Vector<GC::Ref<SessionHistoryEntry>> const&> entry_lists;
+    Vector<Vector<NonnullRefPtr<SessionHistoryEntry>> const&> entry_lists;
     entry_lists.append(session_history_entries());
 
     while (!entry_lists.is_empty()) {
@@ -1634,7 +1631,7 @@ void TraversableNavigable::destroy_top_level_traversable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-same-document-navigation
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (target_navigable->has_been_destroyed()) {
@@ -1668,7 +1665,7 @@ void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversab
     // 5. If entryToReplace is null, then:
     // FIXME: Checking containment of entryToReplace should not be needed.
     //        For more details see https://github.com/whatwg/html/issues/10232#issuecomment-2037543137
-    if (!entry_to_replace || !target_entries.contains_slow(GC::Ref { *entry_to_replace })) {
+    if (!entry_to_replace || !target_entries.contains_slow(NonnullRefPtr { *entry_to_replace })) {
         // 1. Clear the forward session history of traversable.
         traversable->clear_the_forward_session_history();
 

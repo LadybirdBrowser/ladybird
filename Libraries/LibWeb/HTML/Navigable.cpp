@@ -38,6 +38,7 @@
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -70,7 +71,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
 
     NavigationParamsFetchStateHolder(OpenerPolicyEnforcementResult&& coop_enforcement_result, URL::URL current_url, GC::Ref<Fetch::Infrastructure::Request> request,
         Optional<URL::Origin> initiator_origin,
-        Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+        Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
         GC::Ref<SourceSnapshotParams> source_snapshot_params,
         Fetch::Infrastructure::Request::ReferrerType request_referrer,
@@ -114,7 +115,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
 
     // Fields extracted from entry's document_state
     Optional<URL::Origin> initiator_origin;
-    Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container;
+    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container;
     Optional<URL::URL> about_base_url;
     GC::Ref<SourceSnapshotParams> source_snapshot_params;
 
@@ -129,7 +130,7 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
     // Accumulated redirect output
     Optional<URL::URL> redirected_url;
     Optional<SerializationRecord> redirect_classic_history_api_state;
-    GC::Ptr<DocumentState> replacement_document_state;
+    RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
 
     enum class ContinuationReason {
@@ -149,10 +150,6 @@ struct NavigationParamsFetchStateHolder : public JS::Cell {
         visitor.visit(request);
         visitor.visit(navigable);
         visitor.visit(source_snapshot_params);
-        history_policy_container.visit(
-            [&](GC::Ref<PolicyContainer> const& c) { visitor.visit(c); },
-            [](DocumentState::Client) {});
-        visitor.visit(replacement_document_state);
         visitor.visit(continuation_steps);
     }
 };
@@ -171,14 +168,13 @@ public:
     // Redirect mutations (only set by fetch path)
     Optional<URL::URL> redirected_url;
     Optional<SerializationRecord> classic_history_api_state;
-    GC::Ptr<DocumentState> replacement_document_state;
+    RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
 
 private:
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        visitor.visit(replacement_document_state);
         navigation_params.visit(
             [](auto const&) {},
             [&](GC::Ref<NavigationParams> const& p) { visitor.visit(p); },
@@ -190,7 +186,7 @@ GC_DEFINE_ALLOCATOR(InternalNavigationResult);
 
 GC_DEFINE_ALLOCATOR(PopulateSessionHistoryEntryDocumentOutput);
 
-void PopulateSessionHistoryEntryDocumentOutput::apply_to(GC::Ref<SessionHistoryEntry> entry)
+void PopulateSessionHistoryEntryDocumentOutput::apply_to(NonnullRefPtr<SessionHistoryEntry> entry)
 {
     if (replacement_document_state)
         entry->set_document_state(replacement_document_state);
@@ -221,7 +217,7 @@ void PopulateSessionHistoryEntryDocumentOutput::apply_to(GC::Ref<SessionHistoryE
 
                 // 2. Set entry's document state's history policy container to navigationParams's policy container.
                 entry->document_state()->set_history_policy_container(
-                    GC::Ref { *navigation_params.get<GC::Ref<NavigationParams>>()->policy_container });
+                    navigation_params.get<GC::Ref<NavigationParams>>()->policy_container->serialize());
             }
         }
 
@@ -242,7 +238,6 @@ void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visit
 {
     Base::visit_edges(visitor);
     visitor.visit(document);
-    visitor.visit(replacement_document_state);
     navigation_params.visit(
         [](auto const&) {},
         [&](GC::Ref<NavigationParams> const& p) { visitor.visit(p); },
@@ -322,8 +317,6 @@ void Navigable::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_page);
     visitor.visit(m_parent);
-    visitor.visit(m_current_session_history_entry);
-    visitor.visit(m_active_session_history_entry);
     visitor.visit(m_active_document);
     visitor.visit(m_container);
     visitor.visit(m_backing_store_manager);
@@ -381,8 +374,28 @@ void Navigable::clear_navigation_load_event_guard()
     m_navigation_load_event_guard.clear();
 }
 
+RefPtr<SessionHistoryEntry> Navigable::active_session_history_entry() const
+{
+    return m_active_session_history_entry;
+}
+
+void Navigable::set_active_session_history_entry(RefPtr<SessionHistoryEntry> entry)
+{
+    m_active_session_history_entry = move(entry);
+}
+
+RefPtr<SessionHistoryEntry> Navigable::current_session_history_entry() const
+{
+    return m_current_session_history_entry;
+}
+
+void Navigable::set_current_session_history_entry(RefPtr<SessionHistoryEntry> entry)
+{
+    m_current_session_history_entry = move(entry);
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#initialize-the-navigable
-void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document)
+void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document)
 {
     static int next_id = 0;
     m_id = String::number(next_id++);
@@ -391,7 +404,7 @@ void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::
     // NOTE: DocumentState no longer owns the document; it is passed separately and owned by the Navigable.
 
     // 2. Let entry be a new session history entry, with
-    GC::Ref<SessionHistoryEntry> entry = *heap().allocate<SessionHistoryEntry>();
+    auto entry = SessionHistoryEntry::create();
     // URL: document's URL
     entry->set_url(document->url());
     // document state: documentState
@@ -414,13 +427,13 @@ void Navigable::initialize_navigable(GC::Ref<DocumentState> document_state, GC::
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-the-target-history-entry
-GC::Ptr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
+RefPtr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_step) const
 {
     // 1. Let entries be the result of getting session history entries for navigable.
     auto& entries = get_session_history_entries();
 
     // 2. Return the item in entries that has the greatest step less than or equal to step.
-    GC::Ptr<SessionHistoryEntry> result = nullptr;
+    RefPtr<SessionHistoryEntry> result = nullptr;
     for (auto& entry : entries) {
         auto entry_step = entry->step().get<int>();
         if (entry_step <= target_step) {
@@ -434,7 +447,7 @@ GC::Ptr<SessionHistoryEntry> Navigable::get_the_target_history_entry(int target_
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
-void Navigable::activate_history_entry(GC::Ptr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
+void Navigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document)
 {
     // FIXME: 1. Save persisted state to the navigable's active session history entry.
 
@@ -833,7 +846,7 @@ GC::Ptr<Navigable> Navigable::find_a_navigable_by_target_name(StringView name)
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#getting-session-history-entries
-Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() const
+Vector<NonnullRefPtr<SessionHistoryEntry>>& Navigable::get_session_history_entries() const
 {
     // 1. Let traversable be navigable's traversable navigable.
     auto traversable = traversable_navigable();
@@ -845,7 +858,7 @@ Vector<GC::Ref<SessionHistoryEntry>>& Navigable::get_session_history_entries() c
         return traversable->session_history_entries();
 
     // 4. Let docStates be an empty ordered set of document states.
-    GC::ConservativeVector<GC::Ptr<DocumentState>> doc_states { heap() };
+    Vector<RefPtr<DocumentState>> doc_states;
 
     // 5. For each entry of traversable's session history entries, append entry's document state to docStates.
     for (auto& entry : traversable->session_history_entries())
@@ -969,7 +982,7 @@ static GC::Ptr<DOM::Document> attempt_to_create_a_non_fetch_scheme_document(NonF
 static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource(
     Variant<Empty, String, POSTResource> const& document_resource,
     Optional<URL::Origin> const& origin,
-    Variant<GC::Ref<PolicyContainer>, DocumentState::Client> const& history_policy_container_variant,
+    Variant<SerializedPolicyContainer, DocumentState::Client> const& history_policy_container_variant,
     Optional<URL::URL> const& about_base_url,
     GC::Ptr<Navigable> navigable,
     TargetSnapshotParams const& target_snapshot_params,
@@ -1011,7 +1024,7 @@ static GC::Ref<NavigationParams> create_navigation_params_from_a_srcdoc_resource
     // 6. Let policyContainer be the result of determining navigation params policy container given response's URL,
     //    entry's document state's history policy container, null, navigable's container document's policy container, and null.
     GC::Ptr<PolicyContainer> history_policy_container = history_policy_container_variant.visit(
-        [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
+        [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(realm.heap(), s); },
         [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
     GC::Ptr<PolicyContainer> policy_container;
     if (navigable->container()) {
@@ -1233,7 +1246,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         // resource: oldDocState's resource
         // ever populated: oldDocState's ever populated
         // navigable target name: oldDocState's navigable target name
-        auto new_doc_state = state_holder->navigable->heap().allocate<DocumentState>();
+        auto new_doc_state = DocumentState::create();
         new_doc_state->set_history_policy_container(state_holder->history_policy_container);
         new_doc_state->set_request_referrer(state_holder->request_referrer);
         new_doc_state->set_request_referrer_policy(state_holder->request_referrer_policy);
@@ -1272,7 +1285,7 @@ static void create_navigation_params_by_fetching(
     Fetch::Infrastructure::Request::ReferrerType request_referrer,
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
-    Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
     Optional<URL::URL> about_base_url,
     Optional<URL::Origin> origin,
     String navigable_target_name,
@@ -1499,7 +1512,7 @@ static void create_navigation_params_by_fetching(
         // 25. Let resultPolicyContainer be the result of determining navigation params policy container given response's URL,
         //     entry's document state's history policy container, sourceSnapshotParams's source policy container, null, and responsePolicyContainer.
         GC::Ptr<PolicyContainer> history_policy_container = state_holder->history_policy_container.visit(
-            [](GC::Ref<PolicyContainer> const& c) -> GC::Ptr<PolicyContainer> { return c; },
+            [&](SerializedPolicyContainer const& s) -> GC::Ptr<PolicyContainer> { return create_a_policy_container_from_serialized_policy_container(realm.heap(), s); },
             [](DocumentState::Client) -> GC::Ptr<PolicyContainer> { return {}; });
         auto result_policy_container = determine_navigation_params_policy_container(*state_holder->response->url(), realm.heap(), history_policy_container, state_holder->source_snapshot_params->source_policy_container, {}, state_holder->response_policy_container);
 
@@ -1553,7 +1566,7 @@ void Navigable::populate_session_history_entry_document(
     ReferrerPolicy::ReferrerPolicy request_referrer_policy,
     Optional<URL::Origin> initiator_origin,
     Optional<URL::Origin> origin,
-    Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+    Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
     Optional<URL::URL> about_base_url,
     String navigable_target_name,
     bool reload_pending,
@@ -2104,7 +2117,7 @@ void Navigable::begin_navigation(NavigateParams params)
                 //    initiator origin: initiatorOriginSnapshot
                 //    resource: documentResource
                 //    navigable target name: navigable's target name
-                GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
+                auto document_state = DocumentState::create();
                 document_state->set_request_referrer_policy(referrer_policy);
                 document_state->set_initiator_origin(initiator_origin_snapshot);
                 document_state->set_resource(document_resource);
@@ -2126,7 +2139,7 @@ void Navigable::begin_navigation(NavigateParams params)
                 }
 
                 // 6. Let historyEntry be a new session history entry, with its URL set to url and its document state set to documentState.
-                GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
+                auto history_entry = SessionHistoryEntry::create();
                 history_entry->set_url(url);
                 history_entry->set_document_state(document_state);
 
@@ -2205,7 +2218,7 @@ void Navigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehav
     //      document state: navigable's active session history entry's document state
     //      navigation API state: destinationNavigationAPIState
     //      scroll restoration mode: navigable's active session history entry's scroll restoration mode
-    GC::Ref<SessionHistoryEntry> history_entry = heap().allocate<SessionHistoryEntry>();
+    auto history_entry = SessionHistoryEntry::create();
     history_entry->set_url(url);
     history_entry->set_document_state(active_session_history_entry()->document_state());
     history_entry->set_navigation_api_state(destination_navigation_api_state);
@@ -2445,7 +2458,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     //     resource: null
     //     ever populated: true
     //     navigable target name: oldDocState's navigable target name
-    GC::Ref<DocumentState> document_state = *heap().allocate<DocumentState>();
+    auto document_state = DocumentState::create();
     document_state->set_history_policy_container(old_doc_state->history_policy_container());
     document_state->set_request_referrer(old_doc_state->request_referrer());
     document_state->set_request_referrer_policy(old_doc_state->request_referrer_policy());
@@ -2459,7 +2472,7 @@ void Navigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHandlin
     // 13. Let historyEntry be a new session history entry, with
     //     URL: entryToReplace's URL
     //     document state: documentState
-    GC::Ref<SessionHistoryEntry> history_entry = *heap().allocate<SessionHistoryEntry>();
+    auto history_entry = SessionHistoryEntry::create();
     history_entry->set_url(entry_to_replace->url());
     history_entry->set_document_state(document_state);
 
@@ -2598,7 +2611,7 @@ TargetSnapshotParams Navigable::snapshot_target_snapshot_params()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#finalize-a-cross-document-navigation
-void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ref<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete)
+void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, NonnullRefPtr<SessionHistoryEntry> history_entry, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete)
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
@@ -2704,7 +2717,7 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     //      document state: activeEntry's document state
     //      scroll restoration mode: activeEntry's scroll restoration mode
     // FIXME: persisted user state: activeEntry's persisted user state
-    GC::Ref<SessionHistoryEntry> new_entry = document.heap().allocate<SessionHistoryEntry>();
+    auto new_entry = SessionHistoryEntry::create();
     new_entry->set_url(new_url);
     new_entry->set_classic_history_api_state(serialized_data.value_or(active_entry->classic_history_api_state()));
     new_entry->set_document_state(active_entry->document_state());

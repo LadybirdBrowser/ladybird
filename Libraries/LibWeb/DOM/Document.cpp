@@ -626,7 +626,6 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_parser);
     visitor.visit(m_lazy_load_intersection_observer);
     visitor.visit(m_visual_viewport);
-    visitor.visit(m_latest_entry);
     visitor.visit(m_default_timeline);
     visitor.visit(m_scripts_to_execute_when_parsing_has_finished);
     visitor.visit(m_scripts_to_execute_in_order_as_soon_as_possible);
@@ -5702,7 +5701,7 @@ Painting::ViewportPaintable* Document::unsafe_paintable()
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#restore-the-history-object-state
-void Document::restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry)
+void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry)
 {
     // 1. Let targetRealm be document's relevant realm.
     auto& target_realm = HTML::relevant_realm(*this);
@@ -5717,7 +5716,7 @@ void Document::restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntr
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(GC::Ref<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<GC::Ref<HTML::SessionHistoryEntry>>> entries_for_navigation_api, GC::Ptr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
 {
     (void)previous_entry_for_activation;
 
@@ -5855,6 +5854,11 @@ void Document::set_deferred_parser_start(GC::Ref<GC::Function<void()>> callback)
 {
     VERIFY(!m_deferred_parser_start);
     m_deferred_parser_start = callback;
+}
+
+void Document::set_latest_entry(RefPtr<HTML::SessionHistoryEntry> entry)
+{
+    m_latest_entry = move(entry);
 }
 
 HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& Document::shared_resource_requests()

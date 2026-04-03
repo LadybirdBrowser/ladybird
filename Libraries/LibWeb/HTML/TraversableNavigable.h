@@ -44,8 +44,8 @@ public:
     virtual bool is_top_level_traversable() const override;
 
     int current_session_history_step() const { return m_current_session_history_step; }
-    Vector<GC::Ref<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
-    Vector<GC::Ref<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
+    Vector<NonnullRefPtr<SessionHistoryEntry>>& session_history_entries() { return m_session_history_entries; }
+    Vector<NonnullRefPtr<SessionHistoryEntry>> const& session_history_entries() const { return m_session_history_entries; }
 
     VisibilityState system_visibility_state() const { return m_system_visibility_state; }
     void set_system_visibility_state(VisibilityState);
@@ -150,7 +150,7 @@ private:
 
     void check_if_unloading_is_canceled(Vector<GC::Root<Navigable>> navigables_that_need_before_unload, GC::Ptr<TraversableNavigable> traversable, Optional<int> target_step, Optional<UserNavigationInvolvement> user_involvement_for_navigate_events, GC::Ref<GC::Function<void(CheckIfUnloadingIsCanceledResult)>> callback);
 
-    Vector<GC::Ref<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
+    Vector<NonnullRefPtr<SessionHistoryEntry>> get_session_history_entries_for_the_navigation_api(GC::Ref<Navigable>, int);
 
     [[nodiscard]] bool can_go_forward() const;
 
@@ -158,7 +158,7 @@ private:
     int m_current_session_history_step { 0 };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-entries
-    Vector<GC::Ref<SessionHistoryEntry>> m_session_history_entries;
+    Vector<NonnullRefPtr<SessionHistoryEntry>> m_session_history_entries;
 
     // FIXME: https://html.spec.whatwg.org/multipage/document-sequences.html#tn-session-history-traversal-queue
 
@@ -194,7 +194,7 @@ struct BrowsingContextAndDocument {
 };
 
 BrowsingContextAndDocument create_a_new_top_level_browsing_context_and_document(GC::Ref<Page> page);
-void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, GC::Ref<SessionHistoryEntry> target_entry, GC::Ptr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_same_document_navigation(GC::Ref<TraversableNavigable> traversable, GC::Ref<Navigable> target_navigable, NonnullRefPtr<SessionHistoryEntry> target_entry, RefPtr<SessionHistoryEntry> entry_to_replace, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 
 template<>
 inline bool Navigable::fast_is<TraversableNavigable>() const { return is_traversable(); }

@@ -16,7 +16,7 @@ class NavigationHistoryEntry : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(NavigationHistoryEntry);
 
 public:
-    [[nodiscard]] static GC::Ref<NavigationHistoryEntry> create(JS::Realm&, GC::Ref<SessionHistoryEntry>);
+    [[nodiscard]] static GC::Ref<NavigationHistoryEntry> create(JS::Realm&, NonnullRefPtr<SessionHistoryEntry>);
 
     Optional<String> url() const;
     String key() const;
@@ -35,12 +35,11 @@ public:
     virtual ~NavigationHistoryEntry() override;
 
 private:
-    NavigationHistoryEntry(JS::Realm&, GC::Ref<SessionHistoryEntry>);
+    NavigationHistoryEntry(JS::Realm&, NonnullRefPtr<SessionHistoryEntry>);
 
     virtual void initialize(JS::Realm&) override;
-    virtual void visit_edges(JS::Cell::Visitor&) override;
 
-    GC::Ref<SessionHistoryEntry> m_session_history_entry;
+    NonnullRefPtr<SessionHistoryEntry> m_session_history_entry;
 };
 
 }

@@ -64,7 +64,7 @@ public:
     using NullOrError = Optional<String>;
     using NavigationParamsVariant = Variant<NullOrError, GC::Ref<NavigationParams>, GC::Ref<NonFetchSchemeNavigationParams>>;
 
-    void initialize_navigable(GC::Ref<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document);
+    void initialize_navigable(NonnullRefPtr<DocumentState> document_state, GC::Ptr<Navigable> parent, GC::Ref<DOM::Document> document);
 
     void register_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
@@ -89,14 +89,14 @@ public:
     void set_navigation_load_event_guard(DOM::Document& parent_doc);
     void clear_navigation_load_event_guard();
 
-    GC::Ptr<SessionHistoryEntry> active_session_history_entry() const { return m_active_session_history_entry; }
-    void set_active_session_history_entry(GC::Ptr<SessionHistoryEntry> entry) { m_active_session_history_entry = entry; }
-    GC::Ptr<SessionHistoryEntry> current_session_history_entry() const { return m_current_session_history_entry; }
-    void set_current_session_history_entry(GC::Ptr<SessionHistoryEntry> entry) { m_current_session_history_entry = entry; }
+    RefPtr<SessionHistoryEntry> active_session_history_entry() const;
+    void set_active_session_history_entry(RefPtr<SessionHistoryEntry>);
+    RefPtr<SessionHistoryEntry> current_session_history_entry() const;
+    void set_current_session_history_entry(RefPtr<SessionHistoryEntry>);
 
-    Vector<GC::Ref<SessionHistoryEntry>>& get_session_history_entries() const;
+    Vector<NonnullRefPtr<SessionHistoryEntry>>& get_session_history_entries() const;
 
-    void activate_history_entry(GC::Ptr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
+    void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>);
 
     GC::Ptr<DOM::Document> active_document() const;
     Optional<UniqueNodeID> active_document_id() const;
@@ -105,7 +105,7 @@ public:
     GC::Ptr<WindowProxy> active_window_proxy();
     GC::Ptr<Window> active_window();
 
-    GC::Ptr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
+    RefPtr<SessionHistoryEntry> get_the_target_history_entry(int target_step) const;
 
     String target_name() const;
 
@@ -142,7 +142,7 @@ public:
         ReferrerPolicy::ReferrerPolicy request_referrer_policy,
         Optional<URL::Origin> initiator_origin,
         Optional<URL::Origin> origin,
-        Variant<GC::Ref<PolicyContainer>, DocumentState::Client> history_policy_container,
+        Variant<SerializedPolicyContainer, DocumentState::Client> history_policy_container,
         Optional<URL::URL> about_base_url,
         String navigable_target_name,
         bool reload_pending,
@@ -280,10 +280,10 @@ private:
     GC::Ptr<Navigable> m_parent;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-current-history-entry
-    GC::Ptr<SessionHistoryEntry> m_current_session_history_entry;
+    RefPtr<SessionHistoryEntry> m_current_session_history_entry;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-active-history-entry
-    GC::Ptr<SessionHistoryEntry> m_active_session_history_entry;
+    RefPtr<SessionHistoryEntry> m_active_session_history_entry;
 
     // AD-HOC: Direct reference to the active document, decoupled from session history.
     //         This is the authoritative source for active_document().
@@ -336,10 +336,10 @@ public:
 
     Optional<URL::URL> redirected_url;
     Optional<SerializationRecord> classic_history_api_state;
-    GC::Ptr<DocumentState> replacement_document_state;
+    RefPtr<DocumentState> replacement_document_state;
     bool resource_cleared = false;
 
-    void apply_to(GC::Ref<SessionHistoryEntry> entry);
+    void apply_to(NonnullRefPtr<SessionHistoryEntry> entry);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -348,7 +348,7 @@ private:
 WEB_API HashTable<GC::RawRef<Navigable>>& all_navigables();
 
 bool navigation_must_be_a_replace(URL::URL const& url, DOM::Document const& document);
-void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, GC::Ref<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
+void finalize_a_cross_document_navigation(GC::Ref<Navigable>, HistoryHandlingBehavior, UserNavigationInvolvement, NonnullRefPtr<SessionHistoryEntry>, GC::Ptr<DOM::Document> pending_document, GC::Ref<OnApplyHistoryStepComplete> on_complete);
 void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_url, Optional<SerializationRecord> = {}, HistoryHandlingBehavior history_handling = HistoryHandlingBehavior::Replace);
 
 }

@@ -7,29 +7,27 @@
 
 #pragma once
 
-#include <LibJS/Heap/Cell.h>
+#include <AK/RefCounted.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/POSTResource.h>
-#include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/SerializedPolicyContainer.h>
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-2
-class DocumentState final : public JS::Cell {
-    GC_CELL(DocumentState, JS::Cell);
-    GC_DECLARE_ALLOCATOR(DocumentState);
-
+class DocumentState final : public RefCounted<DocumentState> {
 public:
+    static NonnullRefPtr<DocumentState> create() { return adopt_ref(*new DocumentState()); }
+    ~DocumentState();
+
     struct NestedHistory {
         String id;
-        Vector<GC::Ref<SessionHistoryEntry>> entries;
+        Vector<NonnullRefPtr<SessionHistoryEntry>> entries;
     };
-
-    virtual ~DocumentState();
 
     enum class Client {
         Tag,
@@ -38,8 +36,8 @@ public:
     [[nodiscard]] Optional<UniqueNodeID> document_id() const { return m_document_id; }
     void set_document_id(Optional<UniqueNodeID> document_id) { m_document_id = document_id; }
 
-    [[nodiscard]] Variant<GC::Ref<PolicyContainer>, Client> history_policy_container() const { return m_history_policy_container; }
-    void set_history_policy_container(Variant<GC::Ref<PolicyContainer>, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
+    [[nodiscard]] Variant<SerializedPolicyContainer, Client> const& history_policy_container() const { return m_history_policy_container; }
+    void set_history_policy_container(Variant<SerializedPolicyContainer, Client> history_policy_container) { m_history_policy_container = move(history_policy_container); }
 
     [[nodiscard]] Fetch::Infrastructure::Request::ReferrerType request_referrer() const { return m_request_referrer; }
     void set_request_referrer(Fetch::Infrastructure::Request::ReferrerType request_referrer) { m_request_referrer = move(request_referrer); }
@@ -74,15 +72,13 @@ public:
 private:
     DocumentState();
 
-    void visit_edges(Cell::Visitor&) override;
-
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-document
     // NOTE: We store the document's unique ID rather than a pointer to the document, because DocumentState is
     //       decoupled from the document's lifetime (Navigable owns the document directly).
     Optional<UniqueNodeID> m_document_id;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-history-policy-container
-    Variant<GC::Ref<PolicyContainer>, Client> m_history_policy_container { Client::Tag };
+    Variant<SerializedPolicyContainer, Client> m_history_policy_container { Client::Tag };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#document-state-request-referrer
     Fetch::Infrastructure::Request::ReferrerType m_request_referrer { Fetch::Infrastructure::Request::Referrer::Client };

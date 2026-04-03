@@ -36,6 +36,7 @@
 #include <LibWeb/HTML/NavigationType.h>
 #include <LibWeb/HTML/PaintConfig.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/ResizeObserver/ResizeObserver.h>
@@ -778,11 +779,11 @@ public:
 
     GC::Ref<HTML::SourceSnapshotParams> snapshot_source_snapshot_params() const;
 
-    void update_for_history_step_application(GC::Ref<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<GC::Ref<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, GC::Ptr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
+    void update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry>, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<Bindings::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api = {}, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation = {}, bool update_navigation_api = true);
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>>& shared_resource_requests();
 
-    void restore_the_history_object_state(GC::Ref<HTML::SessionHistoryEntry> entry);
+    void restore_the_history_object_state(NonnullRefPtr<HTML::SessionHistoryEntry> entry);
 
     GC::Ref<Animations::DocumentTimeline> timeline();
     auto const& last_animation_frame_timestamp() const { return m_last_animation_frame_timestamp; }
@@ -806,8 +807,7 @@ public:
     void set_ready_to_run_scripts();
     void set_deferred_parser_start(GC::Ref<GC::Function<void()>>);
 
-    GC::Ptr<HTML::SessionHistoryEntry> latest_entry() const { return m_latest_entry; }
-    void set_latest_entry(GC::Ptr<HTML::SessionHistoryEntry> e) { m_latest_entry = e; }
+    void set_latest_entry(RefPtr<HTML::SessionHistoryEntry>);
 
     void element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> element, Optional<FlyString> old_id);
     void element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element);
@@ -1354,7 +1354,7 @@ private:
     TemporaryDocumentForFragmentParsing m_temporary_document_for_fragment_parsing { TemporaryDocumentForFragmentParsing::No };
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#latest-entry
-    GC::Ptr<HTML::SessionHistoryEntry> m_latest_entry;
+    RefPtr<HTML::SessionHistoryEntry> m_latest_entry;
 
     HashMap<URL::URL, GC::Ptr<HTML::SharedResourceRequest>> m_shared_resource_requests;
 

@@ -21,12 +21,12 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(NavigationHistoryEntry);
 
-GC::Ref<NavigationHistoryEntry> NavigationHistoryEntry::create(JS::Realm& realm, GC::Ref<SessionHistoryEntry> she)
+GC::Ref<NavigationHistoryEntry> NavigationHistoryEntry::create(JS::Realm& realm, NonnullRefPtr<SessionHistoryEntry> she)
 {
     return realm.create<NavigationHistoryEntry>(realm, she);
 }
 
-NavigationHistoryEntry::NavigationHistoryEntry(JS::Realm& realm, GC::Ref<SessionHistoryEntry> she)
+NavigationHistoryEntry::NavigationHistoryEntry(JS::Realm& realm, NonnullRefPtr<SessionHistoryEntry> she)
     : DOM::EventTarget(realm)
     , m_session_history_entry(she)
 {
@@ -38,12 +38,6 @@ void NavigationHistoryEntry::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(NavigationHistoryEntry);
     Base::initialize(realm);
-}
-
-void NavigationHistoryEntry::visit_edges(JS::Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_session_history_entry);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigationhistoryentry-url
