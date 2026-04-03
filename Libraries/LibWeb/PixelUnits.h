@@ -219,6 +219,11 @@ public:
     constexpr CSSPixelFraction operator/(CSSPixels const& other) const;
     constexpr CSSPixels operator/(CSSPixelFraction const& other) const;
 
+    constexpr CSSPixels operator%(CSSPixels const& other) const
+    {
+        return from_raw(raw_value() % other.raw_value());
+    }
+
     constexpr CSSPixels& operator+=(CSSPixels const& other)
     {
         *this = *this + other;
