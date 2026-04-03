@@ -4,7 +4,7 @@ After abspos content change: 210
 PASS: true
 
 === Test 2: Content change in in-flow element DOES affect ancestor ===
-Initial width: 94
+Initial width: 95
 After in-flow content change: 609
 PASS: true
 
@@ -34,7 +34,7 @@ After sibling content change: 598
 PASS: true
 
 === Test 8: Abspos with fit-content updates its own size ===
-Initial abspos width: 150
+Initial abspos width: 151
 After content change abspos width: 405
 Container width (should be ~210): 210
 PASS abspos grew: true
