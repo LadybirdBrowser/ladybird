@@ -185,6 +185,10 @@ pub struct Generator {
     /// Set by assignment/declaration codegen, consumed by function expression codegen.
     pub pending_lhs_name: Option<IdentifierTableIndex>,
 
+    /// Display name for debugger/profiler, set by member assignment codegen.
+    /// Unlike pending_lhs_name, this does NOT affect .name (spec compliance).
+    pub pending_display_name: Option<IdentifierTableIndex>,
+
     // Source location tracking
     pub current_source_start: u32,
     pub current_source_end: u32,
@@ -323,6 +327,7 @@ impl Generator {
             initialized_locals: Vec::new(),
             initialized_arguments: Vec::new(),
             pending_lhs_name: None,
+            pending_display_name: None,
             current_source_start: 0,
             current_source_end: 0,
             current_completion_register: None,

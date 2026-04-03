@@ -599,20 +599,31 @@ fn generate_function_expression(
 
     let dst = choose_dst(generator, preferred_dst);
     // For anonymous function expressions, use the pending LHS name
-    // as the function's .name property.
+    // as the function's .name property (spec NamedEvaluation).
     let lhs_name = if !has_name {
         generator.pending_lhs_name.take()
     } else {
         None
     };
+    // Display name for profiler/debugger (from member assignments).
+    // Does not affect .name — only name_for_call_stack().
+    let display_name = if !has_name && lhs_name.is_none() {
+        generator.pending_display_name.take()
+    } else {
+        generator.pending_display_name.take();
+        None
+    };
     let lhs_name_str: Option<Utf16String> =
         lhs_name.map(|index| generator.identifier_table[index.0 as usize].clone());
+    let display_name_str: Option<Utf16String> =
+        display_name.map(|index| generator.identifier_table[index.0 as usize].clone());
     let name_override = if !has_name {
         lhs_name_str.as_deref()
     } else {
         None
     };
-    let shared_function_data_index = emit_new_function(generator, data, name_override);
+    let shared_function_data_index =
+        emit_new_function(generator, data, name_override, display_name_str.as_deref());
     let home_object = generator.home_objects.last().map(|ho| ho.operand());
     generator.emit(Instruction::NewFunction {
         dst: dst.operand(),
@@ -2782,7 +2793,7 @@ fn emit_lexical_declarations_for_block<'a>(
                 }
                 // b. Instantiate function object.
                 let function_data = generator.function_table.take(fd.function_id);
-                let sfd_index = emit_new_function(generator, function_data, None);
+                let sfd_index = emit_new_function(generator, function_data, None, None);
                 let fo = generator.allocate_register();
                 generator.emit(Instruction::NewFunction {
                     dst: fo.operand(),
@@ -3801,7 +3812,16 @@ fn generate_assignment_expression(
                     } else {
                         None
                     };
+
+                    // Infer a display name for the profiler/debugger from the
+                    // member expression chain (e.g. "Foo.prototype.bar").
+                    // Per spec, member assignment does not affect .name.
+                    if let Some(name) = member_expression_dotted_name(lhs_expression) {
+                        generator.pending_display_name = Some(generator.intern_identifier(&name));
+                    }
+
                     let rhs_val = generate_expression(rhs, generator, None)?;
+                    generator.pending_display_name = None;
                     if let Some(key) = precomputed_key {
                         let base_id = intern_base_identifier(generator, &member_data.object);
                         emit_put_normal_by_value(generator, &base, &key, &rhs_val, base_id);
@@ -5950,7 +5970,7 @@ fn generate_class_expression(
         // Explicit constructor — extract FunctionData from the expression
         if let ExpressionKind::Function(function_id) = &ctor_expression.inner {
             let function_data = generator.function_table.take(*function_id);
-            emit_new_function(generator, function_data, None)
+            emit_new_function(generator, function_data, None, None)
         } else {
             // Fallback: synthesize a default constructor
             emit_default_constructor(generator, has_super)
@@ -5988,6 +6008,7 @@ fn generate_class_expression(
                     super::ffi::FFIOptionalU32::some(emit_new_function(
                         generator,
                         function_data,
+                        None,
                         None,
                     ))
                 } else {
@@ -6111,8 +6132,12 @@ fn generate_class_expression(
                                 ..Default::default()
                             },
                         });
-                        let index =
-                            emit_new_function(generator, function_data, Some(utf16!("field")));
+                        let index = emit_new_function(
+                            generator,
+                            function_data,
+                            Some(utf16!("field")),
+                            None,
+                        );
 
                         // Set class_field_initializer_name on the SFD.
                         let sfd_ptr = generator.shared_function_data[index as usize];
@@ -6190,6 +6215,7 @@ fn generate_class_expression(
                 let sfd_index = super::ffi::FFIOptionalU32::some(emit_new_function(
                     generator,
                     function_data,
+                    None,
                     None,
                 ));
 
@@ -6328,6 +6354,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
             generator.vm_ptr,
             generator.source_code_ptr,
             generator.strict,
+            None,
             None,
         )
     };
@@ -7998,6 +8025,7 @@ fn emit_new_function(
     generator: &mut Generator,
     data: Box<FunctionData>,
     name_override: Option<&[u16]>,
+    display_name: Option<&[u16]>,
 ) -> u32 {
     assert!(
         data.source_text_end as usize <= generator.source_len,
@@ -8016,6 +8044,7 @@ fn emit_new_function(
             generator.source_code_ptr,
             generator.strict,
             name_override,
+            display_name,
         )
     };
 
@@ -8434,7 +8463,7 @@ pub fn emit_function_declaration_instantiation(
             let child = &body_scope.children[function_to_init.child_index];
             if let StatementKind::FunctionDeclaration(ref fd) = child.inner {
                 let inner_function_data = generator.function_table.take(fd.function_id);
-                let sfd_index = emit_new_function(generator, inner_function_data, None);
+                let sfd_index = emit_new_function(generator, inner_function_data, None, None);
 
                 // Check if the function name identifier is local.
                 if let Some(name_ident) = &fd.name {
@@ -9433,6 +9462,50 @@ fn intern_base_identifier(
     base: &Expression,
 ) -> Option<IdentifierTableIndex> {
     expression_identifier(base).map(|s| generator.intern_identifier(&s))
+}
+
+/// Build a name from a member expression chain for function name inference.
+/// Handles both dotted (`Foo.prototype.bar`) and bracket (`this.X[y]`) access.
+fn member_expression_dotted_name(expression: &Expression) -> Option<Utf16String> {
+    match &expression.inner {
+        ExpressionKind::Member(data) => {
+            let base = member_expression_dotted_name(&data.object);
+            if data.computed {
+                // Bracket access: build "base[key]"
+                let key_name = match &data.property.inner {
+                    ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
+                    ExpressionKind::StringLiteral(s) => Some((**s).clone()),
+                    ExpressionKind::NumericLiteral(n) => {
+                        let s = format!("{n}");
+                        Some(s.encode_utf16().collect())
+                    }
+                    _ => None,
+                };
+                let key_str =
+                    key_name.unwrap_or_else(|| Utf16String(utf16!("<computed>").to_vec()));
+                let mut result = base.unwrap_or_default();
+                result.0.extend_from_slice(utf16!("["));
+                result.0.extend_from_slice(&key_str);
+                result.0.extend_from_slice(utf16!("]"));
+                Some(result)
+            } else {
+                // Dot access: build "base.prop"
+                let prop = match &data.property.inner {
+                    ExpressionKind::Identifier(ident) => &ident.name,
+                    _ => return base,
+                };
+                let mut result = base.unwrap_or_default();
+                if !result.is_empty() {
+                    result.0.extend_from_slice(utf16!("."));
+                }
+                result.0.extend_from_slice(prop);
+                Some(result)
+            }
+        }
+        ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
+        ExpressionKind::This => Some(Utf16String(utf16!("this").to_vec())),
+        _ => None,
+    }
 }
 
 /// Try to produce a human-readable name for an expression (for error messages).

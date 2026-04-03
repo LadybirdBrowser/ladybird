@@ -213,6 +213,8 @@ unsafe extern "C" {
         data: *const FFISharedFunctionData,
     ) -> *mut c_void;
 
+    pub fn rust_sfd_set_display_name(sfd_ptr: *mut c_void, name: *const u16, name_len: usize);
+
     pub fn rust_sfd_set_class_field_initializer_name(
         sfd_ptr: *mut c_void,
         name: *const u16,
@@ -309,6 +311,7 @@ pub unsafe fn create_shared_function_data(
     source_code_ptr: *const c_void,
     is_strict: bool,
     name_override: Option<&[u16]>,
+    display_name: Option<&[u16]>,
 ) -> *mut c_void {
     unsafe {
         use crate::ast::FunctionParameterBinding;
@@ -387,6 +390,11 @@ pub unsafe fn create_shared_function_data(
             !sfd_ptr.is_null(),
             "create_shared_function_data: rust_create_sfd returned null"
         );
+
+        if let Some(dn) = display_name {
+            rust_sfd_set_display_name(sfd_ptr, dn.as_ptr(), dn.len());
+        }
+
         sfd_ptr
     }
 }
@@ -409,6 +417,7 @@ pub unsafe fn create_sfd_for_gdi(
             vm_ptr,
             source_code_ptr,
             is_strict,
+            None,
             None,
         )
     }

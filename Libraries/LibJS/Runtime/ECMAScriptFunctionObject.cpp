@@ -556,6 +556,9 @@ ECMAScriptFunctionObject::ClassData& ECMAScriptFunctionObject::ensure_class_data
 
 Utf16String ECMAScriptFunctionObject::name_for_call_stack() const
 {
+    auto const& display_name = shared_data().m_display_name;
+    if (!display_name.is_empty())
+        return Utf16String::from_utf16(display_name.view());
     return m_name_string->utf16_string();
 }
 

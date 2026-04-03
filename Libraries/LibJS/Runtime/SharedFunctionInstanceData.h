@@ -67,6 +67,11 @@ public:
 
     Utf16FlyString m_name;
 
+    // Non-spec: display name for profiler/debugger (like SpiderMonkey's
+    // guessedAtom). Set for member assignment patterns like
+    // `Foo.prototype.bar = function() {}`. Does not affect .name.
+    Utf16FlyString m_display_name;
+
     // NB: m_source_text is normally a view into the underlying JS::SourceCode we parsed the AST from,
     //     kept alive by m_source_code. m_source_text_owner is used if the source text needs to be
     //     owned by the function data (e.g. for dynamically created functions via Function constructor).

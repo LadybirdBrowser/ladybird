@@ -901,6 +901,16 @@ extern "C" void* rust_create_sfd(
     return shared.ptr();
 }
 
+extern "C" void rust_sfd_set_display_name(
+    void* sfd_ptr,
+    uint16_t const* name,
+    size_t name_len)
+{
+    auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
+    if (name_len > 0)
+        shared.m_display_name = Utf16FlyString::from_utf16(Utf16View(reinterpret_cast<char16_t const*>(name), name_len));
+}
+
 extern "C" void rust_sfd_set_metadata(
     void* sfd_ptr,
     bool uses_this,
