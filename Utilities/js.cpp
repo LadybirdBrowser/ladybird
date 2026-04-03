@@ -16,7 +16,9 @@
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
+#include <LibJS/GeckoProfileWriter.h>
 #include <LibJS/Print.h>
+#include <LibJS/Profiler.h>
 #include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
@@ -842,6 +844,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool use_test262_global = false;
     bool parse_only = false;
     StringView evaluate_script;
+    StringView profile_output;
     Vector<StringView> script_paths;
 
     Core::ArgsParser args_parser;
@@ -859,6 +862,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
     args_parser.add_option(use_test262_global, "Use test262 global ($262)", "use-test262-global", {});
+    args_parser.add_option(profile_output, "Write Gecko profile JSON to file", "profile", 0, "output.json");
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
 
@@ -946,8 +950,24 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         // We resolve modules as if it is the first file
 
+        OwnPtr<JS::Profiler> profiler;
+        if (!profile_output.is_empty()) {
+            profiler = make<JS::Profiler>(*g_vm);
+            g_vm->set_profiler(profiler.ptr());
+            profiler->start();
+        }
+
         if (!TRY(parse_and_run(realm, builder.string_view(), source_name, parse_only)))
             return 1;
+
+        if (profiler) {
+            profiler->stop();
+            g_vm->set_profiler(nullptr);
+            auto json = JS::write_gecko_profile(*profiler);
+            auto file = TRY(Core::File::open(profile_output, Core::File::OpenMode::Write));
+            TRY(file->write_until_depleted(json.bytes()));
+            outln("Profile written to {}", profile_output);
+        }
     }
 
     return s_exit_code;
