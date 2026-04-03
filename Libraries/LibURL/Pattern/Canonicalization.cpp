@@ -33,7 +33,7 @@ PatternErrorOr<String> canonicalize_a_protocol(String const& value)
     if (!parse_result.has_value())
         return ErrorInfo { "Failed to canonicalize URL protocol string"_string };
 
-    // 5. Return parseResult’s scheme.
+    // 5. Return parseResult's scheme.
     return parse_result->scheme();
 }
 
@@ -50,7 +50,7 @@ String canonicalize_a_username(String const& value)
     // 3. Set the username given dummyURL and value.
     dummy_url.set_username(value);
 
-    // 4. Return dummyURL’s username.
+    // 4. Return dummyURL's username.
     return dummy_url.username();
 }
 
@@ -67,7 +67,7 @@ String canonicalize_a_password(String const& value)
     // 3. Set the password given dummyURL and value.
     dummy_url.set_password(value);
 
-    // 4. Return dummyURL’s password.
+    // 4. Return dummyURL's password.
     return dummy_url.password();
 }
 
@@ -89,7 +89,7 @@ PatternErrorOr<String> canonicalize_a_hostname(String const& value)
     if (!parse_result.has_value())
         return ErrorInfo { "Failed to canonicalize URL hostname string"_string };
 
-    // 5. Return dummyURL’s host, serialized, or empty string if it is null.
+    // 5. Return dummyURL's host, serialized, or empty string if it is null.
     if (!dummy_url.host().has_value())
         return String {};
     return dummy_url.host()->serialize();
@@ -134,7 +134,7 @@ PatternErrorOr<String> canonicalize_a_port(String const& port_value, Optional<St
     // 2. Let dummyURL be the result of creating a dummy URL.
     auto dummy_url = create_a_dummy_url();
 
-    // 3. If protocolValue was given, then set dummyURL’s scheme to protocolValue.
+    // 3. If protocolValue was given, then set dummyURL's scheme to protocolValue.
     // NOTE: Note, we set the URL record's scheme in order for the basic URL parser to
     //       recognize and normalize default port values.
     if (protocol_value.has_value())
@@ -148,7 +148,7 @@ PatternErrorOr<String> canonicalize_a_port(String const& port_value, Optional<St
     if (!parse_result.has_value())
         return ErrorInfo { "Failed to canonicalize port string"_string };
 
-    // 5. Return dummyURL’s port, serialized, or empty string if it is null.
+    // 5. Return dummyURL's port, serialized, or empty string if it is null.
     if (!dummy_url.port().has_value())
         return String {};
     return String::number(*dummy_url.port());
@@ -175,7 +175,7 @@ String canonicalize_a_pathname(String const& value)
     // 5. Let dummyURL be the result of creating a dummy URL.
     auto dummy_url = create_a_dummy_url();
 
-    // 6. Empty dummyURL’s path.
+    // 6. Empty dummyURL's path.
     dummy_url.set_paths({});
 
     // 7. Run basic URL parser given modified value with dummyURL as url and path start state as state override.
@@ -202,7 +202,7 @@ PatternErrorOr<String> canonicalize_an_opaque_pathname(String const& value)
     // 2. Let dummyURL be the result of creating a dummy URL.
     auto dummy_url = create_a_dummy_url();
 
-    // 3. Set dummyURL’s path to the empty string.
+    // 3. Set dummyURL's path to the empty string.
     dummy_url.set_paths({ "" });
     dummy_url.set_has_an_opaque_path(true);
 
@@ -227,13 +227,13 @@ String canonicalize_a_search(String const& value)
     // 2. Let dummyURL be the result of creating a dummy URL.
     auto dummy_url = create_a_dummy_url();
 
-    // 3. Set dummyURL’s query to the empty string.
+    // 3. Set dummyURL's query to the empty string.
     dummy_url.set_query(String {});
 
     // 4. Run basic URL parser given value with dummyURL as url and query state as state override.
     (void)Parser::basic_parse(value, {}, &dummy_url, Parser::State::Query);
 
-    // 5. Return dummyURL’s query.
+    // 5. Return dummyURL's query.
     VERIFY(dummy_url.query().has_value());
     return *dummy_url.query();
 }
@@ -248,13 +248,13 @@ String canonicalize_a_hash(String const& value)
     // 2. Let dummyURL be the result of creating a dummy URL.
     auto dummy_url = create_a_dummy_url();
 
-    // 3. Set dummyURL’s fragment to the empty string.
+    // 3. Set dummyURL's fragment to the empty string.
     dummy_url.set_fragment(String {});
 
     // 4. Run basic URL parser given value with dummyURL as url and fragment state as state override.
     (void)Parser::basic_parse(value, {}, &dummy_url, Parser::State::Fragment);
 
-    // 5. Return dummyURL’s fragment.
+    // 5. Return dummyURL's fragment.
     VERIFY(dummy_url.fragment().has_value());
     return *dummy_url.fragment();
 }

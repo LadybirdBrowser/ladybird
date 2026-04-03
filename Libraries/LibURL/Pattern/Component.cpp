@@ -19,7 +19,7 @@ bool protocol_component_matches_a_special_scheme(Component const& protocol_compo
     // 1. Let special scheme list be a list populated with all of the special schemes.
     // 2. For each scheme of special scheme list:
     for (StringView scheme : special_schemes()) {
-        // 1. Let test result be RegExpBuiltinExec(protocol component’s regular expression, scheme).
+        // 1. Let test result be RegExpBuiltinExec(protocol component's regular expression, scheme).
         auto test_result = protocol_component.matches(scheme);
 
         // 2. If test result is not null, then return true.
@@ -48,9 +48,9 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
 
     // 3. For each part of part list:
     for (auto const& part : part_list) {
-        // 1. If part’s type is "fixed-text":
+        // 1. If part's type is "fixed-text":
         if (part.type == Part::Type::FixedText) {
-            // 1. If part’s modifier is "none", then append the result of running escape a regexp string given part’s
+            // 1. If part's modifier is "none", then append the result of running escape a regexp string given part's
             //    value to the end of result.
             if (part.modifier == Part::Modifier::None) {
                 result.append(escape_a_regexp_string(part.value));
@@ -60,13 +60,13 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
                 // 1. Append "(?:" to the end of result.
                 result.append("(?:"sv);
 
-                // 2. Append the result of running escape a regexp string given part’s value to the end of result.
+                // 2. Append the result of running escape a regexp string given part's value to the end of result.
                 result.append(escape_a_regexp_string(part.value));
 
                 // 3. Append ")" to the end of result.
                 result.append(')');
 
-                // 4. Append the result of running convert a modifier to a string given part’s modifier to the end of result.
+                // 4. Append the result of running convert a modifier to a string given part's modifier to the end of result.
                 result.append(Part::convert_modifier_to_string(part.modifier));
             }
 
@@ -74,27 +74,27 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
             continue;
         }
 
-        // 2. Assert: part’s name is not the empty string.
+        // 2. Assert: part's name is not the empty string.
         VERIFY(!part.name.is_empty());
 
-        // 3. Append part’s name to name list.
+        // 3. Append part's name to name list.
         name_list.append(part.name);
 
-        // 4. Let regexp value be part’s value.
+        // 4. Let regexp value be part's value.
         auto regexp_value = part.value;
 
-        // 5. If part’s type is "segment-wildcard", then set regexp value to the result of running generate a segment wildcard regexp given options.
+        // 5. If part's type is "segment-wildcard", then set regexp value to the result of running generate a segment wildcard regexp given options.
         if (part.type == Part::Type::SegmentWildcard) {
             regexp_value = generate_a_segment_wildcard_regexp(options);
         }
-        // 6. Otherwise if part’s type is "full-wildcard", then set regexp value to full wildcard regexp value.
+        // 6. Otherwise if part's type is "full-wildcard", then set regexp value to full wildcard regexp value.
         else if (part.type == Part::Type::FullWildcard) {
             regexp_value = MUST(String::from_utf8(full_wildcard_regexp_value));
         }
 
-        // 7. If part’s prefix is the empty string and part’s suffix is the empty string:
+        // 7. If part's prefix is the empty string and part's suffix is the empty string:
         if (part.prefix.is_empty() && part.suffix.is_empty()) {
-            // 1. If part’s modifier is "none" or "optional", then:
+            // 1. If part's modifier is "none" or "optional", then:
             if (part.modifier == Part::Modifier::None || part.modifier == Part::Modifier::Optional) {
                 // 1. Append "(" to the end of result.
                 result.append('(');
@@ -105,7 +105,7 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
                 // 3. Append ")" to the end of result.
                 result.append(')');
 
-                // 4. Append the result of running convert a modifier to a string given part’s modifier to the end of result.
+                // 4. Append the result of running convert a modifier to a string given part's modifier to the end of result.
                 result.append(Part::convert_modifier_to_string(part.modifier));
             }
             // 2. Otherwise:
@@ -119,7 +119,7 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
                 // 3. Append ")" to the end of result.
                 result.append(')');
 
-                // 4. Append the result of running convert a modifier to a string given part’s modifier to the end of result.
+                // 4. Append the result of running convert a modifier to a string given part's modifier to the end of result.
                 result.append(Part::convert_modifier_to_string(part.modifier));
 
                 // 5. Append ")" to the end of result.
@@ -130,12 +130,12 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
             continue;
         }
 
-        // 8. If part’s modifier is "none" or "optional":
+        // 8. If part's modifier is "none" or "optional":
         if (part.modifier == Part::Modifier::None || part.modifier == Part::Modifier::Optional) {
             // 1. Append "(?:" to the end of result.
             result.append("(?:"sv);
 
-            // 2. Append the result of running escape a regexp string given part’s prefix to the end of result.
+            // 2. Append the result of running escape a regexp string given part's prefix to the end of result.
             result.append(escape_a_regexp_string(part.prefix));
 
             // 3. Append "(" to the end of result.
@@ -147,29 +147,29 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
             // 5. Append ")" to the end of result.
             result.append(')');
 
-            // 6. Append the result of running escape a regexp string given part’s suffix to the end of result.
+            // 6. Append the result of running escape a regexp string given part's suffix to the end of result.
             result.append(escape_a_regexp_string(part.suffix));
 
             // 7. Append ")" to the end of result.
             result.append(')');
 
-            // 8. Append the result of running convert a modifier to a string given part’s modifier to the end of result.
+            // 8. Append the result of running convert a modifier to a string given part's modifier to the end of result.
             result.append(Part::convert_modifier_to_string(part.modifier));
 
             // 9. Continue.
             continue;
         }
 
-        // 9. Assert: part’s modifier is "zero-or-more" or "one-or-more".
+        // 9. Assert: part's modifier is "zero-or-more" or "one-or-more".
         VERIFY(part.modifier == Part::Modifier::ZeroOrMore || part.modifier == Part::Modifier::OneOrMore);
 
-        // 10. Assert: part’s prefix is not the empty string or part’s suffix is not the empty string.
+        // 10. Assert: part's prefix is not the empty string or part's suffix is not the empty string.
         VERIFY(!part.prefix.is_empty() || !part.suffix.is_empty());
 
         // 11. Append "(?:" to the end of result.
         result.append("(?:"sv);
 
-        // 12. Append the result of running escape a regexp string given part’s prefix to the end of result.
+        // 12. Append the result of running escape a regexp string given part's prefix to the end of result.
         result.append(escape_a_regexp_string(part.prefix));
 
         // 13. Append "((?:" to the end of result.
@@ -181,10 +181,10 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
         // 15. Append ")(?:" to the end of result.
         result.append(")(?:"sv);
 
-        // 16. Append the result of running escape a regexp string given part’s suffix to the end of result.
+        // 16. Append the result of running escape a regexp string given part's suffix to the end of result.
         result.append(escape_a_regexp_string(part.suffix));
 
-        // 17. Append the result of running escape a regexp string given part’s prefix to the end of result.
+        // 17. Append the result of running escape a regexp string given part's prefix to the end of result.
         result.append(escape_a_regexp_string(part.prefix));
 
         // 18. Append "(?:" to the end of result.
@@ -196,13 +196,13 @@ static RegularExpressionAndNameList generate_a_regular_expression_and_name_list(
         // 20. Append "))*)" to the end of result.
         result.append("))*)"sv);
 
-        // 21. Append the result of running escape a regexp string given part’s suffix to the end of result.
+        // 21. Append the result of running escape a regexp string given part's suffix to the end of result.
         result.append(escape_a_regexp_string(part.suffix));
 
         // 22. Append ")" to the end of result.
         result.append(')');
 
-        // 23. If part’s modifier is "zero-or-more" then append "?" to the end of result.
+        // 23. If part's modifier is "zero-or-more" then append "?" to the end of result.
         if (part.modifier == Part::Modifier::ZeroOrMore)
             result.append('?');
     }
@@ -228,7 +228,7 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
     // NOTE: These flags match the flags for the empty string of the LibJS RegExp implementation.
     regex::ECMAScriptCompileFlags flags {};
 
-    // 4. If options’s ignore case is true then set flags to "vi".
+    // 4. If options's ignore case is true then set flags to "vi".
     if (options.ignore_case) {
         flags.unicode_sets = true;
         flags.ignore_case = true;
@@ -252,7 +252,7 @@ PatternErrorOr<Component> Component::compile(Utf8View const& input, PatternParse
 
     // 9. For each part of part list:
     for (auto const& part : part_list) {
-        // 1. If part’s type is "regexp", then set has regexp groups to true.
+        // 1. If part's type is "regexp", then set has regexp groups to true.
         if (part.type == Part::Type::Regexp) {
             has_regexp_groups = true;
             break;
@@ -313,10 +313,10 @@ Component::Result Component::create_match_result(String const& input, ExecutionR
     OrderedHashMap<String, Variant<String, Empty>> groups;
 
     // 4. Let index be 1.
-    // 5. While index is less than or equal to component’s group name list’s size:
+    // 5. While index is less than or equal to component's group name list's size:
     VERIFY(exec_result.captures.size() == group_name_list.size());
     for (size_t index = 1; index <= group_name_list.size(); ++index) {
-        // 1. Let name be component’s group name list[index − 1].
+        // 1. Let name be component's group name list[index − 1].
         auto name = group_name_list[index - 1];
 
         // 2. Let value be Get(execResult, ToString(index)).

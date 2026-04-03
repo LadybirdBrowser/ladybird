@@ -48,14 +48,14 @@ void URL::set_scheme(String scheme)
 // https://url.spec.whatwg.org/#set-the-username
 void URL::set_username(StringView username)
 {
-    // To set the username given a url and username, set url’s username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
+    // To set the username given a url and username, set url's username to the result of running UTF-8 percent-encode on username using the userinfo percent-encode set.
     m_data->username = percent_encode(username, PercentEncodeSet::Userinfo);
 }
 
 // https://url.spec.whatwg.org/#set-the-password
 void URL::set_password(StringView password)
 {
-    // To set the password given a url and password, set url’s password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
+    // To set the password given a url and password, set url's password to the result of running UTF-8 percent-encode on password using the userinfo percent-encode set.
     m_data->password = percent_encode(password, PercentEncodeSet::Userinfo);
 }
 
@@ -189,14 +189,14 @@ bool is_special_scheme(StringView scheme)
 // https://url.spec.whatwg.org/#url-path-serializer
 String URL::serialize_path() const
 {
-    // 1. If url has an opaque path, then return url’s path.
+    // 1. If url has an opaque path, then return url's path.
     if (has_an_opaque_path())
         return m_data->paths[0];
 
     // 2. Let output be the empty string.
     StringBuilder output;
 
-    // 3. For each segment of url’s path: append U+002F (/) followed by segment to output.
+    // 3. For each segment of url's path: append U+002F (/) followed by segment to output.
     for (auto const& segment : m_data->paths) {
         output.append('/');
         output.append(segment);
@@ -221,22 +221,22 @@ ByteString URL::file_path() const
 // https://url.spec.whatwg.org/#concept-url-serializer
 String URL::serialize(ExcludeFragment exclude_fragment) const
 {
-    // 1. Let output be url’s scheme and U+003A (:) concatenated.
+    // 1. Let output be url's scheme and U+003A (:) concatenated.
     StringBuilder output;
     output.append(m_data->scheme);
     output.append(':');
 
-    // 2. If url’s host is non-null:
+    // 2. If url's host is non-null:
     if (m_data->host.has_value()) {
         // 1. Append "//" to output.
         output.append("//"sv);
 
         // 2. If url includes credentials, then:
         if (includes_credentials()) {
-            // 1. Append url’s username to output.
+            // 1. Append url's username to output.
             output.append(m_data->username);
 
-            // 2. If url’s password is not the empty string, then append U+003A (:), followed by url’s password, to output.
+            // 2. If url's password is not the empty string, then append U+003A (:), followed by url's password, to output.
             if (!m_data->password.is_empty()) {
                 output.append(':');
                 output.append(m_data->password);
@@ -246,28 +246,28 @@ String URL::serialize(ExcludeFragment exclude_fragment) const
             output.append('@');
         }
 
-        // 3. Append url’s host, serialized, to output.
+        // 3. Append url's host, serialized, to output.
         output.append(serialized_host());
 
-        // 4. If url’s port is non-null, append U+003A (:) followed by url’s port, serialized, to output.
+        // 4. If url's port is non-null, append U+003A (:) followed by url's port, serialized, to output.
         if (m_data->port.has_value())
             output.appendff(":{}", *m_data->port);
     }
 
-    // 3. If url’s host is null, url does not have an opaque path, url’s path’s size is greater than 1, and url’s path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
+    // 3. If url's host is null, url does not have an opaque path, url's path's size is greater than 1, and url's path[0] is the empty string, then append U+002F (/) followed by U+002E (.) to output.
     if (!host().has_value() && !has_an_opaque_path() && paths().size() > 1 && paths()[0].is_empty())
         output.append("/."sv);
 
     // 4. Append the result of URL path serializing url to output.
     output.append(serialize_path());
 
-    // 5. If url’s query is non-null, append U+003F (?), followed by url’s query, to output.
+    // 5. If url's query is non-null, append U+003F (?), followed by url's query, to output.
     if (m_data->query.has_value()) {
         output.append('?');
         output.append(*m_data->query);
     }
 
-    // 6. If exclude fragment is false and url’s fragment is non-null, then append U+0023 (#), followed by url’s fragment, to output.
+    // 6. If exclude fragment is false and url's fragment is non-null, then append U+0023 (#), followed by url's fragment, to output.
     if (exclude_fragment == ExcludeFragment::No && m_data->fragment.has_value()) {
         output.append('#');
         output.append(*m_data->fragment);
@@ -332,10 +332,10 @@ bool file_scheme_urls_have_tuple_origins()
 // https://url.spec.whatwg.org/#concept-url-origin
 Origin URL::origin() const
 {
-    // The origin of a URL url is the origin returned by running these steps, switching on url’s scheme:
+    // The origin of a URL url is the origin returned by running these steps, switching on url's scheme:
     // -> "blob"
     if (scheme() == "blob"sv) {
-        // 1. If url’s blob URL entry is non-null, then return url’s blob URL entry’s environment’s origin.
+        // 1. If url's blob URL entry is non-null, then return url's blob URL entry's environment's origin.
         if (blob_url_entry().has_value())
             return blob_url_entry()->environment.origin;
 
@@ -346,7 +346,7 @@ Origin URL::origin() const
         if (!path_url.has_value())
             return Origin::create_opaque();
 
-        // 4. If pathURL’s scheme is "http", "https", or "file", then return pathURL’s origin.
+        // 4. If pathURL's scheme is "http", "https", or "file", then return pathURL's origin.
         if (path_url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
             return path_url->origin();
 
@@ -360,7 +360,7 @@ Origin URL::origin() const
     // -> "ws"
     // -> "wss"
     if (scheme().is_one_of("ftp"sv, "http"sv, "https"sv, "ws"sv, "wss"sv)) {
-        // Return the tuple origin (url’s scheme, url’s host, url’s port, null).
+        // Return the tuple origin (url's scheme, url's host, url's port, null).
         return Origin(scheme(), host().value(), port());
     }
 

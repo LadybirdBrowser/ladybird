@@ -169,29 +169,29 @@ private:
             return clone;
         }
 
-        // A URL’s scheme is an ASCII string that identifies the type of URL and can be used to dispatch a URL for further processing after parsing. It is initially the empty string.
+        // A URL's scheme is an ASCII string that identifies the type of URL and can be used to dispatch a URL for further processing after parsing. It is initially the empty string.
         String scheme;
 
-        // A URL’s username is an ASCII string identifying a username. It is initially the empty string.
+        // A URL's username is an ASCII string identifying a username. It is initially the empty string.
         String username;
 
-        // A URL’s password is an ASCII string identifying a password. It is initially the empty string.
+        // A URL's password is an ASCII string identifying a password. It is initially the empty string.
         String password;
 
-        // A URL’s host is null or a host. It is initially null.
+        // A URL's host is null or a host. It is initially null.
         Optional<Host> host;
 
-        // A URL’s port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
+        // A URL's port is either null or a 16-bit unsigned integer that identifies a networking port. It is initially null.
         Optional<u16> port;
 
-        // A URL’s path is either a URL path segment or a list of zero or more URL path segments, usually identifying a location. It is initially « ».
+        // A URL's path is either a URL path segment or a list of zero or more URL path segments, usually identifying a location. It is initially « ».
         // A URL path segment is an ASCII string. It commonly refers to a directory or a file, but has no predefined meaning.
         Vector<String> paths;
 
-        // A URL’s query is either null or an ASCII string. It is initially null.
+        // A URL's query is either null or an ASCII string. It is initially null.
         Optional<String> query;
 
-        // A URL’s fragment is either null or an ASCII string that can be used for further processing on the resource the URL’s other components identify. It is initially null.
+        // A URL's fragment is either null or an ASCII string that can be used for further processing on the resource the URL's other components identify. It is initially null.
         Optional<String> fragment;
 
         bool has_an_opaque_path { false };

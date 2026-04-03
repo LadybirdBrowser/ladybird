@@ -38,7 +38,7 @@ static bool is_an_absolute_pathname(String const& input, PatternProcessType type
     if (type == PatternProcessType::URL)
         return false;
 
-    // 4. If input’s code point length is less than 2, then return false.
+    // 4. If input's code point length is less than 2, then return false.
     if (input.bytes().size() < 2)
         return false;
 
@@ -226,19 +226,19 @@ PatternErrorOr<Init> process_a_url_pattern_init(
             return ErrorInfo { MUST(String::formatted("Invalid base URL '{}' provided for URLPattern", init.base_url.value())) };
 
         // 3. If init["protocol"] does not exist, then set result["protocol"] to the result of processing a base URL
-        //    string given baseURL’s scheme and type.
+        //    string given baseURL's scheme and type.
         if (!init.protocol.has_value())
             result.protocol = process_a_base_url_string(base_url->scheme(), type);
 
         // 4. If type is not "pattern" and init contains none of "protocol", "hostname", "port" and "username", then
-        //    set result["username"] to the result of processing a base URL string given baseURL’s username and type.
+        //    set result["username"] to the result of processing a base URL string given baseURL's username and type.
         if (type != PatternProcessType::Pattern && !init.protocol.has_value() && !init.hostname.has_value()
             && !init.port.has_value() && !init.username.has_value()) {
             result.username = process_a_base_url_string(base_url->username(), type);
         }
 
         // 5. If type is not "pattern" and init contains none of "protocol", "hostname", "port", "username" and
-        //    "password", then set result["password"] to the result of processing a base URL string given baseURL’s
+        //    "password", then set result["password"] to the result of processing a base URL string given baseURL's
         //    password and type.
         if (type != PatternProcessType::Pattern && !init.protocol.has_value() && !init.hostname.has_value()
             && !init.port.has_value() && !init.username.has_value() && !init.password.has_value()) {
@@ -256,11 +256,11 @@ PatternErrorOr<Init> process_a_url_pattern_init(
 
         // 7. If init contains none of "protocol", "hostname", and "port", then:
         if (!init.protocol.has_value() && !init.hostname.has_value() && !init.port.has_value()) {
-            // 1. If baseURL’s port is null, then set result["port"] to the empty string.
+            // 1. If baseURL's port is null, then set result["port"] to the empty string.
             if (!base_url->port().has_value()) {
                 result.port = String {};
             }
-            // 2. Otherwise, set result["port"] to baseURL’s port, serialized.
+            // 2. Otherwise, set result["port"] to baseURL's port, serialized.
             else {
                 result.port = String::number(*base_url->port());
             }
@@ -273,7 +273,7 @@ PatternErrorOr<Init> process_a_url_pattern_init(
 
         // 9. If init contains none of "protocol", "hostname", "port", "pathname", and "search", then:
         if (!init.protocol.has_value() && !init.hostname.has_value() && !init.port.has_value() && !init.pathname.has_value() && !init.search.has_value()) {
-            // 1. Let baseQuery be baseURL’s query.
+            // 1. Let baseQuery be baseURL's query.
             auto const& base_query = base_url->query();
 
             // 2. If baseQuery is null, then set baseQuery to the empty string.
@@ -284,7 +284,7 @@ PatternErrorOr<Init> process_a_url_pattern_init(
         // 10. If init contains none of "protocol", "hostname", "port", "pathname", "search", and "hash", then:
         if (!init.protocol.has_value() && !init.hostname.has_value() && !init.port.has_value() && !init.pathname.has_value()
             && !init.search.has_value() && !init.hash.has_value()) {
-            // 1. Let baseFragment be baseURL’s fragment.
+            // 1. Let baseFragment be baseURL's fragment.
             auto const& base_fragment = base_url->fragment();
 
             // 2. If baseFragment is null, then set baseFragment to the empty string.

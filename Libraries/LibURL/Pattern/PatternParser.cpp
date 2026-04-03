@@ -50,7 +50,7 @@ String PatternParser::consume_text()
         if (!token.has_value())
             break;
 
-        // 4. Append token’s value to the end of result.
+        // 4. Append token's value to the end of result.
         result.append(token->value);
     }
 
@@ -61,18 +61,18 @@ String PatternParser::consume_text()
 // https://urlpattern.spec.whatwg.org/#maybe-add-a-part-from-the-pending-fixed-value
 PatternErrorOr<void> PatternParser::maybe_add_a_part_from_the_pending_fixed_value()
 {
-    // 1. If parser’s pending fixed value is the empty string, then return.
+    // 1. If parser's pending fixed value is the empty string, then return.
     if (m_pending_fixed_value.is_empty())
         return {};
 
-    // 2. Let encoded value be the result of running parser’s encoding callback given parser’s pending fixed value.
+    // 2. Let encoded value be the result of running parser's encoding callback given parser's pending fixed value.
     auto encoded_value = TRY(m_encoding_callback(m_pending_fixed_value.to_string_without_validation()));
 
-    // 3. Set parser’s pending fixed value to the empty string.
+    // 3. Set parser's pending fixed value to the empty string.
     m_pending_fixed_value.clear();
 
     // 4. Let part be a new part whose type is "fixed-text", value is encoded value, and modifier is "none".
-    // 5. Append part to parser’s part list.
+    // 5. Append part to parser's part list.
     m_part_list.append({ Part::Type::FixedText, move(encoded_value), Part::Modifier::None });
 
     return {};
@@ -81,9 +81,9 @@ PatternErrorOr<void> PatternParser::maybe_add_a_part_from_the_pending_fixed_valu
 // https://urlpattern.spec.whatwg.org/#is-a-duplicate-name
 bool PatternParser::is_a_duplicate_name(String const& name) const
 {
-    // 1. For each part of parser’s part list:
+    // 1. For each part of parser's part list:
     for (auto const& part : m_part_list) {
-        // 1. If part’s name is name, then return true.
+        // 1. If part's name is name, then return true.
         if (part.name == name)
             return true;
     }
@@ -105,15 +105,15 @@ PatternErrorOr<void> PatternParser::add_a_part(
 
     // 2. If modifier token is not null:
     if (modifier_token.has_value()) {
-        // 1. If modifier token’s value is "?" then set modifier to "optional".
+        // 1. If modifier token's value is "?" then set modifier to "optional".
         if (modifier_token->value == "?"sv) {
             modifier = Part::Modifier::Optional;
         }
-        // 2. Otherwise if modifier token’s value is "*" then set modifier to "zero-or-more".
+        // 2. Otherwise if modifier token's value is "*" then set modifier to "zero-or-more".
         else if (modifier_token->value == "*"sv) {
             modifier = Part::Modifier::ZeroOrMore;
         }
-        // 3. Otherwise if modifier token’s value is "+" then set modifier to "one-or-more".
+        // 3. Otherwise if modifier token's value is "+" then set modifier to "one-or-more".
         else if (modifier_token->value == "+"sv) {
             modifier = Part::Modifier::OneOrMore;
         }
@@ -123,7 +123,7 @@ PatternErrorOr<void> PatternParser::add_a_part(
     // NOTE: This was a "{foo}" grouping. We add this to the pending fixed value so that it will be combined with
     //       any previous or subsequent text.
     if (!name_token.has_value() && !regexp_or_wildcard_token.has_value() && modifier == Part::Modifier::None) {
-        // 1. Append prefix to the end of parser’s pending fixed value.
+        // 1. Append prefix to the end of parser's pending fixed value.
         m_pending_fixed_value.append(prefix);
 
         // 2. Return.
@@ -144,11 +144,11 @@ PatternErrorOr<void> PatternParser::add_a_part(
         if (prefix.is_empty())
             return {};
 
-        // 3. Let encoded value be the result of running parser’s encoding callback given prefix.
+        // 3. Let encoded value be the result of running parser's encoding callback given prefix.
         auto encoded_value = TRY(m_encoding_callback(prefix));
 
         // 4. Let part be a new part whose type is "fixed-text", value is encoded value, and modifier is modifier.
-        // 5. Append part to parser’s part list.
+        // 5. Append part to parser's part list.
         m_part_list.append({ Part::Type::FixedText, move(encoded_value), modifier });
 
         // 6. Return.
@@ -159,15 +159,15 @@ PatternErrorOr<void> PatternParser::add_a_part(
     // NOTE: Next, we convert the regexp or wildcard token into a regular expression.
     String regexp_value;
 
-    // 7. If regexp or wildcard token is null, then set regexp value to parser’s segment wildcard regexp.
+    // 7. If regexp or wildcard token is null, then set regexp value to parser's segment wildcard regexp.
     if (!regexp_or_wildcard_token.has_value()) {
         regexp_value = m_segment_wildcard_regexp;
     }
-    // 8. Otherwise if regexp or wildcard token’s type is "asterisk", then set regexp value to the full wildcard regexp value.
+    // 8. Otherwise if regexp or wildcard token's type is "asterisk", then set regexp value to the full wildcard regexp value.
     else if (regexp_or_wildcard_token->type == Token::Type::Asterisk) {
         regexp_value = MUST(String::from_utf8(full_wildcard_regexp_value));
     }
-    // 9. Otherwise set regexp value to regexp or wildcard token’s value.
+    // 9. Otherwise set regexp value to regexp or wildcard token's value.
     else {
         regexp_value = regexp_or_wildcard_token->value;
     }
@@ -177,7 +177,7 @@ PatternErrorOr<void> PatternParser::add_a_part(
     //       that an equivalent "regexp" token will be treated the same as a "name" or "asterisk" token.
     auto type = Part::Type::Regexp;
 
-    // 11. If regexp value is parser’s segment wildcard regexp:
+    // 11. If regexp value is parser's segment wildcard regexp:
     if (regexp_value == m_segment_wildcard_regexp) {
         // 1. Set type to "segment-wildcard".
         type = Part::Type::SegmentWildcard;
@@ -198,16 +198,16 @@ PatternErrorOr<void> PatternParser::add_a_part(
     // NOTE: Next, we determine the part name. This can be explicitly provided by a "name" token or be automatically assigned.
     String name;
 
-    // 14. If name token is not null, then set name to name token’s value.
+    // 14. If name token is not null, then set name to name token's value.
     if (name_token.has_value()) {
         name = name_token->value;
     }
     // 15. Otherwise if regexp or wildcard token is not null:
     else if (regexp_or_wildcard_token.has_value()) {
-        // 1. Set name to parser’s next numeric name, serialized.
+        // 1. Set name to parser's next numeric name, serialized.
         name = String::number(m_next_numeric_name);
 
-        // 2. Increment parser’s next numeric name by 1.
+        // 2. Increment parser's next numeric name by 1.
         ++m_next_numeric_name;
     }
 
@@ -215,16 +215,16 @@ PatternErrorOr<void> PatternParser::add_a_part(
     if (is_a_duplicate_name(name))
         return ErrorInfo { MUST(String::formatted("Duplicate name '{}' provided in URL pattern", name)) };
 
-    // 17. Let encoded prefix be the result of running parser’s encoding callback given prefix.
+    // 17. Let encoded prefix be the result of running parser's encoding callback given prefix.
     // NOTE: Finally, we encode the fixed text values and create the part.
     auto encoded_prefix = TRY(m_encoding_callback(prefix));
 
-    // 18. Let encoded suffix be the result of running parser’s encoding callback given suffix.
+    // 18. Let encoded suffix be the result of running parser's encoding callback given suffix.
     auto encoded_suffix = TRY(m_encoding_callback(suffix));
 
     // 19. Let part be a new part whose type is type, value is regexp value, modifier is modifier, name is name, prefix
     //     is encoded prefix, and suffix is encoded suffix.
-    // 20. Append part to parser’s part list.
+    // 20. Append part to parser's part list.
     m_part_list.append({ type, move(regexp_value), modifier, move(name), move(encoded_prefix), move(encoded_suffix) });
 
     return {};
@@ -265,17 +265,17 @@ Optional<Token const&> PatternParser::try_to_consume_a_regexp_or_wildcard_token(
 // https://urlpattern.spec.whatwg.org/#try-to-consume-a-token
 Optional<Token const&> PatternParser::try_to_consume_a_token(Token::Type type)
 {
-    // 1. Assert: parser’s index is less than parser’s token list size.
+    // 1. Assert: parser's index is less than parser's token list size.
     VERIFY(m_index < m_token_list.size());
 
-    // 2. Let next token be parser’s token list[parser’s index].
+    // 2. Let next token be parser's token list[parser's index].
     auto const& next_token = m_token_list[m_index];
 
-    // 3. If next token’s type is not type return null.
+    // 3. If next token's type is not type return null.
     if (next_token.type != type)
         return {};
 
-    // 4. Increment parser’s index by 1.
+    // 4. Increment parser's index by 1.
     ++m_index;
 
     // 5. Return next token.
@@ -289,10 +289,10 @@ PatternErrorOr<Vector<Part>> PatternParser::parse(Utf8View const& input, Options
     //    is the result of running generate a segment wildcard regexp given options.
     PatternParser parser { move(encoding_callback), generate_a_segment_wildcard_regexp(options) };
 
-    // 2. Set parser’s token list to the result of running tokenize given input and "strict".
+    // 2. Set parser's token list to the result of running tokenize given input and "strict".
     parser.m_token_list = TRY(Tokenizer::tokenize(input, Tokenizer::Policy::Strict));
 
-    // 3. While parser’s index is less than parser’s token list's size:
+    // 3. While parser's index is less than parser's token list's size:
     while (parser.m_index < parser.m_token_list.size()) {
         // 1. Let char token be the result of running try to consume a token given parser and "char".
         auto char_token = parser.try_to_consume_a_token(Token::Type::Char);
@@ -310,13 +310,13 @@ PatternErrorOr<Vector<Part>> PatternParser::parse(Utf8View const& input, Options
             // 1. Let prefix be the empty string.
             String prefix;
 
-            // 2. If char token is not null then set prefix to char token’s value.
+            // 2. If char token is not null then set prefix to char token's value.
             if (char_token.has_value())
                 prefix = char_token->value;
 
-            // 3. If prefix is not the empty string and not options’s prefix code point:
+            // 3. If prefix is not the empty string and not options's prefix code point:
             if (!prefix.is_empty() && (!options.prefix_code_point.has_value() || prefix != String::from_code_point(*options.prefix_code_point))) {
-                // 1. Append prefix to the end of parser’s pending fixed value.
+                // 1. Append prefix to the end of parser's pending fixed value.
                 parser.m_pending_fixed_value.append(prefix);
 
                 // 2. Set prefix to the empty string.
@@ -349,7 +349,7 @@ PatternErrorOr<Vector<Part>> PatternParser::parse(Utf8View const& input, Options
 
         // 7. If fixed token is not null:
         if (fixed_token.has_value()) {
-            // 1. Append fixed token’s value to parser’s pending fixed value.
+            // 1. Append fixed token's value to parser's pending fixed value.
             parser.m_pending_fixed_value.append(fixed_token->value);
 
             // 2. Continue.
@@ -402,7 +402,7 @@ PatternErrorOr<Vector<Part>> PatternParser::parse(Utf8View const& input, Options
                 part.name, part.prefix, part.suffix);
         }
     }
-    // 4. Return parser’s part list.
+    // 4. Return parser's part list.
     return move(parser.m_part_list);
 }
 

@@ -147,12 +147,12 @@ static Optional<IPv4Address> parse_ipv4_address(StringView input)
         // 1. IPv4-empty-part validation error.
         report_validation_error();
 
-        // 2. If parts’s size is greater than 1, then remove the last item from parts.
+        // 2. If parts's size is greater than 1, then remove the last item from parts.
         if (parts.size() > 1)
             parts.take_last();
     }
 
-    // 3. If parts’s size is greater than 4, IPv4-too-many-parts validation error, return failure.
+    // 3. If parts's size is greater than 4, IPv4-too-many-parts validation error, return failure.
     if (parts.size() > 4) {
         report_validation_error();
         return {};
@@ -190,7 +190,7 @@ static Optional<IPv4Address> parse_ipv4_address(StringView input)
         }
     }
 
-    // 8. If the last item in numbers is greater than or equal to 256^(5 − numbers’s size), then return failure.
+    // 8. If the last item in numbers is greater than or equal to 256^(5 − numbers's size), then return failure.
     if (numbers.last() >= AK::pow<size_t>(256, 5 - numbers.size()))
         return {};
 
@@ -453,7 +453,7 @@ static bool ends_in_a_number_checker(StringView input)
 
     // 2. If the last item in parts is the empty string, then:
     if (parts.last().is_empty()) {
-        // 1. If parts’s size is 1, then return false.
+        // 1. If parts's size is 1, then return false.
         if (parts.size() == 1)
             return false;
 
@@ -627,14 +627,14 @@ void Parser::shorten_urls_path(URL& url)
     // 1. Assert: url does not have an opaque path.
     VERIFY(!url.has_an_opaque_path());
 
-    // 2. Let path be url’s path.
+    // 2. Let path be url's path.
     auto& path = url.m_data->paths;
 
-    // 3. If url’s scheme is "file", path’s size is 1, and path[0] is a normalized Windows drive letter, then return.
+    // 3. If url's scheme is "file", path's size is 1, and path[0] is a normalized Windows drive letter, then return.
     if (url.scheme() == "file" && path.size() == 1 && is_normalized_windows_drive_letter(path[0]))
         return;
 
-    // 4. Remove path’s last item, if any.
+    // 4. Remove path's last item, if any.
     if (!path.is_empty())
         path.take_last();
 }
@@ -657,7 +657,7 @@ String Parser::percent_encode_after_encoding(TextCodec::Encoder& encoder, String
                 return {};
             }
 
-            // 2. Let isomorph be a code point whose value is byte’s value.
+            // 2. Let isomorph be a code point whose value is byte's value.
             u32 isomorph = byte;
 
             // 3. Assert: percentEncodeSet includes all non-ASCII code points.
@@ -838,11 +838,11 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             else if (code_point == ':') {
                 // 1. If state override is given, then:
                 if (state_override.has_value()) {
-                    // 1. If url’s scheme is a special scheme and buffer is not a special scheme, then return.
+                    // 1. If url's scheme is a special scheme and buffer is not a special scheme, then return.
                     if (is_special_scheme(url->scheme()) && !is_special_scheme(buffer.string_view()))
                         return *url;
 
-                    // 2. If url’s scheme is not a special scheme and buffer is a special scheme, then return.
+                    // 2. If url's scheme is not a special scheme and buffer is a special scheme, then return.
                     if (!is_special_scheme(url->scheme()) && is_special_scheme(buffer.string_view()))
                         return *url;
 
@@ -850,17 +850,17 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     if ((url->includes_credentials() || url->port().has_value()) && buffer.string_view() == "file"sv)
                         return *url;
 
-                    // 4. If url’s scheme is "file" and its host is an empty host, then return.
+                    // 4. If url's scheme is "file" and its host is an empty host, then return.
                     if (url->scheme() == "file"sv && url->host().has_value() && url->host()->is_empty_host())
                         return *url;
                 }
 
-                // 2. Set url’s scheme to buffer.
+                // 2. Set url's scheme to buffer.
                 url->m_data->scheme = buffer.to_string_without_validation();
 
                 // 3. If state override is given, then:
                 if (state_override.has_value()) {
-                    // 1. If url’s port is url’s scheme’s default port, then set url’s port to null.
+                    // 1. If url's port is url's scheme's default port, then set url's port to null.
                     if (url->port() == default_port_for_scheme(url->scheme()))
                         url->m_data->port = {};
 
@@ -871,7 +871,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 4. Set buffer to the empty string.
                 buffer.clear();
 
-                // 5. If url’s scheme is "file", then:
+                // 5. If url's scheme is "file", then:
                 if (url->scheme() == "file") {
                     // 1. If remaining does not start with "//", special-scheme-missing-following-solidus validation error.
                     if (!get_remaining().starts_with("//"sv)) {
@@ -880,7 +880,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     // 2. Set state to file state.
                     state = State::File;
                 }
-                // 6. Otherwise, if url is special, base is non-null, and base’s scheme is url’s scheme:
+                // 6. Otherwise, if url is special, base is non-null, and base's scheme is url's scheme:
                 else if (url->is_special() && base_url.has_value() && base_url->scheme() == url->m_data->scheme) {
                     // 1. Assert: base is special (and therefore does not have an opaque path).
                     VERIFY(base_url->is_special());
@@ -897,7 +897,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     state = State::PathOrAuthority;
                     ++iterator;
                 }
-                // 9. Otherwise, set url’s path to the empty string and set state to opaque path state.
+                // 9. Otherwise, set url's path to the empty string and set state to opaque path state.
                 else {
                     url->m_data->has_an_opaque_path = true;
                     url->append_slash();
@@ -923,8 +923,8 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 report_validation_error();
                 return {};
             }
-            // 2. Otherwise, if base has an opaque path and c is U+0023 (#), set url’s scheme to base’s scheme, url’s path to base’s path, url’s query
-            //    to base’s query,url’s fragment to the empty string, and set state to fragment state.
+            // 2. Otherwise, if base has an opaque path and c is U+0023 (#), set url's scheme to base's scheme, url's path to base's path, url's query
+            //    to base's query,url's fragment to the empty string, and set state to fragment state.
             else if (base_url->has_an_opaque_path() && code_point == '#') {
                 url->m_data->scheme = base_url->m_data->scheme;
                 url->m_data->paths = base_url->m_data->paths;
@@ -933,7 +933,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 url->m_data->has_an_opaque_path = true;
                 state = State::Fragment;
             }
-            // 3. Otherwise, if base’s scheme is not "file", set state to relative state and decrease pointer by 1.
+            // 3. Otherwise, if base's scheme is not "file", set state to relative state and decrease pointer by 1.
             else if (base_url->m_data->scheme != "file") {
                 state = State::Relative;
                 continue;
@@ -972,10 +972,10 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             break;
         // -> relative state, https://url.spec.whatwg.org/#relative-state
         case State::Relative:
-            // 1. Assert: base’s scheme is not "file".
+            // 1. Assert: base's scheme is not "file".
             VERIFY(base_url->scheme() != "file");
 
-            // 2. Set url’s scheme to base’s scheme.
+            // 2. Set url's scheme to base's scheme.
             url->m_data->scheme = base_url->m_data->scheme;
 
             // 3. If c is U+002F (/), then set state to relative slash state.
@@ -989,7 +989,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
             // 5. Otherwise:
             else {
-                // 1. Set url’s username to base’s username, url’s password to base’s password, url’s host to base’s host, url’s port to base’s port, url’s path to a clone of base’s path, and url’s query to base’s query.
+                // 1. Set url's username to base's username, url's password to base's password, url's host to base's host, url's port to base's port, url's path to a clone of base's path, and url's query to base's query.
                 url->m_data->username = base_url->m_data->username;
                 url->m_data->password = base_url->m_data->password;
                 url->m_data->host = base_url->m_data->host;
@@ -997,22 +997,22 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 url->m_data->paths = base_url->m_data->paths;
                 url->m_data->query = base_url->m_data->query;
 
-                // 2. If c is U+003F (?), then set url’s query to the empty string, and state to query state.
+                // 2. If c is U+003F (?), then set url's query to the empty string, and state to query state.
                 if (code_point == '?') {
                     url->m_data->query = String {};
                     state = State::Query;
                 }
-                // 3. Otherwise, if c is U+0023 (#), set url’s fragment to the empty string and state to fragment state.
+                // 3. Otherwise, if c is U+0023 (#), set url's fragment to the empty string and state to fragment state.
                 else if (code_point == '#') {
                     url->m_data->fragment = String {};
                     state = State::Fragment;
                 }
                 // 4. Otherwise, if c is not the EOF code point:
                 else if (code_point != end_of_file) {
-                    // 1. Set url’s query to null.
+                    // 1. Set url's query to null.
                     url->m_data->query = {};
 
-                    // 2. Shorten url’s path.
+                    // 2. Shorten url's path.
                     shorten_urls_path(*url);
 
                     // 3. Set state to path state and decrease pointer by 1.
@@ -1036,7 +1036,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             else if (code_point == '/') {
                 state = State::Authority;
             }
-            // 3. Otherwise, set url’s username to base’s username, url’s password to base’s password, url’s host to base’s host, url’s port to base’s port, state to path state, and then, decrease pointer by 1.
+            // 3. Otherwise, set url's username to base's username, url's password to base's password, url's host to base's host, url's port to base's port, state to path state, and then, decrease pointer by 1.
             else {
                 url->m_data->username = base_url->m_data->username;
                 url->m_data->password = base_url->m_data->password;
@@ -1102,8 +1102,8 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 4. For each codePoint in buffer:
                 //     1. If codePoint is U+003A (:) and passwordTokenSeen is false, then set passwordTokenSeen to true and continue.
                 //     2. Let encodedCodePoints be the result of running UTF-8 percent-encode codePoint using the userinfo percent-encode set.
-                //     3. If passwordTokenSeen is true, then append encodedCodePoints to url’s password.
-                //     4. Otherwise, append encodedCodePoints to url’s username.
+                //     3. If passwordTokenSeen is true, then append encodedCodePoints to url's password.
+                //     4. Otherwise, append encodedCodePoints to url's username.
                 if (password_token_seen) {
                     password_builder.append(percent_encode(authority, PercentEncodeSet::Userinfo));
                 } else {
@@ -1132,7 +1132,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     return {};
                 }
 
-                // 2. Decrease pointer by buffer’s code point length + 1, set buffer to the empty string, and set state to host state.
+                // 2. Decrease pointer by buffer's code point length + 1, set buffer to the empty string, and set state to host state.
                 iterator = input.iterator_at_byte_offset_without_validation(iterator - input.begin() - 1);
                 buffer.clear();
                 state = State::Host;
@@ -1147,7 +1147,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
         // -> hostname state, https://url.spec.whatwg.org/#hostname-state
         case State::Host:
         case State::Hostname:
-            // 1. If state override is given and url’s scheme is "file", then decrease pointer by 1 and set state to file host state.
+            // 1. If state override is given and url's scheme is "file", then decrease pointer by 1 and set state to file host state.
             if (state_override.has_value() && url->scheme() == "file") {
                 state = State::FileHost;
                 continue;
@@ -1172,7 +1172,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (!host.has_value())
                     return {};
 
-                // 5. Set url’s host to host, buffer to the empty string, and state to port state.
+                // 5. Set url's host to host, buffer to the empty string, and state to port state.
                 url->m_data->host = host.release_value();
                 buffer.clear();
                 state = State::Port;
@@ -1191,7 +1191,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     return {};
                 }
 
-                // 2. Otherwise, if state override is given, buffer is the empty string, and either url includes credentials or url’s port is non-null, then return failure.
+                // 2. Otherwise, if state override is given, buffer is the empty string, and either url includes credentials or url's port is non-null, then return failure.
                 if (state_override.has_value() && buffer.is_empty() && (url->includes_credentials() || url->port().has_value()))
                     return {};
 
@@ -1202,7 +1202,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (!host.has_value())
                     return {};
 
-                // 5. Set url’s host to host, buffer to the empty string, and state to path start state.
+                // 5. Set url's host to host, buffer to the empty string, and state to path start state.
                 url->m_data->host = host.value();
                 buffer.clear();
                 state = State::Port;
@@ -1257,7 +1257,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                         return {};
                     }
 
-                    // 3. Set url’s port to null, if port is url’s scheme’s default port; otherwise to port.
+                    // 3. Set url's port to null, if port is url's scheme's default port; otherwise to port.
                     if (port.value() == default_port_for_scheme(url->scheme()))
                         url->m_data->port = {};
                     else
@@ -1287,10 +1287,10 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             break;
         // -> file state, https://url.spec.whatwg.org/#file-state
         case State::File:
-            // 1. Set url’s scheme to "file".
+            // 1. Set url's scheme to "file".
             url->m_data->scheme = "file"_string;
 
-            // 2. Set url’s host to the empty string.
+            // 2. Set url's host to the empty string.
             url->m_data->host = String {};
 
             // 3. If c is U+002F (/) or U+005C (\), then:
@@ -1302,29 +1302,29 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 2. Set state to file slash state.
                 state = State::FileSlash;
             }
-            // 4. Otherwise, if base is non-null and base’s scheme is "file":
+            // 4. Otherwise, if base is non-null and base's scheme is "file":
             else if (base_url.has_value() && base_url->m_data->scheme == "file") {
-                // 1. Set url’s host to base’s host, url’s path to a clone of base’s path, and url’s query to base’s query.
+                // 1. Set url's host to base's host, url's path to a clone of base's path, and url's query to base's query.
                 url->m_data->host = base_url->m_data->host;
                 url->m_data->paths = base_url->m_data->paths;
                 url->m_data->query = base_url->m_data->query;
 
-                // 2. If c is U+003F (?), then set url’s query to the empty string and state to query state.
+                // 2. If c is U+003F (?), then set url's query to the empty string and state to query state.
                 if (code_point == '?') {
                     url->m_data->query = String {};
                     state = State::Query;
                 }
-                // 3. Otherwise, if c is U+0023 (#), set url’s fragment to the empty string and state to fragment state.
+                // 3. Otherwise, if c is U+0023 (#), set url's fragment to the empty string and state to fragment state.
                 else if (code_point == '#') {
                     url->m_data->fragment = String {};
                     state = State::Fragment;
                 }
                 // 4. Otherwise, if c is not the EOF code point:
                 else if (code_point != end_of_file) {
-                    // 1. Set url’s query to null.
+                    // 1. Set url's query to null.
                     url->m_data->query = {};
 
-                    // 2. If the code point substring from pointer to the end of input does not start with a Windows drive letter, then shorten url’s path.
+                    // 2. If the code point substring from pointer to the end of input does not start with a Windows drive letter, then shorten url's path.
                     auto substring_from_pointer = input.substring_view(iterator - input.begin()).as_string();
                     if (!starts_with_windows_drive_letter(substring_from_pointer)) {
                         shorten_urls_path(*url);
@@ -1334,7 +1334,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                         // 1. File-invalid-Windows-drive-letter validation error.
                         report_validation_error();
 
-                        // 2. Set url’s path to « ».
+                        // 2. Set url's path to « ».
                         url->m_data->paths.clear();
                     }
 
@@ -1363,12 +1363,12 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
             // 2. Otherwise:
             else {
-                // 1. If base is non-null and base’s scheme is "file", then:
+                // 1. If base is non-null and base's scheme is "file", then:
                 if (base_url.has_value() && base_url->m_data->scheme == "file") {
-                    // 1. Set url’s host to base’s host.
+                    // 1. Set url's host to base's host.
                     url->m_data->host = base_url->m_data->host;
 
-                    // 2. If the code point substring from pointer to the end of input does not start with a Windows drive letter and base’s path[0] is a normalized Windows drive letter, then append base’s path[0] to url’s path.
+                    // 2. If the code point substring from pointer to the end of input does not start with a Windows drive letter and base's path[0] is a normalized Windows drive letter, then append base's path[0] to url's path.
                     auto substring_from_pointer = input.substring_view(iterator - input.begin()).as_string();
                     if (!starts_with_windows_drive_letter(substring_from_pointer) && is_normalized_windows_drive_letter(base_url->m_data->paths[0]))
                         url->m_data->paths.append(base_url->m_data->paths[0]);
@@ -1391,7 +1391,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 }
                 // 2. Otherwise, if buffer is the empty string, then:
                 else if (buffer.is_empty()) {
-                    // 1. Set url’s host to the empty string.
+                    // 1. Set url's host to the empty string.
                     url->m_data->host = String {};
 
                     // 2. If state override is given, then return.
@@ -1414,7 +1414,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                     if (host.value().has<String>() && host.value().get<String>() == "localhost"sv)
                         host = String {};
 
-                    // 4. Set url’s host to host.
+                    // 4. Set url's host to host.
                     url->m_data->host = host.release_value();
 
                     // 5. If state override is given, then return.
@@ -1447,12 +1447,12 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (code_point != '/' && code_point != '\\')
                     continue;
             }
-            // 2. Otherwise, if state override is not given and c is U+003F (?), set url’s query to the empty string and state to query state.
+            // 2. Otherwise, if state override is not given and c is U+003F (?), set url's query to the empty string and state to query state.
             else if (!state_override.has_value() && code_point == '?') {
                 url->m_data->query = String {};
                 state = State::Query;
             }
-            // 3. Otherwise, if state override is not given and c is U+0023 (#), set url’s fragment to the empty string and state to fragment state.
+            // 3. Otherwise, if state override is not given and c is U+0023 (#), set url's fragment to the empty string and state to fragment state.
             else if (!state_override.has_value() && code_point == '#') {
                 url->m_data->fragment = String {};
                 state = State::Fragment;
@@ -1466,7 +1466,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (code_point != '/')
                     continue;
             }
-            // 5. Otherwise, if state override is given and url’s host is null, append the empty string to url’s path.
+            // 5. Otherwise, if state override is given and url's host is null, append the empty string to url's path.
             else if (state_override.has_value() && !url->host().has_value()) {
                 url->append_slash();
             }
@@ -1488,39 +1488,39 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
 
                 // 2. If buffer is a double-dot URL path segment, then:
                 if (is_double_dot_path_segment(buffer.string_view())) {
-                    // 1. Shorten url’s path.
+                    // 1. Shorten url's path.
                     shorten_urls_path(*url);
 
-                    // 2. If neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
+                    // 2. If neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url's path.
                     if (code_point != '/' && !(url->is_special() && code_point == '\\'))
                         url->append_slash();
                 }
-                // 3. Otherwise, if buffer is a single-dot URL path segment and if neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url’s path.
+                // 3. Otherwise, if buffer is a single-dot URL path segment and if neither c is U+002F (/), nor url is special and c is U+005C (\), append the empty string to url's path.
                 else if (is_single_dot_path_segment(buffer.string_view()) && code_point != '/' && !(url->is_special() && code_point == '\\')) {
                     url->append_slash();
                 }
                 // 4. Otherwise, if buffer is not a single-dot URL path segment, then:
                 else if (!is_single_dot_path_segment(buffer.string_view())) {
-                    // 1. If url’s scheme is "file", url’s path is empty, and buffer is a Windows drive letter, then replace the second code point in buffer with U+003A (:).
+                    // 1. If url's scheme is "file", url's path is empty, and buffer is a Windows drive letter, then replace the second code point in buffer with U+003A (:).
                     if (url->m_data->scheme == "file" && url->m_data->paths.is_empty() && is_windows_drive_letter(buffer.string_view())) {
                         auto drive_letter = buffer.string_view()[0];
                         buffer.clear();
                         buffer.append(drive_letter);
                         buffer.append(':');
                     }
-                    // 2. Append buffer to url’s path.
+                    // 2. Append buffer to url's path.
                     url->m_data->paths.append(buffer.to_string_without_validation());
                 }
 
                 // 5. Set buffer to the empty string.
                 buffer.clear();
 
-                // 6. If c is U+003F (?), then set url’s query to the empty string and state to query state.
+                // 6. If c is U+003F (?), then set url's query to the empty string and state to query state.
                 if (code_point == '?') {
                     url->m_data->query = String {};
                     state = State::Query;
                 }
-                // 7. If c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
+                // 7. If c is U+0023 (#), then set url's fragment to the empty string and state to fragment state.
                 else if (code_point == '#') {
                     url->m_data->fragment = String {};
                     state = State::Fragment;
@@ -1545,14 +1545,14 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             // NOTE: This does not follow the spec exactly but rather uses the buffer and only sets the path on EOF.
             VERIFY(url->m_data->paths.size() == 1 && url->m_data->paths[0].is_empty());
 
-            // 1. If c is U+003F (?), then set url’s query to the empty string and state to query state.
+            // 1. If c is U+003F (?), then set url's query to the empty string and state to query state.
             if (code_point == '?') {
                 url->m_data->paths[0] = buffer.to_string_without_validation();
                 url->m_data->query = String {};
                 buffer.clear();
                 state = State::Query;
             }
-            // 2. Otherwise, if c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
+            // 2. Otherwise, if c is U+0023 (#), then set url's fragment to the empty string and state to fragment state.
             else if (code_point == '#') {
                 // NOTE: This needs to be percent decoded since the member variables contain decoded data.
                 url->m_data->paths[0] = buffer.to_string_without_validation();
@@ -1562,11 +1562,11 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
             }
             // 3. Otherwise, if c is U+0020 SPACE:
             else if (code_point == ' ') {
-                // 1. If remaining starts with U+003F (?) or U+003F (#), then append "%20" to url’s path.
+                // 1. If remaining starts with U+003F (?) or U+003F (#), then append "%20" to url's path.
                 if (auto remaining = get_remaining(); remaining.starts_with('?') || remaining.starts_with('#')) {
                     buffer.append("%20"sv);
                 }
-                // 2. Otherwise, append U+0020 SPACE to url’s path.
+                // 2. Otherwise, append U+0020 SPACE to url's path.
                 else {
                     buffer.append(' ');
                 }
@@ -1581,7 +1581,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (code_point == '%' && !remaining_starts_with_two_ascii_hex_digits())
                     report_validation_error();
 
-                // 3. UTF-8 percent-encode c using the C0 control percent-encode set and append the result to url’s path.
+                // 3. UTF-8 percent-encode c using the C0 control percent-encode set and append the result to url's path.
                 append_percent_encoded_if_necessary(buffer, code_point, PercentEncodeSet::C0Control);
             } else {
                 url->m_data->paths[0] = buffer.to_string_without_validation();
@@ -1592,7 +1592,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
         case State::Query:
             // 1. If encoding is not UTF-8 and one of the following is true:
             //     * url is not special
-            //     * url’s scheme is "ws" or "wss"
+            //     * url's scheme is "ws" or "wss"
             //  then set encoding to UTF-8.
             if (!url->is_special() || url->m_data->scheme == "ws" || url->m_data->scheme == "wss")
                 encoder = TextCodec::encoder_for("utf-8"sv);
@@ -1607,13 +1607,13 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 // 1. Let queryPercentEncodeSet be the special-query percent-encode set if url is special; otherwise the query percent-encode set.
                 auto query_percent_encode_set = url->is_special() ? PercentEncodeSet::SpecialQuery : PercentEncodeSet::Query;
 
-                // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url’s query.
+                // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url's query.
                 url->m_data->query = percent_encode_after_encoding(*encoder, buffer.string_view(), query_percent_encode_set);
 
                 // 3. Set buffer to the empty string.
                 buffer.clear();
 
-                // 4. If c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
+                // 4. If c is U+0023 (#), then set url's fragment to the empty string and state to fragment state.
                 if (code_point == '#') {
                     url->m_data->fragment = String {};
                     state = State::Fragment;
@@ -1646,7 +1646,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
                 if (code_point == '%' && !remaining_starts_with_two_ascii_hex_digits())
                     report_validation_error();
 
-                // 3. UTF-8 percent-encode c using the fragment percent-encode set and append the result to url’s fragment.
+                // 3. UTF-8 percent-encode c using the fragment percent-encode set and append the result to url's fragment.
                 // NOTE: The percent-encode is done on EOF on the entire buffer.
                 buffer.append_code_point(code_point);
             } else {

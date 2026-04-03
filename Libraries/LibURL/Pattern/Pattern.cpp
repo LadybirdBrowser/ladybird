@@ -15,7 +15,7 @@ namespace URL::Pattern {
 // https://urlpattern.spec.whatwg.org/#hostname-pattern-is-an-ipv6-address
 static bool hostname_pattern_is_an_ipv6_address(String const& input)
 {
-    // 1. If input’s code point length is less than 2, then return false.
+    // 1. If input's code point length is less than 2, then return false.
     if (input.bytes().size() < 2)
         return false;
 
@@ -103,31 +103,31 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
     // 7. Let urlPattern be a new URL pattern.
     Pattern url_pattern;
 
-    // 8. Set urlPattern’s protocol component to the result of compiling a component given processedInit["protocol"],
+    // 8. Set urlPattern's protocol component to the result of compiling a component given processedInit["protocol"],
     //    canonicalize a protocol, and default options.
     url_pattern.m_protocol_component = TRY(Component::compile(processed_init.protocol->code_points(), canonicalize_a_protocol, Options::default_()));
 
-    // 9. Set urlPattern’s username component to the result of compiling a component given processedInit["username"],
+    // 9. Set urlPattern's username component to the result of compiling a component given processedInit["username"],
     //    canonicalize a username, and default options.
     url_pattern.m_username_component = TRY(Component::compile(processed_init.username->code_points(), canonicalize_a_username, Options::default_()));
 
-    // 10. Set urlPattern’s password component to the result of compiling a component given processedInit["password"],
+    // 10. Set urlPattern's password component to the result of compiling a component given processedInit["password"],
     //     canonicalize a password, and default options.
     url_pattern.m_password_component = TRY(Component::compile(processed_init.password->code_points(), canonicalize_a_password, Options::default_()));
 
     // 11. If the result running hostname pattern is an IPv6 address given processedInit["hostname"] is true, then set
-    //     urlPattern’s hostname component to the result of compiling a component given processedInit["hostname"],
+    //     urlPattern's hostname component to the result of compiling a component given processedInit["hostname"],
     //     canonicalize an IPv6 hostname, and hostname options.
     if (hostname_pattern_is_an_ipv6_address(processed_init.hostname.value())) {
         url_pattern.m_hostname_component = TRY(Component::compile(processed_init.hostname->code_points(), canonicalize_an_ipv6_hostname, Options::hostname()));
     }
-    // 12. Otherwise, set urlPattern’s hostname component to the result of compiling a component given
+    // 12. Otherwise, set urlPattern's hostname component to the result of compiling a component given
     //     processedInit["hostname"], canonicalize a hostname, and hostname options.
     else {
         url_pattern.m_hostname_component = TRY(Component::compile(processed_init.hostname->code_points(), canonicalize_a_hostname, Options::hostname()));
     }
 
-    // 13. Set urlPattern’s port component to the result of compiling a component given processedInit["port"],
+    // 13. Set urlPattern's port component to the result of compiling a component given processedInit["port"],
     //     canonicalize a port, and default options.
     url_pattern.m_port_component = TRY(Component::compile(processed_init.port->code_points(), [](String const& value) { return canonicalize_a_port(value); }, Options::default_()));
 
@@ -135,27 +135,27 @@ PatternErrorOr<Pattern> Pattern::create(Input const& input, Optional<String> con
     auto compile_options = Options::default_();
     compile_options.ignore_case = ignore_case == IgnoreCase::Yes;
 
-    // 15. If the result of running protocol component matches a special scheme given urlPattern’s protocol component is true, then:
+    // 15. If the result of running protocol component matches a special scheme given urlPattern's protocol component is true, then:
     if (protocol_component_matches_a_special_scheme(url_pattern.m_protocol_component)) {
         // 1. Let pathCompileOptions be copy of the pathname options with the ignore case property set to options["ignoreCase"].
         auto path_compile_options = Options::pathname();
         path_compile_options.ignore_case = ignore_case == IgnoreCase::Yes;
 
-        // 2. Set urlPattern’s pathname component to the result of compiling a component given processedInit["pathname"],
+        // 2. Set urlPattern's pathname component to the result of compiling a component given processedInit["pathname"],
         //    canonicalize a pathname, and pathCompileOptions.
         url_pattern.m_pathname_component = TRY(Component::compile(processed_init.pathname->code_points(), canonicalize_a_pathname, path_compile_options));
     }
-    // 16. Otherwise set urlPattern’s pathname component to the result of compiling a component given
+    // 16. Otherwise set urlPattern's pathname component to the result of compiling a component given
     //     processedInit["pathname"], canonicalize an opaque pathname, and compileOptions.
     else {
         url_pattern.m_pathname_component = TRY(Component::compile(processed_init.pathname->code_points(), canonicalize_an_opaque_pathname, compile_options));
     }
 
-    // 17. Set urlPattern’s search component to the result of compiling a component given processedInit["search"],
+    // 17. Set urlPattern's search component to the result of compiling a component given processedInit["search"],
     //     canonicalize a search, and compileOptions.
     url_pattern.m_search_component = TRY(Component::compile(processed_init.search->code_points(), canonicalize_a_search, compile_options));
 
-    // 18. Set urlPattern’s hash component to the result of compiling a component given processedInit["hash"],
+    // 18. Set urlPattern's hash component to the result of compiling a component given processedInit["hash"],
     //     canonicalize a hash, and compileOptions.
     url_pattern.m_hash_component = TRY(Component::compile(processed_init.hash->code_points(), canonicalize_a_hash, compile_options));
 
@@ -275,22 +275,22 @@ PatternErrorOr<Optional<Result>> Pattern::match(Variant<String, Init, URL> const
         VERIFY(url_or_string.has<URL>());
         auto& url = url_or_string.get<URL>();
 
-        // 4. Set protocol to url’s scheme.
+        // 4. Set protocol to url's scheme.
         protocol = url.scheme();
 
-        // 5. Set username to url’s username.
+        // 5. Set username to url's username.
         username = url.username();
 
-        // 6. Set password to url’s password.
+        // 6. Set password to url's password.
         password = url.password();
 
-        // 7. Set hostname to url’s host, serialized, or the empty string if the value is null.
+        // 7. Set hostname to url's host, serialized, or the empty string if the value is null.
         if (url.host().has_value())
             hostname = url.host()->serialize();
         else
             hostname = String {};
 
-        // 8. Set port to url’s port, serialized, or the empty string if the value is null.
+        // 8. Set port to url's port, serialized, or the empty string if the value is null.
         if (url.port().has_value())
             port = String::number(url.port().value());
         else
@@ -299,49 +299,49 @@ PatternErrorOr<Optional<Result>> Pattern::match(Variant<String, Init, URL> const
         // 9. Set pathname to the result of URL path serializing url.
         pathname = url.serialize_path();
 
-        // 10. Set search to url’s query or the empty string if the value is null.
+        // 10. Set search to url's query or the empty string if the value is null.
         search = url.query().value_or(String {});
 
-        // 11. Set hash to url’s fragment or the empty string if the value is null.
+        // 11. Set hash to url's fragment or the empty string if the value is null.
         hash = url.fragment().value_or(String {});
     }
 
-    // 14. Let protocolExecResult be RegExpBuiltinExec(urlPattern’s protocol component's regular expression, protocol).
+    // 14. Let protocolExecResult be RegExpBuiltinExec(urlPattern's protocol component's regular expression, protocol).
     auto protocol_exec_result = m_protocol_component.execute(protocol);
     if (!protocol_exec_result.success)
         return OptionalNone {};
 
-    // 15. Let usernameExecResult be RegExpBuiltinExec(urlPattern’s username component's regular expression, username).
+    // 15. Let usernameExecResult be RegExpBuiltinExec(urlPattern's username component's regular expression, username).
     auto username_exec_result = m_username_component.execute(username);
     if (!username_exec_result.success)
         return OptionalNone {};
 
-    // 16. Let passwordExecResult be RegExpBuiltinExec(urlPattern’s password component's regular expression, password).
+    // 16. Let passwordExecResult be RegExpBuiltinExec(urlPattern's password component's regular expression, password).
     auto password_exec_result = m_password_component.execute(password);
     if (!password_exec_result.success)
         return OptionalNone {};
 
-    // 17. Let hostnameExecResult be RegExpBuiltinExec(urlPattern’s hostname component's regular expression, hostname).
+    // 17. Let hostnameExecResult be RegExpBuiltinExec(urlPattern's hostname component's regular expression, hostname).
     auto hostname_exec_result = m_hostname_component.execute(hostname);
     if (!hostname_exec_result.success)
         return OptionalNone {};
 
-    // 18. Let portExecResult be RegExpBuiltinExec(urlPattern’s port component's regular expression, port).
+    // 18. Let portExecResult be RegExpBuiltinExec(urlPattern's port component's regular expression, port).
     auto port_exec_result = m_port_component.execute(port);
     if (!port_exec_result.success)
         return OptionalNone {};
 
-    // 19. Let pathnameExecResult be RegExpBuiltinExec(urlPattern’s pathname component's regular expression, pathname).
+    // 19. Let pathnameExecResult be RegExpBuiltinExec(urlPattern's pathname component's regular expression, pathname).
     auto pathname_exec_result = m_pathname_component.execute(pathname);
     if (!pathname_exec_result.success)
         return OptionalNone {};
 
-    // 20. Let searchExecResult be RegExpBuiltinExec(urlPattern’s search component's regular expression, search).
+    // 20. Let searchExecResult be RegExpBuiltinExec(urlPattern's search component's regular expression, search).
     auto search_exec_result = m_search_component.execute(search);
     if (!search_exec_result.success)
         return OptionalNone {};
 
-    // 21. Let hashExecResult be RegExpBuiltinExec(urlPattern’s hash component's regular expression, hash).
+    // 21. Let hashExecResult be RegExpBuiltinExec(urlPattern's hash component's regular expression, hash).
     auto hash_exec_result = m_hash_component.execute(hash);
     if (!hash_exec_result.success)
         return OptionalNone {};
@@ -356,35 +356,35 @@ PatternErrorOr<Optional<Result>> Pattern::match(Variant<String, Init, URL> const
     // 24. Set result["inputs"] to inputs.
     result.inputs = move(inputs);
 
-    // 25. Set result["protocol"] to the result of creating a component match result given urlPattern’s protocol
+    // 25. Set result["protocol"] to the result of creating a component match result given urlPattern's protocol
     //     component, protocol, and protocolExecResult.
     result.protocol = m_protocol_component.create_match_result(protocol, protocol_exec_result);
 
-    // 26. Set result["username"] to the result of creating a component match result given urlPattern’s username
+    // 26. Set result["username"] to the result of creating a component match result given urlPattern's username
     //     component, username, and usernameExecResult.
     result.username = m_username_component.create_match_result(username, username_exec_result);
 
-    // 27. Set result["password"] to the result of creating a component match result given urlPattern’s password
+    // 27. Set result["password"] to the result of creating a component match result given urlPattern's password
     //     component, password, and passwordExecResult.
     result.password = m_password_component.create_match_result(password, password_exec_result);
 
-    // 28. Set result["hostname"] to the result of creating a component match result given urlPattern’s hostname
+    // 28. Set result["hostname"] to the result of creating a component match result given urlPattern's hostname
     //     component, hostname, and hostnameExecResult.
     result.hostname = m_hostname_component.create_match_result(hostname, hostname_exec_result);
 
-    // 29. Set result["port"] to the result of creating a component match result given urlPattern’s port component,
+    // 29. Set result["port"] to the result of creating a component match result given urlPattern's port component,
     //     port, and portExecResult.
     result.port = m_port_component.create_match_result(port, port_exec_result);
 
-    // 30. Set result["pathname"] to the result of creating a component match result given urlPattern’s pathname
+    // 30. Set result["pathname"] to the result of creating a component match result given urlPattern's pathname
     //     component, pathname, and pathnameExecResult.
     result.pathname = m_pathname_component.create_match_result(pathname, pathname_exec_result);
 
-    // 31. Set result["search"] to the result of creating a component match result given urlPattern’s search component,
+    // 31. Set result["search"] to the result of creating a component match result given urlPattern's search component,
     //     search, and searchExecResult.
     result.search = m_search_component.create_match_result(search, search_exec_result);
 
-    // 32. Set result["hash"] to the result of creating a component match result given urlPattern’s hash component,
+    // 32. Set result["hash"] to the result of creating a component match result given urlPattern's hash component,
     //     hash, and hashExecResult.
     result.hash = m_hash_component.create_match_result(hash, hash_exec_result);
 
@@ -395,35 +395,35 @@ PatternErrorOr<Optional<Result>> Pattern::match(Variant<String, Init, URL> const
 // https://urlpattern.spec.whatwg.org/#url-pattern-has-regexp-groups
 bool Pattern::has_regexp_groups() const
 {
-    // 1. If urlPattern’s protocol component has regexp groups is true, then return true.
+    // 1. If urlPattern's protocol component has regexp groups is true, then return true.
     if (m_protocol_component.has_regexp_groups)
         return true;
 
-    // 2. If urlPattern’s username component has regexp groups is true, then return true.
+    // 2. If urlPattern's username component has regexp groups is true, then return true.
     if (m_username_component.has_regexp_groups)
         return true;
 
-    // 3. If urlPattern’s password component has regexp groups is true, then return true.
+    // 3. If urlPattern's password component has regexp groups is true, then return true.
     if (m_password_component.has_regexp_groups)
         return true;
 
-    // 4. If urlPattern’s hostname component has regexp groups is true, then return true.
+    // 4. If urlPattern's hostname component has regexp groups is true, then return true.
     if (m_hostname_component.has_regexp_groups)
         return true;
 
-    // 5. If urlPattern’s port component has regexp groups is true, then return true.
+    // 5. If urlPattern's port component has regexp groups is true, then return true.
     if (m_port_component.has_regexp_groups)
         return true;
 
-    // 6. If urlPattern’s pathname component has regexp groups is true, then return true.
+    // 6. If urlPattern's pathname component has regexp groups is true, then return true.
     if (m_pathname_component.has_regexp_groups)
         return true;
 
-    // 7. If urlPattern’s search component has regexp groups is true, then return true.
+    // 7. If urlPattern's search component has regexp groups is true, then return true.
     if (m_search_component.has_regexp_groups)
         return true;
 
-    // 8. If urlPattern’s hash component has regexp groups is true, then return true.
+    // 8. If urlPattern's hash component has regexp groups is true, then return true.
     if (m_hash_component.has_regexp_groups)
         return true;
 

@@ -63,9 +63,9 @@ static Optional<size_t> find_the_ipv6_address_compressed_piece_index(IPv6Address
     // 4. Let foundSize be 0.
     size_t found_size = 0;
 
-    // 5. For each pieceIndex of address’s pieces’s indices:
+    // 5. For each pieceIndex of address's pieces's indices:
     for (size_t piece_index = 0; piece_index < 8; ++piece_index) {
-        // 1. If address’s pieces[pieceIndex] is not 0:
+        // 1. If address's pieces[pieceIndex] is not 0:
         if (address[piece_index] != 0) {
             // 1. If foundSize is greater than longestSize, then set longestIndex to foundIndex and longestSize to foundSize.
             if (found_size > longest_size) {
@@ -109,7 +109,7 @@ static void serialize_ipv6_address(IPv6Address const& address, StringBuilder& ou
     // 3. Let ignore0 be false.
     auto ignore0 = false;
 
-    // 4. For each pieceIndex of address’s pieces’s indices:
+    // 4. For each pieceIndex of address's pieces's indices:
     for (size_t piece_index = 0; piece_index < 8; ++piece_index) {
         // 1. If ignore0 is true and address[pieceIndex] is 0, then continue.
         if (ignore0 && address[piece_index] == 0)
@@ -219,7 +219,7 @@ Optional<String> Host::public_suffix() const
 // https://url.spec.whatwg.org/#host-registrable-domain
 Optional<String> Host::registrable_domain() const
 {
-    // 1. If host’s public suffix is null or host’s public suffix equals host, then return null.
+    // 1. If host's public suffix is null or host's public suffix equals host, then return null.
     auto public_suffix = this->public_suffix();
     if (!public_suffix.has_value() || public_suffix == m_value.get<String>())
         return OptionalNone {};

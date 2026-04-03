@@ -54,20 +54,20 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
     //    tokenize given input and "lenient".
     ConstructorStringParser parser { input, TRY(Tokenizer::tokenize(input, Tokenizer::Policy::Lenient)) };
 
-    // 2. While parser’s token index is less than parser’s token list size:
+    // 2. While parser's token index is less than parser's token list size:
     while (parser.m_token_index < parser.m_token_list.size()) {
         dbgln_if(URL_PATTERN_DEBUG, "{}\t| Token@{} (group depth {}) -> {}", parser.state_to_string(),
             parser.m_token_index, parser.m_group_depth, parser.m_token_list[parser.m_token_index].to_string());
-        // 1. Set parser’s token increment to 1.
+        // 1. Set parser's token increment to 1.
         parser.m_token_increment = 1;
 
-        // NOTE: On every iteration of the parse loop the parser’s token index will be incremented by its token
+        // NOTE: On every iteration of the parse loop the parser's token index will be incremented by its token
         //       increment value. Typically this means incrementing by 1, but at certain times it is set to zero.
         //       The token increment is then always reset back to 1 at the top of the loop.
 
-        // 2. If parser’s token list[parser’s token index]'s type is "end" then:
+        // 2. If parser's token list[parser's token index]'s type is "end" then:
         if (parser.m_token_list[parser.m_token_index].type == Token::Type::End) {
-            // 1. If parser’s state is "init":
+            // 1. If parser's state is "init":
             if (parser.m_state == State::Initial) {
                 // NOTE: If we reached the end of the string in the "init" state, then we failed to find a protocol
                 //       terminator and this has to be a relative URLPattern constructor string.
@@ -95,14 +95,14 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
                     parser.change_state(State::Pathname, 0);
                 }
 
-                // 5. Increment parser’s token index by parser’s token increment.
+                // 5. Increment parser's token index by parser's token increment.
                 parser.m_token_index += parser.m_token_increment;
 
                 // 6. Continue.
                 continue;
             }
 
-            // 2. If parser’s state is "authority":
+            // 2. If parser's state is "authority":
             if (parser.m_state == State::Authority) {
                 // NOTE: If we reached the end of the string in the "authority" state, then we failed to find an
                 //            "@". Therefore there is no username or password.
@@ -110,7 +110,7 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
                 // 1. Run rewind and set state given parser, and "hostname".
                 parser.rewind_and_set_state(State::Hostname);
 
-                // 2. Increment parser’s token index by parser’s token increment.
+                // 2. Increment parser's token index by parser's token increment.
                 parser.m_token_index += parser.m_token_increment;
 
                 // 3. Continue.
@@ -134,26 +134,26 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
             // It is not necessary to perform this logic for regexp or named groups since those values are collapsed into
             // individual tokens by the tokenize algorithm.
 
-            // 1. Increment parser’s group depth by 1.
+            // 1. Increment parser's group depth by 1.
             ++parser.m_group_depth;
 
-            // 2. Increment parser’s token index by parser’s token increment.
+            // 2. Increment parser's token index by parser's token increment.
             parser.m_token_index += parser.m_token_increment;
 
             // 3. Continue.
             continue;
         }
 
-        // 4. If parser’s group depth is greater than 0:
+        // 4. If parser's group depth is greater than 0:
         if (parser.m_group_depth > 0) {
-            // 1. If the result of running is a group close given parser is true, then decrement parser’s group depth by 1.
+            // 1. If the result of running is a group close given parser is true, then decrement parser's group depth by 1.
             if (parser.is_a_group_close()) {
                 VERIFY(parser.m_group_depth != 0);
                 --parser.m_group_depth;
             }
             // 2. Otherwise:
             else {
-                // 1. Increment parser’s token index by parser’s token increment.
+                // 1. Increment parser's token index by parser's token increment.
                 parser.m_token_index += parser.m_token_increment;
 
                 // 2. Continue.
@@ -161,7 +161,7 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
             }
         }
 
-        // 5. Switch on parser’s state and run the associated steps:
+        // 5. Switch on parser's state and run the associated steps:
         switch (parser.m_state) {
         // -> "init", https://urlpattern.spec.whatwg.org/#ref-for-constructor-string-parser-state-init%E2%91%A2
         case State::Initial: {
@@ -199,7 +199,7 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
                     // 2. Set skip to 3.
                     skip = 3;
                 }
-                // 5. Otherwise if parser’s protocol matches a special scheme flag is true, then set next state to "authority".
+                // 5. Otherwise if parser's protocol matches a special scheme flag is true, then set next state to "authority".
                 else if (parser.m_protocol_matches_a_special_scheme) {
                     next_state = State::Authority;
                 }
@@ -252,18 +252,18 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
         }
         // -> "hostname", https://urlpattern.spec.whatwg.org/#ref-for-constructor-string-parser-state-hostname%E2%91%A3
         case State::Hostname: {
-            // 1. If the result of running is an IPv6 open given parser is true, then increment parser’s hostname
+            // 1. If the result of running is an IPv6 open given parser is true, then increment parser's hostname
             //    IPv6 bracket depth by 1.
             if (parser.is_an_ipv6_open()) {
                 ++parser.m_hostname_ipv6_bracket_depth;
             }
-            // 2. Otherwise if the result of running is an IPv6 close given parser is true, then decrement parser’s
+            // 2. Otherwise if the result of running is an IPv6 close given parser is true, then decrement parser's
             //    hostname IPv6 bracket depth by 1.
             else if (parser.is_an_ipv6_close()) {
                 VERIFY(parser.m_hostname_ipv6_bracket_depth != 0);
                 --parser.m_hostname_ipv6_bracket_depth;
             }
-            // 3. Otherwise if the result of running is a port prefix given parser is true and parser’s hostname IPv6
+            // 3. Otherwise if the result of running is a port prefix given parser is true and parser's hostname IPv6
             //    bracket depth is zero, then run change state given parser, "port", and 1.
             else if (parser.is_a_port_prefix() && parser.m_hostname_ipv6_bracket_depth == 0) {
                 parser.change_state(State::Port, 1);
@@ -338,11 +338,11 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
         }
         }
 
-        // 6. Increment parser’s token index by parser’s token increment.
+        // 6. Increment parser's token index by parser's token increment.
         parser.m_token_index += parser.m_token_increment;
     }
 
-    // 3. If parser’s result contains "hostname" and not "port", then set parser’s result["port"] to the empty string.
+    // 3. If parser's result contains "hostname" and not "port", then set parser's result["port"] to the empty string.
     if (parser.m_result.hostname.has_value() && !parser.m_result.port.has_value())
         parser.m_result.port = String {};
 
@@ -351,29 +351,29 @@ PatternErrorOr<Init> ConstructorStringParser::parse(Utf8View const& input)
     //       "https://example.com/*" does not match URLs beginning with "https://example.com:8443/", which is a
     //       different origin.
 
-    // 4. Return parser’s result.
+    // 4. Return parser's result.
     return parser.m_result;
 }
 
 // https://urlpattern.spec.whatwg.org/#make-a-component-string
 String ConstructorStringParser::make_a_component_string() const
 {
-    // 1. Assert: parser’s token index is less than parser’s token list's size.
+    // 1. Assert: parser's token index is less than parser's token list's size.
     VERIFY(m_token_index < m_token_list.size());
 
-    // 2. Let token be parser’s token list[parser’s token index].
+    // 2. Let token be parser's token list[parser's token index].
     auto const& token = m_token_list[m_token_index];
 
-    // 3. Let component start token be the result of running get a safe token given parser and parser’s component start.
+    // 3. Let component start token be the result of running get a safe token given parser and parser's component start.
     auto const& component_start_token = get_a_safe_token(m_component_start);
 
-    // 4. Let component start input index be component start token’s index.
+    // 4. Let component start input index be component start token's index.
     auto component_start_input_index = component_start_token.index;
 
-    // 5. Let end index be token’s index.
+    // 5. Let end index be token's index.
     auto end_index = token.index;
 
-    // 6. Return the code point substring from component start input index to end index within parser’s input.
+    // 6. Return the code point substring from component start input index to end index within parser's input.
     auto sub_view = m_input.unicode_substring_view(component_start_input_index, end_index - component_start_input_index);
     return MUST(String::from_utf8(sub_view.as_string()));
 }
@@ -387,7 +387,7 @@ PatternErrorOr<void> ConstructorStringParser::compute_protocol_matches_a_special
     // 2. Let protocol component be the result of compiling a component given protocol string, canonicalize a protocol, and default options.
     auto protocol_component = TRY(Component::compile(protocol_string.code_points(), canonicalize_a_protocol, Options::default_()));
 
-    // 3. If the result of running protocol component matches a special scheme given protocol component is true, then set parser’s protocol matches a special scheme flag to true.
+    // 3. If the result of running protocol component matches a special scheme given protocol component is true, then set parser's protocol matches a special scheme flag to true.
     if (protocol_component_matches_a_special_scheme(protocol_component))
         m_protocol_matches_a_special_scheme = true;
 
@@ -458,15 +458,15 @@ void ConstructorStringParser::set_result_for_active_state(Optional<String> value
 // https://urlpattern.spec.whatwg.org/#change-state
 void ConstructorStringParser::change_state(State new_state, u32 skip)
 {
-    // 1. If parser’s state is not "init", not "authority", and not "done", then set parser’s result[parser’s state] to
+    // 1. If parser's state is not "init", not "authority", and not "done", then set parser's result[parser's state] to
     //    the result of running make a component string given parser.
     if (m_state != State::Initial && m_state != State::Authority && m_state != State::Done)
         set_result_for_active_state(make_a_component_string());
 
-    // 2. If parser’s state is not "init" and new state is not "done", then:
+    // 2. If parser's state is not "init" and new state is not "done", then:
     if (m_state != State::Initial && new_state != State::Done) {
-        // 1. If parser’s state is "protocol", "authority", "username", or "password"; new state is "port", "pathname",
-        //    "search", or "hash"; and parser’s result["hostname"] does not exist, then set parser’s result["hostname"]
+        // 1. If parser's state is "protocol", "authority", "username", or "password"; new state is "port", "pathname",
+        //    "search", or "hash"; and parser's result["hostname"] does not exist, then set parser's result["hostname"]
         //    to the empty string.
         if (first_is_one_of(m_state, State::Protocol, State::Authority, State::Username, State::Password)
             && first_is_one_of(new_state, State::Port, State::Pathname, State::Search, State::Hash)
@@ -474,23 +474,23 @@ void ConstructorStringParser::change_state(State new_state, u32 skip)
             m_result.hostname = String {};
         }
 
-        // 2. If parser’s state is "protocol", "authority", "username", "password", "hostname", or "port"; new state is
-        //    "search" or "hash"; and parser’s result["pathname"] does not exist, then:
+        // 2. If parser's state is "protocol", "authority", "username", "password", "hostname", or "port"; new state is
+        //    "search" or "hash"; and parser's result["pathname"] does not exist, then:
         if (first_is_one_of(m_state, State::Protocol, State::Authority, State::Username, State::Password, State::Hostname, State::Port)
             && first_is_one_of(new_state, State::Search, State::Hash)
             && !m_result.pathname.has_value()) {
-            // 1. If parser’s protocol matches a special scheme flag is true, then set parser’s result["pathname"] to "/".
+            // 1. If parser's protocol matches a special scheme flag is true, then set parser's result["pathname"] to "/".
             if (m_protocol_matches_a_special_scheme) {
                 m_result.pathname = "/"_string;
             }
-            // 2. Otherwise, set parser’s result["pathname"] to the empty string.
+            // 2. Otherwise, set parser's result["pathname"] to the empty string.
             else {
                 m_result.pathname = String {};
             }
         }
 
-        // 3. If parser’s state is "protocol", "authority", "username", "password", "hostname", "port", or "pathname";
-        //    new state is "hash"; and parser’s result["search"] does not exist, then set parser’s result["search"]
+        // 3. If parser's state is "protocol", "authority", "username", "password", "hostname", "port", or "pathname";
+        //    new state is "hash"; and parser's result["search"] does not exist, then set parser's result["search"]
         //    to the empty string.
         if (first_is_one_of(m_state, State::Protocol, State::Authority, State::Username, State::Password, State::Hostname, State::Port, State::Pathname)
             && new_state == State::Hash
@@ -499,28 +499,28 @@ void ConstructorStringParser::change_state(State new_state, u32 skip)
         }
     }
 
-    // 3. Set parser’s state to new state.
+    // 3. Set parser's state to new state.
     m_state = new_state;
 
-    // 4. Increment parser’s token index by skip.
+    // 4. Increment parser's token index by skip.
     m_token_index += skip;
 
-    // 5. Set parser’s component start to parser’s token index.
+    // 5. Set parser's component start to parser's token index.
     m_component_start = m_token_index;
 
-    // 6. Set parser’s token increment to 0.
+    // 6. Set parser's token increment to 0.
     m_token_increment = 0;
 }
 
 // https://urlpattern.spec.whatwg.org/#next-is-authority-slashes
 bool ConstructorStringParser::next_is_authority_slashes() const
 {
-    // 1. If the result of running is a non-special pattern char given parser, parser’s token index + 1, and "/" is false,
+    // 1. If the result of running is a non-special pattern char given parser, parser's token index + 1, and "/" is false,
     //    then return false.
     if (!is_a_non_special_pattern_char(m_token_index + 1, '/'))
         return false;
 
-    // 2. If the result of running is a non-special pattern char given parser, parser’s token index + 2, and "/" is false,
+    // 2. If the result of running is a non-special pattern char given parser, parser's token index + 2, and "/" is false,
     //    then return false.
     if (!is_a_non_special_pattern_char(m_token_index + 2, '/'))
         return false;
@@ -532,44 +532,44 @@ bool ConstructorStringParser::next_is_authority_slashes() const
 // https://urlpattern.spec.whatwg.org/#is-an-identity-terminator
 bool ConstructorStringParser::is_an_identity_terminator() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and "@".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and "@".
     return is_a_non_special_pattern_char(m_token_index, '@');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-password-prefix
 bool ConstructorStringParser::is_a_password_prefix() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and ":".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and ":".
     return is_a_non_special_pattern_char(m_token_index, ':');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-port-prefix
 bool ConstructorStringParser::is_a_port_prefix() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and ":".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and ":".
     return is_a_non_special_pattern_char(m_token_index, ':');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-pathname-start
 bool ConstructorStringParser::is_a_pathname_start() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and "/".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and "/".
     return is_a_non_special_pattern_char(m_token_index, '/');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-search-prefix
 bool ConstructorStringParser::is_a_search_prefix() const
 {
-    // 1. If result of running is a non-special pattern char given parser, parser’s token index and "?" is true,
+    // 1. If result of running is a non-special pattern char given parser, parser's token index and "?" is true,
     //    then return true.
     if (is_a_non_special_pattern_char(m_token_index, '?'))
         return true;
 
-    // 2. If parser’s token list[parser’s token index]'s value is not "?", then return false.
+    // 2. If parser's token list[parser's token index]'s value is not "?", then return false.
     if (m_token_list[m_token_index].value != "?"sv)
         return false;
 
-    // 3. Let previous index be parser’s token index − 1.
+    // 3. Let previous index be parser's token index − 1.
     // 4. If previous index is less than 0, then return true.
     if (m_token_index == 0)
         return true;
@@ -579,10 +579,10 @@ bool ConstructorStringParser::is_a_search_prefix() const
     auto const& previous_token = get_a_safe_token(previous_index);
 
     // 6. If any of the following are true, then return false:
-    //    * previous token’s type is "name".
-    //    * previous token’s type is "regexp".
-    //    * previous token’s type is "close".
-    //    * previous token’s type is "asterisk".
+    //    * previous token's type is "name".
+    //    * previous token's type is "regexp".
+    //    * previous token's type is "close".
+    //    * previous token's type is "asterisk".
     if (previous_token.type == Token::Type::Name
         || previous_token.type == Token::Type::Regexp
         || previous_token.type == Token::Type::Close
@@ -597,21 +597,21 @@ bool ConstructorStringParser::is_a_search_prefix() const
 // https://urlpattern.spec.whatwg.org/#is-a-protocol-suffix
 bool ConstructorStringParser::is_a_protocol_suffix() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and ":".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and ":".
     return is_a_non_special_pattern_char(m_token_index, ':');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-hash-prefix
 bool ConstructorStringParser::is_a_hash_prefix() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index and "#".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index and "#".
     return is_a_non_special_pattern_char(m_token_index, '#');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-a-group-open
 bool ConstructorStringParser::is_a_group_open() const
 {
-    // 1. If parser’s token list[parser’s token index]'s type is "open", then return true.
+    // 1. If parser's token list[parser's token index]'s type is "open", then return true.
     if (m_token_list[m_token_index].type == Token::Type::Open)
         return true;
 
@@ -622,7 +622,7 @@ bool ConstructorStringParser::is_a_group_open() const
 // https://urlpattern.spec.whatwg.org/#is-a-group-close
 bool ConstructorStringParser::is_a_group_close() const
 {
-    // 1. If parser’s token list[parser’s token index]'s type is "close", then return true.
+    // 1. If parser's token list[parser's token index]'s type is "close", then return true.
     if (m_token_list[m_token_index].type == Token::Type::Close)
         return true;
 
@@ -633,32 +633,32 @@ bool ConstructorStringParser::is_a_group_close() const
 // https://urlpattern.spec.whatwg.org/#is-an-ipv6-open
 bool ConstructorStringParser::is_an_ipv6_open() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and "[".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and "[".
     return is_a_non_special_pattern_char(m_token_index, '[');
 }
 
 // https://urlpattern.spec.whatwg.org/#is-an-ipv6-close
 bool ConstructorStringParser::is_an_ipv6_close() const
 {
-    // 1. Return the result of running is a non-special pattern char given parser, parser’s token index, and "]".
+    // 1. Return the result of running is a non-special pattern char given parser, parser's token index, and "]".
     return is_a_non_special_pattern_char(m_token_index, ']');
 }
 
 // https://urlpattern.spec.whatwg.org/#get-a-safe-token
 Token const& ConstructorStringParser::get_a_safe_token(u32 index) const
 {
-    // 1. If index is less than parser’s token list's size, then return parser’s token list[index].
+    // 1. If index is less than parser's token list's size, then return parser's token list[index].
     if (index < m_token_list.size())
         return m_token_list[index];
 
-    // 2. Assert: parser’s token list's size is greater than or equal to 1.
+    // 2. Assert: parser's token list's size is greater than or equal to 1.
     VERIFY(!m_token_list.is_empty());
 
-    // 3. Let last index be parser’s token list's size − 1.
-    // 4. Let token be parser’s token list[last index].
+    // 3. Let last index be parser's token list's size − 1.
+    // 4. Let token be parser's token list[last index].
     auto const& token = m_token_list.last();
 
-    // 5. Assert: token’s type is "end".
+    // 5. Assert: token's type is "end".
     VERIFY(token.type == Token::Type::End);
 
     // 6. Return token.
@@ -671,14 +671,14 @@ bool ConstructorStringParser::is_a_non_special_pattern_char(u32 index, char valu
     // 1. Let token be the result of running get a safe token given parser and index.
     auto const& token = get_a_safe_token(index);
 
-    // 2. If token’s value is not value, then return false.
+    // 2. If token's value is not value, then return false.
     if (token.value.is_empty() || token.value.bytes().first() != value)
         return false;
 
     // 3. If any of the following are true:
-    //     * token’s type is "char";
-    //     * token’s type is "escaped-char"; or
-    //     * token’s type is "invalid-char",
+    //     * token's type is "char";
+    //     * token's type is "escaped-char"; or
+    //     * token's type is "invalid-char",
     //    then return true.
     if (token.type == Token::Type::Char
         || token.type == Token::Type::EscapedChar
@@ -693,10 +693,10 @@ bool ConstructorStringParser::is_a_non_special_pattern_char(u32 index, char valu
 // https://urlpattern.spec.whatwg.org/#rewind
 void ConstructorStringParser::rewind()
 {
-    // 1. Set parser’s token index to parser’s component start.
+    // 1. Set parser's token index to parser's component start.
     m_token_index = m_component_start;
 
-    // 2. Set parser’s token increment to 0.
+    // 2. Set parser's token increment to 0.
     m_token_increment = 0;
 }
 
@@ -706,7 +706,7 @@ void ConstructorStringParser::rewind_and_set_state(State state)
     // 1. Run rewind given parser.
     rewind();
 
-    // 2. Set parser’s state to state.
+    // 2. Set parser's state to state.
     m_state = state;
 }
 
