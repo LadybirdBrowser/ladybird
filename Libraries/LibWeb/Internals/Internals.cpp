@@ -27,6 +27,8 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
@@ -485,6 +487,41 @@ String Internals::dump_stacking_context_tree()
 String Internals::dump_gc_graph()
 {
     return Bindings::main_thread_vm().heap().dump_graph().serialized();
+}
+
+String Internals::dump_session_history()
+{
+    auto& document = window().associated_document();
+    auto navigable = document.navigable();
+    if (!navigable)
+        return "(no navigable)"_string;
+
+    auto traversable = navigable->traversable_navigable();
+    if (!traversable)
+        return "(no traversable)"_string;
+
+    auto const& entries = navigable->get_session_history_entries();
+    auto current_step = traversable->current_session_history_step();
+
+    // Find the minimum step to use as a base offset, so output is stable across test runs.
+    Optional<int> min_step;
+    for (auto const& entry : entries) {
+        auto step = entry->step();
+        if (step.has<int>() && (!min_step.has_value() || step.get<int>() < *min_step))
+            min_step = step.get<int>();
+    }
+
+    StringBuilder builder;
+    for (auto const& entry : entries) {
+        auto step = entry->step();
+        auto const& url = entry->url();
+        auto filename = url.basename();
+        auto display = url.fragment().has_value() ? MUST(String::formatted("{}#{}", filename, *url.fragment())) : MUST(String::from_byte_string(filename));
+        auto is_current = step.has<int>() && step.get<int>() == current_step;
+        auto relative_step = step.has<int>() && min_step.has_value() ? String::number(step.get<int>() - *min_step) : "pending"_string;
+        builder.appendff("  step {} {}{}\n", relative_step, display, is_current ? " (current)"sv : ""sv);
+    }
+    return builder.to_string_without_validation();
 }
 
 GC::Ptr<DOM::ShadowRoot> Internals::get_shadow_root(GC::Ref<DOM::Element> element)

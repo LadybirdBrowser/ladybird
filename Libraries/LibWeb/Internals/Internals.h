@@ -92,6 +92,7 @@ public:
     String dump_paintable_tree(GC::Ref<DOM::Node>);
     String dump_stacking_context_tree();
     String dump_gc_graph();
+    String dump_session_history();
 
     GC::Ptr<DOM::ShadowRoot> get_shadow_root(GC::Ref<DOM::Element>);
 

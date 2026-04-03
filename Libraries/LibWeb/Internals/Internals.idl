@@ -73,6 +73,7 @@ interface Internals {
     DOMString dumpPaintableTree(Node node);
     DOMString dumpStackingContextTree();
     DOMString dumpGCGraph();
+    DOMString dumpSessionHistory();
 
     // Returns the shadow root of the element, if it has one, even if it's not normally accessible to JS.
     ShadowRoot? getShadowRoot(Element element);
