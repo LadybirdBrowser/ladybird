@@ -875,9 +875,7 @@ void ApplyHistoryStepState::process_continuations()
             continue;
         }
 
-        // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
-        //         This can happen if navigables are destroyed while we wait for tasks to complete.
-        m_target_step = m_traversable->get_the_used_step(m_step);
+        VERIFY(m_target_step == m_traversable->get_the_used_step(m_step));
 
         // 7. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
         auto history_object_length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
@@ -974,9 +972,7 @@ void ApplyHistoryStepState::process_continuations()
 
 void ApplyHistoryStepState::enter_waiting_for_non_changing_jobs()
 {
-    // AD-HOC: We re-compute targetStep here, since it might have changed since the last time we computed it.
-    //         This can happen if navigables are destroyed while we wait for tasks to complete.
-    m_target_step = m_traversable->get_the_used_step(m_step);
+    VERIFY(m_target_step == m_traversable->get_the_used_step(m_step));
 
     // 17. Let (scriptHistoryLength, scriptHistoryIndex) be the result of getting the history object length and index given traversable and targetStep.
     auto length_and_index = m_traversable->get_the_history_object_length_and_index(m_target_step);
