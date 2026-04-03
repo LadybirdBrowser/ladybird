@@ -1,0 +1,75 @@
+<!doctype html>
+<div id="container">
+    <div></div>
+    <canvas id="canvas"></canvas>
+    <div></div>
+    <div></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    const testFonts = ["sibling-count() 10px serif", "calc(sibling-count() * 1px) serif"];
+    const testColor = "rgb(sibling-count() sibling-count() sibling-count())";
+    const testFilter = "blur(calc(sibling-count() * 1px))";
+
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const context = canvas.getContext("2d");
+        const offscreenContext = new OffscreenCanvas(300, 150).getContext("2d");
+
+        for (const font of testFonts) {
+            context.font = font;
+            println(context.font);
+
+            offscreenContext.font = font;
+            println(offscreenContext.font);
+        }
+
+        context.letterSpacing = "calc(sibling-count() * 1px)";
+        println(context.letterSpacing);
+
+        context.fillStyle = testColor;
+        println(context.fillStyle);
+
+        context.strokeStyle = testColor;
+        println(context.strokeStyle);
+
+        context.filter = testFilter;
+        println(context.filter);
+
+        try {
+            const gradient = context.createLinearGradient(0, 0, 10, 0);
+            gradient.addColorStop(0, testColor);
+            println("FAIL");
+        } catch (e) {
+            println(e.name);
+        }
+
+        context.shadowColor = testColor;
+        println(context.shadowColor);
+
+        offscreenContext.letterSpacing = "calc(sibling-count() * 1px)";
+        println(offscreenContext.letterSpacing);
+
+        offscreenContext.fillStyle = testColor;
+        println(offscreenContext.fillStyle);
+
+        offscreenContext.strokeStyle = testColor;
+        println(offscreenContext.strokeStyle);
+
+        offscreenContext.filter = testFilter;
+        println(offscreenContext.filter);
+
+        try {
+            const gradient = offscreenContext.createLinearGradient(0, 0, 10, 0);
+            gradient.addColorStop(0, testColor);
+            println("FAIL");
+        } catch (e) {
+            println(e.name);
+        }
+
+        offscreenContext.shadowColor = testColor;
+        println(offscreenContext.shadowColor);
+    });
+</script>

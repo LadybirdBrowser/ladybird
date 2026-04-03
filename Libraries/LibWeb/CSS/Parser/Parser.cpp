@@ -1872,7 +1872,7 @@ bool Parser::context_allows_tree_counting_functions() const
         if (context.has<DescriptorContext>())
             return false;
 
-        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
+        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
             return false;
 
         // TODO: Handle other contexts where tree counting functions are not allowed

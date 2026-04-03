@@ -73,7 +73,6 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     // and with system fonts being computed to explicit values.
     // FIXME: with the 'line-height' component forced to 'normal'
     // FIXME: with the 'font-size' component converted to CSS pixels
-    // FIXME: Disallow tree counting functions if this is an offscreen canvas
 
     auto const parsing_context = [&]() {
         if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>)
