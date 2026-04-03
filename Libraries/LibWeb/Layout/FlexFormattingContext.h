@@ -206,6 +206,10 @@ private:
 
     bool is_row_layout() const { return m_flex_direction == CSS::FlexDirection::Row || m_flex_direction == CSS::FlexDirection::RowReverse; }
     bool is_single_line() const { return flex_container().computed_values().flex_wrap() == CSS::FlexWrap::Nowrap; }
+    bool inline_axis_is_horizontal(Box const&) const;
+    bool main_axis_is_horizontal() const;
+    bool cross_axis_is_horizontal() const { return !main_axis_is_horizontal(); }
+    bool main_axis_is_parallel_to_inline_axis(Box const&) const;
     bool is_direction_reverse() const;
     void populate_specified_margins(FlexItem&, CSS::FlexDirection) const;
 

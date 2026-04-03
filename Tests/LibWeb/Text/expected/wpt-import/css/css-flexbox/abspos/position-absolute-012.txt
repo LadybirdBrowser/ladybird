@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 96 tests
 
-48 Pass
-48 Fail
+64 Pass
+32 Fail
 Pass	.flexbox 1
 Pass	.flexbox 2
 Pass	.flexbox 3
@@ -69,34 +69,34 @@ Fail	.flexbox 62
 Fail	.flexbox 63
 Fail	.flexbox 64
 Pass	.flexbox 65
-Fail	.flexbox 66
-Fail	.flexbox 67
+Pass	.flexbox 66
+Pass	.flexbox 67
 Pass	.flexbox 68
-Fail	.flexbox 69
+Pass	.flexbox 69
 Pass	.flexbox 70
 Pass	.flexbox 71
-Fail	.flexbox 72
+Pass	.flexbox 72
 Pass	.flexbox 73
-Fail	.flexbox 74
-Fail	.flexbox 75
+Pass	.flexbox 74
+Pass	.flexbox 75
 Pass	.flexbox 76
-Fail	.flexbox 77
+Pass	.flexbox 77
 Pass	.flexbox 78
 Pass	.flexbox 79
-Fail	.flexbox 80
+Pass	.flexbox 80
 Pass	.flexbox 81
-Fail	.flexbox 82
-Fail	.flexbox 83
+Pass	.flexbox 82
+Pass	.flexbox 83
 Pass	.flexbox 84
-Fail	.flexbox 85
+Pass	.flexbox 85
 Pass	.flexbox 86
 Pass	.flexbox 87
-Fail	.flexbox 88
+Pass	.flexbox 88
 Pass	.flexbox 89
-Fail	.flexbox 90
-Fail	.flexbox 91
+Pass	.flexbox 90
+Pass	.flexbox 91
 Pass	.flexbox 92
-Fail	.flexbox 93
+Pass	.flexbox 93
 Pass	.flexbox 94
 Pass	.flexbox 95
-Fail	.flexbox 96
+Pass	.flexbox 96

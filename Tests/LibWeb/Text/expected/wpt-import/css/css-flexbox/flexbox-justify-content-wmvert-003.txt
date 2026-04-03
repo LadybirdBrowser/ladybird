@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-2 Pass
-2 Fail
+4 Pass
 Pass	.flexitem 1
 Pass	.flexitem 2
-Fail	.flexitem 3
-Fail	.flexitem 4
+Pass	.flexitem 3
+Pass	.flexitem 4

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 44 tests
 
-24 Pass
-20 Fail
+27 Pass
+17 Fail
 Pass	.flexbox 1
 Pass	.flexbox 2
 Pass	.flexbox 3
@@ -45,6 +45,6 @@ Pass	.flexbox 38
 Pass	.flexbox 39
 Pass	.flexbox 40
 Fail	.flexbox 41
-Fail	.flexbox 42
-Fail	.flexbox 43
-Fail	.flexbox 44
+Pass	.flexbox 42
+Pass	.flexbox 43
+Pass	.flexbox 44
