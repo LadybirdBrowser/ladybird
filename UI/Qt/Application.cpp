@@ -254,8 +254,8 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
         auto const& bookmarks_bar = active_tab->bookmarks_bar();
 
         return Application::BookmarkID {
-            .id = bookmarks_bar.bookmark_context_menu_item_id(),
-            .target_folder_id = bookmarks_bar.bookmark_context_menu_target_folder_id(),
+            .id = bookmarks_bar.selected_bookmark_menu_item_id(),
+            .target_folder_id = bookmarks_bar.selected_bookmark_menu_target_folder_id(),
         };
     }
 

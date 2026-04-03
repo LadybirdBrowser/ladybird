@@ -21,11 +21,14 @@ public:
 
     void rebuild();
 
-    String const& bookmark_context_menu_item_id() const { return m_bookmark_context_menu_item_id; }
-    Optional<String> const& bookmark_context_menu_target_folder_id() const { return m_bookmark_context_menu_target_folder_id; }
+    String const& selected_bookmark_menu_item_id() const { return m_selected_bookmark_menu_item_id; }
+    Optional<String> const& selected_bookmark_menu_target_folder_id() const { return m_selected_bookmark_menu_target_folder_id; }
 
 private:
-    bool eventFilter(QObject* object, QEvent* event) override;
+    virtual bool eventFilter(QObject* object, QEvent* event) override;
+
+    bool handle_right_mouse_click(QMouseEvent*, QObject*);
+    void extract_item_properties(QObject*);
 
     QMenu& bookmarks_bar_context_menu();
     QMenu& bookmark_context_menu();
@@ -35,8 +38,9 @@ private:
     QMenu* m_bookmark_context_menu { nullptr };
     QMenu* m_bookmark_folder_context_menu { nullptr };
 
-    String m_bookmark_context_menu_item_id;
-    Optional<String> m_bookmark_context_menu_target_folder_id;
+    String m_selected_bookmark_menu_item_id;
+    QString m_selected_bookmark_menu_item_type;
+    Optional<String> m_selected_bookmark_menu_target_folder_id;
 };
 
 }

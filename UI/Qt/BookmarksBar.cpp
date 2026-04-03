@@ -31,23 +31,6 @@ static void install_menu_event_filter(QObject* filter, QMenu* menu)
     }
 }
 
-static String extract_item_id(QObject* item)
-{
-    return ak_string_from_qstring(item->property("id").toString());
-}
-
-static Optional<String> extract_item_target_folder_id(QObject* item)
-{
-    if (auto value = ak_string_from_qstring(item->property("target_folder_id").toString()); !value.is_empty())
-        return value;
-    return {};
-}
-
-static QString extract_item_type(QObject* item)
-{
-    return item->property("type").toString();
-}
-
 BookmarksBar::BookmarksBar(QWidget* parent)
     : QToolBar(parent)
 {
@@ -109,67 +92,64 @@ void BookmarksBar::rebuild()
 
 bool BookmarksBar::eventFilter(QObject* object, QEvent* event)
 {
-    if (event->type() != QEvent::MouseButtonPress)
-        return QToolBar::eventFilter(object, event);
+    if (event->type() == QEvent::MouseButtonPress) {
+        auto& mouse_event = as<QMouseEvent>(*event);
 
-    auto const& mouse_event = as<QMouseEvent>(*event);
-    if (mouse_event.button() != Qt::RightButton)
-        return QToolBar::eventFilter(object, event);
-
-    if (is<BookmarksBar>(object)) {
-        m_bookmark_context_menu_item_id = {};
-        m_bookmark_context_menu_target_folder_id = {};
-
-        bookmarks_bar_context_menu().exec(mouse_event.globalPosition().toPoint());
-        return true;
+        if (mouse_event.button() == Qt::RightButton)
+            return handle_right_mouse_click(&mouse_event, object);
     }
 
-    QString type;
+    return QToolBar::eventFilter(object, event);
+}
 
-    auto extract_properties = [&](QObject* item) {
-        m_bookmark_context_menu_item_id = extract_item_id(item);
-        m_bookmark_context_menu_target_folder_id = extract_item_target_folder_id(item);
-        type = extract_item_type(item);
-    };
+bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
+{
+    if (is<BookmarksBar>(item)) {
+        m_selected_bookmark_menu_item_id = {};
+        m_selected_bookmark_menu_target_folder_id = {};
 
-    if (auto* button = as_if<QToolButton>(object)) {
+        bookmarks_bar_context_menu().exec(event->globalPosition().toPoint());
+    } else if (auto* button = as_if<QToolButton>(item)) {
         auto* action = button->defaultAction();
-        extract_properties(action);
+        extract_item_properties(action);
 
-        if (type == "bookmark")
-            bookmark_context_menu().exec(mouse_event.globalPosition().toPoint());
-        else if (type == "folder")
-            bookmark_folder_context_menu().exec(mouse_event.globalPosition().toPoint());
-
-        return true;
-    }
-
-    if (auto* menu = as_if<QMenu>(object)) {
-        if (auto* action = menu->actionAt(mouse_event.pos())) {
+        if (m_selected_bookmark_menu_item_type == "bookmark")
+            bookmark_context_menu().exec(event->globalPosition().toPoint());
+        else if (m_selected_bookmark_menu_item_type == "folder")
+            bookmark_folder_context_menu().exec(event->globalPosition().toPoint());
+    } else if (auto* menu = as_if<QMenu>(item)) {
+        if (auto* action = menu->actionAt(event->pos())) {
             QObject* submenu = action->menu();
-            extract_properties(submenu ?: action);
+            extract_item_properties(submenu ?: action);
         }
 
-        if (type.isEmpty())
-            extract_properties(menu);
+        if (m_selected_bookmark_menu_item_type.isEmpty())
+            extract_item_properties(menu);
 
         // FIXME: We create a temporary context menu parented to the dropdown. Otherwise, Qt complains that the context
         //        menu's parent does not match the current topmost popup. It would be nice if we could figure out a way
         //        to avoid this duplicated menu.
         QMenu context_menu(menu);
 
-        if (type == "bookmark")
+        if (m_selected_bookmark_menu_item_type == "bookmark")
             repopulate_application_menu(context_menu, context_menu, WebView::Application::the().bookmark_context_menu());
-        else if (type == "folder")
+        else if (m_selected_bookmark_menu_item_type == "folder")
             repopulate_application_menu(context_menu, context_menu, WebView::Application::the().bookmark_folder_context_menu());
 
-        if (!context_menu.isEmpty() && context_menu.exec(mouse_event.globalPosition().toPoint()))
+        if (!context_menu.isEmpty() && context_menu.exec(event->globalPosition().toPoint()))
             menu->close();
-
-        return true;
     }
 
-    return QToolBar::eventFilter(object, event);
+    return true;
+}
+
+void BookmarksBar::extract_item_properties(QObject* item)
+{
+    m_selected_bookmark_menu_item_id = ak_string_from_qstring(item->property("id").toString());
+    m_selected_bookmark_menu_item_type = item->property("type").toString();
+
+    if (auto value = ak_string_from_qstring(item->property("target_folder_id").toString()); !value.is_empty())
+        m_selected_bookmark_menu_target_folder_id = AK::move(value);
 }
 
 QMenu& BookmarksBar::bookmarks_bar_context_menu()
