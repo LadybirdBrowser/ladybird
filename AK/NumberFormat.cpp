@@ -4,26 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Assertions.h>
 #include <AK/NumberFormat.h>
-#include <AK/NumericLimits.h>
 #include <AK/Time.h>
 
 namespace AK {
-
-// FIXME: Remove this hackery once printf() supports floats.
-static String number_string_with_one_decimal(u64 number, u64 unit, StringView suffix, UseThousandsSeparator use_thousands_separator)
-{
-    constexpr auto max_unit_size = NumericLimits<u64>::max() / 10;
-    VERIFY(unit < max_unit_size);
-
-    auto integer_part = number / unit;
-    auto decimal_part = (number % unit) * 10 / unit;
-    if (use_thousands_separator == UseThousandsSeparator::Yes)
-        return MUST(String::formatted("{:'d}.{} {}", integer_part, decimal_part, suffix));
-
-    return MUST(String::formatted("{}.{} {}", integer_part, decimal_part, suffix));
-}
 
 String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on, StringView unit, UseThousandsSeparator use_thousands_separator)
 {
@@ -36,6 +20,12 @@ String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on, Stri
     };
 
     auto size_of_current_unit = size_of_unit;
+    auto format_quantity_with_one_decimal = [&](u64 quantity, u64 unit_size, StringView suffix) {
+        auto value = static_cast<long double>(quantity) / static_cast<long double>(unit_size);
+        if (use_thousands_separator == UseThousandsSeparator::Yes)
+            return MUST(String::formatted("{:'.1f} {}", value, suffix));
+        return MUST(String::formatted("{:.1f} {}", value, suffix));
+    };
 
     if (quantity < size_of_unit)
         return MUST(String::formatted("{} {}", quantity, full_unit_suffix(0)));
@@ -43,14 +33,13 @@ String human_readable_quantity(u64 quantity, HumanReadableBasedOn based_on, Stri
     for (size_t i = 1; i < unit_prefixes.size() - 1; i++) {
         auto suffix = full_unit_suffix(i);
         if (quantity < size_of_unit * size_of_current_unit) {
-            return number_string_with_one_decimal(quantity, size_of_current_unit, suffix, use_thousands_separator);
+            return format_quantity_with_one_decimal(quantity, size_of_current_unit, suffix);
         }
 
         size_of_current_unit *= size_of_unit;
     }
 
-    return number_string_with_one_decimal(quantity,
-        size_of_current_unit, full_unit_suffix(unit_prefixes.size() - 1), use_thousands_separator);
+    return format_quantity_with_one_decimal(quantity, size_of_current_unit, full_unit_suffix(unit_prefixes.size() - 1));
 }
 
 String human_readable_size(u64 size, HumanReadableBasedOn based_on, UseThousandsSeparator use_thousands_separator)
