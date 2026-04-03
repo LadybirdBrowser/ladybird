@@ -71,8 +71,8 @@ StackingContext::StackingContext(PaintableBox& paintable, StackingContext* paren
 void StackingContext::sort()
 {
     quick_sort(m_children, [](auto& a, auto& b) {
-        auto a_z_index = a->paintable_box().computed_values().z_index().value_or(0);
-        auto b_z_index = b->paintable_box().computed_values().z_index().value_or(0);
+        auto a_z_index = a->paintable_box().effective_z_index().value_or(0);
+        auto b_z_index = b->paintable_box().effective_z_index().value_or(0);
         if (a_z_index == b_z_index)
             return a->m_index_in_tree_order < b->m_index_in_tree_order;
         return a_z_index < b_z_index;
@@ -256,7 +256,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     // account for new properties like `transform` and `opacity` that can create stacking contexts.
     // https://github.com/w3c/csswg-drafts/issues/2717
     for (auto child : m_children) {
-        if (child->paintable_box().computed_values().z_index().has_value() && child->paintable_box().computed_values().z_index().value() < 0)
+        if (child->paintable_box().effective_z_index().has_value() && child->paintable_box().effective_z_index().value() < 0)
             paint_child(context, *child);
     }
 
@@ -289,7 +289,7 @@ void StackingContext::paint_internal(DisplayListRecordingContext& context) const
     // account for new properties like `transform` and `opacity` that can create stacking contexts.
     // https://github.com/w3c/csswg-drafts/issues/2717
     for (auto child : m_children) {
-        if (child->paintable_box().computed_values().z_index().has_value() && child->paintable_box().computed_values().z_index().value() >= 1)
+        if (child->paintable_box().effective_z_index().has_value() && child->paintable_box().effective_z_index().value() >= 1)
             paint_child(context, *child);
     }
 
@@ -386,7 +386,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     // 7. the child stacking contexts with positive stack levels (least positive first).
     // NOTE: Hit testing follows reverse painting order, that's why the conditions here are reversed.
     for (auto const child : m_children.in_reverse()) {
-        if (child->paintable_box().computed_values().z_index().value_or(0) <= 0)
+        if (child->paintable_box().effective_z_index().value_or(0) <= 0)
             break;
         if (child->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
@@ -448,7 +448,7 @@ TraversalDecision StackingContext::hit_test(CSSPixelPoint position, HitTestType 
     // NB: Hit testing follows reverse painting order, so we visit the least negative stack levels first.
     for (auto const child : m_children.in_reverse()) {
         // Skip positive/ zero index child stacking contexts, which have already been handled above.
-        if (child->paintable_box().computed_values().z_index().value_or(0) >= 0)
+        if (child->paintable_box().effective_z_index().value_or(0) >= 0)
             continue;
         if (child->hit_test(position, type, callback) == TraversalDecision::Break)
             return TraversalDecision::Break;
@@ -475,8 +475,8 @@ void StackingContext::dump(StringBuilder& builder, int indent) const
     CSSPixelRect rect = paintable_box().absolute_rect();
     builder.appendff("SC for {} {} [children: {}] (z-index: ", paintable_box().layout_node().debug_description(), rect, m_children.size());
 
-    if (paintable_box().computed_values().z_index().has_value())
-        builder.appendff("{}", paintable_box().computed_values().z_index().value());
+    if (paintable_box().effective_z_index().has_value())
+        builder.appendff("{}", paintable_box().effective_z_index().value());
     else
         builder.append("auto"sv);
     builder.append(')');

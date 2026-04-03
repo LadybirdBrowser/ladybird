@@ -65,7 +65,7 @@ void ViewportPaintable::build_stacking_context_tree()
         paintable_box.invalidate_stacking_context();
         auto* parent_context = paintable_box.enclosing_stacking_context();
         auto establishes_stacking_context = paintable_box.layout_node().establishes_stacking_context();
-        if ((paintable_box.is_positioned() || establishes_stacking_context) && paintable_box.computed_values().z_index().value_or(0) == 0)
+        if ((paintable_box.is_positioned() || establishes_stacking_context) && paintable_box.effective_z_index().value_or(0) == 0)
             parent_context->m_positioned_descendants_and_stacking_contexts_with_stack_level_0.append(paintable_box);
         if (!paintable_box.is_positioned() && paintable_box.is_floating())
             parent_context->m_non_positioned_floating_descendants.append(paintable_box);

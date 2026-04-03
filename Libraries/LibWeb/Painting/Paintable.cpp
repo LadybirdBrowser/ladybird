@@ -27,9 +27,10 @@ Paintable::Paintable(Layout::Node const& layout_node)
     : m_layout_node(layout_node)
 {
     auto& computed_values = layout_node.computed_values();
-    if (layout_node.is_grid_item() && computed_values.z_index().has_value()) {
-        // https://www.w3.org/TR/css-grid-2/#z-order
-        // grid items with z_index should behave as if position were "relative"
+    if ((layout_node.is_flex_item() || layout_node.is_grid_item()) && computed_values.z_index().has_value()) {
+        // https://drafts.csswg.org/css-flexbox-1/#painting
+        // https://drafts.csswg.org/css-grid-2/#z-order
+        // Flex and grid items with z-index values other than "auto" behave as if position were "relative".
         m_positioned = true;
     } else {
         m_positioned = computed_values.position() != CSS::Positioning::Static;

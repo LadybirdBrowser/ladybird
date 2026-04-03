@@ -759,6 +759,16 @@ void PaintableBox::invalidate_stacking_context()
     m_stacking_context = nullptr;
 }
 
+Optional<int> PaintableBox::effective_z_index() const
+{
+    // https://drafts.csswg.org/css2/#z-index
+    // Applies to: positioned elements
+    if (is_positioned())
+        return computed_values().z_index();
+
+    return {};
+}
+
 BordersData PaintableBox::remove_element_kind_from_borders_data(PaintableBox::BordersDataWithElementKind borders_data)
 {
     return {

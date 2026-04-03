@@ -48,6 +48,7 @@ public:
     StackingContext const* stacking_context() const { return m_stacking_context; }
     void set_stacking_context(GC::Ref<StackingContext>);
     void invalidate_stacking_context();
+    Optional<int> effective_z_index() const;
 
     virtual Optional<CSSPixelRect> get_mask_area() const { return {}; }
     virtual Optional<Gfx::MaskKind> get_mask_type() const { return {}; }

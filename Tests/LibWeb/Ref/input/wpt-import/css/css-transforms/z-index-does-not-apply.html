@@ -1,0 +1,25 @@
+<!doctype html>
+<title>z-index doesn't apply to transformed content which is not positioned</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="author" title="Mozilla" href="https://mozilla.org">
+<link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1256980">
+<link rel="help" href="https://drafts.csswg.org/css2/visuren.html#z-index">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/z-index-does-not-apply-ref.html">
+<style>
+  #a, #b {
+    background: green;
+    width: 100px;
+    height: 100px;
+  }
+  #a {
+    background: red;
+    z-index: 2;
+    transform: translateX(0);
+  }
+  #b {
+    z-index: 1;
+    transform: translateY(-100px);
+  }
+</style>
+<div id="a"></div>
+<div id="b"></div>
