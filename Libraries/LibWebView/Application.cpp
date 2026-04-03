@@ -361,6 +361,12 @@ void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTa
         view->load(url);
 }
 
+void Application::open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab activate_tab) const
+{
+    if (auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id); bookmark.has_value() && bookmark->is_bookmark())
+        open_url_in_new_tab(bookmark->bookmark().url, activate_tab);
+}
+
 static ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&> view)
 {
     auto request_server_handle = TRY(connect_new_request_server_client());
@@ -978,6 +984,25 @@ void Application::initialize_actions()
     m_bookmarks_bar_context_menu->add_action(add_bookmark_folder_action);
 
     m_bookmark_context_menu = Menu::create("Bookmark Context Menu"sv);
+    m_bookmark_context_menu->add_action(Action::create("Open in New Tab"sv, ActionID::OpenInNewTab, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        open_bookmark_in_new_tab(bookmark_id->id, Web::HTML::ActivateTab::Yes);
+    }));
+    m_bookmark_context_menu->add_action(Action::create("Copy URL"sv, ActionID::CopyURL, [this]() {
+        auto bookmark_id = bookmark_item_id_for_context_menu();
+        if (!bookmark_id.has_value())
+            return;
+
+        auto bookmark = m_bookmark_store.find_item_by_id(bookmark_id->id);
+        if (!bookmark.has_value() || !bookmark->is_bookmark())
+            return;
+
+        insert_clipboard_entry({ url_text_to_copy(bookmark->bookmark().url), "text/plain"_string });
+    }));
+    m_bookmark_context_menu->add_separator();
     m_bookmark_context_menu->add_action(Action::create("Edit Bookmark..."sv, ActionID::EditBookmark, [this]() {
         auto bookmark_id = bookmark_item_id_for_context_menu();
         if (!bookmark_id.has_value())

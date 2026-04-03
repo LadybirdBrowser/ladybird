@@ -81,6 +81,7 @@ public:
     virtual Optional<ViewImplementation&> active_web_view() const { return {}; }
     virtual Optional<ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const { return {}; }
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
+    void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
 
     void add_child_process(Process&&);
 
