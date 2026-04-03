@@ -35,7 +35,7 @@ GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> 
     //    a timeline argument is missing, passing the default document timeline of the Document associated with the
     //    Window that is the current global object.
     if (!timeline.has_value()) {
-        auto& window = as<HTML::Window>(HTML::current_principal_global_object());
+        auto& window = as<HTML::Window>(HTML::current_global_object());
         timeline = window.associated_document().timeline();
     }
     animation->set_timeline(timeline.release_value());

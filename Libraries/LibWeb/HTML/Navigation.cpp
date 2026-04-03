@@ -1458,7 +1458,6 @@ void Navigation::initialize_the_navigation_api_entries_for_a_new_document(Vector
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#update-the-navigation-api-entries-for-a-same-document-navigation
-// https://whatpr.org/html/9893/nav-history-apis.html#update-the-navigation-api-entries-for-a-same-document-navigation
 void Navigation::update_the_navigation_api_entries_for_a_same_document_navigation(NonnullRefPtr<SessionHistoryEntry> destination_she, Bindings::NavigationType navigation_type)
 {
     auto& realm = relevant_realm(*this);
@@ -1539,8 +1538,8 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
     if (m_ongoing_api_method_tracker != nullptr)
         notify_about_the_committed_to_entry(*m_ongoing_api_method_tracker, *current_entry());
 
-    // 9. Prepare to run script given navigation's relevant realm.
-    prepare_to_run_script(realm);
+    // 9. Prepare to run script given navigation's relevant settings object.
+    prepare_to_run_script(relevant_settings_object(*this));
 
     // 10. Fire an event named currententrychange at navigation using NavigationCurrentEntryChangeEvent,
     //     with its navigationType attribute initialized to navigationType and its from initialized to oldCurrentNHE.
@@ -1555,8 +1554,8 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
         disposed_nhe->dispatch_event(DOM::Event::create(realm, EventNames::dispose, {}));
     }
 
-    // 12. Clean up after running script given navigation's relevant realm.
-    clean_up_after_running_script(relevant_realm(*this));
+    // 12. Clean up after running script given navigation's relevant settings object.
+    clean_up_after_running_script(relevant_settings_object(*this));
 }
 
 }

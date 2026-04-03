@@ -38,7 +38,7 @@ DOMHighResTimeStamp get_time_origin_timestamp(JS::Object const& global)
 {
     // To get time origin timestamp, given a global object global, run the following steps, which return a duration:
     // 1. Let timeOrigin be global's relevant settings object's time origin.
-    auto time_origin = HTML::relevant_principal_settings_object(global).time_origin();
+    auto time_origin = HTML::relevant_settings_object(global).time_origin();
 
     // 2. Return the duration from the estimated monotonic time of the Unix epoch to timeOrigin.
     return time_origin - estimated_monotonic_time_of_the_unix_epoch();
@@ -72,14 +72,10 @@ DOMHighResTimeStamp current_high_resolution_time(JS::Object const& global)
 }
 
 // https://w3c.github.io/hr-time/#dfn-relative-high-resolution-time
-// https://pr-preview.s3.amazonaws.com/w3c/hr-time/pull/168.html#dfn-relative-high-resolution-time
 DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp time, JS::Object const& global)
 {
-    // 1. Let settings be the global's relevant principal settings object.
-    auto& settings = HTML::relevant_principal_settings_object(global);
-
-    // 2. Let coarse time be the result of calling coarsen time with time and settings's cross-origin isolated capability.
-    auto coarse_time = coarsen_time(time, settings.cross_origin_isolated_capability());
+    // 1. Let coarse time be the result of calling coarsen time with time and global’s relevant settings object’s cross-origin isolated capability.
+    auto coarse_time = coarsen_time(time, HTML::relevant_settings_object(global).cross_origin_isolated_capability());
 
     // 2. Return the relative high resolution coarse time for coarse time and global.
     return relative_high_resolution_coarsen_time(coarse_time, global);
@@ -89,7 +85,7 @@ DOMHighResTimeStamp relative_high_resolution_time(DOMHighResTimeStamp time, JS::
 DOMHighResTimeStamp relative_high_resolution_coarsen_time(DOMHighResTimeStamp coarsen_time, JS::Object const& global)
 {
     // The relative high resolution coarse time given a moment from the monotonic clock coarseTime and a global object global, is the duration from global's relevant settings object's time origin to coarseTime.
-    auto time_origin = HTML::relevant_principal_settings_object(global).time_origin();
+    auto time_origin = HTML::relevant_settings_object(global).time_origin();
     return coarsen_time - time_origin;
 }
 

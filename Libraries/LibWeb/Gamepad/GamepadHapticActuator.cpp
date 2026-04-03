@@ -148,7 +148,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::play_effect(Bindings::GamepadHap
         return WebIDL::create_rejected_promise_from_exception(realm, WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "Invalid effect"_string });
 
     // 2. Let document be the current settings object's relevant global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_principal_settings_object().global_object());
+    auto& window = as<HTML::Window>(HTML::current_settings_object().global_object());
     auto& document = window.associated_document();
 
     // 3. If document is null or document is not fully active or document's visibility state is "hidden", return a
@@ -225,7 +225,7 @@ GC::Ref<WebIDL::Promise> GamepadHapticActuator::reset()
     auto& realm = this->realm();
 
     // 1. Let document be the current settings object's relevant global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_principal_settings_object().global_object());
+    auto& window = as<HTML::Window>(HTML::current_settings_object().global_object());
     auto& document = window.associated_document();
 
     // 2. If document is null or document is not fully active or document's visibility state is "hidden", return a

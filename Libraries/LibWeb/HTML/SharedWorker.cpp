@@ -47,8 +47,8 @@ WebIDL::ExceptionOr<GC::Ref<SharedWorker>> SharedWorker::construct_impl(JS::Real
         });
 
     // 3. Let outside settings be this's relevant settings object.
-    // FIXME: We don't have a `this` yet, so use the current principal settings object, as the previous spec did.
-    auto& outside_settings = current_principal_settings_object();
+    // FIXME: We don't have a `this` yet, so use the current settings object, as the previous spec did.
+    auto& outside_settings = current_settings_object();
 
     // 4. Let urlRecord be the result of encoding-parsing a URL given compliantScriptURL, relative to outsideSettings.
     auto url = outside_settings.encoding_parse_url(compliant_script_url.to_utf8_but_should_be_ported_to_utf16());

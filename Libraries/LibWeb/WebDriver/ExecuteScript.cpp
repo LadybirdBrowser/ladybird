@@ -63,11 +63,11 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     if (!rust_compilation.has_value() || rust_compilation->is_error())
         return JS::js_null();
 
-    // 6. Prepare to run a script with realm.
-    HTML::prepare_to_run_script(realm);
+    // 6. Prepare to run script with environment settings.
+    HTML::prepare_to_run_script(environment_settings);
 
     // 7. Prepare to run a callback with environment settings.
-    HTML::prepare_to_run_callback(realm);
+    HTML::prepare_to_run_callback(environment_settings);
 
     // 8. Let function be the result of calling FunctionCreate.
     auto function = JS::ECMAScriptFunctionObject::create_from_function_data(
@@ -82,10 +82,10 @@ static JS::ThrowCompletionOr<JS::Value> execute_a_function_body(HTML::BrowsingCo
     auto completion = JS::call(realm.vm(), *function, window, parameters);
 
     // 10. Clean up after running a callback with environment settings.
-    HTML::clean_up_after_running_callback(realm);
+    HTML::clean_up_after_running_callback(environment_settings);
 
-    // 11. Clean up after running a script with realm.
-    HTML::clean_up_after_running_script(realm);
+    // 11. Clean up after running a script with environment settings.
+    HTML::clean_up_after_running_script(environment_settings);
 
     // 12. Return completion.
     return completion;

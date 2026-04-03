@@ -1124,7 +1124,6 @@ GC::Ptr<WindowProxy const> Window::parent() const
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-frameelement
-// https://whatpr.org/html/9893/nav-history-apis.html#dom-frameelement
 GC::Ptr<DOM::Element const> Window::frame_element() const
 {
     // 1. Let current be this's node navigable.
@@ -1141,8 +1140,8 @@ GC::Ptr<DOM::Element const> Window::frame_element() const
     if (!container)
         return {};
 
-    // 5. If container's node document's origin is not same origin-domain with the current principal settings object's origin, then return null.
-    if (!container->document().origin().is_same_origin_domain(current_principal_settings_object().origin()))
+    // 5. If container's node document's origin is not same origin-domain with the current settings object's origin, then return null.
+    if (!container->document().origin().is_same_origin_domain(current_settings_object().origin()))
         return {};
 
     // 6. Return container.

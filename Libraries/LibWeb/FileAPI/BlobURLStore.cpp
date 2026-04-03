@@ -34,7 +34,7 @@ ErrorOr<Utf16String> generate_new_blob_url()
     TRY(result.try_append("blob:"sv));
 
     // 3. Let settings be the current settings object
-    auto& settings = HTML::current_principal_settings_object();
+    auto& settings = HTML::current_settings_object();
 
     // 4. Let origin be settings’s origin.
     auto origin = settings.origin();
@@ -70,7 +70,7 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
     auto url = TRY(generate_new_blob_url());
 
     // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
-    BlobURLEntry entry { object, HTML::current_principal_settings_object() };
+    BlobURLEntry entry { object, HTML::current_settings_object() };
 
     // 4. Set store[url] to entry.
     TRY(store.try_set(url.to_utf8_but_should_be_ported_to_utf16(), move(entry)));

@@ -433,7 +433,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
 {
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 
-    [[maybe_unused]] bool is_secure_context = HTML::is_secure_context(HTML::relevant_principal_settings_object(global));
+    [[maybe_unused]] bool is_secure_context = HTML::is_secure_context(HTML::relevant_settings_object(global));
     [[maybe_unused]] bool expose_experimental_interfaces = HTML::UniversalGlobalScopeMixin::expose_experimental_interfaces();
 )~~~");
 

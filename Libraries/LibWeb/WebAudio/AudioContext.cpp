@@ -25,7 +25,7 @@ GC_DEFINE_ALLOCATOR(AudioContext);
 WebIDL::ExceptionOr<GC::Ref<AudioContext>> AudioContext::construct_impl(JS::Realm& realm, Optional<AudioContextOptions> const& context_options)
 {
     // If the current settings object’s responsible document is NOT fully active, throw an InvalidStateError and abort these steps.
-    auto& settings = HTML::current_principal_settings_object();
+    auto& settings = HTML::current_settings_object();
 
     // FIXME: Not all settings objects currently return a responsible document.
     //        Therefore we only fail this check if responsible document is not null.

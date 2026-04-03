@@ -80,9 +80,9 @@ public:
 
     Vector<GC::Root<HTML::Window>> same_loop_windows() const;
 
-    void push_onto_backup_incumbent_realm_stack(JS::Realm&);
+    void push_onto_backup_incumbent_realm_stack(GC::Ref<EnvironmentSettingsObject>);
     void pop_backup_incumbent_realm_stack();
-    JS::Realm& top_of_backup_incumbent_realm_stack();
+    EnvironmentSettingsObject& top_of_backup_incumbent_realm_stack();
     bool is_backup_incumbent_realm_stack_empty() const { return m_backup_incumbent_realm_stack.is_empty(); }
 
     void register_environment_settings_object(Badge<EnvironmentSettingsObject>, EnvironmentSettingsObject&);
@@ -131,8 +131,7 @@ private:
     Vector<RawPtr<EnvironmentSettingsObject>> m_related_environment_settings_objects;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
-    // https://whatpr.org/html/9893/webappapis.html#backup-incumbent-realm-stack
-    Vector<GC::Ref<JS::Realm>> m_backup_incumbent_realm_stack;
+    Vector<GC::Ref<EnvironmentSettingsObject>> m_backup_incumbent_realm_stack;
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#termination-nesting-level
     size_t m_termination_nesting_level { 0 };

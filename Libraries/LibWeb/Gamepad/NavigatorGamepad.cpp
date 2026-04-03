@@ -27,7 +27,7 @@ WebIDL::ExceptionOr<GC::RootVector<GC::Ptr<Gamepad>>> NavigatorGamepadPartial::g
     auto& heap = realm.heap();
 
     // 1. Let doc be the current global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
+    auto& window = as<HTML::Window>(HTML::current_global_object());
     auto& document = window.associated_document();
 
     // 2. If doc is null or doc is not fully active, then return an empty list.

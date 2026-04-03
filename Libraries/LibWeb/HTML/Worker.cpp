@@ -41,7 +41,6 @@ void Worker::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#dom-worker
-// https://whatpr.org/html/9893/workers.html#dom-worker
 WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(JS::Realm& realm, TrustedTypes::TrustedScriptURLOrString const& script_url, WorkerOptions const& options)
 {
     // Returns a new Worker object. scriptURL will be fetched and executed in the background,

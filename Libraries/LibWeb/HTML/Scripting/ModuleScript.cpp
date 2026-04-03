@@ -22,23 +22,24 @@ GC_DEFINE_ALLOCATOR(ModuleScript);
 
 ModuleScript::~ModuleScript() = default;
 
-ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, JS::Realm& realm)
-    : Script(move(base_url), move(filename), realm)
+ModuleScript::ModuleScript(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject& settings)
+    : Script(move(base_url), move(filename), settings)
 {
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-javascript-module-script
-// https://whatpr.org/html/9893/webappapis.html#creating-a-javascript-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, StringView source, JS::Realm& realm, URL::URL base_url)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings, URL::URL base_url)
 {
-    // 1. If scripting is disabled for realm, then set source to the empty string.
-    if (HTML::is_scripting_disabled(realm))
+    auto& realm = settings.realm();
+
+    // 1. If scripting is disabled for settings, then set source to the empty string.
+    if (HTML::is_scripting_disabled(settings))
         source = ""sv;
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
-    // 3. Set script's realm to realm.
+    // 3. Set script's settings object to settings.
     // 4. Set script's base URL to baseURL.
-    auto script = realm.create<ModuleScript>(move(base_url), filename, realm);
+    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
 
     // FIXME: 5. Set script's fetch options to options.
 
@@ -68,9 +69,10 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     return script;
 }
 
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm& realm, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject& settings, URL::URL base_url, JS::FFI::ParsedProgram* parsed)
 {
-    auto script = realm.create<ModuleScript>(move(base_url), filename, realm);
+    auto& realm = settings.realm();
+    auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());
@@ -89,13 +91,14 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-css-module-script
-// https://whatpr.org/html/9893/webappapis.html#creating-a-css-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, StringView source, JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings)
 {
+    auto& realm = settings.realm();
+
     // 1. Let script be a new module script that this algorithm will subsequently initialize.
-    // 2. Set script's realm to realm.
+    // 2. Set script's settings object to settings.
     // 3. Set script's base URL and fetch options to null.
-    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, realm);
+    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, settings);
 
     // 4. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -121,14 +124,15 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-json-module-script
-// https://whatpr.org/html/9893/webappapis.html#creating-a-json-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_script(ByteString const& filename, StringView source, JS::Realm& realm)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject& settings)
 {
+    auto& realm = settings.realm();
+
     // 1. Let script be a new module script that this algorithm will subsequently initialize.
-    // 2. Set script's realm to realm.
+    // 2. Set script's settings object to settings.
     // 3. Set script's base URL and fetch options to null.
     //    FIXME: Set options.
-    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, realm);
+    auto script = realm.create<ModuleScript>(Optional<URL::URL> {}, filename, settings);
 
     // 4. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -151,22 +155,23 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_json_module_sc
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#creating-a-webassembly-module-script
-// https://whatpr.org/html/9893/webappapis.html#creating-a-webassembly-module-script
-WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, JS::Realm& realm, URL::URL base_url)
+WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, EnvironmentSettingsObject& settings, URL::URL base_url)
 {
-    // 1. If scripting is disabled for realm, then set bodyBytes to the byte sequence 0x00 0x61 0x73 0x6d 0x01 0x00 0x00 0x00.
+    auto& realm = settings.realm();
+
+    // 1. If scripting is disabled for settings, then set bodyBytes to the byte sequence 0x00 0x61 0x73 0x6D 0x01 0x00 0x00 0x00.
     // NOTE: This byte sequence corresponds to an empty WebAssembly module with only the magic bytes and version number provided.
-    if (HTML::is_scripting_disabled(realm)) {
+    if (HTML::is_scripting_disabled(settings)) {
         auto byte_sequence = "\x00\x61\x73\x6d\x01\x00\x00\x00"sv.bytes();
         body_bytes = MUST(ByteBuffer::create_uninitialized(byte_sequence.size()));
         byte_sequence.copy_to(body_bytes);
     }
 
     // 2. Let script be a new module script that this algorithm will subsequently initialize.
-    // 3. Set script's realm to realm.
+    // 3. Set script's settings object to settings.
     // 4. Set script's base URL to baseURL.
     // FIXME: 5. Set script's fetch options to options.
-    auto script = realm.create<ModuleScript>(base_url, filename, realm);
+    auto script = settings.realm().create<ModuleScript>(base_url, filename, settings);
 
     // 6. Set script's parse error and error to rethrow to null.
     script->set_parse_error(JS::js_null());
@@ -194,21 +199,21 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_webassembly_mo
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#run-a-module-script
-// https://whatpr.org/html/9893/webappapis.html#run-a-module-script
 WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting)
 {
-    // 1. Let realm be the realm of script.
-    auto& realm = this->realm();
+    // 1. Let settings be the settings object of script.
+    auto& settings = this->settings_object();
+    auto& realm = settings.realm();
 
     // 2. Check if we can run script with realm. If this returns "do not run", then return a promise resolved with undefined.
-    if (can_run_script(realm) == RunScriptDecision::DoNotRun) {
+    if (can_run_script(settings) == RunScriptDecision::DoNotRun) {
         return WebIDL::create_resolved_promise(realm, JS::js_undefined());
     }
 
     // FIXME: 3. Record module script execution start time given script.
 
-    // 4. Prepare to run script given realm.
-    prepare_to_run_script(realm);
+    // 4. Prepare to run script given settings.
+    prepare_to_run_script(settings);
 
     // 5. Let evaluationPromise be null.
     GC::Ptr<WebIDL::Promise> evaluation_promise = nullptr;
@@ -260,8 +265,8 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
         }));
     }
 
-    // 9. Clean up after running script with realm.
-    clean_up_after_running_script(realm);
+    // 9. Clean up after running script with settings.
+    clean_up_after_running_script(settings);
 
     // 10. Return evaluationPromise.
     return evaluation_promise;

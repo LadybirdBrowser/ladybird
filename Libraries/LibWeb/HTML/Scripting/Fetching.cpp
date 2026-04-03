@@ -133,19 +133,18 @@ String module_type_from_module_request(JS::ModuleRequest const& module_request)
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#resolve-a-module-specifier
-// https://whatpr.org/html/9893/webappapis.html#resolve-a-module-specifier
 WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referring_script, String const& specifier)
 {
     auto& vm = Bindings::main_thread_vm();
 
-    // 1. Let realm and baseURL be null.
-    GC::Ptr<JS::Realm> realm;
+    // 1. Let settingsObject and baseURL be null.
+    GC::Ptr<EnvironmentSettingsObject> settings_object;
     Optional<URL::URL> base_url;
 
     // 2. If referringScript is not null, then:
     if (referring_script.has_value()) {
-        // 1. Set realm to referringScript's realm.
-        realm = referring_script->realm();
+        // 1. Set settingsObject to referringScript's settings object.
+        settings_object = referring_script->settings_object();
 
         // 2. Set baseURL to referringScript's base URL.
         base_url = referring_script->base_url();
@@ -155,19 +154,19 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
         // 1. Assert: there is a current realm.
         VERIFY(vm.current_realm());
 
-        // 2. Set realm to the current realm.
-        realm = *vm.current_realm();
+        // 2. Set settingsObject to the current settings object.
+        settings_object = current_settings_object();
 
-        // 3. Set baseURL to realm's principal realm's settings object's API base URL.
-        base_url = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(*realm)).api_base_url();
+        // 3. Set baseURL to settingsObject's API base URL.
+        base_url = settings_object->api_base_url();
     }
 
     // 4. Let importMap be an empty import map.
     ImportMap import_map;
 
-    // 5. If realm's global object implements Window, then set importMap to settingsObject's global object's import map.
-    if (is<Window>(realm->global_object()))
-        import_map = as<Window>(realm->global_object()).import_map();
+    // 5. If settingsObject's global object implements Window, then set importMap to settingsObject's global object's import map.
+    if (auto* window = as_if<Window>(settings_object->global_object()))
+        import_map = window->import_map();
 
     // 6. Let serializedBaseURL be baseURL, serialized.
     auto serialized_base_url = base_url->serialize();
@@ -213,8 +212,8 @@ WebIDL::ExceptionOr<URL::URL> resolve_module_specifier(Optional<Script&> referri
 
     // 13. If result is not null, then:
     if (result.has_value()) {
-        // 1. Add module to resolved module set given realm, serializedBaseURL, normalizedSpecifier, and asURL.
-        add_module_to_resolved_module_set(*realm, serialized_base_url, normalized_specifier, as_url);
+        // 1. Add module to resolved module set given settingsObject, serializedBaseURL, normalizedSpecifier, and asURL.
+        add_module_to_resolved_module_set(*settings_object, serialized_base_url, normalized_specifier, as_url);
 
         // 2. Return result.
         return result.release_value();
@@ -433,7 +432,7 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
         // If the Rust pipeline is available, parse off the main thread.
         if (JS::RustIntegration::rust_pipeline_available()) {
             auto on_complete_root = GC::make_root(on_complete);
-            auto realm_root = GC::make_root(settings_object.realm());
+            auto settings_root = GC::make_root(settings_object);
             auto response_url_string = response_url.to_byte_string();
             auto source_code = JS::SourceCode::create(
                 String::from_utf8(response_url_string.view()).release_value_but_fixme_should_propagate_errors(),
@@ -442,12 +441,12 @@ void fetch_classic_script(GC::Ref<HTMLScriptElement> element, URL::URL const& ur
             parse_off_thread(move(source_code), JS::RustIntegration::ProgramType::Script, 1,
                 [response_url = move(response_url), response_url_string = move(response_url_string),
                     muted_errors, on_complete_root = move(on_complete_root),
-                    realm_root = move(realm_root)](auto* parsed, auto source_code) mutable {
-                    auto script = ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *realm_root, move(response_url), parsed, muted_errors);
+                    settings_root = move(settings_root)](auto* parsed, auto source_code) mutable {
+                    auto script = ClassicScript::create_from_pre_parsed(move(response_url_string), move(source_code), *settings_root, move(response_url), parsed, muted_errors);
                     on_complete_root->function()(script);
                 });
         } else {
-            auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url, 1, muted_errors);
+            auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object, response_url, 1, muted_errors);
 
             // 8. Run onComplete given script.
             on_complete->function()(script);
@@ -511,10 +510,10 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
         VERIFY(decoder.has_value());
         auto source_text = TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, body_bytes.template get<ByteBuffer>()).release_value_but_fixme_should_propagate_errors();
 
-        // 5. Let script be the result of creating a classic script using sourceText, settingsObject's realm,
+        // 5. Let script be the result of creating a classic script using sourceText, settingsObject,
         //    response's URL, and the default classic script fetch options.
         auto response_url = response->url().value_or({});
-        auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url);
+        auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object, response_url);
 
         // 6. Run onComplete given script.
         on_complete->function()(script);
@@ -604,9 +603,9 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
     // 9. Let mutedErrors be true if response was CORS-cross-origin, and false otherwise.
     auto muted_errors = response->is_cors_cross_origin() ? ClassicScript::MutedErrors::Yes : ClassicScript::MutedErrors::No;
 
-    // 10. Let script be the result of creating a classic script given sourceText, settingsObject's realm, response's URL, the default classic script fetch options, and mutedErrors.
+    // 10. Let script be the result of creating a classic script given sourceText, settingsObject, response's URL, the default classic script fetch options, and mutedErrors.
     auto response_url = response->url().value_or({});
-    auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object.realm(), response_url, 1, muted_errors);
+    auto script = ClassicScript::create(response_url.to_byte_string(), source_text, settings_object, response_url, 1, muted_errors);
 
     // 11. Return script.
     return script;
@@ -619,7 +618,6 @@ WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, 
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-worklet/module-worker-script-graph
-// https://whatpr.org/html/9893/webappapis.html#fetch-a-worklet/module-worker-script-graph
 WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL const& url, EnvironmentSettingsObject& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
 {
     auto& realm = settings_object.realm();
@@ -651,9 +649,9 @@ WebIDL::ExceptionOr<void> fetch_worklet_module_worker_script_graph(URL::URL cons
         fetch_descendants_of_and_link_a_module_script(realm, as<ModuleScript>(*result), fetch_client, destination, move(perform_fetch), on_complete);
     });
 
-    // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject's realm, "client", true,
+    // 2. Fetch a single module script given url, fetchClient, destination, options, settingsObject, "client", true,
     //    and onSingleFetchComplete as defined below. If performFetch was given, pass it along as well.
-    fetch_single_module_script(realm, url, fetch_client, destination, options, settings_object.realm(), Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, move(perform_fetch), on_single_fetch_complete);
+    fetch_single_module_script(realm, url, fetch_client, destination, options, settings_object, Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, move(perform_fetch), on_single_fetch_complete);
 
     return {};
 }
@@ -674,13 +672,12 @@ Fetch::Infrastructure::Request::Destination fetch_destination_from_module_type(F
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-single-module-script
-// https://whatpr.org/html/9893/webappapis.html#fetch-a-single-module-script
 void fetch_single_module_script(JS::Realm& realm,
     URL::URL const& url,
     EnvironmentSettingsObject& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     ScriptFetchOptions const& options,
-    JS::Realm& module_map_realm,
+    EnvironmentSettingsObject& settings_object,
     Web::Fetch::Infrastructure::Request::ReferrerType const& referrer,
     Optional<JS::ModuleRequest> const& module_request,
     TopLevelModule is_top_level,
@@ -694,13 +691,13 @@ void fetch_single_module_script(JS::Realm& realm,
     if (module_request.has_value())
         module_type = module_type_from_module_request(*module_request);
 
-    // 3. Assert: the result of running the module type allowed steps given moduleType and moduleMapRealm is true.
+    // 3. Assert: the result of running the module type allowed steps given moduleType and settingsObject is true.
     //    Otherwise we would not have reached this point because a failure would have been raised when inspecting moduleRequest.[[Assertions]]
     //    in create a JavaScript module script or fetch a single imported module script.
-    VERIFY(module_type_allowed(module_map_realm, module_type));
+    VERIFY(module_type_allowed(settings_object, module_type));
 
-    // 4. Let moduleMap be moduleMapRealm's module map.
-    auto& module_map = module_map_of_realm(module_map_realm);
+    // 4. Let moduleMap be settingsObject's module map.
+    auto& module_map = settings_object.module_map();
 
     // 5. If moduleMap[(url, moduleType)] is "fetching", wait in parallel until that entry's value changes,
     //    then queue a task on the networking task source to proceed with running the following steps.
@@ -750,7 +747,7 @@ void fetch_single_module_script(JS::Realm& realm,
     // 13. If performFetch was given, run performFetch with request, isTopLevel, and with processResponseConsumeBody as defined below.
     //     Otherwise, fetch request with processResponseConsumeBody set to processResponseConsumeBody as defined below.
     //     In both cases, let processResponseConsumeBody given response response and null, failure, or a byte sequence bodyBytes be the following algorithm:
-    auto process_response_consume_body = [&module_map, url, module_type, &module_map_realm, on_complete](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
+    auto process_response_consume_body = [&module_map, url, module_type, &settings_object, on_complete](GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::FetchAlgorithms::BodyBytes body_bytes) {
         // 1. If any of the following are true:
         //    - bodyBytes is null or failure; or
         //    - response's status is not an ok status,
@@ -775,7 +772,7 @@ void fetch_single_module_script(JS::Realm& realm,
         //     options.
         // FIXME: Pass options.
         if (mime_type.has_value() && mime_type->essence() == "application/wasm"sv && module_type == "javascript-or-wasm") {
-            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+            module_script = ModuleScript::create_a_webassembly_module_script(url.to_byte_string(), body_bytes.get<ByteBuffer>(), settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
         }
 
         // 7. Otherwise
@@ -793,7 +790,7 @@ void fetch_single_module_script(JS::Realm& realm,
                 // If the Rust pipeline is available, parse off the main thread.
                 if (JS::RustIntegration::rust_pipeline_available()) {
                     auto on_complete_root = GC::make_root(on_complete);
-                    auto realm_root = GC::make_root(&module_map_realm);
+                    auto settings_root = GC::make_root(settings_object);
                     auto url_string = url.to_byte_string();
                     auto response_url = response->url().value_or({});
                     auto module_type_string = module_type.to_byte_string();
@@ -805,26 +802,28 @@ void fetch_single_module_script(JS::Realm& realm,
                         [url = move(url), url_string = move(url_string), response_url = move(response_url),
                             module_type_string = move(module_type_string),
                             on_complete_root = move(on_complete_root),
-                            realm_root = move(realm_root)](auto* parsed, auto source_code) mutable {
-                            auto module_script = ModuleScript::create_from_pre_parsed(url_string, move(source_code), *realm_root, move(response_url), parsed).release_value_but_fixme_should_propagate_errors();
-                            auto& mm = module_map_of_realm(*realm_root);
-                            mm.set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
+                            settings_root = move(settings_root)](auto* parsed, auto source_code) mutable {
+                            auto module_script = ModuleScript::create_from_pre_parsed(url_string, move(source_code), *settings_root, move(response_url), parsed).release_value_but_fixme_should_propagate_errors();
+                            settings_root->module_map().set(url, module_type_string, { ModuleMap::EntryType::ModuleScript, module_script });
                             on_complete_root->function()(module_script);
                         });
                     return;
                 }
-                module_script = ModuleScript::create_a_javascript_module_script(url.to_byte_string(), source_text, module_map_realm, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
+                module_script = ModuleScript::create_a_javascript_module_script(url.to_byte_string(), source_text, settings_object, response->url().value_or({})).release_value_but_fixme_should_propagate_errors();
             }
 
-            // 3. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
-            //    the result of creating a CSS module script given sourceText and moduleMapRealm.
+            // FIXME: 3. If mimeType is a JavaScript MIME type and moduleType is "javascript-or-wasm", then set moduleScript to
+            //    the result of creating a JavaScript module script given sourceText, settingsObject, response's URL, and options.
+
+            // 4. If the MIME type essence of mimeType is "text/css" and moduleType is "css", then set moduleScript to
+            //    the result of creating a CSS module script given sourceText and settingsObject.
             if (mime_type.has_value() && mime_type->essence() == "text/css"sv && module_type == "css")
-                module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
+                module_script = ModuleScript::create_a_css_module_script(url.to_byte_string(), source_text, settings_object).release_value_but_fixme_should_propagate_errors();
 
             // 4. If mimeType is a JSON MIME type and moduleType is "json", then set moduleScript to the result of
-            //    creating a JSON module script given sourceText and moduleMapRealm.
+            //    creating a JSON module script given sourceText and settingsObject.
             if (mime_type.has_value() && mime_type->is_json() && module_type == "json")
-                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, module_map_realm).release_value_but_fixme_should_propagate_errors();
+                module_script = ModuleScript::create_a_json_module_script(url.to_byte_string(), source_text, settings_object).release_value_but_fixme_should_propagate_errors();
         }
 
         // 8. Set moduleMap[(url, moduleType)] to moduleScript, and run onComplete given moduleScript.
@@ -842,7 +841,6 @@ void fetch_single_module_script(JS::Realm& realm,
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-script-tree
-// https://whatpr.org/html/9893/webappapis.html#fetch-a-module-script-tree
 void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, EnvironmentSettingsObject& settings_object, ScriptFetchOptions const& options, OnFetchScriptComplete on_complete)
 {
     auto steps = create_on_fetch_script_complete(realm.heap(), [&realm, &settings_object, on_complete, url](auto result) mutable {
@@ -857,15 +855,15 @@ void fetch_external_module_script_graph(JS::Realm& realm, URL::URL const& url, E
         fetch_descendants_of_and_link_a_module_script(realm, module_script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
     });
 
-    // 1. Fetch a single module script given url, settingsObject, "script", options, settingsObject's realm, "client", true, and with the following steps given result:
-    fetch_single_module_script(realm, url, settings_object, Fetch::Infrastructure::Request::Destination::Script, options, settings_object.realm(), Web::Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, nullptr, steps);
+    // 1. Fetch a single module script given url, settingsObject, "script", options, settingsObject, "client", true, and with the following steps given result:
+    fetch_single_module_script(realm, url, settings_object, Fetch::Infrastructure::Request::Destination::Script, options, settings_object, Web::Fetch::Infrastructure::Request::Referrer::Client, {}, TopLevelModule::Yes, nullptr, steps);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-an-inline-module-script-graph
 void fetch_inline_module_script_graph(JS::Realm& realm, ByteString const& filename, ByteString const& source_text, URL::URL const& base_url, EnvironmentSettingsObject& settings_object, OnFetchScriptComplete on_complete)
 {
-    // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject's realm, baseURL, and options.
-    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text.view(), settings_object.realm(), base_url).release_value_but_fixme_should_propagate_errors();
+    // 1. Let script be the result of creating a JavaScript module script using sourceText, settingsObject, baseURL, and options.
+    auto script = ModuleScript::create_a_javascript_module_script(filename, source_text.view(), settings_object, base_url).release_value_but_fixme_should_propagate_errors();
 
     // 2. Fetch the descendants of and link script, given settingsObject, "script", and onComplete.
     fetch_descendants_of_and_link_a_module_script(realm, *script, settings_object, Fetch::Infrastructure::Request::Destination::Script, nullptr, on_complete);
@@ -877,7 +875,7 @@ void fetch_single_imported_module_script(JS::Realm& realm,
     EnvironmentSettingsObject& fetch_client,
     Fetch::Infrastructure::Request::Destination destination,
     ScriptFetchOptions const& options,
-    JS::Realm& module_map_realm,
+    EnvironmentSettingsObject& settings_object,
     Fetch::Infrastructure::Request::ReferrerType referrer,
     JS::ModuleRequest const& module_request,
     PerformTheFetchHook perform_fetch,
@@ -891,16 +889,16 @@ void fetch_single_imported_module_script(JS::Realm& realm,
     // 2. Let moduleType be the result of running the module type from module request steps given moduleRequest.
     auto module_type = module_type_from_module_request(module_request);
 
-    // 3. If the result of running the module type allowed steps given moduleType and moduleMapRealm is false,
+    // 3. If the result of running the module type allowed steps given moduleType and settingsObject is false,
     //    then run onComplete given null, and return.
-    if (!module_type_allowed(module_map_realm, module_type)) {
+    if (!module_type_allowed(settings_object, module_type)) {
         on_complete->function()(nullptr);
         return;
     }
 
-    // 4. Fetch a single module script given url, fetchClient, destination, options, moduleMapRealm, referrer, moduleRequest, false,
+    // 4. Fetch a single module script given url, fetchClient, destination, options, settingsObject, referrer, moduleRequest, false,
     //    and onComplete. If performFetch was given, pass it along as well.
-    fetch_single_module_script(realm, url, fetch_client, destination, options, module_map_realm, referrer, module_request, TopLevelModule::No, perform_fetch, on_complete);
+    fetch_single_module_script(realm, url, fetch_client, destination, options, settings_object, referrer, module_request, TopLevelModule::No, perform_fetch, on_complete);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-the-descendants-of-and-link-a-module-script
@@ -940,7 +938,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
     //       resulting in the event loop hanging forever awaiting for the script to be ready for parser
     //       execution.
     realm.vm().push_execution_context(fetch_client.realm_execution_context());
-    prepare_to_run_callback(realm);
+    prepare_to_run_callback(fetch_client);
 
     // 5. Let loadingPromise be record.LoadRequestedModules(state).
     auto loading_promise = record.visit(
@@ -982,7 +980,7 @@ void fetch_descendants_of_and_link_a_module_script(JS::Realm& realm,
             return JS::js_undefined();
         }));
 
-    clean_up_after_running_callback(realm);
+    clean_up_after_running_callback(fetch_client);
 
     realm.vm().pop_execution_context();
 }

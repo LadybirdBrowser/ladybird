@@ -2081,7 +2081,7 @@ GC::Ref<PendingResponse> nonstandard_resource_loader_file_or_http_network_fetch(
 
     auto request = fetch_params.request();
 
-    auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm));
+    auto& page = Bindings::principal_host_defined_page(realm);
 
     LoadRequest load_request { request->header_list() };
     load_request.set_url(request->current_url());

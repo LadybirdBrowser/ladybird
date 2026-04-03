@@ -20,15 +20,15 @@
 namespace Web::Bindings {
 
 struct WebEngineCustomJobCallbackData final : public JS::JobCallback::CustomData {
-    WebEngineCustomJobCallbackData(JS::Realm& incumbent_realm, OwnPtr<JS::ExecutionContext> active_script_context)
-        : incumbent_realm(incumbent_realm)
+    WebEngineCustomJobCallbackData(HTML::EnvironmentSettingsObject& incumbent_settings, OwnPtr<JS::ExecutionContext> active_script_context)
+        : incumbent_settings(incumbent_settings)
         , active_script_context(move(active_script_context))
     {
     }
 
     virtual ~WebEngineCustomJobCallbackData() override = default;
 
-    GC::Ref<JS::Realm> incumbent_realm;
+    GC::Ref<HTML::EnvironmentSettingsObject> incumbent_settings;
     OwnPtr<JS::ExecutionContext> active_script_context;
 };
 

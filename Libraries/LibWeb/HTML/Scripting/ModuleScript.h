@@ -30,12 +30,12 @@ class WEB_API ModuleScript : public Script {
 public:
     virtual ~ModuleScript() override;
 
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, JS::Realm&, URL::URL base_url, JS::FFI::ParsedProgram* parsed);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, StringView source, JS::Realm&, URL::URL base_url);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, StringView source, JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, StringView source, JS::Realm&);
-    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, JS::Realm&, URL::URL base_url);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_from_pre_parsed(ByteString const& filename, NonnullRefPtr<JS::SourceCode const> source_code, EnvironmentSettingsObject&, URL::URL base_url, JS::FFI::ParsedProgram* parsed);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_javascript_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&, URL::URL base_url);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_css_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_json_module_script(ByteString const& filename, StringView source, EnvironmentSettingsObject&);
+    static WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> create_a_webassembly_module_script(ByteString const& filename, ByteBuffer body_bytes, EnvironmentSettingsObject&, URL::URL base_url);
 
     enum class PreventErrorReporting {
         Yes,
@@ -47,7 +47,7 @@ public:
     ModuleScriptRecord record() const { return m_record; }
 
 protected:
-    ModuleScript(Optional<URL::URL> base_url, ByteString filename, JS::Realm&);
+    ModuleScript(Optional<URL::URL> base_url, ByteString filename, EnvironmentSettingsObject&);
 
 private:
     virtual bool is_module_script() const final { return true; }

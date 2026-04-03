@@ -49,7 +49,7 @@ GC::Ptr<PolicyList> PolicyList::from_object(JS::Object& object)
     // 2. If object is a Window or a WorkerGlobalScope or a WorkletGlobalScope, return environment settings object’s
     //    policy container's CSP list.
     if (is<HTML::Window>(object) || is<HTML::WorkerGlobalScope>(object)) {
-        auto& settings = HTML::relevant_principal_settings_object(object);
+        auto& settings = HTML::relevant_settings_object(object);
         return settings.policy_container()->csp_list;
     }
 

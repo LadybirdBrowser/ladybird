@@ -99,13 +99,13 @@ URL::URL Violation::url() const
     }
 
     auto& universal_scope = as<HTML::UniversalGlobalScopeMixin>(*m_global_object);
-    auto& principal_global = HTML::relevant_principal_global_object(universal_scope.this_impl());
+    auto& global = HTML::relevant_global_object(universal_scope.this_impl());
 
-    if (auto* window = as_if<HTML::Window>(principal_global)) {
+    if (auto* window = as_if<HTML::Window>(global)) {
         return window->associated_document().url();
     }
 
-    if (auto* worker = as_if<HTML::WorkerGlobalScope>(principal_global)) {
+    if (auto* worker = as_if<HTML::WorkerGlobalScope>(global)) {
         return worker->url();
     }
 
@@ -414,9 +414,8 @@ void Violation::report_a_violation(JS::Realm& realm)
 
                         // origin
                         //    violation's global object's relevant settings object's origin
-                        // FIXME: File spec issue that global object can be null, so we use the realm to get the ESO
-                        //        instead, and cross ShadowRealm boundaries with the principal realm.
-                        auto& environment_settings_object = Bindings::principal_host_defined_environment_settings_object(HTML::principal_realm(realm));
+                        // FIXME: File spec issue that global object can be null, so we use the realm to get the ESO instead.
+                        auto& environment_settings_object = Bindings::principal_host_defined_environment_settings_object(realm);
                         request->set_origin(environment_settings_object.origin());
 
                         // traversable for user prompts

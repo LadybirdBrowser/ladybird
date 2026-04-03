@@ -197,41 +197,33 @@ private:
     bool m_discarded { false };
 };
 
-JS::ExecutionContext const& execution_context_of_realm(JS::Realm const&);
-inline JS::ExecutionContext& execution_context_of_realm(JS::Realm& realm) { return const_cast<JS::ExecutionContext&>(execution_context_of_realm(const_cast<JS::Realm const&>(realm))); }
+RunScriptDecision can_run_script(EnvironmentSettingsObject const&);
+bool is_scripting_enabled(EnvironmentSettingsObject const&);
+bool is_scripting_disabled(EnvironmentSettingsObject const&);
+void prepare_to_run_script(EnvironmentSettingsObject&);
+void clean_up_after_running_script(EnvironmentSettingsObject const&);
+WEB_API void prepare_to_run_callback(EnvironmentSettingsObject&);
+WEB_API void clean_up_after_running_callback(EnvironmentSettingsObject const&);
+WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, StringView module_type);
 
-RunScriptDecision can_run_script(JS::Realm const&);
-bool is_scripting_enabled(JS::Realm const&);
-bool is_scripting_disabled(JS::Realm const&);
-void prepare_to_run_script(JS::Realm&);
-void clean_up_after_running_script(JS::Realm const&);
-WEB_API void prepare_to_run_callback(JS::Realm&);
-WEB_API void clean_up_after_running_callback(JS::Realm const&);
-WEB_API ModuleMap& module_map_of_realm(JS::Realm&);
-WEB_API bool module_type_allowed(JS::Realm const&, StringView module_type);
+WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, String const& serialized_base_url, String const& normalized_specifier, Optional<URL::URL> const& as_url);
 
-WEB_API void add_module_to_resolved_module_set(JS::Realm&, String const& serialized_base_url, String const& normalized_specifier, Optional<URL::URL> const& as_url);
-
-EnvironmentSettingsObject& incumbent_settings_object();
+WEB_API EnvironmentSettingsObject& incumbent_settings_object();
 WEB_API JS::Realm& incumbent_realm();
+
 JS::Object& incumbent_global_object();
 
-JS::Realm& current_principal_realm();
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm&);
-EnvironmentSettingsObject& current_principal_settings_object();
+EnvironmentSettingsObject& current_settings_object();
 
-WEB_API JS::Realm& principal_realm(GC::Ref<JS::Realm>);
-WEB_API JS::Object& current_principal_global_object();
+WEB_API JS::Object& current_global_object();
 
 WEB_API JS::Realm& relevant_realm(JS::Object const&);
-JS::Realm& relevant_principal_realm(JS::Object const&);
 
 WEB_API EnvironmentSettingsObject& relevant_settings_object(JS::Object const&);
 EnvironmentSettingsObject& relevant_settings_object(DOM::Node const&);
-WEB_API EnvironmentSettingsObject& relevant_principal_settings_object(JS::Object const&);
 
 WEB_API JS::Object& relevant_global_object(JS::Object const&);
-WEB_API JS::Object& relevant_principal_global_object(JS::Object const&);
 
 JS::Realm& entry_realm();
 EnvironmentSettingsObject& entry_settings_object();

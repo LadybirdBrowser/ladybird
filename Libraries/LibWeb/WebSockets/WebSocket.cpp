@@ -205,7 +205,7 @@ ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_rec
     auto additional_headers = HTTP::HeaderList::create();
 
     auto cookies = ([&] {
-        auto& page = Bindings::principal_host_defined_page(HTML::principal_realm(realm()));
+        auto& page = Bindings::principal_host_defined_page(realm());
         return page.client().page_did_request_cookie(url_record, HTTP::Cookie::Source::Http).cookie;
     })();
 

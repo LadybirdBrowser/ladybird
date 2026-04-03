@@ -8,6 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 
@@ -21,11 +22,12 @@ public:
         Yes,
     };
 
+    explicit TemporaryExecutionContext(EnvironmentSettingsObject&, CallbacksEnabled = CallbacksEnabled::No);
     explicit TemporaryExecutionContext(JS::Realm&, CallbacksEnabled = CallbacksEnabled::No);
     ~TemporaryExecutionContext();
 
 private:
-    GC::Ref<JS::Realm> m_realm;
+    GC::Ref<EnvironmentSettingsObject> m_settings;
     CallbacksEnabled m_callbacks_enabled { CallbacksEnabled::No };
 };
 

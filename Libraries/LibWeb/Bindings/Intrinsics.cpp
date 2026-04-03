@@ -10,7 +10,6 @@
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/SyntheticHostDefined.h>
 
 namespace Web::Bindings {
 

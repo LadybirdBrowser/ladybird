@@ -176,7 +176,7 @@ void SVGScriptElement::process_the_script_element()
     // Before any script execution occurs, the user agent must wait for scripts may run for the newly-created document to be true for document.
     VERIFY(m_document->ready_to_run_scripts());
 
-    m_script = HTML::ClassicScript::create(script_url.basename(), script_content, realm(), m_document->base_url(), m_source_line_number);
+    m_script = HTML::ClassicScript::create(script_url.basename(), script_content, HTML::relevant_settings_object(*this), m_document->base_url(), m_source_line_number);
 
     // FIXME: Note that a load event is dispatched on a 'script' element once it has been processed,
     // unless it referenced external script content with an invalid IRI reference and 'externalResourcesRequired' was set to 'true'.

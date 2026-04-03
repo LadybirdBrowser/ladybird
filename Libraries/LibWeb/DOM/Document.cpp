@@ -485,7 +485,7 @@ GC::Ref<Document> Document::construct_impl(JS::Realm& realm)
 {
     // The new Document() constructor steps are to set this’s origin to the origin of current global object’s associated Document. [HTML]
     auto document = Document::create(realm);
-    document->set_origin(as<HTML::Window>(HTML::current_principal_global_object()).associated_document().origin());
+    document->set_origin(as<HTML::Window>(HTML::current_global_object()).associated_document().origin());
     return document;
 }
 
@@ -7266,7 +7266,7 @@ WebIDL::ExceptionOr<GC::Root<DOM::Document>> Document::parse_html_unsafe(JS::VM&
     //    TrustedHTML, this's relevant global object, html, "Document parseHTMLUnsafe", and "script".
     auto const compliant_html = TRY(TrustedTypes::get_trusted_type_compliant_string(
         TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::current_principal_global_object(),
+        HTML::current_global_object(),
         html,
         TrustedTypes::InjectionSink::Document_parseHTMLUnsafe,
         TrustedTypes::Script.to_string()));

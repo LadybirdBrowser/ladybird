@@ -39,14 +39,13 @@ JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image
-// https://whatpr.org/html/9893/embedded-content.html#dom-image
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
-    // 1. Let document be the current principal global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
+    // 1. Let document be the current global object's associated Document.
+    auto& window = as<HTML::Window>(HTML::current_global_object());
     auto& document = window.associated_document();
 
     // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.

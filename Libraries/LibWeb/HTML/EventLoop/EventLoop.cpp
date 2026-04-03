@@ -657,9 +657,9 @@ void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& documen
     VERIFY(did_remove);
 }
 
-void EventLoop::push_onto_backup_incumbent_realm_stack(JS::Realm& realm)
+void EventLoop::push_onto_backup_incumbent_realm_stack(GC::Ref<EnvironmentSettingsObject> environment_settings_object)
 {
-    m_backup_incumbent_realm_stack.append(realm);
+    m_backup_incumbent_realm_stack.append(environment_settings_object);
 }
 
 void EventLoop::pop_backup_incumbent_realm_stack()
@@ -667,7 +667,7 @@ void EventLoop::pop_backup_incumbent_realm_stack()
     m_backup_incumbent_realm_stack.take_last();
 }
 
-JS::Realm& EventLoop::top_of_backup_incumbent_realm_stack()
+EnvironmentSettingsObject& EventLoop::top_of_backup_incumbent_realm_stack()
 {
     return m_backup_incumbent_realm_stack.last();
 }
@@ -741,7 +741,7 @@ EventLoop::PauseHandle EventLoop::pause()
     m_execution_paused = true;
 
     // 1. Let global be the current global object.
-    auto& global = current_principal_global_object();
+    auto& global = current_global_object();
 
     // 2. Let timeBeforePause be the current high resolution time given global.
     auto time_before_pause = HighResolutionTime::current_high_resolution_time(global);

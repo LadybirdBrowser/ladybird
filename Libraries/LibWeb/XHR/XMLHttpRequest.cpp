@@ -158,7 +158,7 @@ WebIDL::ExceptionOr<GC::Ptr<DOM::Document>> XMLHttpRequest::response_xml()
 WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpRequestResponseType response_type)
 {
     // 1. If the current global object is not a Window object and the given value is "document", then return.
-    if (!is<HTML::Window>(HTML::current_principal_global_object()) && response_type == Bindings::XMLHttpRequestResponseType::Document)
+    if (!is<HTML::Window>(HTML::current_global_object()) && response_type == Bindings::XMLHttpRequestResponseType::Document)
         return {};
 
     // 2. If this’s state is loading or done, then throw an "InvalidStateError" DOMException.
@@ -166,7 +166,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_response_type(Bindings::XMLHttpReq
         return WebIDL::InvalidStateError::create(realm(), "Can't readyState when XHR is loading or done"_utf16);
 
     // 3. If the current global object is a Window object and this’s synchronous flag is set, then throw an "InvalidAccessError" DOMException.
-    if (is<HTML::Window>(HTML::current_principal_global_object()) && m_synchronous)
+    if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
         return WebIDL::InvalidAccessError::create(realm(), "Can't set readyState on synchronous XHR in Window environment"_utf16);
 
     // 4. Set this’s response type to the given value.
@@ -490,7 +490,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, String cons
     // 9. If async is false, the current global object is a Window object, and either this’s timeout is
     //     not 0 or this’s response type is not the empty string, then throw an "InvalidAccessError" DOMException.
     if (!async
-        && is<HTML::Window>(HTML::current_principal_global_object())
+        && is<HTML::Window>(HTML::current_global_object())
         && (m_timeout != 0 || m_response_type != Bindings::XMLHttpRequestResponseType::Empty)) {
         return WebIDL::InvalidAccessError::create(realm(), "Synchronous XMLHttpRequests in a Window context do not support timeout or a non-empty responseType"_utf16);
     }
@@ -949,7 +949,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
         }
 
         // 7. Report timing for this’s fetch controller given the current global object.
-        m_fetch_controller->report_timing(HTML::current_principal_global_object());
+        m_fetch_controller->report_timing(HTML::current_global_object());
 
         // 8. Run handle response end-of-body for this.
         TRY(handle_response_end_of_body());
@@ -1039,7 +1039,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::set_timeout(u32 timeout)
 {
     // 1. If the current global object is a Window object and this’s synchronous flag is set,
     //    then throw an "InvalidAccessError" DOMException.
-    if (is<HTML::Window>(HTML::current_principal_global_object()) && m_synchronous)
+    if (is<HTML::Window>(HTML::current_global_object()) && m_synchronous)
         return WebIDL::InvalidAccessError::create(realm(), "Use of XMLHttpRequest's timeout attribute is not supported in the synchronous mode in window context."_utf16);
 
     // 2. Set this’s timeout to the given value.

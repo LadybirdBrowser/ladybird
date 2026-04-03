@@ -30,11 +30,11 @@ PerformanceMark::~PerformanceMark() = default;
 // https://w3c.github.io/user-timing/#dfn-performancemark-constructor
 WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS::Realm& realm, String const& mark_name, Web::UserTiming::PerformanceMarkOptions const& mark_options)
 {
-    auto& current_principal_global_object = HTML::current_principal_global_object();
+    auto& current_global_object = HTML::current_global_object();
     auto& vm = realm.vm();
 
     // 1. If the current global object is a Window object and markName uses the same name as a read only attribute in the PerformanceTiming interface, throw a SyntaxError.
-    if (is<HTML::Window>(current_principal_global_object)) {
+    if (is<HTML::Window>(current_global_object)) {
         bool matched = false;
 
 #define __ENUMERATE_NAVIGATION_TIMING_ENTRY_NAME(name, _) \
@@ -69,7 +69,7 @@ WebIDL::ExceptionOr<GC::Ref<PerformanceMark>> PerformanceMark::construct_impl(JS
     }
     // 2. Otherwise, set it to the value that would be returned by the Performance object's now() method.
     else {
-        start_time = HighResolutionTime::current_high_resolution_time(current_principal_global_object);
+        start_time = HighResolutionTime::current_high_resolution_time(current_global_object);
     }
 
     // 6. Set entry's duration attribute to 0.

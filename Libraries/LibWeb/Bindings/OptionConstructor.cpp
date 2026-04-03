@@ -41,7 +41,6 @@ JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option
-// https://whatpr.org/html/9893/form-elements.html#dom-option
 // https://webidl.spec.whatwg.org/#legacy-factory-functions
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(FunctionObject& new_target)
 {
@@ -53,8 +52,8 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     if (text_value.is_undefined())
         text_value = &vm.empty_string();
 
-    // 1. Let document be the current principal global object's associated Document.
-    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
+    // 1. Let document be the current global object's associated Document.
+    auto& window = as<HTML::Window>(HTML::current_global_object());
     auto& document = window.associated_document();
 
     // 2. Let option be the result of creating an element given document, "option", and the HTML namespace.

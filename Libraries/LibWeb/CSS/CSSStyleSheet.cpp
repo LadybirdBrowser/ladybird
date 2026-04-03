@@ -39,7 +39,7 @@ WebIDL::ExceptionOr<GC::Ref<CSSStyleSheet>> CSSStyleSheet::construct_impl(JS::Re
     // 1. Construct a new CSSStyleSheet object sheet.
     auto sheet = create(realm, CSSRuleList::create(realm), CSS::MediaList::create(realm, {}), {});
 
-    // 2. Set sheet’s location to the base URL of the associated Document for the current global object.
+    // 2. Set sheet’s location to the base URL of the associated Document for the current principal global object.
     auto associated_document = as<HTML::Window>(realm.global_object()).document();
     sheet->set_location(associated_document->base_url());
 

@@ -2908,7 +2908,7 @@ static void generate_html_constructor(SourceGenerator& generator, IDL::Construct
     }
 
     constructor_generator.append(R"~~~(
-    auto& window = as<HTML::Window>(HTML::current_principal_global_object());
+    auto& window = as<HTML::Window>(HTML::current_global_object());
 
     // 1. If NewTarget is equal to the active function object, then throw a TypeError.
     if (&new_target == vm.active_function_object())

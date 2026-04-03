@@ -887,7 +887,6 @@ struct SerializedPolicyContainer;
 struct SerializedTransferRecord;
 struct SourceSnapshotParams;
 struct StructuredSerializeOptions;
-struct SyntheticRealmSettings;
 struct ToggleTaskTracker;
 
 }

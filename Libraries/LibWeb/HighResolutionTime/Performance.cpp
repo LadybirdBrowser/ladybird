@@ -68,7 +68,7 @@ GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 double Performance::time_origin() const
 {
     // The timeOrigin attribute MUST return the number of milliseconds in the duration returned by get time origin timestamp for the relevant global object of this.
-    return get_time_origin_timestamp(HTML::relevant_principal_global_object(*this));
+    return get_time_origin_timestamp(HTML::relevant_global_object(*this));
 }
 
 // https://w3c.github.io/hr-time/#now-method

@@ -199,7 +199,6 @@ void HTMLScriptElement::execute_script()
 
 // https://w3c.github.io/trusted-types/dist/spec/#slot-value-verification
 // https://html.spec.whatwg.org/multipage/scripting.html#prepare-a-script
-// https://whatpr.org/html/9893/scripting.html#prepare-a-script
 void HTMLScriptElement::prepare_script()
 {
     // 1. If el's already started is true, then return.
@@ -501,9 +500,9 @@ void HTMLScriptElement::prepare_script()
         // 2. Switch on el's type:
         // -> "classic"
         if (m_script_type == ScriptType::Classic) {
-            // 1. Let script be the result of creating a classic script using source text, settings object's realm, base URL, and options.
+            // 1. Let script be the result of creating a classic script using source text, settings object, base URL, and options.
             // FIXME: Pass options.
-            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object.realm(), base_url, m_source_line_number);
+            auto script = ClassicScript::create(m_document->url().to_byte_string(), source_text_utf8, settings_object, base_url, m_source_line_number);
 
             // 2. Mark as ready el given script.
             mark_as_ready(Result(move(script)));

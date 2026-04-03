@@ -162,8 +162,8 @@ JS::ThrowCompletionOr<JS::Value> WindowProxy::internal_get(JS::PropertyKey const
 
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
-    // 2. Check if an access between two browsing contexts should be reported, given the current principal global object's browsing context, W's browsing context, P, and the current principal settings object.
-    check_if_access_between_two_browsing_contexts_should_be_reported(as<Window>(current_principal_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_principal_settings_object());
+    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current settings object.
+    check_if_access_between_two_browsing_contexts_should_be_reported(as<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_settings_object());
 
     // 3. If IsPlatformObjectSameOrigin(W) is true, then return ? OrdinaryGet(this, P, Receiver).
     // NOTE: this is passed rather than W as OrdinaryGet and CrossOriginGet will invoke the [[GetOwnProperty]] internal method.
@@ -183,8 +183,8 @@ JS::ThrowCompletionOr<bool> WindowProxy::internal_set(JS::PropertyKey const& pro
 
     // 1. Let W be the value of the [[Window]] internal slot of this.
 
-    // 2. Check if an access between two browsing contexts should be reported, given the current principal global object's browsing context, W's browsing context, P, and the current principal settings object.
-    check_if_access_between_two_browsing_contexts_should_be_reported(as<Window>(current_principal_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_principal_settings_object());
+    // 2. Check if an access between two browsing contexts should be reported, given the current global object's browsing context, W's browsing context, P, and the current settings object.
+    check_if_access_between_two_browsing_contexts_should_be_reported(as<Window>(current_global_object()).browsing_context(), m_window->browsing_context(), property_key, current_settings_object());
 
     // 3. If IsPlatformObjectSameOrigin(W) is true, then:
     if (is_platform_object_same_origin(*m_window)) {
