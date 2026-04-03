@@ -14,7 +14,7 @@ class ReplacedWithChildrenFormattingContext final : public FormattingContext {
 public:
     explicit ReplacedWithChildrenFormattingContext(LayoutState&, LayoutMode, Box const&, FormattingContext* parent);
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
     virtual void parent_context_did_dimension_child_root_box() override;

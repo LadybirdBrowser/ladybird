@@ -105,7 +105,7 @@ public:
         VERIFY_NOT_REACHED();
     }
 
-    virtual void run(AvailableSpace const&) = 0;
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) = 0;
 
     // These functions return the automatic content dimensions of the context's root box.
     virtual CSSPixels automatic_content_width() const = 0;

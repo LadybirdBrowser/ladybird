@@ -25,7 +25,7 @@ public:
 
     void run_until_width_calculation(AvailableSpace const& available_space);
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
     StaticPositionRect calculate_static_position_rect(Box const&) const;
@@ -41,7 +41,7 @@ public:
     virtual void parent_context_did_dimension_child_root_box() override;
 
 private:
-    CSSPixels run_caption_layout(CSS::CaptionSide, AvailableSpace const&);
+    CSSPixels run_caption_layout(CSS::CaptionSide, AvailableSpace const&, Optional<FragmentationContext&>);
     CSSPixels compute_capmin();
     void compute_constrainedness();
     void compute_cell_measures();

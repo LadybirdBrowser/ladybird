@@ -344,7 +344,7 @@ struct ReplacedFormattingContext : public FormattingContext {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(AvailableSpace const&) override { }
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override { }
 };
 
 // FIXME: This is a hack. Get rid of it.
@@ -355,7 +355,7 @@ struct DummyFormattingContext : public FormattingContext {
     }
     virtual CSSPixels automatic_content_width() const override { return 0; }
     virtual CSSPixels automatic_content_height() const override { return 0; }
-    virtual void run(AvailableSpace const&) override { }
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override { }
 };
 
 OwnPtr<FormattingContext> FormattingContext::create_independent_formatting_context_if_needed(LayoutState& state, LayoutMode layout_mode, Box const& child_box)
@@ -424,9 +424,9 @@ OwnPtr<FormattingContext> FormattingContext::layout_inside(Box const& child_box,
 
     auto independent_formatting_context = create_independent_formatting_context_if_needed(m_state, layout_mode, child_box);
     if (independent_formatting_context)
-        independent_formatting_context->run(available_space);
+        independent_formatting_context->run(available_space, {});
     else
-        run(available_space);
+        run(available_space, {});
 
     return independent_formatting_context;
 }
@@ -676,7 +676,7 @@ CSSPixels FormattingContext::compute_table_box_height_inside_table_wrapper(Box c
 
     auto context = create_independent_formatting_context_if_needed(throwaway_state, LayoutMode::IntrinsicSizing, box);
     VERIFY(context);
-    context->run(m_state.get(box).available_inner_space_or_constraints_from(available_space));
+    context->run(m_state.get(box).available_inner_space_or_constraints_from(available_space), {});
 
     Optional<Box const&> table_box;
     box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
@@ -2102,7 +2102,7 @@ CSSPixels FormattingContext::calculate_min_content_width(Layout::Box const& box)
         ? AvailableSize::make_definite(box_state.content_height())
         : AvailableSize::make_indefinite();
 
-    context->run(AvailableSpace(available_width, available_height));
+    context->run(AvailableSpace(available_width, available_height), {});
 
     auto min_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
     cache.emplace(min_content_width);
@@ -2170,7 +2170,7 @@ CSSPixels FormattingContext::calculate_max_content_width(Layout::Box const& box)
         ? AvailableSize::make_definite(box_state.content_height())
         : AvailableSize::make_indefinite();
 
-    context->run(AvailableSpace(available_width, available_height));
+    context->run(AvailableSpace(available_width, available_height), {});
 
     auto max_content_width = clamp_to_max_dimension_value(context->automatic_content_width());
     cache.emplace(max_content_width);
@@ -2208,7 +2208,7 @@ CSSPixels FormattingContext::calculate_min_content_height(Layout::Box const& box
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context(throwaway_state, LayoutMode::IntrinsicSizing, box);
 
-    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()));
+    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_min_content()), {});
 
     auto min_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
     cache.emplace(min_content_height);
@@ -2243,7 +2243,7 @@ CSSPixels FormattingContext::calculate_max_content_height(Layout::Box const& box
 
     auto context = const_cast<FormattingContext*>(this)->create_independent_formatting_context(throwaway_state, LayoutMode::IntrinsicSizing, box);
 
-    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()));
+    context->run(AvailableSpace(AvailableSize::make_definite(width), AvailableSize::make_max_content()), {});
 
     auto max_content_height = clamp_to_max_dimension_value(context->automatic_content_height());
     cache_slot.emplace(max_content_height);

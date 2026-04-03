@@ -54,8 +54,11 @@ CSSPixels FlexFormattingContext::automatic_content_height() const
     return m_flex_container_state.content_height();
 }
 
-void FlexFormattingContext::run(AvailableSpace const& available_space)
+void FlexFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
+    // FIXME: Actually deal with fragmentation
+    (void)fragmentation_context;
+
     // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
     // OPTIMIZATION: If we're in intrinsic sizing layout, but the flex container is not the

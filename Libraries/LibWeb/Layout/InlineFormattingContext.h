@@ -23,7 +23,7 @@ public:
 
     BlockContainer const& containing_block() const { return static_cast<BlockContainer const&>(context_box()); }
 
-    virtual void run(AvailableSpace const&) override;
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override;
     virtual CSSPixels automatic_content_height() const override;
     virtual CSSPixels automatic_content_width() const override;
     StaticPositionRect calculate_static_position_rect(Box const&) const;
@@ -39,7 +39,7 @@ public:
     void set_vertical_float_clearance(CSSPixels);
 
 private:
-    void generate_line_boxes();
+    void generate_line_boxes(Optional<FragmentationContext&>);
     void apply_text_overflow_ellipsis(Vector<LineBox>&);
     void apply_justification_to_fragments(CSS::TextJustify, LineBox&, bool is_last_line);
     StaticPositionRect calculate_inline_end_static_position_rect() const;

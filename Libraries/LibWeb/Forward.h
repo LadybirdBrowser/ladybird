@@ -942,6 +942,8 @@ class CheckBox;
 class FieldSetBox;
 class FlexFormattingContext;
 class FormattingContext;
+class FragmentationContext;
+class ColumnFragmentationContext;
 class ImageBox;
 class InlineFormattingContext;
 class InlineNode;
