@@ -170,7 +170,7 @@ public:
 
     virtual bool inhibits_floating() const override { return true; }
 
-    virtual void run(AvailableSpace const& available_space) override;
+    virtual void run(AvailableSpace const&, Optional<FragmentationContext&>) override;
     virtual CSSPixels automatic_content_width() const override;
     virtual CSSPixels automatic_content_height() const override;
     StaticPositionRect calculate_static_position_rect(Box const&) const;

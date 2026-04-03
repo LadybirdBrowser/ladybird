@@ -19,6 +19,7 @@
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FieldSetBox.h>
+#include <LibWeb/Layout/Fragmentation.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
 #include <LibWeb/Layout/LegendBox.h>
 #include <LibWeb/Layout/LineBuilder.h>
@@ -97,27 +98,37 @@ static bool margins_collapse_through(Box const& box, LayoutState& state)
     return true;
 }
 
-void BlockFormattingContext::run(AvailableSpace const& available_space)
+void BlockFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
     FORMATTING_CONTEXT_TRACE();
     // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
     auto const& root_state = m_state.get(root());
     auto column_count = determine_used_value_for_column_count(root_state.content_width());
-    if (column_count.has_value()) {
+    // FIXME: Figure out how to implement multicol layout with unconstrained (indefinite) height.
+    // FIXME: Support nested fragmentation contexts.
+    if (column_count.has_value() && available_space.height.is_definite() && !fragmentation_context.has_value()) {
         auto column_width = determine_used_value_for_column_width(root_state.content_width(), column_count.value());
-        // FIXME: Do multi-column layout.
-        (void)column_width;
+        auto multicol_fragmentation_context = ColumnFragmentationContext(root(), column_width, available_space.height.to_px_or_zero(), get_column_gap_used_value_for_multicol(root_state.content_width()));
+        auto multicol_available_space = AvailableSpace(AvailableSize::make_definite(column_width), AvailableSize::make_indefinite());
+
+        layout_children(multicol_available_space, multicol_fragmentation_context);
+        return;
     }
 
+    layout_children(available_space, fragmentation_context);
+}
+
+void BlockFormattingContext::layout_children(AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
+{
     if (auto const* fieldset_box = as_if<FieldSetBox>(root()); fieldset_box && fieldset_box->rendered_legend()) {
-        layout_fieldset_with_rendered_legend(*fieldset_box, available_space);
+        layout_fieldset_with_rendered_legend(*fieldset_box, available_space, fragmentation_context);
         return;
     }
 
     if (root().children_are_inline())
-        layout_inline_children(root(), available_space);
+        layout_inline_children(root(), available_space, fragmentation_context);
     else
-        layout_block_level_children(root(), available_space);
+        layout_block_level_children(root(), available_space, fragmentation_context);
 
     // Fieldsets without a rendered legend skip collapsed margin assignment.
     if (is<FieldSetBox>(root()))
@@ -596,14 +607,14 @@ void BlockFormattingContext::resolve_used_height_if_treated_as_auto(Box const& b
     box_state.set_content_height(height);
 }
 
-void BlockFormattingContext::layout_inline_children(BlockContainer const& block_container, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_inline_children(BlockContainer const& block_container, AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
     VERIFY(block_container.children_are_inline());
 
     auto& block_container_state = m_state.get_mutable(block_container);
 
     InlineFormattingContext context(m_state, m_layout_mode, block_container, block_container_state, *this);
-    context.run(available_space);
+    context.run(available_space, fragmentation_context);
 
     if (!block_container_state.has_definite_width()) {
         // NOTE: min-width or max-width for boxes with inline children can only be applied after inside layout
@@ -764,7 +775,7 @@ static CSSPixels containing_block_height_to_resolve_percentage_in_quirks_mode(Bo
     VERIFY_NOT_REACHED();
 }
 
-void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContainer const& block_container, CSSPixels& bottom_of_lowest_margin_box, AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
     if (box.is_absolutely_positioned()) {
         if (m_layout_mode == LayoutMode::Normal) {
@@ -896,6 +907,14 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         inline_space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
     }
 
+    auto unfragmented_box_y = box_state.offset.y();
+    if (fragmentation_context.has_value()) {
+        FragmentationContext const* context = &fragmentation_context.value();
+        auto fragmented_flow_block_offset = content_box_rect_in_ancestor_coordinate_space(box_state, context->root()).y();
+        box_state.set_content_y(box_state.offset.y() + context->fragmentainer_y_offset_at(fragmented_flow_block_offset));
+        box_state.set_content_x(box_state.offset.x() + context->fragmentainer_x_offset_at(fragmented_flow_block_offset));
+    }
+
     if (independent_formatting_context) {
         // Margins of elements that establish new formatting contexts do not collapse with their in-flow children
         m_margin_state.reset();
@@ -917,7 +936,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             }
 
             auto measuring_context = create_independent_formatting_context_if_needed(throwaway_state, m_layout_mode, box);
-            measuring_context->run(inner_available_space);
+            measuring_context->run(inner_available_space, {});
             auto content_height = measuring_context->automatic_content_height();
             auto min_height = calculate_inner_height(box, available_space, box.computed_values().min_height());
             if (content_height < min_height) {
@@ -925,12 +944,12 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
             }
         }
 
-        independent_formatting_context->run(inner_available_space);
+        independent_formatting_context->run(inner_available_space, fragmentation_context);
     } else {
         // This box participates in the current block container's flow.
         auto space_available_for_children = box.is_anonymous() ? available_space : box_state.available_inner_space_or_constraints_from(available_space);
         if (box.children_are_inline()) {
-            layout_inline_children(as<BlockContainer>(box), space_available_for_children);
+            layout_inline_children(as<BlockContainer>(box), space_available_for_children, fragmentation_context);
         } else {
             auto registered_block_container_y_position_update_callback = false;
             if (box_state.border_top > 0 || box_state.padding_top > 0) {
@@ -938,15 +957,18 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 m_margin_state.reset();
             } else if (!m_margin_state.has_block_container_waiting_for_final_y_position()) {
                 // margin-top of block container can be updated during children layout hence it's final y position yet to be determined
-                m_margin_state.register_block_container_y_position_update_callback([this, &box, y, introduce_clearance](CSSPixels margin_top) {
+                m_margin_state.register_block_container_y_position_update_callback([this, &box, &box_state, y, introduce_clearance, &unfragmented_box_y](CSSPixels margin_top) {
                     if (introduce_clearance == DidIntroduceClearance::No) {
                         place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
+                        unfragmented_box_y = box_state.offset.y();
+                        // FIXME: This might've bumped the box down into a subsequent fragmentainer, so we need to
+                        //        translate it if that is the case.
                     }
                 });
                 registered_block_container_y_position_update_callback = true;
             }
 
-            layout_block_level_children(as<BlockContainer>(box), space_available_for_children);
+            layout_block_level_children(as<BlockContainer>(box), space_available_for_children, fragmentation_context);
 
             if (registered_block_container_y_position_update_callback) {
                 m_margin_state.unregister_block_container_y_position_update_callback();
@@ -970,7 +992,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
         }
-        m_y_offset_of_current_block_container = box_state.offset.y() + box_state.content_height() + box_state.border_box_bottom();
+        m_y_offset_of_current_block_container = unfragmented_box_y + box_state.content_height() + box_state.border_box_bottom();
     }
     m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(false);
 
@@ -980,13 +1002,13 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     auto const& block_container_state = m_state.get(block_container);
     compute_inset(box, content_box_rect(block_container_state).size());
 
-    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, box_state.offset.y() + box_state.content_height() + box_state.margin_box_bottom());
+    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, unfragmented_box_y + box_state.content_height() + box_state.margin_box_bottom());
 
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
 }
 
-void BlockFormattingContext::layout_block_level_children(BlockContainer const& block_container, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_block_level_children(BlockContainer const& block_container, AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
     VERIFY(!block_container.children_are_inline());
 
@@ -994,7 +1016,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
 
     TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
     block_container.for_each_child_of_type<Box>([&](Box& box) {
-        layout_block_level_box(box, block_container, bottom_of_lowest_margin_box, available_space);
+        layout_block_level_box(box, block_container, bottom_of_lowest_margin_box, available_space, fragmentation_context);
         return IterationDecision::Continue;
     });
 
@@ -1027,7 +1049,7 @@ void BlockFormattingContext::layout_block_level_children(BlockContainer const& b
 }
 
 // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox const& fieldset_box, AvailableSpace const& available_space)
+void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox const& fieldset_box, AvailableSpace const& available_space, Optional<FragmentationContext&> fragmentation_context)
 {
     auto& fieldset_state = m_state.get_mutable(fieldset_box);
 
@@ -1038,7 +1060,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
     {
         TemporaryChange<Optional<CSSPixels>> change { m_y_offset_of_current_block_container, CSSPixels(0) };
         CSSPixels dummy_bottom = 0;
-        layout_block_level_box(*legend, fieldset_box, dummy_bottom, available_space);
+        layout_block_level_box(*legend, fieldset_box, dummy_bottom, available_space, fragmentation_context);
     }
 
     // If the computed value of 'inline-size' is 'auto', then the used value is the fit-content inline size.
@@ -1063,7 +1085,7 @@ void BlockFormattingContext::layout_fieldset_with_rendered_legend(FieldSetBox co
         fieldset_box.for_each_child_of_type<Box>([&](Box& child) {
             if (&child == legend)
                 return IterationDecision::Continue;
-            layout_block_level_box(child, fieldset_box, bottom_of_lowest_margin_box, available_space);
+            layout_block_level_box(child, fieldset_box, bottom_of_lowest_margin_box, available_space, fragmentation_context);
             return IterationDecision::Continue;
         });
     }

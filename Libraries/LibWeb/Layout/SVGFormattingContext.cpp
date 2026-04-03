@@ -176,7 +176,7 @@ static bool is_container_element(Node const& node)
     return false;
 }
 
-void SVGFormattingContext::run(AvailableSpace const& available_space)
+void SVGFormattingContext::run(AvailableSpace const& available_space, Optional<FragmentationContext&>)
 {
     FORMATTING_CONTEXT_TRACE();
     // NOTE: SVG doesn't have a "formatting context" in the spec, but this is the most
@@ -315,7 +315,7 @@ void SVGFormattingContext::layout_svg_element(Box const& child)
         child_state.set_content_width(transformed_rect.width());
         child_state.set_content_height(transformed_rect.height());
 
-        bfc.run(AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height())));
+        bfc.run(AvailableSpace(AvailableSize::make_definite(child_state.content_width()), AvailableSize::make_definite(child_state.content_height())), {});
 
         if (auto* mask_box = child.first_child_of_type<SVGMaskBox>())
             layout_mask_or_clip(*mask_box);
@@ -370,7 +370,7 @@ void SVGFormattingContext::layout_nested_viewport(Box const& viewport)
     nested_viewport_state.set_has_definite_width(true);
     nested_viewport_state.set_has_definite_height(true);
     SVGFormattingContext nested_context(m_state, m_layout_mode, viewport, this, parent_viewbox_transform);
-    nested_context.run(*m_available_space);
+    nested_context.run(*m_available_space, {});
 }
 
 Gfx::Path SVGFormattingContext::compute_path_for_text(SVGTextBox const& text_box) const
@@ -581,7 +581,7 @@ void SVGFormattingContext::layout_mask_or_clip(SVGBox const& mask_or_clip)
     SVGFormattingContext nested_context(m_state, m_layout_mode, mask_or_clip, this, parent_viewbox_transform);
     layout_state.set_has_definite_width(true);
     layout_state.set_has_definite_height(true);
-    nested_context.run(*m_available_space);
+    nested_context.run(*m_available_space, {});
 }
 
 void SVGFormattingContext::layout_container_element(SVGBox const& container)

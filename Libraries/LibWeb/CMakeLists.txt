@@ -768,6 +768,7 @@ set(SOURCES
     Layout/FieldSetBox.cpp
     Layout/FlexFormattingContext.cpp
     Layout/FormattingContext.cpp
+    Layout/Fragmentation.cpp
     Layout/GridFormattingContext.cpp
     Layout/ImageBox.cpp
     Layout/ImageProvider.cpp
