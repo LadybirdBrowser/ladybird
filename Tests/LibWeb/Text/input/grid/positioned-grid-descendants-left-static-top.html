@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+#grid {
+    display: grid;
+    grid-template-columns: 200px 300px;
+    grid-template-rows: 150px 100px;
+    width: 500px;
+    height: 250px;
+    position: relative;
+}
+
+.grid-item {
+    font-size: 0;
+    line-height: 0;
+}
+
+#item1 {
+    grid-area: 1 / 1;
+}
+
+#item2 {
+    grid-area: 2 / 2;
+}
+
+.spacer {
+    display: inline-block;
+    vertical-align: top;
+    height: 25px;
+}
+
+.spacer.small {
+    width: 25px;
+}
+
+.spacer.large {
+    width: 50px;
+}
+
+.abspos {
+    position: absolute;
+    display: inline-block;
+    vertical-align: top;
+    width: 50px;
+    height: 25px;
+    left: 25px;
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+}
+</style>
+<div id="grid">
+    <div id="item1" class="grid-item">
+        <span class="spacer small"></span><br>
+        <span class="spacer large"></span><div id="abspos1" class="abspos"></div>
+    </div>
+    <div id="item2" class="grid-item">
+        <span class="spacer small"></span><br>
+        <span class="spacer large"></span><div id="abspos2" class="abspos"></div>
+    </div>
+</div>
+<script>
+asyncTest(async done => {
+    await animationFrame();
+
+    for (let id of [ "abspos1", "abspos2" ]) {
+        let abspos = document.getElementById(id);
+        println(`${id}: ${abspos.offsetLeft},${abspos.offsetTop} ${abspos.offsetWidth}x${abspos.offsetHeight}`);
+    }
+
+    done();
+});
+</script>
