@@ -136,10 +136,13 @@ private:
 
     void start_audio_seek(Track const& track)
     {
-        if (manager().m_audio_sink->provider(track) == nullptr)
+        if (!manager().m_audio_sink)
             return;
 
         auto& track_data = manager().get_audio_data_for_track(track);
+        if (!track_data.enabled)
+            return;
+
         m_audio_seeks_pending.set(track);
 
         track_data.provider->seek(m_chosen_timestamp, [this, weak_manager = manager().weak(), track]() {

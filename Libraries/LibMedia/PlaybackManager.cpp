@@ -347,24 +347,26 @@ void PlaybackManager::remove_the_displaying_video_sink_for_track(Track const& tr
 
 void PlaybackManager::enable_an_audio_track(Track const& track)
 {
-    if (!m_audio_sink)
-        return;
     auto& track_data = get_audio_data_for_track(track);
-    auto had_provider = m_audio_sink->provider(track) != nullptr;
-    m_audio_sink->set_provider(track, track_data.provider);
-    if (!had_provider) {
-        m_tracks_still_buffering.set(track);
-        m_handler->on_track_enabled(track);
+    VERIFY(!track_data.enabled);
+    if (m_audio_sink) {
+        VERIFY(m_audio_sink->provider(track) == nullptr);
+        m_audio_sink->set_provider(track, track_data.provider);
     }
+    track_data.enabled = true;
+    m_tracks_still_buffering.set(track);
+    m_handler->on_track_enabled(track);
 }
 
 void PlaybackManager::disable_an_audio_track(Track const& track)
 {
-    if (!m_audio_sink)
-        return;
     auto& track_data = get_audio_data_for_track(track);
-    VERIFY(track_data.provider == m_audio_sink->provider(track));
-    m_audio_sink->set_provider(track, nullptr);
+    VERIFY(track_data.enabled);
+    if (m_audio_sink) {
+        VERIFY(m_audio_sink->provider(track) == track_data.provider);
+        m_audio_sink->set_provider(track, nullptr);
+    }
+    track_data.enabled = false;
     track_stopped_buffering(track);
     m_handler->on_track_disabled(track);
 }
@@ -377,14 +379,11 @@ bool PlaybackManager::track_is_enabled(Track const& track) const
     }
 
     VERIFY(track.type() == TrackType::Audio);
-    if (!m_audio_sink)
-        return false;
-
     auto const& track_data = get_audio_data_for_track(track);
-    auto const& assigned_provider = m_audio_sink->provider(track);
-    if (assigned_provider == nullptr)
+    if (!track_data.enabled)
         return false;
-    VERIFY(track_data.provider == assigned_provider);
+    if (m_audio_sink)
+        VERIFY(track_data.provider == m_audio_sink->provider(track));
     return true;
 }
 

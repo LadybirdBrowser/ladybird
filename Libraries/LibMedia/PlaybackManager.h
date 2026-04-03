@@ -112,6 +112,7 @@ private:
     struct AudioTrackData {
         Track track;
         NonnullRefPtr<AudioDataProvider> provider;
+        bool enabled { false };
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 

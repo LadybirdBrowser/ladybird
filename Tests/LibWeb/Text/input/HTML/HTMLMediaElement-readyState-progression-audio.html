@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio"></audio>
+<script>
+    asyncTest(done => {
+        const audio = document.getElementById("audio");
+
+        function logEvent(name) {
+            let entry = `${name}: readyState=${audio.readyState}`;
+            if (name === "durationchange")
+                entry += ` duration=${audio.duration}`;
+            println(entry);
+        }
+
+        for (const name of [
+            "loadstart", "durationchange", "loadedmetadata",
+            "loadeddata", "canplay", "canplaythrough",
+            "seeking", "seeked",
+        ]) {
+            audio.addEventListener(name, () => logEvent(name));
+        }
+
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+
+        audio.addEventListener("canplay", () => {
+            audio.currentTime = 5;
+            audio.addEventListener("seeked", () => done());
+        });
+    });
+</script>

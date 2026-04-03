@@ -30,7 +30,8 @@ void PlaybackStateHandler::on_track_enabled(Track const& track)
 
     VERIFY(track.type() == TrackType::Audio);
     auto& track_data = manager().get_audio_data_for_track(track);
-    VERIFY(manager().m_audio_sink != nullptr);
+    if (!manager().m_audio_sink)
+        return;
     track_data.provider->seek(manager().current_time(), [track, sink = NonnullRefPtr(*manager().m_audio_sink)] {
         sink->clear_track_data(track);
     });
