@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<a href="#hash" onclick="location.replace('iframe-location-replace-with-fragment.html?replaced=1')">click</a>
+<script>
+if (location.search === "?replaced=1")
+    parent.postMessage("replaced", "*");
+else
+    document.querySelector("a").click();
+</script>

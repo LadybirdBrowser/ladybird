@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(done => {
+    window.addEventListener("message", e => {
+        println(e.data === "replaced" ? "PASS" : "FAIL: " + e.data);
+        done();
+    });
+    const iframe = document.createElement("iframe");
+    iframe.src = "../../data/iframe-location-replace-with-fragment.html";
+    document.body.appendChild(iframe);
+});
+</script>
