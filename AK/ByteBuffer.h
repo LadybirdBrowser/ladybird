@@ -43,7 +43,7 @@ public:
     {
         if (this != &other) {
             if (!m_inline)
-                kfree_sized(m_outline_buffer, m_outline_capacity);
+                kfree(m_outline_buffer);
             move_from(move(other));
         }
         return *this;
@@ -176,7 +176,7 @@ public:
     void clear()
     {
         if (!m_inline) {
-            kfree_sized(m_outline_buffer, m_outline_capacity);
+            kfree(m_outline_buffer);
             m_inline = true;
         }
         m_size = 0;
@@ -353,10 +353,9 @@ private:
     {
         // m_inline_buffer and m_outline_buffer are part of a union, so save the pointer
         auto* outline_buffer = m_outline_buffer;
-        auto outline_capacity = m_outline_capacity;
         if (!may_discard_existing_data)
             __builtin_memcpy(m_inline_buffer, outline_buffer, size);
-        kfree_sized(outline_buffer, outline_capacity);
+        kfree(outline_buffer);
         m_inline = true;
     }
 
@@ -377,7 +376,7 @@ private:
             __builtin_memcpy(new_buffer, data(), m_size);
         } else if (m_outline_buffer) {
             __builtin_memcpy(new_buffer, m_outline_buffer, min(new_capacity, m_outline_capacity));
-            kfree_sized(m_outline_buffer, m_outline_capacity);
+            kfree(m_outline_buffer);
         }
 
         m_outline_buffer = new_buffer;

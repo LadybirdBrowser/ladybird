@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <AK/kmalloc.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
 #include <LibJS/Bytecode/Executable.h>
@@ -1005,7 +1006,7 @@ extern "C" void* rust_compile_regex(
     auto parsed_pattern = JS::parse_regex_pattern(pattern, is_unicode, is_unicode_sets);
     if (parsed_pattern.is_error()) {
         auto msg = MUST(String::formatted("RegExp compile error: {}", parsed_pattern.release_error().error));
-        auto* buf = static_cast<char*>(malloc(msg.byte_count() + 1));
+        auto* buf = static_cast<char*>(kmalloc(msg.byte_count() + 1));
         memcpy(buf, msg.bytes().data(), msg.byte_count());
         buf[msg.byte_count()] = '\0';
         *error_out = buf;
@@ -1050,7 +1051,7 @@ extern "C" void* rust_compile_regex(
     auto compiled = regex::ECMAScriptRegex::compile(pattern_str.bytes_as_string_view(), compile_flags);
     if (compiled.is_error()) {
         auto msg = MUST(String::formatted("RegExp compile error: {}", compiled.release_error()));
-        auto* buf = static_cast<char*>(malloc(msg.byte_count() + 1));
+        auto* buf = static_cast<char*>(kmalloc(msg.byte_count() + 1));
         memcpy(buf, msg.bytes().data(), msg.byte_count());
         buf[msg.byte_count()] = '\0';
         *error_out = buf;
@@ -1067,7 +1068,7 @@ extern "C" void rust_free_compiled_regex(void* ptr)
 
 extern "C" void rust_free_error_string(char const* str)
 {
-    free(const_cast<char*>(str));
+    kfree(const_cast<char*>(str));
 }
 
 extern "C" size_t rust_number_to_utf16(double value, uint16_t* buffer, size_t buffer_len)

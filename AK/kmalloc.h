@@ -12,25 +12,43 @@
 #include <new>
 #include <stdlib.h>
 
-#define kcalloc calloc
-#define kmalloc malloc
-#define kmalloc_good_size malloc_good_size
+#if defined(AK_OS_SERENITY)
+#    define kcalloc calloc
+#    define kfree free
+#    define kmalloc malloc
+#    define krealloc realloc
+#    define kmalloc_good_size malloc_good_size
+#else
+[[nodiscard]] void* ak_kcalloc(size_t count, size_t size);
+void ak_kfree(void* ptr);
+[[nodiscard]] void* ak_kmalloc(size_t size);
+[[nodiscard]] void* ak_krealloc(void* ptr, size_t size);
+[[nodiscard]] size_t ak_kmalloc_good_size(size_t size);
 
-inline void kfree_sized(void* ptr, size_t)
+[[nodiscard]] inline void* kcalloc(size_t count, size_t size)
 {
-    free(ptr);
+    return ak_kcalloc(count, size);
 }
 
-#ifndef AK_OS_SERENITY
-#    include <AK/Types.h>
-
-#    ifndef AK_OS_MACOS
-extern "C" {
-inline size_t malloc_good_size(size_t size) { return size; }
+inline void kfree(void* ptr)
+{
+    ak_kfree(ptr);
 }
-#    else
-#        include <malloc/malloc.h>
-#    endif
+
+[[nodiscard]] inline void* kmalloc(size_t size)
+{
+    return ak_kmalloc(size);
+}
+
+[[nodiscard]] inline void* krealloc(void* ptr, size_t size)
+{
+    return ak_krealloc(ptr, size);
+}
+
+[[nodiscard]] inline size_t kmalloc_good_size(size_t size)
+{
+    return ak_kmalloc_good_size(size);
+}
 #endif
 
 using std::nothrow;

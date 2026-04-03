@@ -113,6 +113,7 @@
       "name": "mman",
       "platform": "windows"
     },
+    "mimalloc",
     "openssl",
     {
       "name": "pthread",
@@ -308,6 +309,10 @@
     {
       "name": "libxml2",
       "version": "2.13.8#1"
+    },
+    {
+      "name": "mimalloc",
+      "version": "2.2.7"
     },
     {
       "name": "mman",

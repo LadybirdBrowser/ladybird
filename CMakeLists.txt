@@ -137,6 +137,8 @@ if (WIN32)
     find_package(mman REQUIRED)
 endif()
 
+find_package(mimalloc CONFIG REQUIRED)
+
 include(rust_crate)
 include(targets)
 

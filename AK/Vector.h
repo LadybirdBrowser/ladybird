@@ -481,7 +481,7 @@ public:
     {
         clear_with_capacity();
         if (m_metadata.outline_buffer) {
-            kfree_sized(m_metadata.outline_buffer, m_capacity * sizeof(StorageType));
+            kfree(m_metadata.outline_buffer);
             m_metadata.outline_buffer = nullptr;
         }
         reset_capacity();
@@ -862,7 +862,7 @@ public:
             }
         }
         if (m_metadata.outline_buffer)
-            kfree_sized(m_metadata.outline_buffer, m_capacity * sizeof(StorageType));
+            kfree(m_metadata.outline_buffer);
         m_metadata.outline_buffer = new_buffer;
         m_capacity = new_capacity;
         update_metadata(); // We have *some* space, we just allocated it.

@@ -13,6 +13,7 @@
 #include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Utf16View.h>
+#include <AK/kmalloc.h>
 
 namespace AK::Detail {
 
@@ -52,7 +53,7 @@ public:
 
     void operator delete(void* ptr)
     {
-        free(ptr);
+        kfree(ptr);
     }
 
     [[nodiscard]] ALWAYS_INLINE bool operator==(Utf16StringData const& other) const
@@ -129,6 +130,13 @@ private:
 
     template<typename ViewType>
     static NonnullRefPtr<Utf16StringData> create_from_code_point_iterable(ViewType const&);
+
+    [[nodiscard]] static constexpr size_t allocation_size_for_string_data(bool has_ascii_storage, size_t code_unit_length)
+    {
+        return has_ascii_storage
+            ? sizeof(Utf16StringData) + (sizeof(char) * code_unit_length)
+            : sizeof(Utf16StringData) + (sizeof(char16_t) * code_unit_length);
+    }
 
     [[nodiscard]] size_t calculate_code_point_length() const;
 

@@ -654,6 +654,29 @@
       ]
     },
     {
+      "name": "mimalloc",
+      "buildsystem": "cmake-ninja",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/microsoft/mimalloc.git",
+          "tag": "v2.2.7"
+        }
+      ],
+      "config-opts": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=/app",
+        "-DCMAKE_INSTALL_LIBDIR=lib",
+        "-DMI_BUILD_OBJECT=OFF",
+        "-DMI_BUILD_TESTS=OFF",
+        "-DMI_BUILD_STATIC=OFF",
+        "-DMI_BUILD_SHARED=ON",
+        "-DMI_INSTALL_TOPLEVEL=ON",
+        "-DMI_OVERRIDE=OFF",
+        "-DMI_USE_CXX=ON"
+      ]
+    },
+    {
       "name": "Ladybird",
       "buildsystem": "cmake-ninja",
       "sources": [

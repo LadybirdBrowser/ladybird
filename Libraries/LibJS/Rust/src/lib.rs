@@ -52,6 +52,9 @@
 //! - `bytecode/` — Bytecode generator, instruction types, and FFI
 //! - `scope_collector.rs` — Scope analysis
 
+#[path = "../../../RustAllocator.rs"]
+mod rust_allocator;
+
 /// Compile-time conversion of an ASCII string literal to `&'static [u16]`.
 ///
 /// Produces a static `[u16; N]` array, so comparisons like

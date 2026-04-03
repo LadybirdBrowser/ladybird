@@ -50,7 +50,7 @@ public:
     Bitmap& operator=(Bitmap&& other)
     {
         if (this != &other) {
-            kfree_sized(m_data, size_in_bytes());
+            kfree(m_data);
             m_data = exchange(other.m_data, nullptr);
             m_size = exchange(other.m_size, 0);
         }
@@ -60,7 +60,7 @@ public:
     ~Bitmap()
     {
         if (m_is_owning) {
-            kfree_sized(m_data, size_in_bytes());
+            kfree(m_data);
         }
         m_data = nullptr;
     }
@@ -96,7 +96,7 @@ public:
             __builtin_memcpy(m_data, previous_data, previous_size_bytes);
             if ((previous_size % 8) != 0)
                 set_range(previous_size, 8 - previous_size % 8, default_value);
-            kfree_sized(previous_data, previous_size_bytes);
+            kfree(previous_data);
         }
     }
 

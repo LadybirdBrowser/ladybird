@@ -8,3 +8,6 @@ target_link_libraries(LibRegex PRIVATE LibUnicode)
 
 import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libregex_rust FFI_HEADER RustFFI.h)
 target_link_libraries(LibRegex PRIVATE libregex_rust)
+if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+    target_link_options(LibRegex INTERFACE LINKER:--allow-multiple-definition)
+endif()

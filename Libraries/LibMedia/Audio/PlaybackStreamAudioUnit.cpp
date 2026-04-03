@@ -10,6 +10,7 @@
 #include <AK/ScopeGuard.h>
 #include <AK/SourceLocation.h>
 #include <AK/Vector.h>
+#include <AK/kmalloc.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/PlaybackStreamAudioUnit.h>
 #include <LibThreading/Mutex.h>
@@ -78,7 +79,7 @@ class CoreAudioPropertyValue {
 public:
     static ErrorOr<CoreAudioPropertyValue<T>> create(u32 size)
     {
-        auto ptr = reinterpret_cast<T*>(malloc(size));
+        auto ptr = reinterpret_cast<T*>(kmalloc(size));
         if (ptr == nullptr)
             return Error::from_errno(ENOMEM);
         return CoreAudioPropertyValue<T>(ptr, size);
@@ -96,7 +97,7 @@ public:
     }
     ~CoreAudioPropertyValue()
     {
-        free(m_ptr);
+        kfree(m_ptr);
     }
 
     u32 size() const { return m_size; }
@@ -471,8 +472,8 @@ ErrorOr<ChannelMap> audio_channel_layout_to_channel_map(AudioChannelLayout const
                 &explicit_layout_size));
             VERIFY(explicit_layout_size >= sizeof(AudioChannelLayout));
 
-            auto* explicit_layout = reinterpret_cast<AudioChannelLayout*>(malloc(explicit_layout_size));
-            ScopeGuard free_explicit_layout { [&] { free(explicit_layout); } };
+            auto* explicit_layout = reinterpret_cast<AudioChannelLayout*>(kmalloc(explicit_layout_size));
+            ScopeGuard free_explicit_layout { [&] { kfree(explicit_layout); } };
 
             AU_TRY(AudioFormatGetProperty(
                 kAudioFormatProperty_ChannelLayoutForTag,

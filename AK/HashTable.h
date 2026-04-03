@@ -190,7 +190,7 @@ public:
             }
         }
 
-        kfree_sized(m_buckets, size_in_bytes(capacity()));
+        kfree(m_buckets);
     }
 
     HashTable(HashTable const& other)
@@ -622,7 +622,6 @@ private:
         VERIFY(new_capacity >= size());
 
         auto* old_buckets = m_buckets;
-        auto old_buckets_size = size_in_bytes(capacity());
         Iterator old_iter = begin();
 
         auto* new_buckets = kcalloc(1, size_in_bytes(new_capacity));
@@ -644,7 +643,7 @@ private:
             it->~T();
         }
 
-        kfree_sized(old_buckets, old_buckets_size);
+        kfree(old_buckets);
         return {};
     }
     void rehash(size_t new_capacity)

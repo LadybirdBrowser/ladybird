@@ -108,8 +108,8 @@ Bitmap::Bitmap(BitmapFormat format, AlphaType alpha_type, IntSize size, BackingS
     VERIFY(!size_would_overflow(format, size));
     VERIFY(m_data);
     VERIFY(backing_store.size_in_bytes == size_in_bytes());
-    m_destruction_callback = [data = m_data, size_in_bytes = this->size_in_bytes()] {
-        kfree_sized(data, size_in_bytes);
+    m_destruction_callback = [data = m_data] {
+        kfree(data);
     };
 }
 
