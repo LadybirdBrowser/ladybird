@@ -4547,6 +4547,15 @@ void Document::run_unloading_cleanup_steps()
         window.clear_map_of_active_timers();
     }
 
+    // https://w3c.github.io/IndexedDB/#database-connection
+    // If the execution context where the connection was created is destroyed
+    // (for example due to the user navigating away from that page), the connection is closed.
+    // AD-HOC: We have no way to detect when the execution context that created the connection is destroyed, and
+    //         making LibJS notify us of that would undoubtedly be very costly to performance. All other browsers also
+    //         opt not to follow the spec exactly in regards to this, instead letting the connection stay open until
+    //         GC collects it. However, we need to be proactive about this when navigating for the sake of test-web.
+    window.close_all_idb_connections();
+
     FileAPI::run_unloading_cleanup_steps(*this);
     fully_exit_fullscreen();
 }

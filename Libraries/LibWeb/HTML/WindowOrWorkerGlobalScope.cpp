@@ -41,7 +41,9 @@
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/Performance.h>
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
+#include <LibWeb/IndexedDB/IDBDatabase.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
+#include <LibWeb/IndexedDB/Internal/Algorithms.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
@@ -1063,6 +1065,18 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
 {
     for (auto event_source : m_registered_event_sources)
         event_source->forcibly_close();
+}
+
+void WindowOrWorkerGlobalScopeMixin::close_all_idb_connections()
+{
+    IndexedDB::Database::for_each_database([&](IndexedDB::Database& database) {
+        for (auto& connection : database.associated_connections_as_root_vector()) {
+            if (connection->close_pending())
+                continue;
+            if (&as<WindowOrWorkerGlobalScopeMixin>(relevant_global_object(*connection)) == this)
+                IndexedDB::close_a_database_connection(connection);
+        }
+    });
 }
 
 void WindowOrWorkerGlobalScopeMixin::register_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket> web_socket)
