@@ -1417,8 +1417,22 @@ void HTMLInputElement::create_range_input_shadow_tree()
         double maximum = *max();
         if (minimum > maximum)
             return;
-        // FIXME: Snap new value to input steps
-        MUST(set_value_as_number(clamp(round(((client_x - rect.left().to_double()) / rect.width().to_double()) * (maximum - minimum) + minimum), minimum, maximum)));
+
+        double fraction = (client_x - rect.left().to_double()) / rect.width().to_double();
+        double value = fraction * (maximum - minimum) + minimum;
+
+        // Snap to allowed value step per the HTML spec for <input type=range>.
+        // https://html.spec.whatwg.org/multipage/input.html#range-state-(type=range)
+        if (auto maybe_allowed_value_step = allowed_value_step(); maybe_allowed_value_step.has_value()) {
+            double allowed_value_step = *maybe_allowed_value_step;
+            double base = step_base();
+
+            // Round to the nearest allowed step. If two numbers are equally close,
+            // choose the one nearest to positive infinity.
+            value = base + floor((value - base) / allowed_value_step + 0.5) * allowed_value_step;
+        }
+
+        MUST(set_value_as_number(clamp(value, minimum, maximum)));
         user_interaction_did_change_input_value();
     };
 
