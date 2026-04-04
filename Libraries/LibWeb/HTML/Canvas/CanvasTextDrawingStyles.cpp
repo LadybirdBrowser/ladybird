@@ -106,30 +106,24 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
             auto computed_math_depth = CSS::InitialValues::math_depth();
 
-            // FIXME: Investigate whether this is the correct resolution context (i.e. whether we should instead use
-            //        a font-size of 10px) for OffscreenCanvas
-            auto length_resolution_context = CSS::Length::ResolutionContext::for_document(*document);
-            Optional<DOM::AbstractElement> abstract_element;
+            Optional<DOM::AbstractElement> inheritance_parent;
 
             if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-                // NOTE: The canvas itself is considered the inheritance parent
                 if (canvas_element.computed_properties()) {
                     // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
                     computed_math_depth = canvas_element.computed_properties()->math_depth();
-                    abstract_element = DOM::AbstractElement { canvas_element };
-                    length_resolution_context = CSS::Length::ResolutionContext::for_element(abstract_element.value());
+
+                    // NOTE: The canvas itself is considered the inheritance parent
+                    inheritance_parent = canvas_element;
                 }
             }
 
-            CSS::ComputationContext computation_context {
-                .length_resolution_context = length_resolution_context,
-                .abstract_element = abstract_element
-            };
+            auto computation_context = canvas_element.canvas_font_computation_context();
 
             // FIXME: Should font be recomputed on canvas element style change?
             // FIXME: Respect the <font-variant-css2> portion of <'font'>
-            auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size.absolutized(computation_context), computed_math_depth, abstract_element);
-            auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight.absolutized(computation_context), abstract_element);
+            auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size.absolutized(computation_context), computed_math_depth, inheritance_parent);
+            auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight.absolutized(computation_context), inheritance_parent);
             auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width.absolutized(computation_context));
             auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style.absolutized(computation_context));
 

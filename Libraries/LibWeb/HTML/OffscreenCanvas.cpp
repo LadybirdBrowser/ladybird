@@ -7,6 +7,7 @@
 #include <AK/Tuple.h>
 #include <LibGfx/Bitmap.h>
 #include <LibWeb/Bindings/OffscreenCanvasPrototype.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
@@ -15,6 +16,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 
@@ -345,6 +347,26 @@ void OffscreenCanvas::set_oncontextrestored(GC::Ptr<WebIDL::CallbackType> event_
 GC::Ptr<WebIDL::CallbackType> OffscreenCanvas::oncontextrestored()
 {
     return event_handler_attribute(HTML::EventNames::contextrestored);
+}
+
+CSS::ComputationContext OffscreenCanvas::canvas_font_computation_context() const
+{
+    // NB: The default font for a canvas is 10px sans-serif so we use a point size of 8 here.
+    CSS::Length::FontMetrics font_metrics { 10, Platform::FontPlugin::the().default_font(8)->pixel_metrics(), CSS::InitialValues::line_height() };
+
+    return CSS::ComputationContext {
+        .length_resolution_context = {
+            .viewport_rect = { 0, 0, 0, 0 },
+            .font_metrics = font_metrics,
+            .root_font_metrics = font_metrics },
+
+        // NB: We don't require an abstract element because tree counting and random() functions aren't allowed in
+        //     offscreen canvas context values
+        .abstract_element = {},
+
+        // FIXME: Do we require a color scheme to resolve light-dark()?
+        .color_scheme = {}
+    };
 }
 
 void OffscreenCanvas::initialize(JS::Realm& realm)
