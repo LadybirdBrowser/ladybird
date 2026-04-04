@@ -174,9 +174,9 @@ Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu
         auto* bookmarks_bar = [tab bookmarksBar];
 
         return Application::BookmarkID {
-            .id = Ladybird::ns_string_to_string([bookmarks_bar bookmark_context_menu_item_id]),
-            .target_folder_id = [bookmarks_bar bookmark_context_menu_target_folder_id]
-                ? Optional<String> { Ladybird::ns_string_to_string([bookmarks_bar bookmark_context_menu_target_folder_id]) }
+            .id = Ladybird::ns_string_to_string([bookmarks_bar selected_bookmark_menu_item_id]),
+            .target_folder_id = [bookmarks_bar selected_bookmark_menu_target_folder_id]
+                ? Optional<String> { Ladybird::ns_string_to_string([bookmarks_bar selected_bookmark_menu_target_folder_id]) }
                 : Optional<String> {},
         };
     }

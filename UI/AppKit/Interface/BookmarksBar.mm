@@ -53,8 +53,8 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 @property (nonatomic, strong) NSMenu* bookmark_context_menu;
 @property (nonatomic, strong) NSMenu* bookmark_folder_context_menu;
 
-@property (nonatomic, strong, readwrite) NSString* bookmark_context_menu_item_id;
-@property (nonatomic, strong, readwrite) NSString* bookmark_context_menu_target_folder_id;
+@property (nonatomic, strong, readwrite) NSString* selected_bookmark_menu_item_id;
+@property (nonatomic, strong, readwrite) NSString* selected_bookmark_menu_target_folder_id;
 
 @end
 
@@ -278,8 +278,8 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
 
 - (void)showContextMenu:(id)control event:(NSEvent*)event
 {
-    self.bookmark_context_menu_item_id = Ladybird::get_control_property(control, @"id");
-    self.bookmark_context_menu_target_folder_id = Ladybird::get_control_property(control, @"target_folder_id");
+    self.selected_bookmark_menu_item_id = Ladybird::get_control_property(control, @"id");
+    self.selected_bookmark_menu_target_folder_id = Ladybird::get_control_property(control, @"target_folder_id");
 
     if (auto* type = Ladybird::get_control_property(control, @"type"); [type isEqualToString:@"bookmark"])
         [NSMenu popUpContextMenu:self.bookmark_context_menu withEvent:event forView:control];
@@ -303,8 +303,8 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
         return;
     }
 
-    self.bookmark_context_menu_item_id = @"";
-    self.bookmark_context_menu_target_folder_id = nil;
+    self.selected_bookmark_menu_item_id = @"";
+    self.selected_bookmark_menu_target_folder_id = nil;
 
     [NSMenu popUpContextMenu:self.bookmarks_bar_context_menu withEvent:event forView:self];
 }
