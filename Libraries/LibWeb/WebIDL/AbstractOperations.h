@@ -8,10 +8,14 @@
 
 #pragma once
 
+#include <AK/FlyString.h>
 #include <AK/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/FunctionObject.h>
+#include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 
@@ -59,5 +63,29 @@ template<Integral T>
 JS::ThrowCompletionOr<T> convert_to_int(JS::VM& vm, JS::Value, EnforceRange enforce_range = EnforceRange::No, Clamp clamp = Clamp::No);
 
 bool lists_contain_same_elements(GC::Ptr<JS::Array> array, Optional<GC::RootVector<GC::Ref<DOM::Element>>> const& elements);
+
+// https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+// Steps from "internally create a new object implementing the interface"
+template<typename PrototypeType>
+JS::ThrowCompletionOr<void> set_prototype_from_new_target(JS::VM& vm, JS::FunctionObject& new_target, FlyString const& interface_name, JS::Object& object)
+{
+    // 3.2. Let prototype be ? Get(newTarget, "prototype").
+    auto prototype = TRY(new_target.get(vm.names.prototype));
+
+    // 3.3. If Type(prototype) is not Object, then:
+    if (!prototype.is_object()) {
+        // 1. Let targetRealm be ? GetFunctionRealm(newTarget).
+        auto* target_realm = TRY(JS::get_function_realm(vm, new_target));
+
+        // 2. Set prototype to the interface prototype object for interface in targetRealm.
+        VERIFY(target_realm);
+        prototype = &Bindings::ensure_web_prototype<PrototypeType>(*target_realm, interface_name);
+    }
+
+    // 9. Set instance.[[Prototype]] to prototype.
+    VERIFY(prototype.is_object());
+    TRY(object.internal_set_prototype_of(&prototype.as_object()));
+    return {};
+}
 
 }
