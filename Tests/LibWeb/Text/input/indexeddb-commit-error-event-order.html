@@ -5,7 +5,10 @@ asyncTest(done => {
     setTimeout(() => {
         spoofCurrentURL("https://example.com/");
 
-        const openReq = indexedDB.open("commit-error-event-order", 1);
+        const DB_NAME = "commit-error-event-order";
+
+        indexedDB.deleteDatabase(DB_NAME);
+        const openReq = indexedDB.open(DB_NAME, 1);
         openReq.onupgradeneeded = (e) => {
             const db = e.target.result;
             db.createObjectStore("store", { keyPath: "key" });
@@ -32,16 +35,20 @@ asyncTest(done => {
                     ev.preventDefault();
                 };
 
+                function theEnd() {
+                    db.close();
+                    indexedDB.deleteDatabase(DB_NAME);
+                    done();
+                }
+
                 txn2.addEventListener("error", () => println("tx:error"));
                 txn2.addEventListener("abort", () => {
                     println("tx:abort");
-                    db.close();
-                    done();
+                    theEnd();
                 });
                 txn2.addEventListener("complete", () => {
                     println("tx:complete");
-                    db.close();
-                    done();
+                    theEnd();
                 });
 
                 txn2.commit();
