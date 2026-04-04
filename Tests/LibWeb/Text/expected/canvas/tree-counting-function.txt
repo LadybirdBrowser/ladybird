@@ -1,6 +1,6 @@
-sibling-count() 10px serif
+4 10px serif
 10px sans-serif
-calc(1px * sibling-count()) serif
+4px serif
 10px sans-serif
 0px
 #000000

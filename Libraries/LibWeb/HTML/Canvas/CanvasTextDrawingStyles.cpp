@@ -71,8 +71,6 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     // The font IDL attribute, on setting, must be parsed as a CSS <'font'> value (but without supporting property-independent style sheet syntax like 'inherit'),
     // and the resulting font must be assigned to the context, with the 'line-height' component forced to 'normal', with the 'font-size' component converted to CSS pixels,
     // and with system fonts being computed to explicit values.
-    // FIXME: with the 'line-height' component forced to 'normal'
-    // FIXME: with the 'font-size' component converted to CSS pixels
 
     auto const parsing_context = [&]() {
         if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>)
@@ -87,46 +85,80 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     if (!font_style_value_result || !font_style_value_result->is_shorthand()) {
         return;
     }
-    my_drawing_state().font_style_value = font_style_value_result.release_nonnull();
 
     // Load font with font style value properties
-    auto const& font_style_value = my_drawing_state().font_style_value->as_shorthand();
+    auto const& font_style_value = font_style_value_result->as_shorthand();
     auto& canvas_element = static_cast<IncludingClass&>(*this).canvas_element();
 
-    auto& font_style = *font_style_value.longhand(CSS::PropertyID::FontStyle);
-    auto& font_weight = *font_style_value.longhand(CSS::PropertyID::FontWeight);
-    auto& font_width = *font_style_value.longhand(CSS::PropertyID::FontWidth);
-    auto& font_size = *font_style_value.longhand(CSS::PropertyID::FontSize);
+    auto computed_math_depth = CSS::InitialValues::math_depth();
+
+    // FIXME: We will need to absolutize this once we support ident() functions
     auto& font_family = *font_style_value.longhand(CSS::PropertyID::FontFamily);
+
+    Optional<DOM::AbstractElement> inheritance_parent;
+
+    if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
+        if (canvas_element.computed_properties()) {
+            // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
+            computed_math_depth = canvas_element.computed_properties()->math_depth();
+
+            // NOTE: The canvas itself is considered the inheritance parent
+            inheritance_parent = canvas_element;
+        }
+    }
+
+    auto computation_context = canvas_element.canvas_font_computation_context();
+
+    // FIXME: Respect the <font-variant-css2> portion of <'font'>
+    auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_style_value.longhand(CSS::PropertyID::FontSize)->absolutized(computation_context), computed_math_depth, inheritance_parent);
+    auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style_value.longhand(CSS::PropertyID::FontStyle)->absolutized(computation_context));
+    auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_style_value.longhand(CSS::PropertyID::FontWeight)->absolutized(computation_context), inheritance_parent);
+    auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_style_value.longhand(CSS::PropertyID::FontWidth)->absolutized(computation_context));
+
+    my_drawing_state().font_style_value = CSS::ShorthandStyleValue::create(
+        CSS::PropertyID::Font,
+        {
+            // Set explicitly https://drafts.csswg.org/css-fonts/#set-explicitly
+            CSS::PropertyID::FontFamily,
+            CSS::PropertyID::FontSize,
+            CSS::PropertyID::FontWidth,
+            CSS::PropertyID::FontStyle,
+            CSS::PropertyID::FontVariant,
+            CSS::PropertyID::FontWeight,
+            CSS::PropertyID::LineHeight,
+
+            // Reset implicitly https://drafts.csswg.org/css-fonts/#reset-implicitly
+            CSS::PropertyID::FontFeatureSettings,
+            CSS::PropertyID::FontKerning,
+            CSS::PropertyID::FontLanguageOverride,
+            CSS::PropertyID::FontOpticalSizing,
+            // FIXME: PropertyID::FontSizeAdjust,
+            CSS::PropertyID::FontVariationSettings,
+        },
+        {
+            // Set explicitly
+            font_family,
+            computed_font_size,
+            computed_font_width,
+            computed_font_style,
+            property_initial_value(CSS::PropertyID::FontVariant), // FIXME: Use the computed font variant once we support it.
+            computed_font_weight,
+            property_initial_value(CSS::PropertyID::LineHeight), // NB: line-height is forced to normal (i.e. the initial value)
+
+            // Reset implicitly
+            property_initial_value(CSS::PropertyID::FontFeatureSettings),   // font-feature-settings
+            property_initial_value(CSS::PropertyID::FontKerning),           // font-kerning,
+            property_initial_value(CSS::PropertyID::FontLanguageOverride),  // font-language-override
+            property_initial_value(CSS::PropertyID::FontOpticalSizing),     // font-optical-sizing,
+                                                                            // FIXME: font-size-adjust,
+            property_initial_value(CSS::PropertyID::FontVariationSettings), // font-variation-settings
+        });
 
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto font_source = get_font_source_for_font_style_source_object(canvas_element);
 
     auto font_list = font_source.visit(
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
-            auto computed_math_depth = CSS::InitialValues::math_depth();
-
-            Optional<DOM::AbstractElement> inheritance_parent;
-
-            if constexpr (SameAs<CanvasType, HTML::HTMLCanvasElement>) {
-                if (canvas_element.computed_properties()) {
-                    // NOTE: Since we can't set a math depth directly here we always use the inherited value for the computed value
-                    computed_math_depth = canvas_element.computed_properties()->math_depth();
-
-                    // NOTE: The canvas itself is considered the inheritance parent
-                    inheritance_parent = canvas_element;
-                }
-            }
-
-            auto computation_context = canvas_element.canvas_font_computation_context();
-
-            // FIXME: Should font be recomputed on canvas element style change?
-            // FIXME: Respect the <font-variant-css2> portion of <'font'>
-            auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_size.absolutized(computation_context), computed_math_depth, inheritance_parent);
-            auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_weight.absolutized(computation_context), inheritance_parent);
-            auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_width.absolutized(computation_context));
-            auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style.absolutized(computation_context));
-
             return document->font_computer().compute_font_for_style_values(
                 font_family,
                 computed_font_size->as_length().length().absolute_length_to_px(),
