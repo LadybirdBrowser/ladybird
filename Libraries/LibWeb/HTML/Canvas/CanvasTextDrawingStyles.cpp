@@ -109,11 +109,13 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
 
     auto computation_context = canvas_element.canvas_font_computation_context();
 
-    // FIXME: Respect the <font-variant-css2> portion of <'font'>
     auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_style_value.longhand(CSS::PropertyID::FontSize)->absolutized(computation_context), computed_math_depth, inheritance_parent);
     auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style_value.longhand(CSS::PropertyID::FontStyle)->absolutized(computation_context));
     auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_style_value.longhand(CSS::PropertyID::FontWeight)->absolutized(computation_context), inheritance_parent);
     auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_style_value.longhand(CSS::PropertyID::FontWidth)->absolutized(computation_context));
+    // NB: This doesn't require absolutization since only the font-variant-caps longhand can be set and that can only be
+    //     a keyword value
+    auto const& computed_font_variant = font_style_value.longhand(CSS::PropertyID::FontVariant).release_nonnull();
 
     my_drawing_state().font_style_value = CSS::ShorthandStyleValue::create(
         CSS::PropertyID::Font,
@@ -141,7 +143,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
             computed_font_size,
             computed_font_width,
             computed_font_style,
-            property_initial_value(CSS::PropertyID::FontVariant), // FIXME: Use the computed font variant once we support it.
+            computed_font_variant,
             computed_font_weight,
             property_initial_value(CSS::PropertyID::LineHeight), // NB: line-height is forced to normal (i.e. the initial value)
 
@@ -157,6 +159,11 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
     // https://drafts.csswg.org/css-font-loading/#font-source
     auto font_source = get_font_source_for_font_style_source_object(canvas_element);
 
+    CSS::FontFeatureData font_feature_data;
+
+    if (keyword_to_font_variant_caps(computed_font_variant->as_shorthand().longhand(CSS::PropertyID::FontVariantCaps)->to_keyword()) == CSS::FontVariantCaps::SmallCaps)
+        font_feature_data.font_variant_caps = CSS::FontVariantCaps::SmallCaps;
+
     auto font_list = font_source.visit(
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
             return document->font_computer().compute_font_for_style_values(
@@ -167,7 +174,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
                 computed_font_width->as_percentage().percentage(),
                 CSS::FontOpticalSizing::Auto,
                 {},
-                {});
+                font_feature_data);
         },
         [](HTML::WorkerGlobalScope*) -> RefPtr<Gfx::FontCascadeList const> {
             // FIXME: implement computing the font for HTML::WorkerGlobalScope
