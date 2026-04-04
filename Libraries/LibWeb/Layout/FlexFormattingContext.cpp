@@ -1680,7 +1680,7 @@ void FlexFormattingContext::align_all_flex_lines()
     if (m_flex_lines.is_empty())
         return;
 
-    bool wrap_reverse = flex_container().computed_values().flex_wrap() == CSS::FlexWrap::WrapReverse;
+    bool reverse_cross_axis = cross_axis_is_reverse();
     bool place_items_backwards = false;
     bool iterate_lines_backwards = false;
 
@@ -1708,15 +1708,15 @@ void FlexFormattingContext::align_all_flex_lines()
     switch (flex_container().computed_values().align_content()) {
     case CSS::AlignContent::Start:
         start_of_current_line = 0;
-        iterate_lines_backwards = wrap_reverse;
+        iterate_lines_backwards = reverse_cross_axis;
         break;
     case CSS::AlignContent::End:
         start_of_current_line = cross_size_of_flex_container;
         place_items_backwards = true;
-        iterate_lines_backwards = !wrap_reverse;
+        iterate_lines_backwards = !reverse_cross_axis;
         break;
     case CSS::AlignContent::FlexStart:
-        if (wrap_reverse) {
+        if (reverse_cross_axis) {
             start_of_current_line = cross_size_of_flex_container;
             place_items_backwards = true;
         } else {
@@ -1725,7 +1725,7 @@ void FlexFormattingContext::align_all_flex_lines()
         break;
     case CSS::AlignContent::FlexEnd:
         iterate_lines_backwards = true;
-        if (wrap_reverse) {
+        if (reverse_cross_axis) {
             start_of_current_line = 0;
         } else {
             start_of_current_line = cross_size_of_flex_container;
@@ -1733,11 +1733,11 @@ void FlexFormattingContext::align_all_flex_lines()
         }
         break;
     case CSS::AlignContent::Center:
-        iterate_lines_backwards = wrap_reverse;
+        iterate_lines_backwards = reverse_cross_axis;
         start_of_current_line = (cross_size_of_flex_container / 2) - (sum_of_flex_line_cross_sizes / 2);
         break;
     case CSS::AlignContent::SpaceBetween: {
-        if (wrap_reverse) {
+        if (reverse_cross_axis) {
             start_of_current_line = cross_size_of_flex_container;
             place_items_backwards = true;
         } else {
@@ -1753,7 +1753,7 @@ void FlexFormattingContext::align_all_flex_lines()
         break;
     }
     case CSS::AlignContent::SpaceAround: {
-        iterate_lines_backwards = wrap_reverse;
+        iterate_lines_backwards = reverse_cross_axis;
         auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
         if (leftover_free_space < 0) {
             // If the leftover free-space is negative this value is identical to center.
@@ -1768,7 +1768,7 @@ void FlexFormattingContext::align_all_flex_lines()
         break;
     }
     case CSS::AlignContent::SpaceEvenly: {
-        iterate_lines_backwards = wrap_reverse;
+        iterate_lines_backwards = reverse_cross_axis;
         auto leftover_free_space = cross_size_of_flex_container - sum_of_flex_line_cross_sizes;
         if (leftover_free_space < 0) {
             // If the leftover free-space is negative this value is identical to center.
@@ -1785,7 +1785,7 @@ void FlexFormattingContext::align_all_flex_lines()
 
     case CSS::AlignContent::Normal:
     case CSS::AlignContent::Stretch:
-        if (wrap_reverse) {
+        if (reverse_cross_axis) {
             start_of_current_line = cross_size_of_flex_container;
             place_items_backwards = true;
         } else {

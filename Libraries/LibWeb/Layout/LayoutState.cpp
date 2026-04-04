@@ -8,6 +8,7 @@
 
 #include <AK/Debug.h>
 #include <AK/HashMap.h>
+#include <AK/Tuple.h>
 #include <LibGC/RootHashMap.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -114,6 +115,92 @@ LayoutState::UsedValues const* LayoutState::try_get(Node const& node) const
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-region
 using ContainedBoxesMap = HashMap<Box const*, Vector<Box const*>>;
 
+struct PhysicalOverflowDirections {
+    bool x_positive { true };
+    bool y_positive { true };
+};
+
+struct LogicalAxis {
+    bool is_horizontal { false };
+    bool is_reverse { false };
+};
+
+static bool inline_axis_is_horizontal(CSS::WritingMode writing_mode)
+{
+    return writing_mode == CSS::WritingMode::HorizontalTb;
+}
+
+static bool inline_axis_is_reverse(CSS::WritingMode writing_mode, CSS::Direction direction)
+{
+    switch (writing_mode) {
+    case CSS::WritingMode::HorizontalTb:
+    case CSS::WritingMode::VerticalRl:
+    case CSS::WritingMode::VerticalLr:
+    case CSS::WritingMode::SidewaysRl:
+        return direction == CSS::Direction::Rtl;
+    case CSS::WritingMode::SidewaysLr:
+        return direction == CSS::Direction::Ltr;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+static bool block_axis_is_reverse(CSS::WritingMode writing_mode)
+{
+    switch (writing_mode) {
+    case CSS::WritingMode::HorizontalTb:
+    case CSS::WritingMode::VerticalLr:
+    case CSS::WritingMode::SidewaysLr:
+        return false;
+    case CSS::WritingMode::VerticalRl:
+    case CSS::WritingMode::SidewaysRl:
+        return true;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
+
+static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
+{
+    auto const& computed_values = box.computed_values();
+    LogicalAxis inline_axis {
+        .is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
+        .is_reverse = inline_axis_is_reverse(computed_values.writing_mode(), computed_values.direction()),
+    };
+    LogicalAxis block_axis {
+        .is_horizontal = !inline_axis.is_horizontal,
+        .is_reverse = block_axis_is_reverse(computed_values.writing_mode()),
+    };
+
+    auto horizontal_and_vertical_axes = [&]() {
+        if (!box.display().is_flex_inside())
+            return AK::Tuple { inline_axis.is_horizontal ? inline_axis : block_axis, inline_axis.is_horizontal ? block_axis : inline_axis };
+
+        auto is_row_layout = computed_values.flex_direction() == CSS::FlexDirection::Row
+            || computed_values.flex_direction() == CSS::FlexDirection::RowReverse;
+
+        auto main_axis = is_row_layout ? inline_axis : block_axis;
+        if (computed_values.flex_direction() == CSS::FlexDirection::RowReverse
+            || computed_values.flex_direction() == CSS::FlexDirection::ColumnReverse) {
+            main_axis.is_reverse = !main_axis.is_reverse;
+        }
+
+        auto cross_axis = is_row_layout ? block_axis : inline_axis;
+        if (computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
+            cross_axis.is_reverse = !cross_axis.is_reverse;
+
+        return AK::Tuple { main_axis.is_horizontal ? main_axis : cross_axis, main_axis.is_horizontal ? cross_axis : main_axis };
+    };
+
+    auto axes = horizontal_and_vertical_axes();
+    auto horizontal_axis = axes.get<0>();
+    auto vertical_axis = axes.get<1>();
+    return {
+        .x_positive = !horizontal_axis.is_reverse,
+        .y_positive = !vertical_axis.is_reverse,
+    };
+}
+
 static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMap const& contained_boxes_map)
 {
     if (!box.paintable_box())
@@ -129,6 +216,7 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
     // - The scroll container’s own padding box.
     auto const paintable_absolute_padding_box = paintable_box.absolute_padding_box_rect();
     auto scrollable_overflow_rect = paintable_absolute_padding_box;
+    auto overflow_directions = physical_overflow_directions(box);
 
     // - All line boxes directly contained by the scroll container.
     if (auto const* paintable_with_lines = as_if<Painting::PaintableWithLines>(box.first_paintable())) {
@@ -154,8 +242,14 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
 
             auto child_border_box = child.paintable_box()->absolute_border_box_rect();
 
-            // NOTE: Here we check that the child is not wholly in the negative scrollable overflow region.
-            if (child_border_box.bottom() < 0 || child_border_box.right() < 0)
+            // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
+            auto wholly_in_unreachable_x = overflow_directions.x_positive
+                ? child_border_box.right() < paintable_absolute_padding_box.x()
+                : child_border_box.x() > paintable_absolute_padding_box.right();
+            auto wholly_in_unreachable_y = overflow_directions.y_positive
+                ? child_border_box.bottom() < paintable_absolute_padding_box.y()
+                : child_border_box.y() > paintable_absolute_padding_box.bottom();
+            if (wholly_in_unreachable_x || wholly_in_unreachable_y)
                 continue;
 
             // Border boxes with zero area do not affect the scrollable overflow area.
@@ -190,7 +284,27 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
     //   satisfy the requirements of both place-content: start and place-content: end alignment.
     auto has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect) && box.is_scroll_container();
     if (has_scrollable_overflow) {
-        scrollable_overflow_rect.set_height(max(scrollable_overflow_rect.height(), content_overflow_rect.height() + paintable_box.box_model().padding.bottom));
+        auto left = scrollable_overflow_rect.x();
+        auto top = scrollable_overflow_rect.y();
+        auto right = scrollable_overflow_rect.right();
+        auto bottom = scrollable_overflow_rect.bottom();
+
+        if (overflow_directions.x_positive)
+            right = max(right, content_overflow_rect.right() + paintable_box.box_model().padding.right);
+        else
+            left = min(left, content_overflow_rect.x() - paintable_box.box_model().padding.left);
+
+        if (overflow_directions.y_positive)
+            bottom = max(bottom, content_overflow_rect.bottom() + paintable_box.box_model().padding.bottom);
+        else
+            top = min(top, content_overflow_rect.y() - paintable_box.box_model().padding.top);
+
+        scrollable_overflow_rect = {
+            left,
+            top,
+            max(right - left, CSSPixels { 0 }),
+            max(bottom - top, CSSPixels { 0 }),
+        };
     }
 
     // Additionally, due to Web-compatibility constraints (caused by authors exploiting legacy bugs to surreptitiously
@@ -201,17 +315,17 @@ static CSSPixelRect measure_scrollable_overflow(Box const& box, ContainedBoxesMa
     // Unless otherwise adjusted (e.g. by content alignment [css-align-3]), the area beyond the scroll origin in either
     // axis is considered the unreachable scrollable overflow region: content rendered here is not accessible to the
     // reader, see § 2.2 Scrollable Overflow.
-    // FIXME: The scroll origin and overflow directions are determined by ( block-start, inline-start ) or ( main-start,
-    //        cross-start) for flex containers. Currently we assume the top-left of the absolute padding box.
-    if (scrollable_overflow_rect.x() < paintable_absolute_padding_box.x() || scrollable_overflow_rect.y() < paintable_absolute_padding_box.y()) {
-        scrollable_overflow_rect.set_size({
-            max(scrollable_overflow_rect.width() + min(scrollable_overflow_rect.x() - paintable_absolute_padding_box.x(), 0), 0),
-            max(scrollable_overflow_rect.height() + min(scrollable_overflow_rect.y() - paintable_absolute_padding_box.y(), 0), 0),
-        });
-        scrollable_overflow_rect.set_location({
-            max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()),
-            max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()),
-        });
+    auto left = overflow_directions.x_positive ? max(scrollable_overflow_rect.x(), paintable_absolute_padding_box.x()) : scrollable_overflow_rect.x();
+    auto top = overflow_directions.y_positive ? max(scrollable_overflow_rect.y(), paintable_absolute_padding_box.y()) : scrollable_overflow_rect.y();
+    auto right = overflow_directions.x_positive ? scrollable_overflow_rect.right() : min(scrollable_overflow_rect.right(), paintable_absolute_padding_box.right());
+    auto bottom = overflow_directions.y_positive ? scrollable_overflow_rect.bottom() : min(scrollable_overflow_rect.bottom(), paintable_absolute_padding_box.bottom());
+    if (left != scrollable_overflow_rect.x() || top != scrollable_overflow_rect.y() || right != scrollable_overflow_rect.right() || bottom != scrollable_overflow_rect.bottom()) {
+        scrollable_overflow_rect = {
+            left,
+            top,
+            max(right - left, CSSPixels { 0 }),
+            max(bottom - top, CSSPixels { 0 }),
+        };
         has_scrollable_overflow = !paintable_absolute_padding_box.contains(scrollable_overflow_rect) && box.is_scroll_container();
     }
 
