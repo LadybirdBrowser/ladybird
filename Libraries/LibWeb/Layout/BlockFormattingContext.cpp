@@ -1637,7 +1637,7 @@ CSSPixels BlockFormattingContext::greatest_child_width(Box const& box) const
     CSSPixels max_width = m_left_floats.max_width + m_right_floats.max_width;
     if (box.children_are_inline()) {
         for (auto const& line_box : m_state.get(as<BlockContainer>(box)).line_boxes) {
-            CSSPixels width_here = line_box.width();
+            auto width_here = line_box_physical_width(box, line_box);
             auto line_top = line_box.bottom() - line_box.height();
             auto line_bottom = line_box.bottom();
             CSSPixels extra_width_from_left_floats = 0;

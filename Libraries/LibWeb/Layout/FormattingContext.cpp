@@ -296,9 +296,8 @@ CSSPixels FormattingContext::greatest_child_width(Box const& box) const
 {
     CSSPixels max_width = 0;
     if (box.children_are_inline()) {
-        for (auto& line_box : m_state.get(box).line_boxes) {
-            max_width = max(max_width, line_box.width());
-        }
+        for (auto& line_box : m_state.get(box).line_boxes)
+            max_width = max(max_width, line_box_physical_width(box, line_box));
     } else {
         box.for_each_child_of_type<Box>([&](Box const& child) {
             if (!child.is_absolutely_positioned())
@@ -307,6 +306,28 @@ CSSPixels FormattingContext::greatest_child_width(Box const& box) const
         });
     }
     return max_width;
+}
+
+CSSPixels FormattingContext::line_box_physical_width(Box const& box, LineBox const& line_box)
+{
+    if (box.computed_values().writing_mode() == CSS::WritingMode::HorizontalTb)
+        return line_box.width();
+
+    CSSPixels leftmost_fragment_x = 0;
+    CSSPixels rightmost_fragment_x = 0;
+    bool saw_fragment = false;
+    for (auto const& fragment : line_box.fragments()) {
+        auto fragment_left = fragment.offset().x();
+        auto fragment_right = fragment_left + fragment.width();
+        leftmost_fragment_x = saw_fragment ? min(leftmost_fragment_x, fragment_left) : fragment_left;
+        rightmost_fragment_x = saw_fragment ? max(rightmost_fragment_x, fragment_right) : fragment_right;
+        saw_fragment = true;
+    }
+
+    if (!saw_fragment)
+        return 0;
+
+    return rightmost_fragment_x - leftmost_fragment_x;
 }
 
 FormattingContext::ShrinkToFitResult FormattingContext::calculate_shrink_to_fit_widths(Box const& box)
