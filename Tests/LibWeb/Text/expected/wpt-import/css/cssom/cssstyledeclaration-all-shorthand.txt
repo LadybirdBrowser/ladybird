@@ -1,11 +1,32 @@
 Harness status: OK
 
-Found 6 tests
+Found 27 tests
 
-6 Pass
+27 Pass
 Pass	getPropertyValue('all') returns empty string
 Pass	getPropertyValue('all') returns css-wide keyword if possible
 Pass	getPropertyValue('all') returns empty string when single property overriden
 Pass	setProperty('all') sets all property values
 Pass	removeProperty('all') removes all declarations affected by 'all'
 Pass	removeProperty('all') removes an 'all' declaration
+Pass	getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property
+Pass	getPropertyValue('all') returns later 'all' value when it overrides earlier 'all' and properties
+Pass	getPropertyValue('all') returns empty string when property overridden after 'all'
+Pass	getPropertyValue('all') returns empty string when single property overridden after 'all' via insertRule
+Pass	getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property via insertRule
+Pass	getPropertyValue('all') returns later 'all' value when it overrides earlier 'all' and properties via insertRule
+Pass	getPropertyValue('all') returns empty string when property overridden after 'all' via insertRule
+Pass	getPropertyValue('all') returns empty string when single property overriden via setProperty
+Pass	setProperty('all') overrides existing properties and earlier 'all'
+Pass	getPropertyValue('all') returns empty string when property overridden after 'all' via setProperty
+Pass	getPropertyValue('all') returns empty string with shorthand 'margin'
+Pass	getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin'
+Pass	getPropertyValue('all') returns empty string with shorthand 'margin' via setProperty
+Pass	getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin' via setProperty
+Pass	getPropertyValue('all') returns empty string with shorthand 'margin' via insertRule
+Pass	getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin' via insertRule
+Pass	getPropertyValue('margin') returns all's value when 'all' after 'margin-top'
+Pass	getPropertyValue('margin') returns empty string when some of 'margin's longhands are overridden by 'all'
+Pass	getPropertyValue('margin') returns serialized string when longhands are after 'all'
+Pass	getPropertyValue('margin') returns all's value when all of 'margin's longhands are overridden by 'all'
+Pass	getPropertyValue('margin') returns all's value when 'all' is redeclared after margin longhands

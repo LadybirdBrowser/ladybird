@@ -64,7 +64,7 @@
   attrElem.removeAttribute('data-bar');
 
   attrElem.setAttribute('data-bar', 'var(--x)');
-  test_attr_cycle('--x', 'attr(data-foo type(*), attr(data-bar))', 'attr(data-foo type(*))');
+  test_attr_cycle('--x', 'attr(data-foo type(*), attr(data-bar type(*)))', 'attr(data-foo type(*))');
   attrElem.removeAttribute('data-bar');
 
   attrElem.style.setProperty('--x', 'attr(data-foo type(*))');
@@ -74,16 +74,31 @@
   attrElem.removeAttribute('data-bar');
 
   /* Cycle with fallback */
-  test_attr_cycle('--x', 'attr(data-foo type(<length>), 11px)', 'attr(data-foo type(<length>))');
   test_attr_cycle('--x', 'attr(data-foo type(<length>))', 'attr(data-foo type(<length>), 11px)');
-  test_attr_cycle('--y', 'attr(data-foo type(*), 11px)', 'attr(data-foo type(*))');
+  test_attr_cycle('--x', 'attr(data-foo type(<length>), 3px)', 'var(--x)');
+  test_attr_cycle('--x', 'attr(data-foo type(<length>), 3px)', 'var(--x, 11px)');
+
+  attrElem.style.setProperty('--y', 'attr(data-foo)');
+  test_attr_no_cycle('--x', 'attr(data-foo type(<custom-ident>), 3px)', 'var(--y)', '3px');
+  attrElem.style.setProperty('--y', null);
+
+  /* Cycle within attributes, so we should fallback. */
+  test_attr_no_cycle('--x', 'attr(data-foo type(<length>), 11px)', 'attr(data-foo type(<length>), 3px)', '11px');
+  test_attr_no_cycle('--x', 'attr(data-foo type(<length>), 11px)', 'attr(data-foo type(<length>))', '11px');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), 11px)', 'attr(data-foo type(*))', '11px');
 
   attrElem.setAttribute('data-bar', '11px');
-  test_attr_cycle('--x', 'attr(data-foo type(<length>), attr(data-bar type(<length>)))', 'attr(data-foo type(*))');
+  test_attr_no_cycle('--x', 'attr(data-foo type(<length>), attr(data-bar type(<length>)))', 'attr(data-foo type(*))', '11px');
   attrElem.removeAttribute('data-bar');
   attrElem.setAttribute('data-bar', 'abc');
-  test_attr_cycle('--y', 'attr(data-foo type(*), attr(data-bar))', 'attr(data-foo type(*))');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), attr(data-bar))', 'attr(data-foo type(*))', '"abc"');
   attrElem.removeAttribute('data-bar');
+
+  attrElem.setAttribute('data-bar', 'attr(data-baz type(*), 3px)');
+  attrElem.setAttribute('data-baz', 'attr(data-foo type(*), 4px)');
+  test_attr_no_cycle('--y', 'attr(data-foo type(*), 1px)', 'attr(data-bar type(*), 2px)', '1px');
+  attrElem.removeAttribute('data-bar');
+  attrElem.removeAttribute('data-baz');
 
   /* Cycle with var() and fallback */
   attrElem.style.setProperty('--x', 'var(--y)');
@@ -121,4 +136,7 @@
   test_attr_no_cycle('--y', 'attr(data-foo type(*))', 'attr(data-bar, 11) var(--x, 3)', '"var(--x)" "attr(data-bar, 11) var(--x, 3)"');
   attrElem.removeAttribute('data-bar');
   attrElem.style.setProperty('--x', null);
+
+  /* No cycle, wrong attr syntax in attribute */
+  test_attr_no_cycle('--x', 'attr(data-foo type(*), abc)', 'attr(data-foo', 'abc');
 </script>

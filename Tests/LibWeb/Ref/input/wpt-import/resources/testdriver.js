@@ -23,6 +23,14 @@
         }
     }
 
+    function assertTestIsTentative(){
+        const testPath = location.pathname;
+        const tentative = testPath.includes('.tentative.') || testPath.includes('/tentative/');
+        if (!tentative) {
+            throw new Error("Method in testdriver.js intended for tentative tests used in non-tentative test");
+        }
+    }
+
     function getInViewCenterPoint(rect) {
         var left = Math.max(0, rect.left);
         var right = Math.min(window.innerWidth, rect.right);
@@ -954,6 +962,61 @@
                     return window.test_driver_internal.bidi.emulation.set_screen_orientation_override(
                         params);
                 },
+                /**
+                 * Overrides the touch configuration for the specified browsing
+                 * contexts.
+                 * Matches the `emulation.setTouchOverride
+                 * <https://w3c.github.io/webdriver-bidi/#command-emulation-setTouchOverride>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @example
+                 * await test_driver.bidi.emulation.set_touch_override({
+                 *     maxTouchPoints: 5
+                 * });
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {null|number} params.maxTouchPoints - The
+                 * maximum number of simultaneous touch points to support.
+                 * If null or omitted, the override will be removed.
+                 * @param {null|Array.<(Context)>} [params.contexts] The
+                 * optional contexts parameter specifies which browsing contexts
+                 * to set the touch override on. It should be either an array of
+                 * Context objects (window or browsing context id), or null. If
+                 * null or omitted, the override will be set on the current
+                 * browsing context.
+                 * @returns {Promise<void>} Resolves when the touch
+                 * override is successfully set.
+                 */
+                set_touch_override: function (params) {
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.emulation.set_touch_override(
+                        params);
+                },
+            },
+            /**
+             * `user_agent_client_hints <https://wicg.github.io/ua-client-hints/#automation>`_ module.
+             */
+            user_agent_client_hints: {
+                /**
+                 * Overrides the user agent client hints configuration for the specified browsing
+                 * contexts. Matches the `userAgentClientHints.setClientHintsOverride
+                 * <https://wicg.github.io/ua-client-hints/#emulation-setclienthintsoverride>`_
+                 * WebDriver BiDi command.
+                 *
+                 * @param {object} params - Parameters for the command.
+                 * @param {null|object} params.clientHints - The client hints to override.
+                 * Matches the `userAgentClientHints.ClientHints` type.
+                 * If null or omitted, the override will be removed.
+                 * @param {null|Array.<(Context)>} [params.contexts] The
+                 * optional contexts parameter specifies which browsing contexts
+                 * to set the override on.
+                 * @returns {Promise<void>} Resolves when the override is successfully set.
+                 */
+                set_client_hints_override: function (params) {
+                    assertBidiIsEnabled();
+                    return window.test_driver_internal.bidi.user_agent_client_hints.set_client_hints_override(
+                        params);
+                }
             },
             /**
              * `log <https://www.w3.org/TR/webdriver-bidi/#module-log>`_ module.
@@ -1264,6 +1327,34 @@
         get_computed_role: async function(element) {
             let role = await window.test_driver_internal.get_computed_role(element);
             return role;
+        },
+
+        /**
+         * Get accessibility properties for a DOM element.
+         *
+         * @param {Element} element
+         * @returns {Promise} fulfilled after the accessibility properties are
+         *                    returned, or rejected in the cases the WebDriver
+         *                    command errors
+         */
+        get_accessibility_properties_for_element: async function(element) {
+            assertTestIsTentative();
+            let acc = await window.test_driver_internal.get_accessibility_properties_for_element(element);
+            return acc;
+        },
+
+        /**
+         * Get properties for an accessibility node.
+         *
+         * @param {String} accId
+         * @returns {Promise} fulfilled after the accessibility properties are
+         *                    returned, or rejected in the cases the WebDriver
+         *                    command errors
+         */
+        get_accessibility_properties_for_accessibility_node: async function(accId) {
+            assertTestIsTentative();
+            let acc = await window.test_driver_internal.get_accessibility_properties_for_accessibility_node(accId);
+            return acc;
         },
 
         /**
@@ -2390,6 +2481,16 @@
                 set_screen_orientation_override: function (params) {
                     throw new Error(
                         "bidi.emulation.set_screen_orientation_override is not implemented by testdriver-vendor.js");
+                },
+                set_touch_override: function (params) {
+                    throw new Error(
+                        "bidi.emulation.set_touch_override is not implemented by testdriver-vendor.js");
+                }
+            },
+            user_agent_client_hints: {
+                set_client_hints_override: function (params) {
+                    throw new Error(
+                        "bidi.user_agent_client_hints.set_client_hints_override is not implemented by testdriver-vendor.js");
                 }
             },
             log: {
@@ -2452,6 +2553,14 @@
 
         async get_computed_name(element) {
             throw new Error("get_computed_name is a testdriver.js function which cannot be run in this context.");
+        },
+
+        async get_accessibility_properties_for_element(element) {
+            throw new Error("get_accessibility_properties_for_element is a testdriver.js function which cannot be run in this context.");
+        },
+
+        async get_accessibility_properties_for_accessibility_node(accId) {
+            throw new Error("get_accessibility_properties_for_accessibility_node is a testdriver.js function which cannot be run in this context.");
         },
 
         async send_keys(element, keys) {

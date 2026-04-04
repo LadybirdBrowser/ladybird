@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 1147 tests
+Found 1163 tests
 
 892 Pass
-255 Fail
+271 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -59,6 +59,7 @@ Pass	AudioContext interface: attribute outputLatency
 Fail	AudioContext interface: attribute sinkId
 Fail	AudioContext interface: attribute onsinkchange
 Fail	AudioContext interface: attribute onerror
+Fail	AudioContext interface: attribute playbackStats
 Pass	AudioContext interface: operation getOutputTimestamp()
 Pass	AudioContext interface: operation resume()
 Pass	AudioContext interface: operation suspend()
@@ -75,6 +76,7 @@ Pass	AudioContext interface: context must inherit property "outputLatency" with 
 Fail	AudioContext interface: context must inherit property "sinkId" with the proper type
 Fail	AudioContext interface: context must inherit property "onsinkchange" with the proper type
 Fail	AudioContext interface: context must inherit property "onerror" with the proper type
+Fail	AudioContext interface: context must inherit property "playbackStats" with the proper type
 Pass	AudioContext interface: context must inherit property "getOutputTimestamp()" with the proper type
 Pass	AudioContext interface: context must inherit property "resume()" with the proper type
 Pass	AudioContext interface: context must inherit property "suspend()" with the proper type
@@ -1161,3 +1163,17 @@ Fail	AudioNode interface: worklet_node must inherit property "channelCount" with
 Fail	AudioNode interface: worklet_node must inherit property "channelCountMode" with the proper type
 Fail	AudioNode interface: worklet_node must inherit property "channelInterpretation" with the proper type
 Pass	AudioWorkletProcessor interface: existence and properties of interface object
+Fail	AudioPlaybackStats interface: existence and properties of interface object
+Fail	AudioPlaybackStats interface object length
+Fail	AudioPlaybackStats interface object name
+Fail	AudioPlaybackStats interface: existence and properties of interface prototype object
+Fail	AudioPlaybackStats interface: existence and properties of interface prototype object's "constructor" property
+Fail	AudioPlaybackStats interface: existence and properties of interface prototype object's @@unscopables property
+Fail	AudioPlaybackStats interface: attribute underrunDuration
+Fail	AudioPlaybackStats interface: attribute underrunEvents
+Fail	AudioPlaybackStats interface: attribute totalDuration
+Fail	AudioPlaybackStats interface: attribute averageLatency
+Fail	AudioPlaybackStats interface: attribute minimumLatency
+Fail	AudioPlaybackStats interface: attribute maximumLatency
+Fail	AudioPlaybackStats interface: operation resetLatency()
+Fail	AudioPlaybackStats interface: operation toJSON()

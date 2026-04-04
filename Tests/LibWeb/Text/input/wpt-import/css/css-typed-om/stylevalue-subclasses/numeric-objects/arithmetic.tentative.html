@@ -157,4 +157,12 @@ for (const methodName of ["add", "sub", "max", "min"]) {
     }, 'CSSNumericValue.' + methodName + ' should throw TypeError when the types are different.');
 }
 
+for (const methodName of ["mul", "div"]) {
+    test(() => {
+      const a = CSS.px(10).add(CSS.percent(20));
+      const b = CSS.deg(30).add(CSS.percent(40));
+      assert_throws_js(TypeError, () => a[methodName](b));
+    }, 'CSSNumericValue.' + methodName + ' should throw TypeError when the types are different.');
+}
+
 </script>

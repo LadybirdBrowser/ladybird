@@ -1,7 +1,9 @@
 Harness status: OK
 
-Found 2 tests
+Found 4 tests
 
-2 Pass
-Pass	sibling-index() and sibling-count() are not valid in @media queries
-Pass	@media queries with sibling-index() and sibling-count() as general-enclosed
+4 Pass
+Pass	Should be parseable: '(width > calc(0px * sibling-index()))'
+Pass	Should be unknown: '(width > calc(0px * sibling-index()))'
+Pass	Should be parseable: '(width > calc(0px * sibling-count()))'
+Pass	Should be unknown: '(width > calc(0px * sibling-count()))'

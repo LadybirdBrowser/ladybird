@@ -1,7 +1,7 @@
 // GENERATED CONTENT - DO NOT EDIT
 // Content was automatically extracted by Reffy into webref
 // (https://github.com/w3c/webref)
-// Source: Web Animations (https://drafts.csswg.org/web-animations-1/)
+// Source: Web Animations Module Level 1 (https://drafts.csswg.org/web-animations-1/)
 
 [Exposed=Window]
 interface AnimationTimeline {

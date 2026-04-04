@@ -48,6 +48,16 @@ test(() => {
 }, 'upgrade is a no-op when called on a shadow root with no association');
 
 test(() => {
+    const registry1 = new CustomElementRegistry;
+    const registry2 = new CustomElementRegistry;
+    const element = document.createElement('a-b', {customElementRegistry: registry1});
+    registry1.define('a-b', class ABElement1 extends HTMLElement { });
+    assert_false(element.matches(':defined'));
+    registry2.upgrade(element);
+    assert_false(element.matches(':defined'));
+}, 'upgrade is a no-op when called on an element associated with a different registry');
+
+test(() => {
     const registry = new CustomElementRegistry;
     registry.define('a-b', class ABElement extends HTMLElement {
         elementInternals;

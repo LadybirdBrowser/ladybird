@@ -51,4 +51,167 @@
     assert_equals(style.getPropertyValue("all"), "");
   }, "removeProperty('all') removes an 'all' declaration");
 
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "width: 50px; all: revert";
+    assert_equals(style.getPropertyValue("width"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; width: 50px; all: unset";
+    assert_equals(style.getPropertyValue("width"), "unset");
+    assert_equals(style.getPropertyValue("all"), "unset");
+  }, "getPropertyValue('all') returns later 'all' value when it overrides earlier 'all' and properties");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "width: 50px; all: revert; width: 100px";
+    assert_equals(style.getPropertyValue("width"), "100px");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when property overridden after 'all'");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { all: revert; width: 50px; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("width"), "50px");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when single property overridden after 'all' via insertRule");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { width: 50px; all: revert; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("width"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property via insertRule");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { all: revert; width: 50px; all: unset; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("width"), "unset");
+    assert_equals(style.getPropertyValue("all"), "unset");
+  }, "getPropertyValue('all') returns later 'all' value when it overrides earlier 'all' and properties via insertRule");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { width: 50px; all: revert; width: 100px; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("width"), "100px");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when property overridden after 'all' via insertRule");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert";
+    style.setProperty("width", "50px");
+    assert_equals(style.getPropertyValue("width"), "50px");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when single property overriden via setProperty");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; width: 50px";
+    style.setProperty("all", "unset");
+    assert_equals(style.getPropertyValue("width"), "unset");
+    assert_equals(style.getPropertyValue("all"), "unset");
+  }, "setProperty('all') overrides existing properties and earlier 'all'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "width: 50px; all: revert";
+    style.setProperty("width", "100px");
+    assert_equals(style.getPropertyValue("width"), "100px");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string when property overridden after 'all' via setProperty");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; margin: initial";
+    assert_equals(style.getPropertyValue("margin"), "initial");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string with shorthand 'margin'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "margin: initial; all: revert";
+    assert_equals(style.getPropertyValue("margin"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert";
+    style.setProperty("margin", "initial");
+    assert_equals(style.getPropertyValue("margin"), "initial");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string with shorthand 'margin' via setProperty");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "margin: initial";
+    style.setProperty("all", "revert");
+    assert_equals(style.getPropertyValue("margin"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin' via setProperty");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { all: revert; margin: initial; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("margin"), "initial");
+    assert_equals(style.getPropertyValue("all"), "");
+  }, "getPropertyValue('all') returns empty string with shorthand 'margin' via insertRule");
+
+  test((t) => {
+    const sheet = new CSSStyleSheet();
+    sheet.insertRule(".foo { margin: initial; all: revert; }");
+    const style = sheet.cssRules[0].style;
+    assert_equals(style.getPropertyValue("margin"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+  }, "getPropertyValue('all') returns css-wide keyword when 'all' overrides shorthand 'margin' via insertRule");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "margin-top: 10px; all: revert";
+    assert_equals(style.getPropertyValue("margin"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+    assert_equals(style.getPropertyValue("font"), "revert");
+  }, "getPropertyValue('margin') returns all's value when 'all' after 'margin-top'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "margin-top:10px; margin-right:20px; all: revert; margin-bottom:30px; margin-left:40px";
+    assert_equals(style.getPropertyValue("margin"), "");
+    assert_equals(style.getPropertyValue("all"), "");
+    assert_equals(style.getPropertyValue("font"), "revert");
+  }, "getPropertyValue('margin') returns empty string when some of 'margin's longhands are overridden by 'all'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; margin-top: 10px; margin-right: 20px; margin-bottom: 30px; margin-left: 40px";
+    assert_equals(style.getPropertyValue("margin"), "10px 20px 30px 40px");
+    assert_equals(style.getPropertyValue("all"), "");
+    assert_equals(style.getPropertyValue("font"), "revert");
+  }, "getPropertyValue('margin') returns serialized string when longhands are after 'all'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "margin-top: 10px; margin-right: 20px; margin-bottom: 30px; margin-left: 40px; all: revert";
+    assert_equals(style.getPropertyValue("margin"), "revert");
+    assert_equals(style.getPropertyValue("all"), "revert");
+    assert_equals(style.getPropertyValue("font"), "revert");
+  }, "getPropertyValue('margin') returns all's value when all of 'margin's longhands are overridden by 'all'");
+
+  test((t) => {
+    t.add_cleanup(() => { style.cssText = ""; } );
+    style.cssText = "all: revert; margin-top: 10px; margin-right: 20px; margin-bottom: 30px; margin-left: 40px; all: unset";
+    assert_equals(style.getPropertyValue("margin"), "unset");
+    assert_equals(style.getPropertyValue("all"), "unset");
+    assert_equals(style.getPropertyValue("font"), "unset");
+  }, "getPropertyValue('margin') returns all's value when 'all' is redeclared after margin longhands");
+
 </script>

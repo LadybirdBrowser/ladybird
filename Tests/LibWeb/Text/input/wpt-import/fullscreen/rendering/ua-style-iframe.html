@@ -48,8 +48,7 @@
       "initial transform style"
     );
 
-    await trusted_request(iframe);
-    await fullScreenChange();
+    await Promise.all([trusted_request(iframe), fullScreenChange()]);
 
     const fullscreenStyle = getComputedStyle(iframe);
     assert_dir_properties(

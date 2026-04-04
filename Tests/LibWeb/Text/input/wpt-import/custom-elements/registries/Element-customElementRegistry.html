@@ -85,6 +85,20 @@ test(() => {
     assert_equals(element.customElementRegistry, registry);
 }, 'customElementRegistry on a defined custom element created by calling createElement on CustomElementRegistry should return the registry');
 
+test(() => {
+    const registry = new CustomElementRegistry;
+    let registryInConstructor = null;
+    registry.define('check-registry-in-constructor', class extends HTMLElement {
+        constructor() {
+            super();
+            registryInConstructor = this.customElementRegistry;
+        }
+    });
+    const element = document.createElement('check-registry-in-constructor', {customElementRegistry: registry});
+    assert_equals(registryInConstructor, registry);
+    assert_equals(element.customElementRegistry, registry);
+}, 'customElementRegistry inside a custom element constructor should return the correct registry');
+
 </script>
 </body>
 </html>

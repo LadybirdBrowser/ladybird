@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 169 tests
+Found 175 tests
 
-169 Pass
+175 Pass
 Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 10% 20%) -10%, hsl(30deg 30% 40%))" should not set the property value
 Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 10% 20%) 150%, hsl(30deg 30% 40%))" should not set the property value
 Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 10% 20%) 0%, hsl(30deg 30% 40%) 0%)" should not set the property value
@@ -172,3 +172,9 @@ Pass	e.style['color'] = "color-mix(in xyz-d65 longer hue, color(xyz-d65 .1 .2 .3
 Pass	e.style['color'] = "color-mix(in xyz-d65 color(xyz-d65 .1 .2 .3), color(xyz-d65 .5 .6 .7))" should not set the property value
 Pass	e.style['color'] = "color-mix(in xyz-d65, color(xyz-d65 .1 .2 .3) color(xyz-d65 .5 .6 .7))" should not set the property value
 Pass	e.style['color'] = "color-mix(color(xyz-d65 .1 .2 .3), color(xyz-d65 .5 .6 .7), in xyz-d65)" should not set the property value
+Pass	e.style['color'] = "color-mix(in srgb, red 0%)" should not set the property value
+Pass	e.style['color'] = "color-mix(in srgb, red 0%, green 0%, blue 0%)" should not set the property value
+Pass	e.style['color'] = "color-mix(in srgb, red -10%, green 50%, blue)" should not set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 10% 20%) -10%, hsl(30deg 30% 40%), hsl(60deg 20% 30%))" should not set the property value
+Pass	e.style['color'] = "color-mix(in srgb, red 150%, green 50%, blue)" should not set the property value
+Pass	e.style['color'] = "color-mix(in hsl, hsl(120deg 10% 20%) 150%, hsl(30deg 30% 40%), hsl(60deg 20% 30%))" should not set the property value

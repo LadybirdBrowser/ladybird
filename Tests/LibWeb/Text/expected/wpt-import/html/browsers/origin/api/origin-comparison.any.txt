@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 3 tests
+Found 4 tests
 
-3 Pass
-Pass	Comparison of opaque origins.
+4 Pass
+Pass	Comparison of `new Origin()` opaque origins.
 Pass	Comparison of tuple origins.
 Pass	Comparisons are schemeful.
+Pass	Comparison of `Origin.from(<url-string>)` opaque origins.

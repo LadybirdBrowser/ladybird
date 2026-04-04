@@ -75,19 +75,19 @@ customElements.define('open-component', OpenComponent);
 
 <script>
 test(() => {
-  assert_equals(closedInnerElement.scrollParent, outerScroller);
+  assert_equals(closedInnerElement.scrollParent(), outerScroller);
 }, "scrollParent skips intermediate closed shadow tree nodes");
 
 test(() => {
-  assert_equals(openInnerElement.scrollParent, outerScroller);
+  assert_equals(openInnerElement.scrollParent(), outerScroller);
 }, "scrollParent skips intermediate open shadow tree nodes");
 
 test(() => {
-  assert_equals(closedShadowRoot.querySelector('div').scrollParent, outerScroller);
+  assert_equals(closedShadowRoot.querySelector('div').scrollParent(), outerScroller);
 }, "scrollParent from inside closed shadow tree");
 
 test(() => {
-  assert_equals(openShadowComponent.shadowRoot.querySelector('div').scrollParent, outerScroller);
+  assert_equals(openShadowComponent.shadowRoot.querySelector('div').scrollParent(), outerScroller);
 }, "scrollParent from inside open shadow tree");
 </script>
 </body>

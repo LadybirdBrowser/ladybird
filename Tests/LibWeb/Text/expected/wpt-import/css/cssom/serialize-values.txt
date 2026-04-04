@@ -1,9 +1,18 @@
 Harness status: OK
 
-Found 687 tests
+Found 697 tests
 
-667 Pass
-20 Fail
+652 Pass
+45 Fail
+Fail	alignment-baseline: baseline
+Fail	alignment-baseline: text-bottom
+Fail	alignment-baseline: alphabetic
+Fail	alignment-baseline: ideographic
+Fail	alignment-baseline: middle
+Fail	alignment-baseline: central
+Fail	alignment-baseline: mathematical
+Fail	alignment-baseline: text-top
+Fail	alignment-baseline: inherit
 Pass	background-attachment: scroll
 Pass	background-attachment: fixed
 Pass	background-attachment: inherit
@@ -192,6 +201,21 @@ Pass	background-repeat: repeat-x
 Pass	background-repeat: repeat-y
 Pass	background-repeat: no-repeat
 Pass	background-repeat: inherit
+Fail	baseline-shift: sub
+Fail	baseline-shift: super
+Fail	baseline-shift: top
+Fail	baseline-shift: center
+Fail	baseline-shift: bottom
+Fail	baseline-shift: 5%
+Fail	baseline-shift: .5%
+Fail	baseline-shift: 0px
+Fail	baseline-shift: 1px
+Fail	baseline-shift: .1em
+Fail	baseline-shift: inherit
+Fail	baseline-source: auto
+Fail	baseline-source: first
+Fail	baseline-source: last
+Fail	baseline-source: inherit
 Pass	border-collapse: collapse
 Pass	border-collapse: separate
 Pass	border-collapse: inherit
@@ -382,7 +406,7 @@ Pass	float: right
 Pass	float: none
 Pass	float: inherit
 Pass	font-family: Arial
-Pass	font-family: 'Lucida Grande'
+Fail	font-family: 'Lucida Grande'
 Pass	font-family: serif
 Pass	font-family: sans-serif
 Pass	font-family: inherit
@@ -648,20 +672,6 @@ Pass	unicode-bidi: normal
 Pass	unicode-bidi: embed
 Pass	unicode-bidi: bidi-override
 Pass	unicode-bidi: inherit
-Pass	vertical-align: baseline
-Pass	vertical-align: sub
-Pass	vertical-align: super
-Pass	vertical-align: top
-Pass	vertical-align: text-top
-Pass	vertical-align: middle
-Pass	vertical-align: bottom
-Pass	vertical-align: text-bottom
-Pass	vertical-align: 5%
-Pass	vertical-align: .5%
-Pass	vertical-align: 0px
-Pass	vertical-align: 1px
-Pass	vertical-align: .1em
-Pass	vertical-align: inherit
 Pass	visibility: visible
 Pass	visibility: hidden
 Pass	visibility: collapse

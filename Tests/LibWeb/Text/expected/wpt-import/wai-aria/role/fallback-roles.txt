@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 12 tests
+Found 22 tests
 
-12 Pass
+22 Pass
 Pass	fallback role w/ region with no label
 Pass	fallback role w/ region with label
 Pass	aria 1.1 switch role w/ fallback to aria 1.0 checkbox role
@@ -15,3 +15,13 @@ Pass	div[role=button] ignoring invalid unicode diacritics etc on link and group 
 Pass	div[role=button] ignoring tab char
 Pass	div[role=button] ignoring line break
 Pass	div[role=button] ignoring braille whitespace char
+Pass	div[role='foo Link'][tabindex=0], illegal role and capitalized fallback role, has link role
+Pass	button[role='foo Link'] with illegal role and capitalized fallback role, has link role
+Pass	nav[role='foo GROUP'] with illegal role and all upper case fallback role, has group role
+Pass	div[role='foo ReGiOn'][aria-label] with illegal role and alternating case fallback role, has region role
+Pass	div[role='ReGiOn foo'][aria-label] with alternating case role and illegal fallback role, has region role
+Pass	div[role='BUTTON LINK'] with tabindex=0, has button role
+Pass	div[role='ReGiOn group'] without accname, has group role
+Pass	div[role='ReGiOn group'][aria-label], has region role
+Pass	div[role=buTtOn] ignoring line break, has button role
+Pass	div[role='ReGiOn foo'] with alternating case role and illegal fallback role without accname, has generic role

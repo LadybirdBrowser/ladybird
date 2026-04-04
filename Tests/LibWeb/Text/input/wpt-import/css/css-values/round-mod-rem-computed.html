@@ -13,6 +13,20 @@
 // Simple tests
 test_math_used('round(10,10)', '10', {type:'number'});
 test_math_used('mod(1,1)', '0', {type:'number'});
+test_math_used('mod(0,-2)', '0', {type:'number'});
+test_math_used('mod(2,-2)', '0', {type:'number'});
+test_math_used('mod(4,-2)', '0', {type:'number'});
+test_math_used('mod(-2,-2)', '0', {type:'number'});
+test_math_used('mod(-4,-2)', '0', {type:'number'});
+test_math_used('mod(0, 2)', '0', {type:'number'});
+test_math_used('mod(2, 2)', '0', {type:'number'});
+test_math_used('mod(-2, 2)', '0', {type:'number'});
+test_math_used('mod(1, 2)', '1', {type:'number'});
+test_math_used('mod(3, 2)', '1', {type:'number'});
+test_math_used('mod(-1, 2)', '1', {type:'number'});
+test_math_used('mod(1, -2)', '-1', {type:'number'});
+test_math_used('mod(3, -2)', '-1', {type:'number'});
+test_math_used('mod(-1, -2)', '-1', {type:'number'});
 test_math_used('rem(1,1)', '0', {type:'number'});
 
 // Test basic round

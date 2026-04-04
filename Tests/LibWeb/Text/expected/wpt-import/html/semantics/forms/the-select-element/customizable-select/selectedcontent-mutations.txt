@@ -1,6 +1,14 @@
 Harness status: OK
 
-Found 1 tests
+Found 8 tests
 
-1 Fail
-Fail	MutationObserver records during parsing of <select> with <selectedcontent>
+5 Pass
+3 Fail
+Fail	MutationObserver records during parsing of <select> with <selectedcontent>: test1
+Pass	MutationObserver records during parsing of <select> with <selectedcontent>: test2
+Fail	MutationObserver records during parsing of <select> with <selectedcontent>: test3
+Fail	MutationObserver records during parsing of <select> with <selectedcontent>: test4
+Pass	MutationObserver records during parsing of <select> with <selectedcontent>: test5
+Pass	MutationObserver records during parsing of <select> with <selectedcontent>: test6
+Pass	MutationObserver records during parsing of <select> with <selectedcontent>: test7
+Pass	MutationObserver records during parsing of <select> with <selectedcontent>: test8

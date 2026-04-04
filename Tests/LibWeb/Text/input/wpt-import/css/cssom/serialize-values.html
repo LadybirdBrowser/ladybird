@@ -112,7 +112,7 @@
     }
 
     function family_name() {
-      var values = ['Arial', {actual: "'Lucida Grande'", serialized: '"Lucida Grande"'}];
+      var values = ['Arial', {actual: "'Lucida Grande'", serialized: 'Lucida Grande'}];
       return iterable(values);
     }
 
@@ -264,6 +264,11 @@
     }
 
     var properties = [
+      ['alignment-baseline', {
+        'values': ['baseline', 'text-bottom', 'alphabetic', 'ideographic', 'middle',
+                   'central', 'mathematical', 'text-top', 'inherit'],
+        'initial': 'baseline'
+      }],
       ['background-attachment', {
         'values': ['scroll', 'fixed', 'inherit'],
         'initial': 'scroll',
@@ -287,6 +292,14 @@
       ['background-repeat', {
         'values': ['repeat', 'repeat-x', 'repeat-y', 'no-repeat', 'inherit'],
         'initial': 'repeat',
+      }],
+      ['baseline-shift', {
+        'values': ['sub', 'super', 'top', 'center', 'bottom', percentage, length, 'inherit'],
+        'initial': '0',
+      }],
+      ['baseline-source', {
+        'values': ['auto', 'first', 'last', 'inherit'],
+        'initial': 'auto',
       }],
       //background
       ['border-collapse', {
@@ -575,11 +588,6 @@
       ['unicode-bidi', {
         'values': ['normal', 'embed', 'bidi-override', 'inherit'],
         'initial': 'normal',
-      }],
-      ['vertical-align', {
-        'values': ['baseline', 'sub', 'super', 'top', 'text-top', 'middle', 'bottom', 'text-bottom',
-                   percentage, length, 'inherit'],
-        'initial': 'baseline',
       }],
       ['visibility', {
         'values': ['visible', 'hidden', 'collapse', 'inherit'],

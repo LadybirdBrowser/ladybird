@@ -29,6 +29,8 @@ test_computed_value("background-clip", "border-box, padding-box, content-box");
 test_computed_value("background-clip", "content-box, border-box, padding-box, content-box", "content-box, border-box, padding-box");
 test_computed_value("background-clip", "content-box, border-box, padding-box", "content-box, border-box, padding-box");
 test_computed_value("background-clip", "content-box, border-box, border-area", "content-box, border-box, border-area");
+test_computed_value("background-clip", "border-area text", "border-area text, border-area text, border-area text");
+test_computed_value("background-clip", "border-area text, content-box", "border-area text, content-box, border-area text");
 
 // background-color always computes as a single color.
 test_computed_value("background-color", "rgb(255, 0, 0)");
@@ -63,6 +65,23 @@ test_computed_value("background-size", "contain", "contain, contain, contain");
 test_computed_value("background-size", "auto 1px, 2% 3%", "auto 1px, 2% 3%, auto 1px");
 test_computed_value("background-size", "auto 1px, 2% 3%, contain");
 test_computed_value("background-size", "auto 1px, 2% 3%, contain, 7px 8px", "auto 1px, 2% 3%, contain");
+
+// Verify background shorthand correctly computes background-clip.
+test(() => {
+  const target = document.getElementById('target');
+  target.style.background = '';
+  target.style.background = 'border-area text';
+  assert_equals(getComputedStyle(target).backgroundClip, 'border-area text');
+  target.style.background = '';
+}, "background shorthand with 'border-area text' computes background-clip correctly");
+
+test(() => {
+  const target = document.getElementById('target');
+  target.style.background = '';
+  target.style.background = 'text border-area';
+  assert_equals(getComputedStyle(target).backgroundClip, 'border-area text');
+  target.style.background = '';
+}, "background shorthand with 'text border-area' computes background-clip correctly");
 
 // Open issue: Define serialization for background shorthand
 // https://github.com/w3c/csswg-drafts/issues/418

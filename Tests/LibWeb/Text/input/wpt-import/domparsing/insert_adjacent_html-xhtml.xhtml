@@ -80,7 +80,7 @@ var content2 = document.getElementById("content2");
 testPositions(content2, "without next sibling");
 testPositions(content2, "test again, now that there's a next sibling");
 
-// XML-only: 
+// XML-only:
 test(function() {
   assert_throws_dom("SYNTAX_ERR", function() {content.insertAdjacentHTML("beforeend", "<p>")});
 });

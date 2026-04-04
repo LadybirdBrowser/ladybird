@@ -20,6 +20,9 @@
 </div>
 <script>
 // TODO: Add inset() tests
+test_computed_value("shape-outside", "rect(0px 3em 2% 1px)", "inset(0px calc(100% - 120px) 98% 1px)");
+test_computed_value("shape-outside", "rect(0px calc(100% - 20px) 2% 3em)", "inset(0px calc(0% + 20px) 98% 120px)");
+test_computed_value("shape-outside", "rect(10px 20px 30px 25px round 20% / 0px 1px 2% 3em)", "inset(10px calc(100% - 20px) calc(100% - 30px) 25px round 20% / 0px 1px 2% 120px)");
 
 test_computed_value("shape-outside", "circle(at 10% 20%)");
 test_computed_value("shape-outside", "circle(at calc(75% + 0px) calc(75% + 0px))", "circle(at 75% 75%)");
@@ -32,9 +35,9 @@ test_computed_value("shape-outside", "ellipse(60% closest-side at 50% 50%)");
 test_computed_value("shape-outside", "ellipse(calc(10px + 0.5em) calc(10px - 0.5em) at -50% 50%) padding-box", "ellipse(30px 0px at -50% 50%) padding-box");
 test_computed_value("shape-outside", "ellipse(calc(10px - 0.5em) calc(10px + 0.5em) at 50% -50%) border-box", "ellipse(0px 30px at 50% -50%) border-box");
 
-test_computed_value("shape-outside", "polygon(evenodd, -10px, -20px, -30px, -40px, -50px, -60px) margin-box");
-test_computed_value("shape-outside", "polygon(10%, 20%, 30%, 40%, 50%, 60%) content-box");
-test_computed_value("shape-outside", "polygon(calc(10px - 0.5em), 20%, 30%, 40%, 50%, calc(10px - 0.5em))", "polygon(-10px, 20%, 30%, 40%, 50%, -10px)");
+test_computed_value("shape-outside", "polygon(evenodd, -10px -20px, -30px -40px, -50px -60px) margin-box", "polygon(evenodd, -10px -20px, -30px -40px, -50px -60px)");
+test_computed_value("shape-outside", "polygon(10% 20%, 30% 40%, 50% 60%) content-box");
+test_computed_value("shape-outside", "polygon(calc(10px - 0.5em) 20%, 30% 40%, 50% calc(10px - 0.5em))", "polygon(-10px 20%, 30% 40%, 50% -10px)");
 </script>
 </body>
 </html>

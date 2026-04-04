@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 20 tests
+Found 24 tests
 
 20 Pass
+4 Fail
 Pass	Property position-try-fallbacks value 'none'
 Pass	Property position-try-fallbacks value 'flip-block'
 Pass	Property position-try-fallbacks value 'flip-inline'
@@ -21,5 +22,9 @@ Pass	Property position-try-fallbacks value '--foo, left, --bar'
 Pass	Property position-try-fallbacks value '--foo, flip-start, left'
 Pass	Property position-try-fallbacks value '--foo flip-start, left'
 Pass	Property position-try-fallbacks value 'left, --bar flip-start'
+Fail	Property position-try-fallbacks value 'flip-y'
+Fail	Property position-try-fallbacks value 'flip-x'
+Fail	Property position-try-fallbacks value 'flip-y, flip-x'
+Fail	Property position-try-fallbacks value 'flip-start flip-x flip-y'
 Pass	Property position-try-fallbacks has initial value none
 Pass	Property position-try-fallbacks does not inherit

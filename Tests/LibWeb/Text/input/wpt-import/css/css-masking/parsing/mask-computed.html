@@ -30,6 +30,21 @@ test_computed_value('mask',
 test_computed_value('mask',
     'linear-gradient(to left bottom, red, blue) luminance',
     'linear-gradient(to left bottom, rgb(255, 0, 0), rgb(0, 0, 255)) luminance');
+test_computed_value('mask',
+   'linear-gradient(calc(90deg - 45deg), rgb(0, 128, 0), rgb(0, 0, 255)',
+   'linear-gradient(45deg, rgb(0, 128, 0), rgb(0, 0, 255))');
+test_computed_value('mask',
+   'radial-gradient(circle calc(-0.5em + 10px) at calc(-1em + 10px) calc(-2em + 10px), rgb(255, 0, 0), rgb(0, 0, 255))',
+   'radial-gradient(2px at -6px -22px, rgb(255, 0, 0), rgb(0, 0, 255))');
+test_computed_value('mask',
+   'radial-gradient(ellipse calc(-0.5em + 10px) calc(0.5em + 10px) at 20px 30px, rgb(255, 0, 0), rgb(0, 0, 255))',
+   'radial-gradient(2px 18px at 20px 30px, rgb(255, 0, 0), rgb(0, 0, 255))');
+test_computed_value('mask',
+   'conic-gradient(gold calc(100% / 2), #f06 calc(360deg * 4 / 5))',
+   'conic-gradient(rgb(255, 215, 0) 50%, rgb(255, 0, 102) 288deg)');
+test_computed_value('mask',
+   'conic-gradient(black 1turn, white',
+   'conic-gradient(rgb(0, 0, 0) 360deg, rgb(255, 255, 255))');
 test_computed_value('mask', 'url("https://example.com/")');
 
 // <position> [ / <bg-size> ]?

@@ -2,92 +2,71 @@
 <html>
   <head>
     <title>
-      audionode.html
+      AudioNode: Basic Interface Tests
     </title>
     <script src="../../../resources/testharness.js"></script>
     <script src="../../../resources/testharnessreport.js"></script>
-    <script src="../../../webaudio/resources/audit-util.js"></script>
-    <script src="../../../webaudio/resources/audit.js"></script>
   </head>
   <body>
-    <div id="description"></div>
-    <div id="console"></div>
-    <script id="layout-test-code">
-      let audit = Audit.createTaskRunner();
+    <script>
+      test(() => {
+        let context = new AudioContext();
 
-      let context = 0;
-      let context2 = 0;
-      let context3 = 0;
+        let audioNode = new AudioBufferSourceNode(context);
 
-      audit.define(
-          {label: 'test', description: 'Basic tests for AudioNode API.'},
-          function(task, should) {
+        // Check input and output numbers of AudioSourceNode.
+        assert_equals(
+            audioNode.numberOfInputs, 0,
+            'AudioBufferSource.numberOfInputs');
+        assert_equals(
+            audioNode.numberOfOutputs, 1,
+            'AudioBufferSource.numberOfOutputs');
 
-            context = new AudioContext();
-            window.audioNode = context.createBufferSource();
+        // Check input and output numbers of AudioDestinationNode
+        assert_equals(
+            context.destination.numberOfInputs, 1,
+            'AudioContext.destination.numberOfInputs');
+        assert_equals(
+            context.destination.numberOfOutputs, 1,
+            'AudioContext.destination.numberOfOutputs');
 
-            // Check input and output numbers of AudioSourceNode.
-            should(audioNode.numberOfInputs, 'AudioBufferSource.numberOfInputs')
-                .beEqualTo(0);
-            should(
-                audioNode.numberOfOutputs, 'AudioBufferSource.numberOfOutputs')
-                .beEqualTo(1);
+        // Try calling connect() method with illegal values.
+        assert_throws_js(
+            TypeError, () => audioNode.connect(0, 0, 0),
+            'audioNode.connect(0, 0, 0)');
+        assert_throws_js(
+            TypeError, () => audioNode.connect(null, 0, 0),
+            'audioNode.connect(null, 0, 0)');
+        assert_throws_dom(
+            'IndexSizeError',
+            () => audioNode.connect(context.destination, 5, 0),
+            'audioNode.connect(context.destination, 5, 0)');
+        assert_throws_dom(
+            'IndexSizeError',
+            () => audioNode.connect(context.destination, 0, 5),
+            'audioNode.connect(context.destination, 0, 5)');
 
-            // Check input and output numbers of AudioDestinationNode
-            should(
-                context.destination.numberOfInputs,
-                'AudioContext.destination.numberOfInputs')
-                .beEqualTo(1);
-            should(
-                context.destination.numberOfOutputs,
-                'AudioContext.destination.numberOfOutputs')
-                .beEqualTo(1);
+        audioNode.connect(context.destination, 0, 0);
 
-            // Try calling connect() method with illegal values.
-            should(
-                () => audioNode.connect(0, 0, 0), 'audioNode.connect(0, 0, 0)')
-                .throw(TypeError);
-            should(
-                () => audioNode.connect(null, 0, 0),
-                'audioNode.connect(null, 0, 0)')
-                .throw(TypeError);
-            should(
-                () => audioNode.connect(context.destination, 5, 0),
-                'audioNode.connect(context.destination, 5, 0)')
-                .throw(DOMException, 'IndexSizeError');
-            should(
-                () => audioNode.connect(context.destination, 0, 5),
-                'audioNode.connect(context.destination, 0, 5)')
-                .throw(DOMException, 'IndexSizeError');
+        // Create a new context and try to connect the other context's node
+        // to this one.
+        let context2 = new AudioContext();
+        assert_throws_dom(
+            'InvalidAccessError',
+            () => audioNode.connect(context2.destination),
+            'Connecting a node to a different context');
 
-            should(
-                () => audioNode.connect(context.destination, 0, 0),
-                'audioNode.connect(context.destination, 0, 0)')
-                .notThrow();
+        // 3-arg AudioContext doesn't create an offline context anymore.
+        assert_throws_js(
+            TypeError,
+            () => {let context3 = new AudioContext(1, 44100, 44100);},
+            'context3 = new AudioContext(1, 44100, 44100)');
 
-            // Create a new context and try to connect the other context's node
-            // to this one.
-            context2 = new AudioContext();
-            should(
-                () => window.audioNode.connect(context2.destination),
-                'Connecting a node to a different context')
-                .throw(DOMException, 'InvalidAccessError');
-
-            // 3-arg AudioContext doesn't create an offline context anymore.
-            should(
-                () => context3 = new AudioContext(1, 44100, 44100),
-                'context3 = new AudioContext(1, 44100, 44100)')
-                .throw(TypeError);
-
-            // Ensure it is an EventTarget
-            should(
-                audioNode instanceof EventTarget, 'AudioNode is an EventTarget')
-                .beTrue();
-
-            task.done();
-          });
-
-      audit.run();
+        // Ensure it is an EventTarget
+        assert_true(
+            audioNode instanceof EventTarget,
+            'AudioNode is an EventTarget');
+      }, 'Basic tests for AudioNode API.');
     </script>
   </body>
 </html>

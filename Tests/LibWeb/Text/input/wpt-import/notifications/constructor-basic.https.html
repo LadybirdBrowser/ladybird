@@ -43,4 +43,12 @@ test(() => {
         );
     }
 }, "constructing a notification with a NotificationOptions dictionary correctly sets and reflects the silent attribute.");
+
+test(() => {
+  const notification = new Notification("a");
+  assert_equals(notification.lang, "", "lang should default to an empty string");
+  assert_equals(notification.body, "", "body should default to an empty string");
+  assert_equals(notification.tag, "", "tag should default to an empty string");
+  assert_equals(notification.icon, "", "icon should default to an empty string");
+}, "String options should default to empty strings");
 </script>

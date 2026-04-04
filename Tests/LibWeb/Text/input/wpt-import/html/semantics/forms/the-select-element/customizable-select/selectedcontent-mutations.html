@@ -4,31 +4,153 @@
 <script src="../../../../../resources/testharness.js"></script>
 <script src="../../../../../resources/testharnessreport.js"></script>
 
-<style>
-select, ::picker(select) {
-  appearance: base-select;
+<script>
+window.testIdToMutationRecords = new Map();
+function startTest(testId) {
+  const mutationRecords = [];
+  window.testIdToMutationRecords.set(testId, mutationRecords);
+  const mutationObserver = new MutationObserver(mutations => {
+    mutationRecords.push(...mutations);
+  });
+  const config = {attributes: true, childList: true, subtree: true};
+  mutationObserver.observe(document.getElementById(testId), config);
 }
-</style>
+</script>
 
-<div id=target>
+<div id=test1>
   <script>
-    window.selectedcontentRecords = [];
-    window.selectedcontentObserver = new MutationObserver(mutations => {
-      window.selectedcontentRecords = window.selectedcontentRecords.concat(mutations);
-    });
-    const config = {attributes: true, childList: true, subtree: true};
-    window.selectedcontentObserver.observe(document.getElementById('target'), config);
+    startTest('test1');
   </script>
-
   <select>
     <button>
       <selectedcontent></selectedcontent>
     </button>
     <option><span>span</span> one</option>
     <option><span>span</span> two</option>
-    <option selected><span>span</option> three</option>
+    <option selected><span>span</span> three</option>
   </select>
 </div>
+
+<div id=test2>
+  <script>
+    startTest('test2');
+  </script>
+  <select>
+    <selectedcontent></selectedcontent>
+    <option>option</option>
+  </select>
+</div>
+
+<div id=test3>
+  <script>
+    startTest('test3');
+  </script>
+  <select>
+    <button>
+      <selectedcontent>outer1
+        <selectedcontent>inner1</selectedcontent>
+      </selectedcontent>
+      <selectedcontent>outer2
+        <selectedcontent>inner2</selectedcontent>
+      </selectedcontent>
+    </button>
+    <option>option</option>
+  </select>
+</div>
+
+<div id=test4>
+  <script>
+    startTest('test4');
+  </script>
+  <select>
+    <button>
+      <selectedcontent></selectedcontent>
+    </button>
+    <div>
+      <option>one</option>
+    </div>
+    <div>
+      <option selected>two</option>
+    </div>
+  </select>
+</div>
+
+<div id=test5>
+  <script>
+    startTest('test5');
+  </script>
+  <select>
+    <option>option</option>
+    <button>
+      <selectedcontent></selectedcontent>
+    </button>
+  </select>
+</div>
+
+<div id=test6>
+  <script>
+    startTest('test6');
+  </script>
+  <select multiple size=1>
+    <button>
+      <selectedcontent>
+        <selectedcontent></selectedcontent>
+      </selectedcontent>
+      <selectedcontent>
+        <selectedcontent></selectedcontent>
+      </selectedcontent>
+    </button>
+    <option>option</option>
+  </select>
+</div>
+
+<div id=test7>
+  <script>
+    startTest('test7');
+  </script>
+  <select>
+    <button>
+      <selectedcontent></selectedcontent>
+    </button>
+    <option>one</option>
+    <div></div>
+  </select>
+</div>
+<script>
+const select = document.getElementById('test7').querySelector('select');
+
+const optionTwo = document.createElement('option');
+optionTwo.textContent = 'two';
+optionTwo.setAttribute('selected', '');
+select.appendChild(optionTwo);
+
+const selectDiv = select.querySelector('div');
+const optionThree = document.createElement('option');
+optionThree.textContent = 'three';
+optionThree.setAttribute('selected', '');
+select.appendChild(optionThree);
+
+select.value = 'one';
+</script>
+
+<div id=test8>
+  <script>
+    startTest('test8');
+  </script>
+  <div class=container></div>
+  <select>
+    <button>
+      <selectedcontent></selectedcontent>
+    </button>
+    <option>one</option>
+    <option>two</option>
+  </select>
+</div>
+<script>
+const container = document.querySelector('#test8 .container');
+const select8 = document.querySelector('#test8 select');
+container.appendChild(select8);
+</script>
 
 <script>
 function getNodeRepresentation(node) {
@@ -114,35 +236,299 @@ function convertMutationRecords(records) {
   return output;
 }
 
-test(() => {
-  const expectedMutations = [
-    "Type: childList | Target: div#target | Added: [#text: \"\"] | After: script",
-    "Type: childList | Target: div#target | Added: [select] | After: #text: \"\"",
-    "Type: childList | Target: select | Added: [#text: \"\"]",
-    "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
-    "Type: childList | Target: button | Added: [#text: \"\"]",
-    "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
-    "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
-    "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
-    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
-    "Type: childList | Target: option | Added: [span]",
-    "Type: childList | Target: span | Added: [#text: \"span\"]",
-    "Type: childList | Target: option | Added: [#text: \"one\"] | After: span",
-    "Type: childList | Target: selectedcontent | Added: [span, #text: \"one\"]",
-    "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
-    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
-    "Type: childList | Target: option | Added: [span]",
-    "Type: childList | Target: span | Added: [#text: \"span\"]",
-    "Type: childList | Target: option | Added: [#text: \"two\"] | After: span",
-    "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
-    "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
-    "Type: childList | Target: selectedcontent | Removed: [span, #text: \"one\"]",
-    "Type: childList | Target: option | Added: [span]",
-    "Type: childList | Target: span | Added: [#text: \"span\"]",
-    "Type: childList | Target: selectedcontent | Added: [span]",
-    "Type: childList | Target: select | Added: [#text: \"three\"] | After: option",
-    "Type: childList | Target: div#target | Added: [#text: \"\"] | After: select"
-  ];
-  assert_array_equals(convertMutationRecords(window.selectedcontentRecords), expectedMutations);
-}, 'MutationObserver records during parsing of <select> with <selectedcontent>');
+const testIdToExpectations = {
+  test1: {
+    html:
+`<select>
+    <button>
+      <selectedcontent><span>span</span> three</selectedcontent>
+    </button>
+    <option><span>span</span> one</option>
+    <option><span>span</span> two</option>
+    <option selected=""><span>span</span> three</option>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test1 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test1 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [span]",
+      "Type: childList | Target: span | Added: [#text: \"span\"]",
+      "Type: childList | Target: option | Added: [#text: \"one\"] | After: span",
+      "Type: childList | Target: selectedcontent | Added: [span, #text: \"one\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [span]",
+      "Type: childList | Target: span | Added: [#text: \"span\"]",
+      "Type: childList | Target: option | Added: [#text: \"two\"] | After: span",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Removed: [span, #text: \"one\"]",
+      "Type: childList | Target: option | Added: [span]",
+      "Type: childList | Target: span | Added: [#text: \"span\"]",
+      "Type: childList | Target: option | Added: [#text: \"three\"] | After: span",
+      "Type: childList | Target: selectedcontent | Added: [span, #text: \"three\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: div#test1 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test2: {
+    html:
+`<select>
+    <selectedcontent>option</selectedcontent>
+    <option>option</option>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test2 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test2 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"option\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"option\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: div#test2 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test3: {
+    html:
+`<select>
+    <button>
+      <selectedcontent>option</selectedcontent>
+      <selectedcontent>option</selectedcontent>
+    </button>
+    <option>option</option>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test3 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test3 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"outer1\"]",
+      "Type: childList | Target: selectedcontent | Added: [selectedcontent] | After: #text: \"outer1\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"inner1\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"outer2\"]",
+      "Type: childList | Target: selectedcontent | Added: [selectedcontent] | After: #text: \"outer2\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"inner2\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Removed: [#text: \"outer1\", selectedcontent, #text: \"\"]",
+      "Type: childList | Target: selectedcontent | Removed: [#text: \"inner1\"]",
+      "Type: childList | Target: selectedcontent | Removed: [#text: \"outer2\", selectedcontent, #text: \"\"]",
+      "Type: childList | Target: selectedcontent | Removed: [#text: \"inner2\"]",
+      "Type: childList | Target: option | Added: [#text: \"option\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"option\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"option\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: div#test3 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test4: {
+    html:
+`<select>
+    <button>
+      <selectedcontent>two</selectedcontent>
+    </button>
+    <div>
+      <option>one</option>
+    </div>
+    <div>
+      <option selected="">two</option>
+    </div>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test4 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test4 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [div] | After: #text: \"\"",
+      "Type: childList | Target: div | Added: [#text: \"\"]",
+      "Type: childList | Target: div | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"one\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"one\"]",
+      "Type: childList | Target: div | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: div",
+      "Type: childList | Target: select | Added: [div] | After: #text: \"\"",
+      "Type: childList | Target: div | Added: [#text: \"\"]",
+      "Type: childList | Target: div | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Removed: [#text: \"one\"]",
+      "Type: childList | Target: option | Added: [#text: \"two\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"two\"]",
+      "Type: childList | Target: div | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: div",
+      "Type: childList | Target: div#test4 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test5: {
+    html:
+`<select>
+    <option>option</option>
+    <button>
+      <selectedcontent>option</selectedcontent>
+    </button>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test5 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test5 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"option\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"option\"]",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: div#test5 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test6: {
+    html:
+`<select multiple="" size="1">
+    <button>
+      <selectedcontent>
+        <selectedcontent></selectedcontent>
+      </selectedcontent>
+      <selectedcontent>
+        <selectedcontent></selectedcontent>
+      </selectedcontent>
+    </button>
+    <option>option</option>
+  </select>`,
+    mutations: [
+      "Type: childList | Target: div#test6 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test6 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"]",
+      "Type: childList | Target: selectedcontent | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"]",
+      "Type: childList | Target: selectedcontent | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"option\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: div#test6 | Added: [#text: \"\"] | After: select"
+    ]
+  },
+  test7: {
+    html:
+`<select>
+    <button>
+      <selectedcontent>one</selectedcontent>
+    </button>
+    <option>one</option>
+    <div></div>
+  <option selected="">two</option><option selected="">three</option></select>`,
+    mutations: [
+      "Type: childList | Target: div#test7 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test7 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"one\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"one\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [div] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: div",
+      "Type: childList | Target: div#test7 | Added: [#text: \"\"] | After: select",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"two\"] | Removed: [#text: \"one\"]",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"three\"] | Removed: [#text: \"two\"]",
+      "Type: childList | Target: select | Added: [option] | After: option",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"one\"] | Removed: [#text: \"three\"]"
+    ]
+  },
+  test8: {
+    html:
+    `<div class="container"><select>
+    <button>
+      <selectedcontent>one</selectedcontent>
+    </button>
+    <option>one</option>
+    <option>two</option>
+  </select></div>`,
+    mutations: [
+      "Type: childList | Target: div#test8 | Added: [#text: \"\"] | After: script",
+      "Type: childList | Target: div#test8 | Added: [div.container] | After: #text: \"\"",
+      "Type: childList | Target: div#test8 | Added: [#text: \"\"] | After: div.container",
+      "Type: childList | Target: div#test8 | Added: [select] | After: #text: \"\"",
+      "Type: childList | Target: select | Added: [#text: \"\"]",
+      "Type: childList | Target: select | Added: [button] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"]",
+      "Type: childList | Target: button | Added: [selectedcontent] | After: #text: \"\"",
+      "Type: childList | Target: button | Added: [#text: \"\"] | After: selectedcontent",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: button",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"one\"]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"one\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: select | Added: [option] | After: #text: \"\"",
+      "Type: childList | Target: option | Added: [#text: \"two\"]",
+      "Type: childList | Target: select | Added: [#text: \"\"] | After: option",
+      "Type: childList | Target: div#test8 | Added: [#text: \"\"] | After: select",
+      "Type: childList | Target: div#test8 | Removed: [select] | After: #text: \"\" | Before: #text: \"\"",
+      "Type: childList | Target: div.container | Added: [select]",
+      "Type: childList | Target: selectedcontent | Added: [#text: \"one\"] | Removed: [#text: \"one\"]"
+    ]
+  }
+};
+
+for (const testId of Object.keys(testIdToExpectations)) {
+  test(() => {
+    const testContainer = document.getElementById(testId);
+    // Remove the script element to minimize the expectations a bit.
+    testContainer.querySelector('script').remove();
+    const actualHtml = testContainer.innerHTML.trim();
+    const actualMutations = convertMutationRecords(window.testIdToMutationRecords.get(testId));
+
+    const expectedHtml = testIdToExpectations[testId].html.trim();
+    const expectedMutations = testIdToExpectations[testId].mutations;
+
+    // To rebaseline this test, uncomment the following code:
+    /*
+    const log = console;
+    if (expectedHtml != actualHtml) {
+      log.error(`${testId} actual html:\n${actualHtml}`);
+    }
+    let expectedMutationsString = JSON.stringify(expectedMutations, null, 2);
+    let actualMutationsString = JSON.stringify(actualMutations, null, 2);
+    if (expectedMutationsString != actualMutationsString) {
+      log.error(`${testId} actual mutations:\n${actualMutationsString}`);
+    }
+    */
+
+    assert_equals(actualHtml, expectedHtml, testId);
+    assert_array_equals(actualMutations, expectedMutations, testId);
+  }, `MutationObserver records during parsing of <select> with <selectedcontent>: ${testId}`);
+}
 </script>

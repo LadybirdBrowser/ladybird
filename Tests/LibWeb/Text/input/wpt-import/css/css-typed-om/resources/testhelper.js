@@ -42,7 +42,7 @@ function assert_color_channel_approx_equals(a, b) {
 
 // Compares two CSSStyleValues to check if they're the same type
 // and have the same attributes.
-function assert_style_value_equals(a, b) {
+function assert_style_value_equals(a, b, epsilon) {
   if (a == null || b == null) {
     assert_equals(a, b);
     return;
@@ -58,11 +58,13 @@ function assert_style_value_equals(a, b) {
       assert_equals(a.value, b.value);
       break;
     case 'CSSUnitValue':
-      assert_approx_equals(a.value, b.value, 1e-6);
+      assert_approx_equals(a.value, b.value, epsilon ? epsilon : 1e-5);
       assert_equals(a.unit, b.unit);
       break;
     case 'CSSMathSum':
     case 'CSSMathProduct':
+      assert_style_value_array_unordered_equals(a.values, b.values);
+      break;
     case 'CSSMathMin':
     case 'CSSMathMax':
       assert_style_value_array_equals(a.values, b.values);
@@ -124,6 +126,34 @@ function assert_style_value_array_equals(a, b) {
   for (let i = 0; i < a.length; i++) {
     assert_style_value_equals(a[i], b[i]);
   }
+}
+
+// Compares two arrays of CSSStyleValues, ignoring element order.
+//
+// Used for CSSMathSum and CSSMathProduct, where browsers currently differ
+// in how values are ordered. The ordering behavior is under discussion in
+// https://github.com/w3c/csswg-drafts/issues/9451.
+//
+// This is a temporary relaxation: for now, the test accepts any order
+// to avoid interop failures across engines. Once the spec is clarified,
+// tests should assert that the order matches the canonical (sorted) form
+// used for both CSS values and CSS Typed OM.
+function assert_style_value_array_unordered_equals(a, b) {
+  assert_equals(a.length, b.length);
+
+  const remaining = [...b];
+  a.forEach((valueA) => {
+    const matched = remaining.some((valueB, i) => {
+      try {
+        assert_style_value_equals(valueA, valueB);
+        remaining.splice(i, 1);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    assert_true(matched);
+  });
 }
 
 const gValidUnits = [

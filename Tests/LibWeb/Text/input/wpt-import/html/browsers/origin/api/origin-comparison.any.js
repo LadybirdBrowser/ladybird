@@ -10,7 +10,7 @@ test(t => {
   assert_true(opaqueA.isSameSite(opaqueA), "Opaque origin should be same-site with itself.");
   assert_false(opaqueA.isSameOrigin(opaqueB), "Opaque origin should not be same-origin with another opaque origin.");
   assert_false(opaqueA.isSameSite(opaqueB), "Opaque origin should not be same-site with another opaque origin.");
-}, "Comparison of opaque origins.");
+}, "Comparison of `new Origin()` opaque origins.");
 
 test(t => {
   const a = Origin.from("https://a.example");
@@ -48,3 +48,16 @@ test(t => {
   assert_false(http.isSameSite(https), "http is not same-site with https");
   assert_false(https.isSameSite(http), "https is not same-site with http");
 }, "Comparisons are schemeful.");
+
+test(t => {
+  const dataURL = "data:text/plain,opaque";
+  const opaqueA = Origin.from(dataURL);
+  const opaqueB = Origin.from(dataURL);
+  assert_true(opaqueA.opaque);
+  assert_true(opaqueB.opaque);
+
+  assert_true(opaqueA.isSameOrigin(opaqueA), "Opaque origin should be same-origin with itself.");
+  assert_true(opaqueA.isSameSite(opaqueA), "Opaque origin should be same-site with itself.");
+  assert_false(opaqueA.isSameOrigin(opaqueB), "Opaque origin should not be same-origin with another opaque origin.");
+  assert_false(opaqueA.isSameSite(opaqueB), "Opaque origin should not be same-site with another opaque origin, even if created from same URL.");
+}, "Comparison of `Origin.from(<url-string>)` opaque origins.");

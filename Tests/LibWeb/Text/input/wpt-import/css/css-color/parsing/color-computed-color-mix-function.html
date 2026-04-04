@@ -571,6 +571,14 @@
 
     // Carry forward hue that became powerless due to conversion of colorspace
     fuzzy_test_computed_color(`color-mix(in oklch, hsl(0 100% 100%), blue)`, `oklch(0.726007 0.156607 264.052)`);
+
+    // color-mix() with 1 or more colors.
+    fuzzy_test_computed_color(`color-mix(in srgb, red)`, `rgb(255, 0, 0)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, red 50%)`, `rgba(255, 0, 0, 0.5)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, red, green, blue)`, `color(srgb 0.333333 0.167320 0.333333)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, red 50%, green 30%, blue 20%)`, `color(srgb 0.5 0.150588 0.2)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, red 30%, green 60%, blue 90%)`, `color(srgb 0.166667 0.167320 0.5)`);
+    fuzzy_test_computed_color(`color-mix(in srgb, red, green, blue, white)`, `color(srgb 0.5 0.375490 0.5)`);
 </script>
 </body>
 </html>

@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 60 tests
+Found 79 tests
 
-60 Pass
+76 Pass
+3 Fail
 Pass	aria button name from content, inline
 Pass	aria heading name from content, inline
 Pass	aria link name from content, inline
@@ -12,6 +13,12 @@ Pass	aria link name from content, block
 Pass	button name from content
 Pass	heading name from content
 Pass	link name from content
+Fail	button with alt counter on ::before
+Fail	heading with alt counter on ::before
+Fail	link with alt counter on ::before
+Pass	button with multiple alt counters and counter increments
+Pass	heading with multiple alt counters and counter increments
+Pass	link with multiple alt counters and counter increments
 Pass	button name from content with ::before
 Pass	heading name from content with ::before
 Pass	link name from content with ::before
@@ -63,3 +70,16 @@ Pass	heading name from content with text-transform:none
 Pass	heading name from content with text-transform:uppercase
 Pass	heading name from content with text-transform:capitalize
 Pass	heading name from content with text-transform:lowercase
+Pass	heading name from content with text-transform:full-size-kana
+Pass	implicit button name from content containing a dfn element
+Pass	implicit heading name from content containing a dfn element
+Pass	implicit link name from content containing a dfn element
+Pass	implicit button name from content containing an element with explicit term role
+Pass	implicit heading name from content containing an element with explicit term role
+Pass	implicit link name from content containing an element explicit with term role
+Pass	explicit button name from content containing a dfn element
+Pass	explicit heading name from content containing a dfn element
+Pass	explicit link name from content containing a dfn element
+Pass	explicit button name from content containing an element explicit with term role
+Pass	explicit heading name from content containing an element explicit with term role
+Pass	explicit link name from content containing an element explicit with term role

@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 17 tests
+Found 20 tests
 
-16 Pass
+19 Pass
 1 Fail
 Pass	<div>s, <button>s, and <datalist>s should be allowed in <select>
 Pass	</select> should close <button>
@@ -16,6 +16,9 @@ Pass	Input tags should not parse inside select instead of closing the select
 Pass	textarea tags should parse inside select instead of closing the select
 Fail	Input tags should parse inside select if nested in another tag
 Pass	Input tags should close select when directly inside an <option>
+Pass	hr should generate implied end tags inside select
+Pass	optgroup should generate implied end tags inside select
+Pass	option inside optgroup should close previous option
 Pass	The last test should not leave any tags open after parsing
 Pass	Nested selects should be retained 1
 Pass	Nested selects should be retained 2

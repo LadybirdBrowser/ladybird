@@ -43,6 +43,10 @@ test_valid_value('width', 'random(fixed calc(2 / 4), 0px, 100px)', 'random(fixed
 
 // Test nested in expressions
 test_valid_value('width', 'calc(2 * random(0px, 100px))');
+test_valid_value('math-depth', 'add(random(0, 3))');
+test_valid_value('color', 'rgb(random(0, 255) random(0, 255) random(0, 255))');
+test_valid_value('color', 'rgb(from blue r g random(b, (150 + b)))');
+test_valid_value('color', 'color-mix(in srgb, rgb(random(0, 255) 0 random(0, 255)), rgb(0 random(0, 255) 0))');
 
 // Test other types
 test_valid_value('max-lines', 'random(25, 50)');

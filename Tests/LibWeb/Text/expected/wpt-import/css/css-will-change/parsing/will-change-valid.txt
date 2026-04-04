@@ -1,14 +1,25 @@
 Harness status: OK
 
-Found 9 tests
+Found 20 tests
 
-9 Pass
+20 Pass
 Pass	e.style['will-change'] = "auto" should set the property value
 Pass	e.style['will-change'] = "scroll-position" should set the property value
 Pass	e.style['will-change'] = "contents" should set the property value
 Pass	e.style['will-change'] = "transform" should set the property value
 Pass	e.style['will-change'] = "background-color" should set the property value
+Pass	e.style['will-change'] = "TRANSFORM" should set the property value
+Pass	e.style['will-change'] = "Not-A-Property" should set the property value
 Pass	e.style['will-change'] = "scroll-position, contents" should set the property value
 Pass	e.style['will-change'] = "scroll-position, transform" should set the property value
 Pass	e.style['will-change'] = "contents, transform" should set the property value
 Pass	e.style['will-change'] = "transform, background-color" should set the property value
+Pass	e.style['will-change'] = "transform, transform" should set the property value
+Pass	e.style['will-change'] = "TRANSFORM, transform" should set the property value
+Pass	e.style['will-change'] = "transform, TRANSFORM" should set the property value
+Pass	e.style['will-change'] = "TRANSFORM, TRANSFORM" should set the property value
+Pass	e.style['will-change'] = "Not-A-Property, transform" should set the property value
+Pass	e.style['will-change'] = "transform, Not-A-Property" should set the property value
+Pass	e.style['will-change'] = "Not-A-Property, Not-A-Property" should set the property value
+Pass	e.style['will-change'] = "transform, --var" should set the property value
+Pass	e.style['will-change'] = "--var, transform" should set the property value

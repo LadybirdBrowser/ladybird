@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 17 tests
+Found 23 tests
 
 17 Pass
+6 Fail
 Pass	Property rotate value 'none'
 Pass	Property rotate value '0deg'
 Pass	Property rotate value '100 200 300 400grad'
@@ -16,7 +17,13 @@ Pass	Property rotate value 'y 400grad'
 Pass	Property rotate value '400grad y'
 Pass	Property rotate value '0 0.5 0 400grad'
 Pass	Property rotate value '0 1 0 400grad'
+Fail	Property rotate value '-0.5 0 0 400grad'
+Fail	Property rotate value '-1 0 0 400grad'
+Fail	Property rotate value '0 -0.5 0 400grad'
+Fail	Property rotate value '0 -1 0 400grad'
 Pass	Property rotate value '400grad'
 Pass	Property rotate value '400grad z'
 Pass	Property rotate value '0 0 0.5 400grad'
 Pass	Property rotate value '0 0 1 400grad'
+Fail	Property rotate value '0 0 -0.5 400grad'
+Fail	Property rotate value '0 0 -1 400grad'

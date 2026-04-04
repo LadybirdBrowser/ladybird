@@ -33,11 +33,7 @@ test(function() {
     cssText += longhand + ": inherit; ";
   }
   style.cssText = cssText;
-  if (CSS.supports("interactivity:inert")) {
-    assert_equals(style.cssText, "all: inherit; direction: inherit; interactivity: inherit; unicode-bidi: inherit;");
-  } else {
-    assert_equals(style.cssText, "all: inherit; direction: inherit; unicode-bidi: inherit;");
-  }
+  assert_equals(style.cssText, "all: inherit; direction: inherit; unicode-bidi: inherit;");
 }, "'all' shorthand with all longhands");
 
 test(function() {

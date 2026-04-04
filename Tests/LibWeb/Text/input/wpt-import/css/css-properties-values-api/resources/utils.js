@@ -181,7 +181,7 @@ function discrete_animation_test(syntax, fromValue, toValue, description) {
 }
 
 function transition_test(options, description) {
-  promise_test(async () => {
+  promise_test(async t => {
     const customProperty = generate_name();
 
     options.transitionProperty ??= customProperty;
@@ -197,11 +197,11 @@ function transition_test(options, description) {
 
     const transitionEventPromise = new Promise(resolve => {
       let listener = event => {
-          target.removeEventListener("transitionrun", listener);
           assert_equals(event.propertyName, customProperty, "TransitionEvent has the expected property name");
           resolve();
       };
-      target.addEventListener("transitionrun", listener);
+      target.addEventListener("transitionrun", listener, { once: true });
+      t.add_cleanup(() => target.removeEventListener("transitionrun", listener));
     });
 
     target.style.transition = `${options.transitionProperty} 1s -500ms linear`;

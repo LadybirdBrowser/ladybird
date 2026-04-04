@@ -35,6 +35,20 @@
   test_valid_value("position-try-fallbacks", "--foo flip-start, left");
   test_valid_value("position-try-fallbacks", "left, --bar flip-start");
 
+  test_valid_value("position-try-fallbacks", "flip-x");
+  test_valid_value("position-try-fallbacks", "flip-x ", 'flip-x');
+  test_valid_value("position-try-fallbacks", "flip-start, flip-x");
+  test_valid_value("position-try-fallbacks", "flip-start flip-y, flip-x");
+  test_valid_value("position-try-fallbacks", "flip-start flip-y flip-x");
+  test_valid_value("position-try-fallbacks", "flip-x, --foo");
+  test_valid_value("position-try-fallbacks", "--bar, flip-x flip-start");
+  test_valid_value("position-try-fallbacks", "--bar flip-x");
+  test_valid_value("position-try-fallbacks", "--bar flip-y flip-x");
+  test_valid_value("position-try-fallbacks", "flip-y --foo", "--foo flip-y");
+  test_valid_value("position-try-fallbacks", "flip-y flip-start --foo", "--foo flip-y flip-start");
+
+  test_valid_value("position-try-fallbacks", "flip-start flip-inline flip-y flip-block flip-x");
+
   test_invalid_value("position-try-fallbacks", "none, flip-start");
   test_invalid_value("position-try-fallbacks", "flip-block flip-block");
   test_invalid_value("position-try-fallbacks", "flip-block flip-inline flip-inline");
@@ -51,4 +65,6 @@
   test_invalid_value("position-try-fallbacks", "left --foo ");
   test_invalid_value("position-try-fallbacks", "left flip-start");
   test_invalid_value("position-try-fallbacks", "--foo, none");
+  test_invalid_value("position-try-fallbacks", "none, flip-x");
+  test_invalid_value("position-try-fallbacks", "flip-y flip-y");
 </script>

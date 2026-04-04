@@ -1,11 +1,16 @@
 Harness status: OK
 
-Found 27 tests
+Found 32 tests
 
-27 Pass
+32 Pass
 Pass	Property mask value 'none'
 Pass	Property mask value 'linear-gradient(to left bottom, red, blue)'
 Pass	Property mask value 'linear-gradient(to left bottom, red, blue) luminance'
+Pass	Property mask value 'linear-gradient(calc(90deg - 45deg), rgb(0, 128, 0), rgb(0, 0, 255)'
+Pass	Property mask value 'radial-gradient(circle calc(-0.5em + 10px) at calc(-1em + 10px) calc(-2em + 10px), rgb(255, 0, 0), rgb(0, 0, 255))'
+Pass	Property mask value 'radial-gradient(ellipse calc(-0.5em + 10px) calc(0.5em + 10px) at 20px 30px, rgb(255, 0, 0), rgb(0, 0, 255))'
+Pass	Property mask value 'conic-gradient(gold calc(100% / 2), #f06 calc(360deg * 4 / 5))'
+Pass	Property mask value 'conic-gradient(black 1turn, white'
 Pass	Property mask value 'url("https://example.com/")'
 Pass	Property mask value 'linear-gradient(to left bottom, red, blue) 1px 2px'
 Pass	Property mask value 'url("https://example.com/") 1px 2px / contain'

@@ -1,14 +1,15 @@
 Harness status: OK
 
-Found 17 tests
+Found 18 tests
 
-17 Pass
+18 Pass
 Pass	Converting a CSSUnitValue to an invalid unit throws SyntaxError
 Pass	Converting a CSSNumericValue with invalid sum value throws TypeError
 Pass	Converting a CSSNumericValue with sum value containing more than one value throws TypeError
 Pass	Converting a CSSUnitValue to an incompatible unit throws TypeError
 Pass	Converting a CSSUnitValue to its own unit returns itself
 Pass	Converting a CSSUnitValue to its canonical unit returns correct value
+Pass	Converting a CSSUnitValue to a compatible unit returns correct value
 Pass	Converting a CSSMathSum to a single unit adds the values
 Pass	Converting a CSSMathProduct to a single unit multiplies the values
 Pass	Converting a CSSMathMin to a single unit finds the min value

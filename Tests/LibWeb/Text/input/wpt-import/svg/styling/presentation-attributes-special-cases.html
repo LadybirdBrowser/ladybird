@@ -21,7 +21,7 @@ if (propertiesAreSupported(["cx", "cy"])) {
 }
 
 if (propertiesAreSupported(["x", "y", "width", "height"])) {
-  for (let e of ["foreignObject", "image", "rect", "svg", "symbol", "use"]) {
+  for (let e of ["foreignObject", "image", "rect", "svg"]) {
     test(function() {
       for (let p of ["x", "y", "width", "height"]) {
         assertPresentationAttributeIsSupported(e, p, "1", p);

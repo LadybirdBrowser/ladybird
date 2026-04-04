@@ -455,6 +455,19 @@
     fuzzy_test_valid_color(`color-mix(in srgb, red,           blue 90%)`,          `color-mix(in srgb, red 10%, blue)`)                 // only p2 specified
     fuzzy_test_valid_color(`color-mix(in srgb, red,           blue calc(50%))`,    `color-mix(in srgb, red, blue calc(50%))`)           // only p2 specified, is `calc()`
     fuzzy_test_valid_color(`color-mix(in srgb, red,           blue)`,              `color-mix(in srgb, red, blue)`)                     // neither is specified
+
+    // color-mix() with 1 or more colors.
+    fuzzy_test_valid_color(`color-mix(in srgb, red)`, `color-mix(in srgb, red)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red 100%)`, `color-mix(in srgb, red)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%)`, `color-mix(in srgb, red 50%)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red, green, blue)`, `color-mix(in srgb, red, green, blue)`);
+    fuzzy_test_valid_color(`color-mix(in hsl, red, green, blue)`, `color-mix(in hsl, red, green, blue)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%, green 30%, blue 20%)`, `color-mix(in srgb, red 50%, green 30%, blue 20%)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red 30%, green 60%, blue 90%)`, `color-mix(in srgb, red 30%, green 60%, blue 90%)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red 50%, green, blue)`, `color-mix(in srgb, red 50%, green 25%, blue 25%)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red, green 25%, blue 25%)`, `color-mix(in srgb, red 50%, green 25%, blue 25%)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, red, green, blue, white)`, `color-mix(in srgb, red, green, blue, white)`);
+    fuzzy_test_valid_color(`color-mix(in srgb, currentcolor, red, blue)`, `color-mix(in srgb, currentcolor, red, blue)`);
 </script>
 </body>
 </html>

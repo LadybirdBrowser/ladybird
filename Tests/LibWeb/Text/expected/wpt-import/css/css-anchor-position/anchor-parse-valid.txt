@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 2356 tests
+Found 2358 tests
 
-2352 Pass
-4 Fail
+2353 Pass
+5 Fail
 Pass	e.style['left'] = "anchor(inside)" should set the property value
 Pass	e.style['left'] = "anchor(inside, 1px)" should set the property value
 Pass	e.style['left'] = "anchor(inside, 50%)" should set the property value
@@ -2360,3 +2360,5 @@ Fail	e.style['top'] = "calc((anchor(--foo top) + anchor(--bar bottom)) / 2)" sho
 Fail	e.style['top'] = "calc(0.5 * (anchor(--foo top) + anchor(--bar bottom)))" should set the property value
 Fail	e.style['top'] = "anchor(--foo top, calc(0.5 * anchor(--bar bottom)))" should set the property value
 Fail	e.style['top'] = "min(100px, 10%, anchor(--foo top), anchor(--bar bottom))" should set the property value
+Pass	e.style['top'] = "anchor(--foo left, 0)" should set the property value
+Fail	e.style['top'] = "calc(anchor(--foo left, 0))" should set the property value

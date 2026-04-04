@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 36 tests
+Found 39 tests
 
-36 Pass
+37 Pass
+2 Fail
 Pass	Property cursor value 'auto'
 Pass	Property cursor value 'default'
 Pass	Property cursor value 'none'
@@ -39,3 +40,6 @@ Pass	Property cursor value 'row-resize'
 Pass	Property cursor value 'all-scroll'
 Pass	Property cursor value 'zoom-in'
 Pass	Property cursor value 'zoom-out'
+Fail	Property cursor value 'linear-gradient(200grad, red 10%, blue calc(75% - 2px)), auto'
+Pass	Property cursor value 'radial-gradient(farthest-side at calc(5px + 10%), red, blue), pointer'
+Fail	Property cursor value 'conic-gradient(from 3.1416rad at 20% 20%, red, blue), crosshair'

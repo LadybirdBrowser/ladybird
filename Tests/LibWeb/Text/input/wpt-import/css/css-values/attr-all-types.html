@@ -35,7 +35,7 @@
     const dimensionTypeToUnits = {
         "length": ["em", "ex", "cap", "ch", "ic", "rem", "lh", "rlh", "vw", "vh", "vi", "vb", "vmin", "vmax"],
         "angle": ["deg", "grad", "rad", "turn"],
-        "time": ["ms", "ms"],
+        "time": ["s", "ms"],
         "frequency": ["Hz", "kHz"]
     };
 
@@ -95,6 +95,24 @@
         elem.style.setProperty(property, null);
     }
 
+    function test_invalid_var(property, varName, varValue, varUse) {
+        var elem = document.getElementById("attr");
+        var expectedValue = window.getComputedStyle(elem).getPropertyValue(property);
+
+        elem.style.setProperty(varName, varValue);
+        elem.style.setProperty(property, varUse);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(property), expectedValue,
+                          "Setting property \'" + property + "\' to the value \'" + varUse +
+                          "\', where \'" + varName + ": " + varValue + "\' should not change it's value.");
+        }, "Invariant behaviour for var");
+        elem.style.setProperty(varName, null);
+        elem.style.setProperty(property, null);
+    }
+
+    test_invalid_var('background-color', '--foo', 'red', 'var(--foo type(*))');
+
     test_valid_attr('content', 'attr(data-foo)', 'abc', '"abc"');
     test_valid_attr('content', 'attr(data-foo)', 'var(--number)', '"var(--number)"');
     test_valid_attr('content', 'attr(data-foo raw-string)', 'abc', '"abc"');
@@ -109,7 +127,9 @@
     test_valid_attr('content', 'attr(data-foo type(<string>))', '"attr(data-foo)"', '"attr(data-foo)"');
     test_valid_attr('content', 'attr(data-foo)', '', '""');
     test_valid_attr('font-family', 'attr(non-existent)', '', '""');
+    test_valid_attr('font-family', 'attr(non-existent, serif)', '', 'serif');
     test_valid_attr('font-family', 'attr(non-existent string)', '', '');
+    test_valid_attr('font-family', 'attr(non-existent raw-string)', '', '');
     test_invalid_attr('font-family', 'attr(non-existent type(<string>))', '');
 
     test_valid_attr('animation-name', 'attr(data-foo type(<custom-ident>))', 'anim', 'anim');
@@ -159,10 +179,21 @@
     test_valid_attr('transition-duration', 'attr(data-foo type(<time>), 30s)', '10m', '30s');
     test_valid_attr('transition-duration', 'attr(data-foo type(<time>), calc(10s + 20s))', '10m', '30s');
 
+    test_valid_attr('width', 'attr(data-foo type(invalid))', '0px', '');
+    test_valid_attr('width', 'attr(data-foo type(invalid), 10px)', '0px', '10px');
+    test_invalid_attr('width', 'attr(data-foo type(invalid |), 10px)', '0px');
+
+    test_valid_attr('background-color', 'attr(data-foo type(<color>)', '#ff0099aa', '#ff0099aa');
+    test_valid_attr('background-color', 'attr(data-foo type(invalid | blue)', 'blue', 'blue');
+    test_valid_attr('width', 'attr(data-foo type(<length> | <percentage>)', '10%', '10%');
+    test_invalid_attr('width', 'attr(data-foo type(<invalid>)', '10px');
+
     test_valid_attr('height', 'attr(data-foo px)', '10', '10px');
     test_valid_attr('width', 'calc(attr(data-foo px) + 1px)', '10', '11px');
     test_valid_attr('font-size', 'attr(data-foo %)', '10', '10%');
     test_valid_attr('--x', 'attr(data-foo px) 11px', '10', '10px 11px');
+    test_valid_attr('height', 'attr(data-foo px)', 'abc', '');
+    test_valid_attr('width', 'attr(non-existent px, 3px)', '10', '3px');
 
     test_valid_attr('font-weight', 'attr(data-foo number)', '10', '10');
 
@@ -226,6 +257,7 @@
     test_invalid_attr('width', 'attr(data-foo px)', '10px');
     test_invalid_attr('width', 'attr(data-foo <px>)', '10');
     test_invalid_attr('width', 'attr(data-foo xx)', '10');
+    test_invalid_attr('width', 'attr(data-foo xx, 3px)', '10');
     test_invalid_attr('width', 'attr(data-foo px)', 'calc(1 + 3)');
     test_invalid_attr('width', 'attr(data-foo px)', 'var(--number)');
 

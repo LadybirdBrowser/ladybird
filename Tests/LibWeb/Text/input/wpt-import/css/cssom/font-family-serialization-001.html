@@ -4,16 +4,26 @@
 <title>Serialization of font-family</title>
 <link rel="help" href="https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block">
 <link rel="help" href="https://drafts.csswg.org/css-fonts-4/#font-family-prop">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/5846">
 <script src="../../resources/testharness.js"></script>
 <script src="../../resources/testharnessreport.js"></script>
 <script src="../../css/css-fonts/support/font-family-keywords.js"></script>
 <div id="target"></div>
 <script>
+  var target = document.getElementById('target');
+
   function SetFontFamilyAndSerialize(fontFamilyValue) {
-    var target = document.getElementById('target');
     target.setAttribute("style", `font-family: ${fontFamilyValue}`);
     return window.getComputedStyle(target).getPropertyValue('font-family');
   }
+
+  function SetFontFamilyAndSerializeSpecified(fontFamilyValue) {
+    target.setAttribute("style", `font-family: ${fontFamilyValue}`);
+    return target.style.fontFamily;
+  }
+
+  // Generic family keywords.
+
   test(function() {
     kGenericFontFamilyKeywords.forEach(keyword => {
       assert_equals(SetFontFamilyAndSerialize(keyword), keyword);
@@ -39,6 +49,105 @@
       assert_equals(SetFontFamilyAndSerialize(keyword), keyword);
     });
   }, `Serialization of ${kNonGenericFontFamilyKeywords}`);
+
+  // Multi-word family names: valid ident sequences serialize unquoted.
+  // See https://github.com/w3c/csswg-drafts/issues/5846
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("Twisty Tie"), "Twisty Tie");
+  }, "Specified: multi-word family name serializes unquoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("'Twisty Tie'"), "Twisty Tie");
+  }, "Specified: quoted multi-word name normalizes to unquoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("Times New Roman"), "Times New Roman");
+  }, "Specified: three-word family name serializes unquoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerialize("Twisty Tie"), "Twisty Tie");
+  }, "Computed: multi-word family name serializes unquoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerialize("'Times New Roman'"), "Times New Roman");
+  }, "Computed: quoted multi-word name normalizes to unquoted");
+
+  // Single-word valid ident: no quotes needed.
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("Veronica"), "Veronica");
+  }, "Specified: single-word family name");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("'Veronica'"), "Veronica");
+  }, "Specified: quoted single-word name normalizes to unquoted");
+
+  // Names starting with a digit: must be quoted.
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("'34J'"), '"34J"');
+  }, "Specified: digit-starting family name stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerialize("'34J'"), '"34J"');
+  }, "Computed: digit-starting family name stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("'1'"), '"1"');
+  }, "Specified: single-digit family name stays quoted");
+
+  // Quoted generic family keywords as family-name: must stay quoted.
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"serif"'), '"serif"');
+  }, "Specified: quoted 'serif' stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"sans-serif"'), '"sans-serif"');
+  }, "Specified: quoted 'sans-serif' stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerialize('"serif"'), '"serif"');
+  }, "Computed: quoted 'serif' stays quoted");
+
+  // CSS-wide keywords as family-name: must stay quoted.
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"initial"'), '"initial"');
+  }, "Specified: quoted 'initial' stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"inherit"'), '"inherit"');
+  }, "Specified: quoted 'inherit' stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"unset"'), '"unset"');
+  }, "Specified: quoted 'unset' stays quoted");
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified('"default"'), '"default"');
+  }, "Specified: quoted 'default' stays quoted");
+
+  // Names with special characters: must stay quoted.
+
+  test(function() {
+    assert_equals(SetFontFamilyAndSerializeSpecified("'A  B'"), '"A  B"');
+  }, "Specified: double-space family name stays quoted");
+
+  // Multiple families in a list.
+
+  test(function() {
+    assert_equals(
+        SetFontFamilyAndSerializeSpecified("Twisty Tie, '34J', \"serif\", Veronica, sans-serif"),
+        "Twisty Tie, \"34J\", \"serif\", Veronica, sans-serif");
+  }, "Specified: mixed font-family list serialization");
+
+  test(function() {
+    assert_equals(
+        SetFontFamilyAndSerialize("Twisty Tie, '34J', \"serif\", Veronica, sans-serif"),
+        "Twisty Tie, \"34J\", \"serif\", Veronica, sans-serif");
+  }, "Computed: mixed font-family list serialization");
 
 </script>
 </html>

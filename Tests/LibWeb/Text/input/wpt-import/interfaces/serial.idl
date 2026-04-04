@@ -37,8 +37,8 @@ interface SerialPort : EventTarget {
   attribute EventHandler onconnect;
   attribute EventHandler ondisconnect;
   readonly attribute boolean connected;
-  readonly attribute ReadableStream readable;
-  readonly attribute WritableStream writable;
+  readonly attribute ReadableStream? readable;
+  readonly attribute WritableStream? writable;
 
   SerialPortInfo getInfo();
 

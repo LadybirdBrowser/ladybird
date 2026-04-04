@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 15 tests
+Found 42 tests
 
-15 Pass
+42 Pass
 Pass	e.style['grid-template-rows'] = "-10px" should not set the property value
 Pass	e.style['grid-template-rows'] = "-20%" should not set the property value
 Pass	e.style['grid-template-rows'] = "-5fr" should not set the property value
@@ -18,3 +18,30 @@ Pass	e.style['grid-template-rows'] = "[one] 10px [two] [three]" should not set t
 Pass	e.style['grid-template-rows'] = "repeat(auto-fill, -10px)" should not set the property value
 Pass	e.style['grid-template-rows'] = "repeat(auto-fill, 10px) repeat(auto-fit, 20%)" should not set the property value
 Pass	e.style['grid-template-rows'] = "[auto] 1px" should not set the property value
+Pass	e.style['grid-template-rows'] = "-10px repeat(auto-fit, auto)" should not set the property value
+Pass	e.style['grid-template-rows'] = "-10px repeat(auto-fill, min-content)" should not set the property value
+Pass	e.style['grid-template-rows'] = "-20% repeat(auto-fit, max-content)" should not set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, fit-content)" should not set the property value
+Pass	e.style['grid-template-rows'] = "auto repeat(auto-fill, auto) auto" should not set the property value
+Pass	e.style['grid-template-rows'] = "min-content repeat(auto-fill, auto) min-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "max-content repeat(auto-fill, auto) max-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "fit-content(200px) repeat(auto-fill, auto) fit-content(200px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "auto repeat(auto-fill, auto) repeat(5, auto)" should not set the property value
+Pass	e.style['grid-template-rows'] = "auto repeat(auto-fill, min-content) auto" should not set the property value
+Pass	e.style['grid-template-rows'] = "min-content repeat(auto-fill, min-content) min-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "max-content repeat(auto-fill, min-content) max-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "fit-content(200px) repeat(auto-fill, min-content) fit-content(200px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "min-content repeat(auto-fill, min-content) repeat(5, min-content)" should not set the property value
+Pass	e.style['grid-template-rows'] = "auto repeat(auto-fill, max-content) auto" should not set the property value
+Pass	e.style['grid-template-rows'] = "min-content repeat(auto-fill, max-content) min-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "max-content repeat(auto-fill, max-content) max-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "fit-content(200px) repeat(auto-fill, max-content) fit-content(200px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "max-content repeat(auto-fill, max-content) repeat(5, max-content)" should not set the property value
+Pass	e.style['grid-template-rows'] = "auto repeat(auto-fill, fit-content(200px)) auto" should not set the property value
+Pass	e.style['grid-template-rows'] = "min-content repeat(auto-fill, fit-content(200px)) min-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "max-content repeat(auto-fill, fit-content(200px)) max-content" should not set the property value
+Pass	e.style['grid-template-rows'] = "fit-content(200px) repeat(auto-fill, fit-content(200px)) fit-content(200px)" should not set the property value
+Pass	e.style['grid-template-rows'] = "fit-content(200px) repeat(auto-fill, fit-content(200px)) repeat(5, fit-content(200px))" should not set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(fit-content(200px), fit-content(300px)))" should not set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(fit-content(200px), auto))" should not set the property value
+Pass	e.style['grid-template-rows'] = "repeat(auto-fill, minmax(max-content, fit-content(200px)))" should not set the property value

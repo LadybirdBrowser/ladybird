@@ -9,7 +9,7 @@ interface TimeEvent : Event {
   readonly attribute WindowProxy? view;
   readonly attribute long detail;
 
-  undefined initTimeEvent(DOMString typeArg, Window? viewArg, long detailArg);
+  undefined initTimeEvent(DOMString typeArg, optional Window? viewArg = null, optional long detailArg = 0);
 };
 
 [Exposed=Window]
@@ -53,10 +53,6 @@ SVGMPathElement includes SVGURIReference;
 
 [Exposed=Window]
 interface SVGAnimateTransformElement : SVGAnimationElement {
-};
-
-[Exposed=Window]
-interface SVGDiscardElement : SVGAnimationElement {
 };
 
 partial interface SVGSVGElement {

@@ -112,6 +112,32 @@
   </option>
 </select>
 
+<select class=test
+    data-description='hr should generate implied end tags inside select'
+    data-expect='<option>A</option><hr><option>B</option>'>
+  <option>A
+  <hr>
+  <option>B</option>
+</select>
+
+<select class=test
+    data-description='optgroup should generate implied end tags inside select'
+    data-expect='<optgroup><option>A</option></optgroup><optgroup><option>B</option></optgroup>'>
+  <optgroup>
+    <option>A</option>
+  <optgroup>
+    <option>B</option>
+</select>
+
+<select class=test
+    data-description='option inside optgroup should close previous option'
+    data-expect='<optgroup><option>A</option><option>B</option></optgroup>'>
+  <optgroup>
+    <option>A
+    <option>B
+  </optgroup>
+</select>
+
 <div id=afterlast>
   keep this div after the last test case
 </div>

@@ -37,11 +37,21 @@ test_computed_value("rotate", "400grad y", "y 360deg");
 test_computed_value("rotate", "0 0.5 0 400grad", "y 360deg");
 test_computed_value("rotate", "0 1 0 400grad", "y 360deg");
 
+// ...though if the axis is in the reverse direction, the angle is negated.
+test_computed_value("rotate", "-0.5 0 0 400grad", "x -360deg");
+test_computed_value("rotate", "-1 0 0 400grad", "x -360deg");
+
+test_computed_value("rotate", "0 -0.5 0 400grad", "y -360deg");
+test_computed_value("rotate", "0 -1 0 400grad", "y -360deg");
+
 // If the axis is parallel with the z axis the property must serialize as just an <angle>.
 test_computed_value("rotate", "400grad", "360deg");
 test_computed_value("rotate", "400grad z", "360deg");
 test_computed_value("rotate", "0 0 0.5 400grad", "360deg");
 test_computed_value("rotate", "0 0 1 400grad", "360deg");
+
+test_computed_value("rotate", "0 0 -0.5 400grad", "-360deg");
+test_computed_value("rotate", "0 0 -1 400grad", "-360deg");
 </script>
 </body>
 </html>

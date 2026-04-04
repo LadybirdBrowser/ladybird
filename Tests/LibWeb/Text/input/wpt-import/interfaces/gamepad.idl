@@ -73,12 +73,12 @@ partial interface Navigator {
 [Exposed=Window]
 
 interface GamepadEvent: Event {
-  constructor(DOMString type, GamepadEventInit eventInitDict);
+  constructor(DOMString type, optional GamepadEventInit eventInitDict = {});
   [SameObject] readonly attribute Gamepad gamepad;
 };
 
 dictionary GamepadEventInit : EventInit {
-  required Gamepad gamepad;
+  Gamepad? gamepad = null;
 };
 
 partial interface mixin WindowEventHandlers {

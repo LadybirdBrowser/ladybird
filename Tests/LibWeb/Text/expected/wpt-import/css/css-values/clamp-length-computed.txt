@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 17 tests
+Found 24 tests
 
 17 Pass
+7 Fail
 Pass	Property letter-spacing value 'clamp(10px, 20px, 30px)'
 Pass	Property letter-spacing value 'clamp(10px, 5px, 30px)'
 Pass	Property letter-spacing value 'clamp(10px, 35px, 30px)'
@@ -20,3 +21,10 @@ Pass	Property letter-spacing value 'calc(0px + clamp(10px, 20px, 30px))'
 Pass	Property letter-spacing value 'calc(0px - clamp(10px, 20px, 30px))'
 Pass	Property letter-spacing value 'calc(0px + clamp(30px, 100px, 20px))'
 Pass	Property letter-spacing value 'calc(0px - clamp(30px, 100px, 20px))'
+Fail	Property letter-spacing value 'clamp(none, 30px, 33px)'
+Fail	Property letter-spacing value 'clamp(none, 33px, 30px)'
+Fail	Property letter-spacing value 'clamp(30px, 33px, none)'
+Fail	Property letter-spacing value 'clamp(33px, 30px, none)'
+Fail	Property letter-spacing value 'clamp(none, 30px, none)'
+Fail	Property letter-spacing value 'clamp(1000px, 1em / 1rem * 1px, none)'
+Fail	Property letter-spacing value 'clamp(1600px / 1em * 1px, 1em / 1rem * 1px, none)'

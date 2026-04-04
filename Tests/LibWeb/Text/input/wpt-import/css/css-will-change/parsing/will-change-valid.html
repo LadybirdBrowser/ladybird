@@ -19,11 +19,23 @@ test_valid_value("will-change", "scroll-position");
 test_valid_value("will-change", "contents");
 test_valid_value("will-change", "transform");
 test_valid_value("will-change", "background-color");
+test_valid_value("will-change", "TRANSFORM");
+test_valid_value("will-change", "Not-A-Property");
 
 test_valid_value("will-change", "scroll-position, contents");
 test_valid_value("will-change", "scroll-position, transform");
 test_valid_value("will-change", "contents, transform");
 test_valid_value("will-change", "transform, background-color");
+
+test_valid_value("will-change", "transform, transform");
+test_valid_value("will-change", "TRANSFORM, transform");
+test_valid_value("will-change", "transform, TRANSFORM");
+test_valid_value("will-change", "TRANSFORM, TRANSFORM");
+test_valid_value("will-change", "Not-A-Property, transform");
+test_valid_value("will-change", "transform, Not-A-Property");
+test_valid_value("will-change", "Not-A-Property, Not-A-Property");
+test_valid_value("will-change", "transform, --var");
+test_valid_value("will-change", "--var, transform");
 </script>
 </body>
 </html>

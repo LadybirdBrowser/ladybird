@@ -582,16 +582,18 @@ setup({ "explicit_done": true });
     query_should_not_be_parseable("all and color : 1");
     should_not_apply("all and min-color : 1");
     should_not_apply("(bogus)");
-    should_not_apply("not all and (bogus)")
-    should_not_apply("only all and (bogus)")
+    should_not_apply("not all and (bogus)");
+    should_not_apply("only all and (bogus)");
 
     // Parsing tests for overflow-block from mediaqueries-4
-    expression_should_be_known("overflow-block")
-    expression_should_be_known("overflow-block: none")
-    expression_should_be_known("overflow-block: paged")
-    expression_should_be_known("overflow-block: scroll")
-    expression_should_be_unknown("overflow-block: optional-paged")
-    expression_should_be_unknown("overflow-block: some-random-invalid-thing")
+    expression_should_be_known("overflow-block");
+    expression_should_be_known("overflow-block: none");
+    expression_should_be_known("overflow-block: paged");
+    expression_should_be_known("overflow-block: scroll");
+    expression_should_be_unknown("overflow-block: optional-paged");
+    expression_should_be_unknown("overflow-block: some-random-invalid-thing");
+    expression_should_be_unknown("overflow-block = scroll");
+    expression_should_be_unknown("overflow-block < scroll");
 
     // Sanity check for overflow-block
     test(function() {

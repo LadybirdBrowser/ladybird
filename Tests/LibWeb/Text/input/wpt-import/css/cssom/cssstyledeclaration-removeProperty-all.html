@@ -14,4 +14,11 @@
     style.removeProperty("all");
     assert_equals(style.length, 0, "all is a shorthand of all properties, so should remove the property");
   });
+
+  test(function() {
+    let style = document.createElement("div").style;
+    style.cssText = "width: 40px; all: revert";
+    style.removeProperty("all");
+    assert_equals(style.getPropertyValue("all"), "", "all is a shorthand of all properties, so should return empty string");
+  });
 </script>

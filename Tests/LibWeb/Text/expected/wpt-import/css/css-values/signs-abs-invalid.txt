@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 52 tests
+Found 53 tests
 
-51 Pass
+52 Pass
 1 Fail
 Pass	e.style['font-weight'] = "abs()" should not set the property value
 Pass	e.style['font-weight'] = "abs( )" should not set the property value
@@ -56,3 +56,4 @@ Pass	e.style['tab-size'] = "1px * sign(10%)" should not set the property value
 Pass	e.style['tab-size'] = "1px * sign(1em + 10%)" should not set the property value
 Pass	e.style['margin-left'] = "1px * sign(10px + 5rad)" should not set the property value
 Pass	e.style['tab-size'] = "1px * sign(10px + 5rad)" should not set the property value
+Pass	e.style['tab-size'] = "calc(100% + abs(1vmin * 10%))" should not set the property value

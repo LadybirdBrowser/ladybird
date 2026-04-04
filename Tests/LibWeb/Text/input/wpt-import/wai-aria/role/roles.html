@@ -11,7 +11,10 @@
 </head>
 <body>
 
-<p>Tests most <a href="https://w3c.github.io/aria/#role_definitions">ARIA role definitions</a>. See comments for more info.</p>
+<h1>Tests most <a href="https://w3c.github.io/aria/#role_definitions">ARIA role definitions</a>. See comments for more info.</h1>
+
+<!-- Tested via AriaUtils.assignAndVerifyRolesByRoleNames() in <script> block below  -->
+<!-- Also tests role capitalization styles, in addition to "role": "ROLE", "Role"    -->
 
 <script>
 
@@ -28,7 +31,7 @@ Tests simple role assignment: <div role="alert">x</div>
 
 */
 
-AriaUtils.assignAndVerifyRolesByRoleNames([
+let ariaRoles = [
   "alert",
   "alertdialog",
   "application",
@@ -133,7 +136,22 @@ AriaUtils.assignAndVerifyRolesByRoleNames([
   // "treegrid" -> ./treegrid-roles.html
   // "widget" -> ./abstract-roles.html
   // "window" -> ./abstract-roles.html
-]);
+];
+
+// Lower case
+AriaUtils.assignAndVerifyRolesByRoleNames(ariaRoles);
+
+// Upper case
+AriaUtils.assignAndVerifyRolesByRoleNames(
+  ariaRoles.map(role => role.toUpperCase())
+);
+
+// Sentence case
+AriaUtils.assignAndVerifyRolesByRoleNames(
+  ariaRoles.map(role =>
+    role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
+  )
+);
 
 </script>
 </body>

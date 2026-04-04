@@ -40,7 +40,8 @@
     {value: "\f1", expected: "", testname: "value with a leading form feed"},
     {value: "\r1", expected: "", testname: "value with a leading carriage return"},
     {value: " 1", expected: "", testname: "value with a leading space"},
-    {value: "1trailing junk", expected: "", testname: "value = 1trailing junk"}
+    {value: "1trailing junk", expected: "", testname: "value = 1trailing junk"},
+    {value: "１２３", expected: "", testname: "full-width digits"},
   ];
   for (var i = 0; i < numbers.length; i++) {
     var w = numbers[i];

@@ -1,10 +1,30 @@
 Harness status: OK
 
-Found 4 tests
+Found 24 tests
 
-2 Pass
-2 Fail
+14 Pass
+10 Fail
 Fail	Serialization of <generic-family>
 Pass	Serialization of quoted "<generic-family>"
 Fail	Serialization of prefixed -webkit-<generic-family>
 Pass	Serialization of NonGenericFontFamilyName,-webkit-body,-webkit-standard,-webkit-pictograph,emoji,fangsong,BlinkMacSystemFont
+Fail	Specified: multi-word family name serializes unquoted
+Fail	Specified: quoted multi-word name normalizes to unquoted
+Fail	Specified: three-word family name serializes unquoted
+Fail	Computed: multi-word family name serializes unquoted
+Fail	Computed: quoted multi-word name normalizes to unquoted
+Pass	Specified: single-word family name
+Fail	Specified: quoted single-word name normalizes to unquoted
+Pass	Specified: digit-starting family name stays quoted
+Pass	Computed: digit-starting family name stays quoted
+Pass	Specified: single-digit family name stays quoted
+Pass	Specified: quoted 'serif' stays quoted
+Pass	Specified: quoted 'sans-serif' stays quoted
+Pass	Computed: quoted 'serif' stays quoted
+Pass	Specified: quoted 'initial' stays quoted
+Pass	Specified: quoted 'inherit' stays quoted
+Pass	Specified: quoted 'unset' stays quoted
+Pass	Specified: quoted 'default' stays quoted
+Pass	Specified: double-space family name stays quoted
+Fail	Specified: mixed font-family list serialization
+Fail	Computed: mixed font-family list serialization

@@ -49,6 +49,10 @@ test_computed_value("cursor", "all-scroll");
 test_computed_value("cursor", "zoom-in");
 test_computed_value("cursor", "zoom-out");
 
+test_computed_value("cursor", "linear-gradient(200grad, red 10%, blue calc(75% - 2px)), auto", "linear-gradient(rgb(255, 0, 0) 10%, rgb(0, 0, 255) calc(75% - 2px), auto");
+test_computed_value("cursor", "radial-gradient(farthest-side at calc(5px + 10%), red, blue), pointer", "radial-gradient(farthest-side at calc(10% + 5px) 50%, rgb(255, 0, 0), rgb(0, 0, 255)), pointer");
+test_computed_value("cursor", "conic-gradient(from 3.1416rad at 20% 20%, red, blue), crosshair", "conic-gradient(from 180deg at 20% 20%, rgb(255, 0, 0), rgb(0, 0, 255), pointer");
+
 // Not yet tested: // [ [<url> [<x> <y>]?,]*
 // "relative URLs converted to absolute"
 </script>

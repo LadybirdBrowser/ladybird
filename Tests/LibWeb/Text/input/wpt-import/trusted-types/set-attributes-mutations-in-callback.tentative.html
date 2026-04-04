@@ -10,12 +10,16 @@
   const input_string = "unsafe_input";
   const output_string = "safe_output";
   const other_string = "other_value";
-  let applyMutation, finalChecks;
+  let applyMutation;
+  let treatDefaultPolicyAsNoOp = false;
   function testCleanup() {
     applyMutation = undefined;
-    finalChecks = undefined;
+    treatDefaultPolicyAsNoOp = false;
   }
   function createTrustedType(input) {
+    if (treatDefaultPolicyAsNoOp)
+        return input;
+
     if (window.applyMutation) {
       assert_equals(input, input_string);
       window.applyMutation();
@@ -124,9 +128,11 @@
       let element = testData.element();
       let attributeNodeInCallback;
       window.applyMutation = function() {
+        treatDefaultPolicyAsNoOp = true;
         element.setAttributeNS(testData.attrNS, testData.attrName,
                                createTrustedOutput(testData.type,
                                                     other_string));
+        treatDefaultPolicyAsNoOp = false;
         attributeNodeInCallback = findAttribute(element, testData.attrNS,
                                                 testData.attrName);
       };
@@ -149,7 +155,9 @@
         if (ownerElement) {
           ownerElement.removeAttributeNode(setterData.lastAttributeNode);
         }
+        treatDefaultPolicyAsNoOp = true;
         otherElement.setAttributeNode(setterData.lastAttributeNode);
+        treatDefaultPolicyAsNoOp = false;
       };
       let returnValue;
       switch (setterData.api) {
@@ -167,7 +175,7 @@
           assert_equals(otherElement.attributes.length, 1);
           assert_equals(otherElement.getAttributeNS(testData.attrNS,
                                                     testData.attrName),
-                        output_string);
+                        other_string);
           break;
         case "Element.setAttributeNode":
         case "Element.setAttributeNodeNS":
@@ -187,7 +195,7 @@
           assert_equals(otherElement.attributes.length, 1);
           assert_equals(otherElement.getAttributeNS(testData.attrNS,
                                                     testData.attrName),
-                        output_string);
+                        input_string);
           break;
         case "Attr.value":
         case "Node.nodeValue":

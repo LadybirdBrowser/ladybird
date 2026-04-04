@@ -1,14 +1,18 @@
 Harness status: OK
 
-Found 11 tests
+Found 14 tests
 
-11 Pass
+12 Pass
+2 Fail
 Pass	Parsing an invalid string throws SyntaxError
 Pass	Parsing a string with a non numeric token throws SyntaxError
 Pass	Parsing a string with left over numeric tokens throws SyntaxError
 Pass	Parsing a calc with incompatible units throws a SyntaxError
 Pass	Parsing a <dimension-token> with invalid units throws a SyntaxError
 Pass	Parsing ignores surrounding spaces
+Fail	Parsing calc() with a length unit is successful
+Fail	Parsing calc() with compatible length units simplifies the expression
+Pass	Parsing calc() with incompatible length units does not simplify the expression
 Pass	Parsing min() is successful
 Pass	Parsing max() is successful
 Pass	Parsing clamp() is successful

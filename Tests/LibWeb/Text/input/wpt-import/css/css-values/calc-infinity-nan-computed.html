@@ -76,6 +76,11 @@ testTransformValuesCloseTo("rotate(calc(infinity * 1grad))", 0.0001, "rotate(0de
 testTransformValuesCloseTo("rotate(calc(-infinity * 1grad))", 0.0001, "rotate(0deg)");
 testTransformValuesCloseTo("rotate(calc(NaN * 1grad))", 0.0001, "rotate(0deg)");
 
+// For <number>
+testComputedValueGreaterOrLowerThan("scale", "calc(max(infinity, 10))", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("scale", "calc(infinity)", REALLY_LARGE);
+testComputedValueGreaterOrLowerThan("scale", "calc(-infinity * 10)", REALLY_LARGE_NEGATIVE);
+
 </script>
 </body>
 </html>

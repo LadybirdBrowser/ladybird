@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 19 tests
 
-18 Pass
-1 Fail
+19 Pass
 Pass	Single item get
 Pass	Empty object store
 Pass	Get all
@@ -22,4 +21,4 @@ Pass	Query with empty range where  first key < upperBound
 Pass	Query with empty range where lowerBound < last key
 Pass	Retrieve multiEntry key
 Pass	Retrieve one key multiple values
-Fail	Get all values with invalid query keys
+Pass	Get all values with invalid query keys

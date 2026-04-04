@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 19 tests
+Found 20 tests
 
 19 Pass
+1 Fail
 Pass	invalid: @keyframes none { }
 Pass	invalid: @keyframes default { }
 Pass	invalid: @keyframes initial { }
@@ -22,3 +23,4 @@ Pass	invalid: @keyframes one, unset { }
 Pass	invalid: @keyframes default, two { }
 Pass	invalid: @keyframes revert, three { }
 Pass	invalid: @keyframes revert-layer, four { }
+Fail	invalid: @keyframes "" { }

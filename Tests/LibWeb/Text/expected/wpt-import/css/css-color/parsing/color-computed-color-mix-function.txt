@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 888 tests
+Found 894 tests
 
 52 Pass
-836 Fail
+842 Fail
 Fail	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
 Fail	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%))'
 Fail	Property color value 'color-mix(in hsl, 25% hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
@@ -892,3 +892,9 @@ Fail	Property color value 'color-mix(in srgb, red,           blue calc(90%))'
 Fail	Property color value 'color-mix(in srgb, red,           blue)'
 Fail	Property color value 'color-mix(in srgb, red calc(50% + (sign(100em - 1px) * 10%)), blue)'
 Fail	Property color value 'color-mix(in oklch, hsl(0 100% 100%), blue)'
+Fail	Property color value 'color-mix(in srgb, red)'
+Fail	Property color value 'color-mix(in srgb, red 50%)'
+Fail	Property color value 'color-mix(in srgb, red, green, blue)'
+Fail	Property color value 'color-mix(in srgb, red 50%, green 30%, blue 20%)'
+Fail	Property color value 'color-mix(in srgb, red 30%, green 60%, blue 90%)'
+Fail	Property color value 'color-mix(in srgb, red, green, blue, white)'

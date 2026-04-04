@@ -10,6 +10,13 @@
 let assert_valid = test_initial_value_valid;
 let assert_invalid = test_initial_value_invalid;
 
+// Dashed idents as syntax component names (bug 1939501)
+assert_valid("--foo", "--foo");
+assert_valid("--foo | <color>", "--foo");
+assert_valid("--foo | <color>", "red");
+assert_valid("--foo+", "--foo --foo");
+assert_valid("--a | --b | --c", "--b");
+
 assert_valid("*", "a");
 assert_valid(" * ", "b");
 assert_valid("<length>", "2px");

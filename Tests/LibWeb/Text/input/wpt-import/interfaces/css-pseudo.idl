@@ -4,10 +4,11 @@
 // Source: CSS Pseudo-Elements Module Level 4 (https://drafts.csswg.org/css-pseudo-4/)
 
 [Exposed=Window]
-interface CSSPseudoElement : EventTarget {
+interface CSSPseudoElement {
     readonly attribute CSSOMString type;
     readonly attribute Element element;
     readonly attribute (Element or CSSPseudoElement) parent;
+    readonly attribute CSSOMString selectorText;
     CSSPseudoElement? pseudo(CSSOMString type);
 };
 

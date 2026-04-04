@@ -284,8 +284,8 @@ const attributeSetterData = [
   {
     api:"Attr.value",
     acceptNS: true,
-      acceptTrustedTypeArgumentInIDL: false,
-      runSetter: function(element, attrNS, attrName, attrValue, type) {
+    acceptTrustedTypeArgumentInIDL: false,
+    runSetter: function(element, attrNS, attrName, attrValue, type) {
       element.setAttributeNS(attrNS, attrName, createTrustedOutput(type, ""));
       this.lastAttributeNode = findAttribute(element, attrNS, attrName);
       assert_true(!!this.lastAttributeNode);

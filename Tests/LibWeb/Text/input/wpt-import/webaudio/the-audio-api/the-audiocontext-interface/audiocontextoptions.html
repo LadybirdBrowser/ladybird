@@ -163,23 +163,6 @@
                 'Test creating contexts with non-default sampleRate values.'
           },
           function(task, should) {
-            // A sampleRate of 1 is unlikely to be supported on any browser,
-            // test that this rate is rejected.
-            should(
-                () => {
-                  context = new AudioContext({sampleRate: 1})
-                },
-                'context = new AudioContext({sampleRate: 1})')
-                .throw(DOMException, 'NotSupportedError');
-
-            // A sampleRate of 1,000,000 is unlikely to be supported on any
-            // browser, test that this rate is also rejected.
-            should(
-                () => {
-                  context = new AudioContext({sampleRate: 1000000})
-                },
-                'context = new AudioContext({sampleRate: 1000000})')
-                .throw(DOMException, 'NotSupportedError');
             // A negative sample rate should not be accepted
             should(
                 () => {
@@ -187,6 +170,7 @@
                 },
                 'context = new AudioContext({sampleRate: -1})')
                 .throw(DOMException, 'NotSupportedError');
+
             // A null sample rate should not be accepted
             should(
                 () => {
@@ -195,7 +179,46 @@
                 'context = new AudioContext({sampleRate: 0})')
                 .throw(DOMException, 'NotSupportedError');
 
+
+            // A sampleRate oustide the range 3000 to 768000 must be rejected
             should(
+                () => {
+                  context = new AudioContext({sampleRate: 2999})
+                },
+                'context = new AudioContext({sampleRate: 2999})')
+                .throw(DOMException, 'NotSupportedError');
+
+           should(
+                () => {
+                  context = new AudioContext({sampleRate: 768001})
+                },
+                'context = new AudioContext({sampleRate: 768001})')
+                .throw(DOMException, 'NotSupportedError');
+
+           // A sampleRate in the range 3000 to 768000 must be accepted
+           should(
+                () => {
+                  context = new AudioContext({sampleRate: 3000})
+                },
+                'context = new AudioContext({sampleRate: 3000})')
+                .notThrow();
+            should(
+                context.sampleRate, 'sampleRate inrange')
+                .beEqualTo(3000);
+            context.close();
+
+           should(
+                () => {
+                  context = new AudioContext({sampleRate: 768000})
+                },
+                'context = new AudioContext({sampleRate: 768000})')
+                .notThrow();
+            should(
+                context.sampleRate, 'sampleRate inrange')
+                .beEqualTo(768000);
+            context.close();
+
+           should(
                 () => {
                   context = new AudioContext({sampleRate: 24000})
                 },

@@ -38,6 +38,10 @@ test(() => {
 }, 'Converting a CSSUnitValue to its canonical unit returns correct value');
 
 test(() => {
+  assert_style_value_equals(CSS.in(1).to('cm'), CSS.cm(2.54));
+}, 'Converting a CSSUnitValue to a compatible unit returns correct value');
+
+test(() => {
   assert_style_value_equals(new CSSMathSum(CSS.px(1), CSS.px(1)).to('px'), CSS.px(2));
   assert_style_value_equals(new CSSMathSum(CSS.px(1), CSS.px(1), CSS.px(1)).to('px'), CSS.px(3));
 }, 'Converting a CSSMathSum to a single unit adds the values');

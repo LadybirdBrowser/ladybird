@@ -22,6 +22,15 @@ test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline
 test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to 100px)");
 test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline by 100%)");
 
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to left, hline to center, hline to right)",
+                                 "shape(from 20px 40px, move to 20px 30px, hline to 0%, hline to 50%, hline to 100%)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, hline to x-start, vline to y-start)",
+                                 "shape(from 20px 40px, move to 20px 30px, hline to 0%, vline to 0%)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to top, vline to center, vline to bottom)",
+                                 "shape(from 20px 40px, move to 20px 30px, vline to 0%, vline to 50%, vline to 100%)");
+test_computed_value("clip-path", "shape(from 20px 40px, move to 20px 30px, vline to y-start, vline to y-end)",
+                                 "shape(from 20px 40px, move to 20px 30px, vline to 0%, vline to 100%)");
+
 test_computed_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px)");
 test_computed_value("clip-path", "shape(from 20px 40px, curve by 20px 20px with 10px 30px / 12px 32px)");
 

@@ -1,10 +1,11 @@
 Harness status: OK
 
-Found 4 tests
+Found 5 tests
 
-1 Pass
+2 Pass
 3 Fail
 Pass	upgrade is a function on both global and scoped CustomElementRegistry
 Fail	upgrade is a no-op when called on a shadow root with no association
+Pass	upgrade is a no-op when called on an element associated with a different registry
 Fail	upgrade should upgrade a candidate element when called on a shadow root with an association
 Fail	upgrade should not upgrade a candidate element not associated with a registry

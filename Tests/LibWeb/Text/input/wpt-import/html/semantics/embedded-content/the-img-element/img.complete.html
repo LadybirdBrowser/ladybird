@@ -197,4 +197,20 @@
       assert_false(img.complete, "Should not be complete because we have started a new load");
     });
   }, "async pending request test");
+
+  async_test(t => {
+    var img = document.createElement("img");
+    img.src = `about:error`;
+    img.onerror = t.step_func_done(function() {
+      assert_true(img.complete);
+    });
+  }, "not loadable");
+
+  async_test(t => {
+    var img = document.createElement("img");
+    img.src = `http://`;
+    img.onerror = t.step_func_done(function() {
+      assert_true(img.complete);
+    });
+  }, "invalid URL");
 </script>

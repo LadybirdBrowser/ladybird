@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	display of first-letter and first-line
+1 Pass
+Pass	display of first-line

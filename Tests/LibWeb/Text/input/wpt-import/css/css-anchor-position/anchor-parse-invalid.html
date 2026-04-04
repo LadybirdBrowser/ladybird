@@ -42,4 +42,7 @@ test_invalid_value('top', 'anchor(--foo top, auto');
 test_invalid_value('top', 'calc(anchor(foo top) + 10px + 10%)');
 test_invalid_value('top', 'calc(10px + 100 * anchor(--foo top, anchor(bar bottom)))');
 test_invalid_value('top', 'min(anchor(--foo top), anchor(--bar bottom), anchor-size(baz height))');
+
+// Invalid unit anchor fallback value in calc tree
+test_invalid_value('top', 'calc(anchor(--foo top, 1) + 1px)');
 </script>

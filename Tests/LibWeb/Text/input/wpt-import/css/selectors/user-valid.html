@@ -29,6 +29,10 @@
   <input placeholder="Optional field" id="optional-input"><br>
   <textarea placeholder="Optional field" id="optional-textarea"></textarea><br>
   <input type="checkbox" id="optional-checkbox"><br>
+  <!-- Radio buttons with the same name will also have the same state of :user-valid and :user-invalid -->
+  <input type="radio" id="optional-radio" name="optional-radio"><br>
+  <input type="radio" id="optional-radio-same-name" name="optional-radio"><br>
+
   <input type="date" id="optional-date"><br>
   <input required placeholder="Required field"> <!-- Prevent the form from navigating with this invalid input -->
   <input type="submit" id="submit-button">
@@ -76,6 +80,7 @@ promise_test(async () => {
 promise_test(async () => {
   const form = document.querySelector("#form");
   const optionalInput = document.querySelector("#optional-input");
+  const optionalRadio = document.querySelector("#optional-radio");
   const optionalTextarea = document.querySelector("#optional-textarea");
   const optionalCheckbox = document.querySelector("#optional-checkbox");
   const optionalDate = document.querySelector("#optional-date");
@@ -89,6 +94,9 @@ promise_test(async () => {
   // The selector can't match because no interaction has happened.
   assert_false(optionalInput.matches(":user-valid"), "Initially does not match :user-valid");
   assert_false(optionalInput.matches(":user-invalid"), "Initially does not match :user-invalid");
+
+  assert_false(optionalRadio.matches(":user-valid"), "Initially does not match :user-valid");
+  assert_false(optionalRadio.matches(":user-invalid"), "Initially does not match :user-invalid");
 
   assert_false(optionalTextarea.matches(":user-valid"), "Initially does not match :user-valid");
   assert_false(optionalTextarea.matches(":user-invalid"), "Initially does not match :user-invalid");
@@ -104,6 +112,9 @@ promise_test(async () => {
   assert_true(optionalInput.matches(":user-valid"), "Submitted the form, input is validated");
   assert_false(optionalInput.matches(":user-invalid"), "Submitted the form, input is validated");
 
+  assert_true(optionalRadio.matches(":user-valid"), "Submitted the form, radio is validated");
+  assert_false(optionalRadio.matches(":user-invalid"), "Submitted the form, radio is validated");
+
   assert_true(optionalTextarea.matches(":user-valid"), "Submitted the form, textarea is validated");
   assert_false(optionalTextarea.matches(":user-invalid"), "Submitted the form, textarea is validated");
 
@@ -117,6 +128,9 @@ promise_test(async () => {
 
   assert_false(optionalInput.matches(":user-valid"), "Reset the form, user-interacted flag is reset");
   assert_false(optionalInput.matches(":user-invalid"), "Reset the form, user-interacted flag is reset");
+
+  assert_false(optionalRadio.matches(":user-valid"), "Reset the form, user-interacted flag is reset");
+  assert_false(optionalRadio.matches(":user-invalid"), "Reset the form, user-interacted flag is reset");
 
   assert_false(optionalTextarea.matches(":user-valid"), "Reset the form, user-interacted flag is reset");
   assert_false(optionalTextarea.matches(":user-invalid"), "Reset the form, user-interacted flag is reset");
@@ -132,6 +146,9 @@ promise_test(async () => {
 
   assert_true(optionalInput.matches(":user-valid"), "Called form.requestSubmit(), input is validated");
   assert_false(optionalInput.matches(":user-invalid"), "Called form.requestSubmit(), input is validated");
+
+  assert_true(optionalRadio.matches(":user-valid"), "Called form.requestSubmit(), radio is validated");
+  assert_false(optionalRadio.matches(":user-invalid"), "Called form.requestSubmit(), radio is validated");
 
   assert_true(optionalTextarea.matches(":user-valid"), "Called form.requestSubmit(), textarea is validated");
   assert_false(optionalTextarea.matches(":user-invalid"), "Called form.requestSubmit(), textarea is validated");
@@ -166,6 +183,47 @@ promise_test(async () => {
   assert_true(checkbox.matches(':user-valid'),
     'Checkbox should match :user-valid after clicking once.');
 }, 'Checkboxes should match :user-valid after the user clicks on it.');
+
+promise_test(async () => {
+  const radio = document.getElementById('optional-radio');
+  const radioWithSameName = document.getElementById("optional-radio-same-name");
+  const submitButton = document.getElementById("submit-button");
+
+  assert_false(radio.matches(':user-valid'),
+    'Radio should not match :user-valid at the start of the test.');
+  assert_false(radio.checked,
+    'Radio should not be checked at the start of the test.');
+
+  assert_false(radioWithSameName.matches(":user-valid"),
+    'Radio should not match :user-valid at the start of the test.');
+  assert_false(radioWithSameName.checked,
+    'Radio should not be checked at the start of the test.');
+
+  radio.checked = true;
+  assert_false(radio.matches(':user-valid'),
+    'Radio should not match :user-valid after programatically changing value.');
+  assert_false(radioWithSameName.matches(':user-valid'),
+    'Radio should not match :user-valid after programatically changing value.');
+  radio.checked = false;
+  assert_false(radio.matches(':user-valid'),
+    'Radio should not match :user-valid after programatically changing value.');
+
+  await test_driver.click(radio);
+  assert_true(radio.checked, 'Radio should be checked after clicking once.');
+  assert_false(radioWithSameName.checked,
+    'Radio should not be checked at the start of the test.');
+
+  assert_true(radio.matches(':user-valid'),
+    'Radio should match :user-valid after clicking once.');
+  assert_false(radioWithSameName.matches(':user-valid'),
+    'Radio should not match :user-valid because no user interaction has happened on it.');
+
+  submitButton.click();
+  assert_true(radio.matches(':user-valid'),
+    'Radio should match :user-valid because it is checked previously.');
+  assert_true(radioWithSameName.matches(':user-valid'),
+    'Radio should match :user-valid after clicking once.');
+}, 'Radios should match :user-valid after the user clicks on it.');
 
 promise_test(async () => {
   const date = document.getElementById('optional-date');

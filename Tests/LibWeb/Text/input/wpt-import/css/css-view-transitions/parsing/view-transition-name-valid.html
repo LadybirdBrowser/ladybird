@@ -13,7 +13,9 @@
 <body>
 <script>
 test_valid_value("view-transition-name", "none");
-test_valid_value("view-transition-name", "auto");
+// See https://github.com/web-platform-tests/interop/issues/954 and
+// https://github.com/w3c/csswg-drafts/issues/12091
+// test_valid_value("view-transition-name", "auto");
 test_valid_value("view-transition-name", "match-element");
 test_valid_value("view-transition-name", "foo");
 test_valid_value("view-transition-name", "bar");

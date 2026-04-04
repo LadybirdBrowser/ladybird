@@ -83,6 +83,7 @@ interface AudioContext : BaseAudioContext {
     [SecureContext] readonly attribute (DOMString or AudioSinkInfo) sinkId;
     attribute EventHandler onsinkchange;
     attribute EventHandler onerror;
+    [SameObject] readonly attribute AudioPlaybackStats playbackStats;
     AudioTimestamp getOutputTimestamp ();
     Promise<undefined> resume ();
     Promise<undefined> suspend ();
@@ -654,4 +655,16 @@ dictionary AudioParamDescriptor {
     float minValue = -3.4028235e38;
     float maxValue = 3.4028235e38;
     AutomationRate automationRate = "a-rate";
+};
+
+[Exposed=Window, SecureContext]
+interface AudioPlaybackStats {
+    readonly attribute double underrunDuration;
+    readonly attribute unsigned long underrunEvents;
+    readonly attribute double totalDuration;
+    readonly attribute double averageLatency;
+    readonly attribute double minimumLatency;
+    readonly attribute double maximumLatency;
+    undefined resetLatency();
+    [Default] object toJSON();
 };

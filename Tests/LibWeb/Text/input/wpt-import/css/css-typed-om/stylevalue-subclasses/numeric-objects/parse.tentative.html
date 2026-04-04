@@ -32,6 +32,21 @@ test(() => {
 }, 'Parsing ignores surrounding spaces');
 
 test(() => {
+  const expected = new CSSMathSum(CSS.px(10));
+  assert_style_value_equals(expected, CSSNumericValue.parse('calc(10px)'));
+}, 'Parsing calc() with a length unit is successful');
+
+test(() => {
+  const expected = new CSSMathSum(CSS.px(97));
+  assert_style_value_equals(expected, CSSNumericValue.parse('calc(1px + 1in)'));
+}, 'Parsing calc() with compatible length units simplifies the expression');
+
+test(() => {
+  const expected = new CSSMathSum(CSS.px(1), CSS.em(2));
+  assert_style_value_equals(expected, CSSNumericValue.parse('calc(1px + 2em)'));
+}, 'Parsing calc() with incompatible length units does not simplify the expression');
+
+test(() => {
   const expected = new CSSMathMin(CSS.px(10), CSS.percent(10));
   assert_style_value_equals(expected, CSSNumericValue.parse('min(10px, 10%)'));
 }, 'Parsing min() is successful');

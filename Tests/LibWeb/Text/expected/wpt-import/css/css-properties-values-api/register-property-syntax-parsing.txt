@@ -1,9 +1,14 @@
 Harness status: OK
 
-Found 239 tests
+Found 244 tests
 
-233 Pass
+238 Pass
 6 Fail
+Pass	syntax:'--foo', initialValue:'--foo' is valid
+Pass	syntax:'--foo | <color>', initialValue:'--foo' is valid
+Pass	syntax:'--foo | <color>', initialValue:'red' is valid
+Pass	syntax:'--foo+', initialValue:'--foo --foo' is valid
+Pass	syntax:'--a | --b | --c', initialValue:'--b' is valid
 Pass	syntax:'*', initialValue:'a' is valid
 Pass	syntax:' * ', initialValue:'b' is valid
 Pass	syntax:'<length>', initialValue:'2px' is valid

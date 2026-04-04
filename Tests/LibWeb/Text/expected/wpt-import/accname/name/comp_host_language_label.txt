@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 79 tests
+Found 88 tests
 
-79 Pass
+88 Pass
 Pass	html: input[type=button]
 Pass	html: input[type=image]
 Pass	html: input[type=reset]
@@ -79,6 +79,15 @@ Pass	html: select for/id
 Pass	html: select encapsulation
 Pass	html: img[alt] (non-empty)
 Pass	html: picture > img[alt] (non-empty)
+Pass	img[alt] with single space character as name
+Pass	img[alt] with single tab as name
+Pass	img[alt] with new line as name
+Pass	img[alt] with single space character and tab as name
+Pass	img[alt] with form feed as name
+Pass	img[alt] with interior single tab in the name
+Pass	img[alt] with interior new line in the name
+Pass	img[alt] with interior single space and tab in the name
+Pass	img[alt] with interior form feed in the name
 Pass	html: fieldset > legend
 Pass	html: table > caption
 Pass	html: multiple label elements[for]

@@ -94,6 +94,9 @@
 #pseudo-invalid {
   color: rgb(255, 0, 0)
 }
+#test-file-input::file-selector-button {
+  color: rgb(0, 128, 0);
+}
 </style>
 <div id="test">
   <div id="contents"></div>
@@ -103,6 +106,7 @@
   <div id="contents-pseudos"></div>
   <div id="contents-pseudos-dynamic"></div>
   <ul><li id="pseudo-invalid">Item</li></ul>
+  <input type="file" id="test-file-input">
 </div>
 <script>
 test(() => {
@@ -291,4 +295,18 @@ test(() => {
     `Should return the ::${pseudoIdentifier} style`);
   }, `Unknown pseudo-element with a known identifier: ${pseudoIdentifier}`);
 });
+
+test(() => {
+  const fileInput = document.getElementById('test-file-input');
+  const style = getComputedStyle(fileInput, '::file-selector-button');
+  assert_equals(style.color, 'rgb(0, 128, 0)',
+    '::file-selector-button should resolve to the backing element style');
+}, '::file-selector-button resolves to the file input button element');
+
+test(() => {
+  const fileInput = document.getElementById('test-file-input');
+  const style = getComputedStyle(fileInput, '::-webkit-file-upload-button');
+  assert_equals(style.length, 0,
+    '::-webkit-file-upload-button should return empty style');
+}, 'Prefixed ::-webkit-file-upload-button does not resolve in getComputedStyle');
 </script>

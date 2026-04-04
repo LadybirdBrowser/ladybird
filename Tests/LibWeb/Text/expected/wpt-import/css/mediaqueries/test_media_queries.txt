@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 1345 tests
+Found 1349 tests
 
-1345 Pass
+1349 Pass
 Pass	query_should_be_parseable: (orientation)
 Pass	query_should_be_parseable: not (orientation)
 Pass	expression_should_be_known: (orientation)
@@ -1274,6 +1274,10 @@ Pass	expression_should_be_parseable: overflow-block: optional-paged
 Pass	expression_should_be_unknown: overflow-block: optional-paged
 Pass	expression_should_be_parseable: overflow-block: some-random-invalid-thing
 Pass	expression_should_be_unknown: overflow-block: some-random-invalid-thing
+Pass	expression_should_be_parseable: overflow-block = scroll
+Pass	expression_should_be_unknown: overflow-block = scroll
+Pass	expression_should_be_parseable: overflow-block < scroll
+Pass	expression_should_be_unknown: overflow-block < scroll
 Pass	Sanity check for overflow-block
 Pass	expression_should_be_known: overflow-inline
 Pass	expression_should_be_known: overflow-inline: none

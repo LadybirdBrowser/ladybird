@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 33 tests
+Found 34 tests
 
-33 Pass
+34 Pass
 Pass	empty value
 Pass	value = 11
 Pass	value = 11.12
@@ -36,3 +36,4 @@ Pass	value with a leading form feed
 Pass	value with a leading carriage return
 Pass	value with a leading space
 Pass	value = 1trailing junk
+Pass	full-width digits

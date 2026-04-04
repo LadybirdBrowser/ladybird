@@ -35,11 +35,21 @@ test_valid_value("rotate", "400grad y", "y 400grad");
 test_valid_value("rotate", "0 0.5 0 400grad", "y 400grad");
 test_valid_value("rotate", "0 1 0 400grad", "y 400grad");
 
+// ...though if the axis is in the reverse direction, the angle is negated.
+test_valid_value("rotate", "-0.5 0 0 400grad", "x -400grad");
+test_valid_value("rotate", "-1 0 0 400grad", "x -400grad");
+
+test_valid_value("rotate", "0 -0.5 0 400grad", "y -400grad");
+test_valid_value("rotate", "0 -1 0 400grad", "y -400grad");
+
 // If the axis is parallel with the z axis the property must serialize as just an <angle>.
 test_valid_value("rotate", "400grad");
 test_valid_value("rotate", "400grad z", "400grad");
 test_valid_value("rotate", "0 0 0.5 400grad", "400grad");
 test_valid_value("rotate", "0 0 1 400grad", "400grad");
+
+test_valid_value("rotate", "0 0 -0.5 400grad", "-400grad");
+test_valid_value("rotate", "0 0 -1 400grad", "-400grad");
 </script>
 </body>
 </html>

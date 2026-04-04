@@ -15,6 +15,22 @@
     <span></span>
   </div>
 </div>
+<div id="grid-to-block" style="display: grid">
+  <div style="display: contents">
+    <div style="display: contents">
+      <button>button1</button>
+      <button id="deblockified">button2</button>
+    </div>
+  </div>
+</div>
+<div id="block-to-grid" style="display: block">
+  <div style="display: contents">
+    <div style="display: contents">
+      <button>button1</button>
+      <button id="blockified">button2</button>
+    </div>
+  </div>
+</div>
 <script>
 function display(el) {
   return getComputedStyle(el).display;
@@ -31,4 +47,26 @@ test(function() {
   assert_equals(display(child), "block", "Grid child should get blockified");
   assert_equals(display(grandChild), "inline", "Grid grand-child should get un-blockified when its parent's display stops being `contents`");
 }, "Dynamic changes to `display` causing blockification of children are handled correctly");
+
+test(() => {
+  let gridToBlock = document.getElementById("grid-to-block");
+  let itemGrandChild = document.getElementById("deblockified");
+
+  assert_equals(display(gridToBlock), "grid", "Container should be a grid");
+  assert_equals(display(itemGrandChild), "block", "Item should have been blockified");
+  gridToBlock.style.display = "block";
+  assert_equals(display(gridToBlock), "block", "Container should become a block");
+  assert_equals(display(itemGrandChild), "inline-block", "Item should get de-blockified");
+}, "Dynamic changes to `display` from `grid` to `block` should cause children to get de-blockified despite being children of `display: contents` elements");
+
+test(() => {
+  let blockToGrid = document.getElementById("block-to-grid");
+  let itemGrandChild = document.getElementById("blockified");
+
+  assert_equals(display(blockToGrid), "block", "Container should be a block");
+  assert_equals(display(itemGrandChild), "inline-block", "Item should not have been blockified");
+  blockToGrid.style.display = "grid";
+  assert_equals(display(blockToGrid), "grid", "Container should become a grid");
+  assert_equals(display(itemGrandChild), "block", "Item should get blockified");
+}, "Dynamic changes to `display` from `block` to `grid` should cause children to get blockified despite being children of `display: contents` elements")
 </script>

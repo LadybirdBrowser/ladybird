@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 37 tests
+Found 41 tests
 
-37 Pass
+35 Pass
+6 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "test-audiocontextoptions-latencyHint-basic"
 Pass	Executing "test-audiocontextoptions-latencyHint-double"
@@ -32,11 +33,15 @@ Pass	  context = new AudioContext({'latencyHint': 'foo'}) threw TypeError: "Expe
 Pass	  context = new AudioContext('latencyHint') threw TypeError: "Not an object of type AudioContextOptions".
 Pass	< [test-audiocontextoptions-latencyHint-double] All assertions passed. (total 10 assertions)
 Pass	> [test-audiocontextoptions-sampleRate] Test creating contexts with non-default sampleRate values.
-Pass	  context = new AudioContext({sampleRate: 1}) threw NotSupportedError: "Sample rate is outside of allowed range".
-Pass	  context = new AudioContext({sampleRate: 1000000}) threw NotSupportedError: "Sample rate is outside of allowed range".
 Pass	  context = new AudioContext({sampleRate: -1}) threw NotSupportedError: "Sample rate is outside of allowed range".
 Pass	  context = new AudioContext({sampleRate: 0}) threw NotSupportedError: "Sample rate is outside of allowed range".
+Pass	  context = new AudioContext({sampleRate: 2999}) threw NotSupportedError: "Sample rate is outside of allowed range".
+Pass	  context = new AudioContext({sampleRate: 768001}) threw NotSupportedError: "Sample rate is outside of allowed range".
+Fail	X context = new AudioContext({sampleRate: 3000}) incorrectly threw NotSupportedError: "Sample rate is outside of allowed range".
+Fail	X sampleRate inrange is not equal to 3000. Got 44100.
+Fail	X context = new AudioContext({sampleRate: 768000}) incorrectly threw NotSupportedError: "Sample rate is outside of allowed range".
+Fail	X sampleRate inrange is not equal to 768000. Got 44100.
 Pass	  context = new AudioContext({sampleRate: 24000}) did not throw an exception.
 Pass	  sampleRate inrange is equal to 24000.
-Pass	< [test-audiocontextoptions-sampleRate] All assertions passed. (total 6 assertions)
-Pass	# AUDIT TASK RUNNER FINISHED: 3 tasks ran successfully.
+Fail	< [test-audiocontextoptions-sampleRate] 4 out of 10 assertions were failed.
+Fail	# AUDIT TASK RUNNER FINISHED: 1 out of 3 tasks were failed.

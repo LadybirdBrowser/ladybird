@@ -8,7 +8,7 @@
 <meta name="assert" content="flex-basis supports only the grammar 'content | <‘width’>'.">
 <script src="../../../resources/testharness.js"></script>
 <script src="../../../resources/testharnessreport.js"></script>
-<script src="../../support/parsing-testcommon.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
 </head>
 <body>
 <script>
@@ -17,6 +17,8 @@ test_invalid_value("flex-basis", "auto content");
 test_invalid_value("flex-basis", "-1px");
 test_invalid_value("flex-basis", "-2%");
 test_invalid_value("flex-basis", "3px 4%");
+test_invalid_value("flex-basis", "anchor-size(--a width)");
+test_invalid_value("flex-basis", "anchor-size(--a width, 10px)");
 </script>
 </body>
 </html>

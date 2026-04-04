@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 415 tests
+Found 400 tests
 
-342 Pass
-73 Fail
+326 Pass
+74 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Window: original interface defined
@@ -18,13 +18,9 @@ Pass	Partial interface HTMLImageElement: original interface defined
 Pass	Partial interface HTMLImageElement: member names are unique
 Pass	Partial interface Range: original interface defined
 Pass	Partial interface Range: member names are unique
-Pass	Partial interface MouseEvent: original interface defined
-Pass	Partial interface MouseEvent: member names are unique
+Fail	Partial interface MouseEvent: original interface defined
 Pass	Partial interface Element[2]: member names are unique
 Pass	Partial interface Window[2]: member names are unique
-Pass	Partial interface UIEvent: member names are unique
-Pass	Partial interface MouseEvent[2]: member names are unique
-Pass	Partial interface UIEvent[2]: member names are unique
 Pass	Partial interface Document[2]: member names are unique
 Pass	Partial interface Document[3]: member names are unique
 Pass	Partial interface Element[3]: member names are unique
@@ -48,6 +44,7 @@ Pass	Window includes AnimationFrameProvider: member names are unique
 Pass	Window includes WindowSessionStorage: member names are unique
 Pass	Window includes WindowLocalStorage: member names are unique
 Pass	Document includes NonElementParentNode: member names are unique
+Pass	Document includes DocumentOrShadowRoot: member names are unique
 Pass	Document includes ParentNode: member names are unique
 Pass	Element includes ParentNode: member names are unique
 Pass	Element includes NonDocumentTypeChildNode: member names are unique
@@ -155,18 +152,6 @@ Fail	CSSPseudoElement interface: operation getBoxQuads(optional BoxQuadOptions)
 Fail	CSSPseudoElement interface: operation convertQuadFromNode(DOMQuadInit, GeometryNode, optional ConvertCoordinateOptions)
 Fail	CSSPseudoElement interface: operation convertRectFromNode(DOMRectReadOnly, GeometryNode, optional ConvertCoordinateOptions)
 Fail	CSSPseudoElement interface: operation convertPointFromNode(DOMPointInit, GeometryNode, optional ConvertCoordinateOptions)
-Pass	MouseEvent interface: attribute pageX
-Pass	MouseEvent interface: attribute pageY
-Pass	MouseEvent interface: attribute x
-Pass	MouseEvent interface: attribute y
-Pass	MouseEvent interface: attribute offsetX
-Pass	MouseEvent interface: attribute offsetY
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "pageX" with the proper type
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "pageY" with the proper type
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "x" with the proper type
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "y" with the proper type
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "offsetX" with the proper type
-Pass	MouseEvent interface: new MouseEvent("foo") must inherit property "offsetY" with the proper type
 Pass	HTMLElement interface: attribute scrollParent
 Pass	HTMLElement interface: attribute offsetParent
 Pass	HTMLElement interface: attribute offsetTop

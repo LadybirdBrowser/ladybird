@@ -1,7 +1,7 @@
 // GENERATED CONTENT - DO NOT EDIT
 // Content was automatically extracted by Reffy into webref
 // (https://github.com/w3c/webref)
-// Source: Geometry Interfaces Module Level 1 (https://drafts.fxtf.org/geometry-1/)
+// Source: Geometry Interfaces Module Level 1 (https://drafts.csswg.org/geometry-1/)
 
 [Exposed=(Window,Worker),
  Serializable]

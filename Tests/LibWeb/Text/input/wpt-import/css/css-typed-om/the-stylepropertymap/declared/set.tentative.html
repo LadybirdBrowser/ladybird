@@ -95,4 +95,15 @@ test(t => {
   assert_style_value_array_equals(result, [CSS.s(1), CSS.s(2)]);
 }, 'StylePropertyMap.set is case-insensitive');
 
+test(t => {
+  let styleMap = createDeclaredStyleMap(t, 'margin: 10px');
+
+  const result = styleMap.get('margin');
+  assert_equals(result.constructor.name, 'CSSStyleValue');
+
+  assert_throws_js(TypeError, () => {
+    styleMap.set('padding', result);
+  });
+}, 'Setting a property with a CSSStyleValue whose associated property does not match throws TypeError');
+
 </script>

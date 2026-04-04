@@ -48,9 +48,24 @@
 button" data-testname="div[role=button] ignoring line break" aria-label="x" data-expectedrole="button" class="ex">x</div>
   <div role="⠀ button" data-testname="div[role=button] ignoring braille whitespace char" aria-label="x" data-expectedrole="button" class="ex">x</div>
 
+  <!-- various role capitalization styles and their fallbacks -->
+  <div role="foo Link" data-testname="div[role='foo Link'][tabindex=0], illegal role and capitalized fallback role, has link role" aria-label="x" tabindex="0" data-expectedrole="link" class="ex">x</div>
+  <button role="foo Link" data-testname="button[role='foo Link'] with illegal role and capitalized fallback role, has link role" data-expectedrole="link" class="ex"></button>
+  <nav role="foo GROUP" data-testname="nav[role='foo GROUP'] with illegal role and all upper case fallback role, has group role" aria-label="x" data-expectedrole="group" class="ex">x</nav>
+  <div role="foo ReGiOn" data-testname="div[role='foo ReGiOn'][aria-label] with illegal role and alternating case fallback role, has region role" aria-label="x" data-expectedrole="region" class="ex">x</div>
+  <div role="ReGiOn foo" data-testname="div[role='ReGiOn foo'] with alternating case role and illegal fallback role without accname, has generic role" class="ex-generic">x</div>
+  <div role="ReGiOn foo" data-testname="div[role='ReGiOn foo'][aria-label] with alternating case role and illegal fallback role, has region role" aria-label="x" data-expectedrole="region" class="ex">x</div>
+
+  <div role="BUTTON LINK" data-testname="div[role='BUTTON LINK'] with tabindex=0, has button role" aria-label="x" tabindex="0" data-expectedrole="button" class="ex">x</div>
+  <div role="ReGiOn group" data-testname="div[role='ReGiOn group'] without accname, has group role" data-expectedrole="group" class="ex">x</div>
+  <div role="ReGiOn group" data-testname="div[role='ReGiOn group'][aria-label], has region role" aria-label="x" data-expectedrole="region" class="ex">x</div>
+
+    <div role="
+buTtOn" data-testname="div[role=buTtOn] ignoring line break, has button role" tabindex="0" aria-label="x" data-expectedrole="button" class="ex">x</div>
 
 <script>
 AriaUtils.verifyRolesBySelector(".ex");
+AriaUtils.verifyGenericRolesBySelector(".ex-generic");
 </script>
 
 </body>

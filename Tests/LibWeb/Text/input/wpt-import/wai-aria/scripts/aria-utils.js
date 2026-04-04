@@ -198,5 +198,111 @@ const AriaUtils = {
     this.verifyLabelsBySelector(".ex-label-only", labelTestNamePrefix);
     this.verifyRolesBySelector(".ex-role-only", roleTestNamePrefix);
   },
-};
 
+
+  /*
+  Tests accessibility properties of all elements matching selector against
+  the expected properties specified using JSON in their data-expected attribute.
+
+  For example:
+  <div data-testname="div[role=button][aria-pressed=mixed]"
+      role="button" aria-pressed="mixed"
+      data-expectedproperties='{ "role": "button", "label": "foo", "pressed": "mixed" }'
+      class="ex-props">
+    foo
+  </div>
+  ...
+  AriaUtils.verifyPropertiesBySelector(".ex-props");
+  */
+  verifyPropertiesBySelector: function(selector) {
+    const els = document.querySelectorAll(selector);
+    if (!els.length) {
+      throw `Selector passed in verifyPropertiesBySelector("${selector}") should match at least one element.`;
+    }
+    for (const el of els) {
+      const expected = JSON.parse(el.getAttribute("data-expectedproperties"));
+      const testName = el.getAttribute("data-testname");
+      promise_test(async t => {
+        const actual = await test_driver.get_accessibility_properties_for_element(el);
+        for (const key in expected) {
+          assert_equals(actual[key], expected[key], `${key}: ${el.outerHTML}`);
+        }
+      }, testName);
+    }
+  },
+
+
+  /*
+  Verifies that the subtree for a given accessible node matches the specified
+  tree structure.
+  This takes either a DOM Element or a CSS selector. It wraps the call in
+  promise_test.
+  For example:
+  <div id="listbox" role="listbox" aria-label="listbox">
+    <div id="option1" role="option" aria-label="option1"></div>
+    <div id="option2" role="option" aria-label="option2"></div>
+  </div>
+  ...
+  AriaUtils.verifyAccessibilitySubtree("#listbox", {
+    role: "listbox",
+    label: "listbox",
+    children: [
+      { role: "option", label: "option1", children: [] },
+      { role: "option", label: "option2", children: [] },
+    ],
+  });
+  Note that there can be differences in the structure of the accessibility tree
+  across browser engines for various valid reasons. This should only be used to
+  test a subtree where the structure of that subtree has been explicitly
+  standardized with consensus from multiple browser vendors.
+  */
+  verifyAccessibilitySubtree: function(subtreeRoot, expectedTree) {
+    const desc = subtreeRoot;
+    if (typeof subtreeRoot == "string") {
+      subtreeRoot = document.querySelector(subtreeRoot);
+      if (!subtreeRoot) {
+        throw `selector passed to verifyAccessibilitySubtree("${subtreeRoot}") doesn't match an element`;
+      }
+    }
+    promise_test(async t => {
+      const acc = await test_driver.get_accessibility_properties_for_element(subtreeRoot);
+      await AriaUtils._assertAccessibilitySubtree(acc, expectedTree, desc);
+    }, `accessibility tree for ${desc}`);
+  },
+
+
+  /*
+  Helper function called recursively to assert that the subtree for a given
+  accessible node matches the specified tree structure.
+  This is initiated by verifyAccessibilitySubtree. It takes an accessible
+  properties object, the expected tree structure and a string describing the
+  element to be used as the prefix for assertion messages.
+  For example:
+  <div id="listbox"> ... </div>
+  ...
+  const listbox = await test_driver.get_accessibility_properties_for_element(document.getElementById("listbox"));
+  await AriaUtils.assertAccessibilitySubtree(listbox, { ... }, "#listbox");
+  */
+  _assertAccessibilitySubtree: async function(accProps, expectedTree, position) {
+    for (const key in expectedTree) {
+      if (key == "children") {
+        assert_equals(
+          accProps.children.length,
+          expectedTree.children.length,
+          `${position} children.length`
+        );
+        for (let c = 0; c < accProps.children.length; ++c) {
+          const childId = accProps.children[c];
+          const childAcc = await test_driver.get_accessibility_properties_for_accessibility_node(childId);
+          await AriaUtils._assertAccessibilitySubtree(
+            childAcc,
+            expectedTree.children[c],
+            `${position}[${c}]`
+          );
+        }
+        continue;
+      }
+      assert_equals(accProps[key], expectedTree[key], `${position} ${key}`);
+    }
+  },
+};

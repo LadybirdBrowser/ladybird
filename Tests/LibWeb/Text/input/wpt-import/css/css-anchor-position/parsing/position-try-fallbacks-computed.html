@@ -29,5 +29,10 @@
   test_computed_value("position-try-fallbacks", "--foo flip-start, left");
   test_computed_value("position-try-fallbacks", "left, --bar flip-start");
 
+  test_computed_value("position-try-fallbacks", "flip-y");
+  test_computed_value("position-try-fallbacks", "flip-x");
+  test_computed_value("position-try-fallbacks", "flip-y, flip-x");
+  test_computed_value("position-try-fallbacks", "flip-start flip-x flip-y");
+
   assert_not_inherited("position-try-fallbacks", "none", "flip-inline");
 </script>

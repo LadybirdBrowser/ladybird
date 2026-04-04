@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 631 tests
+Found 642 tests
 
 630 Pass
-1 Fail
+12 Fail
 Pass	e.style['color'] = "color-mix(in srgb, red, blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, 70% red, 50% blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, red, blue)" should set the property value
@@ -635,3 +635,14 @@ Pass	e.style['color'] = "color-mix(in srgb, red,           blue 50%)" should set
 Pass	e.style['color'] = "color-mix(in srgb, red,           blue 90%)" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, red,           blue calc(50%))" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, red,           blue)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red 100%)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red 50%)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red, green, blue)" should set the property value
+Fail	e.style['color'] = "color-mix(in hsl, red, green, blue)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red 50%, green 30%, blue 20%)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red 30%, green 60%, blue 90%)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red 50%, green, blue)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red, green 25%, blue 25%)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, red, green, blue, white)" should set the property value
+Fail	e.style['color'] = "color-mix(in srgb, currentcolor, red, blue)" should set the property value

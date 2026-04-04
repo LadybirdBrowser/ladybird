@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 45 tests
+Found 48 tests
 
-37 Pass
+40 Pass
 8 Fail
 Pass	Property width value 'calc(NaN * 1px)'
 Pass	Property width value 'calc(NaN * 1%)'
@@ -49,3 +49,6 @@ Pass	Property rotate(calc(NaN * 1rad)) value expected same with rotate(0deg) in 
 Fail	Property rotate(calc(infinity * 1grad)) value expected same with rotate(0deg) in +/-0.0001
 Fail	Property rotate(calc(-infinity * 1grad)) value expected same with rotate(0deg) in +/-0.0001
 Pass	Property rotate(calc(NaN * 1grad)) value expected same with rotate(0deg) in +/-0.0001
+Pass	Property scale value 'calc(max(infinity, 10))'
+Pass	Property scale value 'calc(infinity)'
+Pass	Property scale value 'calc(-infinity * 10)'

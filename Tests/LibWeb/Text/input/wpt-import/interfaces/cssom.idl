@@ -9,7 +9,7 @@ typedef DOMString CSSOMString;
 // GENERATED CONTENT - DO NOT EDIT
 // Content was automatically extracted by Reffy into webref
 // (https://github.com/w3c/webref)
-// Source: CSS Object Model (CSSOM) (https://drafts.csswg.org/cssom-1/)
+// Source: CSS Object Model (CSSOM) Module Level 1 (https://drafts.csswg.org/cssom-1/)
 
 [Exposed=Window]
 interface MediaList {
@@ -45,7 +45,7 @@ interface CSSStyleSheet : StyleSheet {
 };
 
 dictionary CSSStyleSheetInit {
-  DOMString baseURL = null;
+  DOMString? baseURL = null;
   (MediaList or DOMString) media = "";
   boolean disabled = false;
 };
@@ -172,7 +172,7 @@ interface CSSStyleProperties : CSSStyleDeclaration {
 };
 
 interface mixin ElementCSSInlineStyle {
-  [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+  [SameObject, PutForwards=cssText] readonly attribute CSSStyleProperties style;
 };
 
 HTMLElement includes ElementCSSInlineStyle;
@@ -182,7 +182,7 @@ SVGElement includes ElementCSSInlineStyle;
 MathMLElement includes ElementCSSInlineStyle;
 
 partial interface Window {
-  [NewObject] CSSStyleDeclaration getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
+  [NewObject] CSSStyleProperties getComputedStyle(Element elt, optional CSSOMString? pseudoElt);
 };
 
 [Exposed=Window]

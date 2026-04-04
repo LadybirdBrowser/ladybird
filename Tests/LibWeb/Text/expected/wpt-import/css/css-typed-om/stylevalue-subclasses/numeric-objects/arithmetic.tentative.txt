@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 65 tests
+Found 67 tests
 
-65 Pass
+67 Pass
 Pass	Calling CSSUnitValue.add with no arguments returns itself
 Pass	Calling CSSMathValue.add with no arguments returns itself
 Pass	Calling CSSNumericValue.add with a single CSSNumericValue returns correct type
@@ -68,3 +68,5 @@ Pass	CSSNumericValue.add should throw TypeError when the types are different.
 Pass	CSSNumericValue.sub should throw TypeError when the types are different.
 Pass	CSSNumericValue.max should throw TypeError when the types are different.
 Pass	CSSNumericValue.min should throw TypeError when the types are different.
+Pass	CSSNumericValue.mul should throw TypeError when the types are different.
+Pass	CSSNumericValue.div should throw TypeError when the types are different.

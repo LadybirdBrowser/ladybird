@@ -20,5 +20,5 @@ for (const tuple of urls.tuple) {
     const origin = Origin.from(tuple);
     assert_true(!!origin);
     assert_false(origin.opaque, "Origin should not be opaque.");
-  }, `Origin.from(${JSON.stringify(tuple)}) is an opaque origin.`);
+  }, `Origin.from(${JSON.stringify(tuple)}) is a tuple origin.`);
 }

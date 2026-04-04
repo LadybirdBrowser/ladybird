@@ -1,12 +1,18 @@
 Harness status: OK
 
-Found 12 tests
+Found 18 tests
 
-12 Pass
+18 Pass
 Pass	circle > title
 Pass	rect > title
 Pass	polygon > title
 Pass	g > title
+Pass	a > circle > title
+Pass	a > rect > title
+Pass	a > polygon > title
+Pass	button > circle > title
+Pass	button > rect > title
+Pass	button > polygon > title
 Pass	[xlink:title][href] > circle
 Pass	[xlink:title][href] > rect
 Pass	[xlink:title][href] > polygon

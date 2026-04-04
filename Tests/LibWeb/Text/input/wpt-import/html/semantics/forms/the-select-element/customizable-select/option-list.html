@@ -14,6 +14,8 @@
 //       <option id=divOption>
 //     <hr>
 //       <option id=hrOption>
+//     <datalist>
+//       <option id=datalistOption>
 //     <optgroup>
 //       <option id=optgroupOption>
 //       <optgroup id=nestedOptgroup>
@@ -33,6 +35,10 @@ const hr = document.createElement('hr');
 childSelect.appendChild(hr);
 const hrOption = document.createElement('option');
 hr.appendChild(hrOption);
+const datalist = document.createElement('datalist');
+childSelect.appendChild(datalist);
+const datalistOption = document.createElement('option');
+datalist.appendChild(datalistOption);
 const optgroup = document.createElement('optgroup');
 childSelect.appendChild(optgroup);
 const optgroupOption = document.createElement('option');

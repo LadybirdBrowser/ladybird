@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 31 tests
+Found 35 tests
 
-31 Fail
+35 Fail
 Fail	Property clip-path value 'shape(from 20px 40px, line to 20px 30px)'
 Fail	Property clip-path value 'shape(from 20px 40px, line to 20px 30px )'
 Fail	Property clip-path value 'shape(from 0 0, line to 100% 100%)'
@@ -11,6 +11,10 @@ Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, hline to
 Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, hline by 100%)'
 Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, vline to 100px)'
 Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, vline by 100%)'
+Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, hline to left, hline to center, hline to right)'
+Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, hline to x-start, vline to y-start)'
+Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, vline to top, vline to center, vline to bottom)'
+Fail	Property clip-path value 'shape(from 20px 40px, move to 20px 30px, vline to y-start, vline to y-end)'
 Fail	Property clip-path value 'shape(from 20px 40px, curve by 20px 20px with 10px 30px)'
 Fail	Property clip-path value 'shape(from 20px 40px, curve by 20px 20px with 10px 30px / 12px 32px)'
 Fail	Property clip-path value 'shape(from center, curve to center bottom with top right / bottom right)'

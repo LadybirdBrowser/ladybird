@@ -43,6 +43,10 @@
         'padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px;': 'padding: 1px 2px 3px 4px;'
       }
 
+      if (CSS.supports("-webkit-line-clamp: none") && CSS.supports("line-clamp: none")) {
+        tests["-webkit-line-clamp: none;"] = "line-clamp: none;";
+      }
+
       for (let test in tests) {
         test_shorthand_serialization(test, tests[test]);
       }

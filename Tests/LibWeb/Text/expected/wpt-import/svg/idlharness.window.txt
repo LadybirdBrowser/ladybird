@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 1781 tests
+Found 1780 tests
 
-1096 Pass
-685 Fail
+1098 Pass
+682 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -44,6 +44,8 @@ Pass	Element includes Animatable: member names are unique
 Pass	Document includes GlobalEventHandlers: member names are unique
 Pass	Document includes NonElementParentNode: member names are unique
 Pass	DocumentFragment includes NonElementParentNode: member names are unique
+Pass	Document includes DocumentOrShadowRoot: member names are unique
+Pass	ShadowRoot includes DocumentOrShadowRoot: member names are unique
 Pass	Document includes ParentNode: member names are unique
 Pass	DocumentFragment includes ParentNode: member names are unique
 Pass	Element includes ParentNode: member names are unique
@@ -668,11 +670,13 @@ Pass	SVGStyleElement interface: existence and properties of interface prototype 
 Pass	SVGStyleElement interface: attribute type
 Pass	SVGStyleElement interface: attribute media
 Pass	SVGStyleElement interface: attribute title
+Fail	SVGStyleElement interface: attribute disabled
 Pass	SVGStyleElement must be primary interface of objects.style
 Pass	Stringification of objects.style
 Pass	SVGStyleElement interface: objects.style must inherit property "type" with the proper type
 Pass	SVGStyleElement interface: objects.style must inherit property "media" with the proper type
 Pass	SVGStyleElement interface: objects.style must inherit property "title" with the proper type
+Fail	SVGStyleElement interface: objects.style must inherit property "disabled" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.style must inherit property "viewportElement" with the proper type
@@ -1361,6 +1365,8 @@ Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface ob
 Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO on interface prototype object
 Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface object
 Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_ANGLE on interface prototype object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface object
+Fail	SVGMarkerElement interface: constant SVG_MARKER_ORIENT_AUTO_START_REVERSE on interface prototype object
 Fail	SVGMarkerElement interface: attribute refX
 Fail	SVGMarkerElement interface: attribute refY
 Fail	SVGMarkerElement interface: attribute markerUnits
@@ -1381,6 +1387,7 @@ Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKE
 Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_UNKNOWN" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_ANGLE" with the proper type
+Fail	SVGMarkerElement interface: objects.marker must inherit property "SVG_MARKER_ORIENT_AUTO_START_REVERSE" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "refX" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "refY" with the proper type
 Fail	SVGMarkerElement interface: objects.marker must inherit property "markerUnits" with the proper type
@@ -1559,7 +1566,6 @@ Pass	SVGAElement interface: attribute rel
 Pass	SVGAElement interface: attribute relList
 Pass	SVGAElement interface: attribute hreflang
 Pass	SVGAElement interface: attribute type
-Fail	SVGAElement interface: attribute text
 Pass	SVGAElement interface: attribute referrerPolicy
 Fail	SVGAElement interface: attribute origin
 Fail	SVGAElement interface: attribute protocol
@@ -1581,7 +1587,6 @@ Pass	SVGAElement interface: objects.a must inherit property "rel" with the prope
 Pass	SVGAElement interface: objects.a must inherit property "relList" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "hreflang" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "type" with the proper type
-Fail	SVGAElement interface: objects.a must inherit property "text" with the proper type
 Pass	SVGAElement interface: objects.a must inherit property "referrerPolicy" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "origin" with the proper type
 Fail	SVGAElement interface: objects.a must inherit property "protocol" with the proper type
@@ -1631,7 +1636,7 @@ Fail	TimeEvent interface: existence and properties of interface prototype object
 Fail	TimeEvent interface: existence and properties of interface prototype object's @@unscopables property
 Fail	TimeEvent interface: attribute view
 Fail	TimeEvent interface: attribute detail
-Fail	TimeEvent interface: operation initTimeEvent(DOMString, Window?, long)
+Fail	TimeEvent interface: operation initTimeEvent(DOMString, optional Window?, optional long)
 Pass	SVGAnimationElement interface: existence and properties of interface object
 Pass	SVGAnimationElement interface object length
 Pass	SVGAnimationElement interface object name
@@ -1778,10 +1783,4 @@ Pass	SVGElement interface: objects.animateTransform must inherit property "owner
 Pass	SVGElement interface: objects.animateTransform must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.animateTransform must inherit property "correspondingUseElement" with the proper type
-Fail	SVGDiscardElement interface: existence and properties of interface object
-Fail	SVGDiscardElement interface object length
-Fail	SVGDiscardElement interface object name
-Fail	SVGDiscardElement interface: existence and properties of interface prototype object
-Fail	SVGDiscardElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGDiscardElement interface: existence and properties of interface prototype object's @@unscopables property
 Pass	Document interface: attribute rootElement

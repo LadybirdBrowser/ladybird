@@ -74,4 +74,5 @@ test_invalid_length('abs(10%)');
 test_invalid_length('1px * sign(10%)');
 test_invalid_length('1px * sign(1em + 10%)');
 test_invalid_length_percentage('1px * sign(10px + 5rad)');
+test_invalid_length('calc(100% + abs(1vmin * 10%))');
 </script>

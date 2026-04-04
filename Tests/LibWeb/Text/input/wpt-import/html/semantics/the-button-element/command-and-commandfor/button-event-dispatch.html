@@ -11,6 +11,7 @@
 <button id="invokerbutton" commandfor="invokee" command="--custom-command"></button>
 <input type="button" id="invalidbutton" commandfor="invokee" command="--custom-command">
 <form id="aform"></form>
+<svg id="svgInvokee"></svg>
 
 <script>
   aform.addEventListener('submit', (e) => (e.preventDefault()));
@@ -110,6 +111,18 @@
       invokerbutton.click();
       assert_equals(event, null, "event should not have fired");
     }, `setting custom command attribute to ${command} (no dash) did not dispatch an event`);
+
+    test(function (t) {
+      t.add_cleanup(resetState);
+      assert_false(svgInvokee instanceof HTMLElement);
+      assert_true(svgInvokee instanceof Element);
+      let command_event_fired = false;
+      svgInvokee.addEventListener("command", () => (command_event_fired = true), {signal: t.get_signal()});
+      invokerbutton.setAttribute("commandfor", "svgInvokee");
+      invokerbutton.setAttribute("command", command);
+      invokerbutton.click();
+      assert_false(command_event_fired, "command event fired");
+    }, `setting command attribute to ${command} (no dash) did not dispatch an event with an svg target`);
   });
 
   test(function (t) {
@@ -206,15 +219,12 @@
   }, "event does NOT dispatch if button is form associated, with explicit type=reset");
 
   test(function (t) {
-    svgInvokee = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svgInvokee.setAttribute("id", "svg-invokee");
     t.add_cleanup(resetState);
-    document.body.append(svgInvokee);
     assert_false(svgInvokee instanceof HTMLElement);
     assert_true(svgInvokee instanceof Element);
     let event = null;
-    svgInvokee.addEventListener("command", (e) => (event = e), { once: true });
-    invokerbutton.setAttribute("commandfor", "svg-invokee");
+    svgInvokee.addEventListener("command", (e) => (event = e), { once: true, signal: t.get_signal() });
+    invokerbutton.setAttribute("commandfor", "svgInvokee");
     invokerbutton.setAttribute("command", "--custom-command");
     assert_equals(invokerbutton.commandForElement, svgInvokee);
     invokerbutton.click();
@@ -222,5 +232,53 @@
     assert_true(event instanceof CommandEvent, "event is CommandEvent");
     assert_equals(event.source, invokerbutton, "event.invoker is set to right element");
     assert_equals(event.target, svgInvokee, "event.target is set to right element");
-  }, "event dispatches if invokee is non-HTML Element");
+  }, "event dispatches if invokee is non-HTML Element and command is custom");
+
+  // known commands with incompatible target
+  ["show-modal", "close", "request-close"].forEach((command) => {
+    test(function (t) {
+      t.add_cleanup(resetState);
+      let command_event_fired = false;
+      invokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.command = command;
+      invokerbutton.click();
+      assert_false(command_event_fired, "command event fired");
+    }, `setting command to ${command} did not dispatch an event for invalid element`);
+
+    test(function (t) {
+      t.add_cleanup(resetState);
+      assert_false(svgInvokee instanceof HTMLElement);
+      assert_true(svgInvokee instanceof Element);
+      let command_event_fired = false;
+      svgInvokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.setAttribute("commandfor", "svgInvokee");
+      invokerbutton.setAttribute("command", command);
+      invokerbutton.click();
+      assert_false(command_event_fired, "command event fired");
+    }, `setting command to ${command} did not dispatch an event for svg element`);
+  });
+
+  // popover commands
+  ["show-popover", "hide-popover", "toggle-popover"].forEach((command) => {
+    test(function (t) {
+      t.add_cleanup(resetState);
+      let command_event_fired = false;
+      invokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.command = command;
+      invokerbutton.click();
+      assert_true(command_event_fired, "command event fired");
+    }, `setting command to ${command} did dispatch an event for element without popover attribute`);
+
+    test(function (t) {
+      t.add_cleanup(resetState);
+      assert_false(svgInvokee instanceof HTMLElement);
+      assert_true(svgInvokee instanceof Element);
+      let command_event_fired = false;
+      svgInvokee.addEventListener("command", () => (command_event_fired = true), { signal: t.get_signal() });
+      invokerbutton.setAttribute("commandfor", "svgInvokee");
+      invokerbutton.setAttribute("command", command);
+      invokerbutton.click();
+      assert_false(command_event_fired, "command event fired");
+    }, `setting command to ${command} did not dispatch an event for svg element`);
+  });
 </script>

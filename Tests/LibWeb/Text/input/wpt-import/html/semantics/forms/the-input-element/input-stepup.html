@@ -1,44 +1,139 @@
 <!DOCTYPE HTML>
 <html>
-<title>Forms</title>
-<script src="../../../../resources/testharness.js"></script>
-<script src="../../../../resources/testharnessreport.js"></script>
-<h3>input_stepUp</h3>
-<input type='number' id='input_number'> <br/>
-<input type="number" id="number_input" max="100" step="1" value="200">
-<input type="date" id="date_input"  max="2009-02-10" step="1" value="2010-02-10">
-<input type="datetime-local" id="dtl_input" max="2009-02-10T20:13" step="1" value="2010-02-10T20:13">
-<input type="time" id="time_input" max="19:13" step="60" value="20:13">
+    <head>
+        <title>StepUp() method of HTMLInputElement</title>
+        <script src="../../../../resources/testharness.js"></script>
+        <script src="../../../../resources/testharnessreport.js"></script>
+        <link rel="author" title="Simon Wülker" href="mailto:simon.wuelker@arcor.de">
+        <link rel="help" href="https://html.spec.whatwg.org/multipage/input.html#the-step-attribute">
+    </head>
+    <body>
+        <script>
+            const INPUT_TYPES_THAT_CANT_STEP = [
+              "button",
+              "checkbox",
+              "color",
+              "email",
+              "file",
+              "hidden",
+              "image",
+              "password",
+              "radio",
+              "reset",
+              "search",
+              "submit",
+              "tel",
+              "text",
+              "url"
+            ];
+            const INPUT_TYPES_THAT_CAN_STEP = [
+              "date",
+              "datetime-local",
+              "month",
+              "number",
+              "range",
+              "time",
+              "week",
+            ];
 
-<script>
+            for (input_type of INPUT_TYPES_THAT_CANT_STEP) {
+              test(() => {
+                let input = document.createElement("input");
+                input.setAttribute("type", input_type);
+                assert_throws_dom("InvalidStateError", () => {
+                  input.stepUp();
+                });
+              }, "Calling stepUp on input type=" + input_type + " should throw a DOMException")
+            }
 
-    var input_number = document.getElementById("input_number");
-    input_number.max = "30";
-    input_number.step = "3";
-    input_number.value = "0";
-    input_number.stepUp(5);
+            test(() => {
+              let input = document.createElement("input");
+              input.setAttribute("type", "number");
+              input.setAttribute("step", "any");
+              assert_throws_dom("InvalidStateError", () => {
+                input.stepUp();
+              });
+            }, "Calling stepUp when the step attribute is \"any\" should throw a DOMException")
 
-    if (typeof(input_number.stepUp) == "function") {
-      test(function() {
-        assert_equals(input_number.value, "15", "call of stepUp method is failed.");
-      });
-    } else {
-      test(function() {
-        assert_unreached("stepUp attribute is not exist.");
-      });
-    }
+            const DEFAULT_STEP_SIZES = {
+              "date": 1,
+              "datetime-local": 60,
+              "month": 1,
+              "number": 1,
+              "time": 60,
+              "range": 1,
+              "week": 1,
+            };
+            const STEP_SCALE_FACTORS = {
+              "date": 86400000,
+              "datetime-local": 1000,
+              "month": 1,
+              "number": 1,
+              "range": 1,
+              "time": 1000,
+              "week": 604800000,
+            };
+            for (const input_type of INPUT_TYPES_THAT_CAN_STEP) {
+              const default_step_size = DEFAULT_STEP_SIZES[input_type];
+              const step_scale_factor = STEP_SCALE_FACTORS[input_type];
 
-    function testStepUpOverflow(id, value, type) {
-      test(function() {
-        var input = document.getElementById(id);
-        input.stepUp();
-        assert_equals(input.value, value, "value shouldn't change.");
-      }, "Calling stepUp() on input -" + type + "- where value > max should not modify value.");
-    }
+              // Some input types (like "week") can't be reset with
+              // valueAsNumber=0
+              test(() => {
+                let input = document.createElement("input");
+                input.setAttribute("type", input_type);
+                input.stepUp();
 
-    testStepUpOverflow("number_input", "200", "number");
-    testStepUpOverflow("date_input", "2010-02-10", "date");
-    testStepUpOverflow("dtl_input", "2010-02-10T20:13", "datetime-local");
-    testStepUpOverflow("time_input", "20:13", "time");
-</script>
+                const previous = input.valueAsNumber;
+                input.stepUp();
+                assert_equals(input.valueAsNumber, previous + default_step_size * step_scale_factor);
+              }, "Step delta from stepUp on input type=" + input_type + " with no step attribute");
+
+              for (step of ["0", "-2", "bogus"]) {
+                test(() => {
+                  let input = document.createElement("input");
+                  input.setAttribute("type", input_type);
+                  input.setAttribute("step", step);
+                  input.stepUp();
+
+                  const previous = input.valueAsNumber;
+                  input.stepUp();
+                  assert_equals(input.valueAsNumber, previous + default_step_size * step_scale_factor);
+                }, "Step delta from stepUp on input type=" + input_type + " with step=" + step);
+              }
+
+              test(() => {
+                let input = document.createElement("input");
+                input.setAttribute("type", input_type);
+                input.setAttribute("step", "2");
+                input.stepUp();
+
+                const previous = input.valueAsNumber;
+                input.stepUp();
+                assert_equals(input.valueAsNumber, previous + 2 * step_scale_factor);
+              }, "Step delta from stepUp on input type=" + input_type + " with step=2");
+            }
+
+            test(() => {
+              let input = document.createElement("input");
+              input.setAttribute("type", "number");
+              input.valueAsNumber = 0;
+              input.min = 10;
+              input.max = 5;
+              input.stepUp();
+              assert_equals(input.valueAsNumber, 0);
+            }, "stepUp should do nothing if the input minimum is larger than the input maximum")
+
+            test(() => {
+              let input = document.createElement("input");
+              input.setAttribute("type", "number");
+              input.valueAsNumber = 0;
+              input.step = 3;
+              input.max = 7;
+              input.stepUp(3);
+              assert_equals(input.valueAsNumber, 6);
+            }, "stepUp should clamp to the input maximum");
+        </script>
+    </body>
+
 </html>

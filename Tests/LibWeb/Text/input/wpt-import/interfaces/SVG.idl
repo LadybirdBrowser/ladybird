@@ -179,7 +179,7 @@ interface SVGAnimatedAngle {
 
 [Exposed=Window]
 interface SVGAnimatedString {
-           attribute DOMString baseVal;
+           attribute (DOMString or TrustedScriptURL) baseVal;
   readonly attribute DOMString animVal;
 };
 
@@ -245,16 +245,16 @@ interface SVGSVGElement : SVGGraphicsElement {
 
   undefined deselectAll();
 
-  SVGNumber createSVGNumber();
-  SVGLength createSVGLength();
-  SVGAngle createSVGAngle();
-  DOMPoint createSVGPoint();
-  DOMMatrix createSVGMatrix();
-  DOMRect createSVGRect();
-  SVGTransform createSVGTransform();
-  SVGTransform createSVGTransformFromMatrix(optional DOMMatrix2DInit matrix = {});
+  [NewObject] SVGNumber createSVGNumber();
+  [NewObject] SVGLength createSVGLength();
+  [NewObject] SVGAngle createSVGAngle();
+  [NewObject] DOMPoint createSVGPoint();
+  [NewObject] DOMMatrix createSVGMatrix();
+  [NewObject] DOMRect createSVGRect();
+  [NewObject] SVGTransform createSVGTransform();
+  [NewObject] SVGTransform createSVGTransformFromMatrix(optional DOMMatrix2DInit matrix = {});
 
-  Element getElementById(DOMString elementId);
+  Element? getElementById(DOMString elementId);
 
   // Deprecated methods that have no effect when called,
   // but which are kept for compatibility reasons.
@@ -333,6 +333,7 @@ interface SVGStyleElement : SVGElement {
   attribute DOMString type;
   attribute DOMString media;
   attribute DOMString title;
+  attribute boolean disabled;
 };
 
 SVGStyleElement includes LinkStyle;
@@ -575,6 +576,7 @@ interface SVGMarkerElement : SVGElement {
   const unsigned short SVG_MARKER_ORIENT_UNKNOWN = 0;
   const unsigned short SVG_MARKER_ORIENT_AUTO = 1;
   const unsigned short SVG_MARKER_ORIENT_ANGLE = 2;
+  const unsigned short SVG_MARKER_ORIENT_AUTO_START_REVERSE = 3;
 
   [SameObject] readonly attribute SVGAnimatedLength refX;
   [SameObject] readonly attribute SVGAnimatedLength refY;
@@ -661,8 +663,6 @@ interface SVGAElement : SVGGraphicsElement {
   [SameObject, PutForwards=value] readonly attribute DOMTokenList relList;
   attribute DOMString hreflang;
   attribute DOMString type;
-
-  attribute DOMString text;
 
   attribute DOMString referrerPolicy;
 };

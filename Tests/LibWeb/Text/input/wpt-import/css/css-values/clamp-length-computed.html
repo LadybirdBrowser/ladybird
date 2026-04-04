@@ -44,4 +44,13 @@ test_length_equals('calc(0px - clamp(10px, 20px, 30px))', '-20px');
 test_length_equals('calc(0px + clamp(30px, 100px, 20px))', '30px');
 test_length_equals('calc(0px - clamp(30px, 100px, 20px))', '-30px');
 
+// "none" values
+test_length_equals('clamp(none, 30px, 33px)', '30px');
+test_length_equals('clamp(none, 33px, 30px)', '30px');
+test_length_equals('clamp(30px, 33px, none)', '33px');
+test_length_equals('clamp(33px, 30px, none)', '33px');
+test_length_equals('clamp(none, 30px, none)', '30px');
+test_length_equals('clamp(1000px, 1em / 1rem * 1px, none)', '1000px');
+test_length_equals('clamp(1600px / 1em * 1px, 1em / 1rem * 1px, none)', '80px');
+
 </script>

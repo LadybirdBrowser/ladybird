@@ -24,6 +24,20 @@
 
     */
 
+    .alt-counter::before {
+      counter-set: cnt 5051;
+      content: "" / counter(cnt);
+    }
+    .multi-alt-counter {
+      counter-reset: multi_alt 10;
+    }
+    .multi-alt-counter span::before {
+      counter-increment: multi_alt 1;
+      content: "" / counter(multi_alt) " ";
+    }
+    .multi-alt-counter span:nth-child(2n)::before {
+      counter-increment: multi_alt 2;
+    }
     .simple-before::before {
       content: " before "; /* [sic] leading and trailing space */
       margin:0 0.1em;
@@ -53,7 +67,7 @@
       content: "before"  / "";
     }
     .fallback-before-image-empty::before {
-      content: "before " url(/images/blue.png) / "";
+      content: "before " url(../../images/blue.png) / "";
     }
     .fallback-before-mixed::before {
       content: " before "; /* [sic] leading and trailing space */
@@ -101,6 +115,18 @@
 <button data-expectedlabel="label" data-testname="button name from content" class="ex">label</button><br>
 <h3 data-expectedlabel="label" data-testname="heading name from content" class="ex">label</h3>
 <a href="#" data-expectedlabel="label" data-testname="link name from content" class="ex">label</a><br>
+<br>
+
+<h1>alt counter with ::before</h1>
+<button data-expectedlabel="5051 label" data-testname="button with alt counter on ::before" class="ex alt-counter">label</button><br>
+<h3 data-expectedlabel="5051 label" data-testname="heading with alt counter on ::before" class="ex alt-counter">label</h3>
+<a href="#" data-expectedlabel="5051 label" data-testname="link with alt counter on ::before" class="ex alt-counter">label</a><br>
+<br>
+
+<h1>multiple alt counters with varying increments</h1>
+<button data-expectedlabel="11 alpha 13 beta 14 gamma" data-testname="button with multiple alt counters and counter increments" class="ex multi-alt-counter"><span>alpha</span> <span>beta</span> <span>gamma</span></button><br>
+<h3 data-expectedlabel="11 alpha 13 beta 14 gamma" data-testname="heading with multiple alt counters and counter increments" class="ex multi-alt-counter"><span>alpha</span> <span>beta</span> <span>gamma</span></h3>
+<a href="#" data-expectedlabel="11 alpha 13 beta 14 gamma" data-testname="link with multiple alt counters and counter increments" class="ex multi-alt-counter"><span>alpha</span> <span>beta</span> <span>gamma</span></a><br>
 <br>
 
 <h1>simple with ::before</h1>
@@ -258,6 +284,109 @@
 <h1 data-expectedlabel="CALL US" data-testname="heading name from content with text-transform:uppercase" class="ex" style="text-transform:uppercase;">Call us</h1>
 <h1 data-expectedlabel="Call Us" data-testname="heading name from content with text-transform:capitalize" class="ex" style="text-transform:capitalize;">Call us</h1>
 <h1 data-expectedlabel="call us" data-testname="heading name from content with text-transform:lowercase" class="ex" style="text-transform:lowercase;">Call us</h1>
+
+<!-- “びょういんのかんじゃサービス” means “Hospital patient services” -->
+<!-- text-transform:full-size-kana risks changing the heading’s meaning -->
+<!-- by transforming the following words: -->
+<!--   1. びょういん (byōin = hospital) into びよういん (biyōin = beauty parlor) -->
+<!--   2. かんじゃ (kanja = patient) into かんじや (kanjiya = [no meaning]) -->
+<h1>heading which visually transforms <span lang="ja">びょういん</span> (hospital) to
+  <span lang="ja">びよういん</span> (beauty parlor) using CSS
+  <code>text-transform:full-size-kana</code></h1>
+<h3
+  lang="ja"
+  data-expectedlabel="びょういんのかんじゃサービス"
+  data-testname="heading name from content with text-transform:full-size-kana"
+  class="ex"
+  style="text-transform:full-size-kana;"
+>びょういんのかんじゃサービス</h3>
+
+<!-- Tests `Name from Each Child` edge case failures with an embedded `term` as a child element role. -->
+<!-- https://w3c.github.io/accname/#comp_name_from_content_for_each_child -->
+
+<h2>Elements with implicit button, heading, link roles containing element with
+  implicit term role</h2>
+<button
+  data-expectedlabel="this is an example"
+  data-testname="implicit button name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></button>
+<h3
+  data-expectedlabel="this is an example"
+  data-testname="implicit heading name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></h3>
+<a
+  href="#"
+  data-expectedlabel="this is an example"
+  data-testname="implicit link name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></a>
+
+<h2>Elements with implicit button, heading, link roles containing element with
+  explicit term role</h2>
+<button
+  data-expectedlabel="this is an example"
+  data-testname="implicit button name from content containing an element with explicit term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></button>
+<h3
+  data-expectedlabel="this is an example"
+  data-testname="implicit heading name from content containing an element with explicit term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></h3>
+<a
+  href="#"
+  data-expectedlabel="this is an example"
+  data-testname="implicit link name from content containing an element explicit with term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></a>
+
+<h2>Elements with explicit button, heading, link roles containing element with
+  implicit term role</h2>
+<div
+  role="button"
+  tabindex="0"
+  data-expectedlabel="this is an example"
+  data-testname="explicit button name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></div>
+<div
+  role="heading"
+  data-expectedlabel="this is an example"
+  data-testname="explicit heading name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></div>
+<div
+  role="link"
+  tabindex="0"
+  data-expectedlabel="this is an example"
+  data-testname="explicit link name from content containing a dfn element"
+  class="ex iblock"
+><span>this is an </span><dfn>example</dfn></div>
+
+<h2>Elements with explicit button, heading, link roles containing element with
+  explicit term role</h2>
+<div
+  role="button"
+  tabindex="0"
+  data-expectedlabel="this is an example"
+  data-testname="explicit button name from content containing an element explicit with term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></div>
+<div
+  role="heading"
+  data-expectedlabel="this is an example"
+  data-testname="explicit heading name from content containing an element explicit with term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></div>
+<div
+  role="link"
+  tabindex="0"
+  data-expectedlabel="this is an example"
+  data-testname="explicit link name from content containing an element explicit with term role"
+  class="ex iblock"
+><span>this is an </span><span role="term">example</span></div>
 
 <script>
 AriaUtils.verifyLabelsBySelector(".ex");

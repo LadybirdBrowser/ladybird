@@ -12,55 +12,110 @@
 </head>
 <body>
 <style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
   #target {
     color: lime;
   }
 </style>
+<div id=container>
 <div id="target"></div>
+</div>
 <script>
 test_computed_value("filter", "none");
 
 test_computed_value("filter", "blur(100px)");
 test_computed_value("filter", "blur()", "blur(0px)");
+test_computed_value("filter", "blur(calc(100px))", "blur(100px)");
+test_computed_value("filter", "blur(calc(100px + (sign(2cqw - 10px) * 50px)))", "blur(50px)");
 
 test_computed_value("filter", "brightness(0)");
 test_computed_value("filter", "brightness(300%)", "brightness(3)");
 test_computed_value("filter", "brightness()", "brightness(1)");
+test_computed_value("filter", "brightness(calc(3))", "brightness(3)");
+test_computed_value("filter", "brightness(calc(300%))", "brightness(3)");
+test_computed_value("filter", "brightness(calc(-10))", "brightness(0)");
+test_computed_value("filter", "brightness(calc(-10%))", "brightness(0)");
+test_computed_value("filter", "brightness(calc(10 + (sign(2cqw - 10px) * 5)))", "brightness(5)");
+test_computed_value("filter", "brightness(calc(100% + (sign(2cqw - 10px) * 50%)))", "brightness(0.5)");
 
 test_computed_value("filter", "contrast(0)");
 test_computed_value("filter", "contrast(300%)", "contrast(3)");
 test_computed_value("filter", "contrast()", "contrast(1)");
+test_computed_value("filter", "contrast(calc(3))", "contrast(3)");
+test_computed_value("filter", "contrast(calc(300%))", "contrast(3)");
+test_computed_value("filter", "contrast(calc(-10))", "contrast(0)");
+test_computed_value("filter", "contrast(calc(-10%))", "contrast(0)");
+test_computed_value("filter", "contrast(calc(10 + (sign(2cqw - 10px) * 5)))", "contrast(5)");
+test_computed_value("filter", "contrast(calc(100% + (sign(2cqw - 10px) * 50%)))", "contrast(0.5)");
 
 test_computed_value("filter", "drop-shadow(1px 2px)", "drop-shadow(rgb(0, 255, 0) 1px 2px 0px)");
 test_computed_value("filter", "drop-shadow(rgb(4, 5, 6) 1px 2px 0px)");
+test_computed_value("filter", "drop-shadow(rgb(4, 5, 6) calc(1px) 2px 0px)", "drop-shadow(rgb(4, 5, 6) 1px 2px 0px)");
+test_computed_value("filter", "drop-shadow(rgb(4, 5, 6) calc(10px + (sign(2cqw - 10px) * 5px)) 2px 0px)", "drop-shadow(rgb(4, 5, 6) 5px 2px 0px)");
 
 test_computed_value("filter", "grayscale(50%)", "grayscale(0.5)");
 test_computed_value("filter", "grayscale(calc(50%))", "grayscale(0.5)");
 test_computed_value("filter", "grayscale(2)", "grayscale(1)");
 test_computed_value("filter", "grayscale(calc(2))", "grayscale(1)");
 test_computed_value("filter", "grayscale()", "grayscale(1)");
+test_computed_value("filter", "grayscale(calc(3))", "grayscale(1)");
+test_computed_value("filter", "grayscale(calc(300%))", "grayscale(1)");
+test_computed_value("filter", "grayscale(calc(-10))", "grayscale(0)");
+test_computed_value("filter", "grayscale(calc(-10%))", "grayscale(0)");
+test_computed_value("filter", "grayscale(calc(10 + (sign(2cqw - 10px) * 5)))", "grayscale(1)");
+test_computed_value("filter", "grayscale(calc(100% + (sign(2cqw - 10px) * 50%)))", "grayscale(0.5)");
 
 test_computed_value("filter", "hue-rotate(90deg)");
+test_computed_value("filter", "hue-rotate(0)", "hue-rotate(0deg)");
 test_computed_value("filter", "hue-rotate()", "hue-rotate(0deg)");
+test_computed_value("filter", "hue-rotate(calc(90deg))", "hue-rotate(90deg)");
+test_computed_value("filter", "hue-rotate(calc(90deg + (sign(2cqw - 10px) * 45deg)))", "hue-rotate(45deg)");
 
 test_computed_value("filter", "invert(0)");
 test_computed_value("filter", "invert(100%)", "invert(1)");
 test_computed_value("filter", "invert(2)", "invert(1)");
 test_computed_value("filter", "invert()", "invert(1)");
+test_computed_value("filter", "invert(calc(3))", "invert(1)");
+test_computed_value("filter", "invert(calc(300%))", "invert(1)");
+test_computed_value("filter", "invert(calc(-10))", "invert(0)");
+test_computed_value("filter", "invert(calc(-10%))", "invert(0)");
+test_computed_value("filter", "invert(calc(10 + (sign(2cqw - 10px) * 5)))", "invert(1)");
+test_computed_value("filter", "invert(calc(100% + (sign(2cqw - 10px) * 50%)))", "invert(0.5)");
 
 test_computed_value("filter", "opacity(0)");
 test_computed_value("filter", "opacity(100%)", "opacity(1)");
 test_computed_value("filter", "opacity(2)", "opacity(1)");
 test_computed_value("filter", "opacity()", "opacity(1)");
+test_computed_value("filter", "opacity(calc(3))", "opacity(1)");
+test_computed_value("filter", "opacity(calc(300%))", "opacity(1)");
+test_computed_value("filter", "opacity(calc(-10))", "opacity(0)");
+test_computed_value("filter", "opacity(calc(-10%))", "opacity(0)");
+test_computed_value("filter", "opacity(calc(10 + (sign(2cqw - 10px) * 5)))", "opacity(1)");
+test_computed_value("filter", "opacity(calc(100% + (sign(2cqw - 10px) * 50%)))", "opacity(0.5)");
 
 test_computed_value("filter", "saturate(0)");
 test_computed_value("filter", "saturate(300%)", "saturate(3)");
 test_computed_value("filter", "saturate()", "saturate(1)");
+test_computed_value("filter", "saturate(calc(3))", "saturate(3)");
+test_computed_value("filter", "saturate(calc(300%))", "saturate(3)");
+test_computed_value("filter", "saturate(calc(-10))", "saturate(0)");
+test_computed_value("filter", "saturate(calc(-10%))", "saturate(0)");
+test_computed_value("filter", "saturate(calc(10 + (sign(2cqw - 10px) * 5)))", "saturate(5)");
+test_computed_value("filter", "saturate(calc(100% + (sign(2cqw - 10px) * 50%)))", "saturate(0.5)");
 
 test_computed_value("filter", "sepia(0)");
 test_computed_value("filter", "sepia(100%)", "sepia(1)");
 test_computed_value("filter", "sepia(2)", "sepia(1)");
 test_computed_value("filter", "sepia()", "sepia(1)");
+test_computed_value("filter", "sepia(calc(3))", "sepia(1)");
+test_computed_value("filter", "sepia(calc(300%))", "sepia(1)");
+test_computed_value("filter", "sepia(calc(-10))", "sepia(0)");
+test_computed_value("filter", "sepia(calc(-10%))", "sepia(0)");
+test_computed_value("filter", "sepia(calc(10 + (sign(2cqw - 10px) * 5)))", "sepia(1)");
+test_computed_value("filter", "sepia(calc(100% + (sign(2cqw - 10px) * 50%)))", "sepia(0.5)");
 
 test_computed_value("filter", 'blur(10px) url("https://www.example.com/picture.svg#f") contrast(20) brightness(30)');
 </script>

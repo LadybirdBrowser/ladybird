@@ -21,6 +21,7 @@
   - /accname/name/shadowdom/*
 
 -->
+<h2>Tests for <code>aria-labelledby</code></h2>
 
 <div role="group" aria-labelledby="h" class="ex" data-expectedlabel="first heading" data-testname="div group explicitly labelledby heading">
   <h2 id="h">first heading</h2>
@@ -35,6 +36,42 @@
 <nav aria-labelledby="s1 s2 s3 s4" class="ex" data-expectedlabel="verify spaces between foreach" data-testname="nav with verified spaces appended between each of IDREFS">
   <span id="s1">verify</span><span id="s2">spaces</span><span>FAIL IF INCLUDED</span><span id="s3">between</span><span id="s4">foreach</span>
 </nav>
+
+
+<!-- Removed tests to be merged back in (or this PR reverted) after Interop 2024 completed on Feb 6, 2025. -->
+
+<h2>Tests for <code>aria-labeledby</code> (non-standard spelling)</h2>
+
+<span id="n1">first label</span>
+<span id="n2">second label</span>
+
+<h2>Tests for precedence: <code>aria-labelledby</code> vs. <code>aria-labeledby</code> (non-standard spelling)</h2>
+<!-- The "aria-labelledby" spelling should take precedence over "aria-labeledby" for accname -->
+
+<a href="#" aria-labelledby="n1" aria-labeledby="n2" class="ex" data-expectedlabel="first label" data-testname="link labelled by aria-labelledby supercedes aria-labeledby (non-standard spelling)">x</a>
+<button aria-labelledby="n1" aria-labeledby="n2" class="ex" data-expectedlabel="first label" data-testname="button labelled by aria-labelledby supercedes aria-labeledby (non-standard spelling)">x</button>
+<div role="group" aria-labelledby="n1" aria-labeledby="n2" class="ex" data-expectedlabel="first label" data-testname="div labelled by aria-labelledby supercedes aria-labeledby (non-standard spelling)">x</div>
+
+<a href="#" aria-labeledby="n1" aria-labelledby="n2" class="ex" data-expectedlabel="second label" data-testname="link labelled by [aria-labeledby][aria-labelledby]">x</a>
+<button aria-labeledby="n1" aria-labelledby="n2" class="ex" data-expectedlabel="second label" data-testname="button labelled by [aria-labeledby][aria-labelledby]">x</button>
+<div role="group" aria-labeledby="n1" aria-labelledby="n2" class="ex" data-expectedlabel="second label" data-testname="div labelled by [aria-labeledby][aria-labelledby]">x</div>
+
+<h2>Tests for name precedence with <code>aria-labeledby</code> (non-standard spelling)</h2>
+<!-- Name computation: https://w3c.github.io/accname/#computation-steps -->
+
+<!-- Step 2H: Recursive Name from Content, see wpt/accname/name/comp_name_from_content.html  -->
+<h3>
+  <a href="#" aria-labeledby="nested_image_label2">
+    link1<!-- this text is skipped because of aria-labeledby -->
+  </a>
+  <a href="#" data-expectedlabel="link2 image link3" data-testname="link name from content for each child including nested image (referenced elsewhere via labeledby)" class="ex">
+    link2
+    <img id="nested_image_label2" alt="image" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==">
+    <!-- image skipped in this link (when computing heading text) because it was already referenced by the first link within this heading label recursion cycle. -->
+    <!-- but image not skipped when computing the text of the link itself since it has not been referenced in that context -->
+    link3
+  </a>
+</h3>
 
 <!--
 

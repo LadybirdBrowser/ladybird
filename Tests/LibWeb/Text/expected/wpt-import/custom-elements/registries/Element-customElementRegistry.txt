@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 10 tests
+Found 11 tests
 
-10 Pass
+11 Pass
 Pass	customElementRegistry on a newly constrcuted element should return window.customElements by default
 Pass	customElementRegistry on an element inside a declarative shadow DOM should return window.customElements by default
 Pass	customElementRegistry on an element inside a declarative shadow DOM with shadowrootcustomelementregistry should return null
@@ -13,3 +13,4 @@ Pass	customElementRegistry on a builtin element created by calling createElement
 Pass	customElementRegistry on an upgarde candidate created by calling createElement on CustomElementRegistry should return the registry
 Pass	customElementRegistry on an unknown element created by calling createElement on CustomElementRegistry should return the registry
 Pass	customElementRegistry on a defined custom element created by calling createElement on CustomElementRegistry should return the registry
+Pass	customElementRegistry inside a custom element constructor should return the correct registry

@@ -37,7 +37,10 @@ const anchorSides = [
   'center',
   '50%',
   'calc(50%)',
-  'min(50%, 100%)',
+  // Array entry in the test list: the first value is the value to be specified;
+  // subsequent values are alternative serializations that will also be accepted
+  // when checking that the value was set.
+  ['min(50%, 100%)', 'calc(50%)'],
 ];
 
 const fallbacks = [
@@ -56,13 +59,18 @@ for (let property of insetProperties) {
   // parse error, but triggers the fallback when resolved.
   for (let name of anchorNames) {
     for (let side of anchorSides) {
+      // 'side' is either a single value, or an array with a value followed by allowable simplifications.
+      let anchorSide = Array.isArray(side) ? side[0] : side;
       for (let fallback of fallbacks) {
-        let value = `anchor(${name ? name + ' ' : ''}${side}${fallback ? ', ' + fallback : ''})`;
-        test_valid_value(property, value);
+        let value = `anchor(${name ? name + ' ' : ''}${anchorSide}${fallback ? ', ' + fallback : ''})`;
+        let expect = Array.isArray(side)
+          ? side.map((s) => `anchor(${name ? name + ' ' : ''}${s}${fallback ? ', ' + fallback : ''})`)
+          : value;
+        test_valid_value(property, value, expect);
         if (name) {
           // The <anchor-element> is allowed to appear after the <anchor-side>
-          let value_flip_order = `anchor(${side} ${name}${fallback ? ', ' + fallback : ''})`;
-          test_valid_value(property, value_flip_order, value);
+          let value_flip_order = `anchor(${anchorSide} ${name}${fallback ? ', ' + fallback : ''})`;
+          test_valid_value(property, value_flip_order, expect);
         }
       }
     }
@@ -75,4 +83,8 @@ test_valid_value('top', 'calc((anchor(--foo top) + anchor(--bar bottom)) / 2)', 
 test_valid_value('top', 'calc(0.5 * (anchor(--foo top) + anchor(--bar bottom)))');
 test_valid_value('top', 'anchor(--foo top, calc(0.5 * anchor(--bar bottom)))');
 test_valid_value('top', 'min(100px, 10%, anchor(--foo top), anchor(--bar bottom))');
+
+// Should accept unitless zero
+test_valid_value('top', "anchor(--foo left, 0)", "anchor(--foo left, 0px)");
+test_valid_value('top', "calc(anchor(--foo left, 0))", "anchor(--foo left, 0px)");
 </script>

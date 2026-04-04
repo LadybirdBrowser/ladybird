@@ -1,8 +1,38 @@
 Harness status: OK
 
-Found 448 tests
+Found 478 tests
 
-448 Pass
+478 Pass
+Pass	CSS Transitions: property <corner-top-left-shape> from [round] to neutral at (-0.3) should be [superellipse(1.4)]
+Pass	CSS Transitions: property <corner-top-left-shape> from [round] to neutral at (0) should be [round]
+Pass	CSS Transitions: property <corner-top-left-shape> from [round] to neutral at (0.6) should be [superellipse(0.36)]
+Pass	CSS Transitions: property <corner-top-left-shape> from [round] to neutral at (1) should be [bevel]
+Pass	CSS Transitions: property <corner-top-left-shape> from [round] to neutral at (1.5) should be [superellipse(-0.46)]
+Pass	CSS Transitions with transition: all: property <corner-top-left-shape> from [round] to neutral at (-0.3) should be [superellipse(1.4)]
+Pass	CSS Transitions with transition: all: property <corner-top-left-shape> from [round] to neutral at (0) should be [round]
+Pass	CSS Transitions with transition: all: property <corner-top-left-shape> from [round] to neutral at (0.6) should be [superellipse(0.36)]
+Pass	CSS Transitions with transition: all: property <corner-top-left-shape> from [round] to neutral at (1) should be [bevel]
+Pass	CSS Transitions with transition: all: property <corner-top-left-shape> from [round] to neutral at (1.5) should be [superellipse(-0.46)]
+Pass	CSS Animations: property <corner-top-left-shape> from [round] to neutral at (-0.3) should be [superellipse(1.4)]
+Pass	CSS Animations: property <corner-top-left-shape> from [round] to neutral at (0) should be [round]
+Pass	CSS Animations: property <corner-top-left-shape> from [round] to neutral at (0.6) should be [superellipse(0.36)]
+Pass	CSS Animations: property <corner-top-left-shape> from [round] to neutral at (1) should be [bevel]
+Pass	CSS Animations: property <corner-top-left-shape> from [round] to neutral at (1.5) should be [superellipse(-0.46)]
+Pass	Web Animations: property <corner-top-left-shape> from [round] to neutral at (-0.3) should be [superellipse(1.4)]
+Pass	Web Animations: property <corner-top-left-shape> from [round] to neutral at (0) should be [round]
+Pass	Web Animations: property <corner-top-left-shape> from [round] to neutral at (0.6) should be [superellipse(0.36)]
+Pass	Web Animations: property <corner-top-left-shape> from [round] to neutral at (1) should be [bevel]
+Pass	Web Animations: property <corner-top-left-shape> from [round] to neutral at (1.5) should be [superellipse(-0.46)]
+Pass	Compositing CSS Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (-0.3) should be [round]
+Pass	Compositing CSS Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (0) should be [round]
+Pass	Compositing CSS Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (0.6) should be [round]
+Pass	Compositing CSS Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (1) should be [round]
+Pass	Compositing CSS Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (1.5) should be [round]
+Pass	Compositing Web Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (-0.3) should be [round]
+Pass	Compositing Web Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (0) should be [round]
+Pass	Compositing Web Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (0.6) should be [round]
+Pass	Compositing Web Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (1) should be [round]
+Pass	Compositing Web Animations: property <corner-bottom-left-shape> underlying [round] from replace [round] to replace [[object Object]] at (1.5) should be [round]
 Pass	CSS Transitions: property <corner-top-left-shape> from [round] to [bevel] at (-0.3) should be [superellipse(1.4)]
 Pass	CSS Transitions: property <corner-top-left-shape> from [round] to [bevel] at (0) should be [round]
 Pass	CSS Transitions: property <corner-top-left-shape> from [round] to [bevel] at (0.6) should be [superellipse(0.36)]

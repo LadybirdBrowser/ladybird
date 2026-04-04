@@ -82,6 +82,14 @@
         test_invalid_value(`color`, `color-mix(in ${colorSpace}, color(${colorSpace} .1 .2 .3) color(${colorSpace} .5 .6 .7))`); // Missing comma between colors.
         test_invalid_value(`color`, `color-mix(color(${colorSpace} .1 .2 .3), color(${colorSpace} .5 .6 .7), in ${colorSpace})`); // Interpolation method not at the beginning.
     }
+
+    // color-mix() with 1 or more colors.
+    test_invalid_value(`color`, `color-mix(in srgb, red 0%)`);
+    test_invalid_value(`color`, `color-mix(in srgb, red 0%, green 0%, blue 0%)`);
+    test_invalid_value(`color`, `color-mix(in srgb, red -10%, green 50%, blue)`);
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) -10%, hsl(30deg 30% 40%), hsl(60deg 20% 30%))`);
+    test_invalid_value(`color`, `color-mix(in srgb, red 150%, green 50%, blue)`);
+    test_invalid_value(`color`, `color-mix(in hsl, hsl(120deg 10% 20%) 150%, hsl(30deg 30% 40%), hsl(60deg 20% 30%))`);
 </script>
 </body>
 </html>

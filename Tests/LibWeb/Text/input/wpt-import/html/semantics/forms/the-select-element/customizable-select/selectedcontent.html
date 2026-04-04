@@ -117,13 +117,13 @@ promise_test(async () => {
   select.value = 'two';
   assert_equals(selectedcontent.textContent, 'two',
     'First selectedcontent should be kept up to date.');
-  assert_equals(selectedcontent2.textContent, '',
-    'Second selectedcontent should not be kept up to date.');
+  assert_equals(selectedcontent2.textContent, 'two',
+    'Second selectedcontent should be kept up to date.');
 
   button.insertBefore(selectedcontent2, selectedcontent);
   select.value = 'one';
-  assert_equals(selectedcontent.textContent, '',
-    'Second selectedcontent in tree order should be cleared after another is inserted.');
+  assert_equals(selectedcontent.textContent, 'one',
+    'Second selectedcontent in tree order should be kept up to date after another is inserted.');
   assert_equals(selectedcontent2.textContent, 'one',
     'First selectedcontent in tree order should be kept up to date.');
 
@@ -140,14 +140,14 @@ promise_test(async () => {
 
   button.insertBefore(selectedcontent, selectedcontent2);
   assert_equals(selectedcontent.textContent, 'three',
-    'Inserted selectedcontent should be updated if it is the first in tree order.');
-  assert_equals(selectedcontent2.textContent, '',
-    'Second selectedcontent in tree order should be cleared when another is inserted.');
+    'Inserted selectedcontent should be updated.');
+  assert_equals(selectedcontent2.textContent, 'three',
+    'Second selectedcontent in tree order should be updated when another is inserted.');
 
   selectedcontent.remove();
   assert_equals(selectedcontent2.textContent, 'three',
     'Remaining selectedcontent should be updated when first in tree order is removed.');
-}, 'When there are multiple <selectedcontent> elements, only the one in tree order should be kept up to date.');
+}, 'When there are multiple <selectedcontent> elements, both of them should be kept up to date.');
 
 promise_test(async () => {
   const select = document.createElement('select');
@@ -161,8 +161,9 @@ promise_test(async () => {
     '<selectedcontent> should not be updated when appending to a disconnected select.');
 
   select.value = 'two';
-  assert_equals(selectedcontent.textContent, '',
-    '<selectedcontent> should not be updated when changing value of a disconnected select.');
+  assert_equals(selectedcontent.textContent, 'two',
+    '<selectedcontent> should be updated when changing value of a disconnected select.');
+  selectedcontent.innerHTML = '';
 
   document.body.appendChild(select);
   assert_equals(selectedcontent.textContent, 'two',

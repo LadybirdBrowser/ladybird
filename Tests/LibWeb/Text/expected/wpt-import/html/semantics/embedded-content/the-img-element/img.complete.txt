@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 17 tests
+Found 19 tests
 
-14 Pass
+16 Pass
 3 Fail
 Pass	img src and srcset omitted
 Pass	img src and srcset omitted on newly-created image
@@ -21,3 +21,5 @@ Pass	async src removal test
 Fail	async srcset removal test
 Pass	async src available image lookup test
 Fail	async pending request test
+Pass	not loadable
+Pass	invalid URL

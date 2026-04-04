@@ -34,6 +34,31 @@ function test_corner_shape_interpolation({from, to}, expected) {
   }
 }
 
+test_interpolation({
+  property: 'corner-top-left-shape',
+  from: 'round',
+  to:  neutralKeyframe,
+}, [
+  {at: -0.3, expect: 'superellipse(1.4)'},
+  {at: 0, expect: 'round'},
+  {at: 0.6, expect: 'superellipse(0.36)'},
+  {at: 1, expect: 'bevel'},
+  {at: 1.5, expect: 'superellipse(-0.46)'},
+]);
+
+test_composition({
+  property: 'corner-bottom-left-shape',
+  underlying: 'round',
+  replaceFrom: 'round',
+  replaceTo: neutralKeyframe,
+}, [
+  {at: -0.3, expect: 'round'},
+  {at: 0, expect: 'round'},
+  {at: 0.6, expect: 'round'},
+  {at: 1, expect: 'round'},
+  {at: 1.5, expect: 'round'},
+]);
+
 test_corner_shape_interpolation({
   from: 'round',
   to: 'bevel',

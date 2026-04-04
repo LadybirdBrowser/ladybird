@@ -1,10 +1,58 @@
 Harness status: OK
 
-Found 5 tests
+Found 53 tests
 
-5 Pass
-Pass	Forms
-Pass	Calling stepUp() on input -number- where value > max should not modify value.
-Pass	Calling stepUp() on input -date- where value > max should not modify value.
-Pass	Calling stepUp() on input -datetime-local- where value > max should not modify value.
-Pass	Calling stepUp() on input -time- where value > max should not modify value.
+53 Pass
+Pass	Calling stepUp on input type=button should throw a DOMException
+Pass	Calling stepUp on input type=checkbox should throw a DOMException
+Pass	Calling stepUp on input type=color should throw a DOMException
+Pass	Calling stepUp on input type=email should throw a DOMException
+Pass	Calling stepUp on input type=file should throw a DOMException
+Pass	Calling stepUp on input type=hidden should throw a DOMException
+Pass	Calling stepUp on input type=image should throw a DOMException
+Pass	Calling stepUp on input type=password should throw a DOMException
+Pass	Calling stepUp on input type=radio should throw a DOMException
+Pass	Calling stepUp on input type=reset should throw a DOMException
+Pass	Calling stepUp on input type=search should throw a DOMException
+Pass	Calling stepUp on input type=submit should throw a DOMException
+Pass	Calling stepUp on input type=tel should throw a DOMException
+Pass	Calling stepUp on input type=text should throw a DOMException
+Pass	Calling stepUp on input type=url should throw a DOMException
+Pass	Calling stepUp when the step attribute is "any" should throw a DOMException
+Pass	Step delta from stepUp on input type=date with no step attribute
+Pass	Step delta from stepUp on input type=date with step=0
+Pass	Step delta from stepUp on input type=date with step=-2
+Pass	Step delta from stepUp on input type=date with step=bogus
+Pass	Step delta from stepUp on input type=date with step=2
+Pass	Step delta from stepUp on input type=datetime-local with no step attribute
+Pass	Step delta from stepUp on input type=datetime-local with step=0
+Pass	Step delta from stepUp on input type=datetime-local with step=-2
+Pass	Step delta from stepUp on input type=datetime-local with step=bogus
+Pass	Step delta from stepUp on input type=datetime-local with step=2
+Pass	Step delta from stepUp on input type=month with no step attribute
+Pass	Step delta from stepUp on input type=month with step=0
+Pass	Step delta from stepUp on input type=month with step=-2
+Pass	Step delta from stepUp on input type=month with step=bogus
+Pass	Step delta from stepUp on input type=month with step=2
+Pass	Step delta from stepUp on input type=number with no step attribute
+Pass	Step delta from stepUp on input type=number with step=0
+Pass	Step delta from stepUp on input type=number with step=-2
+Pass	Step delta from stepUp on input type=number with step=bogus
+Pass	Step delta from stepUp on input type=number with step=2
+Pass	Step delta from stepUp on input type=range with no step attribute
+Pass	Step delta from stepUp on input type=range with step=0
+Pass	Step delta from stepUp on input type=range with step=-2
+Pass	Step delta from stepUp on input type=range with step=bogus
+Pass	Step delta from stepUp on input type=range with step=2
+Pass	Step delta from stepUp on input type=time with no step attribute
+Pass	Step delta from stepUp on input type=time with step=0
+Pass	Step delta from stepUp on input type=time with step=-2
+Pass	Step delta from stepUp on input type=time with step=bogus
+Pass	Step delta from stepUp on input type=time with step=2
+Pass	Step delta from stepUp on input type=week with no step attribute
+Pass	Step delta from stepUp on input type=week with step=0
+Pass	Step delta from stepUp on input type=week with step=-2
+Pass	Step delta from stepUp on input type=week with step=bogus
+Pass	Step delta from stepUp on input type=week with step=2
+Pass	stepUp should do nothing if the input minimum is larger than the input maximum
+Pass	stepUp should clamp to the input maximum

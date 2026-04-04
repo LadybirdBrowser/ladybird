@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 24 tests
 
-23 Pass
-1 Fail
+24 Pass
 Pass	Single item get
 Pass	Single item get (generated key)
 Pass	getAll on empty object store
@@ -27,4 +26,4 @@ Pass	Direction: prevunique
 Pass	Direction and query
 Pass	Direction, query and count
 Pass	Get all values with both options and count
-Fail	Get all values with invalid query keys
+Pass	Get all values with invalid query keys

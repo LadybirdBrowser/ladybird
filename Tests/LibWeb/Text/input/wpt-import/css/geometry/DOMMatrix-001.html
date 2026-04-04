@@ -31,15 +31,15 @@
         };
         ["DOMMatrix", "DOMMatrixReadOnly"].forEach(function(constr) {
             test(function() {
-                checkDOMMatrix(new self[constr](), initial);
+                checkMatrix(new self[constr](), initial);
             }, `new ${constr}()`);
 
             test(function() {
-                checkDOMMatrix(new self[constr](undefined), initial);
+                checkMatrix(new self[constr](undefined), initial);
             }, `new ${constr}(undefined)`);
 
             test(function() {
-                checkDOMMatrix(new self[constr](new self[constr]()), initial);
+                checkMatrix(new self[constr](new self[constr]()), initial);
             }, `new ${constr}(new ${constr}())`);
 
             ['none',
@@ -51,7 +51,7 @@
              '',
             ].forEach(function(string) {
                 test(function() {
-                    checkDOMMatrix(new self[constr](string), initial);
+                    checkMatrix(new self[constr](string), initial);
                 }, `new ${constr}(${format_value(string)})`);
             });
 
@@ -61,12 +61,12 @@
                     0.0, 2.0, 0.0, 0.0,
                     0.0, 0.0, 1.0, 0.0,
                     10.0, 10.0, 0.0, 1.0]);
-                checkDOMMatrix(new self[constr](float32Array), scaleTranslate2D, false);
+                checkMatrix(new self[constr](float32Array), matrix3D(scaleTranslate2D));
             }, `new ${constr}(float32Array) 16 elements`);
 
             test(function() {
                 var float32Array = new Float32Array([2.0, 0.0, 0.0, 2.0, 10.0, 10.0]);
-                checkDOMMatrix(new self[constr](float32Array), scaleTranslate2D);
+                checkMatrix(new self[constr](float32Array), scaleTranslate2D);
             }, `new ${constr}(float32Array) 6 elements`);
 
             test(function() {
@@ -75,12 +75,12 @@
                     0.0, 2.0, 0.0, 0.0,
                     0.0, 0.0, 1.0, 0.0,
                     10.0, 10.0, 0.0, 1.0]);
-                checkDOMMatrix(new self[constr](float64Array), scaleTranslate2D, false);
+                checkMatrix(new self[constr](float64Array), matrix3D(scaleTranslate2D));
             }, `new ${constr}(float64Array) 16 elements`);
 
             test(function() {
                 var float64Array = new Float64Array([2.0, 0.0, 0.0, 2.0, 10.0, 10.0]);
-                checkDOMMatrix(new self[constr](float64Array), scaleTranslate2D);
+                checkMatrix(new self[constr](float64Array), scaleTranslate2D);
             }, `new ${constr}((float64Array) 6 elements`);
 
             [
@@ -91,8 +91,8 @@
                 [2.0, 0.0, 0.0, 2.0, 10.0, 10.0],
             ].forEach(function(sequence) {
                 test(function() {
-                    checkDOMMatrix(new self[constr](sequence), scaleTranslate2D,
-                                   sequence.length == 6);
+                    var expected = sequence.length == 6 ? scaleTranslate2D : matrix3D(scaleTranslate2D);
+                    checkMatrix(new self[constr](sequence), expected);
                 }, `new ${constr}(sequence) ${sequence.length} elements`);
             });
 
@@ -163,7 +163,7 @@
                     1.0, 2.0, 0.0, 0.0,
                     0.0, 0.0, 1.0, 0.0,
                     10.0, 10.0, 0.0, 1.0];
-                checkDOMMatrix(new self[constr](sequence), {
+                checkMatrix(new self[constr](sequence), {
                     m11: 2, m21: 1, m31: 0, m41: 10,
                     m12: 1, m22: 2, m32: 0, m42: 10,
                     m13: 0, m23: 0, m33: 1, m43: 0,
@@ -179,7 +179,7 @@
                     1.0, 2.0, 0.0, 0.0,
                     0.0, 0.0, 1.0, 0.0,
                     10.0, 10.0, 0.0, 1.0]);
-                checkDOMMatrix(new self[constr](matrix), {
+                checkMatrix(new self[constr](matrix), {
                     m11: 2, m21: 1, m31: 0, m41: 10,
                     m12: 1, m22: 2, m32: 0, m42: 10,
                     m13: 0, m23: 0, m33: 1, m43: 0,

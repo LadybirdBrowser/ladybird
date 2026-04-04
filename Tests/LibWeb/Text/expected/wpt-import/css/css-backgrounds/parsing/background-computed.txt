@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 35 tests
+Found 39 tests
 
 34 Pass
-1 Fail
+5 Fail
 Pass	Property background-attachment value 'local'
 Pass	Property background-attachment value 'scroll, fixed'
 Pass	Property background-attachment value 'local, fixed, scroll'
@@ -14,6 +14,8 @@ Pass	Property background-clip value 'border-box, padding-box, content-box'
 Pass	Property background-clip value 'content-box, border-box, padding-box, content-box'
 Pass	Property background-clip value 'content-box, border-box, padding-box'
 Fail	Property background-clip value 'content-box, border-box, border-area'
+Fail	Property background-clip value 'border-area text'
+Fail	Property background-clip value 'border-area text, content-box'
 Pass	Property background-color value 'rgb(255, 0, 0)'
 Pass	Property background-origin value 'border-box'
 Pass	Property background-origin value 'content-box, border-box'
@@ -39,3 +41,5 @@ Pass	Property background-size value 'contain'
 Pass	Property background-size value 'auto 1px, 2% 3%'
 Pass	Property background-size value 'auto 1px, 2% 3%, contain'
 Pass	Property background-size value 'auto 1px, 2% 3%, contain, 7px 8px'
+Fail	background shorthand with 'border-area text' computes background-clip correctly
+Fail	background shorthand with 'text border-area' computes background-clip correctly

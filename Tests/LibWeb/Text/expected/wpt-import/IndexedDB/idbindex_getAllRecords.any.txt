@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 25 tests
 
-24 Pass
-1 Fail
+25 Pass
 Pass	Single item
 Pass	Empty index
 Pass	Get all records
@@ -28,4 +27,4 @@ Pass	Direction: nextunique
 Pass	Direction: prevunique
 Pass	Direction and query
 Pass	Direction, query and count
-Fail	Get all records with invalid query keys
+Pass	Get all records with invalid query keys

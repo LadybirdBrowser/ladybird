@@ -1,17 +1,15 @@
 Harness status: OK
 
-Found 26 tests
+Found 24 tests
 
-20 Pass
-6 Fail
+19 Pass
+5 Fail
 Pass	cx and cy presentation attributes supported on circle element
 Pass	cx and cy presentation attributes supported on ellipse element
 Pass	x, y, width, and height presentation attributes supported on foreignObject element
 Pass	x, y, width, and height presentation attributes supported on image element
 Pass	x, y, width, and height presentation attributes supported on rect element
 Pass	x, y, width, and height presentation attributes supported on svg element
-Pass	x, y, width, and height presentation attributes supported on symbol element
-Fail	x, y, width, and height presentation attributes supported on use element
 Pass	r presentation attribute supported on circle element
 Pass	rx and ry presentation attributes supported on ellipse element
 Pass	rx and ry presentation attributes supported on rect element

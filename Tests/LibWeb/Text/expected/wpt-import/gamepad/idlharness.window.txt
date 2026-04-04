@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 85 tests
 
-83 Pass
-2 Fail
+84 Pass
+1 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Navigator: original interface defined
@@ -72,7 +72,7 @@ Pass	GamepadHapticActuator interface: attribute effects
 Pass	GamepadHapticActuator interface: operation playEffect(GamepadHapticEffectType, optional GamepadEffectParameters)
 Pass	GamepadHapticActuator interface: operation reset()
 Pass	GamepadEvent interface: existence and properties of interface object
-Fail	GamepadEvent interface object length
+Pass	GamepadEvent interface object length
 Pass	GamepadEvent interface object name
 Pass	GamepadEvent interface: existence and properties of interface prototype object
 Pass	GamepadEvent interface: existence and properties of interface prototype object's "constructor" property

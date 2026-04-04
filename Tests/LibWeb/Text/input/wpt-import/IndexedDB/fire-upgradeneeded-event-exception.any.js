@@ -1,6 +1,7 @@
 // META: global=window,worker
 // META: title=Fire upgradeneeded event - Exception thrown
 // META: script=resources/support.js
+'use strict';
 
 // Spec: "https://w3c.github.io/IndexedDB/#fire-a-version-change-event"
 

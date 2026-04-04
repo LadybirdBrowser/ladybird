@@ -2,7 +2,8 @@ Harness status: OK
 
 Found 10 tests
 
-10 Pass
+9 Pass
+1 Fail
 Pass	Property font-family value 'serif'
 Pass	Property font-family value 'sans-serif'
 Pass	Property font-family value 'cursive'
@@ -10,6 +11,6 @@ Pass	Property font-family value 'fantasy'
 Pass	Property font-family value 'monospace'
 Pass	Property font-family value 'serif, sans-serif, cursive, fantasy, monospace'
 Pass	Property font-family value 'Helvetica, Verdana, sans-serif'
-Pass	Property font-family value '"New Century Schoolbook", serif'
+Fail	Property font-family value '"New Century Schoolbook", serif'
 Pass	Property font-family value '"21st Century", fantasy'
 Pass	Property font-family value '"inherit", "serif"'

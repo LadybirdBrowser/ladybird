@@ -128,10 +128,10 @@ img {
      data-natural-width="300" data-natural-height="0">
 <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='-5'></svg>"
      title="SVG image, with natural width being negative"
-     data-natural-width="0" data-natural-height="150">
+     data-natural-width="300" data-natural-height="150">
 <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='-5'></svg>"
      title="SVG image, with natural height being negative"
-     data-natural-width="300" data-natural-height="0">
+     data-natural-width="300" data-natural-height="150">
 
 <!-- Second group of SVG images: Same as above, but now with a viewBox that grants a
      3:1 aspect-ratio; whenever we know one natural dimension, that should
@@ -170,10 +170,12 @@ img {
      data-natural-width="0" data-natural-height="0">
 <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='-5' viewBox='0 0 600 200'></svg>"
      title="SVG image, with natural width being negative, and aspect ratio from viewBox"
-     data-natural-width="0" data-natural-height="0">
+     data-natural-width="300" data-natural-height="100"
+     data-width="720" data-height="240">
 <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' height='-5' viewBox='0 0 600 200'></svg>"
      title="SVG image, with natural height being negative, and aspect ratio from viewBox"
-     data-natural-width="0" data-natural-height="0">
+     data-natural-width="300" data-natural-height="100"
+     data-width="720" data-height="240">
 
 <!-- Third group of SVG images: Check a degenerate 0-sized viewBox for some of the
      cases; it should have no impact. -->
@@ -219,7 +221,8 @@ img {
      data-natural-width="0" data-natural-height="0">
 <img src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='-5' height='-5' viewBox='0 0 600 200'></svg>"
      title="SVG image, with natural width and height being negative, and aspect ratio from viewBox"
-     data-natural-width="0" data-natural-height="0">
+     data-natural-width="300" data-natural-height="100"
+     data-width="720" data-height="240">
 </template>
 </head>
 <body>

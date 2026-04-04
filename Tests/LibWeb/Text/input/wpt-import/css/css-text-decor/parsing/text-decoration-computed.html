@@ -19,20 +19,24 @@
 <script>
 'use strict';
 const currentColor = "rgb(0, 0, 255)";
-test_computed_value("text-decoration", "none", currentColor);
-test_computed_value("text-decoration", "line-through", "line-through " + currentColor);
-test_computed_value("text-decoration", "solid", currentColor);
-test_computed_value("text-decoration", "currentcolor", currentColor);
+test_computed_value("text-decoration", "none");
+test_computed_value("text-decoration", "line-through");
+test_computed_value("text-decoration", "solid", "none");
+test_computed_value("text-decoration", "currentcolor", "none");
 
-test_computed_value("text-decoration", "double overline underline", "underline overline double " + currentColor);
+test_computed_value("text-decoration", "double overline underline", "underline overline double");
 test_computed_value("text-decoration", "underline overline line-through red", "underline overline line-through rgb(255, 0, 0)");
 test_computed_value("text-decoration", "rgba(10, 20, 30, 0.4) dotted", "dotted rgba(10, 20, 30, 0.4)");
 
 test_computed_value("text-decoration", "underline dashed rgb(0, 255, 0)");
 
+// Test backwards compatibility of blink.
+test_computed_value("text-decoration", "underline overline line-through blink");
+test_computed_value("text-decoration", "underline overline line-through blink red", "underline overline line-through blink rgb(255, 0, 0)");
+
 // Add text-decoration-thickness in [css-text-decor-4].
-test_computed_value("text-decoration", "auto", currentColor);
-test_computed_value("text-decoration", "from-font", "from-font " + currentColor);
-test_computed_value("text-decoration", "10px", "10px " + currentColor);
+test_computed_value("text-decoration", "auto", "none");
+test_computed_value("text-decoration", "from-font");
+test_computed_value("text-decoration", "10px");
 test_computed_value("text-decoration", "underline red from-font", "underline from-font rgb(255, 0, 0)");
 </script>

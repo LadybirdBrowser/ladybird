@@ -5,8 +5,8 @@
 // META: script=resources/support-get-all.js
 // META: script=resources/support-promises.js
 // META: timeout=long
+'use strict';
 
-'use_strict';
 
 index_get_all_values_test(
     /*storeName=*/ 'out-of-line', /*options=*/ {query: 'C'}, 'Single item get');
