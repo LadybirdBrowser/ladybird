@@ -298,6 +298,34 @@ void PaintableBox::set_content_size(CSSPixelSize size)
         layout_box->did_set_content_size();
 }
 
+void PaintableBox::set_fragmentation_state(FragmentationState fragmentation_state)
+{
+    switch (fragmentation_state) {
+    case FragmentationState::Unfragmented:
+        break;
+    case FragmentationState::HorizontalStart:
+        m_fragment_right_edge_away = true;
+        break;
+    case FragmentationState::HorizontalMiddle:
+        m_fragment_left_edge_away = true;
+        m_fragment_right_edge_away = true;
+        break;
+    case FragmentationState::HorizontalEnd:
+        m_fragment_left_edge_away = true;
+        break;
+    case FragmentationState::VerticalStart:
+        m_fragment_bottom_edge_away = true;
+        break;
+    case FragmentationState::VerticalMiddle:
+        m_fragment_top_edge_away = true;
+        m_fragment_bottom_edge_away = true;
+        break;
+    case FragmentationState::VerticalEnd:
+        m_fragment_top_edge_away = true;
+        break;
+    }
+}
+
 CSSPixelPoint PaintableBox::offset() const
 {
     return m_offset;
@@ -349,10 +377,16 @@ CSSPixelRect PaintableBox::absolute_border_box_rect() const
         CSSPixelRect rect;
         auto use_collapsing_borders_model = override_borders_data().has_value();
         // Implement the collapsing border model https://www.w3.org/TR/CSS22/tables.html#collapsing-borders.
-        auto border_top = use_collapsing_borders_model ? round(box_model().border.top / 2) : box_model().border.top;
-        auto border_bottom = use_collapsing_borders_model ? round(box_model().border.bottom / 2) : box_model().border.bottom;
-        auto border_left = use_collapsing_borders_model ? round(box_model().border.left / 2) : box_model().border.left;
-        auto border_right = use_collapsing_borders_model ? round(box_model().border.right / 2) : box_model().border.right;
+        auto border_top = m_fragment_top_edge_away ? 0 : box_model().border.top;
+        auto border_bottom = m_fragment_bottom_edge_away ? 0 : box_model().border.bottom;
+        auto border_left = m_fragment_left_edge_away ? 0 : box_model().border.left;
+        auto border_right = m_fragment_right_edge_away ? 0 : box_model().border.right;
+        if (use_collapsing_borders_model) {
+            border_top = round(border_top / 2);
+            border_bottom = round(border_bottom / 2);
+            border_left = round(border_left / 2);
+            border_right = round(border_right / 2);
+        }
         rect.set_x(padded_rect.x() - border_left);
         rect.set_width(padded_rect.width() + border_left + border_right);
         rect.set_y(padded_rect.y() - border_top);
@@ -874,10 +908,10 @@ BordersData PaintableBox::remove_element_kind_from_borders_data(PaintableBox::Bo
 void PaintableBox::paint_border(DisplayListRecordingContext& context) const
 {
     auto borders_data = m_override_borders_data.has_value() ? remove_element_kind_from_borders_data(m_override_borders_data.value()) : BordersData {
-        .top = box_model().border.top == 0 ? CSS::BorderData() : computed_values().border_top(),
-        .right = box_model().border.right == 0 ? CSS::BorderData() : computed_values().border_right(),
-        .bottom = box_model().border.bottom == 0 ? CSS::BorderData() : computed_values().border_bottom(),
-        .left = box_model().border.left == 0 ? CSS::BorderData() : computed_values().border_left(),
+        .top = box_model().border.top == 0 || m_fragment_top_edge_away ? CSS::BorderData() : computed_values().border_top(),
+        .right = box_model().border.right == 0 || m_fragment_right_edge_away ? CSS::BorderData() : computed_values().border_right(),
+        .bottom = box_model().border.bottom == 0 || m_fragment_bottom_edge_away ? CSS::BorderData() : computed_values().border_bottom(),
+        .left = box_model().border.left == 0 || m_fragment_left_edge_away ? CSS::BorderData() : computed_values().border_left(),
     };
     paint_all_borders(context.display_list_recorder(), context.rounded_device_rect(absolute_border_box_rect()), normalized_border_radii_data().as_corners(context.device_pixel_converter()), borders_data.to_device_pixels(context));
 }
@@ -974,7 +1008,12 @@ BorderRadiiData PaintableBox::normalized_border_radii_data(ShrinkRadiiForBorders
 {
     auto border_radii_data = this->border_radii_data();
     if (shrink == ShrinkRadiiForBorders::Yes)
-        border_radii_data.shrink(computed_values().border_top().width, computed_values().border_right().width, computed_values().border_bottom().width, computed_values().border_left().width);
+        border_radii_data.shrink(
+            m_fragment_top_edge_away ? 0 : computed_values().border_top().width,
+            m_fragment_right_edge_away ? 0 : computed_values().border_right().width,
+            m_fragment_bottom_edge_away ? 0 : computed_values().border_bottom().width,
+            m_fragment_left_edge_away ? 0 : computed_values().border_left().width);
+
     return border_radii_data;
 }
 
@@ -1307,9 +1346,13 @@ BorderRadiiData PaintableBox::border_radii_data() const
     if (!computed_values.has_noninitial_border_radii())
         return {};
     CSSPixelRect const border_rect { 0, 0, border_box_width(), border_box_height() };
+    auto border_top_left_radius = m_fragment_top_edge_away || m_fragment_left_edge_away ? CSS::BorderRadiusData {} : computed_values.border_top_left_radius();
+    auto border_top_right_radius = m_fragment_top_edge_away || m_fragment_right_edge_away ? CSS::BorderRadiusData {} : computed_values.border_top_right_radius();
+    auto border_bottom_right_radius = m_fragment_bottom_edge_away || m_fragment_right_edge_away ? CSS::BorderRadiusData {} : computed_values.border_bottom_right_radius();
+    auto border_bottom_left_radius = m_fragment_bottom_edge_away || m_fragment_left_edge_away ? CSS::BorderRadiusData {} : computed_values.border_bottom_left_radius();
     return normalize_border_radii_data(layout_node(), border_rect, border_rect,
-        computed_values.border_top_left_radius(), computed_values.border_top_right_radius(),
-        computed_values.border_bottom_right_radius(), computed_values.border_bottom_left_radius());
+        border_top_left_radius, border_top_right_radius,
+        border_bottom_right_radius, border_bottom_left_radius);
 }
 
 Optional<BordersData> PaintableBox::outline_data() const

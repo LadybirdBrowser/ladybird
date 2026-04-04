@@ -94,6 +94,17 @@ public:
     CSSPixels content_width() const { return m_content_size.width(); }
     CSSPixels content_height() const { return m_content_size.height(); }
 
+    enum class FragmentationState {
+        Unfragmented,
+        HorizontalStart,
+        HorizontalMiddle,
+        HorizontalEnd,
+        VerticalStart,
+        VerticalMiddle,
+        VerticalEnd
+    };
+    void set_fragmentation_state(FragmentationState);
+
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
     CSSPixelRect absolute_border_box_rect() const;
@@ -366,6 +377,14 @@ private:
     RefPtr<CSS::GridTrackSizeListStyleValue const> m_used_values_for_grid_template_rows;
 
     BoxModelMetrics m_box_model;
+
+    // FIXME: This is now how this is meant to work in the spec. The box needs to be drawn in full and then sliced
+    //        visually, in case something like border-radius is in effect.
+    //        ( see https://drafts.csswg.org/css-break/#valdef-box-decoration-break-slice )
+    bool m_fragment_top_edge_away { false };
+    bool m_fragment_left_edge_away { false };
+    bool m_fragment_right_edge_away { false };
+    bool m_fragment_bottom_edge_away { false };
 
     mutable Array<Optional<DisplayListCommandSequence>, paint_phase_count> m_cached_phase_commands;
 };
