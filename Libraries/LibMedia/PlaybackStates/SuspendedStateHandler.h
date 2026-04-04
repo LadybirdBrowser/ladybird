@@ -73,9 +73,12 @@ public:
             VERIFY(track_data.display != nullptr);
             track_data.display->pause_updates();
             track_data.provider->resume();
-            track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [provider = track_data.provider, display = track_data.display](AK::Duration) {
+            track_data.provider->seek(manager().current_time(), SeekMode::Accurate, [manager = manager().weak(), provider = track_data.provider, display = track_data.display](AK::Duration) {
+                if (!manager)
+                    return;
                 display->resume_updates();
-                provider->suspend();
+                if (manager->state() != PlaybackState::Buffering)
+                    provider->suspend();
             });
             return;
         }
@@ -84,9 +87,12 @@ public:
         auto& track_data = manager().get_audio_data_for_track(track);
         VERIFY(manager().m_audio_sink != nullptr);
         track_data.provider->resume();
-        track_data.provider->seek(manager().current_time(), [track, provider = track_data.provider, sink = manager().m_audio_sink] {
+        track_data.provider->seek(manager().current_time(), [manager = manager().weak(), track, provider = track_data.provider, sink = manager().m_audio_sink] {
+            if (!manager)
+                return;
             sink->clear_track_data(track);
-            provider->suspend();
+            if (manager->state() == PlaybackState::Suspended)
+                provider->suspend();
         });
     }
 };
