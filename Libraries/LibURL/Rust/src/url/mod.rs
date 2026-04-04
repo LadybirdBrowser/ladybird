@@ -14,6 +14,8 @@ mod types;
 
 pub(crate) use self::scheme::default_port_for_scheme;
 pub(crate) use self::scheme::is_special_scheme;
+pub(crate) use self::scheme::special_schemes;
+pub(crate) use self::types::ExcludeFragment;
 pub use self::types::Host;
 pub use self::types::State;
 pub use self::types::Url;

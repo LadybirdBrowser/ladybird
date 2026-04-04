@@ -6,11 +6,11 @@
 
 #include <LibTest/TestCase.h>
 
-#include <LibURL/Pattern/Pattern.h>
+#include <LibURL/RustIntegration.h>
 
 TEST_CASE(url_pattern_matches_named_groups)
 {
-    auto pattern = MUST(URL::Pattern::Pattern::create("https://example.com/:category/:id"_string));
+    auto pattern = MUST(URL::RustIntegration::URLPattern::create("https://example.com/:category/:id"_string));
     auto result = MUST(pattern.match("https://example.com/books/42"_string, {}));
     VERIFY(result.has_value());
 
@@ -22,7 +22,7 @@ TEST_CASE(url_pattern_matches_named_groups)
 
 TEST_CASE(url_pattern_ignore_case_matching)
 {
-    auto pattern = MUST(URL::Pattern::Pattern::create("https://example.com/:value"_string, {}, URL::Pattern::IgnoreCase::Yes));
+    auto pattern = MUST(URL::RustIntegration::URLPattern::create("https://example.com/:value"_string, {}, URL::FFI::IgnoreCase::Yes));
     auto result = MUST(pattern.match("https://example.com/CaseSensitive"_string, {}));
     VERIFY(result.has_value());
 

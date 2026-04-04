@@ -45,7 +45,6 @@ pub(crate) enum ExcludeFragment {
     Yes,
 }
 
-#[allow(dead_code)]
 impl Url {
     pub(crate) fn set_scheme(&mut self, scheme: String) {
         self.scheme = scheme;

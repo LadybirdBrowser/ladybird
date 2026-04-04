@@ -7,6 +7,7 @@ edition = "2024"
 crate-type = ["staticlib"]
 
 [dependencies]
+libregex_rust = { path = "../../LibRegex/Rust" }
 libunicode_rust = { path = "../../LibUnicode/Rust" }
 
 [features]
