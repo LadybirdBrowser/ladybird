@@ -23,6 +23,7 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Fetch/FetchMethod.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
+#include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/ErrorEvent.h>
 #include <LibWeb/HTML/ErrorInformation.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -42,6 +43,7 @@
 #include <LibWeb/HighResolutionTime/SupportedPerformanceTypes.h>
 #include <LibWeb/IndexedDB/IDBFactory.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>
 #include <LibWeb/PerformanceTimeline/EventNames.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserver.h>
@@ -1248,17 +1250,16 @@ void WindowOrWorkerGlobalScopeMixin::report_an_exception(JS::Value exception, Om
         // 1. Set errorInfo[error] to null.
         error_info.error = JS::js_null();
 
-        // FIXME: 2. If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation
-        //        task source with the global's associated Worker's relevant global object to run these steps:
-        if (false) {
-            // FIXME: 1. Let workerObject be the Worker object associated with global.
-
-            // FIXME: 2. Set notHandled to the result of firing an event named error at workerObject, using ErrorEvent,
-            //    with the cancelable attribute initialized to true, and additional attributes initialized
-            //    according to errorInfo.
-
-            // FIXME: 3. If notHandled is true, then report exception for workerObject's relevant global object with
-            //    omitError set to true.
+        // 2. If global implements DedicatedWorkerGlobalScope, queue a global task on the DOM manipulation
+        //    task source with the global's associated Worker's relevant global object to run these steps:
+        if (auto* dedicated_worker_global_scope = as_if<DedicatedWorkerGlobalScope>(target)) {
+            if (auto* page = dedicated_worker_global_scope->page()) {
+                page->client().page_did_report_worker_exception(
+                    error_info.message,
+                    error_info.filename,
+                    error_info.lineno,
+                    error_info.colno);
+            }
         }
         // 3. Otherwise, the user agent may report exception to a developer console.
         else {

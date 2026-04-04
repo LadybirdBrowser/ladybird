@@ -25,6 +25,12 @@ void WebWorkerClient::did_fail_loading_worker_script()
         on_worker_script_load_failure();
 }
 
+void WebWorkerClient::did_report_worker_exception(String message, String filename, u32 lineno, u32 colno)
+{
+    if (on_worker_exception)
+        on_worker_exception(move(message), move(filename), lineno, colno);
+}
+
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
     if (on_request_cookie)
