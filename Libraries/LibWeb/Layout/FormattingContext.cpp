@@ -2672,6 +2672,17 @@ CSSPixelRect FormattingContext::margin_box_rect_in_ancestor_coordinate_space(Box
     return margin_box_rect_in_ancestor_coordinate_space(m_state.get(box), ancestor_box);
 }
 
+CSSPixels FormattingContext::y_position_in_ancestor_coordinate_space(LayoutState::UsedValues const& used_values, CSSPixels y, Box const& ancestor_box) const
+{
+    for (auto const* current = &used_values; current; current = current->containing_block_used_values()) {
+        if (&current->node() == &ancestor_box)
+            return y;
+        y += current->offset.y();
+    }
+    // If we get here, ancestor_box was not a containing block ancestor of `box`!
+    VERIFY_NOT_REACHED();
+}
+
 bool FormattingContext::box_is_sized_as_replaced_element(Box const& box, AvailableSpace const& available_space) const
 {
     // When a box has a preferred aspect ratio, its automatic sizes are calculated the same as for a

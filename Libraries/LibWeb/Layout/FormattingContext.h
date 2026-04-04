@@ -156,6 +156,7 @@ public:
     [[nodiscard]] CSSPixelRect content_box_rect(Box const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect(LayoutState::UsedValues const&) const;
     [[nodiscard]] CSSPixelRect content_box_rect_in_ancestor_coordinate_space(LayoutState::UsedValues const&, Box const& ancestor_box) const;
+    [[nodiscard]] CSSPixels y_position_in_ancestor_coordinate_space(LayoutState::UsedValues const&, CSSPixels y, Box const& ancestor_box) const;
     [[nodiscard]] CSSPixels box_baseline(Box const&) const;
     [[nodiscard]] CSSPixels containing_block_width_for(NodeWithStyleAndBoxModelMetrics const&) const;
 

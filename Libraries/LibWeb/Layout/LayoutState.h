@@ -298,6 +298,7 @@ struct LayoutState {
             CSSPixels size_in_fragmentation_direction;
         };
         Optional<Vector<BoxFragment>> box_fragments() const { return m_box_fragments; }
+        void add_box_fragment(BoxFragment);
 
     private:
         friend struct LayoutState;

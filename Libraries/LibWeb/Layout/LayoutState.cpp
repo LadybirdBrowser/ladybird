@@ -1050,4 +1050,13 @@ void LayoutState::UsedValues::set_indefinite_content_height()
     m_has_definite_height = false;
 }
 
+void LayoutState::UsedValues::add_box_fragment(BoxFragment box_fragment)
+{
+    if (!m_box_fragments.has_value()) {
+        m_box_fragments = Vector<BoxFragment>();
+    }
+
+    m_box_fragments.value().append(box_fragment);
+}
+
 }
