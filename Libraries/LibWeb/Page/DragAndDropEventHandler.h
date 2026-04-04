@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/RefPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
