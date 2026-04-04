@@ -40,7 +40,10 @@ class IDBDatabase : public DOM::EventTarget {
     GC_DECLARE_ALLOCATOR(IDBDatabase);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     virtual ~IDBDatabase() override;
+    virtual void finalize() override;
 
     [[nodiscard]] static GC::Ref<IDBDatabase> create(JS::Realm&, Database&);
 

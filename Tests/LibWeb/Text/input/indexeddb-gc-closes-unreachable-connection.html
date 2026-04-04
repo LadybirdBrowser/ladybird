@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(done => {
+        const DB_NAME = "gc-closes-unreachable-connection";
+
+        indexedDB.deleteDatabase(DB_NAME);
+
+        function openAndForget() {
+            return new Promise((resolve) => {
+                let req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    e.target.result.createObjectStore("store");
+                };
+                req.onsuccess = (e) => {
+                    resolve();
+                };
+            });
+        }
+
+        function tryUpgrade() {
+            let req = indexedDB.open(DB_NAME, 2);
+
+            req.onblocked = () => {
+                println("FAIL: upgrade blocked, connection was not closed by GC");
+                done();
+            };
+
+            req.onupgradeneeded = () => {
+                println("PASS");
+            };
+
+            req.onsuccess = () => {
+                req.result.close();
+                indexedDB.deleteDatabase(DB_NAME);
+                done();
+            };
+        }
+
+        openAndForget().then(() => {
+            return internals.gcAsync()
+        }).then(() => {
+            tryUpgrade();
+        });
+    });
+</script>

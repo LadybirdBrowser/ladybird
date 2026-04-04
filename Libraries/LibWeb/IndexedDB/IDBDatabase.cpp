@@ -29,6 +29,18 @@ IDBDatabase::IDBDatabase(JS::Realm& realm, Database& db)
 
 IDBDatabase::~IDBDatabase() = default;
 
+void IDBDatabase::finalize()
+{
+    Base::finalize();
+
+    m_associated_database->dissociate(*this);
+    heap().enqueue_post_gc_task([database = GC::Weak(m_associated_database)] {
+        if (!database)
+            return;
+        database->check_pending_connection_wait();
+    });
+}
+
 GC::Ref<IDBDatabase> IDBDatabase::create(JS::Realm& realm, Database& db)
 {
     return realm.create<IDBDatabase>(realm, db);
