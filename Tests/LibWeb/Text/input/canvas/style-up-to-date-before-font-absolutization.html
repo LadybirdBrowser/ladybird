@@ -1,0 +1,18 @@
+<!doctype html>
+<canvas id="canvas"></canvas>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        canvas.style.fontSize = "10px";
+
+        await animationFrame();
+        await animationFrame();
+
+        const ctx = canvas.getContext("2d");
+
+        canvas.style.fontSize = "20px";
+
+        ctx.font = "1em serif";
+        println(ctx.font);
+    });
+</script>
