@@ -381,6 +381,27 @@ impl Compiler {
         regs
     }
 
+    fn disjunction_can_be_zero_width(&self, disjunction: &Disjunction) -> bool {
+        disjunction
+            .alternatives
+            .iter()
+            .any(|alternative| self.alternative_can_be_zero_width(alternative))
+    }
+
+    fn alternative_can_be_zero_width(&self, alternative: &Alternative) -> bool {
+        alternative
+            .terms
+            .iter()
+            .all(|term| self.term_can_be_zero_width(term))
+    }
+
+    fn term_can_be_zero_width(&self, term: &Term) -> bool {
+        match &term.quantifier {
+            Some(quantifier) if quantifier.min == 0 => true,
+            _ => self.atom_can_be_zero_width(&term.atom),
+        }
+    }
+
     /// Returns true if the given atom could potentially match zero characters.
     fn atom_can_be_zero_width(&self, atom: &Atom) -> bool {
         match atom {
@@ -389,8 +410,10 @@ impl Compiler {
             | Atom::BuiltinCharacterClass(_)
             | Atom::CharacterClass(_)
             | Atom::UnicodeProperty { .. } => false,
-            Atom::Group(_) | Atom::NonCapturingGroup(_) | Atom::Backreference(_) => true,
-            Atom::Lookaround(_) | Atom::Assertion(_) | Atom::ModifierGroup(_) => true,
+            Atom::Group(group) => self.disjunction_can_be_zero_width(&group.body),
+            Atom::NonCapturingGroup(group) => self.disjunction_can_be_zero_width(&group.body),
+            Atom::ModifierGroup(group) => self.disjunction_can_be_zero_width(&group.body),
+            Atom::Backreference(_) | Atom::Lookaround(_) | Atom::Assertion(_) => true,
         }
     }
 
@@ -627,6 +650,10 @@ impl Compiler {
                 // times. The check must happen AFTER the body so it can explore non-empty
                 // alternatives through backtracking before being rejected.
                 let optional_count = max - q.min;
+                if !self.atom_can_be_zero_width(atom) {
+                    self.compile_counted_optional_repetitions(atom, optional_count, q.greedy);
+                    return;
+                }
                 let needs_progress_check = q.min == 0 && self.atom_can_be_zero_width(atom);
                 for _ in 0..optional_count {
                     let progress_reg = if needs_progress_check {
@@ -738,6 +765,41 @@ impl Compiler {
                 }
             }
         }
+    }
+
+    fn compile_counted_optional_repetitions(
+        &mut self,
+        atom: &Atom,
+        optional_count: u32,
+        greedy: bool,
+    ) {
+        let counter_reg = self.alloc_register();
+        self.emit(Instruction::RepeatStart { counter_reg });
+
+        // min is always 0 here: this function only emits the optional tail of a {min,max}
+        // quantifier; the required `min` repetitions have already been emitted by the caller.
+        let check = self.emit(Instruction::RepeatCheck {
+            counter_reg,
+            min: 0,
+            max: Some(optional_count),
+            body: u32::MAX,
+            greedy,
+        });
+
+        let skip_body = self.emit(Instruction::Jump(u32::MAX));
+        let body_start = self.current_offset();
+        self.emit_clear_captures(atom);
+        self.compile_atom(atom);
+        self.emit(Instruction::Jump(check));
+
+        self.program.instructions[check as usize] = Instruction::RepeatCheck {
+            counter_reg,
+            min: 0,
+            max: Some(optional_count),
+            body: body_start,
+            greedy,
+        };
+        self.program.instructions[skip_body as usize] = Instruction::Jump(self.current_offset());
     }
 
     /// Lower an `Atom` or assertion-like atom to bytecode.
