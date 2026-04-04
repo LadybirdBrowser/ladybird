@@ -181,10 +181,10 @@ protected:
         // Width for left / right floats, including their own margins.
         CSSPixels left_used_space;
         CSSPixels right_used_space;
-        // Left / right total margins from the outermost containing block to the floating element.
-        // Each block in the containing chain adds its own margin and we store the total here.
-        CSSPixels left_total_containing_margin;
-        CSSPixels right_total_containing_margin;
+        // Root-space margin-box edges of the matched floats, used to compute actual overlap against nested
+        // containing blocks without reconstructing positions from containing-chain margins.
+        CSSPixels left_float_margin_edge_right_in_root;
+        CSSPixels right_float_margin_edge_left_in_root;
         GC::Ptr<Box const> matching_left_float_box;
         GC::Ptr<Box const> matching_right_float_box;
     };

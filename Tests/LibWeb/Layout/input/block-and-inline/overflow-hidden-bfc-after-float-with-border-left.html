@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+img {
+    border: 1px solid black;
+}
+
+.left {
+    float: left;
+}
+
+.right {
+    border-left: 16em solid gray;
+}
+
+.right > div {
+    width: 100%;
+    overflow: hidden;
+}
+</style>
+<div class="left">
+    <img width="90" height="90" />
+</div>
+<div class="right">
+    <div>This line should not be pushed down past the image.</div>
+</div>

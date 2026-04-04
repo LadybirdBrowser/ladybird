@@ -52,7 +52,7 @@ CSSPixels InlineFormattingContext::leftmost_inline_offset_at(CSSPixels y) const
 
     // If the left edge of the containing block is to the right of the rightmost left-side float, start placing inline
     // content at the left edge of the containing block.
-    auto left_side_floats_limit_to_right = space_and_containing_margin.left_total_containing_margin + space_and_containing_margin.left_used_space;
+    auto left_side_floats_limit_to_right = space_and_containing_margin.left_float_margin_edge_right_in_root;
     if (box_in_root_rect.x() >= left_side_floats_limit_to_right)
         return 0;
 
