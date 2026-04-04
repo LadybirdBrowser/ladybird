@@ -2469,6 +2469,12 @@ impl<'a, I: Input> Vm<'a, I> {
                 let hi = cu;
                 let lo = self.input_code_unit(self.pos + 1) as u32;
                 Some(0x10000 + ((hi - 0xD800) << 10) + (lo - 0xDC00))
+            } else if self.program.unicode
+                && is_low_surrogate(cu as u16)
+                && self.pos > 0
+                && is_high_surrogate(self.input_code_unit(self.pos - 1))
+            {
+                None
             } else {
                 Some(cu)
             }

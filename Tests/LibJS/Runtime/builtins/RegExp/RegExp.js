@@ -253,6 +253,11 @@ test("global unicode matches keep low-surrogate empty matches that V8 finds", ()
     expect(subject.match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(new Array(24).fill(""));
 });
 
+test("lookahead inside surrogate pair does not match paired low surrogate as a character", () => {
+    expect("💦💦".match(/(?!\W)/gv)).toEqual(["", "", ""]);
+    expect("💦💦".match(/\p{Emoji_Presentation}?(?!\W)/gv)).toEqual(["", "💦", ""]);
+});
+
 test("backward v-mode class-set operations inspect the consumed code point", () => {
     expect("A n".match(/(?<=[[^A-Z]--[A-Z]])\P{N}/gv)).toEqual(["n"]);
     expect("A n".match(/(?<=[[^0-9]&&[^A-Z]])\P{N}/gv)).toEqual(["n"]);
