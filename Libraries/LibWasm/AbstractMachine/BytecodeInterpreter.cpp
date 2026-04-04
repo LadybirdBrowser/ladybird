@@ -2393,14 +2393,14 @@ HANDLE_INSTRUCTION(memory_grow)
     auto& args = instruction->arguments().unsafe_get<Instruction::MemoryIndexArgument>();
     auto address = configuration.frame().module().memories().data()[args.memory_index.value()];
     auto instance = configuration.store().get(address);
-    i32 old_pages = instance->size() / Constants::page_size;
+    u32 old_pages = instance->size() / Constants::page_size;
     auto& entry = configuration.source_value<source_address_mix>(0, addresses.sources); // bounds checked by verifier.
-    auto new_pages = entry.template to<i32>();
+    auto new_pages = entry.template to<u32>();
     dbgln_if(WASM_TRACE_DEBUG, "memory.grow({}), previously {} pages...", new_pages, old_pages);
-    if (instance->grow(new_pages * Constants::page_size))
-        entry = Value(old_pages);
+    if (instance->grow(static_cast<u64>(new_pages) * Constants::page_size))
+        entry = Value(static_cast<i32>(old_pages));
     else
-        entry = Value(-1);
+        entry = Value(static_cast<i32>(-1));
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2443,10 +2443,10 @@ HANDLE_INSTRUCTION(memory_copy)
     auto source_instance = configuration.store().get(source_address);
     auto destination_instance = configuration.store().get(destination_address);
 
-    // bounds checked by verifier.
-    auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<i32>();
-    auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<i32>();
-    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<i32>();
+    // Wasm memory.copy operands are i32 values used as unsigned offsets/counts.
+    auto count = configuration.take_source<source_address_mix>(0, addresses.sources).template to<u32>();
+    auto source_offset = configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>();
+    auto destination_offset = configuration.take_source<source_address_mix>(2, addresses.sources).template to<u32>();
 
     auto source_position = saturating_add(static_cast<size_t>(source_offset), static_cast<size_t>(count));
     auto destination_position = saturating_add(static_cast<size_t>(destination_offset), static_cast<size_t>(count));
@@ -2457,15 +2457,15 @@ HANDLE_INSTRUCTION(memory_copy)
         TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 
     if (destination_offset <= source_offset) {
-        for (auto i = 0; i < count; ++i) {
+        for (u32 i = 0; i < count; ++i) {
             auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
+            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i, value))
                 return Outcome::Return;
         }
     } else {
-        for (auto i = count - 1; i >= 0; --i) {
-            auto value = source_instance->data()[source_offset + i];
-            if (interpreter.store_to_memory(*destination_instance, destination_offset + i, value))
+        for (u32 i = count; i > 0; --i) {
+            auto value = source_instance->data()[source_offset + i - 1];
+            if (interpreter.store_to_memory(*destination_instance, static_cast<u64>(destination_offset) + i - 1, value))
                 return Outcome::Return;
         }
     }
@@ -2613,7 +2613,7 @@ HANDLE_INSTRUCTION(table_set)
     LOAD_ADDRESSES();
     // bounds checked by verifier.
     auto ref = configuration.take_source<source_address_mix>(0, addresses.sources);
-    auto index = (size_t)(configuration.take_source<source_address_mix>(1, addresses.sources).template to<i32>());
+    auto index = static_cast<size_t>(configuration.take_source<source_address_mix>(1, addresses.sources).template to<u32>());
     auto table_index = instruction->arguments().get<TableIndex>();
     auto address = configuration.frame().module().tables()[table_index.value()];
     auto table = configuration.store().get(address);
@@ -2628,7 +2628,7 @@ HANDLE_INSTRUCTION(table_get)
     LOAD_ADDRESSES();
     // bounds checked by verifier.
     auto& index_value = configuration.source_value<source_address_mix>(0, addresses.sources);
-    auto index = static_cast<size_t>(index_value.template to<i32>());
+    auto index = static_cast<size_t>(index_value.template to<u32>());
     auto table_index = instruction->arguments().get<TableIndex>();
     auto address = configuration.frame().module().tables()[table_index.value()];
     auto table = configuration.store().get(address);
