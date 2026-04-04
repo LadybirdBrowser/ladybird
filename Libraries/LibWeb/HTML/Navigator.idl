@@ -49,7 +49,7 @@ interface Navigator {
     [SecureContext, SameObject] readonly attribute CredentialsContainer credentials;
 
     // https://w3c.github.io/battery/
-    [SecureContext] Promise<BatteryManager> getBattery();
+    [SecureContext, Experimental] Promise<BatteryManager> getBattery();
 
     // https://immersive-web.github.io/webxr/#navigator-xr-attribute
     [SecureContext, SameObject] readonly attribute XRSystem xr;

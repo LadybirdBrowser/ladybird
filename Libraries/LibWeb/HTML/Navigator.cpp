@@ -168,23 +168,21 @@ GC::Ref<WebIDL::Promise> Navigator::get_battery()
 {
     auto& realm = this->realm();
 
-    // FIXME: 1. If this.[[BatteryPromise]] is null, then set it to a new promise in this's relevant realm.
-    if (!m_battery_promise) {
-        WebIDL::SimpleException exception {
-            WebIDL::SimpleExceptionType::TypeError,
-            "Battery Status API is not yet implemented"sv
-        };
-        m_battery_promise = WebIDL::create_rejected_promise_from_exception(realm, move(exception));
+    // 1. If this.[[BatteryPromise]] is null, then set it to a new promise in this's relevant realm.
+    if (!m_battery_promise)
+        m_battery_promise = WebIDL::create_promise(realm);
+
+    // 2. If this's relevant global object's associated Document is not allowed to use the "battery" policy-controlled
+    //    feature, then reject this.[[BatteryPromise]] with a "NotAllowedError" DOMException.
+    if (true) {
+        WebIDL::reject_promise(realm, *m_battery_promise, WebIDL::NotAllowedError::create(realm, "Battery Status API is not yet implemented"_utf16));
     }
-
-    // FIXME: 2. If this's relevant global object's associated Document is not allowed to use the "battery"
-    // policy-controlled feature, then reject this.[[BatteryPromise]] with a "NotAllowedError" DOMException.
-
-    // FIXME: 3. Otherwise:
-    //    1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager
-    //       in this's relevant realm.
-
-    //    2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
+    // 3. Otherwise:
+    else {
+        // FIXME: 1. If this.[[BatteryManager]] is null, then set it to the result of creating a new BatteryManager in this's
+        //           relevant realm.
+        // FIXME: 2. Resolve this.[[BatteryPromise]] with this.[[BatteryManager]].
+    }
 
     // 4. Return this.[[BatteryPromise]].
     return *m_battery_promise;
