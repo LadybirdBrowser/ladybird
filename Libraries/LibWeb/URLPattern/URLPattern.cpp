@@ -13,7 +13,7 @@ namespace Web::URLPattern {
 
 GC_DEFINE_ALLOCATOR(URLPattern);
 
-static URL::Pattern::Init to_internal_url_pattern_init(Bindings::URLPatternInit const& init)
+static URL::RustIntegration::URLPattern::Init to_internal_url_pattern_init(Bindings::URLPatternInit const& init)
 {
     return {
         .protocol = init.protocol,
@@ -28,7 +28,7 @@ static URL::Pattern::Init to_internal_url_pattern_init(Bindings::URLPatternInit 
     };
 }
 
-static Bindings::URLPatternInit to_bindings_url_pattern_init(URL::Pattern::Init const& init)
+static Bindings::URLPatternInit to_bindings_url_pattern_init(URL::RustIntegration::URLPattern::Init const& init)
 {
     return {
         .base_url = init.base_url,
@@ -43,14 +43,14 @@ static Bindings::URLPatternInit to_bindings_url_pattern_init(URL::Pattern::Init 
     };
 }
 
-static URL::Pattern::Input to_internal_url_pattern_input(URLPatternInput const& input)
+static URL::RustIntegration::URLPattern::Input to_internal_url_pattern_input(URLPatternInput const& input)
 {
     return input.visit(
-        [](String const& input_string) -> URL::Pattern::Input { return input_string; },
-        [](Bindings::URLPatternInit const& input_init) -> URL::Pattern::Input { return to_internal_url_pattern_init(input_init); });
+        [](String const& input_string) -> URL::RustIntegration::URLPattern::Input { return input_string; },
+        [](Bindings::URLPatternInit const& input_init) -> URL::RustIntegration::URLPattern::Input { return to_internal_url_pattern_init(input_init); });
 }
 
-static Bindings::URLPatternComponentResult to_bindings_url_pattern_component_result(URL::Pattern::Component::Result const& result)
+static Bindings::URLPatternComponentResult to_bindings_url_pattern_component_result(URL::RustIntegration::URLPattern::Component::Result const& result)
 {
     OrderedHashMap<String, Variant<String, Empty, Empty>> groups;
     for (auto const& [key, value] : result.groups) {
@@ -63,14 +63,14 @@ static Bindings::URLPatternComponentResult to_bindings_url_pattern_component_res
     };
 }
 
-static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::Pattern::Result const& result)
+static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::RustIntegration::URLPattern::Result const& result)
 {
     Vector<Variant<String, Bindings::URLPatternInit>> inputs;
     inputs.ensure_capacity(result.inputs.size());
     for (auto const& input : result.inputs) {
         inputs.unchecked_append(input.visit(
             [](String const& string_value) -> Variant<String, Bindings::URLPatternInit> { return string_value; },
-            [](URL::Pattern::Init const& init_value) -> Variant<String, Bindings::URLPatternInit> { return to_bindings_url_pattern_init(init_value); }));
+            [](URL::RustIntegration::URLPattern::Init const& init_value) -> Variant<String, Bindings::URLPatternInit> { return to_bindings_url_pattern_init(init_value); }));
     }
 
     return {
@@ -86,7 +86,7 @@ static Bindings::URLPatternResult to_bindings_url_pattern_result(URL::Pattern::R
     };
 }
 
-URLPattern::URLPattern(JS::Realm& realm, URL::Pattern::Pattern pattern)
+URLPattern::URLPattern(JS::Realm& realm, URL::RustIntegration::URLPattern pattern)
     : PlatformObject(realm)
     , m_url_pattern(move(pattern))
 {
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::construct_impl(JS::Realm& r
 WebIDL::ExceptionOr<GC::Ref<URLPattern>> URLPattern::create(JS::Realm& realm, URLPatternInput const& input, Optional<String> const& base_url, URLPatternOptions const& options)
 {
     // 1. Set this’s associated URL pattern to the result of create given input, baseURL, and options.
-    auto pattern_or_error = URL::Pattern::Pattern::create(to_internal_url_pattern_input(input), base_url, options.ignore_case ? URL::Pattern::IgnoreCase::Yes : URL::Pattern::IgnoreCase::No);
+    auto pattern_or_error = URL::RustIntegration::URLPattern::create(to_internal_url_pattern_input(input), base_url, options.ignore_case ? URL::FFI::IgnoreCase::Yes : URL::FFI::IgnoreCase::No);
     if (pattern_or_error.is_error())
         return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, pattern_or_error.error().message };
     return realm.create<URLPattern>(realm, pattern_or_error.release_value());

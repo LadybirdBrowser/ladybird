@@ -158,7 +158,7 @@ fn host_to_ffi(host: Option<&Host>) -> FfiUrlHost {
     }
 }
 
-fn url_from_ffi(ffi: &RustFfiUrl) -> Url {
+pub(crate) fn url_from_ffi(ffi: &RustFfiUrl) -> Url {
     let scheme = decode_utf8(ffi.scheme);
     let path = if !ffi.path_segments.is_null() {
         // SAFETY: path_segments is valid for path_segment_count elements.

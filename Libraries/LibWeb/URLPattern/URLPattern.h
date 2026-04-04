@@ -7,8 +7,7 @@
 #pragma once
 
 #include <AK/String.h>
-#include <LibURL/Pattern/Init.h>
-#include <LibURL/Pattern/Pattern.h>
+#include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/URLPattern.h>
 
@@ -48,12 +47,12 @@ public:
 protected:
     virtual void initialize(JS::Realm&) override;
 
-    explicit URLPattern(JS::Realm&, URL::Pattern::Pattern);
+    explicit URLPattern(JS::Realm&, URL::RustIntegration::URLPattern);
 
 private:
     // https://urlpattern.spec.whatwg.org/#ref-for-url-pattern%E2%91%A0
     // Each URLPattern has an associated URL pattern, a URL pattern.
-    URL::Pattern::Pattern m_url_pattern;
+    URL::RustIntegration::URLPattern m_url_pattern;
 };
 
 }

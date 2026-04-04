@@ -9,6 +9,7 @@
 mod rust_allocator;
 
 mod ffi;
+pub mod pattern;
 mod textcodec;
 pub mod url;
 
