@@ -419,7 +419,7 @@ void LayoutState::commit(Box& root)
         box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
     };
 
-    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index) -> bool {
+    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index, Painting::PaintableBox::FragmentationState fragmentation_state) -> bool {
         for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
             if (parent->is_atomic_inline())
                 break;
@@ -427,6 +427,7 @@ void LayoutState::commit(Box& root)
                 auto& inline_node = const_cast<InlineNode&>(static_cast<InlineNode const&>(*parent));
                 auto line_paintable = inline_node.create_paintable_for_line_with_index(line_index);
                 line_paintable->add_fragment(fragment);
+                line_paintable->set_fragmentation_state(fragmentation_state);
                 if (auto const* used_values = try_get(inline_node))
                     transfer_box_model_metrics(line_paintable->box_model(), *used_values);
                 if (!inline_node_paintables.contains(line_paintable.ptr())) {
@@ -474,12 +475,33 @@ void LayoutState::commit(Box& root)
             if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
                 for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
                     auto& line_box = used_values.line_boxes[line_index];
+                    auto first_fragment_continues_last_line_box = false;
+                    if (line_index > 0 && used_values.line_boxes[line_index - 1].fragments().size() > 0 && used_values.line_boxes[line_index].fragments().size() > 0) {
+                        first_fragment_continues_last_line_box = &used_values.line_boxes[line_index - 1].fragments().last().layout_node() == &used_values.line_boxes[line_index].fragments().first().layout_node();
+                    }
+                    auto last_fragment_is_continued_in_next_line_box = false;
+                    if (line_index < used_values.line_boxes.size() - 1 && used_values.line_boxes[line_index].fragments().size() > 0 && used_values.line_boxes[line_index + 1].fragments().size() > 0) {
+                        last_fragment_is_continued_in_next_line_box = &used_values.line_boxes[line_index].fragments().last().layout_node() == &used_values.line_boxes[line_index + 1].fragments().first().layout_node();
+                    }
                     for (auto const& fragment : line_box.fragments()) {
                         if (fragment.is_fully_truncated())
                             continue;
                         if (auto const* text_node = as_if<TextNode>(fragment.layout_node()))
                             text_nodes.set(const_cast<TextNode*>(text_node));
-                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index);
+
+                        auto fragmentation_state = Painting::PaintableBox::FragmentationState::Unfragmented;
+                        auto is_first_fragment = &line_box.fragments().first() == &fragment;
+                        auto is_last_fragment = &line_box.fragments().last() == &fragment;
+                        if (is_first_fragment && is_last_fragment && first_fragment_continues_last_line_box && last_fragment_is_continued_in_next_line_box) {
+                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalMiddle;
+                        } else if (is_first_fragment && first_fragment_continues_last_line_box) {
+                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalEnd;
+                        } else if (is_last_fragment && last_fragment_is_continued_in_next_line_box) {
+                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalStart;
+                        }
+
+                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index, fragmentation_state);
+                        first_fragment_continues_last_line_box = false;
                         if (!did_relocate_fragment)
                             paintable_with_lines->add_fragment(fragment);
                     }

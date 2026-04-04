@@ -378,7 +378,7 @@ private:
 
     BoxModelMetrics m_box_model;
 
-    // FIXME: This is now how this is meant to work in the spec. The box needs to be drawn in full and then sliced
+    // FIXME: This is not how this is meant to work in the spec. The box needs to be drawn in full and then sliced
     //        visually, in case something like border-radius is in effect.
     //        ( see https://drafts.csswg.org/css-break/#valdef-box-decoration-break-slice )
     bool m_fragment_top_edge_away { false };

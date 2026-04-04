@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-15">
+<style>
+  div::before {
+    content: 'This text is very long so that it will break onto multiple lines. Its inline border must only be drawn at the start of the first and end of the last line. Its outline should be drawn around every line.';
+    border: 2px solid red;
+    outline: 2px solid green;
+	  border-radius: 5px;
+  }
+  div {
+    max-width: 20em;
+  }
+</style>
+<div></div>
