@@ -1540,17 +1540,19 @@ void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML:
     if (video_track && !m_playback_manager->video_tracks().contains_slow(video_track->track_in_playback_manager()))
         return;
 
-    if (m_selected_video_track) {
-        VERIFY(m_selected_video_track_sink);
-        m_playback_manager->remove_the_displaying_video_sink_for_track(m_selected_video_track->track_in_playback_manager());
-        m_selected_video_track_sink = nullptr;
-        if (m_external_content_source)
-            m_external_content_source->clear();
-    }
+    if (m_external_content_source)
+        m_external_content_source->clear();
+
+    auto previous_track = m_selected_video_track;
 
     m_selected_video_track = video_track;
     if (video_track)
         m_selected_video_track_sink = m_playback_manager->get_or_create_the_displaying_video_sink_for_track(video_track->track_in_playback_manager());
+    else
+        m_selected_video_track_sink = nullptr;
+
+    if (previous_track)
+        m_playback_manager->remove_the_displaying_video_sink_for_track(previous_track->track_in_playback_manager());
 }
 
 void HTMLMediaElement::update_video_frame_and_timeline()
