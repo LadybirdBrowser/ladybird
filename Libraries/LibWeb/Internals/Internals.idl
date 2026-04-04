@@ -14,6 +14,7 @@ interface Internals {
     DOMString setTimeZone(DOMString timeZone);
 
     undefined gc();
+    Promise<undefined> gcAsync();
     object hitTest(double x, double y);
 
     const unsigned short MOD_NONE = 0;

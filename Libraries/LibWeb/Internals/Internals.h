@@ -41,6 +41,7 @@ public:
     WebIDL::ExceptionOr<String> set_time_zone(StringView time_zone);
 
     void gc();
+    GC::Ref<WebIDL::Promise> gc_async();
     JS::Object* hit_test(double x, double y);
 
     void send_text(HTML::HTMLElement&, String const&, WebIDL::UnsignedShort modifiers);

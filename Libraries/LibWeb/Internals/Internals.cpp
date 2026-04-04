@@ -24,9 +24,12 @@
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/EventLoop/EventLoop.h>
+#include <LibWeb/HTML/EventLoop/TaskQueue.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
@@ -35,6 +38,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintableBox.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::Internals {
 
@@ -151,6 +155,21 @@ WebIDL::ExceptionOr<void> Internals::load_test_variants()
 void Internals::gc()
 {
     vm().heap().collect_garbage();
+}
+
+GC::Ref<WebIDL::Promise> Internals::gc_async()
+{
+    auto& realm = this->realm();
+    auto promise = WebIDL::create_promise(realm);
+
+    // Queue a task so that the collection runs outside the JS execution context.
+    HTML::queue_a_task(HTML::Task::Source::Unspecified, nullptr, nullptr, GC::create_function(realm.heap(), [&realm, promise] {
+        HTML::TemporaryExecutionContext execution_context { realm };
+        realm.vm().heap().collect_garbage();
+        WebIDL::resolve_promise(realm, promise, JS::js_undefined());
+    }));
+
+    return promise;
 }
 
 WebIDL::ExceptionOr<String> Internals::set_time_zone(StringView time_zone)
