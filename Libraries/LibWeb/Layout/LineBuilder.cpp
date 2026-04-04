@@ -276,9 +276,7 @@ void LineBuilder::update_last_line(Optional<FragmentationContext const&> fragmen
         FragmentationContext const* context = &fragmentation_context.value();
 
         // FIXME: Block doesn't always mean Y-axis and inline doesn't always mean X-axis, so account for writing mode.
-        auto fragmented_flow_block_offset = m_context.content_box_rect_in_ancestor_coordinate_space(
-                                                         m_layout_state.get(m_context.containing_block()), context->root())
-                                                .y();
+        auto fragmented_flow_block_offset = m_context.y_position_in_ancestor_coordinate_space(m_layout_state.get(m_context.containing_block()), 0, context->root());
 
         auto remaining_fragmentainer_extent = context->remaining_fragmentainer_extent_at(fragmented_flow_block_offset + m_current_block_offset);
         if (remaining_fragmentainer_extent < line_height) {

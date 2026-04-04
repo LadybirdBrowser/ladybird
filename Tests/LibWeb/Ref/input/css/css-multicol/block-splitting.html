@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../../../expected/css/css-multicol/block-splitting-ref.html" />
+<style>
+  body {
+    columns: 2;
+    height: calc(1lh + 4px);
+	  column-width: 1em;
+    max-width: 40em;
+    column-gap: 0;
+  }
+  #outer {
+    background-color: lightgray;
+    border: 2px solid;
+  }
+</style>
+<div id="outer">
+<div>VeryLongUnbrokenWord1</div>
+<div>VeryLongUnbrokenWord2</div>
+</div>

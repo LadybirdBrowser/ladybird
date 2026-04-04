@@ -907,10 +907,11 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         inline_space_used_before_children_formatted = intrusion_by_floats_into_box(list_item_state, offset_y);
     }
 
-    auto unfragmented_box_y = box_state.offset.y();
+    // Place the box in the correct fragmentainer, but remember the original, unfragmented position.
+    auto unfragmented_box_position = box_state.offset;
     if (fragmentation_context.has_value()) {
         FragmentationContext const* context = &fragmentation_context.value();
-        auto fragmented_flow_block_offset = content_box_rect_in_ancestor_coordinate_space(box_state, context->root()).y();
+        auto fragmented_flow_block_offset = y_position_in_ancestor_coordinate_space(box_state, 0, context->root());
         box_state.set_content_y(box_state.offset.y() + context->fragmentainer_y_offset_at(fragmented_flow_block_offset));
         box_state.set_content_x(box_state.offset.x() + context->fragmentainer_x_offset_at(fragmented_flow_block_offset));
     }
@@ -957,10 +958,10 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
                 m_margin_state.reset();
             } else if (!m_margin_state.has_block_container_waiting_for_final_y_position()) {
                 // margin-top of block container can be updated during children layout hence it's final y position yet to be determined
-                m_margin_state.register_block_container_y_position_update_callback([this, &box, &box_state, y, introduce_clearance, &unfragmented_box_y](CSSPixels margin_top) {
+                m_margin_state.register_block_container_y_position_update_callback([this, &box, &box_state, y, introduce_clearance, &unfragmented_box_position](CSSPixels margin_top) {
                     if (introduce_clearance == DidIntroduceClearance::No) {
                         place_block_level_element_in_normal_flow_vertically(box, margin_top + y);
-                        unfragmented_box_y = box_state.offset.y();
+                        unfragmented_box_position.set_y(box_state.offset.y());
                         // FIXME: This might've bumped the box down into a subsequent fragmentainer, so we need to
                         //        translate it if that is the case.
                     }
@@ -992,7 +993,7 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
         if (!m_margin_state.box_last_in_flow_child_margin_bottom_collapsed()) {
             m_margin_state.reset();
         }
-        m_y_offset_of_current_block_container = unfragmented_box_y + box_state.content_height() + box_state.border_box_bottom();
+        m_y_offset_of_current_block_container = unfragmented_box_position.y() + box_state.content_height() + box_state.border_box_bottom();
     }
     m_margin_state.set_box_last_in_flow_child_margin_bottom_collapsed(false);
 
@@ -1002,10 +1003,32 @@ void BlockFormattingContext::layout_block_level_box(Box const& box, BlockContain
     auto const& block_container_state = m_state.get(block_container);
     compute_inset(box, content_box_rect(block_container_state).size());
 
-    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, unfragmented_box_y + box_state.content_height() + box_state.margin_box_bottom());
+    bottom_of_lowest_margin_box = max(bottom_of_lowest_margin_box, unfragmented_box_position.y() + box_state.content_height() + box_state.margin_box_bottom());
 
     if (independent_formatting_context)
         independent_formatting_context->parent_context_did_dimension_child_root_box();
+
+    // If the box spans multiple fragmentainers, actually slice it into multiple fragments.
+    if (fragmentation_context.has_value()) {
+        FragmentationContext const* context = &fragmentation_context.value();
+        auto box_top_fragmented_flow_block_offset = y_position_in_ancestor_coordinate_space(*box_state.containing_block_used_values(), unfragmented_box_position.y(), context->root());
+        auto remaining_box_height = box_state.content_height() + box_state.border_box_bottom();
+        CSSPixels used_box_height = 0;
+        if (auto remaining_fragmentainer_extent = context->remaining_fragmentainer_extent_at(box_top_fragmented_flow_block_offset); remaining_fragmentainer_extent < remaining_box_height) {
+            while (remaining_fragmentainer_extent < remaining_box_height) {
+                box_state.add_box_fragment(LayoutState::UsedValues::BoxFragment(
+                    { unfragmented_box_position.x() + context->fragmentainer_x_offset_at(box_top_fragmented_flow_block_offset), unfragmented_box_position.y() + used_box_height + context->fragmentainer_y_offset_at(box_top_fragmented_flow_block_offset) },
+                    remaining_fragmentainer_extent));
+                remaining_box_height -= remaining_fragmentainer_extent;
+                used_box_height += remaining_fragmentainer_extent;
+                box_top_fragmented_flow_block_offset += remaining_fragmentainer_extent;
+                remaining_fragmentainer_extent = context->remaining_fragmentainer_extent_at(box_top_fragmented_flow_block_offset);
+            }
+            box_state.add_box_fragment(LayoutState::UsedValues::BoxFragment(
+                { unfragmented_box_position.x() + context->fragmentainer_x_offset_at(box_top_fragmented_flow_block_offset), unfragmented_box_position.y() + used_box_height + context->fragmentainer_y_offset_at(box_top_fragmented_flow_block_offset) },
+                remaining_box_height));
+        }
+    }
 }
 
 void BlockFormattingContext::layout_block_level_children(BlockContainer const& block_container, AvailableSpace const& available_space, Optional<FragmentationContext const&> fragmentation_context)
