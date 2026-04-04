@@ -471,10 +471,7 @@ WebIDL::ExceptionOr<void> fetch_classic_worker_script(URL::URL const& url, Envir
     request->set_client(&fetch_client);
     request->set_destination(destination);
     request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Other);
-
-    // FIXME: Use proper SameOrigin CORS mode once Origins are set properly in WorkerHost processes
-    request->set_mode(Fetch::Infrastructure::Request::Mode::NoCORS);
-
+    request->set_mode(Fetch::Infrastructure::Request::Mode::SameOrigin);
     request->set_credentials_mode(Fetch::Infrastructure::Request::CredentialsMode::SameOrigin);
     request->set_parser_metadata(Fetch::Infrastructure::Request::ParserMetadata::NotParserInserted);
     request->set_use_url_credentials(true);
