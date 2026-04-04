@@ -11,7 +11,6 @@
 
 #ifdef AK_OS_WINDOWS
 #    include <time.h>
-#    define gmtime_r(time, tm) gmtime_s(tm, time)
 #endif
 
 using AK::Duration;
@@ -771,9 +770,9 @@ TEST_CASE(parse_time)
         VERIFY(result.has_value());
 
         auto result_time = result.value().to_timespec();
-        struct tm tm;
+        struct tm tm {};
 #ifdef AK_OS_WINDOWS
-        VERIFY(gmtime_r(&result_time.tv_sec, &tm) == 0);
+        VERIFY(gmtime_s(&tm, &result_time.tv_sec) == 0);
 #else
         VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
 #endif
@@ -833,9 +832,9 @@ TEST_CASE(parse_wildcard_characters)
         VERIFY(result.has_value());
 
         auto result_time = result.value().to_timespec();
-        struct tm tm;
+        struct tm tm {};
 #ifdef AK_OS_WINDOWS
-        VERIFY(gmtime_r(&result_time.tv_sec, &tm) == 0);
+        VERIFY(gmtime_s(&tm, &result_time.tv_sec) == 0);
 #else
         VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
 #endif
@@ -877,9 +876,9 @@ TEST_CASE(parse_time_from_gmt)
 
     // Verify the parsed time by converting back to tm structure
     auto result_time = test_gmt3.value().to_timespec();
-    struct tm tm;
+    struct tm tm {};
 #ifdef AK_OS_WINDOWS
-    VERIFY(gmtime_r(&result_time.tv_sec, &tm) == 0);
+    VERIFY(gmtime_s(&tm, &result_time.tv_sec) == 0);
 #else
     VERIFY(gmtime_r(&result_time.tv_sec, &tm) != nullptr);
 #endif

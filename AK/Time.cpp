@@ -16,11 +16,22 @@
 
 #ifdef AK_OS_WINDOWS
 #    include <AK/Windows.h>
-#    define localtime_r(time, tm) localtime_s(tm, time)
-#    define gmtime_r(time, tm) gmtime_s(tm, time)
 #    define tzname _tzname
 #    define timegm _mkgmtime
 #endif
+
+static bool fill_tm(time_t& timestamp, struct tm& tm, UnixDateTime::LocalTime& local_time)
+{
+#ifdef AK_OS_WINDOWS
+    if (local_time == UnixDateTime::LocalTime::Yes)
+        return localtime_s(&tm, &timestamp) == 0;
+    return gmtime_s(&tm, &timestamp) == 0;
+#else
+    if (local_time == UnixDateTime::LocalTime::Yes)
+        return localtime_r(&timestamp, &tm) != nullptr;
+    return gmtime_r(&timestamp, &tm) != nullptr;
+#endif
+}
 
 namespace AK {
 
@@ -527,13 +538,11 @@ UnixDateTime UnixDateTime::now_coarse()
 
 ErrorOr<void> UnixDateTime::to_string_impl(StringBuilder& builder, StringView format, LocalTime local_time) const
 {
-    struct tm tm;
-
+    struct tm tm {};
     auto timestamp = m_offset.to_timespec().tv_sec;
-    if (local_time == LocalTime::Yes)
-        (void)localtime_r(&timestamp, &tm);
-    else
-        (void)gmtime_r(&timestamp, &tm);
+
+    if (!fill_tm(timestamp, tm, local_time))
+        VERIFY_NOT_REACHED();
 
     size_t const format_len = format.length();
 
