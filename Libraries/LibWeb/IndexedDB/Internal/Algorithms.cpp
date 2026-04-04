@@ -389,6 +389,9 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Fu
         dbgln_if(IDB_DEBUG, "close_a_database_connection: finished waiting for step 3, closing database connection");
         connection->set_state(ConnectionState::Closed);
 
+        auto database = connection->associated_database();
+        database->dissociate(*connection);
+
         // 4. If the forced flag is true, then fire an event named close at connection.
         if (forced)
             connection->dispatch_event(DOM::Event::create(realm, HTML::EventNames::close));
@@ -396,7 +399,7 @@ void close_a_database_connection(GC::Ref<IDBDatabase> connection, GC::Ptr<GC::Fu
         if (on_complete)
             queue_a_database_task(on_complete.as_nonnull());
 
-        connection->associated_database()->check_pending_connection_wait();
+        database->check_pending_connection_wait();
     }));
 }
 

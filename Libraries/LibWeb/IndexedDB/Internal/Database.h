@@ -29,6 +29,7 @@ public:
     [[nodiscard]] GC::Ptr<IDBTransaction> upgrade_transaction() { return m_upgrade_transaction; }
 
     void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
+    void dissociate(IDBDatabase& connection) { m_associated_connections.remove_first_matching([&](auto& entry) { return entry == &connection; }); }
     using AssociatedConnections = GC::HeapVector<GC::Ref<IDBDatabase>>;
     GC::Ref<AssociatedConnections> associated_connections_as_heap_vector();
     GC::Ref<AssociatedConnections> associated_connections_as_heap_vector_except(IDBDatabase& connection);
