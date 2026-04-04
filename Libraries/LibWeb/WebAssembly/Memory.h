@@ -45,8 +45,8 @@ private:
     virtual void visit_edges(Visitor&) override;
 
     static void refresh_the_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress);
-    static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared);
-    static JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> create_a_resizable_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, size_t max_size);
+    static GC::Ref<JS::ArrayBuffer> create_a_fixed_length_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, GC::Ref<GC::Cell> owner);
+    static JS::ThrowCompletionOr<GC::Ref<JS::ArrayBuffer>> create_a_resizable_memory_buffer(JS::VM&, JS::Realm&, Wasm::MemoryAddress, Shared shared, size_t max_size, GC::Ref<GC::Cell> owner);
 
     Wasm::MemoryAddress m_address;
     Shared m_shared { Shared::No };

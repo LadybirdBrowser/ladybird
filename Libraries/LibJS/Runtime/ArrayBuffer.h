@@ -130,7 +130,11 @@ struct DataBlock {
             [](Empty) -> size_t { return 0u; },
             [](ByteBuffer const& buffer) { return buffer.size(); },
             [](UnownedFixedLengthByteBuffer const& value) { return value.size; },
-            [](UnownedExternalBuffer const& value) { return value.size ? value.size(value.context) : 0; });
+            [](UnownedExternalBuffer const& value) {
+                return value.size.visit(
+                    [](size_t size) { return size; },
+                    [&](auto& fn) { return fn ? fn(value.context) : 0zu; });
+            });
     }
 
     size_t external_memory_size() const
