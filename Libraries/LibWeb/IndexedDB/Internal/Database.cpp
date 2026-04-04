@@ -38,14 +38,11 @@ GC::Ref<Database> Database::create(JS::Realm& realm, String const& name)
 void Database::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_associated_connections);
     visitor.visit(m_upgrade_transaction);
     visitor.visit(m_object_stores);
 
-    if (m_pending_connection_wait.has_value()) {
-        visitor.visit(m_pending_connection_wait->connections);
+    if (m_pending_connection_wait.has_value())
         visitor.visit(m_pending_connection_wait->callback);
-    }
 }
 
 GC::Ptr<ObjectStore> Database::object_store_with_name(String const& name) const
@@ -126,12 +123,22 @@ ErrorOr<void> Database::delete_for_key_and_name(StorageAPI::StorageKey const& ke
     return {};
 }
 
+void Database::associate(GC::Ref<IDBDatabase> connection)
+{
+    m_associated_connections.append(connection);
+}
+
+void Database::dissociate(IDBDatabase& connection)
+{
+    m_associated_connections.remove_first_matching([&](auto& entry) { return entry == &connection; });
+}
+
 GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_heap_vector()
 {
     auto connections = realm().heap().allocate<AssociatedConnections>();
-    connections->elements().ensure_capacity(m_associated_connections.size());
     for (auto& associated_connection : m_associated_connections) {
-        connections->elements().unchecked_append(associated_connection);
+        if (associated_connection)
+            connections->elements().append(*associated_connection);
     }
     return connections;
 }
@@ -139,9 +146,10 @@ GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_hea
 GC::RootVector<GC::Ref<IDBDatabase>> Database::associated_connections_as_root_vector()
 {
     GC::RootVector<GC::Ref<IDBDatabase>> connections(realm().heap());
-    connections.ensure_capacity(m_associated_connections.size());
-    for (auto& connection : m_associated_connections)
-        connections.unchecked_append(connection);
+    for (auto& connection : m_associated_connections) {
+        if (connection)
+            connections.append(*connection);
+    }
     return connections;
 }
 
@@ -149,8 +157,8 @@ GC::Ref<Database::AssociatedConnections> Database::associated_connections_as_hea
 {
     auto connections = realm().heap().allocate<AssociatedConnections>();
     for (auto& associated_connection : m_associated_connections) {
-        if (associated_connection != &connection)
-            connections->elements().append(associated_connection);
+        if (associated_connection && associated_connection != &connection)
+            connections->elements().append(*associated_connection);
     }
     return connections;
 }
@@ -171,8 +179,12 @@ void Database::wait_for_connections_to_close(ReadonlySpan<GC::Ref<IDBDatabase>> 
     }
 
     VERIFY(!m_pending_connection_wait.has_value());
+    Vector<GC::Weak<IDBDatabase>> weak_connections;
+    weak_connections.ensure_capacity(connections.size());
+    for (auto const& connection : connections)
+        weak_connections.unchecked_append(connection);
     m_pending_connection_wait = PendingConnectionWait {
-        .connections = Vector<GC::Ref<IDBDatabase>> { connections },
+        .connections = move(weak_connections),
         .callback = after_all,
     };
 }
@@ -184,7 +196,7 @@ void Database::check_pending_connection_wait()
 
     auto& wait = m_pending_connection_wait.value();
     for (auto const& connection : wait.connections) {
-        if (connection->state() != ConnectionState::Closed)
+        if (connection && connection->state() != ConnectionState::Closed)
             return;
     }
 

@@ -9,6 +9,7 @@
 #include <LibGC/HeapVector.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/RootVector.h>
+#include <LibGC/Weak.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/IndexedDB/Internal/ObjectStore.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -28,8 +29,8 @@ public:
     void set_upgrade_transaction(GC::Ptr<IDBTransaction> transaction) { m_upgrade_transaction = transaction; }
     [[nodiscard]] GC::Ptr<IDBTransaction> upgrade_transaction() { return m_upgrade_transaction; }
 
-    void associate(GC::Ref<IDBDatabase> connection) { m_associated_connections.append(connection); }
-    void dissociate(IDBDatabase& connection) { m_associated_connections.remove_first_matching([&](auto& entry) { return entry == &connection; }); }
+    void associate(GC::Ref<IDBDatabase> connection);
+    void dissociate(IDBDatabase& connection);
     using AssociatedConnections = GC::HeapVector<GC::Ref<IDBDatabase>>;
     GC::Ref<AssociatedConnections> associated_connections_as_heap_vector();
     GC::Ref<AssociatedConnections> associated_connections_as_heap_vector_except(IDBDatabase& connection);
@@ -69,11 +70,11 @@ protected:
 
 private:
     struct PendingConnectionWait {
-        Vector<GC::Ref<IDBDatabase>> connections;
+        Vector<GC::Weak<IDBDatabase>> connections;
         GC::Ref<GC::Function<void()>> callback;
     };
 
-    Vector<GC::Ref<IDBDatabase>> m_associated_connections;
+    Vector<GC::Weak<IDBDatabase>> m_associated_connections;
     Optional<PendingConnectionWait> m_pending_connection_wait;
 
     // A database has a name which identifies it within a specific storage key.
