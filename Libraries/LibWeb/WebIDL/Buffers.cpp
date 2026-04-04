@@ -122,7 +122,7 @@ void ArrayBufferView::write(ReadonlyBytes bytes, u32 starting_offset)
     auto array_buffer = viewed_array_buffer();
 
     // 5. Write bytes into arrayBuffer with startingOffset set to jsView.[[ByteOffset]] + startingOffset.
-    array_buffer->buffer().overwrite(byte_offset() + starting_offset, bytes.data(), bytes.size());
+    array_buffer->overwrite(byte_offset() + starting_offset, bytes.data(), bytes.size());
 }
 
 BufferSource::~BufferSource() = default;

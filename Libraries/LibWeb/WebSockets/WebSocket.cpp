@@ -317,7 +317,7 @@ WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>
                 ReadonlyBytes buffer;
 
                 if (auto array_buffer = buffer_source->viewed_array_buffer(); array_buffer && !array_buffer->is_detached())
-                    buffer = array_buffer->buffer();
+                    buffer = array_buffer->bytes();
 
                 m_websocket->send(buffer, false);
             },

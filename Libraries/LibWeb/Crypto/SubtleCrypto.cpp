@@ -859,7 +859,8 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::derive_key(AlgorithmIdentifier algorithm,
         }
 
         // 15. Let result be the result of performing the import key operation specified by normalizedDerivedKeyAlgorithmImport using "raw" as format, secret as keyData, derivedKeyType as algorithm and using extractable and usages.
-        auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, secret.release_value()->buffer(), extractable, key_usages);
+        auto secret_bytes = MUST(ByteBuffer::copy(secret.release_value()->bytes()));
+        auto result_or_error = normalized_derived_key_algorithm_import.methods->import_key(*normalized_derived_key_algorithm_import.parameter, Bindings::KeyFormat::Raw, move(secret_bytes), extractable, key_usages);
         if (result_or_error.is_error()) {
             WebIDL::reject_promise(realm, promise, Bindings::exception_to_throw_completion(realm.vm(), result_or_error.release_error()).release_value());
             return;
@@ -1134,7 +1135,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
         // 15. If format is equal to the string "jwk":
         if (format == Bindings::KeyFormat::Jwk) {
             // Let key be the result of executing the parse a JWK algorithm, with bytes as the data to be parsed.
-            auto maybe_parsed = JsonWebKey::parse(realm, bytes->buffer());
+            auto maybe_parsed = JsonWebKey::parse(realm, bytes->bytes());
             if (maybe_parsed.is_error()) {
                 WebIDL::reject_promise(realm, promise, maybe_parsed.release_error().release_value());
                 return;
@@ -1466,7 +1467,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(AlgorithmIdentifier decap
         auto maybe_shared_key = normalized_shared_key_algorithm.methods->import_key(
             *normalized_shared_key_algorithm.parameter,
             Bindings::KeyFormat::RawSecret,
-            decapsulated_bits->buffer(),
+            MUST(ByteBuffer::copy(decapsulated_bits->bytes())),
             extractable,
             usages);
         if (maybe_shared_key.is_error()) {

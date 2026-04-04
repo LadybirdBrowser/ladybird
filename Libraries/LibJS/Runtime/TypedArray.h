@@ -107,7 +107,7 @@ protected:
         }
 
         m_viewed_array_buffer->register_cached_typed_array_view(*this);
-        m_data = m_viewed_array_buffer->buffer().data() + m_byte_offset;
+        m_data = m_viewed_array_buffer->data() + m_byte_offset;
     }
 
     u32 m_element_size { 0 };
@@ -506,7 +506,7 @@ public:
         }
 
         auto length = typed_array_length(typed_array_record);
-        return { reinterpret_cast<UnderlyingBufferDataType const*>(m_viewed_array_buffer->buffer().data() + m_byte_offset), length };
+        return { reinterpret_cast<UnderlyingBufferDataType const*>(m_viewed_array_buffer->data() + m_byte_offset), length };
     }
 
     Span<UnderlyingBufferDataType> data()
@@ -519,7 +519,7 @@ public:
         }
 
         auto length = typed_array_length(typed_array_record);
-        return { reinterpret_cast<UnderlyingBufferDataType*>(m_viewed_array_buffer->buffer().data() + m_byte_offset), length };
+        return { reinterpret_cast<UnderlyingBufferDataType*>(m_viewed_array_buffer->data() + m_byte_offset), length };
     }
 
     bool is_unclamped_integer_element_type() const override

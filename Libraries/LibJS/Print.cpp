@@ -401,10 +401,10 @@ ErrorOr<void> print_array_buffer(JS::PrintContext& print_context, JS::ArrayBuffe
     if (byte_length == 0)
         return {};
 
-    auto& buffer = array_buffer.buffer();
+    auto const* buffer_data = array_buffer.data();
     TRY(js_out(print_context, "\n"));
     for (size_t i = 0; i < byte_length; ++i) {
-        TRY(js_out(print_context, "{:02x}", buffer[i]));
+        TRY(js_out(print_context, "{:02x}", buffer_data[i]));
         if (i + 1 < byte_length) {
             if ((i + 1) % 32 == 0)
                 TRY(js_out(print_context, "\n"));

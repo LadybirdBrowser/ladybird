@@ -393,10 +393,10 @@ GC::Ref<WebIDL::Promise> Blob::text()
     return WebIDL::upon_fulfillment(*promise, GC::create_function(heap(), [&vm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
         auto const& object = first_argument.as_object();
         VERIFY(is<JS::ArrayBuffer>(object));
-        auto const& buffer = static_cast<JS::ArrayBuffer const&>(object).buffer();
+        auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
 
         auto decoder = TextCodec::decoder_for("UTF-8"sv);
-        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, buffer));
+        auto utf8_text = TRY_OR_THROW_OOM(vm, TextCodec::convert_input_to_utf8_using_given_decoder_unless_there_is_a_byte_order_mark(*decoder, array_buffer.bytes()));
         return JS::PrimitiveString::create(vm, move(utf8_text));
     }));
 }
@@ -422,9 +422,9 @@ GC::Ref<WebIDL::Promise> Blob::array_buffer()
     return WebIDL::upon_fulfillment(*promise, GC::create_function(heap(), [&realm](JS::Value first_argument) -> WebIDL::ExceptionOr<JS::Value> {
         auto const& object = first_argument.as_object();
         VERIFY(is<JS::ArrayBuffer>(object));
-        auto const& buffer = static_cast<JS::ArrayBuffer const&>(object).buffer();
+        auto const& array_buffer = static_cast<JS::ArrayBuffer const&>(object);
 
-        return JS::ArrayBuffer::create(realm, buffer);
+        return JS::ArrayBuffer::create(realm, MUST(ByteBuffer::copy(array_buffer.bytes())));
     }));
 }
 

@@ -1063,7 +1063,7 @@ i64 asm_try_get_by_value_typed_array(VM* vm, u32 pc)
     }
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto const* data = buffer->buffer().data() + typed_array.byte_offset();
+    auto const* data = buffer->data() + typed_array.byte_offset();
 
     Value result;
     switch (typed_array.kind()) {
@@ -1133,7 +1133,7 @@ i64 asm_try_put_by_value_typed_array(VM* vm, u32 pc)
         return 0;
 
     auto* buffer = typed_array.viewed_array_buffer();
-    auto* data = buffer->buffer().data() + typed_array.byte_offset();
+    auto* data = buffer->data() + typed_array.byte_offset();
     auto value = vm->get(insn.src());
 
     if (value.is_int32()) {

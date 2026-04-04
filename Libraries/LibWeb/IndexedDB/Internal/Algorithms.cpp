@@ -763,7 +763,7 @@ JS::Value convert_a_key_to_a_value(JS::Realm& realm, GC::Ref<Key> key)
         auto array_buffer = MUST(JS::ArrayBuffer::create(realm, len));
 
         // 4. Set the entries in buffer’s [[ArrayBufferData]] internal slot to the entries in value.
-        buffer.span().copy_to(array_buffer->buffer());
+        array_buffer->overwrite(0, buffer.data(), buffer.size());
 
         // 5. Return buffer.
         return array_buffer;

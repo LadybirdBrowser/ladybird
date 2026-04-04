@@ -92,9 +92,9 @@ static ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(GC::Ptr<JS:
     // (that is, at most 7 leading zero bits, except the value 0 which shall have length 8 bits).
     // The API SHALL accept values with any number of leading zero bits, including the empty array, which represents zero.
 
-    auto const& buffer = big_integer->viewed_array_buffer()->buffer();
+    auto buffer = big_integer->viewed_array_buffer()->bytes();
 
-    if (buffer.size() > 0)
+    if (!buffer.is_empty())
         return ::Crypto::UnsignedBigInteger::import_data(buffer);
     return ::Crypto::UnsignedBigInteger(0);
 }
