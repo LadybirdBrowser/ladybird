@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	[LegacyFactoryFunction] can be subclassed and correctly handles NewTarget

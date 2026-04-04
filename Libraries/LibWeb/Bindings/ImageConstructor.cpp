@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Bindings {
 
@@ -39,7 +40,8 @@ JS::ThrowCompletionOr<JS::Value> ImageConstructor::call()
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#dom-image
 // https://whatpr.org/html/9893/embedded-content.html#dom-image
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject&)
+// https://webidl.spec.whatwg.org/#legacy-factory-functions
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -49,6 +51,9 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> ImageConstructor::construct(FunctionO
 
     // 2. Let img be the result of creating an element given document, "img", and the HTML namespace.
     auto image_element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::img, Namespace::HTML); }));
+
+    // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+    TRY(WebIDL::set_prototype_from_new_target<HTMLImageElementPrototype>(vm, new_target, "HTMLImageElement"_fly_string, *image_element));
 
     // 3. If width is given, then set an attribute value for img using "width" and width.
     if (vm.argument_count() > 0) {

@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Bindings {
 
@@ -37,7 +38,8 @@ JS::ThrowCompletionOr<JS::Value> AudioConstructor::call()
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-audio
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionObject&)
+// https://webidl.spec.whatwg.org/#legacy-factory-functions
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
 
@@ -47,6 +49,9 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> AudioConstructor::construct(FunctionO
 
     // 2. Let audio be the result of creating an element given document, "audio", and the HTML namespace.
     auto audio = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::audio, Namespace::HTML); }));
+
+    // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+    TRY(WebIDL::set_prototype_from_new_target<HTMLAudioElementPrototype>(vm, new_target, "HTMLAudioElement"_fly_string, *audio));
 
     // 3. Set an attribute value for audio using "preload" and "auto".
     audio->set_attribute_value(HTML::AttributeNames::preload, "auto"_string);

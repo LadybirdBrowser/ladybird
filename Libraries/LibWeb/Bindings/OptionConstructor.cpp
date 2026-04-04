@@ -14,6 +14,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
 
 namespace Web::Bindings {
 
@@ -41,7 +42,8 @@ JS::ThrowCompletionOr<JS::Value> OptionConstructor::call()
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-option
 // https://whatpr.org/html/9893/form-elements.html#dom-option
-JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(FunctionObject&)
+// https://webidl.spec.whatwg.org/#legacy-factory-functions
+JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(FunctionObject& new_target)
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
@@ -58,6 +60,9 @@ JS::ThrowCompletionOr<GC::Ref<JS::Object>> OptionConstructor::construct(Function
     // 2. Let option be the result of creating an element given document, "option", and the HTML namespace.
     auto element = TRY(Bindings::throw_dom_exception_if_needed(vm, [&]() { return DOM::create_element(document, HTML::TagNames::option, Namespace::HTML); }));
     GC::Ref<HTML::HTMLOptionElement> option_element = as<HTML::HTMLOptionElement>(*element);
+
+    // https://webidl.spec.whatwg.org/#internally-create-a-new-object-implementing-the-interface
+    TRY(WebIDL::set_prototype_from_new_target<HTMLOptionElementPrototype>(vm, new_target, "HTMLOptionElement"_fly_string, *option_element));
 
     // 3. If text is not the empty string, then append to option a new Text node whose data is text.
     auto text = TRY(text_value.to_utf16_string(vm));
