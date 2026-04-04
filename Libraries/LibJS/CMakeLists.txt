@@ -79,6 +79,7 @@ set(SOURCES
     Runtime/Environment.cpp
     Runtime/Error.cpp
     Runtime/ErrorConstructor.cpp
+    Runtime/ErrorData.cpp
     Runtime/ErrorPrototype.cpp
     Runtime/ErrorTypes.cpp
     Runtime/ExecutionContext.cpp

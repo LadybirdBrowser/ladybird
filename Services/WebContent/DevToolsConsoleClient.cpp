@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/BigInt.h>
+#include <LibJS/Runtime/ErrorData.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
@@ -99,17 +100,12 @@ void DevToolsConsoleClient::handle_result(JS::Value result)
     m_client->did_execute_js_console_input(serialize_js_value(m_realm, result));
 }
 
-void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in_promise)
+void DevToolsConsoleClient::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise)
 {
-    auto& vm = exception.vm();
-
-    auto name = exception.get_without_side_effects(vm.names.name);
-    auto message = exception.get_without_side_effects(vm.names.message);
-
     Vector<WebView::StackFrame> trace;
-    trace.ensure_capacity(exception.traceback().size());
+    trace.ensure_capacity(error_data.traceback().size());
 
-    for (auto const& frame : exception.traceback()) {
+    for (auto const& frame : error_data.traceback()) {
         auto const& source_range = frame.source_range();
         WebView::StackFrame stack_frame;
 
@@ -129,8 +125,8 @@ void DevToolsConsoleClient::report_exception(JS::Error const& exception, bool in
     send_console_output({
         .timestamp = UnixDateTime::now(),
         .output = WebView::ConsoleError {
-            .name = name.to_string_without_side_effects(),
-            .message = message.to_string_without_side_effects(),
+            .name = name,
+            .message = message,
             .trace = move(trace),
             .inside_promise = in_promise,
         },

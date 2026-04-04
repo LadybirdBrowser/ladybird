@@ -263,6 +263,9 @@ public:
     virtual bool is_set_object() const { return false; }
     virtual bool is_map_object() const { return false; }
     virtual bool is_weak_map() const { return false; }
+    virtual ErrorData* error_data() { return nullptr; }
+    virtual ErrorData const* error_data() const { return nullptr; }
+    bool has_error_data() const { return error_data(); }
 
     virtual bool is_typed_array_base() const { return false; }
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type) \

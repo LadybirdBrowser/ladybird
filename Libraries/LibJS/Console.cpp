@@ -745,10 +745,10 @@ void Console::output_debug_message(LogLevel log_level, StringView output) const
     }
 }
 
-void Console::report_exception(JS::Error const& exception, bool in_promise) const
+void Console::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise) const
 {
     if (m_client)
-        m_client->report_exception(exception, in_promise);
+        m_client->report_exception(name, message, error_data, in_promise);
 }
 
 ThrowCompletionOr<String> Console::value_vector_to_string(GC::RootVector<Value> const& values)

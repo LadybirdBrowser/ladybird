@@ -160,7 +160,7 @@ JS_DEFINE_NATIVE_FUNCTION(ObjectPrototype::to_string)
     else if (object->is_function())
         builtin_tag = "Function"sv;
     // 8. Else if O has an [[ErrorData]] internal slot, let builtinTag be "Error".
-    else if (is<Error>(*object))
+    else if (object->has_error_data())
         builtin_tag = "Error"sv;
     // 9. Else if O has a [[BooleanData]] internal slot, let builtinTag be "Boolean".
     else if (is<BooleanObject>(*object))

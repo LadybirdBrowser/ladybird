@@ -29,7 +29,7 @@ private:
     DevToolsConsoleClient(JS::Realm&, JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
 
     virtual void handle_result(JS::Value) override;
-    virtual void report_exception(JS::Error const&, bool) override;
+    virtual void report_exception(String const& name, String const& message, JS::ErrorData const&, bool) override;
     virtual void end_group() override { }
     virtual void clear() override { }
 

@@ -30,6 +30,7 @@ GC::Ref<DOMException> DOMException::construct_impl(JS::Realm& realm, Utf16String
 
 DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& message)
     : PlatformObject(realm)
+    , ErrorData(realm.vm())
     , m_name(move(name))
     , m_message(message)
 {
@@ -37,6 +38,7 @@ DOMException::DOMException(JS::Realm& realm, FlyString name, Utf16String const& 
 
 DOMException::DOMException(JS::Realm& realm)
     : PlatformObject(realm)
+    , ErrorData(realm.vm())
 {
 }
 
@@ -46,6 +48,12 @@ void DOMException::initialize(JS::Realm& realm)
 {
     WEB_SET_PROTOTYPE_FOR_INTERFACE(DOMException);
     Base::initialize(realm);
+}
+
+void DOMException::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    ErrorData::visit_edges(visitor);
 }
 
 WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::TransferDataEncoder& serialized, bool, HTML::SerializationMemory&)
