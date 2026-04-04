@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    a,
+    div,
+    img {
+        width: 100px;
+        height: 100px;
+        border: 1px solid black;
+        display: block;
+    }
+</style>
+<div id="target">target</div>
+<div id="source" draggable="true">source</div>
+<div id="nodrag">nodrag</div>
+<a id="link" href="https://example.com" draggable="true">link</a>
+<img
+    id="image"
+    draggable="true"
+    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="
+/>
+<script src="../include.js"></script>
+<script type="text/javascript">
+    test(() => {
+        const printEvent = (name, e) => {
+            println(name);
+            println(`    types: ${e.dataTransfer.types}`);
+        };
+
+        target.addEventListener("dragenter", e => {
+            printEvent("dragenter", e);
+            e.preventDefault();
+        });
+        target.addEventListener("dragover", e => {
+            printEvent("dragover", e);
+            e.preventDefault();
+        });
+        target.addEventListener("dragleave", e => {
+            printEvent("dragleave", e);
+        });
+        target.addEventListener("drop", e => {
+            printEvent("drop", e);
+            println(`    text/plain: '${e.dataTransfer.getData("text/plain")}'`);
+            println(`    text/uri-list: '${e.dataTransfer.getData("text/uri-list")}'`);
+            e.preventDefault();
+        });
+
+        let sourceEvents = [];
+        source.addEventListener("dragstart", e => {
+            e.dataTransfer.setData("text/plain", "hello");
+            sourceEvents.push("dragstart");
+        });
+        source.addEventListener("dragend", e => {
+            sourceEvents.push(`dragend:${e.dataTransfer.dropEffect}`);
+        });
+
+        let noDragStarted = false;
+        nodrag.addEventListener("dragstart", () => {
+            console.log("DRAG");
+            noDragStarted = true;
+        });
+
+        link.addEventListener("dragstart", e => {
+            println("dragstart");
+            println(`    types: ${e.dataTransfer.types}`);
+        });
+
+        image.addEventListener("dragstart", e => {
+            println("dragstart");
+            println(`    types: ${e.dataTransfer.types}`);
+        });
+
+        println("Drag div:");
+        internals.mouseDown(50, 150);
+        internals.mouseMove(50, 125);
+        internals.mouseMove(50, 50);
+        internals.mouseUp(50, 50);
+        println(`    source events: ${sourceEvents.join(",")}`);
+
+        println("\nDrag non-draggable div:");
+        internals.mouseDown(50, 250);
+        internals.mouseMove(50, 275);
+        internals.mouseUp(50, 275);
+        println(`    drag started: ${noDragStarted}`);
+
+        println("\nDrag link:");
+        internals.mouseDown(50, 350);
+        internals.mouseMove(50, 325);
+        internals.mouseMove(50, 50);
+        internals.mouseUp(50, 50);
+
+        println("\nDrag image:");
+        internals.mouseDown(50, 450);
+        internals.mouseMove(50, 425);
+        internals.mouseMove(50, 50);
+        internals.mouseUp(50, 50);
+
+        println("\nDragstart cancelled:");
+        source.addEventListener(
+            "dragstart",
+            e => {
+                println("dragstart (cancelling)");
+                e.preventDefault();
+            },
+            { once: true }
+        );
+        internals.mouseDown(50, 150);
+        internals.mouseMove(50, 125);
+        internals.mouseMove(50, 50);
+        internals.mouseUp(50, 50);
+    });
+</script>

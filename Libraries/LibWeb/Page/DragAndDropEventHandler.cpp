@@ -6,8 +6,13 @@
 
 #include <AK/ScopeGuard.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/DragEvent.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -27,6 +32,7 @@ void DragAndDropEventHandler::visit_edges(JS::Cell::Visitor& visitor) const
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-and-drop-processing-model
 EventResult DragAndDropEventHandler::handle_drag_start(
     JS::Realm& realm,
+    GC::Ptr<DOM::Node> drag_target,
     CSSPixelPoint screen_position,
     CSSPixelPoint page_offset,
     CSSPixelPoint client_offset,
@@ -41,13 +47,26 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     };
 
     // 1. Determine what is being dragged, as follows:
-    //
+    GC::Ptr<DOM::Node> dragged_node;
+
     //    FIXME: If the drag operation was invoked on a selection, then it is the selection that is being dragged.
-    //
-    //    FIXME: Otherwise, if the drag operation was invoked on a Document, it is the first element, going up the ancestor chain,
-    //           starting at the node that the user tried to drag, that has the IDL attribute draggable set to true. If there is
-    //           no such element, then nothing is being dragged; return, the drag-and-drop operation is never started.
-    //
+
+    //    Otherwise, if the drag operation was invoked on a Document, it is the first element, going up the ancestor chain,
+    //    starting at the node that the user tried to drag, that has the IDL attribute draggable set to true. If there is
+    //    no such element, then nothing is being dragged; return, the drag-and-drop operation is never started.
+    if (drag_target) {
+        drag_target->for_each_inclusive_ancestor_of_type<HTML::HTMLElement>([&](HTML::HTMLElement& node) {
+            if (!node.draggable())
+                return IterationDecision::Continue;
+
+            dragged_node = node;
+            return IterationDecision::Break;
+        });
+
+        if (!dragged_node)
+            return EventResult::Cancelled;
+    }
+
     //    Otherwise, the drag operation was invoked outside the user agent's purview. What is being dragged is defined by
     //    the document or application where the drag was started.
 
@@ -61,13 +80,17 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     //           drag on (typically the Text node that the user originally clicked). If the user did not specify a particular
     //           node, for example if the user just told the user agent to begin a drag of "the selection", then the source
     //           node is the first Text node containing a part of the selection.
-    //
-    //    FIXME: Otherwise, if it is an element that is being dragged, then the source node is the element that is being dragged.
-    //
+
+    //    Otherwise, if it is an element that is being dragged, then the source node is the element that is being dragged.
+    if (dragged_node) {
+        m_source_node = dragged_node;
+    }
     //    Otherwise, the source node is part of another document or application. When this specification requires that
     //    an event be dispatched at the source node in this case, the user agent must instead follow the platform-specific
     //    conventions relevant to that situation.
-    m_source_node = nullptr;
+    else {
+        m_source_node = nullptr;
+    }
 
     // FIXME: 4. Determine the list of dragged nodes, as follows:
     //
@@ -117,23 +140,36 @@ EventResult DragAndDropEventHandler::handle_drag_start(
     //    The actual data
     //        The resulting JSON string.
 
-    // FIXME: 7. Run the following substeps:
+    // 7. Run the following substeps:
     [&]() {
         // 1. Let urls be « ».
+        Vector<String> urls;
 
         // 2. For each node in the list of dragged nodes:
-        //
-        //    If the node is an a element with an href attribute
-        //        Add to urls the result of encoding-parsing-and-serializing a URL given the element's href content
-        //        attribute's value, relative to the element's node document.
-        //    If the node is an img element with a src attribute
-        //        Add to urls the result of encoding-parsing-and-serializing a URL given the element's src content
-        //        attribute's value, relative to the element's node document.
+        if (auto* element = as_if<DOM::Element>(m_source_node.ptr())) {
+            // If the node is an a element with an href attribute
+            if (is<HTML::HTMLAnchorElement>(element) && element->has_attribute(HTML::AttributeNames::href)) {
+                // Add to urls the result of encoding-parsing-and-serializing a URL given the element's href content
+                // attribute's value, relative to the element's node document.
+                if (auto url = element->document().encoding_parse_and_serialize_url(element->get_attribute_value(HTML::AttributeNames::href)); url.has_value())
+                    urls.append(url.release_value());
+            }
+            // If the node is an img element with a src attribute
+            if (is<HTML::HTMLImageElement>(element) && element->has_attribute(HTML::AttributeNames::src)) {
+                // Add to urls the result of encoding-parsing-and-serializing a URL given the element's src content
+                // attribute's value, relative to the element's node document.
+                if (auto url = element->document().encoding_parse_and_serialize_url(element->get_attribute_value(HTML::AttributeNames::src)); url.has_value())
+                    urls.append(url.release_value());
+            }
+        }
 
         // 3. If urls is still empty, then return.
+        if (urls.is_empty())
+            return;
 
         // 4. Let url string be the result of concatenating the strings in urls, in the order they were added, separated
         //    by a U+000D CARRIAGE RETURN U+000A LINE FEED character pair (CRLF).
+        auto url = MUST(String::join("\r\n"sv, urls));
 
         // 5. Add one item to the drag data store item list, with its properties set as follows:
         //
@@ -143,6 +179,12 @@ EventResult DragAndDropEventHandler::handle_drag_start(
         //        Text
         //    The actual data
         //        url string
+        m_drag_data_store->add_item({
+            .kind = HTML::DragDataStoreItem::Kind::Text,
+            .type_string = "text/uri-list"_string,
+            .data = MUST(ByteBuffer::copy(url.bytes())),
+            .file_name = {},
+        });
     }();
 
     // FIXME: 8. Update the drag data store default feedback as appropriate for the user agent (if the user is dragging the

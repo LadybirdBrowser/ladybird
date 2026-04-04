@@ -813,6 +813,17 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     }
 }
 
+static void set_page_cursor(Page& page, Gfx::Cursor cursor)
+{
+    // FIXME: This check is only approximate. ImageCursors from the same CursorStyleValue share bitmaps, but may
+    //        repaint them. So comparing them does not tell you if they are the same image. Also, the image may
+    //        change even if the hovered node does not.
+    if (page.current_cursor() != cursor) {
+        page.client().page_did_request_cursor_change(cursor);
+        page.set_current_cursor(cursor);
+    }
+}
+
 void EventHandler::update_cursor(GC::Ptr<Painting::Paintable> paintable, GC::Ptr<DOM::Node> host_element, GC::Ptr<Painting::ChromeWidget> chrome_widget)
 {
     // AD-HOC: Update the cursor image based on the CSS rules before the steps terminate if the target hasn't changed.
@@ -833,14 +844,7 @@ void EventHandler::update_cursor(GC::Ptr<Painting::Paintable> paintable, GC::Ptr
         return Gfx::StandardCursor::Arrow;
     }();
 
-    // FIXME: This check is only approximate. ImageCursors from the same CursorStyleValue share bitmaps, but may
-    //        repaint them. So comparing them does not tell you if they are the same image. Also, the image may
-    //        change even if the hovered node does not.
-    auto& page = m_navigable->page();
-    if (page.current_cursor() != cursor) {
-        page.client().page_did_request_cursor_change(cursor);
-        page.set_current_cursor(cursor);
-    }
+    set_page_cursor(m_navigable->page(), cursor);
 }
 
 bool EventHandler::fire_click_events(GC::Ref<DOM::Node> node, MouseEventCoordinates const& coordinates, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count)
@@ -957,7 +961,9 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 
 void EventHandler::clear_mousedown_tracking()
 {
+    m_mousedown_button = {};
     m_mousedown_target = nullptr;
+    m_mousedown_visual_viewport_position = {};
     m_mousedown_click_count = 0;
 }
 
@@ -977,8 +983,15 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         stop_updating_selection();
     });
 
-    if (should_ignore_device_input_event())
+    if (should_ignore_device_input_event()) {
+        if (is_dragging_element()) {
+            auto result = handle_drag_and_drop_event(DragEvent::Type::Drop, visual_viewport_position, screen_position, button, buttons, modifiers, {});
+            set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
+            return result;
+        }
+
         return EventResult::Dropped;
+    }
 
     auto document = m_navigable->active_document();
     if (!document)
@@ -987,7 +1000,6 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         return EventResult::Dropped;
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
-
     document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
 
     if (!paint_root())
@@ -1275,7 +1287,10 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     GC::Ptr<Layout::Node> layout_node;
     if (!parent_element_for_event_dispatch(*paintable, node, layout_node))
         return EventResult::Dropped;
+
+    m_mousedown_button = button;
     m_mousedown_target = node;
+    m_mousedown_visual_viewport_position = visual_viewport_position;
 
     auto coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *paintable, *layout_node);
     if (!dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType::PointerDown, *node, chrome_widget, coordinates, screen_position, {}, button, buttons, modifiers, click_count))
@@ -1305,22 +1320,46 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
 EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 buttons, u32 modifiers)
 {
-    if (should_ignore_device_input_event())
+    if (should_ignore_device_input_event()) {
+        if (is_dragging_element())
+            return handle_drag_and_drop_event(DragEvent::Type::DragMove, visual_viewport_position, screen_position, UIEvents::MouseButton::Primary, buttons, modifiers, {});
         return EventResult::Dropped;
+    }
 
     auto document = m_navigable->active_document();
-
     if (!document)
         return EventResult::Dropped;
-    if (!m_navigable->active_document()->is_fully_active())
+    if (!document->is_fully_active())
         return EventResult::Dropped;
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
-
-    m_navigable->active_document()->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+    document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
 
     if (!paint_root())
         return EventResult::Dropped;
+
+    if (is_dragging_element()) {
+        static constexpr CSSPixels DRAG_THRESHOLD = 5;
+        auto delta = visual_viewport_position - *m_mousedown_visual_viewport_position;
+
+        if (delta.x().abs() >= DRAG_THRESHOLD || delta.y().abs() >= DRAG_THRESHOLD) {
+            auto result = handle_drag_and_drop_event(DragEvent::Type::DragStart, visual_viewport_position, screen_position, UIEvents::MouseButton::Primary, buttons, modifiers, {});
+
+            if (result == EventResult::Handled) {
+                set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Drag);
+                stop_updating_selection();
+
+                return EventResult::Handled;
+            }
+
+            // NB: Dispatching an event may have disturbed the world.
+            if (m_navigable->active_document() != document)
+                return EventResult::Accepted;
+            document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseMove);
+            if (!paint_root())
+                return EventResult::Accepted;
+        }
+    }
 
     GC::Ptr<Painting::Paintable> paintable;
     GC::Ptr<Painting::ChromeWidget> chrome_widget;
@@ -1401,8 +1440,15 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
 
 EventResult EventHandler::handle_mouseleave()
 {
-    if (should_ignore_device_input_event())
+    if (should_ignore_device_input_event()) {
+        if (is_dragging_element()) {
+            auto result = handle_drag_and_drop_event(DragEvent::Type::DragEnd, {}, {}, UIEvents::MouseButton::Primary, UIEvents::MouseButton::Primary, 0, {});
+            set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
+            return result;
+        }
+
         return EventResult::Dropped;
+    }
 
     if (!m_navigable->active_document())
         return EventResult::Dropped;
@@ -1459,7 +1505,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
 
     switch (type) {
     case DragEvent::Type::DragStart:
-        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
+        return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
     case DragEvent::Type::DragMove:
         return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:
@@ -2021,6 +2067,11 @@ bool EventHandler::should_ignore_device_input_event() const
     // From the moment that the user agent is to initiate the drag-and-drop operation, until the end of the drag-and-drop
     // operation, device input events (e.g. mouse and keyboard events) must be suppressed.
     return m_drag_and_drop_event_handler->has_ongoing_drag_and_drop_operation();
+}
+
+bool EventHandler::is_dragging_element() const
+{
+    return m_mousedown_target && m_mousedown_visual_viewport_position.has_value() && m_mousedown_button == UIEvents::MouseButton::Primary;
 }
 
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const

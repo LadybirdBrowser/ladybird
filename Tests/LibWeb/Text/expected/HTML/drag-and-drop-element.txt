@@ -1,0 +1,40 @@
+Drag div:
+dragenter
+    types: text/plain
+dragover
+    types: text/plain
+drop
+    types: text/plain
+    text/plain: 'hello'
+    text/uri-list: ''
+    source events: dragstart,dragend:copy
+
+Drag non-draggable div:
+    drag started: false
+
+Drag link:
+dragstart
+    types: text/uri-list
+dragenter
+    types: text/uri-list
+dragover
+    types: text/uri-list
+drop
+    types: text/uri-list
+    text/plain: ''
+    text/uri-list: 'https://example.com/'
+
+Drag image:
+dragstart
+    types: text/uri-list
+dragenter
+    types: text/uri-list
+dragover
+    types: text/uri-list
+drop
+    types: text/uri-list
+    text/plain: ''
+    text/uri-list: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=='
+
+Dragstart cancelled:
+dragstart (cancelling)
