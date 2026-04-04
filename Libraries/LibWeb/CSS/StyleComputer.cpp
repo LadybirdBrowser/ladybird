@@ -2396,7 +2396,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_font_width(absolutized_value);
     case PropertyID::FontFeatureSettings:
     case PropertyID::FontVariationSettings:
-        return compute_font_feature_tag_value_list(absolutized_value, computation_context);
+        return compute_font_feature_tag_value_list(absolutized_value);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
         if (absolutized_value->to_keyword() == Keyword::Normal)
@@ -2449,12 +2449,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
 
 // https://drafts.csswg.org/css-fonts-4/#font-variation-settings-def
 // https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // NB: The computation logic is the same for both font-feature-settings and font-variation-settings, first we
     //     deduplicate feature tags (with latter taking precedence), then we sort them in ascending order by code unit
-    auto const& absolutized_value = specified_value->absolutized(computation_context);
-
     if (absolutized_value->is_keyword())
         return absolutized_value;
 
