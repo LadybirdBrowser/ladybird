@@ -1587,7 +1587,7 @@ impl Parser {
                                     'v' => '\u{0B}',
                                     '|' => '|',
                                     '\\' => '\\',
-                                    '0' => '\0',
+                                    '0' if !self.peek().is_some_and(|c| c.is_ascii_digit()) => '\0',
                                     'b' => '\u{08}',
                                     'x' => {
                                         let val = self.parse_hex_escape(2)?;

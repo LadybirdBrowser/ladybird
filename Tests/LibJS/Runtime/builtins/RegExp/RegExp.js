@@ -109,6 +109,12 @@ describe("errors", () => {
         }
     });
 
+    test("invalid pattern (\\0 followed by digit inside \\q{} in v-mode)", () => {
+        expect(() => {
+            RegExp("[\\q{\\08}]", "v");
+        }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid escape '\\0'");
+    });
+
     test("invalid flag", () => {
         expect(() => {
             RegExp("", "x");
