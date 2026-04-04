@@ -93,7 +93,7 @@ private:
         if (!m_video_seeks_pending.is_empty())
             return;
 
-        if (m_mode != SeekMode::Accurate && !m_audio_seeks_started) {
+        if (!m_audio_seeks_started) {
             begin_audio_seeks();
             return;
         }
@@ -160,23 +160,13 @@ private:
         VERIFY(!m_audio_seeks_started);
         m_audio_seeks_started = true;
 
-        if (manager().m_audio_sink) {
-            for (auto const& audio_track_data : manager().m_audio_track_datas) {
-                if (manager().m_audio_sink->provider(audio_track_data.track) == nullptr)
-                    continue;
-                if (m_audio_seeks_pending.contains(audio_track_data.track))
-                    continue;
-                m_audio_seeks_pending.set(audio_track_data.track);
-            }
-        }
+        for (auto const& track : manager().audio_tracks())
+            start_audio_seek(track);
 
         if (m_audio_seeks_pending.is_empty()) {
             possibly_complete_seek();
             return;
         }
-
-        for (auto const& track : m_audio_seeks_pending)
-            start_audio_seek(track);
     }
 
     void begin_seek()
@@ -186,22 +176,15 @@ private:
         m_video_seeks_pending.clear();
         m_audio_seeks_pending.clear();
 
-        for (auto const& video_track_data : manager().m_video_track_datas) {
-            if (video_track_data.display == nullptr)
-                continue;
-            m_video_seeks_pending.set(video_track_data.track);
-            video_track_data.display->pause_updates();
-        }
+        for (auto const& track : manager().video_tracks())
+            start_video_seek(track);
 
-        if (m_mode == SeekMode::Accurate || m_video_seeks_pending.is_empty()) {
+        if (m_mode == SeekMode::Accurate) {
             m_chosen_timestamp = m_target_timestamp;
             begin_audio_seeks();
-            if (m_mode != SeekMode::Accurate)
-                return;
+        } else {
+            possibly_complete_seek();
         }
-
-        for (auto const& track : m_video_seeks_pending)
-            start_video_seek(track);
     }
 
     AK::Duration m_target_timestamp;
