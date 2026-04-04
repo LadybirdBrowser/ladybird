@@ -15,6 +15,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/FlexLayoutData.h>
+#include <LibWeb/Layout/Fragmentation.h>
 #include <LibWeb/Layout/GridLayoutData.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
@@ -100,16 +101,7 @@ public:
     CSSPixels content_width() const { return m_content_size.width(); }
     CSSPixels content_height() const { return m_content_size.height(); }
 
-    enum class FragmentationState {
-        Unfragmented,
-        HorizontalStart,
-        HorizontalMiddle,
-        HorizontalEnd,
-        VerticalStart,
-        VerticalMiddle,
-        VerticalEnd
-    };
-    void set_fragmentation_state(FragmentationState);
+    void set_fragmentation_state(Layout::FragmentationState);
 
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
