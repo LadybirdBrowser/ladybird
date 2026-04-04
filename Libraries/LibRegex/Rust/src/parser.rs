@@ -1380,7 +1380,10 @@ impl Parser {
     /// Parse `/v` `ClassSetExpression`.
     /// <https://tc39.es/ecma262/#sec-compilecharacterclass>
     fn parse_class_set_expression(&mut self) -> Result<ClassSetExpression, Error> {
+        let saved_negated = self.in_negated_class;
+        self.in_negated_class = false;
         let first = self.parse_class_set_operand()?;
+        self.in_negated_class = saved_negated;
 
         // Check for set operation operators.
         match self.peek_pair() {
@@ -1389,11 +1392,16 @@ impl Parser {
                 // once we see subtraction we stay in that operator family until
                 // the surrounding class or nested operand ends.
                 // Subtraction: A--B--C
+                if saved_negated {
+                    Self::validate_no_string_operand(&first)?;
+                }
                 let mut operands = vec![first];
+                self.in_negated_class = false;
                 while self.peek_pair() == Some(('-', '-')) {
                     self.pos += 2; // consume '--'
                     operands.push(self.parse_class_set_operand()?);
                 }
+                self.in_negated_class = saved_negated;
                 Self::validate_class_set_operation_operands(&operands)?;
                 Ok(ClassSetExpression::Subtraction(operands))
             }
@@ -1402,15 +1410,20 @@ impl Parser {
                 // either an intersection chain or something else, never both.
                 // Intersection: A&&B&&C
                 let mut operands = vec![first];
+                self.in_negated_class = false;
                 while self.peek_pair() == Some(('&', '&')) {
                     self.pos += 2; // consume '&&'
                     operands.push(self.parse_class_set_operand()?);
                 }
+                self.in_negated_class = saved_negated;
                 Self::validate_class_set_operation_operands(&operands)?;
                 Ok(ClassSetExpression::Intersection(operands))
             }
             _ => {
-                // Union (default): just accumulate operands.
+                // Union (default): direct members of [^...] may not be string properties.
+                if saved_negated {
+                    Self::validate_no_string_operand(&first)?;
+                }
                 let mut operands = vec![first];
                 while self.peek() != Some(']') && !self.at_end() {
                     operands.push(self.parse_class_set_operand()?);
@@ -1418,6 +1431,16 @@ impl Parser {
                 Ok(ClassSetExpression::Union(operands))
             }
         }
+    }
+
+    fn validate_no_string_operand(operand: &ClassSetOperand) -> Result<(), Error> {
+        if let ClassSetOperand::UnicodeProperty(up) = operand
+            && !up.negated
+            && Self::is_string_property(&up.name)
+        {
+            return Err(Error::InvalidUnicodeProperty(up.name.clone()));
+        }
+        Ok(())
     }
 
     fn validate_class_set_operation_operands(operands: &[ClassSetOperand]) -> Result<(), Error> {
@@ -1651,9 +1674,9 @@ impl Parser {
                         let negated = esc == 'P';
                         self.advance();
                         let prop = self.parse_unicode_property()?;
-                        // In v-mode, string properties cannot be negated (\P)
-                        // or used inside a negated character class ([^...]).
-                        if prop.1.is_none() && Self::is_string_property(&prop.0) && (negated || self.in_negated_class) {
+                        // In v-mode, \P{string-property} is always forbidden.
+                        // The [^...] negation check is handled at the expression level.
+                        if prop.1.is_none() && Self::is_string_property(&prop.0) && negated {
                             return Err(Error::InvalidUnicodeProperty(prop.0));
                         }
                         Ok(ClassSetOperand::UnicodeProperty(UnicodeProperty {

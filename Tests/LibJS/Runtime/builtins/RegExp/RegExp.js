@@ -930,3 +930,17 @@ test("lone surrogates as \\uXXXX escapes are valid in /v mode character classes"
     expect("".match(/[\udf9e]/v)).toBeNull();
     expect("\udfff".match(/[\udf9e-\udfff]/v)).toEqual(["\udfff"]);
 });
+
+test("string properties allowed as set operation operands in negated /v mode classes", () => {
+    expect(/[^[a]--\p{Emoji_Keycap_Sequence}]/v).toBeInstanceOf(RegExp);
+    expect(/[^\p{Emoji_Keycap_Sequence}&&[a]]/v).toBeInstanceOf(RegExp);
+    expect(/[^[a]&&\p{Emoji_Keycap_Sequence}]/v).toBeInstanceOf(RegExp);
+
+    expect(() => {
+        RegExp("[^\\p{Emoji_Keycap_Sequence}--[a]]", "v");
+    }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid Unicode property 'Emoji_Keycap_Sequence'");
+
+    expect(() => {
+        RegExp("[^\\p{Emoji_Keycap_Sequence}]", "v");
+    }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid Unicode property 'Emoji_Keycap_Sequence'");
+});
