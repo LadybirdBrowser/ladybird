@@ -530,7 +530,11 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_URL, m_url.to_byte_string().characters());
     set_option(CURLOPT_PORT, m_url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
-    set_option(CURLOPT_PIPEWAIT, 1L);
+    // Do not delay a transfer while waiting for a potentially reusable connection.
+    // Prioritizing immediate connection establishment improves page load latency.
+    set_option(CURLOPT_PIPEWAIT, 0L);
+    set_option(CURLOPT_TCP_FASTOPEN, 1L);
+    set_option(CURLOPT_TCP_NODELAY, 1L);
     set_option(CURLOPT_ALTSVC, m_alt_svc_cache_path.characters());
 
     set_option(CURLOPT_CUSTOMREQUEST, m_method.characters());
