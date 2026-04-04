@@ -6,6 +6,7 @@
 
 #include <AK/Enumerate.h>
 #include <AK/SaturatingMath.h>
+#include <LibCore/System.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>
@@ -14,6 +15,154 @@
 #include <LibWasm/Types.h>
 
 namespace Wasm {
+
+MemoryBuffer::~MemoryBuffer()
+{
+    clear();
+}
+
+MemoryBuffer::MemoryBuffer(MemoryBuffer&& other)
+    : m_size(exchange(other.m_size, 0))
+    , m_reserved_capacity(exchange(other.m_reserved_capacity, 0))
+    , m_mapping_size(exchange(other.m_mapping_size, 0))
+    , m_host_page_size(exchange(other.m_host_page_size, 0))
+    , m_mapping_base(exchange(other.m_mapping_base, nullptr))
+    , m_data(exchange(other.m_data, nullptr))
+    , m_fallback(move(other.m_fallback))
+{
+}
+
+MemoryBuffer& MemoryBuffer::operator=(MemoryBuffer&& other)
+{
+    if (this != &other) {
+        clear();
+        m_size = exchange(other.m_size, 0);
+        m_reserved_capacity = exchange(other.m_reserved_capacity, 0);
+        m_mapping_size = exchange(other.m_mapping_size, 0);
+        m_host_page_size = exchange(other.m_host_page_size, 0);
+        m_mapping_base = exchange(other.m_mapping_base, nullptr);
+        m_data = exchange(other.m_data, nullptr);
+        m_fallback = move(other.m_fallback);
+    }
+    return *this;
+}
+
+void MemoryBuffer::clear()
+{
+    if (m_mapping_base) {
+        VERIFY(m_reserved_capacity);
+        VERIFY(m_mapping_size);
+        VERIFY(m_host_page_size);
+        auto reservation_size = m_mapping_size + 2 * m_host_page_size;
+        [[maybe_unused]] auto result = Core::System::release_address_space(m_mapping_base, reservation_size);
+        VERIFY(!result.is_error());
+    }
+    m_mapping_base = nullptr;
+    m_data = nullptr;
+    m_reserved_capacity = 0;
+    m_mapping_size = 0;
+    m_host_page_size = 0;
+    m_size = 0;
+    m_fallback.clear();
+}
+
+void MemoryBuffer::try_reserve_wasm32_address_space()
+{
+    if (m_mapping_base)
+        return;
+
+    auto host_page_size = static_cast<size_t>(PAGE_SIZE);
+    auto reserved_capacity = static_cast<size_t>(Constants::page_size) * 65536;
+    auto mapping_size = reserved_capacity * 2;
+    auto reservation_size = mapping_size + 2 * host_page_size;
+
+    auto mapping_or_error = Core::System::reserve_address_space(reservation_size);
+    if (mapping_or_error.is_error())
+        return;
+
+    m_mapping_base = mapping_or_error.value();
+    m_data = reinterpret_cast<u8*>(m_mapping_base) + host_page_size;
+    m_reserved_capacity = reserved_capacity;
+    m_mapping_size = mapping_size;
+    m_host_page_size = host_page_size;
+}
+
+ErrorOr<void> MemoryBuffer::try_resize(size_t new_size)
+{
+    if (m_data) {
+        VERIFY(new_size >= m_size);
+        VERIFY(m_host_page_size);
+        if (new_size > m_reserved_capacity)
+            return Error::from_errno(ENOMEM);
+        if (new_size == m_size)
+            return {};
+
+        auto* grow_base = m_data + m_size;
+        auto grow_size = new_size - m_size;
+        TRY(Core::System::commit_memory(grow_base, grow_size));
+
+        m_size = new_size;
+        return {};
+    }
+
+    TRY(m_fallback.try_resize(new_size));
+    m_size = m_fallback.size();
+    return {};
+}
+
+bool MemoryBuffer::contains_virtual_address(void const* address) const
+{
+    if (!m_mapping_base)
+        return false;
+
+    auto fault_address = bit_cast<FlatPtr>(address);
+    auto base = bit_cast<FlatPtr>(m_data);
+    return fault_address >= base && fault_address < base + m_mapping_size;
+}
+
+ErrorOr<MemoryInstance> MemoryInstance::create(MemoryType const& type)
+{
+    MemoryInstance instance { type };
+
+    if (!instance.grow(type.limits().min() * Constants::page_size, GrowType::No))
+        return Error::from_string_literal("Failed to grow to requested size");
+
+    return { move(instance) };
+}
+
+MemoryInstance::MemoryInstance(MemoryType const& type)
+    : m_type(type)
+{
+    if (type.limits().address_type() == AddressType::I32)
+        m_data.try_reserve_wasm32_address_space();
+}
+
+bool MemoryInstance::grow(size_t size_to_grow, GrowType grow_type, InhibitGrowCallback inhibit_callback)
+{
+    if (size_to_grow == 0)
+        return true;
+    u64 new_size = m_data.size() + size_to_grow;
+    if (new_size >= Constants::page_size * 65536)
+        return false;
+    if (auto max = m_type.limits().max(); max.has_value()) {
+        if (max.value() * Constants::page_size < new_size)
+            return false;
+    }
+
+    auto previous_size = m_data.size();
+    if (m_data.try_resize(new_size).is_error())
+        return false;
+    if (!m_data.is_virtual())
+        m_data.span().slice(previous_size, size_to_grow).fill(0);
+
+    if (inhibit_callback == InhibitGrowCallback::No && successful_grow_hook)
+        successful_grow_hook();
+
+    if (grow_type == GrowType::Yes)
+        m_type = MemoryType { Limits(m_type.limits().address_type(), m_type.limits().min() + size_to_grow / Constants::page_size, m_type.limits().max()) };
+
+    return true;
+}
 
 Optional<FunctionAddress> Store::allocate(ModuleInstance& instance, Module const& module, CodeSection::Code const& code, TypeIndex type_index)
 {
@@ -55,7 +204,7 @@ Optional<MemoryAddress> Store::allocate(MemoryType const& type)
     if (instance.is_error())
         return {};
 
-    m_memories.append(instance.release_value());
+    m_memories.append(make<MemoryInstance>(instance.release_value()));
     return address;
 }
 
@@ -123,7 +272,7 @@ MemoryInstance* Store::get(MemoryAddress address)
     auto value = address.value();
     if (m_memories.size() <= value)
         return nullptr;
-    return &m_memories[value];
+    return m_memories[value].ptr();
 }
 
 GlobalInstance* Store::get(GlobalAddress address)
@@ -299,7 +448,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             auxiliary_instance,
             Vector<Value, ArgumentsStaticSize> {},
             entry.expression(),
-            1);
+            1uz);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Global instantiation trapped", move(result.trap()) };
@@ -354,7 +503,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             main_module_instance,
             Vector<Value, ArgumentsStaticSize> {},
             active_ptr->expression,
-            1);
+            1uz);
         auto result = config.execute(interpreter);
         if (result.is_trap())
             return InstantiationError { "Element section initialisation trapped", move(result.trap()) };
@@ -387,7 +536,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
                     main_module_instance,
                     Vector<Value, ArgumentsStaticSize> {},
                     data.offset,
-                    1);
+                    1uz);
                 auto result = config.execute(interpreter);
                 if (result.is_trap())
                     return InstantiationError { "Data section initialisation trapped", move(result.trap()) };

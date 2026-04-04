@@ -457,22 +457,61 @@ private:
     TableType m_type;
 };
 
-class MemoryInstance {
+class WASM_API MemoryBuffer {
 public:
-    static ErrorOr<MemoryInstance> create(MemoryType const& type)
+    MemoryBuffer() = default;
+    ~MemoryBuffer();
+
+    MemoryBuffer(MemoryBuffer&&);
+    MemoryBuffer& operator=(MemoryBuffer&&);
+
+    MemoryBuffer(MemoryBuffer const&) = delete;
+    MemoryBuffer& operator=(MemoryBuffer const&) = delete;
+
+    void try_reserve_wasm32_address_space();
+    ErrorOr<void> try_resize(size_t new_size);
+
+    auto size() const { return m_size; }
+    auto data() const { return m_data ? m_data : m_fallback.data(); }
+    auto data() { return m_data ? m_data : m_fallback.data(); }
+    Bytes bytes() { return { data(), size() }; }
+    ReadonlyBytes bytes() const { return { data(), size() }; }
+    Bytes span() { return bytes(); }
+    ReadonlyBytes span() const { return bytes(); }
+    u8* offset_pointer(size_t offset) { return data() + offset; }
+    u8 const* offset_pointer(size_t offset) const { return data() + offset; }
+    u8& operator[](size_t index) { return data()[index]; }
+    u8 const& operator[](size_t index) const { return data()[index]; }
+    void overwrite(size_t offset, void const* source, size_t count)
     {
-        MemoryInstance instance { type };
-
-        if (!instance.grow(type.limits().min() * Constants::page_size, GrowType::No))
-            return Error::from_string_literal("Failed to grow to requested size");
-
-        return { move(instance) };
+        VERIFY(offset <= size());
+        VERIFY(count <= size() - offset);
+        __builtin_memcpy(offset_pointer(offset), source, count);
     }
+    bool is_virtual() const { return m_data != nullptr; }
+    bool contains_virtual_address(void const* address) const;
+
+private:
+    void clear();
+
+    size_t m_size { 0 };
+    size_t m_reserved_capacity { 0 };
+    size_t m_mapping_size { 0 };
+    size_t m_host_page_size { 0 };
+    void* m_mapping_base { nullptr };
+    u8* m_data { nullptr };
+    ByteBuffer m_fallback;
+};
+
+class WASM_API MemoryInstance {
+public:
+    static ErrorOr<MemoryInstance> create(MemoryType const& type);
 
     auto& type() const { return m_type; }
-    auto size() const { return m_size; }
+    auto size() const { return m_data.size(); }
     auto& data() const { return m_data; }
     auto& data() { return m_data; }
+    bool contains_virtual_address(void const* address) const { return m_data.contains_virtual_address(address); }
 
     enum class InhibitGrowCallback {
         No,
@@ -484,52 +523,15 @@ public:
         Yes,
     };
 
-    bool grow(size_t size_to_grow, GrowType grow_type = GrowType::Yes, InhibitGrowCallback inhibit_callback = InhibitGrowCallback::No)
-    {
-        if (size_to_grow == 0)
-            return true;
-        u64 new_size = m_data.size() + size_to_grow;
-        // Can't grow past 2^16 pages.
-        if (new_size >= Constants::page_size * 65536)
-            return false;
-        if (auto max = m_type.limits().max(); max.has_value()) {
-            if (max.value() * Constants::page_size < new_size)
-                return false;
-        }
-        auto previous_size = m_size;
-        if (m_data.try_resize(new_size).is_error())
-            return false;
-        m_size = new_size;
-        // The spec requires that we zero out everything on grow
-        __builtin_memset(m_data.offset_pointer(previous_size), 0, size_to_grow);
-
-        // NOTE: This exists because wasm-js-api wants to execute code after a successful grow,
-        //       See [this issue](https://github.com/WebAssembly/spec/issues/1635) for more details.
-        if (inhibit_callback == InhibitGrowCallback::No && successful_grow_hook)
-            successful_grow_hook();
-
-        if (grow_type == GrowType::Yes) {
-            // Grow the memory's type. We do this when encountering a `memory.grow`.
-            //
-            // See relevant spec link:
-            // https://www.w3.org/TR/wasm-core-2/#growing-memories%E2%91%A0
-            m_type = MemoryType { Limits(m_type.limits().address_type(), m_type.limits().min() + size_to_grow / Constants::page_size, m_type.limits().max()) };
-        }
-
-        return true;
-    }
+    bool grow(size_t size_to_grow, GrowType grow_type = GrowType::Yes, InhibitGrowCallback inhibit_callback = InhibitGrowCallback::No);
 
     Function<void()> successful_grow_hook;
 
 private:
-    explicit MemoryInstance(MemoryType const& type)
-        : m_type(type)
-    {
-    }
+    explicit MemoryInstance(MemoryType const& type);
 
     MemoryType m_type;
-    size_t m_size { 0 };
-    ByteBuffer m_data;
+    MemoryBuffer m_data;
 };
 
 class GlobalInstance {
@@ -644,12 +646,13 @@ public:
     TagInstance* get(TagAddress);
     ExceptionInstance* get(ExceptionAddress);
 
-    MemoryInstance* unsafe_get(MemoryAddress address) { return &m_memories.data()[address.value()]; }
+    ALWAYS_INLINE FunctionInstance* unsafe_get(FunctionAddress address) { return &m_functions.data()[address.value()]; }
+    ALWAYS_INLINE MemoryInstance* unsafe_get(MemoryAddress address) { return m_memories[address.value()].ptr(); }
 
 private:
     Vector<FunctionInstance> m_functions;
     Vector<TableInstance> m_tables;
-    Vector<MemoryInstance> m_memories;
+    Vector<NonnullOwnPtr<MemoryInstance>> m_memories;
     Vector<GlobalInstance> m_globals;
     Vector<ElementInstance> m_elements;
     Vector<DataInstance> m_datas;
@@ -678,17 +681,30 @@ private:
 
 class Frame {
 public:
+    // Owning constructor (slow path).
     explicit Frame(ModuleInstance const& module, Vector<Value, ArgumentsStaticSize> locals, Expression const& expression, size_t arity)
         : m_module(module)
-        , m_locals(move(locals))
+        , m_owned_locals(move(locals))
+        , m_locals_ptr(m_owned_locals.data())
+        , m_expression(expression)
+        , m_arity(arity)
+        , m_owns_locals(true)
+    {
+    }
+
+    // Non-owning constructor (fast path).
+    explicit Frame(ModuleInstance const& module, Value* locals_ptr, Expression const& expression, size_t arity)
+        : m_module(module)
+        , m_locals_ptr(locals_ptr)
         , m_expression(expression)
         , m_arity(arity)
     {
     }
 
     auto& module() const { return m_module; }
-    auto& locals() const { return m_locals; }
-    auto& locals() { return m_locals; }
+    Value* locals_data() const { return m_locals_ptr; }
+    bool owns_locals() const { return m_owns_locals; }
+    Vector<Value, ArgumentsStaticSize>& owned_locals() { return m_owned_locals; }
     auto& expression() const { return m_expression; }
     auto arity() const { return m_arity; }
     auto label_index() const { return m_label_index; }
@@ -696,10 +712,12 @@ public:
 
 private:
     ModuleInstance const& m_module;
-    Vector<Value, ArgumentsStaticSize> m_locals;
+    Vector<Value, ArgumentsStaticSize> m_owned_locals;
+    Value* m_locals_ptr { nullptr };
     Expression const& m_expression;
     size_t m_arity { 0 };
     size_t m_label_index { 0 };
+    bool m_owns_locals { false };
 };
 
 using InstantiationResult = AK::ErrorOr<NonnullOwnPtr<ModuleInstance>, InstantiationError>;

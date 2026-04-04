@@ -12,6 +12,7 @@ class AbstractMachine;
 class Validator;
 struct ValidationError;
 struct Interpreter;
+class MemoryBuffer;
 
 namespace Wasi {
 

@@ -34,10 +34,13 @@ public:
     template<typename... Args>
     void set_frame(IsTailcall is_tailcall, Args&&... frame_init)
     {
-        m_frame_stack.append(forward<Args>(frame_init)...);
+        m_frame_stack.empend(forward<Args>(frame_init)...);
 
-        auto& frame = m_frame_stack.unchecked_last();
-        m_locals_base = frame.locals().data();
+        auto& frame = m_frame_stack.last();
+        m_locals_base = frame.locals_data();
+        auto const& memories = frame.module().memories();
+        m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+        m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
 
         auto continuation = frame.expression().instructions().size() - 1;
         if (auto size = frame.expression().compiled_instructions.dispatches.size(); size > 0)
@@ -61,8 +64,33 @@ public:
             m_call_record_base = nullptr;
         }
     }
-    ALWAYS_INLINE auto& frame() const { return m_frame_stack.unchecked_last(); }
-    ALWAYS_INLINE auto& frame() { return m_frame_stack.unchecked_last(); }
+    // Lightweight set_frame for direct Cranelift-to-Cranelift calls.
+    void set_frame_lightweight(ModuleInstance const& module, Value* locals_ptr,
+        Expression const& expression, size_t arity)
+    {
+        m_frame_stack.empend(module, locals_ptr, expression, arity);
+        m_locals_base = locals_ptr;
+        auto const& memories = module.memories();
+        m_default_memory = memories.is_empty() ? nullptr : m_store.unsafe_get(memories[0]);
+        m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr;
+        // Skip capacity hints and label push (Cranelift uses its own structured control flow).
+    }
+
+    void setup_call_record_for_current_frame()
+    {
+        auto max_call_rec_size = m_frame_stack.last().expression().compiled_instructions.max_call_rec_size;
+        if (max_call_rec_size > 0) {
+            m_current_call_record.clear_with_capacity();
+            m_current_call_record.ensure_capacity(max_call_rec_size);
+            m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
+            m_call_record_base = m_current_call_record.data();
+        } else {
+            m_call_record_base = nullptr;
+        }
+    }
+
+    ALWAYS_INLINE auto& frame() const { return m_frame_stack.last(); }
+    ALWAYS_INLINE auto& frame() { return m_frame_stack.last(); }
     ALWAYS_INLINE auto& ip() const { return m_ip; }
     ALWAYS_INLINE auto& ip() { return m_ip; }
     ALWAYS_INLINE auto& depth() const { return m_depth; }
@@ -73,16 +101,71 @@ public:
     ALWAYS_INLINE auto& label_stack() { return m_label_stack; }
     ALWAYS_INLINE auto& store() const { return m_store; }
     ALWAYS_INLINE auto& store() { return m_store; }
+    ALWAYS_INLINE MemoryInstance* default_memory() const { return m_default_memory; }
+    ALWAYS_INLINE u8* default_memory_base() const { return m_default_memory_base; }
+    ALWAYS_INLINE void refresh_default_memory_base() { m_default_memory_base = m_default_memory ? m_default_memory->data().data() : nullptr; }
+    ALWAYS_INLINE Value& compiled_call_result_scratch() { return m_compiled_call_result_scratch; }
+    ALWAYS_INLINE Value const& compiled_call_result_scratch() const { return m_compiled_call_result_scratch; }
 
     ALWAYS_INLINE Value const& local(LocalIndex index) const { return m_locals_base[index.value()]; }
     ALWAYS_INLINE Value& local(LocalIndex index) { return m_locals_base[index.value()]; }
+    ALWAYS_INLINE Value* locals_base() const { return m_locals_base; }
+    ALWAYS_INLINE void set_locals_base(Value* base) { m_locals_base = base; }
+
+    // When > 0, unwind_impl skips the frame pop (the direct call didn't push a frame).
+    size_t m_compiled_direct_call_depth { 0 };
+
+    // Per-function entry for the compiled function table (direct calls from Cranelift).
+    struct CompiledFunctionEntry {
+        FlatPtr handler_ptr { 0 };    // 0 = not compiled, use slow path
+        FlatPtr dispatches_ptr { 0 }; // Dispatch const* for the handler call
+        FlatPtr src_dst_ptr { 0 };    // SourcesAndDestination const*
+        Instruction const* first_insn { nullptr };
+        Expression const* expression { nullptr };
+        ModuleInstance const* module { nullptr };
+        u32 total_local_count { 0 };
+        u32 arity { 0 };
+        u32 max_call_rec_size { 0 };
+    };
+    HashMap<u32, CompiledFunctionEntry> m_compiled_fn_table;
+    ModuleInstance const* m_compiled_fn_table_module { nullptr };
+
+    void build_compiled_function_table();
+
+    static constexpr size_t locals_base_offset() { return __builtin_offsetof(Configuration, m_locals_base); }
+    static constexpr size_t default_memory_base_offset() { return __builtin_offsetof(Configuration, m_default_memory_base); }
+    static constexpr size_t compiled_call_result_scratch_offset() { return __builtin_offsetof(Configuration, m_compiled_call_result_scratch); }
+
+    ALWAYS_INLINE Value& call_record_entry(size_t index) { return m_call_record_base[index]; }
+    ALWAYS_INLINE Value const& call_record_entry(size_t index) const { return m_call_record_base[index]; }
+    ALWAYS_INLINE Value* call_record_base() const { return m_call_record_base; }
+    ALWAYS_INLINE void set_call_record_base(Value* base) { m_call_record_base = base; }
+    ALWAYS_INLINE void setup_call_record(size_t max_call_rec_size)
+    {
+        get_arguments_allocation_if_possible(m_current_call_record, max_call_rec_size);
+        m_current_call_record.resize_and_keep_capacity(max_call_rec_size);
+        m_call_record_base = m_current_call_record.data();
+    }
+    ALWAYS_INLINE Vector<Value, ArgumentsStaticSize> take_call_record_vector()
+    {
+        auto result = move(m_current_call_record);
+        m_call_record_base = nullptr;
+        return result;
+    }
+    ALWAYS_INLINE void restore_call_record_vector(Vector<Value, ArgumentsStaticSize>&& vec)
+    {
+        m_current_call_record = move(vec);
+        m_call_record_base = m_current_call_record.data();
+    }
 
     struct CallFrameHandle {
         explicit CallFrameHandle(Configuration& configuration)
             : configuration(configuration)
+            , saved_direct_call_depth(configuration.m_compiled_direct_call_depth)
         {
             if (configuration.m_call_record_base)
                 moved_call_record = move(configuration.m_current_call_record);
+            configuration.m_compiled_direct_call_depth = 0;
             configuration.depth()++;
             configuration.m_call_record_base = nullptr;
         }
@@ -96,16 +179,38 @@ public:
                 configuration.m_call_record_base = nullptr;
             }
             configuration.unwind({}, *this);
+            configuration.m_compiled_direct_call_depth = saved_direct_call_depth;
         }
 
         Configuration& configuration;
         Optional<Vector<Value, ArgumentsStaticSize>> moved_call_record;
+        size_t saved_direct_call_depth;
     };
 
     void unwind(Badge<CallFrameHandle>, CallFrameHandle const&) { unwind_impl(); }
     ErrorOr<Optional<HostFunction&>, Trap> prepare_call(FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false);
+    ALWAYS_INLINE ErrorOr<void, Trap> prepare_wasm_call(WasmFunction const& wasm_function, Vector<Value, ArgumentsStaticSize>& arguments, bool is_tailcall = false)
+    {
+        if (is_tailcall)
+            unwind_impl();
+
+        arguments.ensure_capacity(arguments.size() + wasm_function.code().func().total_local_count());
+        for (auto const& local : wasm_function.code().func().locals()) {
+            for (size_t i = 0; i < local.n(); ++i)
+                arguments.unchecked_append(Value(local.type()));
+        }
+
+        set_frame(
+            is_tailcall ? IsTailcall::Yes : IsTailcall::No,
+            wasm_function.module(),
+            move(arguments),
+            wasm_function.code().func().body(),
+            wasm_function.type().results().size());
+        return {};
+    }
     Result call(Interpreter&, FunctionAddress, Vector<Value, ArgumentsStaticSize>& arguments);
     Result execute(Interpreter&);
+    ErrorOr<void, Trap> execute_for_compiled_call(Interpreter&, Value* single_result = nullptr);
 
     void enable_instruction_count_limit() { m_should_limit_instruction_count = true; }
     bool should_limit_instruction_count() const { return m_should_limit_instruction_count; }
@@ -143,7 +248,8 @@ public:
                 return;
             }
 
-            VERIFY(m_current_call_record.size() >= size);
+            if (m_current_call_record.size() < size)
+                m_current_call_record.resize_and_keep_capacity(size);
         }
 
         if (arguments.capacity() != ArgumentsStaticSize) {
@@ -257,13 +363,13 @@ public:
         Value(0),
     };
 
-private:
+    // Public for CraneliftBridge direct call pop_frame.
     void unwind_impl();
 
     Store& m_store;
     Vector<Value, 64, FastLastAccess::Yes> m_value_stack;
     Vector<Label, 64, FastLastAccess::Yes> m_label_stack;
-    DoublyLinkedList<Frame, 512> m_frame_stack;
+    Vector<Frame> m_frame_stack;
     Vector<Value, ArgumentsStaticSize> m_current_call_record;
     Vector<Vector<Value, ArgumentsStaticSize>, 16, FastLastAccess::Yes> m_call_argument_freelist;
     size_t m_depth { 0 };
@@ -271,6 +377,9 @@ private:
     bool m_should_limit_instruction_count { false };
     Value* m_locals_base { nullptr };
     Value* m_call_record_base { nullptr };
+    MemoryInstance* m_default_memory { nullptr };
+    u8* m_default_memory_base { nullptr };
+    Value m_compiled_call_result_scratch;
 };
 
 }
