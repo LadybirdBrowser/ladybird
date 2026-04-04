@@ -925,3 +925,8 @@ test("incomplete \\u and \\x escapes", () => {
     expect("\\x\u0000".match(/[\x00]+/)).toEqual(["\u0000"]);
     expect("0\u0000".match(/[\x000]+/)).toEqual(["0\u0000"]);
 });
+
+test("lone surrogates as \\uXXXX escapes are valid in /v mode character classes", () => {
+    expect("".match(/[\udf9e]/v)).toBeNull();
+    expect("\udfff".match(/[\udf9e-\udfff]/v)).toEqual(["\udfff"]);
+});

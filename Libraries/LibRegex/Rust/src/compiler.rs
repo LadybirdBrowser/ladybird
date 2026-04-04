@@ -1226,7 +1226,7 @@ impl Compiler {
                     self.emit(Instruction::Fail);
                     return;
                 }
-                self.emit_char_maybe_case_fold(*c as u32);
+                self.emit_char_maybe_case_fold(*c);
             }
             ClassSetOperand::Range(lo, hi) => {
                 if length != 1 {
@@ -1234,10 +1234,7 @@ impl Compiler {
                     return;
                 }
                 self.emit(Instruction::CharClass {
-                    ranges: vec![CharRange {
-                        start: *lo as u32,
-                        end: *hi as u32,
-                    }],
+                    ranges: vec![CharRange { start: *lo, end: *hi }],
                     negated: false,
                 });
             }

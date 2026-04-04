@@ -1686,7 +1686,7 @@ impl Parser {
                     return Err(Error::InvalidCharacterClass);
                 }
                 self.advance();
-                self.try_parse_class_set_range(ch)
+                self.try_parse_class_set_range(ch as u32)
             }
         }
     }
@@ -1694,20 +1694,17 @@ impl Parser {
     /// Parse the restricted escape forms allowed when a `/v` class set operand
     /// expects a single character.
     /// <https://tc39.es/ecma262/#sec-patterns>
-    fn parse_class_set_char_escape(&mut self) -> Result<char, Error> {
+    fn parse_class_set_char_escape(&mut self) -> Result<u32, Error> {
         let ch = self.advance().ok_or(Error::LoneTrailingBackslash)?;
         match ch {
-            'n' => Ok('\n'),
-            'r' => Ok('\r'),
-            't' => Ok('\t'),
-            'f' => Ok('\u{0C}'),
-            'v' => Ok('\u{0B}'),
-            'b' => Ok('\u{08}'),
-            '0' if !self.peek().is_some_and(|c| c.is_ascii_digit()) => Ok('\0'),
-            'x' => {
-                let val = self.parse_hex_escape(2)?;
-                char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)
-            }
+            'n' => Ok('\n' as u32),
+            'r' => Ok('\r' as u32),
+            't' => Ok('\t' as u32),
+            'f' => Ok(0x0C),
+            'v' => Ok(0x0B),
+            'b' => Ok(0x08),
+            '0' if !self.peek().is_some_and(|c| c.is_ascii_digit()) => Ok(0),
+            'x' => self.parse_hex_escape(2),
             'u' => {
                 let is_braced = self.peek() == Some('{');
                 let val = self.parse_unicode_escape()?;
@@ -1717,22 +1714,22 @@ impl Parser {
                         let low = self.parse_unicode_escape()?;
                         if (0xDC00..=0xDFFF).contains(&low) {
                             let combined = 0x10000 + ((val - 0xD800) << 10) + (low - 0xDC00);
-                            return char::from_u32(combined).ok_or(Error::InvalidUnicodeEscape);
+                            return Ok(combined);
                         }
                         self.pos = saved;
                     } else {
                         self.pos = saved;
                     }
                 }
-                char::from_u32(val).ok_or(Error::InvalidUnicodeEscape)
+                Ok(val)
             }
-            _ if is_syntax_character(ch) || ch == '/' || ch == '-' => Ok(ch),
+            _ if is_syntax_character(ch) || ch == '/' || ch == '-' => Ok(ch as u32),
             _ => Err(Error::InvalidEscape(ch)),
         }
     }
 
     /// After reading a character in a unicode-sets class, check if it's followed by `-` to form a range.
-    fn try_parse_class_set_range(&mut self, first: char) -> Result<ClassSetOperand, Error> {
+    fn try_parse_class_set_range(&mut self, first: u32) -> Result<ClassSetOperand, Error> {
         if self.eat('-') {
             if self.peek() == Some(']') || self.peek() == Some('-') || self.peek_pair() == Some(('&', '&')) {
                 // `-]`, `--`, and `-&&` do not start a character range here.
@@ -1747,10 +1744,10 @@ impl Parser {
                 if is_class_set_syntax_character(c) {
                     return Err(Error::InvalidCharacterClass);
                 }
-                self.advance().ok_or(Error::InvalidCharacterClass)?
+                self.advance().ok_or(Error::InvalidCharacterClass)? as u32
             };
             if first > second {
-                return Err(Error::InvalidCharacterRange(first as u32, second as u32));
+                return Err(Error::InvalidCharacterRange(first, second));
             }
             Ok(ClassSetOperand::Range(first, second))
         } else {
