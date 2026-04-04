@@ -12,6 +12,16 @@
 
 namespace Web::Layout {
 
+enum class FragmentationState {
+    Unfragmented,
+    HorizontalStart,
+    HorizontalMiddle,
+    HorizontalEnd,
+    VerticalStart,
+    VerticalMiddle,
+    VerticalEnd
+};
+
 // https://drafts.csswg.org/css-break/#fragmentation-context
 // FIXME: Some of this will need to be merged with AvailableSpace in some form once we get to fragmentation contexts
 //        with variable-width fragmentainers.

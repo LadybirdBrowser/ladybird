@@ -336,29 +336,29 @@ void PaintableBox::set_content_size(CSSPixelSize size)
     invalidate_descendant_styles_for_container_query_size_change(*this, old_size, size);
 }
 
-void PaintableBox::set_fragmentation_state(FragmentationState fragmentation_state)
+void PaintableBox::set_fragmentation_state(Layout::FragmentationState fragmentation_state)
 {
     switch (fragmentation_state) {
-    case FragmentationState::Unfragmented:
+    case Layout::FragmentationState::Unfragmented:
         break;
-    case FragmentationState::HorizontalStart:
+    case Layout::FragmentationState::HorizontalStart:
         m_fragment_right_edge_away = true;
         break;
-    case FragmentationState::HorizontalMiddle:
+    case Layout::FragmentationState::HorizontalMiddle:
         m_fragment_left_edge_away = true;
         m_fragment_right_edge_away = true;
         break;
-    case FragmentationState::HorizontalEnd:
+    case Layout::FragmentationState::HorizontalEnd:
         m_fragment_left_edge_away = true;
         break;
-    case FragmentationState::VerticalStart:
+    case Layout::FragmentationState::VerticalStart:
         m_fragment_bottom_edge_away = true;
         break;
-    case FragmentationState::VerticalMiddle:
+    case Layout::FragmentationState::VerticalMiddle:
         m_fragment_top_edge_away = true;
         m_fragment_bottom_edge_away = true;
         break;
-    case FragmentationState::VerticalEnd:
+    case Layout::FragmentationState::VerticalEnd:
         m_fragment_top_edge_away = true;
         break;
     }

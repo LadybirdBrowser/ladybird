@@ -465,7 +465,7 @@ void LayoutState::commit(Box& root)
         box_model.margin = { used_values.margin_top, used_values.margin_right, used_values.margin_bottom, used_values.margin_left };
     };
 
-    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index, Painting::PaintableBox::FragmentationState fragmentation_state) -> bool {
+    auto try_to_relocate_fragment_in_inline_node = [&](auto& fragment, size_t line_index, FragmentationState fragmentation_state) -> bool {
         for (auto const* parent = fragment.layout_node().parent(); parent; parent = parent->parent()) {
             if (parent->is_atomic_inline())
                 break;
@@ -492,81 +492,100 @@ void LayoutState::commit(Box& root)
         if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
             return;
 
-        RefPtr<Painting::Paintable> paintable;
+        Vector<RefPtr<Painting::Paintable>> paintables;
 
-        // Try to reuse cached paintable for Box nodes
-        if (auto cached = paintable_cache.get(&node); cached.has_value()) {
+        auto fragments = used_values.box_fragments().value_or({ UsedValues::BoxFragment(used_values.offset, used_values.content_height()) });
+
+        // Try to reuse cached paintable for Box nodes, as long as they are not fragmented into multiple.
+        if (auto cached = paintable_cache.get(&node); cached.has_value() && fragments.size() == 1) {
             auto cached_paintable = cached.value();
             cached_paintable->reset_for_relayout();
-            paintable = cached_paintable;
+            paintables.append(cached_paintable);
         }
 
-        // Fall back to creating new if no reusable paintable
-        if (!paintable)
-            paintable = node.create_paintable();
+        // Fall back to creating new if no reusable paintables
+        if (paintables.size() == 0) {
+            for (size_t i = 0; i < fragments.size(); i++) {
+                paintables.append(node.create_paintable());
+            }
+        }
 
-        node.add_paintable(paintable);
+        for (auto paintable : paintables)
+            node.add_paintable(paintable);
 
         // For boxes, transfer all the state needed for painting.
-        if (auto* paintable_box = as_if<Painting::PaintableBox>(paintable.ptr())) {
-            transfer_box_model_metrics(paintable_box->box_model(), used_values);
+        for (size_t i = 0; i < fragments.size(); i++) {
+            if (auto* paintable_box = as_if<Painting::PaintableBox>(paintables[i].ptr())) {
+                transfer_box_model_metrics(paintable_box->box_model(), used_values);
 
-            paintable_box->set_offset(used_values.offset);
-            paintable_box->set_content_size(used_values.content_width(), used_values.content_height());
-            if (used_values.override_borders_data().has_value())
-                paintable_box->set_override_borders_data(used_values.override_borders_data().value());
-            if (used_values.table_cell_coordinates().has_value())
-                paintable_box->set_table_cell_coordinates(used_values.table_cell_coordinates().value());
+                paintable_box->set_offset(fragments[i].offset);
+                // FIXME: Support non-vertical fragmentation direction.
+                paintable_box->set_content_size(used_values.content_width(), fragments[i].size_in_fragmentation_direction);
+                if (used_values.override_borders_data().has_value())
+                    paintable_box->set_override_borders_data(used_values.override_borders_data().value());
+                if (used_values.table_cell_coordinates().has_value())
+                    paintable_box->set_table_cell_coordinates(used_values.table_cell_coordinates().value());
 
-            if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box)) {
-                for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
-                    auto& line_box = used_values.line_boxes[line_index];
-                    auto first_fragment_continues_last_line_box = false;
-                    if (line_index > 0 && used_values.line_boxes[line_index - 1].fragments().size() > 0 && used_values.line_boxes[line_index].fragments().size() > 0) {
-                        first_fragment_continues_last_line_box = &used_values.line_boxes[line_index - 1].fragments().last().layout_node() == &used_values.line_boxes[line_index].fragments().first().layout_node();
-                    }
-                    auto last_fragment_is_continued_in_next_line_box = false;
-                    if (line_index < used_values.line_boxes.size() - 1 && used_values.line_boxes[line_index].fragments().size() > 0 && used_values.line_boxes[line_index + 1].fragments().size() > 0) {
-                        last_fragment_is_continued_in_next_line_box = &used_values.line_boxes[line_index].fragments().last().layout_node() == &used_values.line_boxes[line_index + 1].fragments().first().layout_node();
-                    }
-                    for (auto const& fragment : line_box.fragments()) {
-                        if (fragment.is_fully_truncated())
-                            continue;
-                        if (auto const* text_node = as_if<TextNode>(fragment.layout_node()))
-                            text_nodes.set(const_cast<TextNode*>(text_node));
-
-                        auto fragmentation_state = Painting::PaintableBox::FragmentationState::Unfragmented;
-                        auto is_first_fragment = &line_box.fragments().first() == &fragment;
-                        auto is_last_fragment = &line_box.fragments().last() == &fragment;
-                        if (is_first_fragment && is_last_fragment && first_fragment_continues_last_line_box && last_fragment_is_continued_in_next_line_box) {
-                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalMiddle;
-                        } else if (is_first_fragment && first_fragment_continues_last_line_box) {
-                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalEnd;
-                        } else if (is_last_fragment && last_fragment_is_continued_in_next_line_box) {
-                            fragmentation_state = Painting::PaintableBox::FragmentationState::HorizontalStart;
-                        }
-
-                        auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index, fragmentation_state);
-                        first_fragment_continues_last_line_box = false;
-                        if (!did_relocate_fragment)
-                            paintable_with_lines->add_fragment(fragment);
+                if (fragments.size() > 1) {
+                    if (i == 0) {
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalStart);
+                    } else if (i == fragments.size() - 1) {
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalEnd);
+                    } else {
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalMiddle);
                     }
                 }
-            }
 
-            if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable.ptr());
-                svg_graphics_paintable && used_values.computed_svg_transforms().has_value()) {
-                svg_graphics_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
-            }
+                if (auto* paintable_with_lines = as_if<Painting::PaintableWithLines>(*paintable_box); i == 0) {
+                    for (size_t line_index = 0; line_index < used_values.line_boxes.size(); ++line_index) {
+                        auto& line_box = used_values.line_boxes[line_index];
+                        auto first_fragment_continues_last_line_box = false;
+                        if (line_index > 0 && used_values.line_boxes[line_index - 1].fragments().size() > 0 && used_values.line_boxes[line_index].fragments().size() > 0) {
+                            first_fragment_continues_last_line_box = &used_values.line_boxes[line_index - 1].fragments().last().layout_node() == &used_values.line_boxes[line_index].fragments().first().layout_node();
+                        }
+                        auto last_fragment_is_continued_in_next_line_box = false;
+                        if (line_index < used_values.line_boxes.size() - 1 && used_values.line_boxes[line_index].fragments().size() > 0 && used_values.line_boxes[line_index + 1].fragments().size() > 0) {
+                            last_fragment_is_continued_in_next_line_box = &used_values.line_boxes[line_index].fragments().last().layout_node() == &used_values.line_boxes[line_index + 1].fragments().first().layout_node();
+                        }
+                        for (auto const& fragment : line_box.fragments()) {
+                            if (fragment.is_fully_truncated())
+                                continue;
+                            if (auto const* text_node = as_if<TextNode>(fragment.layout_node()))
+                                text_nodes.set(const_cast<TextNode*>(text_node));
 
-            if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable.ptr())) {
-                if (auto* path = used_values.computed_svg_path())
-                    svg_path_paintable->set_computed_path(move(*path));
-            }
+                            auto fragmentation_state = FragmentationState::Unfragmented;
+                            auto is_first_fragment = &line_box.fragments().first() == &fragment;
+                            auto is_last_fragment = &line_box.fragments().last() == &fragment;
+                            if (is_first_fragment && is_last_fragment && first_fragment_continues_last_line_box && last_fragment_is_continued_in_next_line_box) {
+                                fragmentation_state = FragmentationState::HorizontalMiddle;
+                            } else if (is_first_fragment && first_fragment_continues_last_line_box) {
+                                fragmentation_state = FragmentationState::HorizontalEnd;
+                            } else if (is_last_fragment && last_fragment_is_continued_in_next_line_box) {
+                                fragmentation_state = FragmentationState::HorizontalStart;
+                            }
 
-            if (node.display().is_grid_inside()) {
-                paintable_box->set_used_values_for_grid_template_columns(used_values.grid_template_columns());
-                paintable_box->set_used_values_for_grid_template_rows(used_values.grid_template_rows());
+                            auto did_relocate_fragment = try_to_relocate_fragment_in_inline_node(fragment, line_index, fragmentation_state);
+                            first_fragment_continues_last_line_box = false;
+                            if (!did_relocate_fragment)
+                                paintable_with_lines->add_fragment(fragment);
+                        }
+                    }
+                }
+
+                if (auto* svg_graphics_paintable = as_if<Painting::SVGGraphicsPaintable>(paintable_box);
+                    svg_graphics_paintable && used_values.computed_svg_transforms().has_value()) {
+                    svg_graphics_paintable->set_computed_transforms(*used_values.computed_svg_transforms());
+                }
+
+                if (auto* svg_path_paintable = as_if<Painting::SVGPathPaintable>(paintable_box)) {
+                    if (auto* path = used_values.computed_svg_path())
+                        svg_path_paintable->set_computed_path(move(*path));
+                }
+
+                if (node.display().is_grid_inside()) {
+                    paintable_box->set_used_values_for_grid_template_columns(used_values.grid_template_columns());
+                    paintable_box->set_used_values_for_grid_template_rows(used_values.grid_template_rows());
+                }
             }
         }
     });
@@ -646,6 +665,7 @@ void LayoutState::commit(Box& root)
         paintable.set_offset(offset);
     });
 
+    // FIXME: Make these fragment.
     for (auto* text_node : text_nodes)
         text_node->add_paintable(text_node->create_paintable());
 
