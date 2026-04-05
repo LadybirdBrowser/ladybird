@@ -31,7 +31,7 @@
 
 #if defined(Q_OS_MACOS)
 #    include "WebContentViewAccessibility.h"
-#else
+#elif !defined(Q_OS_WIN)
 #    include "AccessibilityInterface.h"
 #endif
 
@@ -92,7 +92,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 
 #if defined(Q_OS_MACOS)
     install_accessibility(this);
-#else
+#elif !defined(Q_OS_WIN)
     static bool accessibility_factory_installed = false;
     if (!accessibility_factory_installed) {
         QAccessible::installFactory(accessibility_factory);
@@ -118,7 +118,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
             setFocus(Qt::OtherFocusReason);
             update_accessibility_tree(this);
         });
-#else
+#elif !defined(Q_OS_WIN)
         // Prune interfaces for nodes no longer in the tree.
         QList<i64> stale_ids;
         for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
@@ -130,19 +130,25 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
             QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(iface));
         }
 
-        // Post focus event on the document root so Orca sees it.
+        // Post focus event on the document root so Orca sees it. Only do this when no other widget (address bar, tabs,
+        // etc.) currently has focus — otherwise typing in the address bar breaks because Orca's web script unsuspends
+        // structural navigation when it sees document focus, adding keyboard grabs for H/K/I. When the user later
+        // navigates to the document area, focusInEvent posts the focus event instead.
         QTimer::singleShot(1000, this, [this] {
-            setFocus(Qt::OtherFocusReason);
+            auto* focus_widget = QApplication::focusWidget();
+            if (focus_widget && focus_widget != this && focus_widget->window() == this->window()) {
+                // Another widget in our window has focus (e.g. address bar). Don't steal focus or post document focus
+                // event.
+                return;
+            }
 
-            if (m_accessibility_manager && !m_accessibility_manager->is_empty()) {
-                auto const* root = m_accessibility_manager->root();
-                if (root) {
-                    auto* root_iface = accessibility_interface_for_node(root->id);
-                    if (root_iface) {
-                        QAccessibleEvent focus_event(root_iface, QAccessible::Focus);
-                        QAccessible::updateAccessibility(&focus_event);
-                    }
-                }
+            if (hasFocus()) {
+                // Already focused — focusInEvent won't fire, so post the accessibility event directly.
+                notify_accessibility_focus_on_document_root();
+            } else {
+                // setFocus triggers focusInEvent, which posts the accessibility event via
+                // notify_accessibility_focus_on_document_root.
+                setFocus(Qt::OtherFocusReason);
             }
         });
 #endif
@@ -154,7 +160,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
         m_accessibility_manager->set_focused_node(node_id);
 #if defined(Q_OS_MACOS)
         Ladybird::post_accessibility_focus_changed(this, node_id);
-#else
+#elif !defined(Q_OS_WIN)
         auto* iface = accessibility_interface_for_node(node_id);
         if (iface) {
             QAccessibleEvent focus_event(iface, QAccessible::Focus);
@@ -581,6 +587,12 @@ void WebContentView::dropEvent(QDropEvent* event)
 void WebContentView::focusInEvent(QFocusEvent*)
 {
     client().async_set_has_focus(m_client_state.page_index, true);
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    // Notify Orca that the document now has focus. This handles the case where the user navigates from the address bar
+    // to the document area (click or Tab). The 1000ms timer in on_accessibility_tree_received skips this notification
+    // when another widget had focus, so we do it here instead.
+    notify_accessibility_focus_on_document_root();
+#endif
 }
 
 void WebContentView::focusOutEvent(QFocusEvent*)
@@ -680,6 +692,14 @@ void WebContentView::hideEvent(QHideEvent* event)
 {
     QWidget::hideEvent(event);
     set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    // When this tab becomes inactive, deregister all its accessibility interfaces from Qt's global registry.
+    for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
+        QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(it.value()));
+    }
+    m_accessibility_elements.clear();
+#endif
 }
 
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)
@@ -718,6 +738,22 @@ void WebContentView::update_palette(PaletteMode mode)
 {
     client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
 }
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+void WebContentView::notify_accessibility_focus_on_document_root()
+{
+    if (m_accessibility_manager && !m_accessibility_manager->is_empty()) {
+        auto const* root = m_accessibility_manager->root();
+        if (root) {
+            auto* root_iface = accessibility_interface_for_node(root->id);
+            if (root_iface) {
+                QAccessibleEvent focus_event(root_iface, QAccessible::Focus);
+                QAccessible::updateAccessibility(&focus_event);
+            }
+        }
+    }
+}
+#endif
 
 void WebContentView::schedule_accessibility_tree_request()
 {
@@ -1028,7 +1064,7 @@ void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
         QApplication::sendEvent(parent(), &event);
 }
 
-#if !defined(Q_OS_MACOS)
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
 QAccessibleInterface* WebContentView::accessibility_interface_for_node(i64 node_id)
 {
     if (auto* existing = m_accessibility_elements.value(node_id, nullptr))

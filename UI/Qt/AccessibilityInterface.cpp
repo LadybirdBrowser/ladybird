@@ -428,10 +428,16 @@ QAccessible::State AccessibilityInterface::state() const
     if (data->is_disabled)
         accessible_state.disabled = true;
 
-    auto role = data->role.bytes_as_string_view();
+    // Only report visible/showing for the active tab's elements. Inactive tabs' elements must be hidden from AT-SPI2 so
+    // Orca doesn't navigate to them during Say All.
+    if (m_view && m_view->isVisible()) {
+        accessible_state.invisible = false;
+    } else {
+        accessible_state.invisible = true;
+        accessible_state.offscreen = true;
+    }
 
-    if (role == "document"sv && m_view->hasFocus())
-        accessible_state.focused = true;
+    auto role = data->role.bytes_as_string_view();
 
     if (role == "link"sv)
         accessible_state.linked = true;
@@ -455,8 +461,9 @@ QStringList AccessibilityInterface::actionNames() const
         || role == "radio"sv || role == "menuitem"sv || role == "tab"sv)
         actions << QAccessibleActionInterface::pressAction();
 
-    if (role == "textbox"sv || role == "searchbox"sv)
-        actions << QAccessibleActionInterface::setFocusAction();
+    // All elements support setFocus so Orca's GrabFocus (AT-SPI2 Component interface) can move DOM focus there, which
+    // triggers the CSS :focus-visible focus ring during screen reader navigation.
+    actions << QAccessibleActionInterface::setFocusAction();
 
     return actions;
 }
@@ -557,7 +564,14 @@ int AccessibilityInterface::characterCount() const
     return build_hypertext().size();
 }
 
-void AccessibilityInterface::scrollToSubstring(int, int) { }
+void AccessibilityInterface::scrollToSubstring(int, int)
+{
+    // Orca calls scrollToSubstring when its browse-mode cursor moves to an element. Move DOM focus there so the
+    // existing CSS :focus-visible focus ring is drawn. Only act if this view is visible — Orca may hold stale
+    // references to inactive tab objects and send scrollToSubstring to them.
+    if (m_view && m_view->isVisible())
+        m_view->perform_accessibility_action(m_node_id, "focus"_string);
+}
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 // QAccessibleAttributesInterface

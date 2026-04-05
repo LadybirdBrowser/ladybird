@@ -637,8 +637,15 @@ void ConnectionFromClient::perform_accessibility_action(u64 page_id, i64 node_id
 {
     if (auto page = this->page(page_id); page.has_value()) {
         auto* node = Web::DOM::Node::from_unique_id(Web::UniqueNodeID(node_id));
-        if (!node || !node->is_element())
+        if (!node)
             return;
+
+        // Text nodes aren't elements — walk up to the parent element.
+        if (!node->is_element()) {
+            node = node->parent_element();
+            if (!node)
+                return;
+        }
 
         auto& element = static_cast<Web::DOM::Element&>(*node);
 
@@ -646,8 +653,14 @@ void ConnectionFromClient::perform_accessibility_action(u64 page_id, i64 node_id
             if (auto* html_element = as_if<Web::HTML::HTMLElement>(element))
                 html_element->click();
         } else if (action == "focus"sv) {
-            if (element.is_focusable())
-                Web::HTML::run_focusing_steps(&element);
+            if (!element.is_focusable()) {
+                // Make non-focusable elements (headings, paragraphs, etc.) programmatically focusable so screen reader
+                // navigation shows the CSS :focus-visible focus ring.
+                element.set_attribute_value(Web::HTML::AttributeNames::tabindex, "-1"_string);
+            }
+            // Use FocusTrigger::Key so :focus-visible matches and the focus ring is drawn (same visual as keyboard tab
+            // navigation).
+            Web::HTML::run_focusing_steps(&element, nullptr, Web::HTML::FocusTrigger::Key);
         }
 
         page->schedule_accessibility_tree_update();

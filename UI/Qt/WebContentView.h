@@ -23,7 +23,7 @@
 #include <QUrl>
 #include <QWidget>
 
-#if !defined(Q_OS_MACOS)
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
 #    include "AccessibilityInterface.h"
 #endif
 
@@ -79,7 +79,7 @@ public:
 
     using ViewImplementation::client;
 
-#if !defined(Q_OS_MACOS)
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
     QAccessibleInterface* accessibility_interface_for_node(i64 node_id);
 #endif
 
@@ -114,11 +114,15 @@ private:
 
     void update_screen_rects();
 
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    void notify_accessibility_focus_on_document_root();
+#endif
+
     friend void install_accessibility(WebContentView*);
     friend void update_accessibility_tree(WebContentView*);
     friend void post_accessibility_focus_changed(WebContentView*, i64);
 
-#if !defined(Q_OS_MACOS)
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
     QHash<i64, AccessibilityInterface*> m_accessibility_elements;
     friend class WebContentViewAccessible;
 #endif
