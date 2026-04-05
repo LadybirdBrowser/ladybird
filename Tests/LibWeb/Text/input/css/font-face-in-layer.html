@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Test 1: @font-face inside @layer should be registered in document.fonts
+        const style1 = document.createElement("style");
+        style1.textContent = `
+            @layer test {
+                @font-face {
+                    font-family: LayerFont;
+                    src: url("does-not-exist.woff");
+                }
+            }
+        `;
+        document.head.appendChild(style1);
+        const layerFont = [...document.fonts].find(f => f.family === "LayerFont");
+        println(`@font-face inside @layer: ${!!layerFont}`);
+        style1.remove();
+
+        // Test 2: @font-face inside nested @layer should be registered
+        const style2 = document.createElement("style");
+        style2.textContent = `
+            @layer outer {
+                @layer inner {
+                    @font-face {
+                        font-family: NestedLayerFont;
+                        src: url("does-not-exist.woff");
+                    }
+                }
+            }
+        `;
+        document.head.appendChild(style2);
+        const nestedFont = [...document.fonts].find(f => f.family === "NestedLayerFont");
+        println(`@font-face inside nested @layer: ${!!nestedFont}`);
+        style2.remove();
+
+        // Test 3: @font-face inside @layer should be removed when stylesheet is removed
+        const style3 = document.createElement("style");
+        style3.textContent = `
+            @layer {
+                @font-face {
+                    font-family: RemovableFont;
+                    src: url("does-not-exist.woff");
+                }
+            }
+        `;
+        document.head.appendChild(style3);
+        const beforeRemove = [...document.fonts].some(f => f.family === "RemovableFont");
+        style3.remove();
+        const afterRemove = [...document.fonts].some(f => f.family === "RemovableFont");
+        println(`@font-face in @layer before remove: ${beforeRemove}`);
+        println(`@font-face in @layer after remove: ${afterRemove}`);
+
+        // Test 4: @font-face inside @supports (true condition) inside @layer
+        const style4 = document.createElement("style");
+        style4.textContent = `
+            @layer {
+                @supports (color: red) {
+                    @font-face {
+                        font-family: SupportsFont;
+                        src: url("does-not-exist.woff");
+                    }
+                }
+            }
+        `;
+        document.head.appendChild(style4);
+        const supportsFont = [...document.fonts].find(f => f.family === "SupportsFont");
+        println(`@font-face inside @supports (true) inside @layer: ${!!supportsFont}`);
+        style4.remove();
+
+        // Test 5: @font-face inside @supports (false condition) should not be registered
+        const style5 = document.createElement("style");
+        style5.textContent = `
+            @layer {
+                @supports (nonexistent-property: value) {
+                    @font-face {
+                        font-family: FalseSupportsFont;
+                        src: url("does-not-exist.woff");
+                    }
+                }
+            }
+        `;
+        document.head.appendChild(style5);
+        const falseSupportsFont = [...document.fonts].find(f => f.family === "FalseSupportsFont");
+        println(`@font-face inside @supports (false) inside @layer: ${!!falseSupportsFont}`);
+        style5.remove();
+
+        // Test 6: Top-level @font-face still works (regression check)
+        const style6 = document.createElement("style");
+        style6.textContent = `
+            @font-face {
+                font-family: TopLevelFont;
+                src: url("does-not-exist.woff");
+            }
+        `;
+        document.head.appendChild(style6);
+        const topLevelFont = [...document.fonts].find(f => f.family === "TopLevelFont");
+        println(`Top-level @font-face: ${!!topLevelFont}`);
+        style6.remove();
+    });
+</script>

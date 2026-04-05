@@ -792,49 +792,45 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
-    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
-    for (auto const& rule : sheet.rules()) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
-            if (!font_face_rule->is_valid())
-                continue;
+    sheet.for_each_effective_font_face_rule([&](CSSFontFaceRule& font_face_rule) {
+        if (!font_face_rule.is_valid())
+            return;
 
-            auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
-            document().fonts()->add_css_connected_font(font_face);
+        auto font_face = FontFace::create_css_connected(document().realm(), font_face_rule);
+        document().fonts()->add_css_connected_font(font_face);
 
-            if (font_face->has_non_default_unicode_range()) {
-                // Register for matching, but defer loading until a rendered codepoint
-                // actually falls in this face's unicode-range.
-                register_font_face(font_face);
-            } else {
-                // NB: Load via FontFace::load(), to satisfy this requirement:
-                // https://drafts.csswg.org/css-font-loading/#font-face-load
-                // User agents can initiate font loads on their own, whenever they determine that a given font face is
-                // necessary to render something on the page. When this happens, they must act as if they had called the
-                // corresponding FontFace’s load() method described here.
-                font_face->load();
-            }
+        if (font_face->has_non_default_unicode_range()) {
+            // Register for matching, but defer loading until a rendered codepoint
+            // actually falls in this face's unicode-range.
+            register_font_face(font_face);
+        } else {
+            // NB: Load via FontFace::load(), to satisfy this requirement:
+            // https://drafts.csswg.org/css-font-loading/#font-face-load
+            // User agents can initiate font loads on their own, whenever they determine that a given font face is
+            // necessary to render something on the page. When this happens, they must act as if they had called the
+            // corresponding FontFace's load() method described here.
+            font_face->load();
         }
+    });
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
-            font_feature_values_rule->clear_caches();
-    }
+    sheet.for_each_effective_font_feature_values_rule([&](CSSFontFeatureValuesRule& font_feature_values_rule) {
+        font_feature_values_rule.clear_caches();
+    });
 }
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 {
-    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
-    for (auto const& rule : sheet.rules()) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
-            if (auto font_face = font_face_rule->css_connected_font_face())
-                unregister_font_face(*font_face);
-            font_face_rule->disconnect_font_face();
-        }
+    sheet.for_each_effective_font_face_rule([&](CSSFontFaceRule& font_face_rule) {
+        if (auto font_face = font_face_rule.css_connected_font_face())
+            unregister_font_face(*font_face);
+        font_face_rule.disconnect_font_face();
+    });
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
-            font_feature_values_rule->clear_caches();
-    }
+    sheet.for_each_effective_font_feature_values_rule([&](CSSFontFeatureValuesRule& font_feature_values_rule) {
+        font_feature_values_rule.clear_caches();
+    });
 }
 
 }

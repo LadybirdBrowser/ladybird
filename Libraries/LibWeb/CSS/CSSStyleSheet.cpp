@@ -9,7 +9,10 @@
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/CSSStyleSheet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
@@ -344,6 +347,50 @@ void CSSStyleSheet::for_each_effective_counter_style_at_rule(Function<void(CSSCo
     for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
         if (rule.type() == CSSRule::Type::CounterStyle)
             callback(static_cast<CSSCounterStyleRule const&>(rule));
+    });
+}
+
+// FIXME: This only finds rules within condition rules whose conditions are met at stylesheet load time.
+//        We should re-evaluate when conditions change (e.g., @media after a window resize).
+template<typename Callback>
+static void for_each_effective_font_related_rule(CSSRuleList& rules, Callback&& callback)
+{
+    for (auto& rule : rules) {
+        if (callback(*rule))
+            continue;
+        if (is<CSSConditionRule>(*rule)) {
+            auto& condition_rule = static_cast<CSSConditionRule&>(*rule);
+            if (condition_rule.condition_matches())
+                for_each_effective_font_related_rule(condition_rule.css_rules(), callback);
+        } else if (is<CSSGroupingRule>(*rule)) {
+            for_each_effective_font_related_rule(static_cast<CSSGroupingRule&>(*rule).css_rules(), callback);
+        }
+    }
+}
+
+void CSSStyleSheet::for_each_effective_font_face_rule(Function<void(CSSFontFaceRule&)> const& callback)
+{
+    if (!m_media->matches())
+        return;
+    for_each_effective_font_related_rule(*m_rules, [&](CSSRule& rule) {
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
+            callback(*font_face_rule);
+            return true;
+        }
+        return false;
+    });
+}
+
+void CSSStyleSheet::for_each_effective_font_feature_values_rule(Function<void(CSSFontFeatureValuesRule&)> const& callback)
+{
+    if (!m_media->matches())
+        return;
+    for_each_effective_font_related_rule(*m_rules, [&](CSSRule& rule) {
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule)) {
+            callback(*font_feature_values_rule);
+            return true;
+        }
+        return false;
     });
 }
 

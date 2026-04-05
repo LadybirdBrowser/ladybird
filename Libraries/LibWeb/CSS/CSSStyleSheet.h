@@ -89,6 +89,8 @@ public:
     bool evaluate_media_queries(DOM::Document const&);
     void for_each_effective_keyframes_at_rule(Function<void(CSSKeyframesRule const&)> const& callback) const;
     void for_each_effective_counter_style_at_rule(Function<void(CSSCounterStyleRule const&)> const& callback) const;
+    void for_each_effective_font_face_rule(Function<void(CSSFontFaceRule&)> const& callback);
+    void for_each_effective_font_feature_values_rule(Function<void(CSSFontFeatureValuesRule&)> const& callback);
 
     HashTable<GC::Ptr<DOM::Node>> const& owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
     void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);

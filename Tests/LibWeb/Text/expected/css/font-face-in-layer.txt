@@ -1,0 +1,7 @@
+@font-face inside @layer: true
+@font-face inside nested @layer: true
+@font-face in @layer before remove: true
+@font-face in @layer after remove: false
+@font-face inside @supports (true) inside @layer: true
+@font-face inside @supports (false) inside @layer: false
+Top-level @font-face: true
