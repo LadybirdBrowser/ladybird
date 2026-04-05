@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/CounterStyle.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleScope.h>
 
 namespace Web::CSS {
 
@@ -31,11 +32,11 @@ void CounterStyleStyleValue::serialize(StringBuilder& builder, SerializationMode
         });
 }
 
-RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles) const
+RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(StyleScope const& style_scope) const
 {
     return m_value.visit(
         [&](FlyString const& name) -> RefPtr<CounterStyle const> {
-            return registered_counter_styles.get(name).value_or(nullptr);
+            return style_scope.get_registered_counter_style(name);
         },
         [&](SymbolsFunction const& symbols_function) -> RefPtr<CounterStyle const> {
             // https://drafts.csswg.org/css-counter-styles-3/#symbols-function
@@ -78,7 +79,7 @@ RefPtr<CounterStyle const> CounterStyleStyleValue::resolve_counter_style(HashMap
                 CounterStylePad { 0, ""_fly_string });
 
             // NB: We don't need to pass registered counter styles here since we don't rely on extension.
-            return CounterStyle::from_counter_style_definition(definition, {});
+            return CounterStyle::from_counter_style_definition(definition, style_scope);
         });
 }
 

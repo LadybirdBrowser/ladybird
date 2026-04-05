@@ -1,0 +1,35 @@
+<!doctype html>
+<link
+    rel="match"
+    href="../../../expected/css/css-counter/counter-style-override-of-predefined-counter-style-persisted-into-descendent-scopes-ref.html"
+/>
+<style>
+    @counter-style decimal-leading-zero {
+        system: cyclic;
+        symbols: R;
+    }
+
+    ol {
+        list-style-position: inside;
+        list-style-type: decimal-leading-zero;
+    }
+</style>
+<ol>
+    <li>outside shadow root</li>
+</ol>
+<div id="host"></div>
+<script>
+    const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+
+    shadowRoot.innerHTML = `
+        <style>
+            ol {
+                list-style-position: inside;
+                list-style-type: decimal-leading-zero;
+            }
+        </style>
+        <ol>
+            <li>inside shadow root</li>
+        </ol>
+    `;
+</script>

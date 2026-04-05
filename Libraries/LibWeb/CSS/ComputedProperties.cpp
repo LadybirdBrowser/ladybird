@@ -1344,7 +1344,7 @@ TextTransform ComputedProperties::text_transform() const
     return keyword_to_text_transform(value.to_keyword()).release_value();
 }
 
-ListStyleType ComputedProperties::list_style_type(HashMap<FlyString, NonnullRefPtr<CSS::CounterStyle const>> const& registered_counter_styles) const
+ListStyleType ComputedProperties::list_style_type(StyleScope const& style_scope) const
 {
     auto const& value = property(PropertyID::ListStyleType);
 
@@ -1354,7 +1354,7 @@ ListStyleType ComputedProperties::list_style_type(HashMap<FlyString, NonnullRefP
     if (value.is_string())
         return value.as_string().string_value().to_string();
 
-    return value.as_counter_style().resolve_counter_style(registered_counter_styles);
+    return value.as_counter_style().resolve_counter_style(style_scope);
 }
 
 ListStylePosition ComputedProperties::list_style_position() const

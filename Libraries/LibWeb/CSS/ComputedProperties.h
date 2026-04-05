@@ -138,7 +138,7 @@ public:
     Vector<ShadowData> text_shadow(Layout::Node const&) const;
     TextIndentData text_indent() const;
     TextWrapMode text_wrap_mode() const;
-    ListStyleType list_style_type(HashMap<FlyString, NonnullRefPtr<CSS::CounterStyle const>> const&) const;
+    ListStyleType list_style_type(StyleScope const&) const;
     ListStylePosition list_style_position() const;
     FlexDirection flex_direction() const;
     FlexWrap flex_wrap() const;

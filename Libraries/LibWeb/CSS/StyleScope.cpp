@@ -13,6 +13,8 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/CounterStyle.h>
+#include <LibWeb/CSS/CounterStyleDefinition.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -113,7 +115,7 @@ void StyleScope::build_rule_cache()
 
 void StyleScope::invalidate_rule_cache()
 {
-    document().invalidate_counter_style_cache();
+    invalidate_counter_style_cache();
     m_author_rule_cache = nullptr;
 
     // NOTE: We could be smarter about keeping the user rule cache, and style sheet.
@@ -474,6 +476,297 @@ void StyleScope::build_qualified_layer_names_cache()
     flatten_layer_names_tree(m_qualified_layer_names_in_order, ""sv, {}, root);
 }
 
+void StyleScope::invalidate_counter_style_cache()
+{
+    m_needs_counter_style_cache_update = true;
+
+    // FIXME: We only need to invalidate this style scope and those belonging to descendant shadow roots (since they may
+    //        include counter styles which extend the ones defined in this scope), not all style scopes in the document.
+    m_node->document().style_scope().m_needs_counter_style_cache_update = true;
+    m_node->document().for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
+        shadow_root.style_scope().m_needs_counter_style_cache_update = true;
+    });
+}
+
+void StyleScope::build_counter_style_cache()
+{
+    m_is_doing_counter_style_cache_update = true;
+
+    m_registered_counter_styles.clear_with_capacity();
+
+    HashMap<FlyString, CSS::CounterStyleDefinition> counter_style_definitions;
+
+    auto const define_complex_predefined_counter_styles = [&]() {
+        // https://drafts.csswg.org/css-counter-styles-3/#complex-predefined-counters
+        // While authors may define their own counter styles using the @counter-style rule or rely on the set of
+        // predefined counter styles, a few counter styles are described by rules that are too complex to be captured by
+        // the predefined algorithms.
+
+        // FIXME: All of the counter styles defined in this section have a spoken form of numbers
+
+        // https://drafts.csswg.org/css-counter-styles-3/#ethiopic-numeric-counter-style
+        // For this system, the name is "ethiopic-numeric", the range is 1 infinite, the suffix is "/ " (U+002F SOLIDUS
+        // followed by a U+0020 SPACE), and the rest of the descriptors have their initial value.
+        counter_style_definitions.set(
+            "ethiopic-numeric"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "ethiopic-numeric"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::EthiopicNumericCounterStyleAlgorithm {} },
+                {},
+                {},
+                "/ "_fly_string,
+                Vector<CSS::CounterStyleRangeEntry> { { 1, AK::NumericLimits<i32>::max() } },
+                {},
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
+        // For all of these counter styles, the descriptors are the same as for the limited range variants, except for
+        // the range, which is calc(-1 * pow(10, 16) + 1) calc(pow(10, 16) - 1).
+        // AD-HOC: Ranges (as with all other CSS <integer>s are limited to i32 range)
+        Vector<CSS::CounterStyleRangeEntry> extended_cjk_range { { AK::clamp_to<i32>(-9999999999999999), AK::clamp_to<i32>(9999999999999999) } };
+
+        // https://drafts.csswg.org/css-counter-styles-3/#limited-chinese
+        // For all of these counter styles, the suffix is "、" U+3001, the fallback is cjk-decimal, the range is -9999
+        // 9999, and the negative value is given in the table of symbols for each style.
+
+        //                  simp-chinese-informal simp-chinese-formal trad-chinese-informal trad-chinese-formal
+        // Negative Sign    负 U+8D1F             负 U+8D1F           負 U+8CA0              負 U+8CA0
+
+        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-informal
+        // simp-chinese-informal
+        counter_style_definitions.set(
+            "simp-chinese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "simp-chinese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#simp-chinese-formal
+        // simp-chinese-formal
+        counter_style_definitions.set(
+            "simp-chinese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "simp-chinese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::SimpChineseFormal } },
+                CSS::CounterStyleNegativeSign { "\U00008D1F"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-informal
+        // trad-chinese-informal
+        counter_style_definitions.set(
+            "trad-chinese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "trad-chinese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#trad-chinese-formal
+        // trad-chinese-formal
+        counter_style_definitions.set(
+            "trad-chinese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "trad-chinese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseFormal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#cjk-ideographic
+        // cjk-ideographic
+        // This counter style is identical to trad-chinese-informal. (It exists for legacy reasons.)
+        counter_style_definitions.set(
+            "cjk-ideographic"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "cjk-ideographic"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::TradChineseInformal } },
+                CSS::CounterStyleNegativeSign { "\U00008CA0"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#japanese-informal
+        // japanese-informal
+        counter_style_definitions.set(
+            "japanese-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "japanese-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseInformal } },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#japanese-formal
+        // japanese-formal
+        counter_style_definitions.set(
+            "japanese-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "japanese-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::JapaneseFormal } },
+                CSS::CounterStyleNegativeSign { "\U000030DE\U000030A4\U000030CA\U000030B9"_fly_string, ""_fly_string },
+                {},
+                "\U00003001"_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hangul-formal
+        // korean-hangul-formal
+        counter_style_definitions.set(
+            "korean-hangul-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hangul-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHangulFormal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-informal
+        // korean-hanja-informal
+        counter_style_definitions.set(
+            "korean-hanja-informal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hanja-informal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaInformal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+
+        // https://drafts.csswg.org/css-counter-styles-3/#korean-hanja-formal
+        // korean-hanja-formal
+        counter_style_definitions.set(
+            "korean-hanja-formal"_fly_string,
+            CSS::CounterStyleDefinition::create(
+                "korean-hanja-formal"_fly_string,
+                CSS::CounterStyleAlgorithmOrExtends { CSS::ExtendedCJKCounterStyleAlgorithm { CSS::ExtendedCJKCounterStyleAlgorithm::Type::KoreanHanjaFormal } },
+                CSS::CounterStyleNegativeSign { "\U0000B9C8\U0000C774\U0000B108\U0000C2A4 "_fly_string, ""_fly_string },
+                {},
+                ", "_fly_string,
+                extended_cjk_range,
+                "cjk-decimal"_fly_string,
+                {}));
+    };
+
+    CSS::ComputationContext computation_context {
+        .length_resolution_context = CSS::Length::ResolutionContext::for_document(document())
+    };
+
+    Function<void(CSS::CSSStyleSheet&)> const collect_counter_style_definitions = [&](CSS::CSSStyleSheet const& style_sheet) {
+        style_sheet.for_each_effective_counter_style_at_rule([&](CSS::CSSCounterStyleRule const& counter_style_rule) {
+            if (auto const& definition = CSS::CounterStyleDefinition::from_counter_style_rule(counter_style_rule, computation_context); definition.has_value())
+                counter_style_definitions.set(definition->name(), *definition);
+        });
+    };
+
+    // NB: We should only register predefined counter styles in the document's style scope, this ensures overrides are
+    //     correctly inherited by shadow roots.
+    if (m_node->is_document()) {
+        for_each_stylesheet(CSS::CascadeOrigin::UserAgent, collect_counter_style_definitions);
+        define_complex_predefined_counter_styles();
+        for_each_stylesheet(CSS::CascadeOrigin::User, collect_counter_style_definitions);
+    }
+
+    for_each_stylesheet(CSS::CascadeOrigin::Author, collect_counter_style_definitions);
+
+    VERIFY(!m_node->is_document() || counter_style_definitions.contains("decimal"_fly_string));
+
+    auto const is_part_of_extends_cycle = [&](FlyString const& counter_style_name) {
+        HashTable<FlyString> visited;
+        auto current_counter_style_name = counter_style_name;
+
+        while (true) {
+            if (visited.contains(current_counter_style_name))
+                return true;
+
+            visited.set(current_counter_style_name);
+
+            auto const& current_definition = counter_style_definitions.get(current_counter_style_name);
+
+            // NB: If we don't have a definition for this counter style it means it's either undefined in this scope
+            //     (and will the counter style extending it will instead default to extending "decimal" instead) or it's
+            //     defined in an outer style scope (and thus can't extend a counter style in the current scope), neither
+            //     of which can lead to a cycle.
+            if (!current_definition.has_value())
+                return false;
+
+            if (current_definition->algorithm().has<CSS::CounterStyleAlgorithm>())
+                return false;
+
+            current_counter_style_name = current_definition->algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>().name;
+        }
+
+        VERIFY_NOT_REACHED();
+    };
+
+    // NB: We register non-extending counter styles immediately and then extending counter styles after we have
+    //     registered their corresponding extended counter style.
+    Vector<CSS::CounterStyleDefinition> extending_counter_styles;
+
+    for (auto const& [name, definition] : counter_style_definitions) {
+        // NB: We don't need to wait for this counter style's extended counter style to be registered since it doesn't
+        //     have one - register it immediately.
+        if (definition.algorithm().has<CSS::CounterStyleAlgorithm>()) {
+            m_registered_counter_styles.set(name, CSS::CounterStyle::from_counter_style_definition(definition, *this));
+            continue;
+        }
+
+        auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
+
+        if (is_part_of_extends_cycle(name)) {
+            auto copied = definition;
+            copied.set_algorithm(CSS::CounterStyleSystemStyleValue::Extends { "decimal"_fly_string });
+            extending_counter_styles.append(copied);
+        } else {
+            extending_counter_styles.append(definition);
+        }
+    }
+
+    // FIXME: This is O(n^2) in the worst case but we usually don't see many counter styles so it should be fine in practice.
+    while (!extending_counter_styles.is_empty()) {
+        for (size_t i = 0; i < extending_counter_styles.size(); ++i) {
+            auto const& definition = extending_counter_styles.at(i);
+            auto extends = definition.algorithm().get<CSS::CounterStyleSystemStyleValue::Extends>();
+
+            if (!m_registered_counter_styles.contains(extends.name) && counter_style_definitions.contains(extends.name))
+                continue;
+
+            m_registered_counter_styles.set(definition.name(), CSS::CounterStyle::from_counter_style_definition(definition, *this));
+            extending_counter_styles.remove(i);
+            --i;
+        }
+    }
+
+    m_is_doing_counter_style_cache_update = false;
+    m_needs_counter_style_cache_update = false;
+}
+
 bool StyleScope::may_have_has_selectors() const
 {
     if (!has_valid_rule_cache())
@@ -562,6 +855,15 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
             });
         }
     }
+}
+
+RefPtr<CSS::CounterStyle const> StyleScope::get_registered_counter_style(FlyString const& name) const
+{
+    if (m_needs_counter_style_cache_update && !m_is_doing_counter_style_cache_update)
+        const_cast<StyleScope*>(this)->build_counter_style_cache();
+
+    return dereference_global_tree_scoped_reference<CSS::CounterStyle const*>([&](StyleScope const& scope) { return scope.m_registered_counter_styles.get(name); })
+        .value_or(nullptr);
 }
 
 template<typename T>

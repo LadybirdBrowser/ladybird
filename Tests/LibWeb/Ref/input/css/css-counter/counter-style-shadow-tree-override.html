@@ -1,0 +1,37 @@
+<!doctype html>
+<link rel="match" href="../../../expected/css/css-counter/counter-style-shadow-tree-override-ref.html" />
+<style>
+    @counter-style tree-scoped-style {
+        system: cyclic;
+        symbols: O;
+    }
+
+    #outside {
+        list-style-position: inside;
+        list-style-type: tree-scoped-style;
+    }
+</style>
+<ol id="outside">
+    <li>outside shadow root</li>
+</ol>
+<div id="host"></div>
+<script>
+    const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+
+    shadowRoot.innerHTML = `
+        <style>
+            @counter-style tree-scoped-style {
+                system: cyclic;
+                symbols: I;
+            }
+
+            ol {
+                list-style-position: inside;
+                list-style-type: tree-scoped-style;
+            }
+        </style>
+        <ol>
+            <li>inside shadow root</li>
+        </ol>
+    `;
+</script>

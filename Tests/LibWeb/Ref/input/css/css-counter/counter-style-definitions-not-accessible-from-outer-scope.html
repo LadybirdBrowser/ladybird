@@ -1,0 +1,35 @@
+<!doctype html>
+<link
+    rel="match"
+    href="../../../expected/css/css-counter/counter-style-definitions-not-accessible-from-outer-scope-ref.html"
+/>
+<style>
+    #outside {
+        list-style-position: inside;
+        list-style-type: shadow-defined;
+    }
+</style>
+<ol id="outside">
+    <li>outside shadow root</li>
+</ol>
+<div id="host"></div>
+<script>
+    const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+
+    shadowRoot.innerHTML = `
+        <style>
+            @counter-style shadow-defined {
+                system: cyclic;
+                symbols: S;
+            }
+
+            ol {
+                list-style-position: inside;
+                list-style-type: shadow-defined;
+            }
+        </style>
+        <ol>
+            <li>inside shadow root</li>
+        </ol>
+    `;
+</script>

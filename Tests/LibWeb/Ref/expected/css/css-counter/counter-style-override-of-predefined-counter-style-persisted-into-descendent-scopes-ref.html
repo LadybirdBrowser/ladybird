@@ -1,0 +1,18 @@
+<!doctype html>
+<style>
+    @counter-style counter-style {
+        system: cyclic;
+        symbols: R;
+    }
+
+    ol {
+        list-style-position: inside;
+        list-style-type: counter-style;
+    }
+</style>
+<ol>
+    <li>outside shadow root</li>
+</ol>
+<ol>
+    <li>inside shadow root</li>
+</ol>

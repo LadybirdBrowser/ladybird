@@ -41,15 +41,14 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
     if (!counters_set.last_counter_with_name(m_properties.counter_name).has_value())
         counters_set.instantiate_a_counter(m_properties.counter_name, element_reference, false, 0);
 
-    auto const& registered_counter_styles = element_reference.document().registered_counter_styles();
-
     // counter( <counter-name>, <counter-style>? )
     // "Represents the value of the innermost counter in the element’s CSS counters set named <counter-name>
     // using the counter style named <counter-style>."
     if (m_properties.function == CounterFunction::Counter) {
         // NOTE: This should always be present because of the handling of a missing counter above.
         auto& counter = counters_set.last_counter_with_name(m_properties.counter_name).value();
-        return generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(registered_counter_styles), registered_counter_styles, counter.value.value_or(0));
+        auto const& style_scope = element_reference.style_scope();
+        return generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(style_scope), style_scope, counter.value.value_or(0));
     }
 
     // counters( <counter-name>, <string>, <counter-style>? )
@@ -62,7 +61,8 @@ String CounterStyleValue::resolve(DOM::AbstractElement& element_reference) const
         if (counter.name != m_properties.counter_name)
             continue;
 
-        auto counter_string = generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(registered_counter_styles), registered_counter_styles, counter.value.value_or(0));
+        auto const& style_scope = element_reference.style_scope();
+        auto counter_string = generate_a_counter_representation(m_properties.counter_style->as_counter_style().resolve_counter_style(style_scope), style_scope, counter.value.value_or(0));
         if (!stb.is_empty())
             stb.append(m_properties.join_string);
         stb.append(counter_string);

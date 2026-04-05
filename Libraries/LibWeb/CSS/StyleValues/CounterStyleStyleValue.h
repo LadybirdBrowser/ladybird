@@ -29,7 +29,7 @@ public:
 
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
-    RefPtr<CounterStyle const> resolve_counter_style(HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles) const;
+    RefPtr<CounterStyle const> resolve_counter_style(StyleScope const&) const;
 
     bool properties_equal(CounterStyleStyleValue const& other) const { return m_value == other.m_value; }
 

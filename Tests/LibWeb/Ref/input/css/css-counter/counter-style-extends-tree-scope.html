@@ -1,0 +1,44 @@
+<!doctype html>
+<link rel="match" href="../../../expected/css/css-counter/counter-style-extends-tree-scope-ref.html" />
+<style>
+    ol {
+        list-style-position: inside;
+    }
+
+    @counter-style outer-base {
+        system: cyclic;
+        symbols: O;
+    }
+
+    @counter-style outer-extends-inner {
+        system: extends inner-base;
+    }
+</style>
+<ol style="list-style-type: outer-extends-inner">
+    <li></li>
+</ol>
+<div id="host"></div>
+<script>
+    const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+
+    shadowRoot.innerHTML = `
+        <style>
+            @counter-style inner-base {
+                system: cyclic;
+                symbols: PASS;
+                suffix: " ";
+            }
+
+            @counter-style inner-extends-outer {
+                system: extends outer-base;
+            }
+
+            ol {
+                list-style-position: inside;
+            }
+        </style>
+        <ol style="list-style-type: inner-extends-outer">
+            <li></li>
+        </ol>
+    `;
+</script>

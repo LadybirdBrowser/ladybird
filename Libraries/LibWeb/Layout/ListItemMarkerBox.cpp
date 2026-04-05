@@ -61,7 +61,7 @@ Optional<String> ListItemMarkerBox::text() const
                 return {};
 
             // NB: Fallback to decimal if the counter style does not exist is handled within generate_a_counter_representation()
-            auto counter_representation = CSS::generate_a_counter_representation(counter_style, m_list_item_element->document().registered_counter_styles(), index);
+            auto counter_representation = CSS::generate_a_counter_representation(counter_style, DOM::AbstractElement { m_list_item_element }.style_scope(), index);
 
             if (!counter_style)
                 return MUST(String::formatted("{}. ", counter_representation));

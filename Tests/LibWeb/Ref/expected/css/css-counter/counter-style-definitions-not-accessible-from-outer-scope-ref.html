@@ -1,0 +1,17 @@
+<!doctype html>
+<style>
+    @counter-style shadow-defined {
+        system: cyclic;
+        symbols: S;
+    }
+
+    ol {
+        list-style-position: inside;
+    }
+</style>
+<ol>
+    <li>outside shadow root</li>
+</ol>
+<ol style="list-style-type: shadow-defined">
+    <li>inside shadow root</li>
+</ol>
