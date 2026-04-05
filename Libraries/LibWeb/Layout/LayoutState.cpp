@@ -498,9 +498,13 @@ void LayoutState::commit(Box& root)
                 auto& inline_node = const_cast<InlineNode&>(static_cast<InlineNode const&>(*parent));
                 auto line_paintable = inline_node.create_paintable_for_line_with_index(line_box_data.index);
                 line_paintable->add_fragment(fragment, line_box_data);
-                line_paintable->set_fragmentation_state(fragmentation_state);
-                if (auto const* used_values = try_get(inline_node))
+                if (auto const* used_values = try_get(inline_node)) {
+                    // FIXME: Pass the correct unfragmented size and fragmentation offset here instead of the fragment's
+                    //        own info.
+                    // FIXME: Account for inline direction not always being horizontal.
+                    line_paintable->set_fragmentation_state(fragmentation_state, used_values->content_width(), 0);
                     transfer_box_model_metrics(line_paintable->box_model(), *used_values);
+                }
                 if (!inline_node_paintables.contains(line_paintable.ptr())) {
                     inline_node_paintables.set(line_paintable);
                     inline_node.add_paintable(line_paintable);
@@ -539,18 +543,20 @@ void LayoutState::commit(Box& root)
             node.add_paintable(paintable);
 
         // For boxes, transfer all the state needed for painting.
+        CSSPixels fragmentation_progress = 0;
         for (size_t i = 0; i < fragments.size(); i++) {
             if (auto* paintable_box = as_if<Painting::PaintableBox>(paintables[i].ptr())) {
                 transfer_box_model_metrics(paintable_box->box_model(), used_values);
 
                 if (fragments.size() > 1) {
                     if (i == 0) {
-                        paintable_box->set_fragmentation_state(FragmentationState::VerticalStart);
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalStart, used_values.content_height(), fragmentation_progress);
                     } else if (i == fragments.size() - 1) {
-                        paintable_box->set_fragmentation_state(FragmentationState::VerticalEnd);
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalEnd, used_values.content_height(), fragmentation_progress);
                     } else {
-                        paintable_box->set_fragmentation_state(FragmentationState::VerticalMiddle);
+                        paintable_box->set_fragmentation_state(FragmentationState::VerticalMiddle, used_values.content_height(), fragmentation_progress);
                     }
+                    fragmentation_progress += fragments[i].size_in_fragmentation_direction;
                 }
 
                 paintable_box->set_offset(fragments[i].offset);

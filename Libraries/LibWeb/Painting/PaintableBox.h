@@ -101,7 +101,17 @@ public:
     CSSPixels content_width() const { return m_content_size.width(); }
     CSSPixels content_height() const { return m_content_size.height(); }
 
-    void set_fragmentation_state(Layout::FragmentationState);
+    void set_fragmentation_state(Layout::FragmentationState, CSSPixels unfragmented_content_size, CSSPixels offset);
+    Optional<CSSPixelSize> unfragmented_content_size() const { return m_unfragmented_content_size; }
+    Optional<CSSPixelPoint> fragmentation_offset() const { return m_fragmentation_offset; }
+
+    // https://www.w3.org/TR/css-break-3/#valdef-box-decoration-break-slice
+    // FIXME: Actually consider the value of 'box-decoration-break'
+    bool is_slice_fragmented() const { return m_fragment_top_edge_away || m_fragment_left_edge_away || m_fragment_right_edge_away || m_fragment_bottom_edge_away; }
+    bool fragment_top_edge_away() const { return m_fragment_top_edge_away; }
+    bool fragment_left_edge_away() const { return m_fragment_left_edge_away; }
+    bool fragment_right_edge_away() const { return m_fragment_right_edge_away; }
+    bool fragment_bottom_edge_away() const { return m_fragment_bottom_edge_away; }
 
     CSSPixelRect absolute_rect() const;
     CSSPixelRect absolute_padding_box_rect() const;
@@ -291,6 +301,8 @@ public:
 
     void set_accumulated_visual_context(VisualContextIndex index) { m_accumulated_visual_context_index = index; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_index() const { return m_accumulated_visual_context_index; }
+    void set_fragmented_accumulated_visual_context(VisualContextIndex index) { m_fragmented_accumulated_visual_context_index = index; }
+    [[nodiscard]] Optional<VisualContextIndex> fragmented_accumulated_visual_context_index() const { return m_fragmented_accumulated_visual_context_index; }
     void set_accumulated_visual_context_for_descendants(VisualContextIndex index) { m_accumulated_visual_context_for_descendants_index = index; }
     [[nodiscard]] VisualContextIndex accumulated_visual_context_for_descendants_index() const { return m_accumulated_visual_context_for_descendants_index; }
 
@@ -345,6 +357,8 @@ private:
 
     CSSPixelPoint m_offset;
     CSSPixelSize m_content_size;
+    Optional<CSSPixelSize> m_unfragmented_content_size;
+    Optional<CSSPixelPoint> m_fragmentation_offset;
 
     Optional<CSSPixelRect> mutable m_absolute_rect;
     Optional<CSSPixelRect> mutable m_absolute_padding_box_rect;
@@ -353,6 +367,7 @@ private:
     ScrollFrameIndex m_enclosing_scroll_frame_index {};
     ScrollFrameIndex m_own_scroll_frame_index {};
     VisualContextIndex m_accumulated_visual_context_index {};
+    Optional<VisualContextIndex> m_fragmented_accumulated_visual_context_index {};
     VisualContextIndex m_accumulated_visual_context_for_descendants_index {};
     Optional<VisualContextIndex> m_fixed_background_visual_context;
 
@@ -379,6 +394,10 @@ private:
     // FIXME: This is not how this is meant to work in the spec. The box needs to be drawn in full and then sliced
     //        visually, in case something like border-radius is in effect.
     //        ( see https://drafts.csswg.org/css-break/#valdef-box-decoration-break-slice )
+    //        This does not mean these variables should be removed, but we should stop using them in all the border
+    //        calculations and instead draw the full border of the unfragmented box at its original size, as given by
+    //        m_unfragmented_content_size. We currently can't do this because this size does not get set correctly for
+    //        paintables of inline boxes.
     bool m_fragment_top_edge_away { false };
     bool m_fragment_left_edge_away { false };
     bool m_fragment_right_edge_away { false };

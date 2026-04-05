@@ -188,6 +188,27 @@ static Optional<ClipData> compute_clip_data(PaintableBox const& paintable_box, C
     return {};
 }
 
+static Optional<ClipData> compute_clip_data_for_fragmentation(PaintableBox const& paintable_box, DevicePixelConverter const& converter)
+{
+    // https://www.w3.org/TR/css-break-3/#valdef-box-decoration-break-slice
+    if (!paintable_box.is_slice_fragmented())
+        return {};
+
+    // The effect is as though the element were rendered with no breaks present, and then sliced by the breaks afterward: no border and no padding are inserted at a break; no box-shadow is drawn at a broken edge; and backgrounds, 'border-radius', and the 'border-image' are applied to the geometry of the whole box as if it were unbroken.
+    CSSPixelRect clip_rect(0, 0, CSSPixels::max_integer_value, CSSPixels::max_integer_value);
+    auto fragment_rect = paintable_box.absolute_padding_box_rect();
+    if (paintable_box.fragment_top_edge_away())
+        clip_rect.set_top(fragment_rect.top());
+    if (paintable_box.fragment_bottom_edge_away())
+        clip_rect.set_bottom(fragment_rect.bottom());
+    if (paintable_box.fragment_left_edge_away())
+        clip_rect.set_left(fragment_rect.left());
+    if (paintable_box.fragment_right_edge_away())
+        clip_rect.set_right(fragment_rect.right());
+
+    return ClipData { converter.rounded_device_rect(clip_rect), {} };
+}
+
 AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaintable& viewport_paintable)
 {
     auto visual_context_tree = AccumulatedVisualContextTree::create();
@@ -318,6 +339,13 @@ AccumulatedVisualContextTree build_accumulated_visual_context_tree(ViewportPaint
         }
 
         paintable_box.set_accumulated_visual_context(own_state);
+
+        // Build state for element with fragmentation if necessary
+        if (auto fragmentation_clip_data = compute_clip_data_for_fragmentation(paintable_box, converter); fragmentation_clip_data.has_value()) {
+            VisualContextIndex fragmented_state = own_state;
+            fragmented_state = append_node(fragmented_state, fragmentation_clip_data.value());
+            paintable_box.set_fragmented_accumulated_visual_context(fragmented_state);
+        }
 
         Vector<CSS::BackgroundLayerData> const* background_layers = &computed_values.background_layers();
         if (paintable_box.layout_node_with_style_and_box_metrics().is_root_element()) {

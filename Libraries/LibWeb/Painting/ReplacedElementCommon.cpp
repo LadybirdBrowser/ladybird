@@ -21,6 +21,14 @@ Gfx::IntRect get_replaced_box_painting_area(PaintableBox const& paintable, Displ
     if (paintable_rect.is_empty())
         return {};
 
+    if (paintable.unfragmented_content_size().has_value()) {
+        paintable_rect.set_size(paintable.unfragmented_content_size().value());
+    }
+    if (paintable.fragmentation_offset().has_value()) {
+        paintable_rect.set_x(paintable_rect.x() - paintable.fragmentation_offset().value().x());
+        paintable_rect.set_y(paintable_rect.y() - paintable.fragmentation_offset().value().y());
+    }
+
     auto paintable_rect_device_pixels = context.rounded_device_rect(paintable_rect);
 
     auto bitmap_aspect_ratio = CSSPixels(content_size.height()) / content_size.width();

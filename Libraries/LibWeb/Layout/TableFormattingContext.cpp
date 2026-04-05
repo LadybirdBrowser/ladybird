@@ -77,7 +77,7 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
                 inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
             }
 
-            caption_context->run(inner_available_space, {});
+            caption_context->run(inner_available_space, fragmentation_context);
 
             if (block_context) {
                 auto& caption_state = m_state.get_mutable(child_box);

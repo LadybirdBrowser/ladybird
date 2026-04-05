@@ -696,30 +696,42 @@ void PaintableBox::set_content_size(CSSPixelSize size)
     invalidate_descendant_styles_for_container_query_size_change(*this, old_size, size);
 }
 
-void PaintableBox::set_fragmentation_state(Layout::FragmentationState fragmentation_state)
+void PaintableBox::set_fragmentation_state(Layout::FragmentationState fragmentation_state, CSSPixels unfragmented_content_size, CSSPixels offset)
 {
     switch (fragmentation_state) {
     case Layout::FragmentationState::Unfragmented:
         break;
     case Layout::FragmentationState::HorizontalStart:
         m_fragment_right_edge_away = true;
+        m_unfragmented_content_size = { unfragmented_content_size, content_height() };
+        m_fragmentation_offset = { offset, 0 };
         break;
     case Layout::FragmentationState::HorizontalMiddle:
         m_fragment_left_edge_away = true;
         m_fragment_right_edge_away = true;
+        m_unfragmented_content_size = { unfragmented_content_size, content_height() };
+        m_fragmentation_offset = { offset, 0 };
         break;
     case Layout::FragmentationState::HorizontalEnd:
         m_fragment_left_edge_away = true;
+        m_unfragmented_content_size = { unfragmented_content_size, content_height() };
+        m_fragmentation_offset = { offset, 0 };
         break;
     case Layout::FragmentationState::VerticalStart:
         m_fragment_bottom_edge_away = true;
+        m_unfragmented_content_size = { content_width(), unfragmented_content_size };
+        m_fragmentation_offset = { 0, offset };
         break;
     case Layout::FragmentationState::VerticalMiddle:
         m_fragment_top_edge_away = true;
         m_fragment_bottom_edge_away = true;
+        m_unfragmented_content_size = { content_width(), unfragmented_content_size };
+        m_fragmentation_offset = { 0, offset };
         break;
     case Layout::FragmentationState::VerticalEnd:
         m_fragment_top_edge_away = true;
+        m_unfragmented_content_size = { content_width(), unfragmented_content_size };
+        m_fragmentation_offset = { 0, offset };
         break;
     }
 }

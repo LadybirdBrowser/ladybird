@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!--
+  The spec does not specifically mandate this behavior, but https://www.w3.org/TR/css-break-3/#unforced-breaks tells us
+  that "if there are no possible break points below the top of the fragmentainer, and not all the content fits, the UA
+  may break anywhere in order to avoid losing content off the edge of the fragmentainer. In such cases, the UA may also
+  fragment the contents of monolithic elements by slicing the element’s graphical representation." This applies here as
+  our image is too large to fit a column, in which case we slice it apart instead of having it overflow the container.
+  This matches Safari's behavior and I think slicing is better in this edge case of an edge case. (If someone sets a
+  limited height on a multicol, they probably don't want content to spill out the bottom if it can reasonably be
+  fitted into the multicol.)
+-->
+<style>
+  body {
+    column-count: 3;
+    height: 20px;
+  }
+  img {
+    display: block;
+    border: 2px solid black;
+  }
+</style>
+<img src="../data/smiley.png">

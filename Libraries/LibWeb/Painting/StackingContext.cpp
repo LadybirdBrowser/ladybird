@@ -35,10 +35,15 @@ static void paint_node(Paintable const& paintable, DisplayListRecordingContext& 
     if (paintable_box) {
         // Text fragments in a PaintableWithLines are content of the block container.
         // They need the descendants' visual context, not the element's own visual context.
-        if (is<PaintableWithLines>(paintable) && phase == PaintPhase::Foreground)
+        if (is<PaintableWithLines>(paintable) && phase == PaintPhase::Foreground) {
             context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_for_descendants_index());
-        else
+        } else if (phase == PaintPhase::Outline) {
+            // Outlines should not be impacted by fragmentation-related clipping.
             context.display_list_recorder().set_accumulated_visual_context(paintable_box->accumulated_visual_context_index());
+        } else {
+            context.display_list_recorder().set_accumulated_visual_context(
+                paintable_box->fragmented_accumulated_visual_context_index().value_or(paintable_box->accumulated_visual_context_index()));
+        }
     }
 
     if (paintable_box)
