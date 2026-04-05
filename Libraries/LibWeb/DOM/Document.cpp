@@ -7359,7 +7359,10 @@ GC::Ptr<HTML::Navigable> Document::navigable() const
 
 void Document::set_navigable(GC::Ptr<HTML::Navigable> navigable)
 {
+    if (m_navigable == navigable)
+        return;
     m_navigable = navigable.ptr();
+    HTML::main_thread_event_loop().document_navigable_did_change({});
 }
 
 void Document::notify_css_background_image_loaded()

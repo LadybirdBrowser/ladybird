@@ -316,7 +316,12 @@ void EventLoop::update_the_rendering()
     // 1. Let frameTimestamp be eventLoop's last render opportunity time.
     auto frame_timestamp = m_last_render_opportunity_time;
 
-    // FIXME: 2. Let docs be all fully active Document objects whose relevant agent's event loop is eventLoop, sorted arbitrarily except that the following conditions must be met:
+    // 2. Let docs be all fully active Document objects whose relevant agent's event loop is
+    //    eventLoop, sorted arbitrarily except that the following conditions must be met:
+    //    - Any Document B whose container document is A must be listed after A in the list.
+    //    - If there are two documents A and B that both have the same non-null container document
+    //      C, then the order of A and B in the list must match the shadow-including tree order
+    //      of their respective navigable containers in C's node tree.
     // 3. Filter non-renderable documents: Remove from docs any Document object doc for which any of the following are true:
     auto docs = documents_in_this_event_loop_matching([&](auto const& document) {
         if (!document.is_fully_active())
@@ -634,6 +639,7 @@ void EventLoop::perform_a_microtask_checkpoint()
 
 Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const
 {
+    ensure_documents_sorted();
     Vector<GC::Root<DOM::Document>> documents;
     for (auto& document : m_documents) {
         VERIFY(document);
@@ -649,12 +655,58 @@ Vector<GC::Root<DOM::Document>> EventLoop::documents_in_this_event_loop_matching
 void EventLoop::register_document(Badge<DOM::Document>, DOM::Document& document)
 {
     m_documents.append(&document);
+    m_documents_sort_dirty = true;
 }
 
 void EventLoop::unregister_document(Badge<DOM::Document>, DOM::Document& document)
 {
     bool did_remove = m_documents.remove_first_matching([&](auto& entry) { return entry.ptr() == &document; });
     VERIFY(did_remove);
+}
+
+void EventLoop::document_navigable_did_change(Badge<DOM::Document>)
+{
+    m_documents_sort_dirty = true;
+}
+
+void EventLoop::ensure_documents_sorted() const
+{
+    // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering step 3.2:
+    // - Any Document B whose container document is A must be listed after A in the list.
+    // - If there are two documents A and B that both have the same non-null container document
+    //   C, then the order of A and B in the list must match the shadow-including tree order
+    //   of their respective navigable containers in C's node tree.
+
+    if (!m_documents_sort_dirty)
+        return;
+    m_documents_sort_dirty = false;
+
+    HashMap<DOM::Document*, size_t> doc_to_index;
+    doc_to_index.ensure_capacity(m_documents.size());
+    for (size_t i = 0; i < m_documents.size(); ++i)
+        doc_to_index.set(m_documents[i].ptr(), i);
+
+    Vector<bool> visited;
+    visited.resize(m_documents.size());
+    Vector<GC::Weak<DOM::Document>> sorted;
+    sorted.ensure_capacity(m_documents.size());
+
+    auto visit = [&](auto& self, size_t idx) -> void {
+        if (visited[idx])
+            return;
+        visited[idx] = true;
+        if (auto navigable = m_documents[idx]->navigable()) {
+            if (auto container_doc = navigable->container_document()) {
+                if (auto container_idx = doc_to_index.get(container_doc.ptr()); container_idx.has_value())
+                    self(self, *container_idx);
+            }
+        }
+        sorted.append(m_documents[idx]);
+    };
+    for (size_t i = 0; i < m_documents.size(); ++i)
+        visit(visit, i);
+
+    m_documents = move(sorted);
 }
 
 void EventLoop::push_onto_backup_incumbent_realm_stack(GC::Ref<EnvironmentSettingsObject> environment_settings_object)

@@ -75,6 +75,7 @@ public:
 
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
+    void document_navigable_did_change(Badge<DOM::Document>);
 
     [[nodiscard]] Vector<GC::Root<DOM::Document>> documents_in_this_event_loop_matching(Function<bool(DOM::Document&)> callback) const;
 
@@ -124,7 +125,9 @@ private:
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
 
-    Vector<GC::Weak<DOM::Document>> m_documents;
+    mutable Vector<GC::Weak<DOM::Document>> m_documents;
+    mutable bool m_documents_sort_dirty { false };
+    void ensure_documents_sorted() const;
 
     // Used to implement step 4 of "perform a microtask checkpoint".
     // NOTE: These are weak references! ESO registers and unregisters itself from the event loop manually.
