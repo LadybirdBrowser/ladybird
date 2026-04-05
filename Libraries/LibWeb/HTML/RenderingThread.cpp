@@ -5,11 +5,16 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibGfx/ImmutableBitmap.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibThreading/Thread.h>
 #include <LibWeb/HTML/RenderingThread.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
+
+#include <core/SkCanvas.h>
+#include <core/SkColor.h>
 
 #include <LibCore/Platform/ScopedAutoreleasePool.h>
 
@@ -66,12 +71,19 @@ public:
 
     bool has_skia_player() const { return m_skia_player != nullptr; }
 
+    void set_presentation_mode(RenderingThread::PresentationMode mode)
+    {
+        Threading::MutexLocker const locker { m_mutex };
+        m_presentation_mode = move(mode);
+    }
+
     void exit()
     {
         Threading::MutexLocker const locker { m_mutex };
         m_exit = true;
         m_command_ready.signal();
         m_ready_to_paint.signal();
+        m_frame_completed.broadcast();
     }
 
     void enqueue_command(CompositorCommand&& command)
@@ -81,12 +93,28 @@ public:
         m_command_ready.signal();
     }
 
-    void set_needs_present(Gfx::IntRect viewport_rect)
+    u64 set_needs_present(Gfx::IntRect viewport_rect)
     {
         Threading::MutexLocker const locker { m_mutex };
         m_needs_present = true;
         m_pending_viewport_rect = viewport_rect;
+        m_submitted_frame_id++;
         m_command_ready.signal();
+        return m_submitted_frame_id;
+    }
+
+    void mark_frame_complete(u64 frame_id)
+    {
+        Threading::MutexLocker const locker { m_mutex };
+        m_completed_frame_id = frame_id;
+        m_frame_completed.broadcast();
+    }
+
+    void wait_for_frame(u64 frame_id)
+    {
+        Threading::MutexLocker const locker { m_mutex };
+        while (m_completed_frame_id < frame_id && !m_exit)
+            m_frame_completed.wait();
     }
 
     void compositor_loop()
@@ -147,11 +175,13 @@ public:
 
             bool should_present = false;
             Gfx::IntRect viewport_rect;
+            u64 presenting_frame_id = 0;
             {
                 Threading::MutexLocker const locker { m_mutex };
                 if (m_needs_present) {
                     should_present = true;
                     viewport_rect = m_pending_viewport_rect;
+                    presenting_frame_id = m_submitted_frame_id;
                     m_needs_present = false;
                 }
             }
@@ -167,17 +197,37 @@ public:
                         break;
                 }
 
+                auto presentation_mode = [this] {
+                    Threading::MutexLocker const locker { m_mutex };
+                    return m_presentation_mode;
+                }();
+
                 if (m_cached_display_list && m_backing_stores.is_valid()) {
+                    auto should_clear_back_store = presentation_mode.visit(
+                        [](RenderingThread::PresentToUI) { return false; },
+                        [](RenderingThread::PublishToExternalContent const&) { return true; });
+                    if (should_clear_back_store) {
+                        // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores
+                        // must be cleared before repainting.
+                        m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
+                    }
                     m_skia_player->execute(*m_cached_display_list, Painting::ScrollStateSnapshotByDisplayList(m_cached_scroll_state_snapshot), *m_backing_stores.back_store);
                     i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
                     m_backing_stores.swap();
 
-                    m_queued_rasterization_tasks++;
-
-                    invoke_on_main_thread([this, viewport_rect, rendered_bitmap_id]() {
-                        m_presentation_callback(viewport_rect, rendered_bitmap_id);
-                    });
+                    presentation_mode.visit(
+                        [this, viewport_rect, rendered_bitmap_id](RenderingThread::PresentToUI) {
+                            m_queued_rasterization_tasks++;
+                            invoke_on_main_thread([this, viewport_rect, rendered_bitmap_id]() {
+                                m_presentation_callback(viewport_rect, rendered_bitmap_id);
+                            });
+                        },
+                        [this](RenderingThread::PublishToExternalContent const& mode) {
+                            auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*m_backing_stores.front_store);
+                            mode.source->update(move(snapshot));
+                        });
                 }
+                mark_frame_complete(presenting_frame_id);
             }
         }
     }
@@ -209,12 +259,17 @@ private:
     RefPtr<Painting::DisplayList> m_cached_display_list;
     Painting::ScrollStateSnapshotByDisplayList m_cached_scroll_state_snapshot;
     BackingStoreState m_backing_stores;
+    RenderingThread::PresentationMode m_presentation_mode { RenderingThread::PresentToUI {} };
 
     Atomic<i32> m_queued_rasterization_tasks { 0 };
     mutable Threading::ConditionVariable m_ready_to_paint { m_mutex };
 
     bool m_needs_present { false };
     Gfx::IntRect m_pending_viewport_rect;
+
+    u64 m_submitted_frame_id { 0 };
+    u64 m_completed_frame_id { 0 };
+    mutable Threading::ConditionVariable m_frame_completed { m_mutex };
 
 public:
     void decrement_queued_tasks()
@@ -252,6 +307,11 @@ void RenderingThread::set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& 
     m_thread_data->set_skia_player(move(player));
 }
 
+void RenderingThread::set_presentation_mode(PresentationMode mode)
+{
+    m_thread_data->set_presentation_mode(move(mode));
+}
+
 void RenderingThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshotByDisplayList&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
@@ -262,9 +322,14 @@ void RenderingThread::update_backing_stores(RefPtr<Gfx::PaintingSurface> front, 
     m_thread_data->enqueue_command(UpdateBackingStoresCommand { move(front), move(back), front_id, back_id });
 }
 
-void RenderingThread::present_frame(Gfx::IntRect viewport_rect)
+u64 RenderingThread::present_frame(Gfx::IntRect viewport_rect)
 {
-    m_thread_data->set_needs_present(viewport_rect);
+    return m_thread_data->set_needs_present(viewport_rect);
+}
+
+void RenderingThread::wait_for_frame(u64 frame_id)
+{
+    m_thread_data->wait_for_frame(frame_id);
 }
 
 void RenderingThread::request_screenshot(NonnullRefPtr<Gfx::PaintingSurface> target_surface, Function<void()>&& callback)

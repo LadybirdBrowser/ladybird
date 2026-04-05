@@ -53,7 +53,7 @@
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
-#include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/Paintable.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
@@ -421,6 +421,10 @@ void Navigable::initialize_navigable(NonnullRefPtr<DocumentState> document_state
 
     // 5. Set navigable's parent to parent.
     m_parent = parent;
+    if (parent && !m_is_svg_page) {
+        m_external_content_source = Painting::ExternalContentSource::create();
+        m_rendering_thread.set_presentation_mode(RenderingThread::PublishToExternalContent { external_content_source() });
+    }
 
     // 6. Set the initial visibility state of documentState's document to navigable's traversable navigable's system visibility state.
     document->set_initial_visibility_state(traversable_navigable()->system_visibility_state());
@@ -3087,6 +3091,12 @@ void Navigable::ready_to_paint()
     m_rendering_thread.ready_to_paint();
 }
 
+NonnullRefPtr<Painting::ExternalContentSource> Navigable::external_content_source() const
+{
+    VERIFY(m_external_content_source);
+    return *m_external_content_source;
+}
+
 void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
 {
     m_needs_repaint = false;
@@ -3103,45 +3113,26 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
     document_paintable.refresh_scroll_state();
     scroll_state_snapshot_by_display_list.set(*display_list, document_paintable.scroll_state_snapshot());
 
-    // Collect scroll state snapshots for each nested navigable
-    document_paintable.for_each_in_inclusive_subtree_of_type<Painting::NavigableContainerViewportPaintable>([&scroll_state_snapshot_by_display_list](auto& navigable_container_paintable) {
-        auto* hosted_document = navigable_container_paintable.navigable_container().content_document_without_origin_check();
-        if (!hosted_document)
-            return TraversalDecision::Continue;
-
-        // We can use unsafe_paintable() here since the scroll state collection only reads scroll offsets, which are
-        // valid even when layout is stale (e.g., a render-blocked iframe whose DOM was modified but whose scroll
-        // positions haven't changed).
-        auto* hosted_paintable = const_cast<Painting::ViewportPaintable*>(hosted_document->unsafe_paintable());
-        if (!hosted_paintable)
-            return TraversalDecision::Continue;
-
-        // We are only interested in collecting scroll state snapshots for visible nested navigables, which is
-        // detectable by checking if they have a cached display list that should've been populated by
-        // record_display_list() on top-level document.
-        auto navigable_display_list = hosted_document->cached_display_list();
-        if (!navigable_display_list)
-            return TraversalDecision::Continue;
-
-        hosted_paintable->refresh_scroll_state();
-        scroll_state_snapshot_by_display_list.set(*navigable_display_list, hosted_paintable->scroll_state_snapshot());
-        return TraversalDecision::Continue;
-    });
-
     m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot_by_display_list));
 }
 
 void Navigable::paint_next_frame()
 {
-    if (!is_top_level_traversable())
-        return;
-
     auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
-    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders, .canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() } };
+    PaintConfig paint_config { .paint_overlay = true, .should_show_line_box_borders = m_should_show_line_box_borders };
+    if (is_top_level_traversable()) {
+        paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
+    } else {
+        // Nested navigables publish transparent bitmaps to their preconfigured ExternalContentSource instead of filling
+        // the canvas for the UI process.
+        VERIFY(m_external_content_source);
+    }
 
     record_display_list_and_scroll_state(paint_config);
 
-    m_rendering_thread.present_frame(viewport_rect);
+    auto frame_id = m_rendering_thread.present_frame(viewport_rect);
+    if (!is_top_level_traversable())
+        m_rendering_thread.wait_for_frame(frame_id);
 }
 
 void Navigable::render_screenshot(Gfx::PaintingSurface& painting_surface, PaintConfig paint_config, Function<void()>&& callback)

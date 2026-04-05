@@ -10,10 +10,9 @@
 #include <LibWeb/Layout/NavigableContainerViewport.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BorderRadiusCornerClipper.h>
-#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
+#include <LibWeb/Painting/ExternalContentSource.h>
 #include <LibWeb/Painting/NavigableContainerViewportPaintable.h>
-#include <LibWeb/Painting/ViewportPaintable.h>
 
 namespace Web::Painting {
 
@@ -49,29 +48,19 @@ void NavigableContainerViewportPaintable::paint(DisplayListRecordingContext& con
         if (hosted_document->is_render_blocked())
             return;
 
-        // NB: The hosted document's layout may have been invalidated during the parent
-        //     document's layout (e.g., via viewport size changes in did_set_content_size).
-        //     Ensure it is up to date before painting.
-        hosted_document->update_layout(DOM::UpdateLayoutReason::HostedDocumentBeforePaint);
-
-        auto const* hosted_paint_tree = hosted_document->paintable();
-        if (!hosted_paint_tree)
-            return;
+        auto content_navigable = navigable_container.content_navigable();
+        VERIFY(content_navigable);
 
         context.display_list_recorder().save();
-
         context.display_list_recorder().add_clip_rect(clip_rect.to_type<int>());
-
-        HTML::PaintConfig paint_config;
-        paint_config.paint_overlay = context.should_paint_overlay();
-        paint_config.should_show_line_box_borders = context.should_show_line_box_borders();
-        auto display_list = hosted_document->record_display_list(paint_config);
-        context.display_list_recorder().paint_nested_display_list(display_list, context.enclosing_device_rect(absolute_rect).to_type<int>());
-
+        context.display_list_recorder().draw_external_content(
+            context.enclosing_device_rect(absolute_rect).to_type<int>(),
+            content_navigable->external_content_source(),
+            Gfx::ScalingMode::NearestNeighbor);
         context.display_list_recorder().restore();
 
         if constexpr (HIGHLIGHT_FOCUSED_FRAME_DEBUG) {
-            if (navigable_container.content_navigable()->is_focused()) {
+            if (content_navigable->is_focused()) {
                 context.display_list_recorder().draw_rect(clip_rect.to_type<int>(), Color::Cyan);
             }
         }

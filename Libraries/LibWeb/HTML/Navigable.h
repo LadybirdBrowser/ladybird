@@ -239,6 +239,8 @@ public:
 
     RenderingThread& rendering_thread() { return m_rendering_thread; }
 
+    NonnullRefPtr<Painting::ExternalContentSource> external_content_source() const;
+
     void set_pending_set_browser_zoom_request(bool value) { m_pending_set_browser_zoom_request = value; }
     bool pending_set_browser_zoom_request() const { return m_pending_set_browser_zoom_request; }
 
@@ -322,6 +324,7 @@ private:
     bool m_should_show_line_box_borders { false };
     GC::Ref<Painting::BackingStoreManager> m_backing_store_manager;
     RenderingThread m_rendering_thread;
+    RefPtr<Painting::ExternalContentSource> m_external_content_source;
 };
 
 struct PopulateSessionHistoryEntryDocumentOutput final : public JS::Cell {

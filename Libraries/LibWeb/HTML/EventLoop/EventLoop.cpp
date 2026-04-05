@@ -487,15 +487,19 @@ void EventLoop::update_the_rendering()
     // FIXME: 21. For each doc of docs, mark paint timing for doc.
 
     // 22. For each doc of docs, update the rendering or user interface of doc and its node navigable to reflect the current state.
-    for (auto& document : docs) {
-        auto navigable = document->navigable();
-        if (!navigable->is_traversable())
-            continue;
-        auto traversable = navigable->traversable_navigable();
-        traversable->process_screenshot_requests();
+    for (auto& doc : docs.in_reverse()) {
+        auto navigable = doc->navigable();
         if (!navigable->needs_repaint())
             continue;
+        if (navigable->is_svg_page())
+            continue;
+        if (auto document = navigable->active_document())
+            document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
         navigable->paint_next_frame();
+        if (navigable->is_traversable()) {
+            auto traversable = navigable->traversable_navigable();
+            traversable->process_screenshot_requests();
+        }
     }
 
     // 23. For each doc of docs, process top layer removals given doc.
