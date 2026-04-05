@@ -142,24 +142,23 @@ impl Parser<'_> {
 
             let target = if self.match_identifier() {
                 let token = self.consume();
-                let value = self.token_value(&token).to_vec();
-                self.check_identifier_name_for_assignment_validity(&value, false);
-                if kind != DeclarationKind::Var && value == utf16!("let") {
+                let name = self.token_identifier_name(&token);
+                self.check_identifier_name_for_assignment_validity(&name, false);
+                if kind != DeclarationKind::Var && *name == *utf16!("let") {
                     self.syntax_error("Lexical binding may not be called 'let'");
                 }
-                let id =
-                    self.make_identifier(declaration_start, self.token_identifier_name(&token));
+                let id = self.make_identifier(declaration_start, name.clone());
 
                 if kind == DeclarationKind::Var {
                     self.scope_collector.add_var_declaration(
-                        &[(&value, Some(id.clone()))],
+                        &[(name.as_slice(), Some(id.clone()))],
                         declaration_line,
                         declaration_column,
                         Some(DeclarationKind::Var),
                     );
                 } else {
                     self.scope_collector.add_lexical_declaration(
-                        &[&value as &[u16]],
+                        &[name.as_slice()],
                         declaration_line,
                         declaration_column,
                     );
@@ -299,17 +298,17 @@ impl Parser<'_> {
                 break;
             }
             let token = self.consume();
-            let name = self.token_value(&token).to_vec();
+            let name = self.token_identifier_name(&token);
 
             self.check_identifier_name_for_assignment_validity(&name, false);
-            if name == utf16!("let") {
+            if *name == *utf16!("let") {
                 self.syntax_error("Lexical binding may not be called 'let'");
             }
 
             let id = self.make_identifier(declaration_start, name.clone());
 
             self.scope_collector.add_lexical_declaration(
-                &[&name as &[u16]],
+                &[name.as_slice()],
                 declaration_line,
                 declaration_column,
             );
@@ -1328,7 +1327,7 @@ impl Parser<'_> {
                 let pat = self.parse_binding_pattern();
                 for (n, id) in std::mem::take(&mut self.pattern_bound_names) {
                     parameter_info.push(ParamInfo {
-                        name: n,
+                        name: n.to_utf16_string(),
                         is_rest: rest,
                         is_from_pattern: true,
                         identifier: Some(id),
@@ -1512,7 +1511,7 @@ impl Parser<'_> {
                     }
                 } else {
                     let mut needs_alias = false;
-                    let mut entry_name_value = Utf16String::new();
+                    let mut entry_name_value = SharedUtf16String::default();
                     let mut entry_is_keyword = false;
 
                     if self.match_identifier_name()
@@ -1559,9 +1558,9 @@ impl Parser<'_> {
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume();
-                            let value = self.token_value(&token).to_vec();
-                            entry_name_value = value.clone().into();
-                            let id = self.make_identifier(entry_start, value);
+                            let name = self.token_identifier_name(&token);
+                            entry_name_value = name.clone();
+                            let id = self.make_identifier(entry_start, name);
                             // C++ calls parse_identifier() for binding pattern property
                             // keys, which registers them. Do the same here.
                             self.scope_collector.register_identifier(id.clone(), None);
@@ -1615,9 +1614,9 @@ impl Parser<'_> {
                                 .binding_pattern_start
                                 .unwrap_or_else(|| self.position());
                             let token = self.consume();
-                            let value = self.token_value(&token).to_vec();
-                            let id = self.make_identifier(alias_start, value.clone());
-                            self.pattern_bound_names.push((value.into(), id.clone()));
+                            let name = self.token_identifier_name(&token);
+                            let id = self.make_identifier(alias_start, name.clone());
+                            self.pattern_bound_names.push((name, id.clone()));
                             entry_alias = Some(BindingEntryAlias::Identifier(id));
                         } else {
                             self.expected("identifier or binding pattern");
@@ -1652,8 +1651,7 @@ impl Parser<'_> {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                 } else if Self::is_identifier(&expression) {
                     let id = expression_into_identifier(expression);
-                    self.pattern_bound_names
-                        .push((id.name.to_utf16_string(), id.clone()));
+                    self.pattern_bound_names.push((id.name.clone(), id.clone()));
                     entry_alias = Some(BindingEntryAlias::Identifier(id));
                 } else {
                     self.syntax_error("Invalid destructuring assignment target");
@@ -1669,9 +1667,9 @@ impl Parser<'_> {
                     .binding_pattern_start
                     .unwrap_or_else(|| self.position());
                 let token = self.consume();
-                let value = self.token_value(&token).to_vec();
-                let id = self.make_identifier(alias_start, value.clone());
-                self.pattern_bound_names.push((value.into(), id.clone()));
+                let name = self.token_identifier_name(&token);
+                let id = self.make_identifier(alias_start, name.clone());
+                self.pattern_bound_names.push((name, id.clone()));
                 entry_alias = Some(BindingEntryAlias::Identifier(id));
             } else {
                 self.expected("identifier or binding pattern");

@@ -751,7 +751,7 @@ impl Parser<'_> {
             {
                 self.pattern_bound_names.clear();
                 let pattern = self.parse_binding_pattern();
-                let names_to_check: Vec<Utf16String> = self
+                let names_to_check: Vec<SharedUtf16String> = self
                     .pattern_bound_names
                     .iter()
                     .map(|(n, _)| n.clone())
@@ -810,8 +810,8 @@ impl Parser<'_> {
         };
 
         // Collect catch parameter names for post-body validation.
-        let catch_names: Vec<Utf16String> = match &parameter {
-            Some(CatchBinding::Identifier(id)) => vec![id.name.to_utf16_string()],
+        let catch_names: Vec<SharedUtf16String> = match &parameter {
+            Some(CatchBinding::Identifier(id)) => vec![id.name.clone()],
             Some(CatchBinding::BindingPattern(_)) => self
                 .pattern_bound_names
                 .iter()
