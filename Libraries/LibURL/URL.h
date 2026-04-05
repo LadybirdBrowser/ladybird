@@ -10,6 +10,7 @@
 
 #include <AK/ByteString.h>
 #include <AK/CopyOnWrite.h>
+#include <AK/GenericShorthands.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -221,6 +222,11 @@ inline URL about_newtab() { return URL::about("newtab"_string); }
 inline URL about_processes() { return URL::about("processes"_string); }
 inline URL about_settings() { return URL::about("settings"_string); }
 inline URL about_version() { return URL::about("version"_string); }
+
+inline bool is_webui_url(URL const& url)
+{
+    return first_is_one_of(url, about_processes(), about_settings());
+}
 
 }
 
