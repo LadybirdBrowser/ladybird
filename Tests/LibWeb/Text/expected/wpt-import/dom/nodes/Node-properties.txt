@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 726 tests
 
-718 Pass
-8 Fail
+726 Pass
 Pass	testDiv.nodeType
 Pass	testDiv.ownerDocument
 Pass	testDiv.parentNode
@@ -217,11 +216,11 @@ Pass	foreignPara2.firstChild
 Pass	foreignPara2.lastChild
 Pass	foreignPara2.hasChildNodes()
 Pass	xmlDoc.nodeType
-Fail	xmlDoc.childNodes.length
+Pass	xmlDoc.childNodes.length
 Pass	xmlDoc.childNodes[0]
 Pass	xmlDoc.childNodes[1]
-Fail	xmlDoc.childNodes[2]
-Fail	xmlDoc.childNodes[3]
+Pass	xmlDoc.childNodes[2]
+Pass	xmlDoc.childNodes[3]
 Pass	xmlDoc.URL
 Pass	xmlDoc.compatMode
 Pass	xmlDoc.characterSet
@@ -247,7 +246,7 @@ Pass	xmlElement.parentElement
 Pass	xmlElement.childNodes.length
 Pass	xmlElement.childNodes[0]
 Pass	xmlElement.previousSibling
-Fail	xmlElement.nextSibling
+Pass	xmlElement.nextSibling
 Pass	xmlElement.textContent
 Pass	xmlElement.namespaceURI
 Pass	xmlElement.prefix
@@ -373,10 +372,10 @@ Pass	detachedXmlTextNode.firstChild
 Pass	detachedXmlTextNode.hasChildNodes()
 Pass	processingInstruction.nodeType
 Pass	processingInstruction.ownerDocument
-Fail	processingInstruction.parentNode
+Pass	processingInstruction.parentNode
 Pass	processingInstruction.parentElement
-Fail	processingInstruction.previousSibling
-Fail	processingInstruction.nextSibling
+Pass	processingInstruction.previousSibling
+Pass	processingInstruction.nextSibling
 Pass	processingInstruction.nodeValue
 Pass	processingInstruction.target
 Pass	processingInstruction.nodeName
@@ -467,7 +466,7 @@ Pass	xmlComment.nodeType
 Pass	xmlComment.ownerDocument
 Pass	xmlComment.parentNode
 Pass	xmlComment.parentElement
-Fail	xmlComment.previousSibling
+Pass	xmlComment.previousSibling
 Pass	xmlComment.nextSibling
 Pass	xmlComment.nodeValue
 Pass	xmlComment.nodeName

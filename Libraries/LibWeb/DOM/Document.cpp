@@ -955,6 +955,7 @@ bool Document::is_child_allowed(Node const& node) const
     case NodeType::TEXT_NODE:
         return false;
     case NodeType::COMMENT_NODE:
+    case NodeType::PROCESSING_INSTRUCTION_NODE:
         return true;
     case NodeType::DOCUMENT_TYPE_NODE:
         return !first_child_of_type<DocumentType>();

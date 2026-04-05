@@ -360,6 +360,10 @@ static void processing_instruction_handler(void* ctx, xmlChar const* target, xml
     if (!context)
         return;
 
+    // Processing instructions inside a DTD subset are not document children.
+    if (parser_ctx->inSubset != 0)
+        return;
+
     auto target_str = xml_char_to_byte_string(target);
     auto data_str = xml_char_to_byte_string(data);
 
