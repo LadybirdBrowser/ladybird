@@ -19,6 +19,7 @@
 namespace URL::RustIntegration {
 
 Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url = {}, URL* url = nullptr, Optional<Parser::State> state_override = {}, Optional<StringView> encoding = {});
+Optional<Host> parse_host(StringView input, bool is_opaque = false);
 
 class URLPattern {
 public:

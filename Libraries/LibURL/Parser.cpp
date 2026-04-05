@@ -534,6 +534,9 @@ static ErrorOr<String> domain_to_ascii(StringView domain, bool be_strict)
 // https://url.spec.whatwg.org/#concept-host-parser
 Optional<Host> Parser::parse_host(StringView input, bool is_opaque)
 {
+#ifdef ENABLE_RUST
+    return RustIntegration::parse_host(input, is_opaque);
+#endif
     // 1. If input starts with U+005B ([), then:
     if (input.starts_with('[')) {
         // 1. If input does not end with U+005D (]), IPv6-unclosed validation error, return failure.

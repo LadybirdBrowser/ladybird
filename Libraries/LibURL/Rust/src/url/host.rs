@@ -521,7 +521,7 @@ fn ends_in_a_number_checker(input: &str) -> bool {
 }
 
 // https://url.spec.whatwg.org/#concept-host-parser
-pub(super) fn parse_host(input: &str, is_opaque: bool) -> Option<Host> {
+pub(crate) fn parse_host(input: &str, is_opaque: bool) -> Option<Host> {
     // 1. If input starts with U+005B ([), then:
     if input.starts_with('[') {
         // 1. If input does not end with U+005D (]), IPv6-unclosed validation error, return failure.

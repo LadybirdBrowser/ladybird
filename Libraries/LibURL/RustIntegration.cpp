@@ -174,6 +174,32 @@ static FFI::FfiUrlHost host_to_ffi(Optional<Host> const& host)
     return result;
 }
 
+static Optional<Host> host_from_ffi(FFI::FfiUrlHost const& ffi)
+{
+    if (!ffi.has_host)
+        return {};
+
+    switch (ffi.kind) {
+    case FFI::RustUrlHostKind::String:
+        return Host(string_from_ffi({ ffi.string_data, ffi.string_length }));
+    case FFI::RustUrlHostKind::Ipv4: {
+        u32 const n = (static_cast<u32>(ffi.ipv4[0]) << 24)
+            | (static_cast<u32>(ffi.ipv4[1]) << 16)
+            | (static_cast<u32>(ffi.ipv4[2]) << 8)
+            | static_cast<u32>(ffi.ipv4[3]);
+        return Host(IPv4Address(NetworkOrdered<u32>(n)));
+    }
+    case FFI::RustUrlHostKind::Ipv6: {
+        Array<u16, 8> pieces;
+        for (size_t i = 0; i < 8; i++)
+            pieces[i] = (static_cast<u16>(ffi.ipv6[i * 2]) << 8) | ffi.ipv6[(i * 2) + 1];
+        return Host(IPv6Address(pieces));
+    }
+    }
+
+    VERIFY_NOT_REACHED();
+}
+
 static Optional<URL> url_from_ffi(FFI::RustFfiUrl const& ffi)
 {
     URL url;
@@ -181,28 +207,8 @@ static Optional<URL> url_from_ffi(FFI::RustFfiUrl const& ffi)
     url.set_username(string_from_ffi(ffi.username));
     url.set_password(string_from_ffi(ffi.password));
 
-    if (ffi.host.has_host) {
-        switch (ffi.host.kind) {
-        case FFI::RustUrlHostKind::String:
-            url.set_host(Host(string_from_ffi({ ffi.host.string_data, ffi.host.string_length })));
-            break;
-        case FFI::RustUrlHostKind::Ipv4: {
-            u32 const n = (static_cast<u32>(ffi.host.ipv4[0]) << 24)
-                | (static_cast<u32>(ffi.host.ipv4[1]) << 16)
-                | (static_cast<u32>(ffi.host.ipv4[2]) << 8)
-                | static_cast<u32>(ffi.host.ipv4[3]);
-            url.set_host(Host(IPv4Address(NetworkOrdered<u32>(n))));
-            break;
-        }
-        case FFI::RustUrlHostKind::Ipv6: {
-            Array<u16, 8> pieces;
-            for (size_t i = 0; i < 8; i++)
-                pieces[i] = (static_cast<u16>(ffi.host.ipv6[i * 2]) << 8) | ffi.host.ipv6[(i * 2) + 1];
-            url.set_host(Host(IPv6Address(pieces)));
-            break;
-        }
-        }
-    }
+    if (auto host = host_from_ffi(ffi.host); host.has_value())
+        url.set_host(host.release_value());
 
     if (ffi.has_port)
         url.set_port(ffi.port);
@@ -388,6 +394,10 @@ struct ParseCallbackCtx {
     URL* url_inout;
 };
 
+struct HostParseCallbackCtx {
+    Optional<Host>* result;
+};
+
 static void on_basic_parse_complete(void* ctx_ptr, FFI::RustFfiUrl const* ffi_result)
 {
     auto* ctx = static_cast<ParseCallbackCtx*>(ctx_ptr);
@@ -396,6 +406,29 @@ static void on_basic_parse_complete(void* ctx_ptr, FFI::RustFfiUrl const* ffi_re
     *ctx->result = url_from_ffi(*ffi_result);
     if (ctx->url_inout && ctx->result->has_value())
         *ctx->url_inout = **ctx->result;
+}
+
+static void on_parse_host_complete(void* ctx_ptr, FFI::FfiUrlHost const* ffi_result)
+{
+    auto* ctx = static_cast<HostParseCallbackCtx*>(ctx_ptr);
+    if (!ffi_result)
+        return;
+    *ctx->result = host_from_ffi(*ffi_result);
+}
+
+Optional<Host> parse_host(StringView input, bool is_opaque)
+{
+    Optional<Host> result;
+    HostParseCallbackCtx ctx { .result = &result };
+    bool const did_succeed = FFI::rust_url_parse_host(
+        reinterpret_cast<uint8_t const*>(input.characters_without_null_termination()),
+        input.length(),
+        is_opaque,
+        &ctx,
+        on_parse_host_complete);
+    if (!did_succeed)
+        return {};
+    return result;
 }
 
 Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, URL* url, Optional<Parser::State> state_override, Optional<StringView> encoding)
