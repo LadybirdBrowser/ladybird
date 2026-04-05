@@ -240,6 +240,8 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
             notifier->set_enabled(true);
             return notifier;
         });
+    } else {
+        client->m_read_notifiers.remove(sockfd);
     }
 
     if (what & CURL_POLL_OUT) {
@@ -255,6 +257,8 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
             notifier->set_enabled(true);
             return notifier;
         });
+    } else {
+        client->m_write_notifiers.remove(sockfd);
     }
 
     return 0;
