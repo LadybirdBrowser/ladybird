@@ -1,0 +1,11 @@
+<!doctype html>
+<style id="style">
+    div::after {
+        content: counter(a, dynamic-counter-style);
+    }
+</style>
+<div style="counter-reset: a 5"></div>
+<script>
+    style.sheet.insertRule("@counter-style dynamic-counter-style { symbols: \"*\"; }", 0);
+    document.body.offsetWidth;
+</script>

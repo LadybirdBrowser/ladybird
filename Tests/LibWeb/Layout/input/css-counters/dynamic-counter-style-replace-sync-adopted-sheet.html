@@ -1,0 +1,23 @@
+<!doctype html>
+<div style="counter-reset: a 5"></div>
+<script>
+    let sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+        div::after {
+            content: counter(a, dynamic-counter-style);
+        }
+    `);
+    document.adoptedStyleSheets = [sheet];
+
+    sheet.replaceSync(`
+        @counter-style dynamic-counter-style {
+            symbols: "*";
+        }
+
+        div::after {
+            content: counter(a, dynamic-counter-style);
+        }
+    `);
+
+    document.body.offsetWidth;
+</script>

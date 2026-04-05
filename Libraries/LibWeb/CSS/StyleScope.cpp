@@ -95,9 +95,7 @@ void StyleScope::build_rule_cache()
     m_selector_insights = make<SelectorInsights>();
     m_style_invalidation_data = make<StyleInvalidationData>();
 
-    if (auto user_style_source = document().page().user_style(); user_style_source.has_value()) {
-        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), user_style_source.value()));
-    }
+    build_user_style_sheet_if_needed();
 
     build_qualified_layer_names_cache();
 
@@ -115,6 +113,7 @@ void StyleScope::build_rule_cache()
 
 void StyleScope::invalidate_rule_cache()
 {
+    document().invalidate_counter_style_cache();
     m_author_rule_cache = nullptr;
 
     // NOTE: We could be smarter about keeping the user rule cache, and style sheet.
@@ -129,6 +128,15 @@ void StyleScope::invalidate_rule_cache()
 
     m_pseudo_class_rule_cache = {};
     m_style_invalidation_data = nullptr;
+}
+
+void StyleScope::build_user_style_sheet_if_needed()
+{
+    if (m_user_style_sheet)
+        return;
+
+    if (auto user_style_source = document().page().user_style(); user_style_source.has_value())
+        m_user_style_sheet = GC::make_root(parse_css_stylesheet(CSS::Parser::ParsingParams(document()), user_style_source.value()));
 }
 
 void StyleScope::build_rule_cache_if_needed() const
@@ -188,8 +196,10 @@ void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void
         callback(svg_stylesheet());
     }
     if (cascade_origin == CascadeOrigin::User) {
-        if (m_user_style_sheet)
-            callback(*m_user_style_sheet);
+        auto& style_scope = const_cast<StyleScope&>(*this);
+        style_scope.build_user_style_sheet_if_needed();
+        if (style_scope.m_user_style_sheet)
+            callback(*style_scope.m_user_style_sheet);
     }
     if (cascade_origin == CascadeOrigin::Author) {
         for_each_active_css_style_sheet(move(callback));

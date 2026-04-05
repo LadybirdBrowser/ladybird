@@ -90,6 +90,7 @@ public:
     [[nodiscard]] RuleCache const& get_pseudo_class_rule_cache(PseudoClass) const;
 
     void for_each_stylesheet(CascadeOrigin, Function<void(CSS::CSSStyleSheet&)> const&) const;
+    void build_user_style_sheet_if_needed();
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, SelectorInsights&);
 
