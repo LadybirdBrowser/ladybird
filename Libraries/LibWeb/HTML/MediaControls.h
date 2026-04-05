@@ -34,7 +34,7 @@ private:
     template<typename T, CallableAs<bool, T&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, ListenOnce, Handler);
     template<CallableAs<bool> Handler>
-    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_nam, Handler);
+    GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, Handler);
     template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>
     GC::Ref<DOM::IDLEventListener> add_event_listener(JS::Realm&, DOM::EventTarget&, FlyString const& event_name, Handler);
     template<CallableAs<bool, UIEvents::MouseEvent const&> Handler>

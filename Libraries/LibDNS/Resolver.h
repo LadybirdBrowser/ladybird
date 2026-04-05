@@ -699,7 +699,7 @@ private:
         auto promise = Core::Promise<bool>::construct();
         //  6.3.1. authentication leads to chains of alternating SIG and KEY RRs with the first SIG
         //         signing the original data whose authenticity is to be shown and the final KEY
-        //         being some trusted key staticly configured at the resolver performing
+        //         being some trusted key statically configured at the resolver performing
         //         the authentication.
         // If this is the root, we're done, just return true.
         if (name.labels.size() == 0) {

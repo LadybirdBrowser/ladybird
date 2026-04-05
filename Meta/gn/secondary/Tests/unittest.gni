@@ -3,7 +3,7 @@ template("unittest") {
     has_custom_main = false
     use_js_main = false
 
-    # Foward everything (has_custom_main if set; configs, sources, deps, ...).
+    # Forward everything (has_custom_main if set; configs, sources, deps, ...).
     forward_variables_from(invoker, "*")
     assert(!defined(invoker.output_dir), "cannot set unittest output_dir")
     assert(!defined(invoker.testonly), "cannot set unittest testonly")

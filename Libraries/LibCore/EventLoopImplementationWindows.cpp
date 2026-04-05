@@ -65,7 +65,7 @@ namespace Core {
 enum class CompletionType : u8 {
     Wake,
     Timer,
-    Notifer,
+    Notifier,
 };
 
 struct CompletionPacket {
@@ -181,7 +181,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
         timeout = INFINITE;
 
     BOOL success = GetQueuedCompletionStatusEx(thread_data->iocp.handle, entries, entry_count, &entries_removed, timeout, FALSE);
-    dbgln_if(debug_event_loop, "Event loop dequed {} events", entries_removed);
+    dbgln_if(debug_event_loop, "Event loop dequeued {} events", entries_removed);
 
     if (success) {
         for (ULONG i = 0; i < entries_removed; i++) {
@@ -204,7 +204,7 @@ size_t EventLoopImplementationWindows::pump(PumpMode pump_mode)
                 }
                 continue;
             }
-            if (packet->type == CompletionType::Notifer) {
+            if (packet->type == CompletionType::Notifier) {
                 auto* notifier_data = static_cast<EventLoopNotifier*>(packet);
                 event_queue.post_event(notifier_data->notifier, Core::Event::Type::NotifierActivation);
                 NTSTATUS status = g_system.NtAssociateWaitCompletionPacket(notifier_data->wait_packet.handle, thread_data->iocp.handle, notifier_data->wait_event.handle, notifier_data, NULL, 0, 0, NULL);
@@ -265,7 +265,7 @@ void EventLoopManagerWindows::register_notifier(Notifier& notifier)
     VERIFY(!rc);
 
     auto notifier_data = make<EventLoopNotifier>();
-    notifier_data->type = CompletionType::Notifer;
+    notifier_data->type = CompletionType::Notifier;
     notifier_data->notifier = &notifier;
     notifier_data->wait_event.handle = event;
     NTSTATUS status = g_system.NtCreateWaitCompletionPacket(&notifier_data->wait_packet.handle, GENERIC_READ | GENERIC_WRITE, NULL);

@@ -178,6 +178,9 @@ runs:
       if: ${{ inputs.os != 'Windows' }}
       uses: dtolnay/rust-toolchain@stable
 
+    - name: 'Install typos'
+      run: cargo install --locked typos-cli --version 1.43.5
+
     - name: 'Install wasm-tools'
       if: ${{ inputs.type == 'build' }}
       shell: bash

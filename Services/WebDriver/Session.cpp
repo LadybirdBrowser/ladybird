@@ -55,7 +55,7 @@ ErrorOr<NonnullRefPtr<Session>> Session::create(NonnullRefPtr<Client> client, Js
         capabilities.set("proxy"sv, JsonObject {});
     }
 
-    // FIXME: 4. If capabilites has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
+    // FIXME: 4. If capabilities has a property named "acceptInsecureCerts", set the endpoint node's accept insecure TLS flag
     //           to the result of getting a property named "acceptInsecureCerts" from capabilities.
 
     // 5. Let user prompt handler capability be the result of getting property "unhandledPromptBehavior" from capabilities.

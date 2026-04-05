@@ -18,7 +18,7 @@ from urllib.parse import urlunsplit
 from urllib.request import urlopen
 
 download_exclude_list = {
-    # This relies on a dynamic path that cannot be rewitten by the importer.
+    # This relies on a dynamic path that cannot be rewritten by the importer.
     "/resources/idlharness.js",
     # This file has been modified to improve the performance of our test runner.
     "/resources/testharness.js",

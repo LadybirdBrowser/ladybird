@@ -272,7 +272,7 @@ test("parentheses", () => {
     );
 
     var regexp48 = /^(?:(\w+):\/*([\w\.\-\d]+)(?::(\d+)|)(?=(?:\/|$))|)(?:$|\/?(.*?)(?:\?(.*?)?|)(?:#(.*)|)$)/;
-    /* The regexp on the prior line confuses Xcode syntax highlighting, this coment fixes it! */
+    /* The regexp on the prior line confuses Xcode syntax highlighting, this comment fixes it! */
     shouldBe(
         "regexp48.exec('http://www.acme.com/this/is/a/path/file.txt')",
         "['http://www.acme.com/this/is/a/path/file.txt','http','www.acme.com',undefined,'this/is/a/path/file.txt',undefined,undefined]"
@@ -280,7 +280,7 @@ test("parentheses", () => {
 
     var regexp49 =
         /(?:([^:]*?)(?:(?:\?(.*?)?)?)(?:(?:#)?)$)|(?:^(?:(\w+):\/*([\w\.\-\d]+)(?::(\d+)|)(?=(?:\/|$))|)(?:$|\/?(.*?)(?:\?(.*?)?|)(?:#(.*)|)$))/;
-    /* The regexp on the prior line confuses Xcode syntax highlighting, this coment fixes it! */
+    /* The regexp on the prior line confuses Xcode syntax highlighting, this comment fixes it! */
     shouldBe(
         "regexp49.exec('http://www.acme.com/this/is/a/path/file.txt')",
         "['http://www.acme.com/this/is/a/path/file.txt',undefined,undefined,'http','www.acme.com',undefined,'this/is/a/path/file.txt',undefined,undefined]"

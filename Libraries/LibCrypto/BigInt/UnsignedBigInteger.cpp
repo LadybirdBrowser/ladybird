@@ -276,7 +276,7 @@ FLATTEN ErrorOr<UnsignedBigInteger> UnsignedBigInteger::minus(UnsignedBigInteger
     UnsignedBigInteger result;
     MP_MUST(mp_sub(&m_mp, &other.m_mp, &result.m_mp));
     if (mp_isneg(&result.m_mp))
-        return Error::from_string_literal("Substraction produced a negative result");
+        return Error::from_string_literal("Subtraction produced a negative result");
     return result;
 }
 

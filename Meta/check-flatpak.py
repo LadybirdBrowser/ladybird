@@ -26,7 +26,7 @@ flatpak_build_tools = [
 ]
 
 # List of libraries that are transitive dependencies
-# These are in the manifest to fetch before building, but not explicitely versioned
+# These are in the manifest to fetch before building, but not explicitly versioned
 flatpak_transitive_deps = [
     "libyuv",
 ]

@@ -448,7 +448,7 @@ NSImageView* create_application_icon(WebView::Action& action)
 
 void set_control_image(id control, NSString* image)
 {
-    // System symbols are distributed with the San Fransisco (SF) Symbols font. To see all SF Symbols and their names,
+    // System symbols are distributed with the San Francisco (SF) Symbols font. To see all SF Symbols and their names,
     // you will have to install the SF Symbols app: https://developer.apple.com/sf-symbols/
     auto set_image = [&]() {
         [control setImage:[NSImage imageWithSystemSymbolName:image accessibilityDescription:@""]];

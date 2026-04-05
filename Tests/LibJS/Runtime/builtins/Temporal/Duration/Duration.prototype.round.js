@@ -110,7 +110,7 @@ describe("correct behavior", () => {
         });
     });
 
-    test("relativeTo falls within second wallclock occurence of DST transition", () => {
+    test("relativeTo falls within second wallclock occurrence of DST transition", () => {
         const duration = Temporal.Duration.from({ minutes: -59 });
 
         const result = duration.round({

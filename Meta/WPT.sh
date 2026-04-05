@@ -640,7 +640,7 @@ bisect_wpt()
           current_branch_or_commit="$(git rev-parse HEAD)"
       fi
 
-      # We create the baseline log file against the bad commit bcause building it may be significantly faster if the
+      # We create the baseline log file against the bad commit because building it may be significantly faster if the
       # good commit is significantly older than the bad commit.
       git checkout "${bad}" 2> /dev/null
       trap 'git checkout "${current_branch_or_commit}" 2> /dev/null' EXIT INT TERM

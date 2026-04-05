@@ -44,7 +44,7 @@ AbstractElement::TreeCountingFunctionResolutionContext AbstractElement::tree_cou
 
     // FIXME: A tree counting function is a tree-scoped reference where it references an implicit tree-scoped name for
     //        the element it resolves against. This is done to not leak tree information to an outer tree. A tree
-    //        counting function that is scoped to an outer tree relative to the element it resolves against, will alway
+    //        counting function that is scoped to an outer tree relative to the element it resolves against, will always
     //        resolve to 0.
     auto const& element_to_resolve_tree_counting_function_against = element();
 

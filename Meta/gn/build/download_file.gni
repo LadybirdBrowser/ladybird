@@ -1,7 +1,7 @@
 #
 # This file introduces a template for calling download_file.py
 #
-# download_file behaves like CMake's file(DOWNLOAD) with the addtion
+# download_file behaves like CMake's file(DOWNLOAD) with the addition
 # of version checking the file against a build system defined version.
 #
 # Parameters:
@@ -12,7 +12,7 @@
 #   version (required) [string]
 #       Version of the file for caching purposes
 #
-#   version_file (reqiured) [string]
+#   version_file (required) [string]
 #       Filename to write the version to in the filesystem
 #
 #   cache [String]

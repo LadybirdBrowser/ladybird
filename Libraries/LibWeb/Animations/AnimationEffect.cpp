@@ -191,7 +191,7 @@ Optional<TimeValue> AnimationEffect::timeline_duration() const
 // https://drafts.csswg.org/web-animations-2/#time-based-animation-to-a-proportional-animation
 void AnimationEffect::convert_a_time_based_animation_to_a_proportional_animation()
 {
-    // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+    // AD-HOC: We use the specified interaction duration instead of the iteration duration here, see
     //         https://github.com/w3c/csswg-drafts/pull/13170
     // If the iteration duration is auto, then perform the following steps.
     if (m_specified_iteration_duration.has<String>()) {
@@ -252,7 +252,7 @@ void AnimationEffect::normalize_specified_timing()
         m_end_delay = TimeValue { TimeValue::Type::Milliseconds, m_specified_end_delay };
 
         // 3. If iteration duration is auto:
-        // AD-HOC: We use the specified interation duration instead of the iteration duration here, see
+        // AD-HOC: We use the specified interaction duration instead of the iteration duration here, see
         //         https://github.com/w3c/csswg-drafts/pull/13170
         if (m_specified_iteration_duration.has<String>()) {
             // Set iteration duration = intrinsic iteration duration

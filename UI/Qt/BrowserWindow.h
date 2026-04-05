@@ -54,7 +54,7 @@ public:
 
     void exit(ExitInitiatedBy);
     void enter(Tab* tab);
-    // Called after a window change event that has identifed the current window state to be fullscreen.
+    // Called after a window change event that has identified the current window state to be fullscreen.
     void entered_fullscreen();
     bool is_api_fullscreen() const;
 signals:

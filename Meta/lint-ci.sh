@@ -66,4 +66,17 @@ else
     ((FAILURES+=1))
 fi
 
+if command -v typos >/dev/null 2>&1; then
+    if typos "$@"; then
+        echo -e "[${GREEN}OK${NC}]: typos"
+    else
+        echo -e "[${BOLD_RED}FAIL${NC}]: typos"
+        ((FAILURES+=1))
+    fi
+else
+    echo -e "[${BOLD_RED}FAIL${NC}]: typos"
+    echo "Error: 'typos' is not installed. Please install it with 'cargo install typos-cli --locked' and re-run this script." >&2
+    ((FAILURES+=1))
+fi
+
 exit "${FAILURES}"

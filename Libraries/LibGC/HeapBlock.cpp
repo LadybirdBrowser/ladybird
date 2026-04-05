@@ -53,7 +53,7 @@ void HeapBlock::deallocate(Cell* cell)
     auto dword_after_freelist = round_up_to_power_of_two(reinterpret_cast<uintptr_t>(freelist_entry) + sizeof(FreelistEntry), 8);
     VERIFY((dword_after_freelist - reinterpret_cast<uintptr_t>(freelist_entry)) <= m_cell_size);
     VERIFY(m_cell_size >= sizeof(FreelistEntry));
-    // We can't poision the cell tracking data, nor the FreeListEntry's vtable or next pointer
+    // We can't poison the cell tracking data, nor the FreeListEntry's vtable or next pointer
     // This means there's sizeof(FreelistEntry) data at the front of each cell that is always read/write
     // On x86_64, this ends up being 24 bytes due to the size of the FreeListEntry's vtable, while on x86, it's only 12 bytes.
     ASAN_POISON_MEMORY_REGION(reinterpret_cast<void*>(dword_after_freelist), m_cell_size - sizeof(FreelistEntry));

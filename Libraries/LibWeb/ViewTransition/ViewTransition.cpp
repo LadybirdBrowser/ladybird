@@ -502,7 +502,7 @@ void ViewTransition::setup_transition_pseudo_elements()
         if (captured_element->old_image && captured_element->new_element) {
             // 1. Let transform be capturedElement’s old transform.
             auto& transform = captured_element->old_transform;
-            // FIXME: Remove this once tranform gets used in step 5 below.
+            // FIXME: Remove this once transform gets used in step 5 below.
             (void)transform;
 
             // 2. Let width be capturedElement’s old width.
@@ -513,7 +513,7 @@ void ViewTransition::setup_transition_pseudo_elements()
 
             // 4. Let backdropFilter be capturedElement’s old backdrop-filter.
             auto& backdrop_filter = captured_element->old_backdrop_filter;
-            // FIXME: Remove this once tranform gets used in step 5 below.
+            // FIXME: Remove this once transform gets used in step 5 below.
             (void)backdrop_filter;
 
             // 5. Set capturedElement’s group keyframes to a new CSSKeyframesRule representing the following

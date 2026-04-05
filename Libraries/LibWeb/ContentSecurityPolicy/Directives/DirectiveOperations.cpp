@@ -665,7 +665,7 @@ static MatchResult does_integrity_metadata_match_source_list(String const& integ
     auto integrity_sources = MUST(SRI::parse_metadata(integrity_metadata));
 
     // 5. If integrity sources is "no metadata" or an empty set, return "Does Not Match".
-    // FIXME: File a spec issue stating that this is targetting an older version of the SRI spec, which does not return
+    // FIXME: File a spec issue stating that this is targeting an older version of the SRI spec, which does not return
     //        "no metadata", but instead simply just returns an empty list if there is no metadata.
     //        The up-to-date spec is located at https://w3c.github.io/webappsec-subresource-integrity/
     if (integrity_sources.is_empty())

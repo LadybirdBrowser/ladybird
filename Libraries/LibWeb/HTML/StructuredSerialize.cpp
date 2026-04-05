@@ -1185,7 +1185,7 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     return DeserializedTransferRecord { .deserialized = deserialized, .transferred_values = move(transferred_values) };
 }
 
-// AD-HOC: This non-standard overload is meant to extract just one transferrable value from a serialized transfer record.
+// AD-HOC: This non-standard overload is meant to extract just one transferable value from a serialized transfer record.
 //         It's primarily useful for an object's transfer receiving steps to deserialize a nested value.
 WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder& decoder, JS::Realm& target_realm)
 {

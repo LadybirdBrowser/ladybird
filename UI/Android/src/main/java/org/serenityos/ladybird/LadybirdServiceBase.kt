@@ -42,7 +42,7 @@ abstract class LadybirdServiceBase(protected val TAG: String) : Service() {
 
     private fun handleTransferSockets(msg: Message) {
         val bundle = msg.data
-        // FIXME: Handle garbage messages from wierd clients
+        // FIXME: Handle garbage messages from weird clients
         val ipcSocket = bundle.getParcelable<ParcelFileDescriptor>("IPC_SOCKET")!!
         createThread(ipcSocket)
     }

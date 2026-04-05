@@ -153,7 +153,7 @@ double BigFraction::to_double() const
     size_t top_bit_denominator = denominator.one_based_index_of_highest_set_bit();
     size_t shift_left_numerator = 0;
 
-    // 1. Shift numerator so that its most significant bit is exaclty 64 bits left tha than that of the denominator.
+    // 1. Shift numerator so that its most significant bit is exactly 64 bits to the left of that of the denominator.
     // NOTE: the precision of the result will be 63 bits (more than 53 bits necessary for the mantissa of a double).
     if (top_bit_numerator < (top_bit_denominator + 64)) {
         shift_left_numerator = top_bit_denominator + 64 - top_bit_numerator;

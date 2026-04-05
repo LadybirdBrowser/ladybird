@@ -465,7 +465,7 @@ private:
         auto const number = read_number<u32, 7>();
         return tz_offset(number);
     }
-    // Continue reading a timezone offset, after the sign and the first number have beeen read.
+    // Continue reading a timezone offset, after the sign and the first number have been read.
     ALWAYS_INLINE bool tz_offset(std::pair<u32, size_t> const& number, bool iso_8601_format = false)
     {
         if (m_timezone_hours.has_value()) // Cannot have more than one timezone offset or a timezone name followed by a timezone offset.
@@ -644,7 +644,7 @@ private:
     // Capture simplified ISO8601 date format. https://tc39.es/ecma262/#sec-date-time-string-format
     // All of the iso_... functions return:
     // - true: if the input can be parsed as an ISO8601 date.
-    // - false: cannot be parsed as an ISO8601 date. Will be defered to a non-standard date string.
+    // - false: cannot be parsed as an ISO8601 date. Will be deferred to a non-standard date string.
     // - Error: hard fail; caller is supposed to return NAN.
     ALWAYS_INLINE ErrorOr<bool> maybe_iso_8601()
     {

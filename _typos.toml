@@ -1,0 +1,113 @@
+[files]
+extend-exclude = [
+    "Libraries/LibWeb/HTML/Parser/Entities.json",
+    "Libraries/LibWeb/WebIDL/Promise.cpp",
+    "Meta/Lagom/Fuzzers/FuzzilliJs.cpp",
+    "Tests/LibCrypto/TestRSA.cpp",
+    "Tests/LibGfx/test-inputs/pnm/buggie-raw.ppm",
+    "Tests/LibJS/*",
+    "Tests/LibWeb/*",
+    "Tests/LibUnicode/*",
+    "Tests/LibWebView/*",
+    "Tests/AK/*",
+    "Tests/LibRegex/*",
+]
+
+[default]
+extend-ignore-identifiers-re = [
+  ".*(?:^|_)len$",
+  "cose",
+  "LOD",
+  "lod",
+  "bitap",
+  "JOD",
+  ".*Threed.*",
+  ".*threed.*",
+  ".*cpy.*",
+  ".*Invokee.*",
+  ".*invokee.*",
+]
+extend-ignore-re = [
+  "mis-wrapped",
+  'frame-075b-4da1-b6ba-e579c2d3230a',
+]
+
+[default.extend-identifiers]
+DT_WHT = "DT_WHT"
+msg_controllen = "msg_controllen"
+GOST3411 = "GOST3411"
+forin_start = "forin_start"
+IIFEs = "IIFEs"
+transitionable = "transitionable"
+clonable = "clonable"
+ThreedShadow2 = "ThreedShadow2"
+COMMANDs = "COMMANDs"
+invokee = "invokee"
+i32_ges = "i32_ges"
+i64_ges = "i64_ges"
+parmVarDecl = "parmVarDecl"
+SVGFEBlendELement = "SVGFEBlendELement"
+hb_ot_color_has_layers = "hb_ot_color_has_layers"
+hb_ot_color_has_svg = "hb_ot_color_has_svg"
+
+[default.extend-words]
+GOST = "GOST"
+pn = "pn"
+IIFEs = "IIFEs"
+seeked = "seeked"
+wdth = "wdth"
+datas = "datas"
+transitionable = "transitionable"
+clonable = "clonable"
+raison = "raison"
+fpr = "fpr"
+FPR = "FPR"
+fo = "fo"
+ist = "ist"
+IST = "IST"
+tru = "tru"
+ot = "ot"
+ges = "ges"
+
+[type.txt]
+extend-ignore-re = [
+  "\\badition\\.com\\b",
+  "\\bals-svc\\.nytimes\\.com\\b",
+]
+
+[type.txt.extend-identifiers]
+forin_array_pattern = "forin_array_pattern"
+forin_object_pattern = "forin_object_pattern"
+forin_member_lhs = "forin_member_lhs"
+
+[type.css.extend-words]
+tham = "tham"
+threed = "threed"
+
+[type.json.extend-words]
+tham = "tham"
+
+[type.h]
+extend-ignore-identifiers-re = [
+  ".*(?:^|_)len$",
+]
+
+[type.cpp]
+extend-ignore-identifiers-re = [
+  ".*(?:^|_)len$",
+  "ECT",
+  "sterr",
+  "Threed",
+  "mis",
+  ".*shrinked.*",
+]
+extend-ignore-re = [
+  '"UBLIC"sv',
+  "Nd",
+  "zlib-flate",
+]
+
+[type.js.extend-identifiers]
+forin_array_pattern = "forin_array_pattern"
+forin_object_pattern = "forin_object_pattern"
+forin_member_lhs = "forin_member_lhs"

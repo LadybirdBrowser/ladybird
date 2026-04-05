@@ -151,7 +151,7 @@ struct VariantConstructors {
 private:
     [[nodiscard]] ALWAYS_INLINE Base& internal_cast()
     {
-        // Warning: Internal type shenanigans - VariantsConstrutors<T, Base> <- Base
+        // Warning: Internal type shenanigans - VariantsConstructors<T, Base> <- Base
         //          Not the other way around, so be _really_ careful not to cause issues.
         return *static_cast<Base*>(this);
     }

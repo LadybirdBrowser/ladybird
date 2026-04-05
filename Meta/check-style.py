@@ -57,7 +57,7 @@ LOCAL_INCLUDE_SUFFIX_EXCLUDES = [
 # We check for and disallow any comments linking to the single-page HTML spec because it takes a long time to load.
 SINGLE_PAGE_HTML_SPEC_LINK = re.compile("//.*https://html\\.spec\\.whatwg\\.org/#")
 
-# We similarily check and disallow AD-HOCs and FIXMEs that aren't followed by a colon.
+# We similarly check and disallow AD-HOCs and FIXMEs that aren't followed by a colon.
 INVALID_AD_HOC_OR_FIXME = re.compile(r'^(?:[\s\d./\-(*]+(?:AD-HOC|FIXME|NB|NOTE)[^:]|.*"FIXME[^:"]).*$', re.MULTILINE)
 
 

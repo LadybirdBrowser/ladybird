@@ -105,7 +105,7 @@ ThrowCompletionOr<Value> await(VM& vm, Value value)
             return success.has_value();
         }));
     } else {
-        // No embbedder, standalone LibJS implementation
+        // No embedder, standalone LibJS implementation
         vm.run_queued_promise_jobs();
     }
 

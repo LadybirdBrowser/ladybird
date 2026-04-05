@@ -517,7 +517,7 @@ fn generate_binary_expression(
 
     // OPTIMIZATION: We do need to make a copy of the LHS here in case evaluation of the RHS
     // reassigns it. However, binary expressions are a pretty common thing, so doing the copy
-    // unconditionally is a noticable performance hit, especially because in practice, the copy is
+    // unconditionally is a noticeable performance hit, especially because in practice, the copy is
     // almost never needed. We add a small heuristic here that detects the most common cases.
     // FIXME: This is a pretty narrow optimization. Maybe instead, it would make sense to have a
     // more general "remove unnecessary mov-operations" as part of a bytecode optimization pass.

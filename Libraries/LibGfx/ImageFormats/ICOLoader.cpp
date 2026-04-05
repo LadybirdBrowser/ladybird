@@ -104,7 +104,7 @@ static ErrorOr<ICOImageDescriptor> decode_ico_direntry(Stream& stream, IconType 
     };
 
     if (file_type == IconType::CUR) {
-        // For cursor files, hotsport coordinates are stored in the planes and bits_per_pixel fields
+        // For cursor files, hotspot coordinates are stored in the planes and bits_per_pixel fields
         desc.hotspot_x = entry.planes;
         desc.hotspot_y = entry.bits_per_pixel;
     }

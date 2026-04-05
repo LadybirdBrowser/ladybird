@@ -97,7 +97,7 @@ class AssertReturn:
 @dataclass
 class AssertTrap:
     line: int
-    messsage: str
+    message: str
     action: Action
 
 
@@ -591,7 +591,7 @@ def gen_command(command: Command, ctx: Context):
         case AssertTrap():
             if not isinstance(command.action, Invoke):
                 raise GenerateException(f"Not implemented: {type(command.action)}")
-            gen_invoke(command.line, command.action, None, ctx, fail_msg=command.messsage)
+            gen_invoke(command.line, command.action, None, ctx, fail_msg=command.message)
         case AssertException():
             if not isinstance(command.action, Invoke):
                 raise GenerateException(f"Not implemented: {type(command.action)}")

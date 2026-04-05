@@ -359,7 +359,7 @@ test("ambiguous date: month + number", () => {
     expect("1978-08-01T07:00:00.000Z").toBe(new Date("78 auger").toISOString());
     expect("1971-12-01T08:00:00.000Z").toBe(new Date("71 decimate").toISOString());
 
-    // Chrome interprets numbers 1-31 as days in the given month in 2001. Weird. We interepret everything as a year.
+    // Chrome interprets numbers 1-31 as days in the given month in 2001. Weird. We interpret everything as a year.
     expect("2007-02-01T08:00:00.000Z").toBe(new Date("7.FebluAli").toISOString());
     expect("2021-02-01T08:00:00.000Z").toBe(new Date("21.FebluAli").toISOString());
     expect("2031-02-01T08:00:00.000Z").toBe(new Date("31.FebluAli").toISOString());

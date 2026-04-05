@@ -833,7 +833,7 @@ TEST_CASE(test_webp_simple_lossless_alpha_used_false)
 
 TEST_CASE(test_webp_extended_lossy)
 {
-    // This extended lossy image has an ALPH chunk for (losslessly compressed) alpha data.
+    // This extended lossy image has an ALPHA chunk for (losslessly compressed) alpha data.
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("webp/extended-lossy.webp"sv)));
     EXPECT(Gfx::WebPImageDecoderPlugin::sniff(file->bytes()));
     auto plugin_decoder = TRY_OR_FAIL(Gfx::WebPImageDecoderPlugin::create(file->bytes()));

@@ -236,7 +236,7 @@ NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spaci
     // we just provide the glyph's code unit length and base LibWeb algorithms on that.
     //
     // A single grapheme may be represented by multiple glyphs, where any of those glyphs are zero-width. We want to
-    // assign code unit lengths such that each glyph knows the length of the text it respresents.
+    // assign code unit lengths such that each glyph knows the length of the text it represents.
     auto glyph_length_in_code_units = [&](auto index) -> size_t {
         auto starting_offset = glyph_info[index].cluster;
 

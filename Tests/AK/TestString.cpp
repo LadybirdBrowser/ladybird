@@ -1567,8 +1567,8 @@ TEST_CASE(roman_numerals)
     auto nine = String::roman_number_from(9, String::Case::Upper);
     EXPECT_EQ(nine, "IX"sv);
 
-    auto fourty_eight = String::roman_number_from(48, String::Case::Upper);
-    EXPECT_EQ(fourty_eight, "XLVIII"sv);
+    auto forty_eight = String::roman_number_from(48, String::Case::Upper);
+    EXPECT_EQ(forty_eight, "XLVIII"sv);
 
     auto one_thousand_nine_hundred_ninety_eight = String::roman_number_from(1998, String::Case::Upper);
     EXPECT_EQ(one_thousand_nine_hundred_ninety_eight, "MCMXCVIII"sv);

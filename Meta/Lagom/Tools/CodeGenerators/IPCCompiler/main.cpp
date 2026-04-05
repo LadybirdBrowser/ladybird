@@ -521,7 +521,7 @@ private:)~~~");
 
 void generate_proxy_method(SourceGenerator& message_generator, Endpoint const& endpoint, Message const& message, ByteString const& name, Vector<Parameter> const& parameters, bool is_synchronous, bool is_try, bool is_unicode_string_overload = false)
 {
-    // FIXME: For String parameters, we want to retain the property that all tranferred String objects are strictly UTF-8.
+    // FIXME: For String parameters, we want to retain the property that all transferred String objects are strictly UTF-8.
     //        So instead of generating a single proxy method that accepts StringView parameters, we generate two overloads.
     //        The first accepts StringView parameters, but validates the view is UTF-8. The second accepts String parameters,
     //        for callers that already have a UTF-8 String object.

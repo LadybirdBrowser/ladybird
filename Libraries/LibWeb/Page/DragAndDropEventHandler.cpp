@@ -284,7 +284,7 @@ EventResult DragAndDropEventHandler::handle_drag_move(
                 //        object, if not. Then, set the current target element to the body element, regardless of
                 //        whether that event was canceled or not.
 
-                // FIXME: Spec isue: Contrary to the spec, all browsers do not require the user script to cancel the
+                // FIXME: Spec issue: Contrary to the spec, all browsers do not require the user script to cancel the
                 //        dragenter event. See: https://github.com/whatwg/html/issues/11608
                 m_current_target_element = is<DOM::Element>(*m_immediate_user_selection)
                     ? m_immediate_user_selection

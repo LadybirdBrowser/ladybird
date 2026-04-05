@@ -57,7 +57,7 @@ public:
         case WebView::ActionID::ToggleBookmark:
         case WebView::ActionID::ToggleBookmarkViaToolbar:
             if (auto* parent = as_if<QWidget>(m_action->parent())) {
-                auto const* icon = action.engaged() ? "star-filled" : "star-countour";
+                auto const* icon = action.engaged() ? "star-filled" : "star-contour";
                 m_action->setIcon(create_tvg_icon_with_theme_colors(icon, parent->palette()));
             }
             break;
