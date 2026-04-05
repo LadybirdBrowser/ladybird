@@ -17,6 +17,10 @@ void SettingsUI::register_interfaces()
     register_interface("loadCurrentSettings"sv, [this](auto const&) {
         load_current_settings();
     });
+    register_interface("resetToDefaults"sv, [this](auto const&) {
+        Application::settings().reset_to_defaults();
+        load_current_settings();
+    });
 
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);

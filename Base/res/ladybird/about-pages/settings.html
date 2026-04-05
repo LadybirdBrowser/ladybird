@@ -18,6 +18,47 @@
                 }
             }
 
+            body.settings header {
+                justify-content: space-between;
+                gap: 16px;
+            }
+
+            body.settings .header-brand {
+                display: flex;
+                align-items: center;
+            }
+
+            /* Closed <dialog> must stay hidden; display:flex on dialog overrides UA :not([open]). */
+            dialog.reset-settings-dialog:not([open]) {
+                display: none;
+            }
+
+            dialog.reset-settings-dialog[open] {
+                display: flex;
+                flex-direction: column;
+
+                width: min(560px, 94vw);
+                max-width: min(560px, 94vw);
+            }
+
+            dialog.reset-settings-dialog .dialog-body {
+                flex: 0 1 auto;
+                height: auto;
+                min-height: min-content;
+                max-height: none;
+
+                overflow: visible;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+            }
+
+            dialog.reset-settings-dialog .reset-settings-dialog-text {
+                margin: 0;
+
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
             hr {
                 height: 1px;
                 background-color: var(--border-color);
@@ -324,14 +365,34 @@
             }
         </style>
     </head>
-    <body>
+    <body class="settings">
         <header>
-            <picture>
-                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
-                <img src="resource://icons/128x128/app-browser-dark.png" />
-            </picture>
-            <h1>Ladybird Settings</h1>
+            <div class="header-brand">
+                <picture>
+                    <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                    <img src="resource://icons/128x128/app-browser-dark.png" />
+                </picture>
+                <h1>Ladybird Settings</h1>
+            </div>
+            <button type="button" id="reset-settings-open" class="secondary-button">Reset to defaults</button>
         </header>
+
+        <dialog id="reset-settings-dialog" class="reset-settings-dialog">
+            <div class="dialog-header">
+                <h3 class="dialog-title">Reset settings</h3>
+                <button type="button" class="dialog-button" id="reset-settings-dialog-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="dialog-body">
+                <p class="reset-settings-dialog-text">
+                    This restores all Ladybird settings stored in Settings.json to their default values. Custom search engines
+                    will be removed. This does not delete browsing data.
+                </p>
+            </div>
+            <div class="dialog-footer">
+                <button type="button" class="secondary-button" id="reset-settings-cancel">Cancel</button>
+                <button type="button" class="primary-button" id="reset-settings-confirm">Reset to defaults</button>
+            </div>
+        </dialog>
 
         <div class="tab-bar">
             <button class="tab-button active" data-tab="general">General</button>
@@ -662,6 +723,21 @@
                         dialog.close();
                     }
                 });
+            });
+
+            const resetSettingsDialog = document.querySelector("#reset-settings-dialog");
+            document.querySelector("#reset-settings-open").addEventListener("click", () => {
+                resetSettingsDialog.showModal();
+            });
+            document.querySelector("#reset-settings-dialog-close").addEventListener("click", () => {
+                resetSettingsDialog.close();
+            });
+            document.querySelector("#reset-settings-cancel").addEventListener("click", () => {
+                resetSettingsDialog.close();
+            });
+            document.querySelector("#reset-settings-confirm").addEventListener("click", () => {
+                ladybird.sendMessage("resetToDefaults");
+                resetSettingsDialog.close();
             });
 
             document.addEventListener("WebUILoaded", () => {

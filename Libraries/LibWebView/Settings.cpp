@@ -487,6 +487,46 @@ void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_b
         observer.dns_settings_changed();
 }
 
+void Settings::reset_to_defaults()
+{
+    auto preserved_dns_settings = m_dns_settings;
+    auto preserved_dns_override = m_dns_override_by_command_line;
+
+    m_new_tab_page_url = URL::about_newtab();
+    m_show_bookmarks_bar = default_show_bookmarks_bar;
+    m_default_zoom_level_factor = initial_zoom_level_factor;
+    m_languages = { default_language };
+    m_search_engine.clear();
+    m_custom_search_engines.clear();
+    m_autocomplete_engine.clear();
+    m_autoplay = SiteSetting {};
+    m_browsing_data_settings = {};
+    m_global_privacy_control = GlobalPrivacyControl::No;
+
+    if (preserved_dns_override) {
+        m_dns_settings = preserved_dns_settings;
+        m_dns_override_by_command_line = true;
+    } else {
+        m_dns_settings = SystemDNS {};
+        m_dns_override_by_command_line = false;
+    }
+
+    persist_settings();
+
+    for (auto& observer : m_observers) {
+        observer.new_tab_page_url_changed();
+        observer.show_bookmarks_bar_changed();
+        observer.default_zoom_level_factor_changed();
+        observer.languages_changed();
+        observer.search_engine_changed();
+        observer.autocomplete_engine_changed();
+        observer.autoplay_settings_changed();
+        observer.browsing_data_settings_changed();
+        observer.global_privacy_control_changed();
+        observer.dns_settings_changed();
+    }
+}
+
 void Settings::persist_settings()
 {
     auto settings = serialize_json();
