@@ -39,21 +39,21 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
             let mut names = Vec::new();
             for declaration in declarations.iter() {
                 if let VariableDeclaratorTarget::Identifier(id) = &declaration.target {
-                    names.push(id.name.clone());
+                    names.push(id.name.to_utf16_string());
                 }
             }
             names
         }
         StatementKind::FunctionDeclaration(fd) => {
             if let Some(ref name) = fd.name {
-                vec![name.name.clone()]
+                vec![name.name.to_utf16_string()]
             } else {
                 Vec::new()
             }
         }
         StatementKind::ClassDeclaration(class) => {
             if let Some(ref name) = class.name {
-                vec![name.name.clone()]
+                vec![name.name.to_utf16_string()]
             } else {
                 Vec::new()
             }
@@ -64,7 +64,7 @@ fn get_declaration_export_names(statement: &Statement) -> Vec<Utf16String> {
 
 fn collect_declarator_names(target: &VariableDeclaratorTarget, names: &mut Vec<Utf16String>) {
     match target {
-        VariableDeclaratorTarget::Identifier(id) => names.push(id.name.clone()),
+        VariableDeclaratorTarget::Identifier(id) => names.push(id.name.to_utf16_string()),
         VariableDeclaratorTarget::BindingPattern(pat) => collect_pattern_names(pat, names),
     }
 }
@@ -72,14 +72,14 @@ fn collect_declarator_names(target: &VariableDeclaratorTarget, names: &mut Vec<U
 fn collect_pattern_names(pat: &BindingPattern, names: &mut Vec<Utf16String>) {
     for entry in &pat.entries {
         match &entry.alias {
-            Some(BindingEntryAlias::Identifier(id)) => names.push(id.name.clone()),
+            Some(BindingEntryAlias::Identifier(id)) => names.push(id.name.to_utf16_string()),
             Some(BindingEntryAlias::BindingPattern(nested)) => collect_pattern_names(nested, names),
             _ => {}
         }
         if entry.alias.is_none()
             && let Some(BindingEntryName::Identifier(id)) = &entry.name
         {
-            names.push(id.name.clone());
+            names.push(id.name.to_utf16_string());
         }
     }
 }
@@ -147,7 +147,8 @@ impl Parser<'_> {
                 if kind != DeclarationKind::Var && value == utf16!("let") {
                     self.syntax_error("Lexical binding may not be called 'let'");
                 }
-                let id = self.make_identifier(declaration_start, value.clone());
+                let id =
+                    self.make_identifier(declaration_start, self.token_identifier_name(&token));
 
                 if kind == DeclarationKind::Var {
                     self.scope_collector.add_var_declaration(
@@ -783,7 +784,7 @@ impl Parser<'_> {
 
             let arguments_ref = Rc::new(Identifier::new(
                 self.range_from(start),
-                arguments_name.clone(),
+                arguments_name.clone().into(),
             ));
             let arguments_expression =
                 self.expression(start, ExpressionKind::Identifier(arguments_ref));
@@ -805,8 +806,10 @@ impl Parser<'_> {
                 StatementKind::Block(ScopeData::shared_with_children(vec![return_statement])),
             );
 
-            let arguments_binding =
-                Rc::new(Identifier::new(self.range_from(start), arguments_name));
+            let arguments_binding = Rc::new(Identifier::new(
+                self.range_from(start),
+                arguments_name.into(),
+            ));
             let parameters = vec![FunctionParameter {
                 binding: FunctionParameterBinding::Identifier(arguments_binding),
                 default_value: None,
@@ -1316,7 +1319,7 @@ impl Parser<'_> {
                 }
                 let id = Rc::new(Identifier::new(
                     self.range_from(formal_parameters_start),
-                    value.clone(),
+                    self.token_identifier_name(&token),
                 ));
                 parameter_info.push(ParamInfo {
                     name: value,
@@ -1343,7 +1346,7 @@ impl Parser<'_> {
                 self.consume();
                 let id = Rc::new(Identifier::new(
                     self.range_from(parameter_start),
-                    Utf16String::default(),
+                    Utf16String::default().into(),
                 ));
                 (FunctionParameterBinding::Identifier(id), false)
             };
@@ -1658,7 +1661,8 @@ impl Parser<'_> {
                     entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                 } else if Self::is_identifier(&expression) {
                     let id = expression_into_identifier(expression);
-                    self.pattern_bound_names.push((id.name.clone(), id.clone()));
+                    self.pattern_bound_names
+                        .push((id.name.to_utf16_string(), id.clone()));
                     entry_alias = Some(BindingEntryAlias::Identifier(id));
                 } else {
                     self.syntax_error("Invalid destructuring assignment target");
@@ -1923,7 +1927,7 @@ impl Parser<'_> {
                     && let StatementKind::FunctionDeclaration(ref fd) = declaration.inner
                     && let Some(ref name_id) = fd.name
                 {
-                    local_name = Some(name_id.name.clone());
+                    local_name = Some(name_id.name.to_utf16_string());
                 }
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Class) {
@@ -1934,7 +1938,7 @@ impl Parser<'_> {
                     if let StatementKind::ClassDeclaration(ref class) = declaration.inner
                         && let Some(ref name_id) = class.name
                     {
-                        local_name = Some(name_id.name.clone());
+                        local_name = Some(name_id.name.to_utf16_string());
                     }
                     statement = Some(Box::new(declaration));
                 } else {

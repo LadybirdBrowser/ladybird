@@ -5166,7 +5166,9 @@ fn generate_switch_statement(
             if did_create_env
                 && let StatementKind::FunctionDeclaration(ref fd) = child.inner
                 && let Some(ref name_ident) = fd.name
-                && generator.annexb_function_names.contains(&name_ident.name)
+                && generator
+                    .annexb_function_names
+                    .contains(name_ident.name.as_slice())
             {
                 let id = generator.intern_identifier(&name_ident.name);
                 let value = generator.allocate_register();
@@ -5354,7 +5356,7 @@ fn generate_object_expression(
         if !effectively_computed && property.property_type != ObjectPropertyType::ProtoSetter {
             let base_name: Option<Utf16String> = match &property.key.inner {
                 ExpressionKind::StringLiteral(s) => Some((**s).clone()),
-                ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
+                ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
                 _ => None,
             };
             if let Some(name) = base_name {
@@ -5873,7 +5875,7 @@ fn generate_class_expression(
     // (skip this for anonymous classes with lhs_name).
     if data.name.is_some() || lhs_name.is_none() {
         let name = if let Some(name_ident) = &data.name {
-            name_ident.name.clone()
+            name_ident.name.to_utf16_string()
         } else {
             Utf16String::new()
         };
@@ -6066,7 +6068,7 @@ fn generate_class_expression(
                     if !is_literal {
                         // Determine field name for anonymous function naming.
                         let field_name = match &key.inner {
-                            ExpressionKind::Identifier(ident) => ident.name.clone(),
+                            ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::PrivateIdentifier(p) => p.name.clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
@@ -6119,7 +6121,7 @@ fn generate_class_expression(
                         let key_is_private = is_private_key(key);
                         let key_name: Utf16String = match &key.inner {
                             ExpressionKind::PrivateIdentifier(ident) => ident.name.clone(),
-                            ExpressionKind::Identifier(ident) => ident.name.clone(),
+                            ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
                             ExpressionKind::StringLiteral(s) => (**s).clone(),
                             ExpressionKind::NumericLiteral(n) => super::ffi::js_number_to_utf16(*n),
                             _ => Utf16String::new(),
@@ -6211,7 +6213,7 @@ fn generate_class_expression(
     }
 
     // Get class name and source text
-    let class_name: Option<&[u16]> = data.name.as_ref().map(|n| &*n.name);
+    let class_name: Option<&[u16]> = data.name.as_ref().map(|n| n.name.as_slice());
     let has_name = data.name.is_some();
     let (name_ptr, name_len) = class_name
         .map(|n| (n.as_ptr(), n.len()))
@@ -6374,7 +6376,7 @@ fn collect_target_names(target: &VariableDeclaratorTarget, names: &mut Vec<(Utf1
     match target {
         VariableDeclaratorTarget::Identifier(ident) => {
             if !ident.is_local() {
-                names.push((ident.name.clone(), false));
+                names.push((ident.name.to_utf16_string(), false));
             }
         }
         VariableDeclaratorTarget::BindingPattern(pattern) => {
@@ -6389,7 +6391,7 @@ fn collect_pattern_binding_names(pattern: &BindingPattern, names: &mut Vec<(Utf1
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(ident)) => {
                 if !ident.is_local() {
-                    names.push((ident.name.clone(), false));
+                    names.push((ident.name.to_utf16_string(), false));
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub)) => {
@@ -6399,7 +6401,7 @@ fn collect_pattern_binding_names(pattern: &BindingPattern, names: &mut Vec<(Utf1
                 if let Some(BindingEntryName::Identifier(ident)) = &entry.name
                     && !ident.is_local()
                 {
-                    names.push((ident.name.clone(), false));
+                    names.push((ident.name.to_utf16_string(), false));
                 }
             }
             Some(BindingEntryAlias::MemberExpression(_)) => {}
@@ -7513,7 +7515,7 @@ fn generate_object_binding_pattern(
             Some(BindingEntryName::Identifier(ident)) => {
                 emit_get_by_id(generator, &value, object, &ident.name, None);
                 if has_rest {
-                    let name_val = generator.add_constant_string(ident.name.clone());
+                    let name_val = generator.add_constant_string(ident.name.to_utf16_string());
                     excluded_names.push(name_val);
                 }
             }
@@ -8058,7 +8060,7 @@ pub fn emit_function_declaration_instantiation(
     for parameter in &function_data.parameters {
         match &parameter.binding {
             FunctionParameterBinding::Identifier(ident) => {
-                let name = ident.name.clone();
+                let name = ident.name.to_utf16_string();
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     has_duplicates = true;
@@ -8563,7 +8565,7 @@ fn collect_binding_pattern_names(
         // The bound name can be in the alias (for object patterns) or name (for array patterns).
         match &entry.alias {
             Some(BindingEntryAlias::Identifier(ident)) => {
-                let name = ident.name.clone();
+                let name = ident.name.to_utf16_string();
                 let is_local = ident.is_local();
                 if !seen_names.insert(name.clone()) {
                     *has_duplicates = true;
@@ -8582,7 +8584,7 @@ fn collect_binding_pattern_names(
             None => {
                 // No alias — the name itself is the binding.
                 if let Some(BindingEntryName::Identifier(ident)) = &entry.name {
-                    let name = ident.name.clone();
+                    let name = ident.name.to_utf16_string();
                     let is_local = ident.is_local();
                     if !seen_names.insert(name.clone()) {
                         *has_duplicates = true;
@@ -9439,7 +9441,7 @@ fn intern_base_identifier(
 /// Returns None for expressions that have no meaningful name.
 fn expression_identifier(expression: &Expression) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
+        ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
         ExpressionKind::StringLiteral(s) => {
             let mut result = Utf16String(utf16!("'").to_vec());
             result.0.extend_from_slice(s);
@@ -9474,7 +9476,7 @@ fn expression_identifier(expression: &Expression) -> Option<Utf16String> {
 /// (using "<object>" for unrecognized sub-expressions).
 fn expression_string_approximation(expression: &Expression) -> Option<Utf16String> {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => Some(ident.name.clone()),
+        ExpressionKind::Identifier(ident) => Some(ident.name.to_utf16_string()),
         ExpressionKind::Member(_) => Some(member_to_string_approximation(expression)),
         _ => None,
     }
@@ -9482,7 +9484,7 @@ fn expression_string_approximation(expression: &Expression) -> Option<Utf16Strin
 
 fn member_to_string_approximation(expression: &Expression) -> Utf16String {
     match &expression.inner {
-        ExpressionKind::Identifier(ident) => ident.name.clone(),
+        ExpressionKind::Identifier(ident) => ident.name.to_utf16_string(),
         ExpressionKind::Member(data) => {
             let mut s = member_to_string_approximation(&data.object);
             let property_str = member_to_string_approximation(&data.property);

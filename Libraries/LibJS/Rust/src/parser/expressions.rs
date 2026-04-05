@@ -505,7 +505,7 @@ impl Parser<'_> {
                 }
                 let token = self.consume_and_check_identifier();
                 let value = self.token_value(&token).to_vec();
-                let id = self.make_identifier(start, value.clone());
+                let id = self.make_identifier(start, self.token_identifier_name(&token));
                 self.scope_collector
                     .register_identifier(id.clone(), &value, None);
                 (self.expression(start, ExpressionKind::Identifier(id)), true)
@@ -655,7 +655,7 @@ impl Parser<'_> {
                     }
                     let token = self.consume_and_check_identifier();
                     let value = self.token_value(&token).to_vec();
-                    let id = self.make_identifier(start, value.clone());
+                    let id = self.make_identifier(start, self.token_identifier_name(&token));
                     self.scope_collector
                         .register_identifier(id.clone(), &value, None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
@@ -663,7 +663,7 @@ impl Parser<'_> {
                     self.syntax_error("Keyword must not contain escaped characters");
                     let token = self.consume_and_check_identifier();
                     let value = self.token_value(&token).to_vec();
-                    let id = self.make_identifier(start, value.clone());
+                    let id = self.make_identifier(start, self.token_identifier_name(&token));
                     self.scope_collector
                         .register_identifier(id.clone(), &value, None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
@@ -978,12 +978,11 @@ impl Parser<'_> {
                     )
                 } else if self.match_identifier_name() {
                     let token = self.consume();
-                    let value = self.token_value(&token).to_vec();
                     // C++ uses rule_start (period position) for property identifiers.
-                    let property = self.expression(
-                        start,
-                        ExpressionKind::Identifier(self.make_identifier(start, value)),
-                    );
+                    let property_identifier =
+                        self.make_identifier(start, self.token_identifier_name(&token));
+                    let property =
+                        self.expression(start, ExpressionKind::Identifier(property_identifier));
                     (
                         self.expression(
                             start,
@@ -1386,9 +1385,11 @@ impl Parser<'_> {
                         if self.match_identifier_name() {
                             let property_start = self.position();
                             let token = self.consume();
-                            let value = self.token_value(&token).to_vec();
                             references.push(OptionalChainReference::MemberReference {
-                                identifier: self.make_identifier(property_start, value),
+                                identifier: self.make_identifier(
+                                    property_start,
+                                    self.token_identifier_name(&token),
+                                ),
                                 mode: OptionalChainMode::Optional,
                             });
                         } else {
@@ -1415,9 +1416,9 @@ impl Parser<'_> {
                 } else if self.match_identifier_name() {
                     let property_start = self.position();
                     let token = self.consume();
-                    let value = self.token_value(&token).to_vec();
                     references.push(OptionalChainReference::MemberReference {
-                        identifier: self.make_identifier(property_start, value),
+                        identifier: self
+                            .make_identifier(property_start, self.token_identifier_name(&token)),
                         mode: OptionalChainMode::NotOptional,
                     });
                 } else {

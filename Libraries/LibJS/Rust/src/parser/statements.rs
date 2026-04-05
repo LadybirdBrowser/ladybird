@@ -794,7 +794,7 @@ impl Parser<'_> {
                 self.check_identifier_name_for_assignment_validity(&value, false);
                 let id = Rc::new(Identifier::new(
                     self.range_from(parameter_start),
-                    value.clone().into(),
+                    self.token_identifier_name(&token),
                 ));
                 self.scope_collector
                     .register_identifier(id.clone(), &value, None);
@@ -813,7 +813,7 @@ impl Parser<'_> {
 
         // Collect catch parameter names for post-body validation.
         let catch_names: Vec<Utf16String> = match &parameter {
-            Some(CatchBinding::Identifier(id)) => vec![id.name.clone()],
+            Some(CatchBinding::Identifier(id)) => vec![id.name.to_utf16_string()],
             Some(CatchBinding::BindingPattern(_)) => self
                 .pattern_bound_names
                 .iter()

@@ -1270,7 +1270,7 @@ impl ScopeCollector {
             for i in (0..sd.children.len()).rev() {
                 if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = sd.children[i].inner
                     && let Some(ref name_ident) = fd.name
-                    && seen_function_names.insert(name_ident.name.clone())
+                    && seen_function_names.insert(name_ident.name.to_utf16_string())
                 {
                     functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
                 }
