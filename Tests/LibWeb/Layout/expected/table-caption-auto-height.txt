@@ -11,12 +11,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               BlockContainer <(anonymous)> at [50,120] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
                 TextNode <#text> (not painted)
           BlockContainer <figcaption> at [50,16] [0+2+0 102 0+2+0] [0+2+0 50 0+2+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [50,16] [0+0+0 106 0+0+0] [0+0+0 18 0+0+0] children: inline
+            BlockContainer <(anonymous)> at [50,16] [0+0+0 102 0+0+0] [0+0+0 18 0+0+0] children: inline
               frag 0 from TextNode start: 9, length: 12, rect: [50,16 100.609375x18] baseline: 13.796875
                   "Caption text"
               TextNode <#text> (not painted)
-            BlockContainer <div.caption-content> at [51,35] [0+1+0 104 0+1+0] [0+1+0 30 0+1+0] children: not-inline
-            BlockContainer <(anonymous)> at [50,66] [0+0+0 106 0+0+0] [0+0+0 0 0+0+0] children: inline
+            BlockContainer <div.caption-content> at [51,35] [0+1+0 100 0+1+0] [0+1+0 30 0+1+0] children: not-inline
+            BlockContainer <(anonymous)> at [50,66] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
               TextNode <#text> (not painted)
           BlockContainer <(anonymous)> (not painted) children: inline
             TextNode <#text> (not painted)
@@ -34,10 +34,10 @@ ViewportPaintable (Viewport<#document>) [0,0 800x600]
               PaintableWithLines (BlockContainer<DIV>.table-content) [50,68 102x52]
               PaintableWithLines (BlockContainer(anonymous)) [50,120 102x0]
           PaintableWithLines (BlockContainer<FIGCAPTION>) [48,14 106x54]
-            PaintableWithLines (BlockContainer(anonymous)) [50,16 106x18]
+            PaintableWithLines (BlockContainer(anonymous)) [50,16 102x18]
               TextPaintable (TextNode<#text>)
-            PaintableWithLines (BlockContainer<DIV>.caption-content) [50,34 106x32]
-            PaintableWithLines (BlockContainer(anonymous)) [50,66 106x0]
+            PaintableWithLines (BlockContainer<DIV>.caption-content) [50,34 102x32]
+            PaintableWithLines (BlockContainer(anonymous)) [50,66 102x0]
       PaintableWithLines (BlockContainer(anonymous)) [8,192 784x0]
 
 SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)

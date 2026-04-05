@@ -58,27 +58,26 @@ CSSPixels TableFormattingContext::run_caption_layout(CSS::CaptionSide phase, Ava
         // The caption boxes are principal block-level boxes that retain their own content, padding, margin, and border areas,
         // and are rendered as normal block boxes inside the table wrapper box, as described in https://www.w3.org/TR/CSS22/tables.html#model
         if (auto caption_context = create_independent_formatting_context_if_needed(m_state, m_layout_mode, child_box)) {
-            caption_context->run(caption_available_space);
-            // FIXME: If caption only has inline children, BlockFormattingContext doesn't resolve the vertical metrics.
-            //        We need to do it manually here.
-            if (auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr())) {
+            auto inner_available_space = caption_available_space;
+            auto* block_context = as_if<BlockFormattingContext>(caption_context.ptr());
+            if (block_context) {
                 auto available_width = caption_available_space.width.to_px_or_zero();
                 block_context->resolve_vertical_box_model_metrics(child_box, available_width);
-                block_context->resolve_horizontal_box_model_metrics(child_box, available_width);
+                block_context->compute_width(child_box, caption_available_space);
+                inner_available_space = m_state.get(child_box).available_inner_space_or_constraints_from(caption_available_space);
+            }
 
-                if (child_box.computed_values().width().is_auto()) {
-                    auto& caption_state = m_state.get_mutable(child_box);
-                    caption_state.set_content_width(available_width
-                        - caption_state.margin_left - caption_state.border_left - caption_state.padding_left
-                        - caption_state.padding_right - caption_state.border_right - caption_state.margin_right);
+            caption_context->run(inner_available_space);
 
-                    // Adjust x offset so border-box aligns with the table wrapper.
-                    caption_state.set_content_x(caption_state.offset.x() + caption_state.border_left + caption_state.padding_left);
-                }
+            if (block_context) {
+                auto& caption_state = m_state.get_mutable(child_box);
 
-                if (child_box.computed_values().height().is_auto()) {
+                // Adjust x offset so border-box aligns with the table wrapper.
+                caption_state.set_content_x(caption_state.offset.x() + caption_state.border_left + caption_state.padding_left);
+
+                if (should_treat_height_as_auto(child_box, caption_available_space)) {
                     auto height = child_box.has_size_containment() ? 0 : caption_context->automatic_content_height();
-                    m_state.get_mutable(child_box).set_content_height(height);
+                    caption_state.set_content_height(height);
                 }
             }
         }
