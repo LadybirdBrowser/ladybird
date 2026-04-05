@@ -1874,11 +1874,12 @@ fn is_modifier_flag(ch: char) -> bool {
 }
 
 fn is_id_start(ch: char) -> bool {
-    ch == '_' || ch == '$' || ch.is_alphabetic()
+    ch == '$' || ch == '_' || crate::unicode_ffi::is_id_start(ch as u32)
 }
 
 fn is_id_continue(ch: char) -> bool {
-    ch == '_' || ch == '$' || ch.is_alphanumeric() || ch == '\u{200C}' || ch == '\u{200D}'
+    matches!(ch, '$' | '_' | '\u{200C}' | '\u{200D}')
+        || crate::unicode_ffi::is_id_continue(ch as u32)
 }
 
 /// Extract a single code point from a class atom, for use in ranges.
