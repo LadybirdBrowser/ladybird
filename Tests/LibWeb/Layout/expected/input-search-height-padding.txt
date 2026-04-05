@@ -1,0 +1,21 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 44 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 28 0+0+8] children: inline
+      frag 0 from TextInputBox start: 0, length: 0, rect: [10,16 96x12] baseline: 18
+      TextInputBox <input> at [10,16] inline-block [0+2+0 96 0+2+0] [0+2+6 12 6+2+0] [BFC] children: not-inline
+        Box <div> at [12,17] flex-container(row) [0+0+2 92 2+0+0] [0+0+1 12 1+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [12,20] flex-item [0+0+0 92 0+0+0] [0+0+0 6 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [12,20 0x6] baseline: 4.5
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x44]
+    PaintableWithLines (BlockContainer<BODY>) [8,8 784x28]
+      PaintableWithLines (TextInputBox<INPUT>) [8,8 100x28]
+        PaintableBox (Box<DIV>) [10,16 96x14]
+          PaintableWithLines (BlockContainer<DIV>) [12,20 92x6]
+            TextPaintable (TextNode<#text>)
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x44] [children: 0] (z-index: auto)
