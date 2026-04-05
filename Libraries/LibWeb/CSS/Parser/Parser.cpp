@@ -477,22 +477,71 @@ RefPtr<ContainerQuery> Parser::parse_container_query(TokenStream<ComponentValue>
     return nullptr;
 }
 
-// https://www.w3.org/TR/mediaqueries-4/#typedef-general-enclosed
+// https://drafts.csswg.org/mediaqueries-5/#typedef-general-enclosed
 OwnPtr<GeneralEnclosed> Parser::parse_general_enclosed(TokenStream<ComponentValue>& tokens, MatchResult result)
 {
-    // FIXME: <general-enclosed> syntax changed in MediaQueries-5
+    // <general-enclosed> = [ <function-token> <any-value>? ) ] | [ ( <any-value>? ) ]
+    //
+    // https://drafts.csswg.org/css-syntax-3/#typedef-any-value
+    // "The <any-value> production is identical to <declaration-value>",
+    // and <declaration-value> does not contain "<<bad-string-token>>,
+    // <<bad-url-token>>, unmatched <<)-token>>, <<]-token>>, or
+    // <<}-token>>".
+    auto contains_only_any_value = [](auto const& values, auto&& contains_only_any_value) -> bool {
+        for (auto const& value : values) {
+            if (value.is_function()) {
+                if (!contains_only_any_value(value.function().value, contains_only_any_value))
+                    return false;
+                continue;
+            }
+
+            if (value.is_block()) {
+                if (!contains_only_any_value(value.block().value, contains_only_any_value))
+                    return false;
+                continue;
+            }
+
+            if (!value.is_token())
+                continue;
+
+            switch (value.token().type()) {
+            case Token::Type::Invalid:
+            case Token::Type::EndOfFile:
+            case Token::Type::BadString:
+            case Token::Type::BadUrl:
+                // NB: Functions and blocks are emitted as component values, so any remaining bracket tokens are unmatched.
+            case Token::Type::Function:
+            case Token::Type::OpenCurly:
+            case Token::Type::OpenParen:
+            case Token::Type::OpenSquare:
+            case Token::Type::CloseCurly:
+            case Token::Type::CloseParen:
+            case Token::Type::CloseSquare:
+                return false;
+            default:
+                break;
+            }
+        }
+
+        return true;
+    };
+
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
     auto const& first_token = tokens.consume_a_token();
 
     // `[ <function-token> <any-value>? ) ]`
     if (first_token.is_function()) {
+        if (!contains_only_any_value(first_token.function().value, contains_only_any_value))
+            return {};
         transaction.commit();
         return GeneralEnclosed::create(first_token.to_string(), result);
     }
 
     // `( <any-value>? )`
     if (first_token.is_block() && first_token.block().is_paren()) {
+        if (!contains_only_any_value(first_token.block().value, contains_only_any_value))
+            return {};
         transaction.commit();
         return GeneralEnclosed::create(first_token.to_string(), result);
     }
@@ -1822,8 +1871,24 @@ RefPtr<StyleValue const> Parser::parse_source_size_value(TokenStream<ComponentVa
         return KeywordStyleValue::create(Keyword::Auto);
     }
 
-    if (auto parsed = parse_length_value(tokens))
+    if (auto parsed = parse_length_value(tokens)) {
+        // https://html.spec.whatwg.org/multipage/images.html#valid-source-size-list
+        // "A <source-size-value> that is a <length> must not be negative,
+        // and must not use CSS functions other than the math functions."
+        if (parsed->is_length() && parsed->as_length().length().raw_value() < 0)
+            return {};
+
+        if (parsed->is_calculated()) {
+            // https://drafts.csswg.org/css-values-4/#calc-range
+            // "the value resulting from a top-level calculation must be
+            // clamped to the range allowed in the target context."
+            auto raw_length = parsed->as_calculated().resolve_raw_length({});
+            if (raw_length.has_value() && !isfinite(*raw_length))
+                return {};
+        }
+
         return parsed;
+    }
 
     return {};
 }
@@ -2019,9 +2084,15 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(DOM::Element co
         //    If it does not parse correctly, or it does parse correctly but the <media-condition> evaluates to false, continue.
         TokenStream token_stream { unparsed_size };
         auto media_condition = parse_media_condition(token_stream);
-        if (!media_condition || (m_document && media_condition->evaluate(m_document) == MatchResult::False)) {
+        if (!media_condition)
             continue;
-        }
+
+        // https://drafts.csswg.org/mediaqueries-5/#evaluating
+        // "If the result of any of the above productions is used in any
+        // context that expects a two-valued boolean, 'unknown' must be
+        // converted to 'false'."
+        if (m_document && !media_condition->evaluate_to_boolean(m_document))
+            continue;
 
         // 5. If size is not auto, then return size. Otherwise, continue.
         if (!size->has_auto())

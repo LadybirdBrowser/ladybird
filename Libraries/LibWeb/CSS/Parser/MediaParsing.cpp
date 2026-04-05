@@ -16,6 +16,7 @@
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 
 namespace Web::CSS::Parser {
@@ -533,6 +534,26 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 if (auto length = parse_length_value(tokens)) {
                     transaction.commit();
                     return MediaFeatureValue(MediaFeatureValue::Type::Length, length.release_nonnull());
+                }
+
+                // https://drafts.csswg.org/mediaqueries-5/#typedef-mf-value
+                // <mf-value> = <number> | <dimension> | <ident> | <ratio>
+                //
+                // https://drafts.csswg.org/css-values-4/#lengths
+                // "For zero lengths the unit identifier is optional"
+                //
+                // https://drafts.csswg.org/css-values-4/#zero-value
+                // "Values of '0' can be written without units, even if the
+                // value type doesn't allow 'unitless zeroes'."
+                if (tokens.has_next_token()) {
+                    auto const& token = tokens.next_token();
+                    if (auto calc = parse_calculated_value(token); calc && calc->as_calculated().resolves_to_number()) {
+                        if (auto resolved_number = calc->as_calculated().resolve_number({}); resolved_number.has_value() && *resolved_number == 0) {
+                            tokens.discard_a_token();
+                            transaction.commit();
+                            return MediaFeatureValue(MediaFeatureValue::Type::Length, LengthStyleValue::create(Length::make_px(0)));
+                        }
+                    }
                 }
             }
 

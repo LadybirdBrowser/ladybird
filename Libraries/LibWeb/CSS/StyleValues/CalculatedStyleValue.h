@@ -91,6 +91,7 @@ public:
     bool resolves_to_length() const { return m_resolved_type.matches_length(m_context.percentages_resolve_as); }
     bool resolves_to_length_percentage() const { return m_resolved_type.matches_length_percentage(m_context.percentages_resolve_as); }
     Optional<Length> resolve_length(CalculationResolutionContext const&) const;
+    Optional<double> resolve_raw_length(CalculationResolutionContext const&) const;
 
     bool resolves_to_percentage() const { return m_resolved_type.matches_percentage(); }
     Optional<Percentage> resolve_percentage(CalculationResolutionContext const&) const;
@@ -131,7 +132,7 @@ private:
     //        being called so we can take just the percentage_basis rather than a full CalculationResolutionContext.
     //        There are still some CalculatedStyleValues which we don't call absolutized for (i.e. sub-values of other
     //        StyleValue classes which lack their own absolutized method) which will need to be fixed beforehand.
-    Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&) const;
+    Optional<ResolvedValue> resolve_value(CalculationResolutionContext const&, bool apply_censoring_and_clamping = true) const;
 
     Optional<ValueType> percentage_resolved_type() const;
 

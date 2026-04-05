@@ -3032,7 +3032,7 @@ bool CalculatedStyleValue::is_computationally_independent() const
 }
 
 // https://drafts.csswg.org/css-values-4/#calc-computed-value
-Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context) const
+Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_value(CalculationResolutionContext const& resolution_context, bool apply_censoring_and_clamping) const
 {
     // The calculation tree is again simplified at used value time; with used value time information.
     // NOTE: Any nodes which rely on dynamic state should have been simplified away in absolutized so we can pass a nullptr here
@@ -3047,41 +3047,43 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
 
     auto raw_value = value->value();
 
-    // https://drafts.csswg.org/css-values/#calc-ieee
-    // NaN does not escape a top-level calculation; it’s censored into a zero value.
-    if (isnan(raw_value))
-        raw_value = 0;
+    if (apply_censoring_and_clamping) {
+        // https://drafts.csswg.org/css-values/#calc-ieee
+        // NaN does not escape a top-level calculation; it’s censored into a zero value.
+        if (isnan(raw_value))
+            raw_value = 0;
 
-    // https://drafts.csswg.org/css-values/#calc-range
-    // the value resulting from a top-level calculation must be clamped to the range allowed in the target context.
-    // Clamping is performed on computed values to the extent possible, and also on used values if computation was
-    // unable to sufficiently simplify the expression to allow range-checking.
-    Optional<AcceptedTypeRange> accepted_range;
+        // https://drafts.csswg.org/css-values/#calc-range
+        // the value resulting from a top-level calculation must be clamped to the range allowed in the target context.
+        // Clamping is performed on computed values to the extent possible, and also on used values if computation was
+        // unable to sufficiently simplify the expression to allow range-checking.
+        Optional<AcceptedTypeRange> accepted_range;
 
-    if (value->type()->matches_number(m_context.percentages_resolve_as))
-        accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
-    else if (value->type()->matches_angle(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
-    else if (value->type()->matches_flex(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
-    else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
-    else if (value->type()->matches_length(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
-    else if (value->type()->matches_percentage())
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
-    else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
-    else if (value->type()->matches_time(m_context.percentages_resolve_as))
-        accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
+        if (value->type()->matches_number(m_context.percentages_resolve_as))
+            accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
+        else if (value->type()->matches_angle(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
+        else if (value->type()->matches_flex(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
+        else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
+        else if (value->type()->matches_length(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
+        else if (value->type()->matches_percentage())
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
+        else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
+        else if (value->type()->matches_time(m_context.percentages_resolve_as))
+            accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
 
-    if (!accepted_range.has_value()) {
-        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", value->type());
-        // FIXME: Infinity for integers should be i32 max rather than float max
-        accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
+        if (!accepted_range.has_value()) {
+            dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", value->type());
+            // FIXME: Infinity for integers should be i32 max rather than float max
+            accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
+        }
+
+        raw_value = clamp(raw_value, accepted_range->min, accepted_range->max);
     }
-
-    raw_value = clamp(raw_value, accepted_range->min, accepted_range->max);
 
     return ResolvedValue { raw_value, value->type() };
 }
@@ -3122,6 +3124,16 @@ Optional<Length> CalculatedStyleValue::resolve_length(CalculationResolutionConte
 
     if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
         return Length::make_px(result->value);
+
+    return {};
+}
+
+Optional<double> CalculatedStyleValue::resolve_raw_length(CalculationResolutionContext const& context) const
+{
+    auto result = resolve_value(context, false);
+
+    if (result.has_value() && result->type.has_value() && result->type->matches_length(m_context.percentages_resolve_as))
+        return result->value;
 
     return {};
 }
