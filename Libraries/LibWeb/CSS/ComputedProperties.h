@@ -115,6 +115,7 @@ public:
     Color caret_color(Layout::NodeWithStyle const&) const;
     Clear clear() const;
     ColumnSpan column_span() const;
+    ColumnFill column_fill() const;
     struct ContentDataAndQuoteNestingLevel {
         ContentData content_data;
         u32 final_quote_nesting_level { 0 };

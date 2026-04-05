@@ -168,6 +168,11 @@
     "linearrgb",
     "srgb"
   ],
+  "column-fill": [
+    "auto",
+    "balance",
+    "balance-all"
+  ],
   "column-span": [
     "none",
     "all"

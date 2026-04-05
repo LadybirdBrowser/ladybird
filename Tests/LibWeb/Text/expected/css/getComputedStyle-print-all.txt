@@ -149,6 +149,7 @@ clear: none
 clip: auto
 clip-path: none
 column-count: auto
+column-fill: balance
 column-gap: normal
 column-height: auto
 column-span: none
@@ -191,7 +192,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2895px
+height: 2910px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto

@@ -261,6 +261,7 @@ public:
     static ColumnCount column_count() { return ColumnCount::make_auto(); }
     static Variant<LengthPercentage, NormalGap> column_gap() { return NormalGap {}; }
     static ColumnSpan column_span() { return ColumnSpan::None; }
+    static ColumnFill column_fill() { return ColumnFill::Balance; }
     static Size column_width() { return Size::make_auto(); }
     static Size column_height() { return Size::make_auto(); }
     static Variant<LengthPercentage, NormalGap> row_gap() { return NormalGap {}; }
@@ -630,6 +631,7 @@ public:
     ColumnCount column_count() const { return m_noninherited.column_count; }
     Variant<LengthPercentage, NormalGap> const& column_gap() const { return m_noninherited.column_gap; }
     ColumnSpan const& column_span() const { return m_noninherited.column_span; }
+    ColumnFill const& column_fill() const { return m_noninherited.column_fill; }
     Size const& column_width() const { return m_noninherited.column_width; }
     Size const& column_height() const { return m_noninherited.column_height; }
     Variant<LengthPercentage, NormalGap> const& row_gap() const { return m_noninherited.row_gap; }
@@ -895,6 +897,7 @@ protected:
         Vector<BackgroundLayerData> background_layers;
         FlexDirection flex_direction { InitialValues::flex_direction() };
         ColumnSpan column_span { InitialValues::column_span() };
+        ColumnFill column_fill { InitialValues::column_fill() };
         BackgroundBox background_color_clip { InitialValues::background_color_clip() };
 
         Color flood_color { InitialValues::flood_color() };
@@ -1146,6 +1149,7 @@ public:
     void set_column_count(ColumnCount value) { m_noninherited.column_count = value; }
     void set_column_gap(Variant<LengthPercentage, NormalGap> const& column_gap) { m_noninherited.column_gap = column_gap; }
     void set_column_span(ColumnSpan const column_span) { m_noninherited.column_span = column_span; }
+    void set_column_fill(ColumnFill const column_fill) { m_noninherited.column_fill = column_fill; }
     void set_column_width(Size const& column_width) { m_noninherited.column_width = column_width; }
     void set_column_height(Size const& column_height) { m_noninherited.column_height = column_height; }
     void set_row_gap(Variant<LengthPercentage, NormalGap> const& row_gap) { m_noninherited.row_gap = row_gap; }

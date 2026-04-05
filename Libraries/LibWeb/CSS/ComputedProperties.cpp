@@ -1126,6 +1126,12 @@ ColumnSpan ComputedProperties::column_span() const
     return keyword_to_column_span(value.to_keyword()).release_value();
 }
 
+ColumnFill ComputedProperties::column_fill() const
+{
+    auto const& value = property(PropertyID::ColumnFill);
+    return keyword_to_column_fill(value.to_keyword()).release_value();
+}
+
 ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(DOM::AbstractElement& element_reference, u32 initial_quote_nesting_level) const
 {
     auto const& value = property(PropertyID::Content);

@@ -1441,6 +1441,18 @@
       "auto"
     ]
   },
+  "column-fill": {
+    "initial": "balance",
+    "inherited": false,
+    "affects-layout": true,
+    "animation-type": "discrete",
+    "requires-computation": "never",
+    "valid-identifiers": [
+      "auto",
+      "balance",
+      "balance-all"
+    ]
+  },
   "column-gap": {
     "animation-type": "by-computed-value",
     "inherited": false,
