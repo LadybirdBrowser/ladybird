@@ -222,8 +222,13 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
                 rules_without_import.append(rule);
         }
 
+        // NOTE: The spec doesn't say where to set the parent style sheet, so we'll do it here.
+        for (auto& rule : rules_without_import)
+            rule->set_parent_style_sheet(this);
+
         // 3. Set sheet’s CSS rules to rules.
         m_rules->set_rules({}, rules_without_import);
+        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace);
 
         // 4. Unset sheet’s disallow modification flag.
         set_disallow_modification(false);
@@ -261,6 +266,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
 
     // 4. Set sheet’s CSS rules to rules.
     m_rules->set_rules({}, rules_without_import);
+    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace);
 
     return {};
 }
@@ -359,6 +365,15 @@ void CSSStyleSheet::remove_owning_document_or_shadow_root(DOM::Node& document_or
         if (import_rule->loaded_style_sheet())
             import_rule->loaded_style_sheet()->remove_owning_document_or_shadow_root(document_or_shadow_root);
     }
+}
+
+void CSSStyleSheet::set_disabled(bool disabled)
+{
+    if (this->disabled() == disabled)
+        return;
+
+    StyleSheet::set_disabled(disabled);
+    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDisabledStateChange);
 }
 
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)

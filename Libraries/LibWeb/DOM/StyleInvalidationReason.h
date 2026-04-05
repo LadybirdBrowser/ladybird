@@ -46,10 +46,12 @@ namespace Web::DOM {
     X(Other)                                        \
     X(SetSelectorText)                              \
     X(SettingsChange)                               \
+    X(StyleSheetDisabledStateChange)                \
     X(StyleSheetDeleteRule)                         \
     X(StyleSheetInsertRule)                         \
     X(StyleSheetListAddSheet)                       \
-    X(StyleSheetListRemoveSheet)
+    X(StyleSheetListRemoveSheet)                    \
+    X(StyleSheetReplace)
 
 enum class StyleInvalidationReason {
 #define __ENUMERATE_STYLE_INVALIDATION_REASON(reason) reason,

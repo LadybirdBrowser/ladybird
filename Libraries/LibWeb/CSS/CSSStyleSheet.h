@@ -94,6 +94,7 @@ public:
     void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void invalidate_owners(DOM::StyleInvalidationReason);
     GC::Ptr<DOM::Document> owning_document() const;
+    void set_disabled(bool);
 
     Optional<FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }
