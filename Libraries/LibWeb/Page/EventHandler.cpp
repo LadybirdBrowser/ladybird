@@ -1461,7 +1461,7 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     case DragEvent::Type::DragStart:
         return m_drag_and_drop_event_handler->handle_drag_start(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
     case DragEvent::Type::DragMove:
-        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), document, *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
+        return m_drag_and_drop_event_handler->handle_drag_move(document.realm(), *node, screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::DragEnd:
         return m_drag_and_drop_event_handler->handle_drag_leave(document.realm(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers);
     case DragEvent::Type::Drop:

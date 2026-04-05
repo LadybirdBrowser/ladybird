@@ -24,9 +24,17 @@ drop
     files: 1
         test2
 
-Drag enter not accepted:
+Drag enter not accepted (but still allowed):
 dragenter
     types: Files
+dragover
+    types: Files
+dragover
+    types: Files
+drop
+    types: Files
+    files: 1
+        test3
 
 Drag over not accepted:
 dragenter

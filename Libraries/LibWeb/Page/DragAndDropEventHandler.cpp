@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2024-2026, Tim Flynn <trflynn89@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -177,7 +177,6 @@ EventResult DragAndDropEventHandler::handle_drag_start(
 // https://html.spec.whatwg.org/multipage/dnd.html#drag-and-drop-processing-model:queue-a-task
 EventResult DragAndDropEventHandler::handle_drag_move(
     JS::Realm& realm,
-    GC::Ref<DOM::Document> document,
     GC::Ref<DOM::Node> node,
     CSSPixelPoint screen_position,
     CSSPixelPoint page_offset,
@@ -227,39 +226,27 @@ EventResult DragAndDropEventHandler::handle_drag_move(
             // -> Otherwise
             else {
                 // Fire a DND event named dragenter at the immediate user selection.
-                auto drag_event = fire_a_drag_and_drop_event(m_immediate_user_selection, HTML::EventNames::dragenter);
+                fire_a_drag_and_drop_event(m_immediate_user_selection, HTML::EventNames::dragenter);
 
                 // If the event is canceled, then set the current target element to the immediate user selection.
-                if (drag_event->cancelled()) {
-                    m_current_target_element = m_immediate_user_selection;
-                }
                 // Otherwise, run the appropriate step from the following list:
-                else {
-                    // -> If the immediate user selection is a text control (e.g., textarea, or an input element whose
-                    //    type attribute is in the Text state) or an editing host or editable element, and the drag data
-                    //    store item list has an item with the drag data item type string "text/plain" and the drag data
-                    //    item kind text
-                    if (allow_text_drop(*m_immediate_user_selection)) {
-                        // Set the current target element to the immediate user selection anyway.
-                        m_current_target_element = m_immediate_user_selection;
-                    }
-                    // -> If the immediate user selection is the body element
-                    else if (m_immediate_user_selection == document->body()) {
-                        // Leave the current target element unchanged.
-                    }
-                    // -> Otherwise
-                    else {
-                        // Fire a DND event named dragenter at the body element, if there is one, or at the Document
-                        // object, if not. Then, set the current target element to the body element, regardless of
-                        // whether that event was canceled or not.
-                        DOM::EventTarget* target = document->body();
-                        if (!target)
-                            target = document;
+                // -> If the immediate user selection is a text control (e.g., textarea, or an input element whose
+                //    type attribute is in the Text state) or an editing host or editable element, and the drag data
+                //    store item list has an item with the drag data item type string "text/plain" and the drag data
+                //    item kind text
+                //        Set the current target element to the immediate user selection anyway.
+                // -> If the immediate user selection is the body element
+                //        Leave the current target element unchanged.
+                // -> Otherwise
+                //        Fire a DND event named dragenter at the body element, if there is one, or at the Document
+                //        object, if not. Then, set the current target element to the body element, regardless of
+                //        whether that event was canceled or not.
 
-                        fire_a_drag_and_drop_event(target, HTML::EventNames::dragenter);
-                        m_current_target_element = document->body();
-                    }
-                }
+                // FIXME: Spec isue: Contrary to the spec, all browsers do not require the user script to cancel the
+                //        dragenter event. See: https://github.com/whatwg/html/issues/11608
+                m_current_target_element = is<DOM::Element>(*m_immediate_user_selection)
+                    ? m_immediate_user_selection
+                    : m_immediate_user_selection->first_ancestor_of_type<DOM::Element>();
             }
         }
 

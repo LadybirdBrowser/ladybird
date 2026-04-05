@@ -55,7 +55,9 @@
         internals.simulateDragMove(100, 100);
         internals.simulateDrop(100, 100);
 
-        println("\nDrag enter not accepted:");
+        // Contrary to the spec, we continue with the drag and drop even if the dragenter event is not cancelled.
+        // https://github.com/whatwg/html/issues/11608
+        println("\nDrag enter not accepted (but still allowed):");
         internals.simulateDragStart(0, 0, "test3", "well hello friends :^)");
         acceptDragEvents = false;
         internals.simulateDragMove(100, 100);
