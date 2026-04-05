@@ -560,7 +560,7 @@ impl ScopeCollector {
         for (name, identifier) in bound_names {
             // Register the declaration identifier so it participates in scope analysis.
             if let Some(id) = identifier {
-                self.register_identifier(id.clone(), name, declaration_kind);
+                self.register_identifier(id.clone(), declaration_kind);
             }
 
             let mut scope_index = index;
@@ -605,7 +605,7 @@ impl ScopeCollector {
 
         // Register the name identifier so it participates in scope analysis.
         if let Some(ref id) = name_identifier {
-            self.register_identifier(id.clone(), name, None);
+            self.register_identifier(id.clone(), None);
         }
 
         if scope_level != ScopeLevel::NotTopLevel && scope_level != ScopeLevel::ModuleTopLevel {
@@ -671,13 +671,12 @@ impl ScopeCollector {
     pub fn register_identifier(
         &mut self,
         id: Rc<Identifier>,
-        name: &[u16],
         declaration_kind: Option<DeclarationKind>,
     ) {
         let index = self.current.expect("no current scope");
         self.records[index]
             .identifier_groups
-            .entry(Utf16String::from(name))
+            .entry(id.name.to_utf16_string())
             .and_modify(|group| {
                 group.identifiers.push(id.clone());
                 if declaration_kind.is_some() && group.declaration_kind.is_none() {
@@ -722,7 +721,7 @@ impl ScopeCollector {
                 });
             }
             if let Some(ref id) = entry.identifier {
-                self.register_identifier(id.clone(), &entry.name, None);
+                self.register_identifier(id.clone(), None);
             }
             let var = self.records[index]
                 .variables

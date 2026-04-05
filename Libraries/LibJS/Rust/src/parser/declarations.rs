@@ -164,7 +164,7 @@ impl Parser<'_> {
                         declaration_column,
                     );
                     self.scope_collector
-                        .register_identifier(id.clone(), &value, Some(kind));
+                        .register_identifier(id.clone(), Some(kind));
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
@@ -215,9 +215,8 @@ impl Parser<'_> {
                     // so they get is_local() annotations.
                     // NOTE: C++ does not pass declaration_kind for binding pattern identifiers,
                     // only for simple identifier declarations.
-                    for (name, id) in &bound_names {
-                        self.scope_collector
-                            .register_identifier(id.clone(), name, None);
+                    for (_name, id) in &bound_names {
+                        self.scope_collector.register_identifier(id.clone(), None);
                     }
                 }
 
@@ -316,8 +315,7 @@ impl Parser<'_> {
             );
             // C++ calls parse_lexical_binding() without declaration_kind for using,
             // so we pass None to match.
-            self.scope_collector
-                .register_identifier(id.clone(), &name, None);
+            self.scope_collector.register_identifier(id.clone(), None);
 
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
@@ -479,8 +477,7 @@ impl Parser<'_> {
         // exists with declaration_kind=None, preventing later var declarations
         // with the same name from setting a spurious declaration_kind.
         if let Some(ref id) = name {
-            self.scope_collector
-                .register_identifier(id.clone(), &fn_name_value, None);
+            self.scope_collector.register_identifier(id.clone(), None);
         }
 
         // Open function scope (function expression name is bound within its own scope).
@@ -748,11 +745,8 @@ impl Parser<'_> {
                         start.line,
                         start.column,
                     );
-                    self.scope_collector.register_identifier(
-                        name_ident.clone(),
-                        &name_ident.name,
-                        None,
-                    );
+                    self.scope_collector
+                        .register_identifier(name_ident.clone(), None);
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
@@ -1550,8 +1544,7 @@ impl Parser<'_> {
                             let token = self.consume();
                             let (value, _has_octal) = self.parse_string_value(&token);
                             let id = self.make_identifier(entry_start, value);
-                            self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                            self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else if self.match_token(TokenType::BigIntLiteral) {
                             let token = self.consume();
@@ -1562,8 +1555,7 @@ impl Parser<'_> {
                                 value.to_vec()
                             };
                             let id = self.make_identifier(entry_start, name_value);
-                            self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                            self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         } else {
                             let token = self.consume();
@@ -1572,8 +1564,7 @@ impl Parser<'_> {
                             let id = self.make_identifier(entry_start, value);
                             // C++ calls parse_identifier() for binding pattern property
                             // keys, which registers them. Do the same here.
-                            self.scope_collector
-                                .register_identifier(id.clone(), &id.name, None);
+                            self.scope_collector.register_identifier(id.clone(), None);
                             entry_name = Some(BindingEntryName::Identifier(id));
                         }
 
