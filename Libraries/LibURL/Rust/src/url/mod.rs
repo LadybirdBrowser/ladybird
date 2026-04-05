@@ -12,6 +12,7 @@ mod scheme;
 mod serialize;
 mod types;
 
+pub(crate) use self::host::parse_host;
 pub(crate) use self::scheme::default_port_for_scheme;
 pub(crate) use self::scheme::is_special_scheme;
 pub(crate) use self::scheme::special_schemes;
