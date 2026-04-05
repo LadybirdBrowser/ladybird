@@ -273,6 +273,7 @@ public:
     Gfx::Font const& first_available_font() const;
     Vector<CSS::BackgroundLayerData> const& background_layers() const { return computed_values().background_layers(); }
     CSS::AbstractImageStyleValue const* list_style_image() const { return m_list_style_image; }
+    CSS::StyleScope const& style_scope() const;
 
     GC::Ref<NodeWithStyle> create_anonymous_wrapper() const;
 

@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -984,6 +985,31 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
 
     if (auto* box_node = as_if<NodeWithStyleAndBoxModelMetrics>(*this))
         box_node->propagate_style_along_continuation(computed_style);
+}
+
+CSS::StyleScope const& NodeWithStyle::style_scope() const
+{
+    auto resolve_style_scope = [](DOM::Node const& dom_node) -> CSS::StyleScope const& {
+        auto const& root = dom_node.root();
+        if (root.is_shadow_root()) {
+            auto const& shadow_root = static_cast<DOM::ShadowRoot const&>(root);
+            if (shadow_root.uses_document_style_sheets())
+                return root.document().style_scope();
+            return shadow_root.style_scope();
+        }
+        return root.document().style_scope();
+    };
+
+    if (auto const* dom_node = this->dom_node())
+        return resolve_style_scope(*dom_node);
+
+    if (is_generated_for_pseudo_element())
+        return resolve_style_scope(*pseudo_element_generator());
+
+    if (auto const* parent = this->parent())
+        return parent->style_scope();
+
+    return document().style_scope();
 }
 
 void NodeWithStyle::propagate_non_inherit_values(NodeWithStyle& target_node) const
