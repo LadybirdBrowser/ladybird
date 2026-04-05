@@ -251,7 +251,11 @@ impl ScopeRecord {
     }
 
     fn variable(&mut self, name: &[u16]) -> &mut ScopeVariable {
-        self.variables.entry(Utf16String::from(name)).or_default()
+        if !self.variables.contains_key(name) {
+            self.variables
+                .insert(Utf16String::from(name), ScopeVariable::default());
+        }
+        self.variables.get_mut(name).unwrap()
     }
 
     fn has_flag(&self, name: &[u16], flags: VarFlags) -> bool {
