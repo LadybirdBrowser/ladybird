@@ -13,13 +13,16 @@
         const element = document.createElement("span");
         element.style.fontFamily = "TestFont, serif";
         element.style.fontSize = "20px";
-        element.textContent = "test";
+        // We use a deliberately long string and a wide glyph here to ensure the width of the test font and the fallback
+        // font will be different.
+        const testString = "WWWWWWWWWWWWWWWWWWWW"
+        element.textContent = testString;
         document.body.appendChild(element);
 
         const fallbackElement = document.createElement("span");
         fallbackElement.style.fontFamily = "serif";
         fallbackElement.style.fontSize = "20px";
-        fallbackElement.textContent = "test";
+        fallbackElement.textContent = testString;
         document.body.appendChild(fallbackElement);
 
         // Force layout
