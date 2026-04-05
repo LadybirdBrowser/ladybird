@@ -1,0 +1,192 @@
+function make_sizes_iframed_srcdoc(doctype, style) {
+  return `<!${doctype}>
+<style> img { ${style} } </style>
+<!-- First <img> in a <p> is the reference. The following <img>s should be equivalent -->
+<!-- default is 100vw, not 300px -->
+<p>
+<img srcset='../../../../../images/green-1x1.png?a1 300w, ../../../../../images/green-16x16.png?a1 301w' sizes='100vw'>
+<img srcset='../../../../../images/green-1x1.png?a2 300w, ../../../../../images/green-16x16.png?a2 301w'>
+<p>
+<img srcset='../../../../../images/green-1x1.png?b1 450w, ../../../../../images/green-16x16.png?b1 451w' sizes='100vw'>
+<img srcset='../../../../../images/green-1x1.png?b2 450w, ../../../../../images/green-16x16.png?b2 451w'>
+<p>
+<img srcset='../../../../../images/green-1x1.png?c1 600w, ../../../../../images/green-16x16.png?c1 601w' sizes='100vw'>
+<img srcset='../../../../../images/green-1x1.png?c2 600w, ../../../../../images/green-16x16.png?c2 601w'>
+<p>
+<img srcset='../../../../../images/green-1x1.png?d1 900w, ../../../../../images/green-16x16.png?d1 901w' sizes='100vw'>
+<img srcset='../../../../../images/green-1x1.png?d2 900w, ../../../../../images/green-16x16.png?d2 901w'>
+
+<p>
+<img srcset='../../../../../images/green-1x1.png?e1 50w, ../../../../../images/green-16x16.png?e1 51w' sizes='1px'>
+<img srcset='../../../../../images/green-1x1.png?e2 50w, ../../../../../images/green-16x16.png?e2 51w' sizes='0'>
+<img srcset='../../../../../images/green-1x1.png?e3 50w, ../../../../../images/green-16x16.png?e3 51w' sizes='-0'>
+<img srcset='../../../../../images/green-1x1.png?e4 50w, ../../../../../images/green-16x16.png?e4 51w' sizes='+0'>
+<img srcset='../../../../../images/green-1x1.png?e5 50w, ../../../../../images/green-16x16.png?e5 51w' sizes='+1px'>
+<img srcset='../../../../../images/green-1x1.png?e6 50w, ../../../../../images/green-16x16.png?e6 51w' sizes='.1px'>
+<img srcset='../../../../../images/green-1x1.png?e7 50w, ../../../../../images/green-16x16.png?e7 51w' sizes='0.1em'>
+<img srcset='../../../../../images/green-1x1.png?e8 50w, ../../../../../images/green-16x16.png?e8 51w' sizes='0.1ex'>
+<img srcset='../../../../../images/green-1x1.png?e9 50w, ../../../../../images/green-16x16.png?e9 51w' sizes='0.1ch'>
+<img srcset='../../../../../images/green-1x1.png?e10 50w, ../../../../../images/green-16x16.png?e10 51w' sizes='0.1rem'>
+<img srcset='../../../../../images/green-1x1.png?e11 50w, ../../../../../images/green-16x16.png?e11 51w' sizes='0.1vw'>
+<img srcset='../../../../../images/green-1x1.png?e12 50w, ../../../../../images/green-16x16.png?e12 51w' sizes='0.1vh'>
+<img srcset='../../../../../images/green-1x1.png?e13 50w, ../../../../../images/green-16x16.png?e13 51w' sizes='0.1vmin'>
+<img srcset='../../../../../images/green-1x1.png?e14 50w, ../../../../../images/green-16x16.png?e14 51w' sizes='0.1vmax'>
+<img srcset='../../../../../images/green-1x1.png?e15 50w, ../../../../../images/green-16x16.png?e15 51w' sizes='0.1cm'>
+<img srcset='../../../../../images/green-1x1.png?e16 50w, ../../../../../images/green-16x16.png?e16 51w' sizes='1mm'>
+<img srcset='../../../../../images/green-1x1.png?e17 50w, ../../../../../images/green-16x16.png?e17 51w' sizes='1q'>
+<img srcset='../../../../../images/green-1x1.png?e18 50w, ../../../../../images/green-16x16.png?e18 51w' sizes='0.01in'>
+<img srcset='../../../../../images/green-1x1.png?e19 50w, ../../../../../images/green-16x16.png?e19 51w' sizes='0.1pc'>
+<img srcset='../../../../../images/green-1x1.png?e20 50w, ../../../../../images/green-16x16.png?e20 51w' sizes='0.1pt'>
+<img srcset='../../../../../images/green-1x1.png?e21 50w, ../../../../../images/green-16x16.png?e21 51w' sizes='/* */1px/* */'>
+<img srcset='../../../../../images/green-1x1.png?e22 50w, ../../../../../images/green-16x16.png?e22 51w' sizes=' /**/ /**/ 1px /**/ /**/ '>
+<img srcset='../../../../../images/green-1x1.png?e23 50w, ../../../../../images/green-16x16.png?e23 51w' sizes='(),1px'>
+<img srcset='../../../../../images/green-1x1.png?e24 50w, ../../../../../images/green-16x16.png?e24 51w' sizes='x(),1px'>
+<img srcset='../../../../../images/green-1x1.png?e25 50w, ../../../../../images/green-16x16.png?e25 51w' sizes='{},1px'>
+<img srcset='../../../../../images/green-1x1.png?e26 50w, ../../../../../images/green-16x16.png?e26 51w' sizes='[],1px'>
+<img srcset='../../../../../images/green-1x1.png?e27 50w, ../../../../../images/green-16x16.png?e27 51w' sizes='1px,('>
+<img srcset='../../../../../images/green-1x1.png?e28 50w, ../../../../../images/green-16x16.png?e28 51w' sizes='1px,x('>
+<img srcset='../../../../../images/green-1x1.png?e29 50w, ../../../../../images/green-16x16.png?e29 51w' sizes='1px,{'>
+<img srcset='../../../../../images/green-1x1.png?e30 50w, ../../../../../images/green-16x16.png?e30 51w' sizes='1px,['>
+<img srcset='../../../../../images/green-1x1.png?e31 50w, ../../../../../images/green-16x16.png?e31 51w' sizes='\\(,1px'>
+<img srcset='../../../../../images/green-1x1.png?e32 50w, ../../../../../images/green-16x16.png?e32 51w' sizes='x\\(,1px'>
+<img srcset='../../../../../images/green-1x1.png?e33 50w, ../../../../../images/green-16x16.png?e33 51w' sizes='\\{,1px'>
+<img srcset='../../../../../images/green-1x1.png?e34 50w, ../../../../../images/green-16x16.png?e34 51w' sizes='\\[,1px'>
+<img srcset='../../../../../images/green-1x1.png?e35 50w, ../../../../../images/green-16x16.png?e35 51w' sizes='1\\p\\x'>
+<img srcset='../../../../../images/green-1x1.png?e36 50w, ../../../../../images/green-16x16.png?e36 51w' sizes='calc(1px)'>
+<img srcset='../../../../../images/green-1x1.png?e36a 50w, ../../../../../images/green-16x16.png?e36a 51w' sizes='min(1px, 100px)'>
+<img srcset='../../../../../images/green-1x1.png?e36b 50w, ../../../../../images/green-16x16.png?e36b 51w' sizes='min(-100px, 1px)'>
+<img srcset='../../../../../images/green-1x1.png?e37 50w, ../../../../../images/green-16x16.png?e37 51w' sizes='(min-width:0) calc(1px)'>
+<img srcset='../../../../../images/green-1x1.png?e37a 50w, ../../../../../images/green-16x16.png?e37a 51w' sizes='(min-width:0) min(1px, 100px)'>
+<img srcset='../../../../../images/green-1x1.png?e37b 50w, ../../../../../images/green-16x16.png?e37b 51w' sizes='(min-width:0) max(-100px, 1px)'>
+<img srcset='../../../../../images/green-1x1.png?e38 50w, ../../../../../images/green-16x16.png?e38 51w' sizes='(min-width:calc(0)) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e39 50w, ../../../../../images/green-16x16.png?e39 51w' sizes='(min-width:0) 1px, 100vw'>
+<img srcset='../../../../../images/green-1x1.png?e40 50w, ../../../../../images/green-16x16.png?e40 51w' sizes='(min-width:0) 1px, (min-width:0) 100vw, 100vw'>
+<img srcset='../../../../../images/green-1x1.png?e41 50w, ../../../../../images/green-16x16.png?e41 51w' sizes='(min-width:0) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e42 50w, ../../../../../images/green-16x16.png?e42 51w' sizes='not (min-width:0) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e43 50w, ../../../../../images/green-16x16.png?e43 51w' sizes='(min-width:unknown-mf-value) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e44 50w, ../../../../../images/green-16x16.png?e44 51w' sizes='not (min-width:unknown-mf-value) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e45 50w, ../../../../../images/green-16x16.png?e45 51w' sizes='(min-width:-1px) 1px, 100vw'>
+<img srcset='../../../../../images/green-1x1.png?e46 50w, ../../../../../images/green-16x16.png?e46 51w' sizes='not (min-width:-1px) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e47 50w, ../../../../../images/green-16x16.png?e47 51w' sizes='(unknown-mf-name) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e48 50w, ../../../../../images/green-16x16.png?e48 51w' sizes='not (unknown-mf-name) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e49 50w, ../../../../../images/green-16x16.png?e49 51w' sizes='(unknown "general-enclosed") 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e50 50w, ../../../../../images/green-16x16.png?e50 51w' sizes='not (unknown "general-enclosed") 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e51 50w, ../../../../../images/green-16x16.png?e51 51w' sizes='unknown-general-enclosed(foo) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e52 50w, ../../../../../images/green-16x16.png?e52 51w' sizes='not unknown-general-enclosed(foo) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e53 50w, ../../../../../images/green-16x16.png?e53 51w' sizes='print 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e54 50w, ../../../../../images/green-16x16.png?e54 51w' sizes='not print 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e55 50w, ../../../../../images/green-16x16.png?e55 51w' sizes='unknown-media-type 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e56 50w, ../../../../../images/green-16x16.png?e56 51w' sizes='not unknown-media-type 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e57 50w, ../../../../../images/green-16x16.png?e57 51w' sizes='(min-width:0) or (min-width:0) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e58 50w, ../../../../../images/green-16x16.png?e58 51w' sizes='(min-width:0) or (unknown-mf-name) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e59 50w, ../../../../../images/green-16x16.png?e59 51w' sizes='(min-width:0) or (min-width:unknown-mf-value) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e60 50w, ../../../../../images/green-16x16.png?e60 51w' sizes='(min-width:0) or (min-width:-1px) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e61 50w, ../../../../../images/green-16x16.png?e61 51w' sizes='(min-width:0) or (unknown "general-enclosed") 1px'>
+<img srcset='../../../../../images/green-1x1.png?e62 50w, ../../../../../images/green-16x16.png?e62 51w' sizes='(min-width:0) or unknown-general-enclosed(foo) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e63 50w, ../../../../../images/green-16x16.png?e63 51w' sizes='(min-width:0) or (]) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e64 50w, ../../../../../images/green-16x16.png?e64 51w' sizes='(min-width:0) or unknown-media-type 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e65 50w, ../../../../../images/green-16x16.png?e65 51w' sizes='(123) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e66 50w, ../../../../../images/green-16x16.png?e66 51w' sizes='not (123) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e67 50w, ../../../../../images/green-16x16.png?e67 51w' sizes='(!) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e68 50w, ../../../../../images/green-16x16.png?e68 51w' sizes='not (!) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e69 50w, ../../../../../images/green-16x16.png?e69 51w' sizes='! 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e70 50w, ../../../../../images/green-16x16.png?e70 51w' sizes='not ! 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e71 50w, ../../../../../images/green-16x16.png?e71 51w' sizes='(]) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e72 50w, ../../../../../images/green-16x16.png?e72 51w' sizes='not (]) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e73 50w, ../../../../../images/green-16x16.png?e73 51w' sizes='] 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e74 50w, ../../../../../images/green-16x16.png?e74 51w' sizes='not ] 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e75 50w, ../../../../../images/green-16x16.png?e75 51w' sizes='(}) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e76 50w, ../../../../../images/green-16x16.png?e76 51w' sizes='not (}) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e77 50w, ../../../../../images/green-16x16.png?e77 51w' sizes='} 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e78 50w, ../../../../../images/green-16x16.png?e78 51w' sizes='not } 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e79 50w, ../../../../../images/green-16x16.png?e79 51w' sizes=') 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e80 50w, ../../../../../images/green-16x16.png?e80 51w' sizes='not ) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e81 50w, ../../../../../images/green-16x16.png?e81 51w' sizes='(;) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e82 50w, ../../../../../images/green-16x16.png?e82 51w' sizes='not (;) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e83 50w, ../../../../../images/green-16x16.png?e83 51w' sizes='(.) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e84 50w, ../../../../../images/green-16x16.png?e84 51w' sizes='not (.) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e85 50w, ../../../../../images/green-16x16.png?e85 51w' sizes='; 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e86 50w, ../../../../../images/green-16x16.png?e86 51w' sizes='not ; 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e87 50w, ../../../../../images/green-16x16.png?e87 51w' sizes=', 1px'>
+<img srcset='../../../../../images/green-1x1.png?e88 50w, ../../../../../images/green-16x16.png?e88 51w' sizes='1px,'>
+<img srcset='../../../../../images/green-1x1.png?e89 50w, ../../../../../images/green-16x16.png?e89 51w' sizes='(min-width:0) 1px,'>
+<img srcset='../../../../../images/green-1x1.png?e90 50w, ../../../../../images/green-16x16.png?e90 51w' sizes='-0e-0px'>
+<img srcset='../../../../../images/green-1x1.png?e91 50w, ../../../../../images/green-16x16.png?e91 51w' sizes='+0.11e+01px'>
+<img srcset='../../../../../images/green-1x1.png?e92 50w, ../../../../../images/green-16x16.png?e92 51w' sizes='0.2e1px'>
+<img srcset='../../../../../images/green-1x1.png?e93 50w, ../../../../../images/green-16x16.png?e93 51w' sizes='0.3E1px'>
+<img srcset='../../../../../images/green-1x1.png?e94 50w, ../../../../../images/green-16x16.png?e94 51w' sizes='.4E1px'>
+<img srcset='../../../../../images/green-1x1.png?e95 50w, ../../../../../images/green-16x16.png?e95 51w' sizes='all 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e96 50w, ../../../../../images/green-16x16.png?e96 51w' sizes='all and (min-width:0) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e97 50w, ../../../../../images/green-16x16.png?e97 51w' sizes='min-width:0 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e98 50w, ../../../../../images/green-16x16.png?e98 51w' sizes='1px, 100vw'>
+<img srcset='../../../../../images/green-1x1.png?e99 50w, ../../../../../images/green-16x16.png?e99 51w' sizes='1px, (min-width:0) 100vw'>
+<img srcset='../../../../../images/green-1x1.png?e100 50w, ../../../../../images/green-16x16.png?e100 51w' sizes='1px, foo bar'>
+<img srcset='../../../../../images/green-1x1.png?e101 50w, ../../../../../images/green-16x16.png?e101 51w' sizes='(min-width:0) 1px, foo bar'>
+<img srcset='../../../../../images/green-1x1.png?e102 50w, ../../../../../images/green-16x16.png?e102 51w' sizes='("grammar does not match") 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e103 50w, ../../../../../images/green-16x16.png?e103 51w' sizes='not ("grammar does not match") 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e104 50w, ../../../../../images/green-16x16.png?e104 51w' sizes='(unknown-general-enclosed !) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e105 50w, ../../../../../images/green-16x16.png?e105 51w' sizes='not (unknown-general-enclosed !) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e106 50w, ../../../../../images/green-16x16.png?e106 51w' sizes='(min-width:0) or (unknown-general-enclosed !) 1px'>
+<img srcset='../../../../../images/green-1x1.png?e107 50w, ../../../../../images/green-16x16.png?e107 51w' sizes='not ((min-width:0) or (unknown "general-enclosed")) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e108 50w, ../../../../../images/green-16x16.png?e108 51w' sizes='(max-width:0) or (unknown-general-enclosed !) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?e109 50w, ../../../../../images/green-16x16.png?e109 51w' sizes='not ((max-width:0) or (unknown "general-enclosed")) 100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?f48 50w, ../../../../../images/green-16x16.png?f48 51w' sizes='calc(1px'>
+<img srcset='../../../../../images/green-1x1.png?f48a 50w, ../../../../../images/green-16x16.png?f48a 51w' sizes='min(1px, 200vw'>
+<img srcset='../../../../../images/green-1x1.png?f48b 50w, ../../../../../images/green-16x16.png?f48b 51w' sizes='max(-200vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?f49 50w, ../../../../../images/green-16x16.png?f49 51w' sizes='(min-width:0) calc(1px'>
+<img srcset='../../../../../images/green-1x1.png?f49a 50w, ../../../../../images/green-16x16.png?f49a 51w' sizes='(min-width:0) min(1px, 200vw'>
+<img srcset='../../../../../images/green-1x1.png?f49b 50w, ../../../../../images/green-16x16.png?f49b 51w' sizes='(min-width:0) max(-200vw, 1px'>
+
+<p>
+<img srcset='../../../../../images/green-1x1.png?f1 50w, ../../../../../images/green-16x16.png?f1 51w' sizes='100vw'>
+<img srcset='../../../../../images/green-1x1.png?f2 50w, ../../../../../images/green-16x16.png?f2 51w' sizes=''>
+<img srcset='../../../../../images/green-1x1.png?f3 50w, ../../../../../images/green-16x16.png?f3 51w' sizes=','>
+<img srcset='../../../../../images/green-1x1.png?f4 50w, ../../../../../images/green-16x16.png?f4 51w' sizes='-1px'>
+<img srcset='../../../../../images/green-1x1.png?f5 50w, ../../../../../images/green-16x16.png?f5 51w' sizes='1'>
+<img srcset='../../../../../images/green-1x1.png?f6 50w, ../../../../../images/green-16x16.png?f6 51w' sizes='0.1%'>
+<img srcset='../../../../../images/green-1x1.png?f7 50w, ../../../../../images/green-16x16.png?f7 51w' sizes='0.1deg'>
+<img srcset='../../../../../images/green-1x1.png?f8 50w, ../../../../../images/green-16x16.png?f8 51w' sizes='0.1grad'>
+<img srcset='../../../../../images/green-1x1.png?f9 50w, ../../../../../images/green-16x16.png?f9 51w' sizes='0.1rad'>
+<img srcset='../../../../../images/green-1x1.png?f10 50w, ../../../../../images/green-16x16.png?f10 51w' sizes='0.1turn'>
+<img srcset='../../../../../images/green-1x1.png?f11 50w, ../../../../../images/green-16x16.png?f11 51w' sizes='0.1s'>
+<img srcset='../../../../../images/green-1x1.png?f12 50w, ../../../../../images/green-16x16.png?f12 51w' sizes='0.1ms'>
+<img srcset='../../../../../images/green-1x1.png?f13 50w, ../../../../../images/green-16x16.png?f13 51w' sizes='0.1Hz'>
+<img srcset='../../../../../images/green-1x1.png?f14 50w, ../../../../../images/green-16x16.png?f14 51w' sizes='0.1kHz'>
+<img srcset='../../../../../images/green-1x1.png?f15 50w, ../../../../../images/green-16x16.png?f15 51w' sizes='0.1dpi'>
+<img srcset='../../../../../images/green-1x1.png?f16 50w, ../../../../../images/green-16x16.png?f16 51w' sizes='0.1dpcm'>
+<img srcset='../../../../../images/green-1x1.png?f17 50w, ../../../../../images/green-16x16.png?f17 51w' sizes='0.1dppx'>
+<img srcset='../../../../../images/green-1x1.png?f17a 50w, ../../../../../images/green-16x16.png?f17a 51w' sizes='0.1x'>
+<img srcset='../../../../../images/green-1x1.png?f18 50w, ../../../../../images/green-16x16.png?f18 51w' data-foo='1px' sizes='attr(data-foo, length, 1px)'>
+<img srcset='../../../../../images/green-1x1.png?f19 50w, ../../../../../images/green-16x16.png?f19 51w' data-foo='1' sizes='attr(data-foo, px, 1px)'>
+<img srcset='../../../../../images/green-1x1.png?f20 50w, ../../../../../images/green-16x16.png?f20 51w' sizes='toggle(1px)'>
+<img srcset='../../../../../images/green-1x1.png?f21 50w, ../../../../../images/green-16x16.png?f21 51w' sizes='inherit'>
+<img srcset='../../../../../images/green-1x1.png?f23 50w, ../../../../../images/green-16x16.png?f23 51w' sizes='initial'>
+<img srcset='../../../../../images/green-1x1.png?f24 50w, ../../../../../images/green-16x16.png?f24 51w' sizes='unset'>
+<img srcset='../../../../../images/green-1x1.png?f25 50w, ../../../../../images/green-16x16.png?f25 51w' sizes='default'>
+<img srcset='../../../../../images/green-1x1.png?f26 50w, ../../../../../images/green-16x16.png?f26 51w' sizes='1/* */px'>
+<img srcset='../../../../../images/green-1x1.png?f27 50w, ../../../../../images/green-16x16.png?f27 51w' sizes='1p/* */x'>
+<img srcset='../../../../../images/green-1x1.png?f28 50w, ../../../../../images/green-16x16.png?f28 51w' sizes='-/**/0'>
+<img srcset='../../../../../images/green-1x1.png?f29 50w, ../../../../../images/green-16x16.png?f29 51w' sizes='((),1px'>
+<img srcset='../../../../../images/green-1x1.png?f30 50w, ../../../../../images/green-16x16.png?f30 51w' sizes='x(x(),1px'>
+<img srcset='../../../../../images/green-1x1.png?f31 50w, ../../../../../images/green-16x16.png?f31 51w' sizes='{{},1px'>
+<img srcset='../../../../../images/green-1x1.png?f32 50w, ../../../../../images/green-16x16.png?f32 51w' sizes='[[],1px'>
+<img srcset='../../../../../images/green-1x1.png?f33 50w, ../../../../../images/green-16x16.png?f33 51w' sizes='1px !important'>
+<img srcset='../../../../../images/green-1x1.png?f34 50w, ../../../../../images/green-16x16.png?f34 51w' sizes='\\1px'>
+<img srcset='../../../../../images/green-1x1.png?f35 50w, ../../../../../images/green-16x16.png?f35 51w' sizes='all 1px'>
+<img srcset='../../../../../images/green-1x1.png?f36 50w, ../../../../../images/green-16x16.png?f36 51w' sizes='all and (min-width:0) 1px'>
+<img srcset='../../../../../images/green-1x1.png?f37 50w, ../../../../../images/green-16x16.png?f37 51w' sizes='min-width:0 1px'>
+<img srcset='../../../../../images/green-1x1.png?f38 50w, ../../../../../images/green-16x16.png?f38 51w' sizes='100vw, 1px'>
+<img srcset='../../../../../images/green-1x1.png?f39 50w, ../../../../../images/green-16x16.png?f39 51w' sizes='100vw, (min-width:0) 1px'>
+<img srcset='../../../../../images/green-1x1.png?f40 50w, ../../../../../images/green-16x16.png?f40 51w' sizes='foo bar'>
+<img srcset='../../../../../images/green-1x1.png?f41 50w, ../../../../../images/green-16x16.png?f41 51w' sizes='foo-bar'>
+<img srcset='../../../../../images/green-1x1.png?f42 50w, ../../../../../images/green-16x16.png?f42 51w' sizes='(min-width:0) 1px foo bar'>
+<img srcset='../../../../../images/green-1x1.png?f43 50w, ../../../../../images/green-16x16.png?f43 51w' sizes='(min-width:0) 0.1%'>
+<img srcset='../../../../../images/green-1x1.png?f44 50w, ../../../../../images/green-16x16.png?f44 51w' sizes='(min-width:0) 1'>
+<img srcset='../../../../../images/green-1x1.png?f45 50w, ../../../../../images/green-16x16.png?f45 51w' sizes='-1e0px'>
+<img srcset='../../../../../images/green-1x1.png?f46 50w, ../../../../../images/green-16x16.png?f46 51w' sizes='1e1.5px'>
+<img srcset='../../../../../images/green-1x1.png?f47 50w, ../../../../../images/green-16x16.png?f47 51w' style='--foo: 1px' sizes='var(--foo)'>
+<img srcset='../../../../../images/green-1x1.png?f50 50w, ../../../../../images/green-16x16.png?f50 51w' sizes='calc(1px / 0)'>
+<img srcset='../../../../../images/green-1x1.png?f51 50w, ../../../../../images/green-16x16.png?f51 51w' sizes='calc(0px / 0)'>
+<img srcset='../../../../../images/green-1x1.png?f52 50w, ../../../../../images/green-16x16.png?f52 51w' sizes='calc(-1px / 0)'>
+`;
+}
