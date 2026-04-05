@@ -31,8 +31,8 @@ public:
 
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions) override;
 
-    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
-    virtual DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual DecoderErrorOr<Optional<AK::Duration>> duration_of_track(Track const&) override;
+    virtual DecoderErrorOr<Optional<AK::Duration>> total_duration() override;
 
     virtual TimeRanges buffered_time_ranges() const override;
 

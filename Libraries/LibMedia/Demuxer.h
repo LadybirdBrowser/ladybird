@@ -54,8 +54,8 @@ public:
     // in the case that the timestamp is closer to the current time than the nearest keyframe.
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions = DemuxerSeekOptions::None) = 0;
 
-    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) = 0;
-    virtual DecoderErrorOr<AK::Duration> total_duration() = 0;
+    virtual DecoderErrorOr<Optional<AK::Duration>> duration_of_track(Track const&) = 0;
+    virtual DecoderErrorOr<Optional<AK::Duration>> total_duration() = 0;
 
     virtual TimeRanges buffered_time_ranges() const = 0;
 

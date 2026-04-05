@@ -97,7 +97,7 @@ void VideoDataProvider::seek(AK::Duration timestamp, SeekMode seek_mode, SeekCom
     m_thread_data->seek(timestamp, seek_mode, move(completion_handler));
 }
 
-VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, RefPtr<MediaTimeProvider> const& time_provider)
+VideoDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, Optional<AK::Duration> duration, RefPtr<MediaTimeProvider> const& time_provider)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
@@ -272,7 +272,7 @@ void VideoDataProvider::ThreadData::invoke_on_main_thread(Invokee invokee)
 void VideoDataProvider::ThreadData::dispatch_frame_end_time(CodedFrame const& frame)
 {
     auto end_time = frame.timestamp() + frame.duration();
-    if (end_time < m_duration)
+    if (m_duration.has_value() && end_time < m_duration.value())
         return;
     m_duration = end_time;
     invoke_on_main_thread([end_time](auto const& self) {
@@ -570,7 +570,10 @@ bool VideoDataProvider::ThreadData::is_blocked() const
 
 TimeRanges VideoDataProvider::ThreadData::buffered_time_ranges() const
 {
-    return m_demuxer->buffered_time_ranges();
+    auto ranges = m_demuxer->buffered_time_ranges();
+    if (ranges.is_empty() && m_duration.has_value())
+        ranges.add_range(AK::Duration::zero(), m_duration.value());
+    return ranges;
 }
 
 }

@@ -55,9 +55,13 @@ public:
 
     void set_audio_output_disabled(bool disabled) { m_audio_output_disabled = disabled; }
 
-    AK::Duration duration() const { return m_duration; }
+    Optional<AK::Duration> duration() const { return m_duration; }
     void set_duration(AK::Duration duration) { m_duration = duration; }
-    AK::Duration current_time() const { return min(m_time_provider->current_time(), duration()); }
+    AK::Duration current_time() const
+    {
+        auto time = m_time_provider->current_time();
+        return m_duration.has_value() ? min(time, m_duration.value()) : time;
+    }
 
     auto const& video_tracks() const { return m_video_tracks; }
     auto const& audio_tracks() const { return m_audio_tracks; }
@@ -172,7 +176,7 @@ private:
     Optional<Track> m_preferred_video_track;
     Optional<Track> m_preferred_audio_track;
 
-    AK::Duration m_duration;
+    Optional<AK::Duration> m_duration;
 
     HashTable<Track> m_tracks_still_buffering;
 

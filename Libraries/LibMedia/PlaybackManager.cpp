@@ -76,7 +76,7 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
     if (preferred_audio_track.has_value() && !supported_audio_tracks.contains_slow(*preferred_audio_track))
         preferred_audio_track = {};
 
-    auto duration = demuxer->total_duration().value_or(AK::Duration::zero());
+    auto duration = TRY(demuxer->total_duration());
 
     auto main_thread_event_loop = main_thread_event_loop_reference->take();
     main_thread_event_loop->deferred_invoke([self, video_tracks = move(supported_video_tracks), video_track_datas = move(supported_video_track_datas), preferred_video_track, audio_tracks = move(supported_audio_tracks), audio_track_datas = move(supported_audio_track_datas), preferred_audio_track, duration] mutable {
@@ -109,7 +109,8 @@ DecoderErrorOr<void> PlaybackManager::prepare_playback_from_demuxer(WeakPlayback
         if (!self->m_preferred_audio_track.has_value())
             self->m_preferred_audio_track = preferred_audio_track;
 
-        self->check_for_duration_change(duration);
+        if (duration.has_value())
+            self->check_for_duration_change(duration.value());
 
         self->set_up_data_providers();
 
@@ -277,11 +278,11 @@ void PlaybackManager::track_stopped_buffering(Track const& track)
 
 void PlaybackManager::check_for_duration_change(AK::Duration duration)
 {
-    if (m_duration >= duration)
+    if (m_duration.has_value() && m_duration.value() >= duration)
         return;
     m_duration = duration;
     if (on_duration_change)
-        on_duration_change(m_duration);
+        on_duration_change(duration);
 }
 
 void PlaybackManager::dispatch_error(DecoderError&& error)

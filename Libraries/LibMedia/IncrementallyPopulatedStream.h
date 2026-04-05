@@ -56,6 +56,7 @@ public:
 
         virtual size_t position() const override { return m_position; }
         virtual size_t size() const override { return m_stream->size(); }
+        virtual Optional<size_t> expected_size() const override;
 
         virtual void abort() override;
         virtual void reset_abort() override { m_aborted = false; }

@@ -57,6 +57,7 @@ public:
 
     virtual size_t position() const override { return m_position; }
     virtual size_t size() const override { return m_data.size(); }
+    virtual Optional<size_t> expected_size() const override { return m_data.size(); }
 
     void set_data(ReadonlyBytes data) { m_data = data; }
 

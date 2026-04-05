@@ -64,7 +64,7 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, NonnullOwnPtr<Audio::AudioConverter>&&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, Optional<AK::Duration>, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
@@ -126,7 +126,7 @@ private:
 
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
-        AK::Duration m_duration;
+        Optional<AK::Duration> m_duration;
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;

@@ -236,12 +236,12 @@ Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most
     return Media::DemuxerSeekResult::MovedPosition;
 }
 
-Media::DecoderErrorOr<AK::Duration> TrackBufferDemuxer::duration_of_track(Media::Track const&)
+Media::DecoderErrorOr<Optional<AK::Duration>> TrackBufferDemuxer::duration_of_track(Media::Track const&)
 {
     return AK::Duration::zero();
 }
 
-Media::DecoderErrorOr<AK::Duration> TrackBufferDemuxer::total_duration()
+Media::DecoderErrorOr<Optional<AK::Duration>> TrackBufferDemuxer::total_duration()
 {
     return AK::Duration::zero();
 }

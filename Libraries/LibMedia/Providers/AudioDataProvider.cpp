@@ -120,7 +120,7 @@ i64 AudioDataProvider::ThreadData::queue_end_sample() const
     return m_queue_end_sample;
 }
 
-AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, AK::Duration duration, NonnullOwnPtr<Audio::AudioConverter>&& converter)
+AudioDataProvider::ThreadData::ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const& demuxer, Track const& track, Optional<AK::Duration> duration, NonnullOwnPtr<Audio::AudioConverter>&& converter)
     : m_main_thread_event_loop(main_thread_event_loop)
     , m_demuxer(demuxer)
     , m_track(track)
@@ -290,7 +290,7 @@ void AudioDataProvider::ThreadData::invoke_on_main_thread(Invokee invokee)
 void AudioDataProvider::ThreadData::dispatch_block_end_time(AudioBlock const& block)
 {
     auto end_time = block.end_timestamp();
-    if (end_time < m_duration)
+    if (m_duration.has_value() && end_time < m_duration.value())
         return;
     m_duration = end_time;
     invoke_on_main_thread_while_locked([end_time](auto const& self) {
@@ -557,7 +557,10 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
 
 TimeRanges AudioDataProvider::ThreadData::buffered_time_ranges() const
 {
-    return m_demuxer->buffered_time_ranges();
+    auto ranges = m_demuxer->buffered_time_ranges();
+    if (ranges.is_empty() && m_duration.has_value())
+        ranges.add_range(AK::Duration::zero(), m_duration.value());
+    return ranges;
 }
 
 }

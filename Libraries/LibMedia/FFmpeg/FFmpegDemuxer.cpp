@@ -127,7 +127,8 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
     TRY(initialize_format_context(format_context, *io_context->avio_context()));
 
     auto demuxer = DECODER_TRY_ALLOC(adopt_nonnull_ref_or_enomem(new (nothrow) FFmpegDemuxer(stream)));
-    demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
+    if (format_context->duration != AV_NOPTS_VALUE)
+        demuxer->m_total_duration = AK::Duration::from_time_units(format_context->duration, 1, AV_TIME_BASE);
 
     auto format_name = StringView(format_context->iformat->name, strlen(format_context->iformat->name));
     auto seen_types = HashTable<TrackType>();
@@ -139,7 +140,7 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
         auto codec_id = media_codec_id_from_ffmpeg_codec_id(stream.codecpar->codec_id);
         auto codec_initialization_data = DECODER_TRY_ALLOC(ByteBuffer::copy(stream.codecpar->extradata, stream.codecpar->extradata_size));
 
-        AK::Duration duration;
+        Optional<AK::Duration> duration;
         if (stream.duration >= 0)
             duration = AK::Duration::from_time_units(stream.duration, stream.time_base.num, stream.time_base.den);
         else
@@ -212,7 +213,7 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
     return duration.to_time_units(time_base.num, time_base.den);
 }
 
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::total_duration()
+DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::total_duration()
 {
     return m_total_duration;
 }
@@ -221,12 +222,12 @@ TimeRanges FFmpegDemuxer::buffered_time_ranges() const
 {
     // FIXME: Use the format context's index to determine the buffered ranges from the underlying stream.
     TimeRanges ranges;
-    if (!m_total_duration.is_zero())
-        ranges.add_range(AK::Duration::zero(), m_total_duration);
+    if (m_total_duration.has_value() && !m_total_duration->is_zero())
+        ranges.add_range(AK::Duration::zero(), *m_total_duration);
     return ranges;
 }
 
-DecoderErrorOr<AK::Duration> FFmpegDemuxer::duration_of_track(Track const& track)
+DecoderErrorOr<Optional<AK::Duration>> FFmpegDemuxer::duration_of_track(Track const& track)
 {
     auto const& track_info = get_track_info(track);
     return track_info.duration;

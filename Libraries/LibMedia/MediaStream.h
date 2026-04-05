@@ -21,6 +21,7 @@ public:
     virtual DecoderErrorOr<size_t> read_into(Bytes) = 0;
     virtual size_t position() const = 0;
     virtual size_t size() const = 0;
+    virtual Optional<size_t> expected_size() const { return size(); }
 
     virtual void abort() { }
     virtual void reset_abort() { }

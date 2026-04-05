@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/MediaControls.h>
+#include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
@@ -227,7 +228,7 @@ void MediaControls::set_up_event_listeners()
         VERIFY(m_media_element);
         VERIFY(m_dom->timeline_element);
 
-        auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
+        auto position = compute_timeline_position(event, *m_dom->timeline_element, effective_duration());
         if (!position.has_value())
             return false;
 
@@ -246,7 +247,7 @@ void MediaControls::set_up_event_listeners()
             VERIFY(m_media_element);
             VERIFY(m_dom->timeline_element);
 
-            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
+            auto position = compute_timeline_position(event, *m_dom->timeline_element, effective_duration());
             if (!position.has_value())
                 return false;
 
@@ -261,7 +262,7 @@ void MediaControls::set_up_event_listeners()
             auto was_playing = m_scrubbing_timeline == Scrubbing::WhilePlaying;
             m_scrubbing_timeline = Scrubbing::No;
 
-            auto position = compute_timeline_position(event, *m_dom->timeline_element, m_media_element->duration());
+            auto position = compute_timeline_position(event, *m_dom->timeline_element, effective_duration());
             if (position.has_value())
                 set_current_time(*position);
 
@@ -482,12 +483,24 @@ void MediaControls::update_play_pause_icon()
     MUST(m_dom->play_pause_icon->class_list()->toggle(s_playing_class, !paused));
 }
 
+double MediaControls::effective_duration() const
+{
+    VERIFY(m_media_element);
+    auto duration = m_media_element->duration();
+    if (!isinf(duration))
+        return duration;
+    auto buffered = m_media_element->buffered();
+    if (buffered->length() > 0)
+        return MUST(buffered->end(buffered->length() - 1));
+    return 0.0;
+}
+
 void MediaControls::update_timeline()
 {
     VERIFY(m_media_element);
     VERIFY(m_dom->timeline_fill);
 
-    auto duration = m_media_element->duration();
+    auto duration = effective_duration();
     double percentage = 0.0;
     if (!isnan(duration) && duration > 0.0)
         percentage = (m_media_element->current_time() / duration) * 100.0;
@@ -505,9 +518,8 @@ void MediaControls::update_timestamp()
     VERIFY(m_dom->timestamp_element);
 
     auto current = human_readable_digital_time(round_to<i64>(m_media_element->current_time()));
-    auto duration = m_media_element->duration();
+    auto duration = effective_duration();
     auto total = human_readable_digital_time(isnan(duration) ? 0 : round_to<i64>(duration));
-
     MUST(m_dom->timestamp_element->set_text_content(Utf16String::formatted("{} / {}", current, total)));
 }
 

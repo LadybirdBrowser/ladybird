@@ -32,8 +32,8 @@ public:
 
     virtual DecoderErrorOr<DemuxerSeekResult> seek_to_most_recent_keyframe(Track const&, AK::Duration timestamp, DemuxerSeekOptions) override;
 
-    virtual DecoderErrorOr<AK::Duration> duration_of_track(Track const&) override;
-    virtual DecoderErrorOr<AK::Duration> total_duration() override;
+    virtual DecoderErrorOr<Optional<AK::Duration>> duration_of_track(Track const&) override;
+    virtual DecoderErrorOr<Optional<AK::Duration>> total_duration() override;
 
     virtual TimeRanges buffered_time_ranges() const override;
 
@@ -52,7 +52,7 @@ private:
         Track track;
         CodecID codec_id;
         ByteBuffer codec_initialization_data;
-        AK::Duration duration;
+        Optional<AK::Duration> duration;
         i32 time_base_numerator;
         i32 time_base_denominator;
     };
@@ -80,7 +80,7 @@ private:
     TrackContext& get_track_context(Track const&);
 
     NonnullRefPtr<MediaStream> m_stream;
-    AK::Duration m_total_duration;
+    Optional<AK::Duration> m_total_duration;
     Vector<StreamInfo> m_stream_info;
     Array<int, to_underlying(TrackType::Unknown)> m_preferred_track_for_type;
 

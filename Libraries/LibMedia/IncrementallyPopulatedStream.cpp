@@ -265,15 +265,27 @@ DecoderErrorOr<void> IncrementallyPopulatedStream::Cursor::seek(i64 offset, Seek
     case SeekMode::FromCurrentPosition:
         m_position += offset;
         break;
-    case SeekMode::FromEndPosition:
-        m_position = this->size() + offset;
+    case SeekMode::FromEndPosition: {
+        auto size = m_stream->expected_size();
+        if (!size.has_value())
+            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Stream size is unknown, cannot seek from end"sv);
+        m_position = size.value() + offset;
         break;
+    }
     default:
         VERIFY_NOT_REACHED();
     }
 
     m_active_timeout = MonotonicTime::now_coarse() + CURSOR_ACTIVE_TIME;
     return {};
+}
+
+Optional<size_t> IncrementallyPopulatedStream::Cursor::expected_size() const
+{
+    auto size = m_stream->expected_size();
+    if (!size.has_value())
+        return {};
+    return size.value();
 }
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::Cursor::read_into(Bytes bytes)

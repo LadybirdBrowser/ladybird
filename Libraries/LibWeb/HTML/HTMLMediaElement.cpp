@@ -1687,14 +1687,18 @@ void HTMLMediaElement::on_metadata_parsed()
 
     // 4. Update the duration attribute with the time of the last frame of the resource, if known, on the media timeline established above. If it is
     //    not known (e.g. a stream that is in principle infinite), update the duration attribute to the value positive Infinity.
-    // FIXME: Handle unbounded media resources.
-    set_duration(m_playback_manager->duration().to_seconds_f64());
+    auto initial_duration = m_playback_manager->duration();
+    if (initial_duration.has_value()) {
+        set_duration(initial_duration->to_seconds_f64());
 
-    // NB: Register the duration change handler here so that we don't set the duration when the
-    //     playback manager updates the duration after parsing.
-    m_playback_manager->on_duration_change = GC::weak_callback(*this, [](auto& self, AK::Duration duration) {
-        self.set_duration(duration.to_seconds_f64());
-    });
+        // NB: Register the duration change handler here so that we don't set the duration when the
+        //     playback manager updates the duration after parsing.
+        m_playback_manager->on_duration_change = GC::weak_callback(*this, [](auto& self, AK::Duration duration) {
+            self.set_duration(duration.to_seconds_f64());
+        });
+    } else {
+        set_duration(INFINITY);
+    }
 
     // 5. For video elements, set the videoWidth and videoHeight attributes, and queue a media element task given the media element to fire an event
     //    named resize at the media element.
@@ -2137,7 +2141,6 @@ void HTMLMediaElement::update_ready_state()
     //        the buffered head.
     constexpr auto have_enough_data_duration = AK::Duration::from_seconds(5);
 
-    auto duration = m_playback_manager->duration();
     auto current_range_end = AK::Duration::zero();
     if (current_range.has_value())
         current_range_end = current_range->end;
@@ -2145,7 +2148,8 @@ void HTMLMediaElement::update_ready_state()
 
     // -> If HTMLMediaElement's buffered contains a TimeRanges that includes the current playback position and
     //    enough data to ensure uninterrupted playback:
-    if (has_future_data && (playable_duration >= have_enough_data_duration || current_range_end >= duration)) {
+    auto duration = m_playback_manager->duration();
+    if (has_future_data && (playable_duration >= have_enough_data_duration || (duration.has_value() && current_range_end >= duration.value()))) {
         // 1. Set the HTMLMediaElement's readyState attribute to HAVE_ENOUGH_DATA.
         set_ready_state(ReadyState::HaveEnoughData);
 
@@ -2401,8 +2405,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //     available, and, if it is, until it has decoded enough data to play back that position.
     if (m_playback_manager) {
         AK::Duration new_playback_position_as_duration;
-        if (playback_position == m_duration)
-            new_playback_position_as_duration = m_playback_manager->duration();
+        auto duration = m_playback_manager->duration();
+        if (duration.has_value() && playback_position == m_duration)
+            new_playback_position_as_duration = duration.value();
         else
             new_playback_position_as_duration = AK::Duration::from_seconds_f64(playback_position);
         m_playback_manager->seek(new_playback_position_as_duration, manager_seek_mode);

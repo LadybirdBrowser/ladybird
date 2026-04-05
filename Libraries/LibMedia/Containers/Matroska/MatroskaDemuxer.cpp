@@ -149,10 +149,9 @@ DecoderErrorOr<CodedFrame> MatroskaDemuxer::get_next_sample_for_track(Track cons
     return CodedFrame(timestamp, duration, flags, move(status.frames[status.frame_index++]), aux_data);
 }
 
-DecoderErrorOr<AK::Duration> MatroskaDemuxer::total_duration()
+DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::total_duration()
 {
-    auto duration = m_reader.duration();
-    return duration.value_or(AK::Duration::zero());
+    return m_reader.duration();
 }
 
 TimeRanges MatroskaDemuxer::buffered_time_ranges() const
@@ -165,7 +164,7 @@ TimeRanges MatroskaDemuxer::buffered_time_ranges() const
     return ranges;
 }
 
-DecoderErrorOr<AK::Duration> MatroskaDemuxer::duration_of_track(Track const&)
+DecoderErrorOr<Optional<AK::Duration>> MatroskaDemuxer::duration_of_track(Track const&)
 {
     return total_duration();
 }

@@ -56,8 +56,10 @@ ErrorOr<NonnullOwnPtr<FFmpegIOContext>> FFmpegIOContext::create(NonnullRefPtr<Me
             whence &= ~AVSEEK_FORCE;
 
             auto& stream_cursor = *static_cast<MediaStreamCursor*>(opaque);
-            if (whence == AVSEEK_SIZE)
-                return stream_cursor.size();
+            if (whence == AVSEEK_SIZE) {
+                auto size = stream_cursor.expected_size();
+                return size.has_value() ? static_cast<int64_t>(size.value()) : -1;
+            }
 
             auto seek_mode_from_whence = [](int origin) -> AK::SeekMode {
                 if (origin == SEEK_CUR)

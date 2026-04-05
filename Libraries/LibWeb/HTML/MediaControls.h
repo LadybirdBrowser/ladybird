@@ -51,6 +51,7 @@ private:
     void toggle_mute();
     void toggle_fullscreen();
 
+    double effective_duration() const;
     void update_play_pause_icon();
     void update_timeline();
     void update_timestamp();
