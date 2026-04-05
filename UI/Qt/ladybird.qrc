@@ -13,5 +13,8 @@
         <file>../Icons/star-filled.tvg</file>
         <file>../Icons/up.tvg</file>
         <file>../Icons/down.tvg</file>
+        <file>OrcaScripts/Ladybird/__init__.py</file>
+        <file>OrcaScripts/Ladybird/script.py</file>
+        <file>OrcaScripts/Ladybird/script_utilities.py</file>
     </qresource>
 </RCC>

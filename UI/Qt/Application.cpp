@@ -16,6 +16,8 @@
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileOpenEvent>
 #include <QFormLayout>
@@ -31,6 +33,50 @@
 #endif
 
 namespace Ladybird {
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+static void install_orca_scripts()
+{
+    // Install custom Orca screen reader scripts for Ladybird. These extend Orca's web.Script to enable browse-mode
+    // navigation for web content and proper focus-mode handling for browser chrome.
+    static constexpr auto scripts = Array {
+        "__init__.py"sv,
+        "script.py"sv,
+        "script_utilities.py"sv,
+    };
+
+    auto dest_dir = QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+        + QStringLiteral("/orca/orca-scripts/Ladybird"));
+
+    if (!dest_dir.exists())
+        dest_dir.mkpath(QStringLiteral("."));
+
+    for (auto script_name : scripts) {
+        auto resource_path = QStringLiteral(":/OrcaScripts/Ladybird/%1")
+            .arg(QString::fromUtf8(script_name.characters_without_null_termination(), script_name.length()));
+        auto dest_path = dest_dir.filePath(
+            QString::fromUtf8(script_name.characters_without_null_termination(), script_name.length()));
+
+        QFile resource(resource_path);
+        if (!resource.open(QIODevice::ReadOnly))
+            continue;
+
+        auto resource_data = resource.readAll();
+
+        // Only overwrite if content differs.
+        QFile existing(dest_path);
+        if (existing.exists() && existing.open(QIODevice::ReadOnly)) {
+            if (existing.readAll() == resource_data)
+                continue;
+            existing.close();
+        }
+
+        QFile out(dest_path);
+        if (out.open(QIODevice::WriteOnly))
+            out.write(resource_data);
+    }
+}
+#endif
 
 #if defined(AK_OS_WINDOWS)
 class NativeWindowsTimeChangeEventFilter : public QAbstractNativeEventFilter {
@@ -110,6 +156,9 @@ NonnullOwnPtr<Core::EventLoop> Application::create_platform_event_loop()
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerQt);
         m_application = make<LadybirdQApplication>(arguments());
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+        install_orca_scripts();
+#endif
     }
 
     auto event_loop = WebView::Application::create_platform_event_loop();
