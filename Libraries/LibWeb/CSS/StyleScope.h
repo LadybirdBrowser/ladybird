@@ -110,6 +110,9 @@ public:
 
     void schedule_ancestors_style_invalidation_due_to_presence_of_has(DOM::Node& node);
 
+    template<typename T>
+    Optional<T> dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const;
+
     void visit_edges(GC::Cell::Visitor&);
 
     Vector<FlyString> m_qualified_layer_names_in_order;

@@ -564,4 +564,35 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
     }
 }
 
+template<typename T>
+Optional<T> StyleScope::dereference_global_tree_scoped_reference(Function<Optional<T>(StyleScope const&)> const& callback) const
+{
+    // https://drafts.csswg.org/css-shadow-1/#tree-scoped-name-global
+    // If a tree-scoped name is global (such as @font-face names), then when a tree-scoped reference is dereferenced to
+    // find it, first search only the tree-scoped names associated with the same root as the tree-scoped reference. If
+    // no relevant tree-scoped name is found, and the root is a shadow root, then repeat this search in the root’s
+    // host’s node tree (recursively). (In other words, global tree-scoped names “inherit” into descendant shadow trees,
+    // so long as they don’t define the same name themselves.)
+    if (auto result = callback(*this); result.has_value())
+        return result;
+
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node)) {
+        if (auto* host = shadow_root->host()) {
+            auto const& root = host->root();
+
+            if (root.is_shadow_root()) {
+                auto const& shadow_root = as<DOM::ShadowRoot>(root);
+                if (shadow_root.uses_document_style_sheets())
+                    return root.document().style_scope().dereference_global_tree_scoped_reference(callback);
+
+                return shadow_root.style_scope().dereference_global_tree_scoped_reference(callback);
+            }
+
+            return as<DOM::Document>(root).style_scope().dereference_global_tree_scoped_reference(callback);
+        }
+    }
+
+    return {};
+}
+
 }
