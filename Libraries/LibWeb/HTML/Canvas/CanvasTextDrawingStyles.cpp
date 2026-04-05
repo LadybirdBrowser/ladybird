@@ -113,7 +113,7 @@ void CanvasTextDrawingStyles<IncludingClass, CanvasType>::set_font(StringView fo
 
     auto computation_context = canvas_element.canvas_font_computation_context();
 
-    auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_style_value.longhand(CSS::PropertyID::FontSize)->absolutized(computation_context), computed_math_depth, inheritance_parent);
+    auto const& computed_font_size = CSS::StyleComputer::compute_font_size(font_style_value.longhand(CSS::PropertyID::FontSize)->absolutized(computation_context), computed_math_depth, inheritance_parent, CSSPixels { 10 });
     auto const& computed_font_style = CSS::StyleComputer::compute_font_style(font_style_value.longhand(CSS::PropertyID::FontStyle)->absolutized(computation_context));
     auto const& computed_font_weight = CSS::StyleComputer::compute_font_weight(font_style_value.longhand(CSS::PropertyID::FontWeight)->absolutized(computation_context), inheritance_parent);
     auto const& computed_font_width = CSS::StyleComputer::compute_font_width(font_style_value.longhand(CSS::PropertyID::FontWidth)->absolutized(computation_context));

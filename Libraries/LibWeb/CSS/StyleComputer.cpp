@@ -2525,14 +2525,14 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)
 {
     // https://drafts.csswg.org/css-fonts/#font-size-prop
     // an absolute length
 
     auto inherited_font_size = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->font_size()
-        : InitialValues::font_size();
+        : initial_font_size;
 
     auto inherited_math_depth = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
         ? inheritance_parent->computed_properties()->math_depth()
