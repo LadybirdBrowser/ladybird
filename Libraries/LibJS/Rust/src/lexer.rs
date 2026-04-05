@@ -492,17 +492,13 @@ impl<'a> Lexer<'a> {
         lexer
     }
 
-    fn should_cache_identifier(value: &[u16]) -> bool {
-        !value.is_empty() && value.len() <= 8 && value.iter().all(|cu| is_ascii(*cu))
-    }
-
     fn shared_identifier_from_slice(&mut self, value: &[u16]) -> Option<SharedUtf16String> {
-        if !Self::should_cache_identifier(value) {
+        if value.is_empty() {
             return None;
         }
 
         let first = value[0] as usize;
-        if value.len() == 1 {
+        if value.len() == 1 && first < 128 {
             if let Some(existing) = &self.short_identifier_cache[first] {
                 return Some(existing.clone());
             }
@@ -511,14 +507,15 @@ impl<'a> Lexer<'a> {
             return Some(shared);
         }
 
-        if let Some(existing) = &self.recent_identifier_cache[first]
+        let slot = first % 128;
+        if let Some(existing) = &self.recent_identifier_cache[slot]
             && existing.as_slice() == value
         {
             return Some(existing.clone());
         }
 
         let shared = SharedUtf16String::from(value);
-        self.recent_identifier_cache[first] = Some(shared.clone());
+        self.recent_identifier_cache[slot] = Some(shared.clone());
         Some(shared)
     }
 
