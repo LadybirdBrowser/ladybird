@@ -8236,7 +8236,6 @@ void Document::build_counter_style_cache()
     m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::User, collect_counter_style_definitions);
     m_style_scope.for_each_stylesheet(CSS::CascadeOrigin::Author, collect_counter_style_definitions);
 
-    // FIXME: Implement the non-css-definable (i.e. longhand east asian and `ethiopic-numeric`) counter styles.
     VERIFY(counter_style_definitions.contains("decimal"_fly_string));
 
     auto const is_part_of_extends_cycle = [&](FlyString const& counter_style_name) {
