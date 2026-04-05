@@ -438,6 +438,23 @@ public:
         }
     }
 
+    template<typename U, typename Callback>
+    void for_each_inclusive_ancestor_of_type(Callback callback) const
+    {
+        return const_cast<TreeNode*>(this)->for_each_inclusive_ancestor_of_type<U>(move(callback));
+    }
+
+    template<typename U, typename Callback>
+    void for_each_inclusive_ancestor_of_type(Callback callback)
+    {
+        for (auto* ancestor = static_cast<T*>(this); ancestor; ancestor = ancestor->parent()) {
+            if (auto* ancestor_of_type = as_if<U>(*ancestor)) {
+                if (callback(*ancestor_of_type) == IterationDecision::Break)
+                    return;
+            }
+        }
+    }
+
     ~TreeNode() = default;
 
 protected:
