@@ -37,7 +37,7 @@ struct BackingStoreState {
 
 struct UpdateDisplayListCommand {
     NonnullRefPtr<Painting::DisplayList> display_list;
-    Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot;
+    Painting::ScrollStateSnapshot scroll_state_snapshot;
 };
 
 struct UpdateBackingStoresCommand {
@@ -158,7 +158,7 @@ public:
                     [this](ScreenshotCommand& cmd) {
                         if (!m_cached_display_list)
                             return;
-                        m_skia_player->execute(*m_cached_display_list, Painting::ScrollStateSnapshotByDisplayList(m_cached_scroll_state_snapshot), *cmd.target_surface);
+                        m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *cmd.target_surface);
                         if (cmd.callback) {
                             invoke_on_main_thread([callback = move(cmd.callback)]() mutable {
                                 callback();
@@ -211,7 +211,7 @@ public:
                         // must be cleared before repainting.
                         m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
                     }
-                    m_skia_player->execute(*m_cached_display_list, Painting::ScrollStateSnapshotByDisplayList(m_cached_scroll_state_snapshot), *m_backing_stores.back_store);
+                    m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
                     i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
                     m_backing_stores.swap();
 
@@ -257,7 +257,7 @@ private:
 
     OwnPtr<Painting::DisplayListPlayerSkia> m_skia_player;
     RefPtr<Painting::DisplayList> m_cached_display_list;
-    Painting::ScrollStateSnapshotByDisplayList m_cached_scroll_state_snapshot;
+    Painting::ScrollStateSnapshot m_cached_scroll_state_snapshot;
     BackingStoreState m_backing_stores;
     RenderingThread::PresentationMode m_presentation_mode { RenderingThread::PresentToUI {} };
 
@@ -312,7 +312,7 @@ void RenderingThread::set_presentation_mode(PresentationMode mode)
     m_thread_data->set_presentation_mode(move(mode));
 }
 
-void RenderingThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshotByDisplayList&& scroll_state_snapshot)
+void RenderingThread::update_display_list(NonnullRefPtr<Painting::DisplayList> display_list, Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
     m_thread_data->enqueue_command(UpdateDisplayListCommand { move(display_list), move(scroll_state_snapshot) });
 }

@@ -52,7 +52,6 @@ class SVGPatternPaintStyle;
 class ScrollStateSnapshot;
 using PaintStyle = RefPtr<SVGPaintServerPaintStyle>;
 using PaintStyleOrColor = Variant<PaintStyle, Gfx::Color>;
-using ScrollStateSnapshotByDisplayList = HashMap<NonnullRefPtr<DisplayList>, ScrollStateSnapshot>;
 
 }
 

@@ -40,14 +40,12 @@ static bool command_is_clip(DisplayListCommand const& command)
         });
 }
 
-void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshotByDisplayList&& scroll_state_snapshot_by_display_list, RefPtr<Gfx::PaintingSurface> surface)
+void DisplayListPlayer::execute(DisplayList& display_list, ScrollStateSnapshot const& scroll_state_snapshot, RefPtr<Gfx::PaintingSurface> surface)
 {
-    TemporaryChange change { m_scroll_state_snapshots_by_display_list, move(scroll_state_snapshot_by_display_list) };
     if (surface) {
         surface->lock_context();
     }
     m_surface = surface;
-    auto scroll_state_snapshot = m_scroll_state_snapshots_by_display_list.get(display_list).value_or({});
     execute_impl(display_list, scroll_state_snapshot);
     if (surface)
         flush();

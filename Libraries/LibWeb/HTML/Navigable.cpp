@@ -3109,11 +3109,9 @@ void Navigable::record_display_list_and_scroll_state(PaintConfig paint_config)
         return;
 
     auto& document_paintable = *document->paintable();
-    Painting::ScrollStateSnapshotByDisplayList scroll_state_snapshot_by_display_list;
     document_paintable.refresh_scroll_state();
-    scroll_state_snapshot_by_display_list.set(*display_list, document_paintable.scroll_state_snapshot());
 
-    m_rendering_thread.update_display_list(*display_list, move(scroll_state_snapshot_by_display_list));
+    m_rendering_thread.update_display_list(*display_list, Painting::ScrollStateSnapshot(document_paintable.scroll_state_snapshot()));
 }
 
 void Navigable::paint_next_frame()

@@ -40,7 +40,7 @@ public:
     void set_skia_player(OwnPtr<Painting::DisplayListPlayerSkia>&& player);
     void set_presentation_mode(PresentationMode);
 
-    void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshotByDisplayList&&);
+    void update_display_list(NonnullRefPtr<Painting::DisplayList>, Painting::ScrollStateSnapshot&&);
     void update_backing_stores(RefPtr<Gfx::PaintingSurface> front, RefPtr<Gfx::PaintingSurface> back, i32 front_id, i32 back_id);
     u64 present_frame(Gfx::IntRect);
     void wait_for_frame(u64 frame_id);
