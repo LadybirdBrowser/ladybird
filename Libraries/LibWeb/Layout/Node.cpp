@@ -1012,6 +1012,7 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
         computed_values.set_column_count(CSS::ColumnCount::make_integer(column_count.as_integer().integer()));
 
     computed_values.set_column_span(computed_style.column_span());
+    computed_values.set_column_fill(computed_style.column_fill());
 
     computed_values.set_column_width(computed_style.size_value(CSS::PropertyID::ColumnWidth));
     computed_values.set_column_height(computed_style.size_value(CSS::PropertyID::ColumnHeight));

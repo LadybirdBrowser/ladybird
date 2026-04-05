@@ -104,13 +104,47 @@ void BlockFormattingContext::run(AvailableSpace const& available_space, Optional
     // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
     auto const& root_state = m_state.get(root());
     auto column_count = determine_used_value_for_column_count(root_state.content_width());
-    // FIXME: Figure out how to implement multicol layout with unconstrained (indefinite) height.
     // FIXME: Support nested fragmentation contexts.
-    if (column_count.has_value() && available_space.height.is_definite() && !fragmentation_context.has_value()) {
+    if (column_count.has_value() && !fragmentation_context.has_value()) {
         auto column_width = determine_used_value_for_column_width(root_state.content_width(), column_count.value());
-        auto multicol_fragmentation_context = ColumnFragmentationContext(root(), column_width, available_space.height.to_px_or_zero(), get_column_gap_used_value_for_multicol(root_state.content_width()));
-        auto multicol_available_space = AvailableSpace(AvailableSize::make_definite(column_width), AvailableSize::make_indefinite());
 
+        LayoutState throwaway_state {};
+        BlockFormattingContext measuring_context(throwaway_state, m_layout_mode, root(), this->parent());
+        measuring_context.layout_children(AvailableSpace(AvailableSize::make_definite(column_width), AvailableSize::make_indefinite()), {});
+
+        CSSPixels ideal_column_height;
+        auto is_height_limited = available_space.height.is_definite();
+        // https://drafts.csswg.org/css-multicol-2/#cf
+        // This property specifies whether content in a multi-column line that does not immediately precede a spanner
+        // is balanced across columns or not.
+        switch (root().computed_values().column_fill()) {
+        case CSS::ColumnFill::Balance:
+            // Balance content equally between columns, as far as possible. In fragmented contexts, only the last
+            // fragment is balanced.
+            // FIXME: Until we have nested fragmentation contexts, this is exactly the same as balance-all
+        case CSS::ColumnFill::BalanceAll:
+            // Balance content equally between columns, as far as possible. In fragmented contexts, all fragments are
+            // balanced.
+            ideal_column_height = measuring_context.automatic_content_height() / column_count.value();
+            break;
+        case CSS::ColumnFill::Auto:
+            // fill columns sequentially
+            // NB: This is achieved by setting the preferred height to the maximum height we can get, which will make
+            //     impossible to over-fill a column. Thus, the only 'balancing' that takes place is content getting
+            //     shunted into the next column if it would not fit into the current one.
+            ideal_column_height = is_height_limited ? available_space.height.to_px_or_zero() : measuring_context.automatic_content_height();
+            break;
+        }
+
+        auto multicol_fragmentation_context = ColumnFragmentationContext(
+            root(),
+            column_count.value(),
+            column_width,
+            get_column_gap_used_value_for_multicol(root_state.content_width()),
+            ideal_column_height,
+            is_height_limited ? available_space.height.to_px_or_zero() : Optional<CSSPixels>());
+
+        auto multicol_available_space = AvailableSpace(AvailableSize::make_definite(column_width), AvailableSize::make_indefinite());
         layout_children(multicol_available_space, multicol_fragmentation_context);
         return;
     }

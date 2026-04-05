@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cf">
+<div id="multicol" style="columns:2;">
+  <div style="height:60px;"></div>
+  <div style="float:left; width:100%; contain:size; height:40px;"></div>
+  <div style="clear:left; height:90px;"></div>
+</div>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+  test(()=> {
+    assert_equals(multicol.offsetHeight, 100);
+  }, "Make room for the float in the first column");
+</script>

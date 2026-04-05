@@ -272,17 +272,30 @@ void LineBuilder::update_last_line(Optional<FragmentationContext&> fragmentation
 
     CSSPixels inline_fragmentainer_offset = 0;
     CSSPixels block_fragmentainer_offset = 0;
+    CSSPixels distance_to_backtrack_after_placing_line = 0;
     if (fragmentation_context.has_value()) {
-        FragmentationContext const* context = &fragmentation_context.value();
+        FragmentationContext* context = &fragmentation_context.value();
 
         // FIXME: Block doesn't always mean Y-axis and inline doesn't always mean X-axis, so account for writing mode.
         auto fragmented_flow_block_offset = m_context.content_box_rect_in_ancestor_coordinate_space(
                                                          m_layout_state.get(m_context.containing_block()), context->root())
                                                 .y();
 
-        auto remaining_fragmentainer_extent = context->remaining_fragmentainer_extent_at(fragmented_flow_block_offset + m_current_block_offset);
-        if (remaining_fragmentainer_extent < line_height) {
-            m_current_block_offset += remaining_fragmentainer_extent;
+        switch (context->make_fragmentation_decision_at(fragmented_flow_block_offset + m_current_block_offset, line_height)) {
+        case FragmentationDecision::Fragment:
+            // FIXME: Implement fragmenting of an entire line box across multiple fragmentainers.
+            break;
+        case FragmentationDecision::Place: {
+            // If we place past the end of a fragmentainer, we need to pull subsequent content up to the start of its
+            // fragmentainer. Otherwise there would be gaps at the top of subsequent columns in multicol contexts.
+            auto remaining_fragmentainer_extent = context->remaining_fragmentainer_extent_at(fragmented_flow_block_offset + m_current_block_offset);
+            if (remaining_fragmentainer_extent < line_height)
+                distance_to_backtrack_after_placing_line = line_height - remaining_fragmentainer_extent;
+            break;
+        }
+        case FragmentationDecision::Shunt:
+            m_current_block_offset += context->remaining_fragmentainer_extent_at(fragmented_flow_block_offset + m_current_block_offset);
+            break;
         }
 
         inline_fragmentainer_offset = context->fragmentainer_x_offset_at(fragmented_flow_block_offset + m_current_block_offset);
@@ -445,6 +458,8 @@ void LineBuilder::update_last_line(Optional<FragmentationContext&> fragmentation
 
     line_box.m_bottom = m_current_block_offset + block_fragmentainer_offset + line_box.m_block_length;
     line_box.m_baseline = line_box_baseline;
+
+    m_current_block_offset -= distance_to_backtrack_after_placing_line;
 }
 
 void LineBuilder::remove_last_line_if_empty()

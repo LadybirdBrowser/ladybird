@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+  <link rel="author" title="Morten Stenshorne" href="mailto:mstensho@chromium.org">
+  <link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cf">
+  <link rel="help" href="https://bugs.chromium.org/p/chromium/issues/detail?id=1336291">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square.xht">
+  <style>
+    .hidden { display:none; }
+    #mc > div { height:25px; contain:size; background:green;}
+  </style>
+  <p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+  <div id="mc" style="columns:2; gap:0; width:100px; background:red;">
+    <div></div>
+    <div></div>
+    <div></div>
+    <div></div>
+    <div class="hidden"></div>
+    <div class="hidden"></div>
+    <div class="hidden"></div>
+    <div class="hidden"></div>
+  </div>
+  <script>
+    requestAnimationFrame(()=> {
+      requestAnimationFrame(()=> {
+        for (let e of document.getElementsByClassName('hidden'))
+          e.style.display = "block";
+        document.documentElement.classList.remove("reftest-wait");
+      });
+    });
+  </script>
+</html>

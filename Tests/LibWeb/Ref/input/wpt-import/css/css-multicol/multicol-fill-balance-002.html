@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>CSS Multi-column Layout Test: Balancing with more forced breaks than columns</title>
+<link rel="author" title="Morten Stenshorne" href="mstensho@chromium.org">
+<link rel="help" href="https://www.w3.org/TR/css-multicol-1/#cf" title="7.1. column-fill">
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/../reference/ref-filled-green-100px-square-only.html">
+<meta name="assert" content="This multicol container will create overflowing columns, no matter what, due to forced break. Don't overstretch.">
+<p>Test passes if there is a filled green square.</p>
+<div style="columns:2; column-gap:0; width:100px; background:green;">
+  <div style="height:100px;"></div>
+  <div style="break-before:column; height:90px;"></div>
+  <div style="break-before:column; height:10px;"></div>
+</div>

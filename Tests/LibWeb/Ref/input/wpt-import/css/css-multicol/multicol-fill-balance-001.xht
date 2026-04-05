@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>multicolumn | column-fill</title>
+<meta name="assert" content="This test checks that columns are properly balanced when 'column-fill: balance' is set"/>
+<link rel="author" title="howcome@opera.com" href="http://www.opera.com/"/>
+<link rel="help" href="http://www.w3.org/TR/css3-multicol/#filling-columns"/>
+<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/multicol-fill-balance-001-ref.xht"/>
+<meta name="flags" content="ahem"/>
+<link rel="stylesheet" type="text/css" href="../../../../data/fonts/ahem.css" />
+<style type="text/css"><![CDATA[
+body>div {
+	font-family: Ahem;
+	font-size: 1.25em;
+	line-height: 1em;
+	color: green;
+	height: 3em;
+	width: 2em;
+	orphans: 1;
+	widows: 1;
+	position: relative;
+	margin: 1em;
+}
+div.col {
+	column-count: 2;
+	column-fill: balance;
+	column-gap: 0;
+}
+div.red {
+	background: red; position: absolute; z-index: -1;
+}
+]]></style>
+</head>
+
+<body>
+
+<div class='col'>
+<div class='red' style="top: 0; left: 0; height: 2em; width: 2em;"></div>
+o<br/>t<br/>
+o<br/>t<br/>
+</div>
+
+<div class='ref'>
+oo<br/>tt
+</div>
+
+</body>
+</html>
