@@ -45,6 +45,11 @@ BookmarksBar::BookmarksBar(QWidget* parent)
 
 void BookmarksBar::rebuild()
 {
+    for (auto* action : actions()) {
+        if (auto* menu = action->menu())
+            menu->close();
+    }
+
     clear();
 
     auto set_button_properties = [&](QToolButton* button, QString const& title) {
