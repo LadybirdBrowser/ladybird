@@ -20,8 +20,11 @@ ColumnFragmentationContext::ColumnFragmentationContext(GC::Ref<Box const> root_b
     , m_column_count(column_count)
     , m_column_width(column_width)
     , m_column_gap(column_gap)
-    , m_ideal_column_height(ideal_column_height)
-    , m_max_column_height(max_column_height)
+    // https://drafts.csswg.org/css-break/#breaking-rules
+    // To guarantee progress, fragmentainers are assumed to have a minimum block size of 1px regardless of
+    // their used size.
+    , m_ideal_column_height(max(ideal_column_height, 1))
+    , m_max_column_height(max_column_height.has_value() ? max(max_column_height.value(), 1) : max_column_height)
 {
 }
 
