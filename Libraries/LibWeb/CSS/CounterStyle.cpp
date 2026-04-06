@@ -13,7 +13,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-counter-styles-3/#decimal
 NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
 {
-    return CounterStyle::create(
+    static auto decimal_counter_style = CounterStyle::create(
         "decimal"_fly_string,
         GenericCounterStyleAlgorithm { CounterStyleSystem::Numeric, { "0"_fly_string, "1"_fly_string, "2"_fly_string, "3"_fly_string, "4"_fly_string, "5"_fly_string, "6"_fly_string, "7"_fly_string, "8"_fly_string, "9"_fly_string } },
         CounterStyleNegativeSign { .prefix = "-"_fly_string, .suffix = ""_fly_string },
@@ -22,12 +22,14 @@ NonnullRefPtr<CounterStyle const> CounterStyle::decimal()
         { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         {},
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+
+    return decimal_counter_style;
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#disc
 NonnullRefPtr<CounterStyle const> CounterStyle::disc()
 {
-    return CounterStyle::create(
+    static auto disc_counter_style = CounterStyle::create(
         "disc"_fly_string,
         GenericCounterStyleAlgorithm { CounterStyleSystem::Cyclic, { "•"_fly_string } },
         CounterStyleNegativeSign { .prefix = ""_fly_string, .suffix = " "_fly_string },
@@ -36,6 +38,8 @@ NonnullRefPtr<CounterStyle const> CounterStyle::disc()
         { { NumericLimits<i32>::min(), NumericLimits<i32>::max() } },
         "decimal"_fly_string,
         CounterStylePad { .minimum_length = 0, .symbol = ""_fly_string });
+
+    return disc_counter_style;
 }
 
 NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(CounterStyleDefinition const& definition, HashMap<FlyString, NonnullRefPtr<CounterStyle const>> const& registered_counter_styles)
