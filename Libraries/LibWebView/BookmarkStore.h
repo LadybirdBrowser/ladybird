@@ -66,6 +66,7 @@ public:
     void edit_bookmark(StringView id, URL::URL url, Optional<String> title);
     void edit_folder(StringView id, Optional<String> title);
 
+    void move_item(StringView id, Optional<String const&> target_folder_id, size_t index);
     void remove_item(StringView id);
 
     void update_favicon(URL::URL const& url, String favicon_base64);
