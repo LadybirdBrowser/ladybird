@@ -14,6 +14,7 @@
 #include <LibWeb/WebGL/Types.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/Bindings/ImageDataPrototype.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebGL {
@@ -96,6 +97,7 @@ public:
     Optional<String> get_shader_info_log(GC::Root<WebGLShader> shader);
     Optional<String> get_shader_source(GC::Root<WebGLShader> shader);
     JS::Value get_tex_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong pname);
+    JS::Value get_framebuffer_attachment_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong pname);
     JS::Value get_uniform(GC::Root<WebGLProgram> program, GC::Root<WebGLUniformLocation> location);
     GC::Root<WebGLUniformLocation> get_uniform_location(GC::Root<WebGLProgram> program, String name);
     JS::Value get_vertex_attrib(WebIDL::UnsignedLong index, WebIDL::UnsignedLong pname);
@@ -145,6 +147,13 @@ public:
     void vertex_attrib_pointer(WebIDL::UnsignedLong index, WebIDL::Long size, WebIDL::UnsignedLong type, bool normalized, WebIDL::Long stride, WebIDL::LongLong offset);
     void viewport(WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
 
+    // Drawing buffer attributes
+    WebIDL::UnsignedLong drawing_buffer_format() const;
+    Bindings::PredefinedColorSpace drawing_buffer_color_space() const;
+    void set_drawing_buffer_color_space(Bindings::PredefinedColorSpace color_space);
+    Bindings::PredefinedColorSpace unpack_color_space() const;
+    void set_unpack_color_space(Bindings::PredefinedColorSpace color_space);
+
 protected:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -170,6 +179,10 @@ protected:
     GC::Ptr<WebGLQuery> m_any_samples_passed;
     GC::Ptr<WebGLQuery> m_any_samples_passed_conservative;
     GC::Ptr<WebGLQuery> m_transform_feedback_primitives_written;
+
+    // Drawing buffer state
+    Bindings::PredefinedColorSpace m_drawing_buffer_color_space;
+    Bindings::PredefinedColorSpace m_unpack_color_space;
 
     NonnullOwnPtr<OpenGLContext> m_context;
 };

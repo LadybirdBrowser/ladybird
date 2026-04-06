@@ -37,10 +37,10 @@ interface mixin WebGLRenderingContextBase {
     [ImplementedAs=canvas_for_binding] readonly attribute HTMLCanvasElement canvas;
     readonly attribute GLsizei drawingBufferWidth;
     readonly attribute GLsizei drawingBufferHeight;
-    [FIXME] readonly attribute GLenum drawingBufferFormat;
+    readonly attribute GLenum drawingBufferFormat;
 
-    [FIXME] attribute PredefinedColorSpace drawingBufferColorSpace;
-    [FIXME] attribute PredefinedColorSpace unpackColorSpace;
+    attribute PredefinedColorSpace drawingBufferColorSpace;
+    attribute PredefinedColorSpace unpackColorSpace;
 
     WebGLContextAttributes? getContextAttributes();
     boolean isContextLost();
@@ -118,7 +118,7 @@ interface mixin WebGLRenderingContextBase {
 
     GLenum getError();
 
-    [FIXME] any getFramebufferAttachmentParameter(GLenum target, GLenum attachment, GLenum pname);
+    any getFramebufferAttachmentParameter(GLenum target, GLenum attachment, GLenum pname);
     any getProgramParameter(WebGLProgram program, GLenum pname);
     DOMString? getProgramInfoLog(WebGLProgram program);
     any getRenderbufferParameter(GLenum target, GLenum pname);

@@ -1347,4 +1347,213 @@ void WebGL2RenderingContextImpl::compressed_tex_sub_image3d(WebIDL::UnsignedLong
     glCompressedTexSubImage3DRobustANGLE(target, level, xoffset, yoffset, zoffset, width, height, depth, format, pixels.size(), pixels.size(), pixels.data());
 }
 
+void WebGL2RenderingContextImpl::copy_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height)
+{
+    m_context->make_current();
+    glCopyTexSubImage3D(target, level, xoffset, yoffset, zoffset, x, y, width, height);
+}
+
+WebIDL::Long WebGL2RenderingContextImpl::get_frag_data_location(GC::Root<WebGLProgram> program, String const& name)
+{
+    m_context->make_current();
+    
+    if (!program) {
+        set_error(GL_INVALID_VALUE);
+        return -1;
+    }
+
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return -1;
+    }
+
+    auto handle = handle_or_error.release_value();
+    auto name_null_terminated = null_terminated_string(name);
+    return glGetFragDataLocation(handle, name_null_terminated.data());
+}
+
+bool WebGL2RenderingContextImpl::is_query(GC::Root<WebGLQuery> query)
+{
+    m_context->make_current();
+    
+    if (!query)
+        return false;
+
+    auto handle_or_error = query->handle(this);
+    if (handle_or_error.is_error())
+        return false;
+
+    return glIsQuery(handle_or_error.release_value());
+}
+
+bool WebGL2RenderingContextImpl::is_sampler(GC::Root<WebGLSampler> sampler)
+{
+    m_context->make_current();
+    
+    if (!sampler)
+        return false;
+
+    auto handle_or_error = sampler->handle(this);
+    if (handle_or_error.is_error())
+        return false;
+
+    return glIsSampler(handle_or_error.release_value());
+}
+
+JS::Value WebGL2RenderingContextImpl::get_sampler_parameter(GC::Root<WebGLSampler> sampler, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+    
+    if (!sampler) {
+        set_error(GL_INVALID_VALUE);
+        return JS::js_null();
+    }
+
+    auto handle_or_error = sampler->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return JS::js_null();
+    }
+
+    auto handle = handle_or_error.release_value();
+    switch (pname) {
+    case GL_TEXTURE_COMPARE_FUNC:
+    case GL_TEXTURE_COMPARE_MODE:
+    case GL_TEXTURE_MAG_FILTER:
+    case GL_TEXTURE_MIN_FILTER:
+    case GL_TEXTURE_WRAP_R:
+    case GL_TEXTURE_WRAP_S:
+    case GL_TEXTURE_WRAP_T: {
+        GLint value;
+        glGetSamplerParameteriv(handle, pname, &value);
+        return JS::Value(value);
+    }
+    case GL_TEXTURE_MAX_LOD:
+    case GL_TEXTURE_MIN_LOD: {
+        GLfloat value;
+        glGetSamplerParameterfv(handle, pname, &value);
+        return JS::Value(value);
+    }
+    default:
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
+bool WebGL2RenderingContextImpl::is_sync(GC::Root<WebGLSync> sync)
+{
+    m_context->make_current();
+    
+    if (!sync)
+        return false;
+
+    auto sync_handle_or_error = sync->sync_handle(this);
+    if (sync_handle_or_error.is_error())
+        return false;
+
+    auto sync_handle = sync_handle_or_error.release_value();
+    return glIsSync(static_cast<GLsync>(sync_handle));
+}
+
+bool WebGL2RenderingContextImpl::is_transform_feedback(GC::Root<WebGLTransformFeedback> transform_feedback)
+{
+    m_context->make_current();
+    
+    if (!transform_feedback)
+        return false;
+
+    auto handle_or_error = transform_feedback->handle(this);
+    if (handle_or_error.is_error())
+        return false;
+
+    return glIsTransformFeedback(handle_or_error.release_value());
+}
+
+GC::Root<WebGLActiveInfo> WebGL2RenderingContextImpl::get_transform_feedback_varying(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index)
+{
+    m_context->make_current();
+    
+    if (!program) {
+        set_error(GL_INVALID_VALUE);
+        return {};
+    }
+
+    auto handle_or_error = program->handle(this);
+    if (handle_or_error.is_error()) {
+        set_error(GL_INVALID_OPERATION);
+        return {};
+    }
+
+    auto handle = handle_or_error.release_value();
+    
+    // Get the maximum name length first
+    GLint max_name_length = 0;
+    glGetProgramiv(handle, GL_TRANSFORM_FEEDBACK_VARYING_MAX_LENGTH, &max_name_length);
+    
+    if (max_name_length <= 0) {
+        set_error(GL_INVALID_VALUE);
+        return {};
+    }
+
+    GLsizei length = 0;
+    GLsizei size = 0;
+    GLenum type = 0;
+    Vector<GLchar> name_buffer;
+    name_buffer.resize(max_name_length);
+
+    glGetTransformFeedbackVarying(handle, index, max_name_length, &length, &size, &type, name_buffer.data());
+
+    if (length == 0) {
+        set_error(GL_INVALID_VALUE);
+        return {};
+    }
+
+    String name = String::from_utf8_without_validation(ReadonlyBytes{name_buffer.data(), static_cast<size_t>(length)});
+    return WebGLActiveInfo::create(realm(), name, type, size);
+}
+
+JS::Value WebGL2RenderingContextImpl::get_indexed_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index)
+{
+    m_context->make_current();
+    
+    switch (target) {
+    case GL_TRANSFORM_FEEDBACK_BUFFER_BINDING:
+    case GL_UNIFORM_BUFFER_BINDING: {
+        GLint value = 0;
+        glGetIntegeri_v(target, index, &value);
+        
+        // Check for OpenGL errors
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            set_error(error);
+            return JS::js_null();
+        }
+        
+        // FIXME: Should return WebGLBuffer object, but for now return null
+        // to avoid leaking OpenGL handles to JavaScript
+        return JS::js_null();
+    }
+    case GL_TRANSFORM_FEEDBACK_BUFFER_START:
+    case GL_TRANSFORM_FEEDBACK_BUFFER_SIZE:
+    case GL_UNIFORM_BUFFER_START:
+    case GL_UNIFORM_BUFFER_SIZE: {
+        GLint64 value = 0;
+        glGetInteger64i_v(target, index, &value);
+        
+        // Check for OpenGL errors
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR) {
+            set_error(error);
+            return JS::js_null();
+        }
+        
+        return JS::Value(static_cast<double>(value));
+    }
+    default:
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
 }

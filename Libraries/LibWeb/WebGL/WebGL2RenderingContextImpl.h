@@ -105,6 +105,16 @@ public:
     void bind_vertex_array(GC::Root<WebGLVertexArrayObject> array);
     void compressed_tex_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::UnsignedLong internalformat, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::Long border, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
     void compressed_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long width, WebIDL::Long height, WebIDL::Long depth, WebIDL::UnsignedLong format, GC::Root<WebIDL::ArrayBufferView> src_data, WebIDL::UnsignedLongLong src_offset, WebIDL::UnsignedLong src_length_override);
+
+    void copy_tex_sub_image3d(WebIDL::UnsignedLong target, WebIDL::Long level, WebIDL::Long xoffset, WebIDL::Long yoffset, WebIDL::Long zoffset, WebIDL::Long x, WebIDL::Long y, WebIDL::Long width, WebIDL::Long height);
+    WebIDL::Long get_frag_data_location(GC::Root<WebGLProgram> program, String const& name);
+    bool is_query(GC::Root<WebGLQuery> query);
+    bool is_sampler(GC::Root<WebGLSampler> sampler);
+    JS::Value get_sampler_parameter(GC::Root<WebGLSampler> sampler, WebIDL::UnsignedLong pname);
+    bool is_sync(GC::Root<WebGLSync> sync);
+    bool is_transform_feedback(GC::Root<WebGLTransformFeedback> transform_feedback);
+    GC::Root<WebGLActiveInfo> get_transform_feedback_varying(GC::Root<WebGLProgram> program, WebIDL::UnsignedLong index);
+    JS::Value get_indexed_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong index);
 };
 
 }

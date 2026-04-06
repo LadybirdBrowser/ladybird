@@ -35,11 +35,14 @@ extern "C" {
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 #include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/Bindings/ImageDataPrototype.h>
 
 namespace Web::WebGL {
 
 WebGLRenderingContextImpl::WebGLRenderingContextImpl(JS::Realm& realm, NonnullOwnPtr<OpenGLContext> context)
     : WebGLRenderingContextBase(realm)
+    , m_drawing_buffer_color_space(Bindings::PredefinedColorSpace::Srgb)
+    , m_unpack_color_space(Bindings::PredefinedColorSpace::Srgb)
     , m_context(move(context))
 {
 }
@@ -2390,6 +2393,70 @@ void WebGLRenderingContextImpl::viewport(WebIDL::Long x, WebIDL::Long y, WebIDL:
 {
     m_context->make_current();
     glViewport(x, y, width, height);
+}
+
+JS::Value WebGLRenderingContextImpl::get_framebuffer_attachment_parameter(WebIDL::UnsignedLong target, WebIDL::UnsignedLong attachment, WebIDL::UnsignedLong pname)
+{
+    m_context->make_current();
+
+    GLint result = 0;
+    glGetFramebufferAttachmentParameteriv(target, attachment, pname, &result);
+
+    GLenum gl_error = glGetError();
+    if (gl_error != GL_NO_ERROR) {
+        set_error(gl_error);
+        return JS::js_null();
+    }
+
+    switch (pname) {
+    case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE:
+    case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL:
+    case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE:
+        return JS::Value(result);
+    case GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME:
+        // FIXME: Should return the WebGL object
+        return JS::js_null();
+    // WebGL 2.0 specific parameters
+    case GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING:
+    case GL_FRAMEBUFFER_ATTACHMENT_COMPONENT_TYPE:
+    case GL_FRAMEBUFFER_ATTACHMENT_RED_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_GREEN_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_BLUE_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_ALPHA_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_DEPTH_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_STENCIL_SIZE:
+    case GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LAYER:
+        return JS::Value(result);
+    default:
+        set_error(GL_INVALID_ENUM);
+        return JS::js_null();
+    }
+}
+
+WebIDL::UnsignedLong WebGLRenderingContextImpl::drawing_buffer_format() const
+{
+    // Return RGBA8 as the default drawing buffer format
+    return GL_RGBA8;
+}
+
+Bindings::PredefinedColorSpace WebGLRenderingContextImpl::drawing_buffer_color_space() const
+{
+    return m_drawing_buffer_color_space;
+}
+
+void WebGLRenderingContextImpl::set_drawing_buffer_color_space(Bindings::PredefinedColorSpace color_space)
+{
+    m_drawing_buffer_color_space = color_space;
+}
+
+Bindings::PredefinedColorSpace WebGLRenderingContextImpl::unpack_color_space() const
+{
+    return m_unpack_color_space;
+}
+
+void WebGLRenderingContextImpl::set_unpack_color_space(Bindings::PredefinedColorSpace color_space)
+{
+    m_unpack_color_space = color_space;
 }
 
 void WebGLRenderingContextImpl::visit_edges(JS::Cell::Visitor& visitor)
