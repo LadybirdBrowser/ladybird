@@ -3,7 +3,6 @@
 <video id="video"></video>
 <script>
     const video = document.getElementById("video");
-    const events = [];
 
     function logEvent(name) {
         let entry = `${name}: readyState=${video.readyState}`;
@@ -11,7 +10,7 @@
             entry += ` duration=${video.duration}`;
         if (name === "error")
             entry += ` code=${video.error.code}`;
-        events.push(entry);
+        println(entry);
     }
 
     for (const name of [
@@ -22,43 +21,13 @@
         video.addEventListener(name, () => logEvent(name));
     }
 
-    let hasSetGoodSrc = false;
-    video.addEventListener("error", () => {
-        if (hasSetGoodSrc)
-            return;
-        hasSetGoodSrc = true;
-        logEvent("error handler: setting good src");
-        video.src = "../../../Assets/test-webm.webm";
-        logEvent("error handler: src setter returned");
-    });
-
-    let documentLoaded = false;
-    let videoCanPlayThrough = false;
-    let triggerCompletion = null;
-
-    function checkCompletion() {
-        if (documentLoaded && videoCanPlayThrough) {
-            println("Events:");
-            for (const e of events)
-                println(`  ${e}`);
-            println(`Final: readyState=${video.readyState} duration=${video.duration}`);
-            triggerCompletion();
-        }
-    }
-
-    window.addEventListener("load", () => {
-        logEvent("document load");
-        documentLoaded = true;
-        checkCompletion();
-    });
-
-    video.addEventListener("canplaythrough", () => {
-        videoCanPlayThrough = true;
-        checkCompletion();
-    });
-
-    asyncTest(done => {
-        triggerCompletion = done;
+    asyncTest(async done => {
         video.src = "../../../Assets/corrupt-video.webm";
+
+        await new Promise(resolve => video.addEventListener("error", resolve, { once: true }));
+        video.src = "../../../Assets/test-webm.webm";
+
+        await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
+        done();
     });
 </script>
