@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
@@ -70,6 +71,8 @@ public:
     void remove_item(StringView id);
 
     void update_favicon(URL::URL const& url, String favicon_base64);
+
+    JsonValue serialize_items() const;
 
     static void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
     static void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);

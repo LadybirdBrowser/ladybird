@@ -7,7 +7,6 @@
 #include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <AK/JsonValue.h>
 #include <AK/Random.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -423,18 +422,22 @@ Optional<Vector<BookmarkItem>&> BookmarkStore::find_containing_item_list(StringV
     return find_containing_item_list_impl(m_items, id);
 }
 
-void BookmarkStore::persist_bookmarks()
+JsonValue BookmarkStore::serialize_items() const
 {
-    JsonObject root;
-    root.set(VERSION_KEY, 1);
-
     JsonArray items;
     items.ensure_capacity(m_items.size());
 
     for (auto const& item : m_items)
         items.must_append(serialize_bookmark_item(item));
 
-    root.set(ITEMS_KEY, move(items));
+    return items;
+}
+
+void BookmarkStore::persist_bookmarks()
+{
+    JsonObject root;
+    root.set(VERSION_KEY, 1);
+    root.set(ITEMS_KEY, serialize_items());
 
     if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
         warnln("Unable to persist Ladybird bookmarks: {}", result.error());
