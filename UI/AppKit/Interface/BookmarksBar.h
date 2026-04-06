@@ -6,6 +6,10 @@
 
 #pragma once
 
+#include <AK/Optional.h>
+#include <LibGfx/Point.h>
+#include <LibWebView/Forward.h>
+
 #import <Cocoa/Cocoa.h>
 
 @class BookmarkFolderPopover;
@@ -20,6 +24,10 @@
 - (void)bookmarkFolderDidClose:(BookmarkFolderPopover*)folder;
 
 - (void)showContextMenu:(id)control event:(NSEvent*)event;
+- (void)showContextMenu:(Gfx::IntPoint)content_position
+                   view:(NSView*)view
+           bookmarkItem:(Optional<WebView::BookmarkItem const&>)item
+         targetFolderID:(Optional<String const&>)target_folder_id;
 
 @property (nonatomic, strong, readonly) NSString* selected_bookmark_menu_item_id;
 @property (nonatomic, strong, readonly) NSString* selected_bookmark_menu_target_folder_id;

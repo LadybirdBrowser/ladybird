@@ -8,6 +8,7 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibWebView/Forward.h>
 
 #include <QToolBar>
 
@@ -23,6 +24,8 @@ public:
 
     String const& selected_bookmark_menu_item_id() const { return m_selected_bookmark_menu_item_id; }
     Optional<String> const& selected_bookmark_menu_target_folder_id() const { return m_selected_bookmark_menu_target_folder_id; }
+
+    void show_context_menu(QPoint, Optional<WebView::BookmarkItem const&>, Optional<String const&> target_folder_id);
 
 private:
     virtual bool eventFilter(QObject* object, QEvent* event) override;

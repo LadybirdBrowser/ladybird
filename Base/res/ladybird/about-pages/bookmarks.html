@@ -1,0 +1,468 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Bookmark Manager</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
+        <style>
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --tree-hover-color: #e8e8e8;
+                    --tree-selected-color: #d8d8f8;
+                    --empty-text-color: #888;
+                    --url-text-color: #666;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --tree-hover-color: #2e2e2e;
+                    --tree-selected-color: #35355a;
+                    --empty-text-color: #777;
+                    --url-text-color: #999;
+                }
+            }
+
+            .tree-empty {
+                color: var(--empty-text-color);
+
+                padding: 40px 20px;
+
+                text-align: center;
+                font-size: 14px;
+            }
+
+            .tree-item-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                padding: 14px 12px;
+                border-radius: 6px;
+
+                font-size: 14px;
+                cursor: grab;
+            }
+
+            .tree-item-row.dragging {
+                cursor: grabbing;
+                opacity: 0.4;
+            }
+
+            .tree-item-row.drag-over-inside {
+                background-color: var(--tree-selected-color);
+            }
+
+            .tree-item-row:hover {
+                background-color: var(--tree-hover-color);
+            }
+
+            .tree-item-row.expandable {
+                cursor: pointer;
+            }
+
+            .tree-children {
+                padding-left: 24px;
+            }
+
+            .drop-indicator {
+                background-color: var(--violet-100) !important;
+
+                height: 2px;
+                margin: -1px 12px;
+
+                pointer-events: none;
+            }
+
+            .expand-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+
+                width: 20px;
+                height: 20px;
+
+                cursor: pointer;
+            }
+
+            .expand-toggle svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            .expand-toggle.collapsed svg {
+                transform: rotate(-90deg);
+            }
+
+            .tree-spacer {
+                width: 20px;
+                flex-shrink: 0;
+            }
+
+            .item-icon {
+                display: flex;
+                flex-shrink: 0;
+                align-items: center;
+            }
+
+            .item-icon img,
+            .item-icon svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .item-info {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+
+                flex-grow: 1;
+                min-width: 0;
+            }
+
+            .item-title {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                flex-shrink: 1;
+                min-width: 0;
+            }
+
+            .item-title a {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .item-title a:hover {
+                text-decoration: underline;
+            }
+
+            .item-url {
+                color: var(--url-text-color);
+
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+
+                font-size: 12px;
+                min-width: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>Bookmarks</h1>
+        </header>
+
+        <div class="card">
+            <div class="card-body" id="bookmark-tree"></div>
+        </div>
+
+        <script type="module">
+            // SVG export of UI/Icons/folder.tvg
+            const FOLDER_SVG = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M 1.96875 5.273438 C 1.523438 5.367188 1.101562 5.695312 0.890625 6.117188 L 0.773438 6.351562 L 0.773438 19.148438 L 0.914062 19.40625 C 1.054688 19.710938 1.3125 19.96875 1.640625 20.109375 L 1.851562 20.226562 L 11.179688 20.226562 C 20.390625 20.25 20.53125 20.25 20.742188 20.15625 C 21.140625 20.015625 21.46875 19.710938 21.632812 19.3125 L 21.75 19.054688 L 21.75 8.648438 L 21.609375 8.390625 C 21.46875 8.0625 21.210938 7.804688 20.90625 7.664062 L 20.648438 7.546875 L 15.960938 7.523438 L 11.25 7.5 L 10.101562 6.375 L 8.976562 5.25 L 5.554688 5.25 C 3.679688 5.25 2.0625 5.273438 1.96875 5.273438 "/>
+                </svg>`;
+
+            // SVG export of UI/Icons/down.tvg
+            const FOLDER_ARROW_DOWN_SVG = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M 4.5 6 L 12 13.5 L 19.5 6 L 21 9 L 12 18 L 3 9 Z M 4.5 6 "/>
+                </svg>`;
+
+            // SVG export of UI/Icons/globe.tvg
+            const BOOKMARK_SVG = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M 10.96875 1.40625 C 9.234375 1.570312 7.546875 2.179688 6.09375 3.140625 C 5.507812 3.539062 4.945312 3.984375 4.453125 4.5 C 2.835938 6.117188 1.804688 8.15625 1.453125 10.476562 C 1.359375 11.132812 1.359375 12.867188 1.453125 13.523438 C 1.898438 16.523438 3.585938 19.195312 6.117188 20.882812 C 7.335938 21.703125 8.90625 22.3125 10.453125 22.546875 C 11.15625 22.640625 12.84375 22.640625 13.546875 22.546875 C 15.421875 22.265625 17.203125 21.46875 18.679688 20.296875 C 19.265625 19.804688 19.804688 19.265625 20.296875 18.679688 C 21.492188 17.203125 22.265625 15.421875 22.546875 13.546875 C 22.640625 12.84375 22.640625 11.132812 22.546875 10.453125 C 22.21875 8.203125 21.164062 6.117188 19.546875 4.5 C 19.265625 4.21875 18.984375 3.960938 18.679688 3.703125 C 17.179688 2.53125 15.398438 1.757812 13.523438 1.453125 C 13.03125 1.382812 11.460938 1.335938 10.96875 1.40625 M 12.515625 3.304688 C 12.703125 3.398438 12.867188 3.539062 13.007812 3.679688 C 14.203125 4.875 15.023438 7.476562 15.257812 10.757812 L 15.28125 11.109375 L 8.71875 11.109375 L 8.742188 10.757812 C 8.90625 8.414062 9.328125 6.539062 10.03125 5.109375 C 10.546875 4.054688 11.085938 3.421875 11.671875 3.210938 C 11.90625 3.140625 12.257812 3.164062 12.515625 3.304688 M 8.484375 4.171875 C 7.640625 5.8125 7.078125 8.25 6.9375 10.640625 L 6.914062 11.109375 L 3.1875 11.109375 L 3.210938 10.898438 C 3.304688 10.195312 3.515625 9.421875 3.796875 8.71875 C 4.242188 7.570312 4.828125 6.679688 5.765625 5.765625 C 6.328125 5.179688 6.796875 4.804688 7.453125 4.40625 C 7.828125 4.171875 8.507812 3.84375 8.601562 3.84375 C 8.625 3.84375 8.578125 3.960938 8.484375 4.171875 M 15.796875 4.007812 C 16.335938 4.265625 16.851562 4.570312 17.320312 4.921875 C 17.8125 5.296875 18.703125 6.1875 19.078125 6.679688 C 19.992188 7.921875 20.578125 9.375 20.789062 10.898438 L 20.8125 11.109375 L 17.085938 11.109375 L 17.0625 10.640625 C 16.921875 8.25 16.335938 5.8125 15.515625 4.171875 C 15.421875 3.984375 15.375 3.84375 15.398438 3.84375 C 15.421875 3.84375 15.609375 3.914062 15.796875 4.007812 M 6.9375 13.382812 C 7.078125 15.773438 7.664062 18.1875 8.484375 19.828125 C 8.578125 20.015625 8.648438 20.15625 8.648438 20.179688 C 8.648438 20.226562 7.875 19.851562 7.5 19.617188 C 6.867188 19.242188 6.28125 18.773438 5.765625 18.234375 C 5.460938 17.953125 5.179688 17.648438 4.921875 17.320312 C 4.007812 16.078125 3.421875 14.648438 3.210938 13.101562 L 3.1875 12.914062 L 6.914062 12.914062 L 6.9375 13.382812 M 15.257812 13.265625 C 15.09375 15.679688 14.625 17.671875 13.875 19.078125 C 13.289062 20.203125 12.609375 20.835938 12 20.835938 C 11.039062 20.835938 9.9375 19.265625 9.304688 16.945312 C 9.023438 15.914062 8.835938 14.671875 8.742188 13.265625 L 8.71875 12.914062 L 15.28125 12.914062 L 15.257812 13.265625 M 20.789062 13.101562 C 20.578125 14.625 19.992188 16.078125 19.078125 17.320312 C 18.914062 17.53125 18.539062 17.953125 18.234375 18.234375 C 17.71875 18.773438 17.132812 19.242188 16.5 19.617188 C 16.125 19.851562 15.351562 20.226562 15.351562 20.179688 C 15.351562 20.15625 15.421875 20.015625 15.515625 19.828125 C 16.335938 18.210938 16.921875 15.773438 17.0625 13.382812 L 17.085938 12.914062 L 20.8125 12.914062 L 20.789062 13.101562 "/>
+                </svg>`;
+
+            let BOOKMARKS = [];
+            let EXPANDED_FOLDERS = new Set();
+            let DRAGGED_ITEM_ID = null;
+
+            const DROP_INDICATOR = document.createElement("div");
+            DROP_INDICATOR.className = "drop-indicator";
+
+            function createElement(tagName, properties = {}, children = []) {
+                const element = document.createElement(tagName);
+                Object.assign(element, properties);
+                element.append(...children);
+                return element;
+            }
+
+            function createSpacer() {
+                return createElement("span", { className: "tree-spacer" });
+            }
+
+            function createIcon(markup) {
+                return createElement("span", { className: "item-icon", innerHTML: markup });
+            }
+
+            function createFaviconIcon(favicon) {
+                if (!favicon) {
+                    return createIcon(BOOKMARK_SVG);
+                }
+
+                return createElement("span", { className: "item-icon" }, [
+                    createElement("img", { src: `data:image/png;base64,${favicon}` }),
+                ]);
+            }
+
+            function createBookmarkInfo(item) {
+                const title = createElement("span", { className: "item-title" }, [
+                    createElement("a", { href: item.url, textContent: item.title || item.url }),
+                ]);
+
+                const url = createElement("span", { className: "item-url", textContent: item.url });
+
+                return createElement("span", { className: "item-info" }, [title, url]);
+            }
+
+            function toggleFolder(folderId) {
+                if (EXPANDED_FOLDERS.has(folderId)) {
+                    EXPANDED_FOLDERS.delete(folderId);
+                } else {
+                    EXPANDED_FOLDERS.add(folderId);
+                }
+
+                renderTree();
+            }
+
+            function addContextMenuHandler(element, item, targetFolderId) {
+                element.addEventListener("contextmenu", event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    ladybird.sendMessage("showContextMenu", {
+                        clientX: event.clientX,
+                        clientY: event.clientY,
+                        id: item.id,
+                        targetFolderId,
+                    });
+                });
+            }
+
+            const DROP_ABOVE = 1;
+            const DROP_BELOW = 2;
+            const DROP_INSIDE = 3;
+
+            function getDropPosition(event, row, item) {
+                const rect = row.getBoundingClientRect();
+                const ratio = (event.clientY - rect.top) / rect.height;
+
+                if (item.type === "bookmark") {
+                    return ratio < 0.5 ? DROP_ABOVE : DROP_BELOW;
+                }
+
+                if (ratio < 0.25) {
+                    return DROP_ABOVE;
+                }
+                if (ratio > 0.75 && !EXPANDED_FOLDERS.has(item.id)) {
+                    return DROP_BELOW;
+                }
+
+                return DROP_INSIDE;
+            }
+
+            function getDropTarget(item, parentId, index, position) {
+                if (position === DROP_INSIDE) {
+                    return {
+                        targetFolderId: item.id,
+                        targetIndex: item.children ? item.children.length : 0,
+                    };
+                }
+
+                return {
+                    targetFolderId: parentId || null,
+                    targetIndex: position === DROP_ABOVE ? index : index + 1,
+                };
+            }
+
+            function moveDraggedItem(targetFolderId, targetIndex) {
+                ladybird.sendMessage("moveItem", {
+                    id: DRAGGED_ITEM_ID,
+                    index: targetIndex,
+                    targetFolderId,
+                });
+
+                DRAGGED_ITEM_ID = null;
+            }
+
+            function setupDragHandlers(row, item, parentId, index) {
+                row.draggable = true;
+
+                row.addEventListener("dragstart", event => {
+                    DRAGGED_ITEM_ID = item.id;
+                    row.classList.add("dragging");
+
+                    event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData("text/plain", item.id);
+                });
+
+                row.addEventListener("dragend", () => {
+                    DRAGGED_ITEM_ID = null;
+                    row.classList.remove("dragging");
+
+                    DROP_INDICATOR.remove();
+                });
+
+                row.addEventListener("dragover", event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    event.dataTransfer.dropEffect = "move";
+                    DROP_INDICATOR.remove();
+
+                    const position = getDropPosition(event, row, item);
+
+                    if (position === DROP_INSIDE) {
+                        row.classList.add("drag-over-inside");
+                    } else {
+                        const wrapper = row.closest(".tree-item");
+                        if (position === DROP_ABOVE) {
+                            wrapper.before(DROP_INDICATOR);
+                        } else {
+                            wrapper.after(DROP_INDICATOR);
+                        }
+                    }
+                });
+
+                row.addEventListener("dragleave", event => {
+                    if (!row.contains(event.relatedTarget)) {
+                        row.classList.remove("drag-over-inside");
+                    }
+                });
+
+                row.addEventListener("drop", event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    DROP_INDICATOR.remove();
+
+                    const position = getDropPosition(event, row, item);
+                    const { targetFolderId, targetIndex } = getDropTarget(item, parentId, index, position);
+                    moveDraggedItem(targetFolderId, targetIndex);
+                });
+            }
+
+            function renderTree() {
+                bookmarkTreeContainer.innerHTML = "";
+
+                if (BOOKMARKS.length === 0) {
+                    bookmarkTreeContainer.appendChild(
+                        createElement("div", {
+                            className: "tree-empty",
+                            textContent: "No bookmarks yet.",
+                        })
+                    );
+                    return;
+                }
+
+                renderItems(bookmarkTreeContainer, BOOKMARKS, null);
+            }
+
+            function renderItems(container, items, parentId) {
+                items.forEach((item, index) => {
+                    const wrapper = createElement("div", { className: "tree-item" });
+                    const row = createElement("div", { className: "tree-item-row" });
+                    wrapper.appendChild(row);
+
+                    if (item.type === "bookmark") {
+                        renderBookmarkRow(row, item, index, parentId);
+                    } else {
+                        renderFolderRow(row, wrapper, item, index, parentId);
+                    }
+
+                    container.appendChild(wrapper);
+                });
+            }
+
+            function renderBookmarkRow(row, item, index, parentId) {
+                row.appendChild(createSpacer());
+                row.appendChild(createFaviconIcon(item.favicon));
+                row.appendChild(createBookmarkInfo(item));
+
+                setupDragHandlers(row, item, parentId, index);
+                addContextMenuHandler(row, item, parentId || null);
+            }
+
+            function renderFolderRow(row, wrapper, item, index, parentId) {
+                const hasChildren = item.children && item.children.length > 0;
+                const isExpanded = hasChildren && EXPANDED_FOLDERS.has(item.id);
+
+                if (hasChildren) {
+                    row.classList.add("expandable");
+                    row.addEventListener("click", () => toggleFolder(item.id));
+                    row.appendChild(
+                        createElement("span", {
+                            className: `expand-toggle ${isExpanded ? "expanded" : "collapsed"}`,
+                            innerHTML: FOLDER_ARROW_DOWN_SVG,
+                        })
+                    );
+                } else {
+                    row.appendChild(createSpacer());
+                }
+
+                row.appendChild(createIcon(FOLDER_SVG));
+                row.appendChild(
+                    createElement("span", {
+                        className: "item-title",
+                        textContent: item.title || "(no title)",
+                    })
+                );
+
+                setupDragHandlers(row, item, parentId, index);
+                addContextMenuHandler(row, item, item.id);
+
+                if (isExpanded) {
+                    const childrenContainer = createElement("div", { className: "tree-children" });
+                    renderItems(childrenContainer, item.children, item.id);
+                    wrapper.appendChild(childrenContainer);
+                }
+            }
+
+            const bookmarkTreeContainer = document.getElementById("bookmark-tree");
+
+            bookmarkTreeContainer.addEventListener("dragover", event => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+            });
+
+            bookmarkTreeContainer.addEventListener("drop", event => {
+                event.preventDefault();
+                DROP_INDICATOR.remove();
+
+                if (DRAGGED_ITEM_ID) {
+                    moveDraggedItem(null, BOOKMARKS.length);
+                }
+            });
+
+            bookmarkTreeContainer.addEventListener("contextmenu", event => {
+                event.preventDefault();
+
+                ladybird.sendMessage("showContextMenu", {
+                    clientX: event.clientX,
+                    clientY: event.clientY,
+                });
+            });
+
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadBookmarks");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "loadBookmarks") {
+                    BOOKMARKS = event.detail.data;
+                    renderTree();
+                }
+            });
+        </script>
+    </body>
+</html>

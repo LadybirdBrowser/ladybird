@@ -166,6 +166,18 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     [delegate updateBookmarksBarDisplay:show_bookmarks_bar];
 }
 
+void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
+{
+    ApplicationDelegate* delegate = [NSApp delegate];
+
+    if (auto* tab = [delegate activeTab]) {
+        [[tab bookmarksBar] showContextMenu:content_position
+                                       view:[tab web_view]
+                               bookmarkItem:item
+                             targetFolderID:target_folder_id];
+    }
+}
+
 Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu() const
 {
     ApplicationDelegate* delegate = [NSApp delegate];

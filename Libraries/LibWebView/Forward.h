@@ -27,6 +27,7 @@ class WebUI;
 
 struct Attribute;
 struct AutocompleteEngine;
+struct BookmarkItem;
 struct BrowserOptions;
 struct ConsoleOutput;
 struct CookieStorageKey;

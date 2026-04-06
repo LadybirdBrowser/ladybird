@@ -219,13 +219,14 @@ inline URL about_srcdoc() { return URL::about("srcdoc"_string); }
 
 inline URL about_error() { return URL::about("error"_string); }
 inline URL about_newtab() { return URL::about("newtab"_string); }
+inline URL about_bookmarks() { return URL::about("bookmarks"_string); }
 inline URL about_processes() { return URL::about("processes"_string); }
 inline URL about_settings() { return URL::about("settings"_string); }
 inline URL about_version() { return URL::about("version"_string); }
 
 inline bool is_webui_url(URL const& url)
 {
-    return first_is_one_of(url, about_processes(), about_settings());
+    return first_is_one_of(url, about_bookmarks(), about_processes(), about_settings());
 }
 
 }

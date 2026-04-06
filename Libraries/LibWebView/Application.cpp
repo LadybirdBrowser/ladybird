@@ -934,6 +934,10 @@ void Application::initialize_actions()
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
+    m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
+        open_url_in_new_tab(URL::about_bookmarks(), Web::HTML::ActivateTab::Yes);
+    }));
+    m_bookmarks_menu->add_separator();
 
     m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmark, [this]() {
         auto view = active_web_view();
