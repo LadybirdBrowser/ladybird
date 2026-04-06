@@ -136,6 +136,8 @@ public:
 
     void set_was_initial_about_blank_opened(bool b) { m_was_initial_about_blank_opened = b; }
 
+    bool is_navigation_api_initialized() const { return m_current_entry_index != -1; }
+
 private:
     explicit Navigation(JS::Realm&);
 

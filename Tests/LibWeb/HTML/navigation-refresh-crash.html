@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Navigation API Refresh Test</title>
+</head>
+<body>
+    <h1>Navigation API Refresh Test</h1>
+    <p>This page tests the Navigation API refresh crash issue.</p>
+    
+    <script>
+        // Test accessing navigation API
+        console.log('Navigation API available:', !!window.navigation);
+        
+        if (window.navigation) {
+            console.log('Current entry:', window.navigation.currentEntry);
+            console.log('Can go back:', window.navigation.canGoBack);
+            console.log('Can go forward:', window.navigation.canGoForward);
+            
+            // Test navigation events
+            window.navigation.addEventListener('navigate', (event) => {
+                console.log('Navigate event:', event);
+            });
+            
+            // Simulate refresh with history API
+            setTimeout(() => {
+                console.log('Testing history replaceState...');
+                try {
+                    history.replaceState({test: true}, 'Test Title', location.href);
+                    console.log('History replaceState succeeded');
+                } catch (e) {
+                    console.error('History replaceState failed:', e);
+                }
+            }, 100);
+        }
+    </script>
+</body>
+</html>

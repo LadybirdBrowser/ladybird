@@ -1466,13 +1466,6 @@ void Navigation::update_the_navigation_api_entries_for_a_same_document_navigatio
     if (has_entries_and_events_disabled())
         return;
 
-    // If the Navigation API has not been initialized yet (m_current_entry_index == -1),
-    // there is nothing to update. This can occur during document creation or reactivation
-    // before the navigation entries are properly set up.
-    if (m_current_entry_index == -1) {
-        return;
-    }
-
     // 2. Let oldCurrentNHE be the current entry of navigation.
     auto old_current_nhe = current_entry();
 

@@ -2755,7 +2755,11 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 11. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
     auto& relevant_global_object = as<Window>(HTML::relevant_global_object(document));
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
-    relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
+    
+    // Only update Navigation API entries if it has been properly initialized
+    if (relevant_global_object.navigation()->is_navigation_api_initialized()) {
+        relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
+    }
 
     // 12. Let traversable be navigable's traversable navigable.
     auto traversable = navigable->traversable_navigable();
