@@ -3,92 +3,25 @@
     <head>
         <title>Settings</title>
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
             @media (prefers-color-scheme: light) {
                 :root {
-                    --card-background-color: #f5f5f5;
-                    --card-header-background-color: #f0f2f5;
-
                     --input-background-color: white;
-
                     --border-color: #dcdde1;
                 }
             }
 
             @media (prefers-color-scheme: dark) {
                 :root {
-                    --card-background-color: #242424;
-                    --card-header-background-color: #252525;
-
                     --border-color: #3d3d3d;
                 }
-            }
-
-            * {
-                box-sizing: border-box;
-            }
-
-            body {
-                max-width: 800px;
-
-                margin: 0 auto;
-                padding: 20px;
-            }
-
-            header {
-                display: flex;
-                align-items: center;
-
-                margin-bottom: 30px;
-            }
-
-            header h1 {
-                font-size: 20px;
-            }
-
-            header img {
-                height: 48px;
-                margin-right: 10px;
-                float: left;
             }
 
             hr {
                 height: 1px;
                 background-color: var(--border-color);
                 border: none;
-            }
-
-            .card-title {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-
-                font-size: 16px;
-                font-weight: 500;
-                margin: 0 0 8px 4px;
-            }
-
-            .card {
-                background-color: var(--card-background-color);
-
-                border-radius: 8px;
-                margin-bottom: 20px;
-            }
-
-            .card-body {
-                padding: 20px;
-            }
-
-            .card-body > hr {
-                margin: 0 8px 16px 8px;
-            }
-
-            .card-group {
-                margin-bottom: 20px;
-            }
-
-            .card-group:last-child {
-                margin-bottom: 0;
             }
 
             .inline-container {
