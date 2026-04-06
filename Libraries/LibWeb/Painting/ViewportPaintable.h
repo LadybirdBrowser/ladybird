@@ -44,8 +44,16 @@ public:
     void set_paintable_boxes_with_auto_content_visibility(Vector<GC::Ref<PaintableBox>> paintable_boxes) { m_paintable_boxes_with_auto_content_visibility = move(paintable_boxes); }
     ReadonlySpan<GC::Ref<PaintableBox>> paintable_boxes_with_auto_content_visibility() const { return m_paintable_boxes_with_auto_content_visibility; }
 
-    AccumulatedVisualContextTree const* visual_context_tree() const { return m_visual_context_tree.ptr(); }
-    AccumulatedVisualContextTree* visual_context_tree() { return m_visual_context_tree.ptr(); }
+    AccumulatedVisualContextTree const& visual_context_tree() const
+    {
+        VERIFY(m_visual_context_tree);
+        return *m_visual_context_tree;
+    }
+    AccumulatedVisualContextTree& visual_context_tree()
+    {
+        VERIFY(m_visual_context_tree);
+        return *m_visual_context_tree;
+    }
 
 private:
     virtual bool is_viewport_paintable() const override { return true; }
