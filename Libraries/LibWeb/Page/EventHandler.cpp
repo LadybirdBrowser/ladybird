@@ -1181,6 +1181,10 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 {
     if (button != UIEvents::MouseButton::Primary)
         return;
+#if defined(AK_OS_MACOS)
+    if (modifiers & UIEvents::KeyModifier::Mod_Ctrl)
+        return;
+#endif
 
     // https://html.spec.whatwg.org/multipage/interaction.html#data-model:click-focusable-5
     // When a user activates a click focusable focusable area, the user agent must run the focusing steps on that
