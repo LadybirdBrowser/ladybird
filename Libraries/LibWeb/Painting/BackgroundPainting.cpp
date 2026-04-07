@@ -14,34 +14,14 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/Blending.h>
-#include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListRecorder.h>
 #include <LibWeb/Painting/PaintableWithLines.h>
 
 namespace Web::Painting {
 
-static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable, CSSPixelPoint containing_block_location)
+static void append_text_clip_paths(DisplayListRecordingContext& context, Paintable const& paintable)
 {
-    auto text_clip_paths = DisplayList::create(AccumulatedVisualContextTree::create());
-    DisplayListRecorder display_list_recorder(*text_clip_paths);
-    // Remove containing block offset, so executing the display list will produce mask at (0, 0)
-    display_list_recorder.translate(-context.floored_device_point(containing_block_location).to_type<int>());
-    auto add_text_clip_path = [&](PaintableFragment const& fragment) {
-        auto glyph_run = fragment.glyph_run();
-        if (!glyph_run || glyph_run->glyphs().is_empty())
-            return;
-
-        auto fragment_absolute_rect = fragment.absolute_rect();
-        auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
-
-        auto scale = context.device_pixels_per_css_pixel();
-        auto baseline_start = Gfx::FloatPoint {
-            fragment_absolute_rect.x().to_float(),
-            fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
-        } * scale;
-        display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.to_type<int>(), scale, fragment.orientation());
-    };
-
+    auto& display_list_recorder = context.display_list_recorder();
     paintable.for_each_in_inclusive_subtree([&](auto& sub_paintable) {
         // https://drafts.csswg.org/css-backgrounds-4/#valdef-background-clip-text
         if (&sub_paintable != &paintable) {
@@ -51,14 +31,23 @@ static RefPtr<DisplayList> compute_text_clip_paths(DisplayListRecordingContext& 
         }
         if (auto* paintable_lines = as_if<PaintableWithLines>(sub_paintable)) {
             for (auto const& fragment : paintable_lines->fragments()) {
-                if (is<Layout::TextNode>(fragment.layout_node()))
-                    add_text_clip_path(fragment);
+                if (!is<Layout::TextNode>(fragment.layout_node()))
+                    continue;
+                auto glyph_run = fragment.glyph_run();
+                if (!glyph_run || glyph_run->glyphs().is_empty())
+                    continue;
+                auto fragment_absolute_rect = fragment.absolute_rect();
+                auto fragment_absolute_device_rect = context.enclosing_device_rect(fragment_absolute_rect);
+                auto scale = context.device_pixels_per_css_pixel();
+                auto baseline_start = Gfx::FloatPoint {
+                    fragment_absolute_rect.x().to_float(),
+                    fragment_absolute_rect.y().to_float() + fragment.baseline().to_float(),
+                } * scale;
+                display_list_recorder.draw_glyph_run(baseline_start, *glyph_run, Gfx::Color::Black, fragment_absolute_device_rect.template to_type<int>(), scale, fragment.orientation());
             }
         }
         return TraversalDecision::Continue;
     });
-
-    return text_clip_paths;
 }
 
 static BackgroundBox get_box(CSS::BackgroundBox box_clip, BackgroundBox border_box, auto const& paintable_box)
@@ -98,13 +87,9 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
     bool is_root_element = paintable_box.layout_node().is_root_element();
     bool needs_text_clip = resolved_background.needs_text_clip && !is_root_element;
 
-    RefPtr<DisplayList> text_clip_display_list;
-    Gfx::IntRect text_clip_rect;
     if (needs_text_clip) {
-        text_clip_display_list = compute_text_clip_paths(context, paintable_box, resolved_background.background_rect.location());
-        text_clip_rect = context.rounded_device_rect(resolved_background.background_rect).to_type<int>();
         display_list_recorder.save();
-        display_list_recorder.add_clip_rect(text_clip_rect);
+        display_list_recorder.add_clip_rect(context.rounded_device_rect(resolved_background.background_rect).to_type<int>());
         display_list_recorder.save_layer();
     }
 
@@ -338,7 +323,7 @@ void paint_background(DisplayListRecordingContext& context, PaintableBox const& 
 
     if (needs_text_clip) {
         display_list_recorder.apply_effects(1.0f, Gfx::CompositingAndBlendingOperator::DestinationIn);
-        display_list_recorder.paint_nested_display_list(move(text_clip_display_list), text_clip_rect);
+        append_text_clip_paths(context, paintable_box);
         display_list_recorder.restore();
         display_list_recorder.restore();
         display_list_recorder.restore();
