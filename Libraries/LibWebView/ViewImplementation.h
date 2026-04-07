@@ -11,6 +11,7 @@
 #include <AK/Function.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/OwnPtr.h>
 #include <AK/Queue.h>
 #include <AK/String.h>
 #include <AK/Utf16String.h>
@@ -19,6 +20,8 @@
 #include <LibCore/SharedVersion.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
+#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
@@ -30,7 +33,6 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
-#include <LibWeb/Page/SharedBackingStore.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/DOMNodeProperties.h>
@@ -164,7 +166,7 @@ public:
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
 
-    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Web::SharedBackingStore front_backing_store, i32 back_bitmap_id, Web::SharedBackingStore back_backing_store);
+    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
 
     enum class ScreenshotType {
         Visible,
@@ -316,10 +318,7 @@ protected:
     struct SharedBitmap {
         i32 id { -1 };
         Web::DevicePixelSize last_painted_size;
-        RefPtr<Gfx::Bitmap const> bitmap;
-#ifdef AK_OS_MACOS
-        void* iosurface_ref { nullptr };
-#endif
+        OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
     };
 
     struct ClientState {
@@ -382,7 +381,7 @@ protected:
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
-    RefPtr<Gfx::Bitmap const> m_backup_bitmap;
+    OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
     Web::DevicePixelSize m_backup_bitmap_size;
 
     size_t m_crash_count = 0;

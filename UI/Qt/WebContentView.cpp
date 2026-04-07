@@ -510,11 +510,11 @@ void WebContentView::paintEvent(QPaintEvent*)
     Gfx::IntSize bitmap_size;
 
     if (m_client_state.has_usable_bitmap) {
-        bitmap = m_client_state.front_bitmap.bitmap.ptr();
+        VERIFY(m_client_state.front_bitmap.shared_image_buffer);
+        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
         bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
-
-    } else {
-        bitmap = m_backup_bitmap.ptr();
+    } else if (m_backup_shared_image_buffer) {
+        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
         bitmap_size = m_backup_bitmap_size.to_type<int>();
     }
 

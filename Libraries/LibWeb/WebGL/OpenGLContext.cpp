@@ -8,6 +8,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibWeb/WebGL/OpenGLContext.h>
 
 #include <EGL/egl.h>
@@ -285,8 +286,8 @@ void OpenGLContext::clear_buffer_to_default_values()
 #ifdef AK_OS_MACOS
 void OpenGLContext::allocate_iosurface_painting_surface()
 {
-    auto iosurface = Core::IOSurfaceHandle::create(m_size.width(), m_size.height());
-    m_painting_surface = Gfx::PaintingSurface::create_from_iosurface(move(iosurface), m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    m_shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
+    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_shared_image_buffer, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,
@@ -306,7 +307,7 @@ void OpenGLContext::allocate_iosurface_painting_surface()
         EGL_NONE,
         EGL_NONE,
     };
-    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, iosurface.core_foundation_pointer(), m_impl->config, surface_attributes);
+    m_impl->surface = eglCreatePbufferFromClientBuffer(m_impl->display, EGL_IOSURFACE_ANGLE, m_shared_image_buffer->iosurface_handle().core_foundation_pointer(), m_impl->config, surface_attributes);
 
     eglMakeCurrent(m_impl->display, EGL_NO_SURFACE, EGL_NO_SURFACE, m_impl->context);
 

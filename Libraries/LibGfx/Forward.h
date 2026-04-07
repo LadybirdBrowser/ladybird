@@ -25,6 +25,8 @@ class Palette;
 class YUVData;
 class PaletteImpl;
 class Path;
+class SharedImage;
+class SharedImageBuffer;
 class ShareableBitmap;
 class SkiaBackendContext;
 struct SystemTheme;

@@ -11,6 +11,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
@@ -21,11 +22,6 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
-
-#ifdef AK_OS_MACOS
-#    include <LibCore/IOSurface.h>
-#    include <LibCore/MachPort.h>
-#endif
 
 namespace WebView {
 
@@ -135,7 +131,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         on_web_content_process_change_for_cross_site_navigation();
 
     // Don't keep a stale backup bitmap around.
-    m_backup_bitmap = nullptr;
+    m_backup_shared_image_buffer = nullptr;
     handle_resize();
 
     load(url);
@@ -147,7 +143,7 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
         m_client_state.has_usable_bitmap = true;
         m_client_state.back_bitmap.last_painted_size = size.to_type<Web::DevicePixels>();
         swap(m_client_state.back_bitmap, m_client_state.front_bitmap);
-        m_backup_bitmap = nullptr;
+        m_backup_shared_image_buffer = nullptr;
         if (on_ready_to_paint)
             on_ready_to_paint();
     }
@@ -591,39 +587,18 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
-void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Web::SharedBackingStore front_backing_store, i32 back_bitmap_id, Web::SharedBackingStore back_backing_store)
+void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
     if (m_client_state.has_usable_bitmap) {
         // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_bitmap = m_client_state.front_bitmap.bitmap;
+        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
     m_client_state.has_usable_bitmap = false;
     m_client_state.front_bitmap.id = front_bitmap_id;
     m_client_state.back_bitmap.id = back_bitmap_id;
-
-#ifdef AK_OS_MACOS
-    auto update_bitmap = [](SharedBitmap& target, Web::SharedBackingStore backing_store) {
-        auto iosurface_port = backing_store.release_iosurface_port();
-        auto iosurface = Core::IOSurfaceHandle::from_mach_port(iosurface_port);
-        auto size = Gfx::IntSize { iosurface.width(), iosurface.height() };
-        auto bytes_per_row = iosurface.bytes_per_row();
-        target.iosurface_ref = iosurface.core_foundation_pointer();
-
-        auto bitmap = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size, bytes_per_row, iosurface.data(), [handle = move(iosurface)] { });
-        target.bitmap = bitmap.release_value_but_fixme_should_propagate_errors();
-    };
-
-    update_bitmap(m_client_state.front_bitmap, move(front_backing_store));
-    update_bitmap(m_client_state.back_bitmap, move(back_backing_store));
-#else
-    auto update_bitmap = [](SharedBitmap& target, Web::SharedBackingStore backing_store) {
-        target.bitmap = backing_store.bitmap().bitmap();
-    };
-
-    update_bitmap(m_client_state.front_bitmap, move(front_backing_store));
-    update_bitmap(m_client_state.back_bitmap, move(back_backing_store));
-#endif
+    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(front_backing_store)));
+    m_client_state.back_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(back_backing_store)));
 }
 
 void ViewImplementation::update_zoom()
@@ -708,7 +683,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.
-    m_backup_bitmap = nullptr;
+    m_backup_shared_image_buffer = nullptr;
 
     handle_resize();
 
@@ -807,14 +782,22 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
     }
 
     switch (type) {
-    case ScreenshotType::Visible:
-        if (auto* visible_bitmap = m_client_state.has_usable_bitmap ? m_client_state.front_bitmap.bitmap.ptr() : m_backup_bitmap.ptr()) {
+    case ScreenshotType::Visible: {
+        Gfx::Bitmap const* visible_bitmap = nullptr;
+        if (m_client_state.has_usable_bitmap) {
+            VERIFY(m_client_state.front_bitmap.shared_image_buffer);
+            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
+        } else if (m_backup_shared_image_buffer) {
+            visible_bitmap = m_backup_shared_image_buffer->bitmap().ptr();
+        }
+        if (visible_bitmap) {
             if (auto result = save_screenshot(visible_bitmap); result.is_error())
                 promise->reject(result.release_error());
             else
                 promise->resolve(result.release_value());
         }
         break;
+    }
 
     case ScreenshotType::Full:
         m_pending_screenshot = promise;
