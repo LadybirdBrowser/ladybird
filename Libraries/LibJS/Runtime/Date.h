@@ -64,6 +64,10 @@ constexpr inline double ms_per_day = 86'400'000;
 constexpr inline double ns_per_day = 86'400'000'000'000;
 extern Crypto::SignedBigInteger const ns_per_day_bigint;
 
+// https://tc39.es/ecma262/#sec-time-values-and-time-range
+// A time value supports a [...] range of -8,640,000,000,000,000 to 8,640,000,000,000,000 milliseconds
+constexpr inline double max_time_value = 8.64E15;
+
 double day(double);
 double time_within_day(double);
 u16 days_in_year(i32);

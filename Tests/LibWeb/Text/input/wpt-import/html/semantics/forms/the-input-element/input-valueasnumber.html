@@ -108,7 +108,9 @@
    testValueAsNumberSetter("time", timeInput, [
      [0, "00:00"],
      [12 * 3600 * 1000, "12:00"],
-     [((23 * 3600) + (59 * 60)) * 1000, "23:59"]
+     [((23 * 3600) + (59 * 60)) * 1000, "23:59"],
+     [2.7343337071894478e26, "10:54:10.944"],
+     [-3600 * 1000, "23:00"]
    ]);
 
    const dateTimeLocalInput = document.getElementById("input_datetime-local");
@@ -119,7 +121,9 @@
    ]);
    testValueAsNumberSetter("datetime-local", dateTimeLocalInput, [
      [1575936000000, "2019-12-10T00:00"],
-     [1575979200000, "2019-12-10T12:00"]
+     [1575979200000, "2019-12-10T12:00"],
+     [-1000 * 3600 * 24, "1969-12-31T00:00"],
+     [2.7343337071894478e26, ""]
    ]);
 
    const numberInput = document.getElementById("input_number");

@@ -2567,6 +2567,10 @@ static Utf16String convert_number_to_week_string(double input)
     // that represents the week that, in UTC, is current input milliseconds after midnight UTC on the morning of
     // 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0Z").
 
+    // AD-HOC: Values outside the valid ECMSScript time value range cannot produce valid date strings.
+    if (!isfinite(input) || fabs(input) > JS::max_time_value)
+        return {};
+
     auto year = JS::year_from_time(input);
     auto month = JS::month_from_time(input) + 1; // Adjust for zero-based month
     auto day = JS::date_from_time(input);
@@ -2614,6 +2618,11 @@ static Utf16String convert_number_to_local_date_and_time_string(double input)
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid
     // normalized local date and time string that represents the date and time that is input milliseconds
     // after midnight on the morning of 1970-01-01 (the time represented by the value "1970-01-01T00:00:00.0").
+
+    // AD-HOC: Values outside the valid ECMSScript time value range cannot produce valid date strings.
+    if (!isfinite(input) || fabs(input) > JS::max_time_value)
+        return {};
+
     auto year = JS::year_from_time(input);
     auto month = JS::month_from_time(input) + 1; // Adjust for zero-based month
     auto day = JS::date_from_time(input);

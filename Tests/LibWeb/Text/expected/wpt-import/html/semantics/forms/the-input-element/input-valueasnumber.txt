@@ -1,8 +1,9 @@
 Harness status: OK
 
-Found 60 tests
+Found 64 tests
 
-60 Pass
+63 Pass
+1 Fail
 Pass	valueAsNumber getter on type date (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 0000-12-10, expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type date (actual value: 2019-00-12, expected valueAsNumber: NaN)
@@ -39,11 +40,15 @@ Pass	valueAsNumber getter on type time (actual value: 23:59, expected valueAsNum
 Pass	valueAsNumber setter on type time (actual valueAsNumber: 0, expected value: 00:00)
 Pass	valueAsNumber setter on type time (actual valueAsNumber: 43200000, expected value: 12:00)
 Pass	valueAsNumber setter on type time (actual valueAsNumber: 86340000, expected value: 23:59)
+Fail	valueAsNumber setter on type time (actual valueAsNumber: 2.734333707189448e+26, expected value: 10:54:10.944)
+Pass	valueAsNumber setter on type time (actual valueAsNumber: -3600000, expected value: 23:00)
 Pass	valueAsNumber getter on type datetime-local (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T00:00, expected valueAsNumber: 1575936000000)
 Pass	valueAsNumber getter on type datetime-local (actual value: 2019-12-10T12:00, expected valueAsNumber: 1575979200000)
 Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: 1575936000000, expected value: 2019-12-10T00:00)
 Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: 1575979200000, expected value: 2019-12-10T12:00)
+Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: -86400000, expected value: 1969-12-31T00:00)
+Pass	valueAsNumber setter on type datetime-local (actual valueAsNumber: 2.734333707189448e+26, expected value: )
 Pass	valueAsNumber getter on type number (actual value: , expected valueAsNumber: NaN)
 Pass	valueAsNumber getter on type number (actual value: 123, expected valueAsNumber: 123)
 Pass	valueAsNumber getter on type number (actual value: 123.456, expected valueAsNumber: 123.456)
