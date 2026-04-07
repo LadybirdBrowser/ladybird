@@ -519,8 +519,12 @@ ThrowCompletionOr<Value> Console::group()
     String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
-        auto formatted_data = TRY(m_client->formatter(data));
-        group_label = TRY(value_vector_to_string(formatted_data));
+        if (m_client) {
+            auto formatted_data = TRY(m_client->formatter(data));
+            group_label = TRY(value_vector_to_string(formatted_data));
+        } else {
+            group_label = TRY(value_vector_to_string(data));
+        }
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
@@ -553,8 +557,12 @@ ThrowCompletionOr<Value> Console::group_collapsed()
     String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
-        auto formatted_data = TRY(m_client->formatter(data));
-        group_label = TRY(value_vector_to_string(formatted_data));
+        if (m_client) {
+            auto formatted_data = TRY(m_client->formatter(data));
+            group_label = TRY(value_vector_to_string(formatted_data));
+        } else {
+            group_label = TRY(value_vector_to_string(data));
+        }
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
