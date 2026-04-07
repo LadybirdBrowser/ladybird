@@ -525,7 +525,7 @@ public:
     PreferredColorScheme color_scheme() const { return m_inherited.color_scheme; }
     ContentVisibility content_visibility() const { return m_inherited.content_visibility; }
     Vector<CursorData> const& cursor() const { return m_inherited.cursor; }
-    ContentData const& content() const { return m_noninherited.content; }
+    Optional<ContentData> const& content() const { return m_noninherited.content; }
     PointerEvents pointer_events() const { return m_inherited.pointer_events; }
     Display display() const { return m_noninherited.display; }
     Display display_before_box_type_transformation() const { return m_noninherited.display_before_box_type_transformation; }
@@ -848,7 +848,7 @@ protected:
         Vector<ShadowData> box_shadow {};
         Vector<NonnullRefPtr<TransformationStyleValue const>> transformations {};
         TransformOrigin transform_origin {};
-        ContentData content;
+        Optional<ContentData> content;
         Variant<VerticalAlign, LengthPercentage> vertical_align { InitialValues::vertical_align() };
         GridTrackSizeList grid_auto_columns;
         GridTrackSizeList grid_auto_rows;
@@ -923,7 +923,8 @@ protected:
                 translate->visit_edges(visitor);
             if (scale)
                 scale->visit_edges(visitor);
-            content.visit_edges(visitor);
+            if (content.has_value())
+                content->visit_edges(visitor);
         }
     };
 
