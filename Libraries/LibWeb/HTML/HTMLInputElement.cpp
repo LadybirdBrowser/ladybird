@@ -2603,13 +2603,23 @@ static Utf16String convert_number_to_time_string(double input)
 {
     // The algorithm to convert a number to a string, given a number input, is as follows: Return a valid time
     // string that represents the time that is input milliseconds after midnight on a day with no time changes.
-    auto seconds = JS::sec_from_time(input);
-    auto milliseconds = JS::ms_from_time(input);
+
+    // NB: We don't use JS::*_from_time helpers here because they lose sub-day precision when |input| is much larger
+    //     than 2^53.
+    auto time_of_day = fmod(input, JS::ms_per_day);
+    if (time_of_day < 0)
+        time_of_day += JS::ms_per_day;
+
+    auto hours = static_cast<u32>(time_of_day / JS::ms_per_hour);
+    auto minutes = static_cast<u32>(fmod(time_of_day, JS::ms_per_hour) / JS::ms_per_minute);
+    auto seconds = static_cast<u32>(fmod(time_of_day, JS::ms_per_minute) / JS::ms_per_second);
+    auto milliseconds = static_cast<u32>(fmod(time_of_day, JS::ms_per_second));
+
     if (milliseconds > 0)
-        return Utf16String::formatted("{:02d}:{:02d}:{:02d}.{:03d}", JS::hour_from_time(input), JS::min_from_time(input), seconds, milliseconds);
+        return Utf16String::formatted("{:02d}:{:02d}:{:02d}.{:03d}", hours, minutes, seconds, milliseconds);
     if (seconds > 0)
-        return Utf16String::formatted("{:02d}:{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input), seconds);
-    return Utf16String::formatted("{:02d}:{:02d}", JS::hour_from_time(input), JS::min_from_time(input));
+        return Utf16String::formatted("{:02d}:{:02d}:{:02d}", hours, minutes, seconds);
+    return Utf16String::formatted("{:02d}:{:02d}", hours, minutes);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type=datetime-local):concept-input-value-number-string
