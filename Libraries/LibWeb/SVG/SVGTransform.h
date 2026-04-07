@@ -7,11 +7,11 @@
 
 #pragma once
 
+#include <LibGfx/AffineTransform.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::SVG {
 
-// FIXME: This class is just a stub.
 // https://svgwg.org/svg2-draft/single-page.html#coords-InterfaceSVGTransform
 class SVGTransform final : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(SVGTransform, Bindings::PlatformObject);
@@ -42,6 +42,10 @@ public:
 
 private:
     SVGTransform(JS::Realm& realm);
+
+    Type m_type { Type::Unknown };
+    Gfx::AffineTransform m_matrix;
+    float m_angle { 0 };
 
     virtual void initialize(JS::Realm& realm) override;
 };
