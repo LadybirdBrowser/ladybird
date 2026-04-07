@@ -1012,15 +1012,11 @@ void HTMLMediaElement::select_resource()
         // -> If mode is object
         case SelectMode::Object: {
             auto failed_with_media_provider = [this](auto error_message) {
-                IGNORE_USE_IN_ESCAPING_LAMBDA bool ran_media_element_task = false;
-
                 // 4. Failed with media provider: Reaching this step indicates that the media resource failed to load. Take pending play promises and queue
                 //    a media element task given the media element to run the dedicated media source failure steps with the result.
-                queue_a_media_element_task([this, &ran_media_element_task, error_message = move(error_message)]() mutable {
+                queue_a_media_element_task([this, error_message = move(error_message)]() mutable {
                     auto promises = take_pending_play_promises();
                     handle_media_source_failure(promises, move(error_message));
-
-                    ran_media_element_task = true;
                 });
 
                 // 5. Wait for the task queued by the previous step to have executed.
