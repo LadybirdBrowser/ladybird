@@ -2735,12 +2735,12 @@ void HTMLMediaElement::time_marches_on(TimeMarchesOnReason reason)
             queue_a_media_element_task([this]() {
                 dispatch_time_update_event();
             });
-        }
 
-        // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
-        //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
-        //         https://w3c.github.io/media-source/#buffer-monitoring
-        update_ready_state();
+            // AD-HOC: Run the SourceBuffer monitoring algorithm to update readyState based on buffered data relative to
+            //         the current playback position. This satisfies the periodic buffer monitoring in MSE:
+            //         https://w3c.github.io/media-source/#buffer-monitoring
+            update_ready_state();
+        }
     }
 
     // FIXME: 7. If all of the cues in current cues have their text track cue active flag set, none of the cues in other cues have
