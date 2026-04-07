@@ -1,0 +1,12 @@
+<!doctype html>
+<style>
+    @counter-style foo {
+        system: cyclic;
+        symbols: PASS;
+    }
+
+    p::before {
+        content: counter(item, foo);
+    }
+</style>
+<p></p>

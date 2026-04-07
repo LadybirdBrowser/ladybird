@@ -7,11 +7,14 @@
 #include <LibWeb/Bindings/CSSCounterStyleRulePrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSCounterStyleRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/DOM/Node.h>
 
 namespace Web::CSS {
 
@@ -122,6 +125,8 @@ void CSSCounterStyleRule::set_name(FlyString name)
 
     // 3. Replace the associated rule’s name with an identifier equal to the value.
     m_name = move(name);
+
+    clear_caches();
 }
 
 FlyString CSSCounterStyleRule::system() const
@@ -155,6 +160,8 @@ void CSSCounterStyleRule::set_system(FlyString const& system)
 
     // 4. Set the descriptor to the value.
     m_system = value;
+
+    clear_caches();
 }
 
 FlyString CSSCounterStyleRule::negative() const
@@ -169,8 +176,10 @@ void CSSCounterStyleRule::set_negative(FlyString const& negative)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Negative), negative))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Negative), negative)) {
         m_negative = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::prefix() const
@@ -185,8 +194,10 @@ void CSSCounterStyleRule::set_prefix(FlyString const& prefix)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Prefix), prefix))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Prefix), prefix)) {
         m_prefix = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::suffix() const
@@ -201,8 +212,10 @@ void CSSCounterStyleRule::set_suffix(FlyString const& suffix)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Suffix), suffix))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Suffix), suffix)) {
         m_suffix = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::range() const
@@ -217,8 +230,10 @@ void CSSCounterStyleRule::set_range(FlyString const& range)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Range), range))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Range), range)) {
         m_range = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::pad() const
@@ -233,8 +248,10 @@ void CSSCounterStyleRule::set_pad(FlyString const& pad)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Pad), pad))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Pad), pad)) {
         m_pad = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::fallback() const
@@ -249,8 +266,10 @@ void CSSCounterStyleRule::set_fallback(FlyString const& fallback)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Fallback), fallback))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::Fallback), fallback)) {
         m_fallback = value;
+        clear_caches();
+    }
 }
 
 FlyString CSSCounterStyleRule::symbols() const
@@ -282,6 +301,8 @@ void CSSCounterStyleRule::set_symbols(FlyString const& symbols)
 
     // 4. Set the descriptor to the value.
     m_symbols = value;
+
+    clear_caches();
 }
 
 FlyString CSSCounterStyleRule::additive_symbols() const
@@ -313,6 +334,8 @@ void CSSCounterStyleRule::set_additive_symbols(FlyString const& additive_symbols
 
     // 4. Set the descriptor to the value.
     m_additive_symbols = value;
+
+    clear_caches();
 }
 
 FlyString CSSCounterStyleRule::speak_as() const
@@ -327,8 +350,25 @@ void CSSCounterStyleRule::set_speak_as(FlyString const& speak_as)
 {
     Parser::ParsingParams parsing_params { realm() };
 
-    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::SpeakAs), speak_as))
+    if (auto value = parse_css_descriptor(parsing_params, CSS::AtRuleID::CounterStyle, DescriptorNameAndID::from_id(CSS::DescriptorID::SpeakAs), speak_as)) {
         m_speak_as = value;
+        clear_caches();
+    }
+}
+
+void CSSCounterStyleRule::clear_caches()
+{
+    Base::clear_caches();
+
+    auto* parent_style_sheet = this->parent_style_sheet();
+
+    if (!parent_style_sheet)
+        return;
+
+    parent_style_sheet->for_each_owning_style_scope([&](StyleScope& style_scope) {
+        style_scope.invalidate_counter_style_cache();
+        style_scope.node().invalidate_style(DOM::StyleInvalidationReason::CounterStyleCacheInvalidated);
+    });
 }
 
 void CSSCounterStyleRule::initialize(JS::Realm& realm)

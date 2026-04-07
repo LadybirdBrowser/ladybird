@@ -1,0 +1,25 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../../../expected/css/css-counter/counter-style-rule-modification-content-ref.html" />
+    <style>
+        @counter-style foo {
+            system: cyclic;
+            symbols: FAIL;
+        }
+
+        p::before {
+            content: counter(item, foo);
+        }
+    </style>
+    <p></p>
+    <script>
+        const rule = document.styleSheets[0].cssRules[0];
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                rule.symbols = "PASS";
+                document.documentElement.className = "";
+            });
+        });
+    </script>
+</html>

@@ -11,6 +11,7 @@ namespace Web::DOM {
 #define ENUMERATE_STYLE_INVALIDATION_REASONS(X)     \
     X(AdoptedStyleSheetsList)                       \
     X(BaseURLChanged)                               \
+    X(CounterStyleCacheInvalidated)                 \
     X(CSSFontLoaded)                                \
     X(CSSImportRule)                                \
     X(CSSStylePropertiesRemoveProperty)             \
