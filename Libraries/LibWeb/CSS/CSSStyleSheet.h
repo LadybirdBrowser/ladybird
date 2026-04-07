@@ -95,6 +95,7 @@ public:
     void invalidate_owners(DOM::StyleInvalidationReason);
     GC::Ptr<DOM::Document> owning_document() const;
     void set_disabled(bool);
+    void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
 
     Optional<FlyString> default_namespace() const;
     GC::Ptr<CSSNamespaceRule> default_namespace_rule() const { return m_default_namespace_rule; }

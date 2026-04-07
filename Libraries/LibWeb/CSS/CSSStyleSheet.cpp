@@ -376,14 +376,25 @@ void CSSStyleSheet::set_disabled(bool disabled)
     invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDisabledStateChange);
 }
 
+void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> const& callback) const
+{
+    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
+        auto& style_scope = document_or_shadow_root->is_shadow_root()
+            ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
+            : document_or_shadow_root->document().style_scope();
+
+        callback(style_scope);
+    }
+}
+
 void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
 {
     m_did_match = {};
-    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
-        document_or_shadow_root->invalidate_style(reason);
-        auto& style_scope = document_or_shadow_root->is_shadow_root() ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope() : document_or_shadow_root->document().style_scope();
+
+    for_each_owning_style_scope([&](StyleScope& style_scope) {
         style_scope.invalidate_rule_cache();
-    }
+        style_scope.node().invalidate_style(reason);
+    });
 }
 
 GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
