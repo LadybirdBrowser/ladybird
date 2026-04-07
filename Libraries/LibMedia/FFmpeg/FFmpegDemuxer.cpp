@@ -160,6 +160,8 @@ DecoderErrorOr<NonnullRefPtr<FFmpegDemuxer>> FFmpegDemuxer::from_stream(NonnullR
         auto& stream = *format_context->streams[i];
         auto type = track_type_from_ffmpeg_media_type(stream.codecpar->codec_type);
         auto type_index = to_underlying(type);
+        if (type_index >= demuxer->m_preferred_track_for_type.size())
+            continue;
         if (demuxer->m_preferred_track_for_type[type_index] >= 0)
             continue;
         if (stream.disposition & AV_DISPOSITION_DEFAULT)
