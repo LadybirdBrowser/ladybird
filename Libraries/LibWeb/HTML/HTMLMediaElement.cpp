@@ -1786,12 +1786,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
             // 1. The user agent should cancel the fetching process.
             VERIFY(self->m_remote_fetch_data);
-            auto fetch_data = move(self->m_remote_fetch_data);
-            if (fetch_data->fetch_controller)
-                fetch_data->fetch_controller->stop_fetch();
+            auto failure_callback = move(self->m_remote_fetch_data->failure_callback);
+            self->cancel_the_fetching_process();
 
             // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-            fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
+            failure_callback(MUST(String::from_utf8(error.description())));
         });
     });
 
