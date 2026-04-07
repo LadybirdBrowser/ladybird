@@ -6,11 +6,23 @@
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 
+#    include <AK/Array.h>
 #    include <AK/Format.h>
 #    include <AK/Vector.h>
 #    include <LibGfx/VulkanImage.h>
 
 namespace Gfx {
+
+static uint32_t find_memory_type_index(VkPhysicalDeviceMemoryProperties const& memory_properties, VkMemoryRequirements const& memory_requirements, VkMemoryPropertyFlags required_flags)
+{
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i) {
+        auto const property_flags = memory_properties.memoryTypes[i].propertyFlags;
+        if ((memory_requirements.memoryTypeBits & (1u << i)) && (property_flags & required_flags) == required_flags)
+            return i;
+    }
+
+    return memory_properties.memoryTypeCount;
+}
 
 VulkanImage::~VulkanImage()
 {
@@ -151,12 +163,18 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     vkGetImageMemoryRequirements(context.logical_device, image->image, &mem_reqs);
     VkPhysicalDeviceMemoryProperties mem_props;
     vkGetPhysicalDeviceMemoryProperties(context.physical_device, &mem_props);
-    uint32_t mem_type_idx;
-    for (mem_type_idx = 0; mem_type_idx < mem_props.memoryTypeCount; ++mem_type_idx) {
-        if ((mem_reqs.memoryTypeBits & (1 << mem_type_idx)) && (mem_props.memoryTypes[mem_type_idx].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)) {
-            break;
+    bool const is_linear_image = format_mods.size() == 1 && format_mods[0] == DRM_FORMAT_MOD_LINEAR;
+    uint32_t mem_type_idx = mem_props.memoryTypeCount;
+
+    if (is_linear_image) {
+        mem_type_idx = find_memory_type_index(mem_props, mem_reqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+        if (mem_type_idx == mem_props.memoryTypeCount) {
+            mem_type_idx = find_memory_type_index(mem_props, mem_reqs, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         }
+    } else {
+        mem_type_idx = find_memory_type_index(mem_props, mem_reqs, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
+
     if (mem_type_idx == mem_props.memoryTypeCount) {
         return Error::from_string_literal("unable to find suitable image memory type");
     }

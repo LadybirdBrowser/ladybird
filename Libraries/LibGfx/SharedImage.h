@@ -8,17 +8,38 @@
 
 #include <AK/Error.h>
 #include <AK/Noncopyable.h>
+#include <AK/Variant.h>
+#include <LibGfx/Bitmap.h>
+#include <LibGfx/Forward.h>
+#include <LibGfx/ShareableBitmap.h>
+#include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 
 #ifdef AK_OS_MACOS
 #    include <LibCore/MachPort.h>
-#else
-#    include <LibGfx/ShareableBitmap.h>
 #endif
 
 namespace Gfx {
 
 class SharedImageBuffer;
+
+#ifndef AK_OS_MACOS
+struct LinuxDmaBufHandle {
+    BitmapFormat bitmap_format;
+    AlphaType alpha_type;
+    IntSize size;
+    u32 drm_format;
+    size_t pitch;
+    u64 modifier;
+    IPC::File file;
+};
+#endif
+
+#ifdef USE_VULKAN_DMABUF_IMAGES
+struct VulkanImage;
+SharedImage duplicate_shared_image(VulkanImage const&);
+LinuxDmaBufHandle duplicate_linux_dmabuf_handle(VulkanImage const&);
+#endif
 
 class SharedImage {
     AK_MAKE_NONCOPYABLE(SharedImage);
@@ -28,13 +49,18 @@ public:
     SharedImage& operator=(SharedImage&&) = default;
     ~SharedImage() = default;
 
-private:
 #ifdef AK_OS_MACOS
     explicit SharedImage(Core::MachPort&&);
-    Core::MachPort m_port;
 #else
     explicit SharedImage(ShareableBitmap);
-    ShareableBitmap m_shareable_bitmap;
+    explicit SharedImage(LinuxDmaBufHandle&&);
+#endif
+
+private:
+#ifdef AK_OS_MACOS
+    Core::MachPort m_port;
+#else
+    Variant<ShareableBitmap, LinuxDmaBufHandle> m_data;
 #endif
 
     friend class SharedImageBuffer;
@@ -49,6 +75,14 @@ private:
 }
 
 namespace IPC {
+
+#ifndef AK_OS_MACOS
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::LinuxDmaBufHandle const&);
+
+template<>
+ErrorOr<Gfx::LinuxDmaBufHandle> decode(Decoder&);
+#endif
 
 template<>
 ErrorOr<void> encode(Encoder&, Gfx::SharedImage const&);
