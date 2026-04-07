@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<!-- Submitted from TestTWF Paris -->
+<head>
+	<meta charset="utf-8">
+	<title>CSS Test: Multi-column element via column-width: [width]</title>
+	<link rel="author" title="Anselm Hannemann" href="mailto:info@anselm-hannemann.com"/>
+	<link rel="author" title="Håkon Wium Lie" href="mailto:howcome@opera.com"/>
+	<link rel="help" href="http://www.w3.org/TR/css3-multicol/#columns"/>
+	<link rel="match" href="../../../../expected/wpt-import/css/css-multicol/reference/multicol-basic-ref.html"/>
+	<meta name="flags" content="ahem"/>
+	<link rel="reviewer" title="Elika J Etemad" href="http://fantasai.inkedblade.net/contact">
+
+	<link rel="stylesheet" type="text/css" href="../../../../data/fonts/ahem.css" />
+	<style type="text/css">
+		.multicol-wrapper>*{
+			font: 20px/1 Ahem;
+		}
+
+		div.multicol-wrapper{
+			border: thin solid black;
+			display: inline-block;
+			margin: 1em auto;
+			width: 360px;
+		}
+
+		.multicol-basic-ref{
+			background: yellow;
+			width: 360px;
+			column-width: 120px;
+			column-gap: 0;
+			column-rule: none;
+		}
+
+		.multicol-basic-ref-item{
+			background: #000;
+		}
+
+		.item-1{
+			background: purple;
+			color: purple;
+		}
+
+		.item-2{
+			background: orange;
+			color: orange;
+		}
+
+		.item-3{
+			background: blue;
+			color: blue;
+		}
+	</style>
+</head>
+<body>
+<p>Test passes if there are three vertical stripes in the yellow box below: 1st purple, 2nd orange, 3rd blue.</p>
+<div class="multicol-wrapper">
+	<div class="multicol-basic-ref">
+		<span class="multicol-basic-ref-item item-1">XXXX XXXX XXXX XXXX XXXX XXXX XXXX</span>
+		<span class="multicol-basic-ref-item item-2">XXXX XXXX XXXX XXXX XXXX XXXX XXXX</span>
+		<span class="multicol-basic-ref-item item-3">XXXX XXXX XXXX XXXX XXXX XXXX XXXX</span>
+	</div>
+</div>
+</body>
+</html>

@@ -359,10 +359,11 @@ void LineBuilder::update_last_line(Optional<FragmentationContext&> fragmentation
 
     // Start with the "strut", an imaginary zero-width box at the start of each line box.
     auto const strut_line_height = m_context.containing_block().computed_values().line_height();
-    auto strut_top = m_current_block_offset;
-    auto strut_bottom = should_align_strut_to_line_box_baseline
-        ? m_current_block_offset + line_box_baseline + (strut_line_height - strut_baseline)
-        : m_current_block_offset + strut_line_height;
+    auto strut_top = m_current_block_offset + block_fragmentainer_offset;
+    auto strut_bottom = m_current_block_offset + block_fragmentainer_offset;
+    strut_bottom += should_align_strut_to_line_box_baseline
+        ? line_box_baseline + (strut_line_height - strut_baseline)
+        : strut_line_height;
 
     CSSPixels uppermost_box_top = strut_top;
     CSSPixels lowermost_box_bottom = strut_bottom;
