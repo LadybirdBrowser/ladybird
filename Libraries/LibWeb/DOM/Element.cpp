@@ -42,6 +42,7 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
+#include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
@@ -840,7 +841,7 @@ void Element::run_attribute_change_steps(FlyString const& local_name, Optional<S
     }
 }
 
-static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style, CSS::FontComputer const& font_computer)
+static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(CSS::ComputedProperties const& old_style, CSS::ComputedProperties const& new_style, CSS::FontComputer const& font_computer, Layout::NodeWithStyle const* old_layout_node, DOM::AbstractElement& abstract_element)
 {
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
@@ -852,6 +853,40 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation(C
 
         invalidation |= CSS::compute_property_invalidation(property_id, old_style.property(property_id), new_style.property(property_id));
     }
+
+    // NB: Even if the computed value hasn't changed the resolved counter style may have (e.g. if the relevant
+    //     @counter-style rule was modified, or a new rule with the same name took precedence over the old one).
+    if (old_layout_node) {
+        auto const& old_computed_values = old_layout_node->computed_values();
+
+        auto const& old_content = old_computed_values.content();
+
+        // NB: We only propagate content to computed values for relevant elements so if the old layout node doesn't
+        //     have a value for content we know it isn't a relevant element and invalidation isn't required.
+        if (old_content.has_value() && old_content->counter_style_dependencies != new_style.content(abstract_element, 0).content_data.counter_style_dependencies) {
+            invalidation.rebuild_layout_tree = true;
+            invalidation.relayout = true;
+            invalidation.repaint = true;
+        }
+
+        auto const& old_list_style_type = old_computed_values.list_style_type();
+
+        if (old_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
+            auto const& new_list_style_type = new_style.list_style_type(abstract_element.style_scope());
+
+            if (new_list_style_type.has<RefPtr<CSS::CounterStyle const>>()) {
+                ValueComparingRefPtr<CSS::CounterStyle const> old_counter_style = old_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+                ValueComparingRefPtr<CSS::CounterStyle const> new_counter_style = new_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
+
+                if (old_counter_style != new_counter_style) {
+                    invalidation.rebuild_layout_tree = true;
+                    invalidation.relayout = true;
+                    invalidation.repaint = true;
+                }
+            }
+        }
+    }
+
     return invalidation;
 }
 
@@ -890,7 +925,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
     if (m_computed_properties) {
-        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties, document().font_computer());
+        DOM::AbstractElement abstract_element { *this };
+        invalidation = compute_required_invalidation(*m_computed_properties, new_computed_properties, document().font_computer(), unsafe_layout_node(), abstract_element);
         had_list_marker = m_computed_properties->display().is_list_item();
     } else {
         invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
@@ -937,7 +973,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 
         // TODO: Can we be smarter about invalidation?
         if (pseudo_element_style && new_pseudo_element_style) {
-            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer());
+            DOM::AbstractElement abstract_element { *this, pseudo_element };
+            invalidation |= compute_required_invalidation(*pseudo_element_style, *new_pseudo_element_style, document().font_computer(), get_pseudo_element_node(pseudo_element), abstract_element);
         } else if (pseudo_element_style || new_pseudo_element_style) {
             invalidation = CSS::RequiredInvalidationAfterStyleChange::full();
         }

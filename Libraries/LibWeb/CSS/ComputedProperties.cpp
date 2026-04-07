@@ -1202,6 +1202,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                     break;
                 }
             } else if (item->is_counter()) {
+                content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                 content_data.data.append(item->as_counter().resolve(element_reference));
             } else if (item->is_image()) {
                 content_data.data.append(NonnullRefPtr { const_cast<ImageStyleValue&>(item->as_image()) });
@@ -1218,6 +1219,7 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
                 if (item->is_string()) {
                     alt_text_builder.append(item->as_string().string_value());
                 } else if (item->is_counter()) {
+                    content_data.counter_style_dependencies.append(item->as_counter().counter_style()->as_counter_style().resolve_counter_style(element_reference.style_scope()));
                     alt_text_builder.append(item->as_counter().resolve(element_reference));
                 } else {
                     dbgln("`{}` is not supported in `content` alt-text (yet?)", item->to_string(SerializationMode::Normal));
@@ -1231,9 +1233,9 @@ ComputedProperties::ContentDataAndQuoteNestingLevel ComputedProperties::content(
 
     switch (value.to_keyword()) {
     case Keyword::None:
-        return { { ContentData::Type::None, {} }, quote_nesting_level };
+        return { { ContentData::Type::None, {}, {} }, quote_nesting_level };
     case Keyword::Normal:
-        return { { ContentData::Type::Normal, {} }, quote_nesting_level };
+        return { { ContentData::Type::Normal, {}, {} }, quote_nesting_level };
     default:
         break;
     }

@@ -1,0 +1,30 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../../../expected/css/css-counter/counter-style-invalidation-list-style-type-ref.html" />
+    <style id="sheet">
+        @counter-style foo {
+            system: cyclic;
+            symbols: FAIL;
+        }
+
+        ol {
+            list-style-type: foo;
+        }
+    </style>
+    <ol>
+        <li></li>
+    </ol>
+    <script>
+        const sheet = document.getElementById("sheet");
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                sheet.sheet.insertRule(
+                    `@counter-style foo { system: cyclic; symbols: PASS; }`,
+                    sheet.sheet.cssRules.length
+                );
+                document.documentElement.className = "";
+            });
+        });
+    </script>
+</html>

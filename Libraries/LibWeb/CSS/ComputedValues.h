@@ -448,6 +448,7 @@ struct ContentData {
     } type { Type::Normal };
 
     Vector<Variant<String, NonnullRefPtr<ImageStyleValue>>> data;
+    Vector<ValueComparingRefPtr<CounterStyle const>> counter_style_dependencies;
     Optional<String> alt_text {};
 
     void visit_edges(GC::Cell::Visitor& visitor) const

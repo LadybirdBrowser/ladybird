@@ -1,0 +1,28 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../../../expected/css/css-counter/counter-style-invalidation-content-ref.html" />
+    <style id="sheet">
+        @counter-style foo {
+            system: cyclic;
+            symbols: FAIL;
+        }
+
+        p::before {
+            content: counter(item, foo);
+        }
+    </style>
+    <p></p>
+    <script>
+        const sheet = document.getElementById("sheet");
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                sheet.sheet.insertRule(
+                    `@counter-style foo { system: cyclic; symbols: PASS; }`,
+                    sheet.sheet.cssRules.length
+                );
+                document.documentElement.className = "";
+            });
+        });
+    </script>
+</html>
