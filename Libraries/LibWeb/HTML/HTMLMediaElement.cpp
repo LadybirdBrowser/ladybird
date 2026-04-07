@@ -262,6 +262,8 @@ void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 void HTMLMediaElement::cancel_the_fetching_process()
 {
     m_current_fetch_generation++;
+    if (m_remote_fetch_data && m_remote_fetch_data->stream)
+        m_remote_fetch_data->stream->close();
     m_remote_fetch_data.clear();
 }
 
@@ -1176,11 +1178,7 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [&fetch_data = *m_remote_fetch_data](auto& self, u64 offset) {
         self.restart_fetch_at_offset(offset);
     }));
-    m_remote_fetch_data->failure_callback = [&stream = *m_remote_fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
-        // Ensure that we unblock any reads if we stop the fetch due to some failure.
-        stream.close();
-        failure_callback(move(error_message));
-    };
+    m_remote_fetch_data->failure_callback = move(failure_callback);
 
     set_up_playback_manager_for_remote();
 
