@@ -141,6 +141,7 @@ private:
     GC::Weak<DOM::Node> m_effective_legacy_mouse_pointer_position;
 
     Optional<u32> m_mousedown_button;
+    u32 m_mousedown_modifiers { UIEvents::KeyModifier::Mod_None };
     GC::Weak<DOM::Node> m_mousedown_target;
     Optional<CSSPixelPoint> m_mousedown_visual_viewport_position;
     int m_mousedown_click_count { 0 };
