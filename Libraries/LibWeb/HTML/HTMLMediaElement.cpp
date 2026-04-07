@@ -1975,8 +1975,10 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     if (m_ready_state == ready_state)
         return;
 
+    auto old_ready_state = m_ready_state;
+    m_ready_state = ready_state;
+
     ScopeGuard guard { [&] {
-        m_ready_state = ready_state;
         upon_has_ended_playback_possibly_changed();
         set_needs_style_update(true);
     } };
@@ -1988,7 +1990,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
 
     // 1. Apply the first applicable set of substeps from the following list:
     // -> If the previous ready state was HAVE_NOTHING, and the new ready state is HAVE_METADATA
-    if (m_ready_state == ReadyState::HaveNothing && ready_state == ReadyState::HaveMetadata) {
+    if (old_ready_state == ReadyState::HaveNothing && ready_state == ReadyState::HaveMetadata) {
         // Queue a media element task given the media element to fire an event named loadedmetadata at the element.
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::loadedmetadata));
@@ -1998,7 +2000,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 
     // -> If the previous ready state was HAVE_METADATA and the new ready state is HAVE_CURRENT_DATA or greater
-    if (m_ready_state == ReadyState::HaveMetadata && ready_state >= ReadyState::HaveCurrentData) {
+    if (old_ready_state == ReadyState::HaveMetadata && ready_state >= ReadyState::HaveCurrentData) {
         // If this is the first time this occurs for this media element since the load() algorithm was last invoked, the user agent must queue a media
         // element task given the media element to fire an event named loadeddata at the element.
         if (m_first_data_load_event_since_load_start) {
@@ -2020,7 +2022,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 
     // -> If the previous ready state was HAVE_FUTURE_DATA or more, and the new ready state is HAVE_CURRENT_DATA or less
-    if (m_ready_state >= ReadyState::HaveFutureData && ready_state <= ReadyState::HaveCurrentData) {
+    if (old_ready_state >= ReadyState::HaveFutureData && ready_state <= ReadyState::HaveCurrentData) {
         // FIXME: If the media element was potentially playing before its readyState attribute changed to a value lower than HAVE_FUTURE_DATA, and the element
         //        has not ended playback, and playback has not stopped due to errors, paused for user interaction, or paused for in-band content, the user agent
         //        must queue a media element task given the media element to fire an event named timeupdate at the element, and queue a media element task given
@@ -2029,7 +2031,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     }
 
     // -> If the previous ready state was HAVE_CURRENT_DATA or less, and the new ready state is HAVE_FUTURE_DATA
-    if (m_ready_state <= ReadyState::HaveCurrentData && ready_state == ReadyState::HaveFutureData) {
+    if (old_ready_state <= ReadyState::HaveCurrentData && ready_state == ReadyState::HaveFutureData) {
         // The user agent must queue a media element task given the media element to fire an event named canplay at the element.
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::canplay));
@@ -2046,7 +2048,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
     if (ready_state == ReadyState::HaveEnoughData) {
         // If the previous ready state was HAVE_CURRENT_DATA or less, the user agent must queue a media element task given the media element to fire an event
         // named canplay at the element, and, if the element's paused attribute is false, notify about playing for the element.
-        if (m_ready_state <= ReadyState::HaveCurrentData) {
+        if (old_ready_state <= ReadyState::HaveCurrentData) {
             queue_a_media_element_task([this] {
                 dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::canplay));
             });
