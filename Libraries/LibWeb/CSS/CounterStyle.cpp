@@ -76,6 +76,18 @@ NonnullRefPtr<CounterStyle const> CounterStyle::from_counter_style_definition(Co
         });
 }
 
+bool CounterStyle::equals(CounterStyle const& other) const
+{
+    return name() == other.name()
+        && algorithm() == other.algorithm()
+        && negative_sign() == other.negative_sign()
+        && prefix() == other.prefix()
+        && suffix() == other.suffix()
+        && range() == other.range()
+        && pad() == other.pad()
+        && fallback() == other.fallback();
+}
+
 // https://drafts.csswg.org/css-counter-styles-3/#extended-range-optional
 static String generate_an_initial_representation_for_extended_cjk_system(i64 value, ExtendedCJKCounterStyleAlgorithm::Type type, Array<FlyString, 10> const& digit_strings, Array<FlyString, 3> const& digit_marker_strings, Array<FlyString, 3> const& group_marker_strings)
 {

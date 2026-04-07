@@ -13,6 +13,8 @@ namespace Web::CSS {
 struct CounterStyleRangeEntry {
     i32 start;
     i32 end;
+
+    bool operator==(CounterStyleRangeEntry const&) const = default;
 };
 
 // https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols
@@ -26,32 +28,46 @@ using CounterStyleSymbol = FlyString;
 struct CounterStyleNegativeSign {
     CounterStyleSymbol prefix;
     CounterStyleSymbol suffix;
+
+    bool operator==(CounterStyleNegativeSign const&) const = default;
 };
 
 struct CounterStylePad {
     i32 minimum_length;
     CounterStyleSymbol symbol;
+
+    bool operator==(CounterStylePad const&) const = default;
 };
 
 struct AdditiveCounterStyleAlgorithm {
     struct AdditiveTuple {
         i32 weight;
         CounterStyleSymbol symbol;
+
+        bool operator==(AdditiveTuple const&) const = default;
     };
     Vector<AdditiveTuple> symbol_list;
+
+    bool operator==(AdditiveCounterStyleAlgorithm const&) const = default;
 };
 
 struct FixedCounterStyleAlgorithm {
     i32 first_symbol;
     Vector<CounterStyleSymbol> symbol_list;
+
+    bool operator==(FixedCounterStyleAlgorithm const&) const = default;
 };
 
 struct GenericCounterStyleAlgorithm {
     CounterStyleSystem type;
     Vector<CounterStyleSymbol> symbol_list;
+
+    bool operator==(GenericCounterStyleAlgorithm const&) const = default;
 };
 
-struct EthiopicNumericCounterStyleAlgorithm { };
+struct EthiopicNumericCounterStyleAlgorithm {
+    bool operator==(EthiopicNumericCounterStyleAlgorithm const&) const = default;
+};
 
 struct ExtendedCJKCounterStyleAlgorithm {
     enum class Type : u8 {
@@ -65,6 +81,8 @@ struct ExtendedCJKCounterStyleAlgorithm {
         KoreanHanjaInformal,
         KoreanHanjaFormal,
     } type;
+
+    bool operator==(ExtendedCJKCounterStyleAlgorithm const&) const = default;
 };
 
 using CounterStyleAlgorithm = Variant<AdditiveCounterStyleAlgorithm, FixedCounterStyleAlgorithm, GenericCounterStyleAlgorithm, EthiopicNumericCounterStyleAlgorithm, ExtendedCJKCounterStyleAlgorithm>;
