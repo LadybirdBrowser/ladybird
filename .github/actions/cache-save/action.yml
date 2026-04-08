@@ -26,13 +26,11 @@ runs:
       shell: bash
       env:
         CCACHE_DIR: ${{ inputs.ccache_path }}
-      if: ${{ inputs.ccache_path != '' }}
       run: |
         ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.ccache_path != '' }}
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
@@ -41,13 +39,11 @@ runs:
       shell: bash
       env:
         CCACHE_DIR: ${{ inputs.ccache_path }}
-      if: ${{ inputs.ccache_path != '' }}
       run: |
         ccache -s
 
     - name: 'vcpkg binary cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.vcpkg_cache_path != '' }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}
