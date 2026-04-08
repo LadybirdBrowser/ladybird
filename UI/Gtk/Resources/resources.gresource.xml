@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/org/ladybird/Ladybird/gtk">
+    <file preprocess="xml-stripblanks">browser-window.ui</file>
+    <file preprocess="xml-stripblanks">list-popover.ui</file>
+    <file preprocess="xml-stripblanks">location-entry.ui</file>
+  </gresource>
+</gresources>

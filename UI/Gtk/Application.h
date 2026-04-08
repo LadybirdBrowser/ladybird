@@ -6,11 +6,17 @@
 
 #pragma once
 
+#include <AK/Function.h>
+#include <AK/Vector.h>
+#include <LibURL/URL.h>
 #include <LibWebView/Application.h>
 
 #include <adwaita.h>
 
 namespace Ladybird {
+
+class BrowserWindow;
+class Tab;
 
 class Application : public WebView::Application {
     WEB_VIEW_APPLICATION(Application)
@@ -18,7 +24,22 @@ class Application : public WebView::Application {
 public:
     virtual ~Application() override;
 
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls);
+    void remove_window(BrowserWindow&);
+
+    BrowserWindow* active_window() const { return m_active_window; }
+    void set_active_window(BrowserWindow* w) { m_active_window = w; }
+
+    Tab* active_tab() const;
+
     AdwApplication* adw_application() const { return m_adw_application; }
+
+    template<typename Callback>
+    void for_each_window(Callback callback)
+    {
+        for (auto& window : m_windows)
+            callback(*window);
+    }
 
 private:
     explicit Application();
@@ -44,7 +65,14 @@ private:
     virtual void on_devtools_enabled() const override;
     virtual void on_devtools_disabled() const override;
 
+    void forward_urls_to_remote_and_exit();
+    void setup_dbus_handlers();
+    void on_open(Vector<URL::URL> urls);
+    void on_activate();
+
     AdwApplication* m_adw_application { nullptr };
+    Vector<NonnullOwnPtr<BrowserWindow>> m_windows;
+    BrowserWindow* m_active_window { nullptr };
 };
 
 }

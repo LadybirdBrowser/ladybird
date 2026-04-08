@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+
+  <object class="GtkPopover" id="completion_popover">
+    <property name="autohide">false</property>
+    <property name="has-arrow">false</property>
+    <property name="position">bottom</property>
+    <property name="halign">start</property>
+    <property name="child">
+      <object class="GtkScrolledWindow">
+        <property name="hscrollbar-policy">never</property>
+        <property name="vscrollbar-policy">automatic</property>
+        <property name="max-content-height">300</property>
+        <property name="propagate-natural-height">true</property>
+        <property name="child">
+          <object class="GtkListBox" id="completion_list_box">
+            <property name="selection-mode">browse</property>
+          </object>
+        </property>
+      </object>
+    </property>
+  </object>
+</interface>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+
+  <object class="GtkPopover" id="popover">
+    <property name="has-arrow">false</property>
+    <child>
+      <object class="GtkScrolledWindow" id="scrolled_window">
+        <property name="hscrollbar-policy">never</property>
+        <property name="vscrollbar-policy">automatic</property>
+        <property name="max-content-height">300</property>
+        <property name="propagate-natural-height">true</property>
+        <property name="child">
+          <object class="GtkListBox" id="list_box">
+            <style><class name="boxed-list"/></style>
+          </object>
+        </property>
+      </object>
+    </child>
+  </object>
+</interface>

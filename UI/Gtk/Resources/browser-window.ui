@@ -1,0 +1,252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <requires lib="gtk" version="4.0"/>
+  <requires lib="libadwaita" version="1.4"/>
+
+  <template class="LadybirdBrowserWindow" parent="AdwApplicationWindow">
+    <property name="title">Ladybird</property>
+    <property name="default-width">1024</property>
+    <property name="default-height">768</property>
+    <property name="content">
+      <object class="AdwToolbarView" id="toolbar_view">
+        <!-- Top bar: Header -->
+        <child type="top">
+          <object class="AdwHeaderBar" id="header_bar">
+            <child type="start">
+              <object class="GtkBox" id="nav_box">
+                <style><class name="linked"/></style>
+                <child>
+                  <object class="GtkButton" id="back_button">
+                    <property name="action-name">win.go-back</property>
+                    <property name="icon-name">go-previous-symbolic</property>
+                    <property name="tooltip-text">Back (Alt+Left)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="forward_button">
+                    <property name="action-name">win.go-forward</property>
+                    <property name="icon-name">go-next-symbolic</property>
+                    <property name="tooltip-text">Forward (Alt+Right)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="reload_button">
+                    <property name="action-name">win.reload</property>
+                    <property name="icon-name">view-refresh-symbolic</property>
+                    <property name="tooltip-text">Reload (Ctrl+R)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child type="start">
+              <object class="GtkButton" id="new_tab_button">
+                <property name="action-name">win.new-tab</property>
+                <property name="icon-name">tab-new-symbolic</property>
+                <property name="tooltip-text">New Tab (Ctrl+T)</property>
+                <style><class name="flat"/></style>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkButton" id="restore_button">
+                <property name="icon-name">view-restore-symbolic</property>
+                <property name="tooltip-text">Exit Fullscreen</property>
+                <property name="action-name">win.fullscreen</property>
+                <property name="visible">false</property>
+              </object>
+            </child>
+            <child type="end">
+              <object class="GtkMenuButton" id="menu_button">
+                <property name="icon-name">open-menu-symbolic</property>
+                <property name="tooltip-text">Menu</property>
+                <property name="popover">hamburger_popover</property>
+              </object>
+            </child>
+          </object>
+        </child>
+
+        <!-- Top bar: Find bar -->
+        <child type="top">
+          <object class="GtkRevealer" id="find_bar_revealer">
+            <property name="transition-type">slide-down</property>
+            <property name="reveal-child">false</property>
+            <property name="child">
+              <object class="GtkBox" id="find_bar">
+                <property name="orientation">horizontal</property>
+                <property name="spacing">4</property>
+                <property name="margin-start">8</property>
+                <property name="margin-end">8</property>
+                <property name="margin-top">4</property>
+                <property name="margin-bottom">4</property>
+                <style><class name="toolbar"/></style>
+                <child>
+                  <object class="GtkSearchEntry" id="find_entry">
+                    <property name="hexpand">true</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="find_result_label">
+                    <style><class name="dim-label"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="find_prev_button">
+                    <property name="action-name">win.find-previous</property>
+                    <property name="icon-name">go-up-symbolic</property>
+                    <property name="tooltip-text">Previous Match (Shift+Enter)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="find_next_button">
+                    <property name="action-name">win.find-next</property>
+                    <property name="icon-name">go-down-symbolic</property>
+                    <property name="tooltip-text">Next Match (Enter)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkButton" id="find_close_button">
+                    <property name="action-name">win.find-close</property>
+                    <property name="icon-name">window-close-symbolic</property>
+                    <property name="tooltip-text">Close (Escape)</property>
+                    <style><class name="flat"/></style>
+                  </object>
+                </child>
+              </object>
+            </property>
+          </object>
+        </child>
+
+        <!-- Top bar: Tab bar -->
+        <child type="top">
+          <object class="AdwTabBar" id="tab_bar">
+            <property name="autohide">true</property>
+            <property name="view">tab_view</property>
+          </object>
+        </child>
+
+        <!-- Content: Toast overlay wrapping tab view -->
+        <property name="content">
+          <object class="AdwToastOverlay" id="toast_overlay">
+            <property name="child">
+              <object class="AdwTabView" id="tab_view">
+                <property name="vexpand">true</property>
+              </object>
+            </property>
+          </object>
+        </property>
+
+        <!-- Bottom bar: DevTools banner -->
+        <child type="bottom">
+          <object class="AdwBanner" id="devtools_banner">
+            <property name="revealed">false</property>
+            <property name="button-label">Disable</property>
+          </object>
+        </child>
+      </object>
+    </property>
+  </template>
+
+  <!-- Hamburger menu model -->
+  <menu id="hamburger_menu">
+    <section>
+      <item>
+        <attribute name="custom">zoom</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="custom">tools</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label">New Tab</attribute>
+        <attribute name="action">win.new-tab</attribute>
+      </item>
+      <item>
+        <attribute name="label">New Window</attribute>
+        <attribute name="action">win.new-window</attribute>
+      </item>
+    </section>
+    <section>
+      <item>
+        <attribute name="label">Preferences</attribute>
+        <attribute name="action">win.preferences</attribute>
+      </item>
+      <item>
+        <attribute name="label">About Ladybird</attribute>
+        <attribute name="action">win.about</attribute>
+      </item>
+      <item>
+        <attribute name="label">Quit</attribute>
+        <attribute name="action">win.quit</attribute>
+      </item>
+    </section>
+  </menu>
+
+  <!-- Hamburger popover with custom widget slots -->
+  <object class="GtkPopoverMenu" id="hamburger_popover">
+    <property name="menu-model">hamburger_menu</property>
+    <child type="zoom">
+      <object class="GtkBox" id="zoom_box">
+        <property name="orientation">horizontal</property>
+        <property name="hexpand">true</property>
+        <property name="homogeneous">true</property>
+        <style><class name="linked"/></style>
+        <child>
+          <object class="GtkButton" id="zoom_out_button">
+            <property name="action-name">win.zoom-out</property>
+            <property name="icon-name">zoom-out-symbolic</property>
+            <property name="tooltip-text">Zoom Out</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="zoom_reset_button">
+            <property name="action-name">win.zoom-reset</property>
+            <property name="tooltip-text">Reset Zoom</property>
+            <property name="child">
+              <object class="GtkLabel" id="zoom_label">
+                <property name="label">100%</property>
+                <property name="width-chars">5</property>
+                <style><class name="numeric"/></style>
+              </object>
+            </property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="zoom_in_button">
+            <property name="action-name">win.zoom-in</property>
+            <property name="icon-name">zoom-in-symbolic</property>
+            <property name="tooltip-text">Zoom In</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child type="tools">
+      <object class="GtkBox" id="tools_box">
+        <property name="orientation">horizontal</property>
+        <property name="hexpand">true</property>
+        <property name="homogeneous">true</property>
+        <style><class name="linked"/></style>
+        <child>
+          <object class="GtkButton" id="find_menu_button">
+            <property name="action-name">win.find</property>
+            <property name="icon-name">system-search-symbolic</property>
+            <property name="tooltip-text">Find in Page</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="fullscreen_menu_button">
+            <property name="action-name">win.fullscreen</property>
+            <property name="icon-name">view-fullscreen-symbolic</property>
+            <property name="tooltip-text">Fullscreen</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
