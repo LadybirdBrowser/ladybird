@@ -71,11 +71,14 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
 {
     // A Blob has an associated package data algorithm, given bytes, a type, a optional mimeType, and a optional encodingName, which switches on type and runs the associated steps:
     switch (type) {
-    case Type::DataURL:
+    case Type::DataURL: {
         // Return bytes as a DataURL [RFC2397] subject to the considerations below:
         // Use mimeType as part of the Data URL if it is available in keeping with the Data URL specification [RFC2397].
         // If mimeType is not available return a Data URL without a media-type. [RFC2397].
-        return URL::create_with_data(mime_type.value_or(String {}), MUST(encode_base64(bytes)), true).to_string();
+        // https://github.com/w3c/FileAPI/issues/104
+        auto mime_string = mime_type.has_value() && !mime_type->is_empty() ? mime_type.value() : "application/octet-stream"_string;
+        return URL::create_with_data(mime_string, MUST(encode_base64(bytes)), true).to_string();
+    }
     case Type::Text: {
         // 1. Let encoding be failure.
         Optional<StringView> encoding;
