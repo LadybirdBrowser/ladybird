@@ -1074,7 +1074,6 @@ Object* create_unmapped_arguments_object(VM& vm, ReadonlySpan<Value> arguments)
     // 2. Let obj be OrdinaryObjectCreate(%Object.prototype%, « [[ParameterMap]] »).
     // 3. Set obj.[[ParameterMap]] to undefined.
     auto object = Object::create_with_premade_shape(realm.intrinsics().unmapped_arguments_object_shape());
-    object->set_has_parameter_map();
 
     // 4. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     object->put_direct(realm.intrinsics().unmapped_arguments_object_length_offset(), Value(length));

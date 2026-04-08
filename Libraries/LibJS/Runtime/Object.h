@@ -288,8 +288,7 @@ public:
     // B.3.7 The [[IsHTMLDDA]] Internal Slot, https://tc39.es/ecma262/#sec-IsHTMLDDA-internal-slot
     virtual bool is_htmldda() const { return false; }
 
-    bool has_parameter_map() const { return m_flags & Flag::HasParameterMap; }
-    void set_has_parameter_map() { m_flags |= Flag::HasParameterMap; }
+    bool has_parameter_map() const { return shape().has_parameter_map(); }
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -373,7 +372,6 @@ protected:
 private:
     struct Flag {
         static constexpr u8 IsExtensible = 1 << 0;
-        static constexpr u8 HasParameterMap = 1 << 1;
         static constexpr u8 HasMagicalLengthProperty = 1 << 2;
         static constexpr u8 IsTypedArray = 1 << 3;
         static constexpr u8 MayInterfereWithIndexedPropertyAccess = 1 << 4;

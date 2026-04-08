@@ -28,6 +28,7 @@ GC::Ref<Shape> Shape::create_dictionary_transition()
 {
     auto new_shape = heap().allocate<Shape>(m_realm);
     new_shape->m_dictionary = true;
+    new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
     invalidate_prototype_if_needed_for_new_prototype(new_shape);
     ensure_property_table();
@@ -142,6 +143,7 @@ Shape::Shape(Realm& realm)
 Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAttributes attributes, TransitionType transition_type)
     : m_attributes(attributes)
     , m_transition_type(transition_type)
+    , m_has_parameter_map(previous_shape.m_has_parameter_map)
     , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
@@ -152,6 +154,7 @@ Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, PropertyAtt
 
 Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionType transition_type)
     : m_transition_type(transition_type)
+    , m_has_parameter_map(previous_shape.m_has_parameter_map)
     , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_property_key(property_key)
@@ -163,6 +166,7 @@ Shape::Shape(Shape& previous_shape, PropertyKey const& property_key, TransitionT
 
 Shape::Shape(Shape& previous_shape, Object* new_prototype)
     : m_transition_type(TransitionType::Prototype)
+    , m_has_parameter_map(previous_shape.m_has_parameter_map)
     , m_realm(previous_shape.m_realm)
     , m_previous(&previous_shape)
     , m_prototype(new_prototype)
@@ -321,6 +325,7 @@ GC::Ref<Shape> Shape::clone_for_prototype()
     auto new_shape = heap().allocate<Shape>(m_realm);
     m_realm->all_prototype_shapes().set(new_shape);
     new_shape->m_is_prototype_shape = true;
+    new_shape->m_has_parameter_map = m_has_parameter_map;
     new_shape->m_prototype = m_prototype;
     ensure_property_table();
     new_shape->ensure_property_table();
