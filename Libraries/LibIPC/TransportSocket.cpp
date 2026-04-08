@@ -172,9 +172,11 @@ intptr_t TransportSocket::io_thread_loop()
     }
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
-    m_peer_eof = true;
-    m_incoming_cv.broadcast();
-    notify_read_available();
+    if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire)) {
+        m_peer_eof = true;
+        m_incoming_cv.broadcast();
+        notify_read_available();
+    }
     return 0;
 }
 
@@ -518,6 +520,7 @@ TransportSocket::ShouldShutdown TransportSocket::read_as_many_messages_as_possib
 
 ErrorOr<TransportHandle> TransportSocket::release_for_transfer()
 {
+    m_is_being_transferred.store(true, AK::MemoryOrder::memory_order_release);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     auto fd = TRY(m_socket->release_fd());
     return TransportHandle { File::adopt_fd(fd) };

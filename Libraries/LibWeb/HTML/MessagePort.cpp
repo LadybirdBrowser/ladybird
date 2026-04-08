@@ -94,8 +94,8 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataEncoder&
     // 1. Set value's has been shipped flag to true.
     m_has_been_shipped = true;
 
-    // FIXME: 2. Set dataHolder.[[PortMessageQueue]] to value's port message queue.
-    // FIXME: Support delivery of messages that haven't been delivered yet on the other side
+    bool has_remote_port_handle = false;
+    IPC::TransportHandle remote_port_handle;
 
     // 3. If value is entangled with another port remotePort, then:
     if (is_entangled()) {
@@ -106,12 +106,28 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(HTML::TransferDataEncoder&
         if (m_remote_port)
             m_remote_port->m_has_been_shipped = true;
 
-        auto handle = MUST(m_transport->release_for_transfer());
+        // NOTE: release_for_transfer() stops the IO thread before drain_transport() reads the message buffer
+        //       below (step 2). Stopping first ensures a consistent snapshot: no new messages arrive between
+        //       the drain and the handle being handed to the new owner.
+        remote_port_handle = MUST(m_transport->release_for_transfer());
+        has_remote_port_handle = true;
+    }
+
+    // 2. Set dataHolder.[[PortMessageQueue]] to value's port message queue.
+
+    // Drain any incoming transport state into this port before serializing it so received messages and
+    // a pending shutdown move with the transferred port instead of being left behind on the old transport.
+    drain_transport();
+    data_holder.encode(m_pending_incoming_messages);
+    data_holder.encode(m_pending_outgoing_messages);
+    data_holder.encode(m_should_shutdown_on_enable);
+
+    if (has_remote_port_handle) {
         m_transport.clear();
 
         // 2. Set dataHolder.[[RemotePort]] to remotePort.
         data_holder.encode(IPC_FILE_TAG);
-        data_holder.encode(handle);
+        data_holder.encode(remote_port_handle);
     }
     // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
     else {
@@ -126,20 +142,25 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_receiving_steps(HTML::TransferDa
     // 1. Set value's has been shipped flag to true.
     m_has_been_shipped = true;
 
-    // 2. FIXME: Move all the tasks that are to fire message events in dataHolder.[[PortMessageQueue]] to the port message queue of value,
+    // 2. Move all the tasks that are to fire message events in dataHolder.[[PortMessageQueue]] to the port message queue of value,
     //    if any, leaving value's port message queue in its initial disabled state, and, if value's relevant global object is a Window,
     //    associating the moved tasks with value's relevant global object's associated Document.
+    m_pending_incoming_messages = data_holder.decode<Vector<SerializedTransferRecord>>();
+    m_pending_outgoing_messages = data_holder.decode<Vector<SerializedTransferRecord>>();
+    m_should_shutdown_on_enable = data_holder.decode<bool>();
+    auto fd_tag = data_holder.decode<u8>();
 
     // 3. If dataHolder.[[RemotePort]] is not null, then entangle dataHolder.[[RemotePort]] and value.
     //     (This will disentangle dataHolder.[[RemotePort]] from the original port that was transferred.)
-    if (auto fd_tag = data_holder.decode<u8>(); fd_tag == IPC_FILE_TAG) {
+    if (fd_tag == IPC_FILE_TAG) {
         auto handle = data_holder.decode<IPC::TransportHandle>();
         m_transport = MUST(handle.create_transport());
 
         m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-            if (strong_this->m_enabled)
-                strong_this->read_from_transport();
+            strong_this->read_from_transport();
         });
+
+        flush_pending_outgoing_messages();
     } else if (fd_tag != 0) {
         dbgln("Unexpected byte {:x} in MessagePort transfer data", fd_tag);
         VERIFY_NOT_REACHED();
@@ -160,6 +181,9 @@ void MessagePort::disentangle()
         m_transport.clear();
     }
 
+    m_pending_incoming_messages.clear();
+    m_pending_outgoing_messages.clear();
+    m_should_shutdown_on_enable = false;
     m_worker_event_target = nullptr;
 }
 
@@ -170,10 +194,19 @@ void MessagePort::entangle_with(MessagePort& remote_port)
         return;
 
     // 1. If one of the ports is already entangled, then disentangle it and the port that it was entangled with.
-    if (is_entangled())
+
+    // NB: A port with an active transport should not have pending messages as outgoing messages are flushed when the
+    // transport is created, and incoming messages should only be pending on a port that has been transferred.
+    if (is_entangled()) {
+        VERIFY(m_pending_incoming_messages.is_empty());
+        VERIFY(m_pending_outgoing_messages.is_empty());
         disentangle();
-    if (remote_port.is_entangled())
+    }
+    if (remote_port.is_entangled()) {
+        VERIFY(remote_port.m_pending_incoming_messages.is_empty());
+        VERIFY(remote_port.m_pending_outgoing_messages.is_empty());
         remote_port.disentangle();
+    }
 
     // 2. Associate the two ports to be entangled, so that they form the two parts of a new channel.
     //    (There is no MessageChannel object that represents this channel.)
@@ -185,14 +218,15 @@ void MessagePort::entangle_with(MessagePort& remote_port)
     m_remote_port->m_transport = MUST(paired.remote_handle.create_transport());
 
     m_transport->set_up_read_hook([strong_this = GC::make_root(this)]() {
-        if (strong_this->m_enabled)
-            strong_this->read_from_transport();
+        strong_this->read_from_transport();
     });
 
     m_remote_port->m_transport->set_up_read_hook([remote_port = GC::make_root(m_remote_port)]() {
-        if (remote_port->m_enabled)
-            remote_port->read_from_transport();
+        remote_port->read_from_transport();
     });
+
+    flush_pending_outgoing_messages();
+    m_remote_port->flush_pending_outgoing_messages();
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
@@ -250,9 +284,16 @@ WebIDL::ExceptionOr<void> MessagePort::message_port_post_message_steps(GC::Ptr<M
     auto serialize_with_transfer_result = TRY(structured_serialize_with_transfer(vm, message, transfer));
 
     // 6. If targetPort is null, or if doomed is true, then return.
-    // IMPLEMENTATION DEFINED: Actually check the socket here, not the target port.
-    //     If there's no target message port in the same realm, we still want to send the message over IPC
-    if (!m_transport || doomed) {
+
+    // IMPLEMENTATION DEFINED: A port can exist before it has a transport to send on. Keep the serialized
+    // record on the port and flush it once the port becomes entangled.
+    if (doomed) {
+        return {};
+    }
+
+    if (!m_transport) {
+        if (!is_detached())
+            m_pending_outgoing_messages.append(move(serialize_with_transfer_result));
         return {};
     }
 
@@ -272,6 +313,53 @@ ErrorOr<void> MessagePort::send_message_on_transport(SerializedTransferRecord co
     return {};
 }
 
+void MessagePort::flush_pending_outgoing_messages()
+{
+    if (!m_transport || !m_transport->is_open())
+        return;
+
+    auto pending_outgoing_messages = move(m_pending_outgoing_messages);
+    for (auto const& pending_message : pending_outgoing_messages)
+        post_port_message(pending_message);
+}
+
+void MessagePort::dispatch_pending_messages()
+{
+    auto pending_messages = move(m_pending_incoming_messages);
+    for (auto& pending_message : pending_messages)
+        queue_message_task(move(pending_message));
+
+    if (m_should_shutdown_on_enable) {
+        m_should_shutdown_on_enable = false;
+        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
+            this->close();
+        }));
+    }
+}
+
+void MessagePort::queue_message_task(SerializedTransferRecord&& serialize_with_transfer_result)
+{
+    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
+        this->post_message_task_steps(serialize_with_transfer_result);
+    }));
+}
+
+void MessagePort::drain_transport()
+{
+    if (!m_transport)
+        return;
+
+    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
+        FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
+        IPC::Decoder decoder { stream, raw_message.attachments };
+
+        m_pending_incoming_messages.append(MUST(decoder.decode<SerializedTransferRecord>()));
+    });
+
+    if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes)
+        m_should_shutdown_on_enable = true;
+}
+
 void MessagePort::post_port_message(SerializedTransferRecord const& serialize_with_transfer_result)
 {
     if (!m_transport || !m_transport->is_open())
@@ -284,33 +372,17 @@ void MessagePort::post_port_message(SerializedTransferRecord const& serialize_wi
 
 void MessagePort::read_from_transport()
 {
-    VERIFY(m_enabled);
-
     if (!is_entangled())
         return;
 
-    auto schedule_shutdown = m_transport->read_as_many_messages_as_possible_without_blocking([this](auto&& raw_message) {
-        FixedMemoryStream stream { raw_message.bytes.span(), FixedMemoryStream::Mode::ReadOnly };
-        IPC::Decoder decoder { stream, raw_message.attachments };
+    drain_transport();
 
-        auto serialized_transfer_record = MUST(decoder.decode<SerializedTransferRecord>());
-
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialized_transfer_record = move(serialized_transfer_record)]() mutable {
-            this->post_message_task_steps(serialized_transfer_record);
-        }));
-    });
-
-    if (schedule_shutdown == IPC::Transport::ShouldShutdown::Yes) {
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
-            this->close();
-        }));
-    }
+    if (m_enabled)
+        dispatch_pending_messages();
 }
 
 void MessagePort::post_message_task_steps(SerializedTransferRecord& serialize_with_transfer_result)
 {
-    VERIFY(m_enabled);
-
     // 1. Let finalTargetPort be the MessagePort in whose port message queue the task now finds itself.
     // NOTE: This can be different from targetPort, if targetPort itself was transferred and thus all its tasks moved along with it.
     auto* final_target_port = this;
@@ -366,18 +438,17 @@ void MessagePort::enable()
 {
     if (!m_enabled) {
         m_enabled = true;
-        read_from_transport();
+        if (m_transport) {
+            read_from_transport();
+        } else {
+            dispatch_pending_messages();
+        }
     }
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-start
 void MessagePort::start()
 {
-    if (!is_entangled())
-        return;
-
-    VERIFY(m_transport);
-
     // The start() method steps are to enable this's port message queue, if it is not already enabled.
     enable();
 }
@@ -391,6 +462,10 @@ void MessagePort::close()
     // 2. If this MessagePort object is entangled, disentangle it.
     if (is_entangled())
         disentangle();
+
+    m_pending_incoming_messages.clear();
+    m_pending_outgoing_messages.clear();
+    m_should_shutdown_on_enable = false;
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#handler-messageeventtarget-onmessageerror

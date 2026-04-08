@@ -92,6 +92,9 @@ private:
     Core::MachPort m_wakeup_send_port;
 
     Atomic<bool> m_is_open { true };
+    // True while release_for_transfer() is moving this transport's rights to a new owner. In that state,
+    // shutdown from the old endpoint is part of the handoff and must not be reported as peer EOF.
+    Atomic<bool> m_is_being_transferred { false };
 
     RefPtr<Threading::Thread> m_io_thread;
     Atomic<IOThreadState> m_io_thread_state { IOThreadState::Running };
