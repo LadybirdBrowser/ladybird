@@ -6,7 +6,10 @@ add_executable(ladybird main.cpp)
 
 target_sources(ladybird PRIVATE
     Application.cpp
+    Events.cpp
     EventLoopImplementationGtk.cpp
+    WebContentView.cpp
+    Widgets/LadybirdWebView.cpp
 )
 target_link_libraries(ladybird PRIVATE PkgConfig::GTK4 PkgConfig::LIBADWAITA)
 create_ladybird_bundle(ladybird)
