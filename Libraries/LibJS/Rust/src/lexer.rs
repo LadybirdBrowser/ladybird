@@ -153,11 +153,15 @@ fn decode_code_point(source: &[u16], pos: usize) -> (u32, usize) {
 
 // https://tc39.es/ecma262/#sec-line-terminators
 // LineTerminator :: <LF> | <CR> | <LS> | <PS>
+const LINE_TERMINATORS: [u32; 4] = [
+    b'\n' as u32,
+    b'\r' as u32,
+    LINE_SEPARATOR as u32,
+    PARAGRAPH_SEPARATOR as u32,
+];
+
 fn is_line_terminator_cp(cp: u32) -> bool {
-    cp == '\n' as u32
-        || cp == '\r' as u32
-        || cp == LINE_SEPARATOR as u32
-        || cp == PARAGRAPH_SEPARATOR as u32
+    LINE_TERMINATORS.contains(&cp)
 }
 
 // https://tc39.es/ecma262/#sec-white-space
