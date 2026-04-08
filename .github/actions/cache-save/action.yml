@@ -3,9 +3,6 @@ description: 'Saves caches of build artifacts.'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 
 inputs:
-  runner_labels:
-    description: 'Runner selection labels'
-    required: true
   arch:
     description: 'Target Architecture to restore caches for'
     required: false
