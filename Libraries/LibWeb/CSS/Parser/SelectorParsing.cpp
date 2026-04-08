@@ -905,6 +905,15 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 });
                 return ParseError::SyntaxError;
             }
+            function_token_stream.discard_whitespace();
+            if (function_token_stream.has_next_token()) {
+                ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                    .name = MUST(String::formatted("::{}", pseudo_function.name)),
+                    .value_string = pseudo_class_token.to_string(),
+                    .description = "Trailing tokens after compound selector argument."_string,
+                });
+                return ParseError::SyntaxError;
+            }
 
             auto compound_selector = compound_selector_or_error.release_value().release_value();
             compound_selector.combinator = Selector::Combinator::None;
