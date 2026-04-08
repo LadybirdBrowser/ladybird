@@ -585,7 +585,7 @@ private:
     RefPtr<CalculationNode const> parse_a_calculation(TokenStream<ComponentValue>&, CalculationContext const&);
 
     ParseErrorOr<NonnullRefPtr<Selector>> parse_complex_selector(TokenStream<ComponentValue>&, SelectorType);
-    ParseErrorOr<Optional<Selector::CompoundSelector>> parse_compound_selector(TokenStream<ComponentValue>&);
+    ParseErrorOr<Selector::CompoundSelector> parse_compound_selector(TokenStream<ComponentValue>&);
     Optional<Selector::Combinator> parse_selector_combinator(TokenStream<ComponentValue>&);
     enum class AllowWildcardName {
         No,

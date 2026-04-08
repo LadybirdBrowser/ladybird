@@ -145,7 +145,7 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
     }
 
     auto first_selector = TRY(parse_compound_selector(tokens));
-    if (!first_selector.has_value() || first_selector->simple_selectors.is_empty()) {
+    if (first_selector.simple_selectors.is_empty()) {
         ErrorReporter::the().report(InvalidSelectorError {
             .value_string = tokens.dump_string(),
             .description = "Failed to parse first compound-selector."_string,
@@ -153,26 +153,15 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
         return ParseError::SyntaxError;
     }
 
-    first_selector->combinator = first_combinator.value_or(Selector::Combinator::None);
-    compound_selectors.append(first_selector.release_value());
+    first_selector.combinator = first_combinator.value_or(Selector::Combinator::None);
+    compound_selectors.append(move(first_selector));
 
     while (tokens.has_next_token()) {
         auto combinator = parse_selector_combinator(tokens);
         if (!combinator.has_value())
             break;
         auto compound_selector = TRY(parse_compound_selector(tokens));
-        if (!compound_selector.has_value()) {
-            if (combinator != Selector::Combinator::Descendant) {
-                ErrorReporter::the().report(InvalidSelectorError {
-                    .value_string = tokens.dump_string(),
-                    .description = "Missing compound-selector after a combinator."_string,
-                });
-                return ParseError::SyntaxError;
-            }
-            break;
-        }
-
-        if (compound_selector->simple_selectors.is_empty()) {
+        if (compound_selector.simple_selectors.is_empty()) {
             if (tokens.has_next_token() || combinator != Selector::Combinator::Descendant) {
                 ErrorReporter::the().report(InvalidSelectorError {
                     .value_string = tokens.dump_string(),
@@ -183,8 +172,8 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
             break;
         }
 
-        compound_selector->combinator = combinator.release_value();
-        compound_selectors.append(compound_selector.release_value());
+        compound_selector.combinator = combinator.release_value();
+        compound_selectors.append(move(compound_selector));
     }
 
     if (compound_selectors.is_empty()) {
@@ -251,7 +240,7 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
     return parsed_selector;
 }
 
-Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compound_selector(TokenStream<ComponentValue>& tokens)
+Parser::ParseErrorOr<Selector::CompoundSelector> Parser::parse_compound_selector(TokenStream<ComponentValue>& tokens)
 {
     Vector<Selector::SimpleSelector> simple_selectors;
 
@@ -617,7 +606,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                     break;
                 case PseudoElementMetadata::ParameterType::CompoundSelector: {
                     auto compound_selector_or_error = parse_compound_selector(function_tokens);
-                    if (compound_selector_or_error.is_error() || !compound_selector_or_error.value().has_value()) {
+                    if (compound_selector_or_error.is_error()) {
                         ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                             .name = MUST(String::formatted("::{}", pseudo_name)),
                             .value_string = name_token.to_string(),
@@ -635,11 +624,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                         return ParseError::SyntaxError;
                     }
 
-                    auto compound_selector = compound_selector_or_error.release_value().release_value();
+                    auto compound_selector = compound_selector_or_error.release_value();
                     compound_selector.combinator = Selector::Combinator::None;
-
-                    Vector compound_selectors { move(compound_selector) };
-                    value = Selector::create(move(compound_selectors));
+                    value = Selector::create(Vector { move(compound_selector) });
                     break;
                 }
                 case PseudoElementMetadata::ParameterType::IdentList: {
@@ -897,7 +884,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         case PseudoClassMetadata::ParameterType::CompoundSelector: {
             auto function_token_stream = TokenStream(pseudo_function.value);
             auto compound_selector_or_error = parse_compound_selector(function_token_stream);
-            if (compound_selector_or_error.is_error() || !compound_selector_or_error.value().has_value()) {
+            if (compound_selector_or_error.is_error()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted(":{}", pseudo_function.name)),
                     .value_string = pseudo_class_token.to_string(),
@@ -915,11 +902,10 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 return ParseError::SyntaxError;
             }
 
-            auto compound_selector = compound_selector_or_error.release_value().release_value();
+            auto compound_selector = compound_selector_or_error.release_value();
             compound_selector.combinator = Selector::Combinator::None;
 
-            Vector compound_selectors { move(compound_selector) };
-            auto selector = Selector::create(move(compound_selectors));
+            auto selector = Selector::create(Vector { move(compound_selector) });
 
             return Selector::SimpleSelector {
                 .type = Selector::SimpleSelector::Type::PseudoClass,
