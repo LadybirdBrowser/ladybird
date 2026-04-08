@@ -6,27 +6,21 @@ inputs:
   os:
     description: 'Operating System to restore caches for'
     required: true
-    default: 'Linux'
   arch:
     description: 'Target Architecture to restore caches for'
-    required: false
-    default: 'x86_64'
+    required: true
   toolchain:
     description: 'Toolchain to restore caches for (GNU or Clang)'
-    required: false
-    default: 'GNU'
+    required: true
   cache_key_extra:
     description: 'Code coverage setting, ON or OFF, or debug setting, ALL or NORMAL'
-    required: false
-    default: 'OFF'
+    required: true
   ccache_path:
     description: 'Path to the ccache directory'
-    required: false
-    default: ''
+    required: true
   vcpkg_cache_path:
     description: 'Path to vcpkg binary cache'
-    required: false
-    default: ''
+    required: true
 
 outputs:
   ccache_primary_key:

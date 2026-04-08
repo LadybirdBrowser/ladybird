@@ -5,24 +5,19 @@ author: 'Andrew Kaster <akaster@serenityos.org>'
 inputs:
   arch:
     description: 'Target Architecture to restore caches for'
-    required: false
-    default: 'x86_64'
+    required: true
   ccache_path:
     description: 'Path to the ccache directory'
-    required: false
-    default: ''
+    required: true
   ccache_primary_key:
     description: 'Primary ccache key'
-    required: false
-    default: ''
+    required: true
   vcpkg_cache_path:
     description: 'Path to the vcpkg binary cache directory'
-    required: false
-    default: ''
+    required: true
   vcpkg_cache_primary_key:
     description: 'Primary vcpkg binary cache key'
-    required: false
-    default: ''
+    required: true
 
 runs:
   using: 'composite'
