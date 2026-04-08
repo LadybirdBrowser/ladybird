@@ -14,7 +14,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(ModuleNamespaceObject);
 
 ModuleNamespaceObject::ModuleNamespaceObject(Realm& realm, Module* module, Vector<Utf16FlyString> exports)
-    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype(), MayInterfereWithIndexedPropertyAccess::Yes)
+    : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().object_prototype(), MayInterfereWithIndexedPropertyAccess::Yes, MayCacheGetByIdMissingProperty::No)
     , m_module(module)
     , m_exports(move(exports))
 {

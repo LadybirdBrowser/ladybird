@@ -1366,7 +1366,7 @@ handler PutByValue
     branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
     # Packed is the hot path: existing elements can be overwritten directly.
     load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
+    branch_ne t0, OBJECT_INDEXED_STORAGE_KIND_PACKED, .not_packed
     # Check index vs array_like_size
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
@@ -1375,7 +1375,7 @@ handler PutByValue
     store64 [t5, t4, 8], t1
     dispatch_next
 .not_packed:
-    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    branch_ne t0, OBJECT_INDEXED_STORAGE_KIND_HOLEY, .slow
     # Holey arrays need a slot load to distinguish existing elements from holes.
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
@@ -1492,8 +1492,12 @@ handler GetById
     # Check entry[0].shape matches Object's shape (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_cache
-    # Check entry[0].prototype (null = own property, non-null = prototype chain)
+    # Load entry[0].prototype. For missing-property cache entries this stores
+    # whether the original lookup had a prototype chain to validate.
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    # Distinguish own-property hits from negative-cache hits.
+    load8 t1, [t5, PROPERTY_LOOKUP_CACHE_TYPE0]
+    branch_eq t1, PROPERTY_LOOKUP_CACHE_TYPE_GET_MISSING_PROPERTY, .missing
     branch_nonzero t0, .proto
     # Check dictionary generation matches
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1526,6 +1530,24 @@ handler GetById
     # Check value is not an accessor
     extract_tag t2, t0
     branch_eq t2, ACCESSOR_TAG, .try_cache
+    store_operand m_dst, t0
+    dispatch_next
+.missing:
+    load8 t1, [t3, OBJECT_FLAGS]
+    branch_bits_clear t1, OBJECT_FLAG_MAY_CACHE_GET_BY_ID_MISSING_PROPERTY, .try_cache
+    # Entry[0] caches a missing property. The receiver shape already matched
+    # before branching here. If the original lookup had a prototype chain,
+    # we need a live validity token before returning undefined.
+    branch_zero t0, .missing_check_dict
+    load64 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY]
+    branch_zero t1, .try_cache
+    load8 t2, [t1, PROTOTYPE_CHAIN_VALIDITY_VALID]
+    branch_zero t2, .try_cache
+.missing_check_dict:
+    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
+    branch_ne t0, t2, .try_cache
+    mov t0, UNDEFINED_SHIFTED
     store_operand m_dst, t0
     dispatch_next
 .try_cache:
@@ -1606,7 +1628,7 @@ handler GetByValue
     branch_bits_set t0, OBJECT_FLAG_MAY_INTERFERE, .slow
     # Packed is the hot path: in-bounds elements are always present.
     load8 t0, [t3, OBJECT_INDEXED_STORAGE_KIND]
-    branch_ne t0, INDEXED_STORAGE_KIND_PACKED, .not_packed
+    branch_ne t0, OBJECT_INDEXED_STORAGE_KIND_PACKED, .not_packed
     # Check index < array_like_size
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
@@ -1617,7 +1639,7 @@ handler GetByValue
     store_operand m_dst, t0
     dispatch_next
 .not_packed:
-    branch_ne t0, INDEXED_STORAGE_KIND_HOLEY, .slow
+    branch_ne t0, OBJECT_INDEXED_STORAGE_KIND_HOLEY, .slow
     # Holey arrays need a slot load to distinguish present elements from holes.
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
@@ -1742,8 +1764,12 @@ handler GetLength
     # Check entry[0].shape matches (direct pointer compare)
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .slow
-    # Check entry[0].prototype is null (own-property only)
+    # Load entry[0].prototype. For missing-property cache entries this stores
+    # whether the original lookup had a prototype chain to validate.
     load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    # Distinguish own-property hits from negative-cache hits.
+    load8 t1, [t5, PROPERTY_LOOKUP_CACHE_TYPE0]
+    branch_eq t1, PROPERTY_LOOKUP_CACHE_TYPE_GET_MISSING_PROPERTY, .missing
     branch_nonzero t0, .slow
     # Check dictionary generation
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1755,6 +1781,24 @@ handler GetLength
     load64 t0, [t5, t0, 8]
     extract_tag t2, t0
     branch_eq t2, ACCESSOR_TAG, .slow
+    store_operand m_dst, t0
+    dispatch_next
+.missing:
+    load8 t1, [t3, OBJECT_FLAGS]
+    branch_bits_clear t1, OBJECT_FLAG_MAY_CACHE_GET_BY_ID_MISSING_PROPERTY, .slow
+    # Entry[0] caches a missing property. The receiver shape already matched
+    # above. If the original lookup had a prototype chain, we need a live
+    # validity token before returning undefined.
+    branch_zero t0, .missing_check_dict
+    load64 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY]
+    branch_zero t1, .slow
+    load8 t2, [t1, PROTOTYPE_CHAIN_VALIDITY_VALID]
+    branch_zero t2, .slow
+.missing_check_dict:
+    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
+    branch_ne t0, t2, .slow
+    mov t0, UNDEFINED_SHIFTED
     store_operand m_dst, t0
     dispatch_next
 .magical_length:

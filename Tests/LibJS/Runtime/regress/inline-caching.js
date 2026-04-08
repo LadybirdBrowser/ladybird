@@ -91,3 +91,101 @@ test("Modifying prototype in dictionary mode should cause prototype-chain validi
     });
     f(obj, 123);
 });
+
+test("Repeated missing property access stays undefined after caching", () => {
+    function getMissing(obj) {
+        return obj.hm;
+    }
+
+    // This guards against treating a missing-property cache entry like an own-property hit.
+    const obj = { x: 1 };
+
+    expect(getMissing(obj)).toBeUndefined();
+    expect(getMissing(obj)).toBeUndefined();
+});
+
+test("Adding property on direct prototype invalidates missing-property cache", () => {
+    function getMissing(obj) {
+        return obj.hm;
+    }
+
+    const proto = {};
+    const obj = Object.create(proto);
+
+    expect(getMissing(obj)).toBeUndefined();
+
+    proto.hm = 123;
+
+    expect(getMissing(obj)).toBe(123);
+    expect(getMissing(obj)).toBe(123);
+});
+
+test("Adding property on direct prototype invalidates missing-property cache after GC", () => {
+    function getMissing(obj) {
+        return obj.hm;
+    }
+
+    const proto = {};
+    const obj = Object.create(proto);
+
+    expect(getMissing(obj)).toBeUndefined();
+
+    proto.hm = 123;
+    gc();
+
+    expect(getMissing(obj)).toBe(123);
+    expect(getMissing(obj)).toBe(123);
+});
+
+test("Adding property on dictionary-mode prototype invalidates missing-property cache", () => {
+    function getMissing(obj) {
+        return obj.hm;
+    }
+
+    const proto = {};
+    for (let i = 0; i < 1000; i++) {
+        proto["i" + i] = i;
+    }
+
+    const obj = Object.create(proto);
+
+    expect(getMissing(obj)).toBeUndefined();
+
+    proto.hm = 123;
+
+    expect(getMissing(obj)).toBe(123);
+    expect(getMissing(obj)).toBe(123);
+});
+
+test("Repeated missing .length access stays undefined after caching", () => {
+    function getLength(obj) {
+        return obj.length;
+    }
+
+    // The broken asm fast path would incorrectly read the first named slot here.
+    const obj = { x: 1 };
+
+    expect(getLength(obj)).toBeUndefined();
+    expect(getLength(obj)).toBeUndefined();
+});
+
+test("Missing property cache does not bypass Proxy get trap", () => {
+    function getMissing(obj) {
+        return obj.hm;
+    }
+
+    const proxy = new Proxy(
+        {},
+        {
+            get(target, property, receiver) {
+                if (property === "hm") return 123;
+                return Reflect.get(target, property, receiver);
+            },
+        }
+    );
+
+    expect(getMissing({})).toBeUndefined();
+    expect(getMissing({})).toBeUndefined();
+    expect(getMissing(proxy)).toBe(123);
+    expect(getMissing(proxy)).toBe(123);
+});

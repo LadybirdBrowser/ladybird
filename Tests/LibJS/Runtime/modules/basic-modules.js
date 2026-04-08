@@ -185,6 +185,19 @@ describe("in- and exports", () => {
         expectModulePassed("./namespace-order.mjs");
     });
 
+    test("missing property inline cache does not cross module namespace objects", () => {
+        const first = expectModulePassed("./namespace-missing-property-a.mjs");
+        const second = expectModulePassed("./namespace-missing-property-b.mjs");
+
+        function get_value(namespace) {
+            return namespace.value;
+        }
+
+        expect(get_value(first)).toBeUndefined();
+        expect(get_value(first)).toBeUndefined();
+        expect(get_value(second)).toBe(1);
+    });
+
     test("can have multiple star imports even from the same file", () => {
         expectModulePassed("./multiple-star-imports.mjs");
     });

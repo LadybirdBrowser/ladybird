@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<div id="first"></div>
+<div id="second" data-expected="value"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function get_expected(element) {
+            return element.dataset.expected;
+        }
+
+        let first = document.getElementById("first");
+        let second = document.getElementById("second");
+
+        println(get_expected(first));
+        println(get_expected(first));
+        println(get_expected(second));
+    });
+</script>

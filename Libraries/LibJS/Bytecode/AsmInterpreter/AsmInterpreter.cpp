@@ -920,23 +920,13 @@ i64 asm_try_get_by_id_cache(Interpreter* interp, u32 pc)
     auto& shape = object.shape();
     auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
 
-    for (auto& entry : cache.entries) {
-        auto cached_prototype = entry.prototype.ptr();
-        if (cached_prototype) {
-            if (&shape != entry.shape) [[unlikely]]
+    for (size_t i = 0; i < cache.entries.size(); ++i) {
+        auto& entry = cache.entries[i];
+        auto type = cache.types[i];
+        if (type == PropertyLookupCache::Entry::Type::GetOwnProperty) {
+            auto cached_shape = entry.shape.ptr();
+            if (&shape != cached_shape) [[unlikely]]
                 continue;
-            if (shape.is_dictionary()
-                && shape.dictionary_generation() != entry.shape_dictionary_generation)
-                continue;
-            auto pcv = entry.prototype_chain_validity.ptr();
-            if (!pcv || !pcv->is_valid()) [[unlikely]]
-                continue;
-            auto value = cached_prototype->get_direct(entry.property_offset);
-            if (value.is_accessor()) [[unlikely]]
-                return 1;
-            interp->set(insn.dst(), value);
-            return 0;
-        } else if (&shape == entry.shape) {
             if (shape.is_dictionary()
                 && shape.dictionary_generation() != entry.shape_dictionary_generation)
                 continue;
@@ -944,6 +934,47 @@ i64 asm_try_get_by_id_cache(Interpreter* interp, u32 pc)
             if (value.is_accessor()) [[unlikely]]
                 return 1;
             interp->set(insn.dst(), value);
+            return 0;
+        }
+
+        if (type == PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
+            auto cached_shape = entry.shape.ptr();
+            if (&shape != cached_shape) [[unlikely]]
+                continue;
+            if (shape.is_dictionary()
+                && shape.dictionary_generation() != entry.shape_dictionary_generation)
+                continue;
+            auto pcv = entry.prototype_chain_validity.ptr();
+            if (!pcv || !pcv->is_valid()) [[unlikely]]
+                continue;
+            auto cached_prototype = entry.prototype.ptr();
+            if (!cached_prototype) [[unlikely]]
+                continue;
+            auto value = cached_prototype->get_direct(entry.property_offset);
+            if (value.is_accessor()) [[unlikely]]
+                return 1;
+            interp->set(insn.dst(), value);
+            return 0;
+        }
+
+        if (type == PropertyLookupCache::Entry::Type::GetMissingProperty) {
+            if (!object.may_cache_get_by_id_missing_property())
+                continue;
+            auto cached_shape = entry.shape.ptr();
+            if (&shape != cached_shape) [[unlikely]]
+                continue;
+            if (shape.is_dictionary()
+                && shape.dictionary_generation() != entry.shape_dictionary_generation)
+                continue;
+            auto cached_prototype = entry.prototype.ptr();
+            auto pcv = entry.prototype_chain_validity.ptr();
+            if (cached_prototype) {
+                if (!pcv || !pcv->is_valid()) [[unlikely]]
+                    continue;
+            } else if (pcv && !pcv->is_valid()) [[unlikely]] {
+                continue;
+            }
+            interp->set(insn.dst(), js_undefined());
             return 0;
         }
     }

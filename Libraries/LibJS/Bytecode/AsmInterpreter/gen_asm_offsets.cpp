@@ -44,13 +44,16 @@ int main()
     EMIT_OFFSET(OBJECT_INDEXED_ARRAY_LIKE_SIZE, Object, m_indexed_array_like_size);
     EMIT_SIZEOF(OBJECT_SIZE, Object);
 
-    // Object flags byte
+    // Object flags
     outln("\n# Object flags");
     EMIT_OFFSET(OBJECT_FLAGS, Object, m_flags);
     outln("const OBJECT_FLAG_HAS_MAGICAL_LENGTH = {}", Object::Flag::HasMagicalLengthProperty);
     outln("const OBJECT_FLAG_MAY_INTERFERE = {}", Object::Flag::MayInterfereWithIndexedPropertyAccess);
     outln("const OBJECT_FLAG_IS_TYPED_ARRAY = {}", Object::Flag::IsTypedArray);
     outln("const OBJECT_FLAG_IS_FUNCTION = {}", Object::Flag::IsFunction);
+    outln("const OBJECT_FLAG_MAY_CACHE_GET_BY_ID_MISSING_PROPERTY = {}", Object::Flag::MayCacheGetByIdMissingProperty);
+    outln("const OBJECT_INDEXED_STORAGE_KIND_PACKED = {}", static_cast<u8>(IndexedStorageKind::Packed));
+    outln("const OBJECT_INDEXED_STORAGE_KIND_HOLEY = {}", static_cast<u8>(IndexedStorageKind::Holey));
 
     // Shape layout
     outln("\n# Shape layout");
@@ -60,8 +63,10 @@ int main()
 
     // PropertyLookupCache layout
     outln("\n# PropertyLookupCache layout");
+    EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_TYPES, PropertyLookupCache, types);
     EMIT_OFFSET(PROPERTY_LOOKUP_CACHE_ENTRIES, PropertyLookupCache, entries);
     EMIT_SIZEOF(PROPERTY_LOOKUP_CACHE_SIZE, PropertyLookupCache);
+    outln("const PROPERTY_LOOKUP_CACHE_TYPE_GET_MISSING_PROPERTY = {}", to_underlying(PropertyLookupCache::Entry::Type::GetMissingProperty));
 
     // PropertyLookupCache::Entry layout
     outln("\n# PropertyLookupCache::Entry layout");
@@ -75,7 +80,9 @@ int main()
 
     // Composite offsets for entry[0] within a PropertyLookupCache
     outln("\n# Entry[0] offsets within PropertyLookupCache");
+    auto plc_types = offsetof(PropertyLookupCache, types);
     auto plc_entries = offsetof(PropertyLookupCache, entries);
+    outln("const PROPERTY_LOOKUP_CACHE_TYPE0 = {}", plc_types + 0 * sizeof(PropertyLookupCache::Entry::Type));
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET = {}", plc_entries + offsetof(PropertyLookupCache::Entry, property_offset));
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION = {}", plc_entries + offsetof(PropertyLookupCache::Entry, shape_dictionary_generation));
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE = {}", plc_entries + offsetof(PropertyLookupCache::Entry, shape));

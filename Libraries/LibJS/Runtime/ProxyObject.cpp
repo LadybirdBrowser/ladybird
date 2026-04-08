@@ -46,6 +46,8 @@ ProxyObject::ProxyObject(Object& target, Object& handler, Object& prototype)
     , m_target(target)
     , m_handler(handler)
 {
+    clear_may_cache_get_by_id_missing_property();
+
     // A Proxy is callable iff its target is callable.
     if (!target.is_function())
         clear_is_function();

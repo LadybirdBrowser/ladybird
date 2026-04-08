@@ -47,10 +47,11 @@ struct PrivateElement {
 // Non-standard: This is information optionally returned by object property access functions.
 //               It can be used to implement inline caches for property lookup.
 struct CacheableGetPropertyMetadata {
-    enum class Type {
+    enum class Type : u8 {
         NotCacheable,
         GetOwnProperty,
         GetPropertyInPrototypeChain,
+        GetMissingProperty,
     };
     Type type { Type::NotCacheable };
     Optional<u32> property_offset;
@@ -105,6 +106,11 @@ public:
     };
 
     enum class MayInterfereWithIndexedPropertyAccess {
+        No,
+        Yes,
+    };
+
+    enum class MayCacheGetByIdMissingProperty {
         No,
         Yes,
     };
@@ -190,6 +196,10 @@ public:
 
     [[nodiscard]] bool may_interfere_with_indexed_property_access() const { return m_flags & Flag::MayInterfereWithIndexedPropertyAccess; }
     void set_may_interfere_with_indexed_property_access() { m_flags |= Flag::MayInterfereWithIndexedPropertyAccess; }
+
+    [[nodiscard]] bool may_cache_get_by_id_missing_property() const { return m_flags & Flag::MayCacheGetByIdMissingProperty; }
+    void set_may_cache_get_by_id_missing_property() { m_flags |= Flag::MayCacheGetByIdMissingProperty; }
+    void clear_may_cache_get_by_id_missing_property() { m_flags &= ~Flag::MayCacheGetByIdMissingProperty; }
 
     ThrowCompletionOr<bool> ordinary_set_with_own_descriptor(PropertyKey const&, Value, Value, Optional<PropertyDescriptor>, CacheableSetPropertyMetadata* = nullptr, PropertyLookupPhase = PropertyLookupPhase::OwnProperty);
 
@@ -310,7 +320,7 @@ public:
     template<typename Callback>
     void indexed_for_each_value(Callback callback)
     {
-        switch (m_indexed_storage_kind) {
+        switch (indexed_storage_kind()) {
         case IndexedStorageKind::None:
             break;
         case IndexedStorageKind::Packed:
@@ -360,16 +370,16 @@ protected:
     enum class ConstructWithoutPrototypeTag { Tag };
     enum class ConstructWithPrototypeTag { Tag };
 
-    Object(GlobalObjectTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-    Object(ConstructWithoutPrototypeTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-    Object(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-    Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
-    explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No);
+    Object(GlobalObjectTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No, MayCacheGetByIdMissingProperty = MayCacheGetByIdMissingProperty::Yes);
+    Object(ConstructWithoutPrototypeTag, Realm&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No, MayCacheGetByIdMissingProperty = MayCacheGetByIdMissingProperty::Yes);
+    Object(Realm&, Object* prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No, MayCacheGetByIdMissingProperty = MayCacheGetByIdMissingProperty::Yes);
+    Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No, MayCacheGetByIdMissingProperty = MayCacheGetByIdMissingProperty::Yes);
+    explicit Object(Shape&, MayInterfereWithIndexedPropertyAccess = MayInterfereWithIndexedPropertyAccess::No, MayCacheGetByIdMissingProperty = MayCacheGetByIdMissingProperty::Yes);
 
 private:
     struct Flag {
         static constexpr u8 IsExtensible = 1 << 0;
-        static constexpr u8 HasParameterMap = 1 << 1;
+        static constexpr u8 MayCacheGetByIdMissingProperty = 1 << 1;
         static constexpr u8 HasMagicalLengthProperty = 1 << 2;
         static constexpr u8 IsTypedArray = 1 << 3;
         static constexpr u8 MayInterfereWithIndexedPropertyAccess = 1 << 4;
@@ -378,7 +388,12 @@ private:
         static constexpr u8 IsFunction = 1 << 7;
     };
 
-    u8 m_flags { Flag::IsExtensible };
+    void set_indexed_storage_kind(IndexedStorageKind indexed_storage_kind)
+    {
+        m_indexed_storage_kind = indexed_storage_kind;
+    }
+
+    u8 m_flags { Flag::IsExtensible | Flag::MayCacheGetByIdMissingProperty };
     IndexedStorageKind m_indexed_storage_kind { IndexedStorageKind::None };
     // 2 bytes padding
     u32 m_indexed_array_like_size { 0 };

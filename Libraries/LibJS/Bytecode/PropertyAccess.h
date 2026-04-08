@@ -89,9 +89,34 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
 
     auto& shape = base_obj->shape();
 
-    for (auto& cache_entry : cache.entries) {
-        auto cached_prototype = cache_entry.prototype.ptr();
-        if (cached_prototype) {
+    for (size_t i = 0; i < cache.entries.size(); ++i) {
+        auto type = cache.types[i];
+        auto& cache_entry = cache.entries[i];
+        if (type == PropertyLookupCache::Entry::Type::GetOwnProperty) {
+            if (&shape != cache_entry.shape)
+                continue;
+
+            // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
+            bool can_use_cache = true;
+            if (shape.is_dictionary()) {
+                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]]
+                    can_use_cache = false;
+            }
+
+            if (can_use_cache) [[likely]] {
+                auto value = base_obj->get_direct(cache_entry.property_offset);
+                if (value.is_accessor())
+                    return TRY(call(vm, value.as_accessor().getter(), this_value));
+                return value;
+            }
+            continue;
+        }
+
+        if (type == PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain) {
+            auto cached_prototype = cache_entry.prototype.ptr();
+            if (!cached_prototype)
+                continue;
+
             // OPTIMIZATION: If the prototype chain hasn't been mutated in a way that would invalidate the cache, we can use it.
             bool can_use_cache = [&]() -> bool {
                 if (&shape != cache_entry.shape) [[unlikely]]
@@ -110,28 +135,39 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
                     return false;
                 return true;
             }();
+
             if (can_use_cache) [[likely]] {
                 auto value = cached_prototype->get_direct(cache_entry.property_offset);
                 if (value.is_accessor())
                     return TRY(call(vm, value.as_accessor().getter(), this_value));
                 return value;
             }
-        } else if (&shape == cache_entry.shape) {
-            // OPTIMIZATION: If the shape of the object hasn't changed, we can use the cached property offset.
-            bool can_use_cache = true;
-            if (shape.is_dictionary()) {
-                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]] {
-                    can_use_cache = false;
-                }
-            }
+            continue;
+        }
 
-            if (can_use_cache) [[likely]] {
-                auto value = base_obj->get_direct(cache_entry.property_offset);
-                if (value.is_accessor()) {
-                    return TRY(call(vm, value.as_accessor().getter(), this_value));
-                }
-                return value;
+        if (type == PropertyLookupCache::Entry::Type::GetMissingProperty) {
+            if (!base_obj->may_cache_get_by_id_missing_property())
+                continue;
+            if (&shape != cache_entry.shape)
+                continue;
+            if (shape.is_dictionary()) {
+                if (shape.dictionary_generation() != cache_entry.shape_dictionary_generation) [[unlikely]]
+                    continue;
             }
+            auto cached_prototype = cache_entry.prototype.ptr();
+            auto cached_prototype_chain_validity = cache_entry.prototype_chain_validity.ptr();
+            if (cached_prototype) {
+                // Misses cached on objects with a prototype chain must keep their
+                // invalidation token alive; a cleared weak pointer means we need
+                // to re-check through the slow path.
+                if (!cached_prototype_chain_validity) [[unlikely]]
+                    continue;
+                if (!cached_prototype_chain_validity->is_valid()) [[unlikely]]
+                    continue;
+            } else if (cached_prototype_chain_validity && !cached_prototype_chain_validity->is_valid()) [[unlikely]] {
+                continue;
+            }
+            return js_undefined();
         }
     }
     GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
@@ -145,30 +181,34 @@ ALWAYS_INLINE ThrowCompletionOr<Value> get_by_id(VM& vm, GetBaseIdentifier get_b
     // that collected metadata is valid, e.g. if getter in prototype chain added
     // property with the same name into the object itself.
     if (&shape == &base_obj->shape()) {
-        auto get_cache_slot = [&] -> PropertyLookupCache::Entry& {
-            for (size_t i = cache.entries.size() - 1; i >= 1; --i) {
-                cache.entries[i] = cache.entries[i - 1];
-            }
-            cache.entries[0] = {};
-            return cache.entries[0];
-        };
         if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetOwnProperty) {
-            auto& entry = get_cache_slot();
-            entry.shape = shape;
-            entry.property_offset = cacheable_metadata.property_offset.value();
+            cache.update(PropertyLookupCache::Entry::Type::GetOwnProperty, [&](auto& entry) {
+                entry.shape = shape;
+                entry.property_offset = cacheable_metadata.property_offset.value();
 
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
-            }
+                if (shape.is_dictionary())
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+            });
         } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetPropertyInPrototypeChain) {
-            auto& entry = get_cache_slot();
-            entry.shape = &base_obj->shape();
-            entry.property_offset = cacheable_metadata.property_offset.value();
-            entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
-            entry.prototype_chain_validity = prototype_chain_validity;
+            cache.update(PropertyLookupCache::Entry::Type::GetPropertyInPrototypeChain, [&](auto& entry) {
+                entry.shape = &base_obj->shape();
+                entry.property_offset = cacheable_metadata.property_offset.value();
+                entry.prototype = const_cast<Object*>(cacheable_metadata.prototype.ptr());
+                entry.prototype_chain_validity = prototype_chain_validity;
 
-            if (shape.is_dictionary()) {
-                entry.shape_dictionary_generation = shape.dictionary_generation();
+                if (shape.is_dictionary())
+                    entry.shape_dictionary_generation = shape.dictionary_generation();
+            });
+        } else if (cacheable_metadata.type == CacheableGetPropertyMetadata::Type::GetMissingProperty) {
+            if (base_obj->may_cache_get_by_id_missing_property()) {
+                cache.update(PropertyLookupCache::Entry::Type::GetMissingProperty, [&](auto& entry) {
+                    entry.shape = &base_obj->shape();
+                    entry.prototype = shape.prototype();
+                    entry.prototype_chain_validity = prototype_chain_validity;
+
+                    if (shape.is_dictionary())
+                        entry.shape_dictionary_generation = shape.dictionary_generation();
+                });
             }
         }
     }

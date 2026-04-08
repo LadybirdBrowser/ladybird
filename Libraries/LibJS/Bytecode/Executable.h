@@ -32,13 +32,14 @@ namespace JS::Bytecode {
 struct PropertyLookupCache {
     static constexpr size_t max_number_of_shapes_to_remember = 4;
     struct Entry {
-        enum class Type {
+        enum class Type : u8 {
             Empty,
             AddOwnProperty,
             ChangeOwnProperty,
             GetOwnProperty,
             ChangePropertyInPrototypeChain,
             GetPropertyInPrototypeChain,
+            GetMissingProperty,
         };
         u32 property_offset { 0 };
         u32 shape_dictionary_generation { 0 };

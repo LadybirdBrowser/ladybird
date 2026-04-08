@@ -110,45 +110,55 @@ GC::Ref<Object> Object::create_with_premade_shape(Shape& shape)
     return shape.realm().create<Object>(shape);
 }
 
-Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access, MayCacheGetByIdMissingProperty may_cache_get_by_id_missing_property)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
+    if (may_cache_get_by_id_missing_property == MayCacheGetByIdMissingProperty::No)
+        clear_may_cache_get_by_id_missing_property();
     // This is the global object
     m_shape = heap().allocate<Shape>(realm);
 }
 
-Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access, MayCacheGetByIdMissingProperty may_cache_get_by_id_missing_property)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
+    if (may_cache_get_by_id_missing_property == MayCacheGetByIdMissingProperty::No)
+        clear_may_cache_get_by_id_missing_property();
     m_shape = heap().allocate<Shape>(realm);
 }
 
-Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(Realm& realm, Object* prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access, MayCacheGetByIdMissingProperty may_cache_get_by_id_missing_property)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
+    if (may_cache_get_by_id_missing_property == MayCacheGetByIdMissingProperty::No)
+        clear_may_cache_get_by_id_missing_property();
     m_shape = realm.intrinsics().empty_object_shape();
     VERIFY(m_shape);
     if (prototype != nullptr)
         set_prototype(prototype);
 }
 
-Object::Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access, MayCacheGetByIdMissingProperty may_cache_get_by_id_missing_property)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
+    if (may_cache_get_by_id_missing_property == MayCacheGetByIdMissingProperty::No)
+        clear_may_cache_get_by_id_missing_property();
     m_shape = prototype.shape().realm().intrinsics().empty_object_shape();
     VERIFY(m_shape);
     set_prototype(&prototype);
 }
 
-Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access, MayCacheGetByIdMissingProperty may_cache_get_by_id_missing_property)
     : m_shape(&shape)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
+    if (may_cache_get_by_id_missing_property == MayCacheGetByIdMissingProperty::No)
+        clear_may_cache_get_by_id_missing_property();
     if (shape.property_count() > 0)
         ensure_named_storage_capacity(shape.property_count());
 }
@@ -996,8 +1006,16 @@ ThrowCompletionOr<Value> Object::internal_get(PropertyKey const& property_key, V
         auto* parent = TRY(internal_get_prototype_of());
 
         // b. If parent is null, return undefined.
-        if (!parent)
+        if (!parent) {
+            if (cacheable_metadata) {
+                *cacheable_metadata = CacheableGetPropertyMetadata {
+                    .type = CacheableGetPropertyMetadata::Type::GetMissingProperty,
+                    .property_offset = {},
+                    .prototype = nullptr,
+                };
+            }
             return js_undefined();
+        }
 
         // c. Return ? parent.[[Get]](P, Receiver).
         return parent->internal_get(property_key, receiver, cacheable_metadata, PropertyLookupPhase::PrototypeChain);
@@ -1456,7 +1474,7 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
             auto indices = indexed_indices();
             for (auto index : indices) {
                 bool enumerable = true;
-                if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+                if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
                     auto result = indexed_dictionary()->get(index);
                     if (result.has_value())
                         enumerable = result->attributes.is_enumerable();
@@ -1616,7 +1634,7 @@ void Object::visit_edges(Cell::Visitor& visitor)
     if (auto count = shape().property_count())
         visitor.visit(Span<Value> { m_named_properties, count });
 
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         break;
     case IndexedStorageKind::Packed:
@@ -1690,7 +1708,7 @@ static constexpr size_t LENGTH_SETTER_GENERIC_STORAGE_THRESHOLD = 4 * MiB;
 
 GenericIndexedPropertyStorage* Object::indexed_dictionary() const
 {
-    VERIFY(m_indexed_storage_kind == IndexedStorageKind::Dictionary);
+    VERIFY(indexed_storage_kind() == IndexedStorageKind::Dictionary);
     return reinterpret_cast<GenericIndexedPropertyStorage*>(m_indexed_elements);
 }
 
@@ -1698,7 +1716,8 @@ u32 Object::indexed_elements_capacity() const
 {
     if (!m_indexed_elements)
         return 0;
-    VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey);
+    auto storage_kind = indexed_storage_kind();
+    VERIFY(storage_kind == IndexedStorageKind::Packed || storage_kind == IndexedStorageKind::Holey);
     // Capacity is stored as a u32 at (m_indexed_elements - sizeof(u64))
     return *reinterpret_cast<u32 const*>(reinterpret_cast<u8 const*>(m_indexed_elements) - sizeof(u64));
 }
@@ -1727,13 +1746,13 @@ static void deallocate_indexed_elements(Value* elements)
 
 void Object::free_indexed_elements()
 {
-    if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+    if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
         delete indexed_dictionary();
     } else {
         deallocate_indexed_elements(m_indexed_elements);
     }
     m_indexed_elements = nullptr;
-    m_indexed_storage_kind = IndexedStorageKind::None;
+    set_indexed_storage_kind(IndexedStorageKind::None);
     m_indexed_array_like_size = 0;
 }
 
@@ -1767,7 +1786,8 @@ void Object::transition_to_dictionary()
 {
     auto* dict = new GenericIndexedPropertyStorage();
 
-    if (m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey) {
+    auto storage_kind = indexed_storage_kind();
+    if (storage_kind == IndexedStorageKind::Packed || storage_kind == IndexedStorageKind::Holey) {
         // Transfer existing elements
         u32 count = m_indexed_array_like_size;
         for (u32 i = 0; i < count; ++i) {
@@ -1782,12 +1802,12 @@ void Object::transition_to_dictionary()
     dict->set_array_like_size(m_indexed_array_like_size);
 
     m_indexed_elements = reinterpret_cast<Value*>(dict);
-    m_indexed_storage_kind = IndexedStorageKind::Dictionary;
+    set_indexed_storage_kind(IndexedStorageKind::Dictionary);
 }
 
 Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
 {
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         return {};
     case IndexedStorageKind::Packed:
@@ -1810,7 +1830,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
 {
     bool const storing_hole = value.is_special_empty_value();
 
-    if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+    if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
         indexed_dictionary()->put(index, value, attributes);
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
         return;
@@ -1818,7 +1838,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
 
     // Non-default attributes require Dictionary mode
     if (attributes != default_attributes) {
-        if (m_indexed_storage_kind != IndexedStorageKind::Dictionary)
+        if (indexed_storage_kind() != IndexedStorageKind::Dictionary)
             transition_to_dictionary();
         indexed_dictionary()->put(index, value, attributes);
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
@@ -1827,15 +1847,15 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
 
     // Check for sparse threshold
     if (index > m_indexed_array_like_size + SPARSE_ARRAY_HOLE_THRESHOLD) {
-        if (m_indexed_storage_kind != IndexedStorageKind::Dictionary)
+        if (indexed_storage_kind() != IndexedStorageKind::Dictionary)
             transition_to_dictionary();
         indexed_dictionary()->put(index, value, attributes);
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
         return;
     }
 
-    if (m_indexed_storage_kind == IndexedStorageKind::None) {
-        m_indexed_storage_kind = storing_hole || index > 0 ? IndexedStorageKind::Holey : IndexedStorageKind::Packed;
+    if (indexed_storage_kind() == IndexedStorageKind::None) {
+        set_indexed_storage_kind(storing_hole || index > 0 ? IndexedStorageKind::Holey : IndexedStorageKind::Packed);
         u32 needed = index + 1;
         ensure_indexed_elements(needed);
         m_indexed_elements[index] = value;
@@ -1849,23 +1869,23 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
         u32 new_size = index + 1;
         ensure_indexed_elements(new_size);
 
-        if (m_indexed_storage_kind == IndexedStorageKind::Packed
+        if (indexed_storage_kind() == IndexedStorageKind::Packed
             && (index > m_indexed_array_like_size || storing_hole)) {
             // Gap created
-            m_indexed_storage_kind = IndexedStorageKind::Holey;
+            set_indexed_storage_kind(IndexedStorageKind::Holey);
         }
 
         m_indexed_array_like_size = new_size;
     }
 
-    if (m_indexed_storage_kind == IndexedStorageKind::Packed && storing_hole)
-        m_indexed_storage_kind = IndexedStorageKind::Holey;
+    if (indexed_storage_kind() == IndexedStorageKind::Packed && storing_hole)
+        set_indexed_storage_kind(IndexedStorageKind::Holey);
 
     m_indexed_elements[index] = value;
 
     // Promote Holey -> Packed when filling the last hole.
     // Only check when writing to the last index to avoid O(N^2) scanning.
-    if (m_indexed_storage_kind == IndexedStorageKind::Holey && index == m_indexed_array_like_size - 1) {
+    if (indexed_storage_kind() == IndexedStorageKind::Holey && index == m_indexed_array_like_size - 1) {
         bool has_holes = false;
         for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
             if (m_indexed_elements[i].is_special_empty_value()) {
@@ -1874,13 +1894,13 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
             }
         }
         if (!has_holes)
-            m_indexed_storage_kind = IndexedStorageKind::Packed;
+            set_indexed_storage_kind(IndexedStorageKind::Packed);
     }
 }
 
 bool Object::indexed_has(u32 index) const
 {
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         return false;
     case IndexedStorageKind::Packed:
@@ -1895,14 +1915,14 @@ bool Object::indexed_has(u32 index) const
 
 void Object::indexed_delete(u32 index)
 {
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         VERIFY_NOT_REACHED();
         break;
     case IndexedStorageKind::Packed:
         VERIFY(index < m_indexed_array_like_size);
         m_indexed_elements[index] = js_special_empty_value();
-        m_indexed_storage_kind = IndexedStorageKind::Holey;
+        set_indexed_storage_kind(IndexedStorageKind::Holey);
         break;
     case IndexedStorageKind::Holey:
         VERIFY(index < m_indexed_array_like_size);
@@ -1916,10 +1936,10 @@ void Object::indexed_delete(u32 index)
 
 bool Object::set_indexed_array_like_size(size_t new_size)
 {
-    if (new_size == m_indexed_array_like_size && m_indexed_storage_kind != IndexedStorageKind::None)
+    if (new_size == m_indexed_array_like_size && indexed_storage_kind() != IndexedStorageKind::None)
         return true;
 
-    if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+    if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
         bool result = indexed_dictionary()->set_array_like_size(new_size);
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
         return result;
@@ -1937,10 +1957,10 @@ bool Object::set_indexed_array_like_size(size_t new_size)
     u32 old_size = m_indexed_array_like_size;
     auto new_size_u32 = static_cast<u32>(new_size);
 
-    if (m_indexed_storage_kind == IndexedStorageKind::None) {
+    if (indexed_storage_kind() == IndexedStorageKind::None) {
         if (new_size_u32 == 0)
             return true;
-        m_indexed_storage_kind = IndexedStorageKind::Holey;
+        set_indexed_storage_kind(IndexedStorageKind::Holey);
         ensure_indexed_elements(new_size_u32);
         m_indexed_array_like_size = new_size_u32;
         return true;
@@ -1948,8 +1968,8 @@ bool Object::set_indexed_array_like_size(size_t new_size)
 
     if (new_size_u32 > old_size) {
         ensure_indexed_elements(new_size_u32);
-        if (m_indexed_storage_kind == IndexedStorageKind::Packed)
-            m_indexed_storage_kind = IndexedStorageKind::Holey;
+        if (indexed_storage_kind() == IndexedStorageKind::Packed)
+            set_indexed_storage_kind(IndexedStorageKind::Holey);
         m_indexed_array_like_size = new_size_u32;
         return true;
     }
@@ -1972,7 +1992,7 @@ void Object::indexed_append(Value value, PropertyAttributes attributes)
 
 ValueAndAttributes Object::indexed_take_first()
 {
-    if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+    if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
         auto result = indexed_dictionary()->take_first();
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
         return result;
@@ -1994,7 +2014,7 @@ ValueAndAttributes Object::indexed_take_first()
 
 ValueAndAttributes Object::indexed_take_last()
 {
-    if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+    if (indexed_storage_kind() == IndexedStorageKind::Dictionary) {
         auto result = indexed_dictionary()->take_last();
         m_indexed_array_like_size = indexed_dictionary()->array_like_size();
         return result;
@@ -2012,7 +2032,7 @@ ValueAndAttributes Object::indexed_take_last()
 
 size_t Object::indexed_real_size() const
 {
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         return 0;
     case IndexedStorageKind::Packed:
@@ -2033,7 +2053,7 @@ size_t Object::indexed_real_size() const
 
 Vector<u32> Object::indexed_indices() const
 {
-    switch (m_indexed_storage_kind) {
+    switch (indexed_storage_kind()) {
     case IndexedStorageKind::None:
         return {};
     case IndexedStorageKind::Packed: {
@@ -2069,7 +2089,7 @@ void Object::set_indexed_property_elements(Vector<Value>&& values)
         return;
 
     u32 size = values.size();
-    m_indexed_storage_kind = IndexedStorageKind::Packed;
+    set_indexed_storage_kind(IndexedStorageKind::Packed);
     m_indexed_array_like_size = size;
     m_indexed_elements = allocate_indexed_elements(size);
     for (u32 i = 0; i < size; ++i)
@@ -2078,7 +2098,7 @@ void Object::set_indexed_property_elements(Vector<Value>&& values)
 
 ReadonlySpan<Value> Object::indexed_packed_elements_span() const
 {
-    VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed);
+    VERIFY(indexed_storage_kind() == IndexedStorageKind::Packed);
     return { m_indexed_elements, m_indexed_array_like_size };
 }
 
