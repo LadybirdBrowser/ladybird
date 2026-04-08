@@ -121,26 +121,87 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
 {
     Vector<Selector::CompoundSelector> compound_selectors;
 
-    auto first_selector = TRY(parse_compound_selector(tokens));
-    if (!first_selector.has_value())
-        return ParseError::SyntaxError;
+    auto first_combinator = parse_selector_combinator(tokens);
 
-    if (mode == SelectorType::Standalone) {
-        if (first_selector->combinator != Selector::Combinator::Descendant)
+    switch (mode) {
+    case SelectorType::Standalone: {
+        // Standalone selectors can't start with a combinator.
+        // Whitespace, which gets parsed as a descendant combinator, is instead treated as None.
+        if (first_combinator.has_value() && first_combinator != Selector::Combinator::Descendant) {
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = tokens.dump_string(),
+                .description = "Standalone selector starts with a combinator, which is invalid."_string,
+            });
             return ParseError::SyntaxError;
-        first_selector->combinator = Selector::Combinator::None;
+        }
+        first_combinator = Selector::Combinator::None;
+        break;
     }
+    case SelectorType::Relative:
+        // Relative selectors default to starting with a descendant combinator.
+        if (!first_combinator.has_value())
+            first_combinator = Selector::Combinator::Descendant;
+        break;
+    }
+
+    auto first_selector = TRY(parse_compound_selector(tokens));
+    if (!first_selector.has_value() || first_selector->simple_selectors.is_empty()) {
+        ErrorReporter::the().report(InvalidSelectorError {
+            .value_string = tokens.dump_string(),
+            .description = "Failed to parse first compound-selector."_string,
+        });
+        return ParseError::SyntaxError;
+    }
+
+    first_selector->combinator = first_combinator.value_or(Selector::Combinator::None);
     compound_selectors.append(first_selector.release_value());
 
     while (tokens.has_next_token()) {
-        auto compound_selector = TRY(parse_compound_selector(tokens));
-        if (!compound_selector.has_value())
+        auto combinator = parse_selector_combinator(tokens);
+        if (!combinator.has_value())
             break;
+        auto compound_selector = TRY(parse_compound_selector(tokens));
+        if (!compound_selector.has_value()) {
+            if (combinator != Selector::Combinator::Descendant) {
+                ErrorReporter::the().report(InvalidSelectorError {
+                    .value_string = tokens.dump_string(),
+                    .description = "Missing compound-selector after a combinator."_string,
+                });
+                return ParseError::SyntaxError;
+            }
+            break;
+        }
+
+        if (compound_selector->simple_selectors.is_empty()) {
+            if (tokens.has_next_token() || combinator != Selector::Combinator::Descendant) {
+                ErrorReporter::the().report(InvalidSelectorError {
+                    .value_string = tokens.dump_string(),
+                    .description = "Compound-selector is empty."_string,
+                });
+                return ParseError::SyntaxError;
+            }
+            break;
+        }
+
+        compound_selector->combinator = combinator.release_value();
         compound_selectors.append(compound_selector.release_value());
     }
 
-    if (compound_selectors.is_empty())
+    if (compound_selectors.is_empty()) {
+        ErrorReporter::the().report(InvalidSelectorError {
+            .value_string = tokens.dump_string(),
+            .description = "Selector contains no compound-selectors."_string,
+        });
         return ParseError::SyntaxError;
+    }
+
+    if (tokens.has_next_token()) {
+        ErrorReporter::the().report(InvalidSelectorError {
+            .value_string = tokens.dump_string(),
+            .description = "Not all tokens were consumed."_string,
+        });
+        return ParseError::SyntaxError;
+    }
 
     auto parsed_selector = Selector::create(move(compound_selectors));
 
@@ -192,12 +253,6 @@ Parser::ParseErrorOr<NonnullRefPtr<Selector>> Parser::parse_complex_selector(Tok
 
 Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compound_selector(TokenStream<ComponentValue>& tokens)
 {
-    tokens.discard_whitespace();
-
-    auto combinator = parse_selector_combinator(tokens).value_or(Selector::Combinator::Descendant);
-
-    tokens.discard_whitespace();
-
     Vector<Selector::SimpleSelector> simple_selectors;
 
     while (tokens.has_next_token()) {
@@ -205,47 +260,55 @@ Parser::ParseErrorOr<Optional<Selector::CompoundSelector>> Parser::parse_compoun
         if (!component.has_value())
             break;
         if (component->type == Selector::SimpleSelector::Type::TagName && !simple_selectors.is_empty()) {
-            // Tag-name selectors can only go at the beginning of a compound selector.
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = tokens.dump_string(),
+                .description = "Tag-name selectors can only go at the beginning of a compound selector."_string,
+            });
             return ParseError::SyntaxError;
         }
         simple_selectors.append(component.release_value());
     }
 
-    if (simple_selectors.is_empty()) {
-        if (tokens.has_next_token() || combinator != Selector::Combinator::Descendant)
-            return ParseError::SyntaxError;
-
-        return Optional<Selector::CompoundSelector> {};
-    }
-
-    return Selector::CompoundSelector { combinator, move(simple_selectors) };
+    return Selector::CompoundSelector { Selector::Combinator::None, move(simple_selectors) };
 }
 
 Optional<Selector::Combinator> Parser::parse_selector_combinator(TokenStream<ComponentValue>& tokens)
 {
-    auto const& current_value = tokens.consume_a_token();
-    if (current_value.is(Token::Type::Delim)) {
-        switch (current_value.token().delim()) {
-        case '>':
-            return Selector::Combinator::ImmediateChild;
-        case '+':
-            return Selector::Combinator::NextSibling;
-        case '~':
-            return Selector::Combinator::SubsequentSibling;
-        case '|': {
-            auto const& next = tokens.next_token();
-            if (next.is(Token::Type::EndOfFile))
-                return {};
+    auto transaction = tokens.begin_transaction();
+    bool had_initial_whitespace = tokens.next_token().is(Token::Type::Whitespace);
+    tokens.discard_whitespace();
 
-            if (next.is_delim('|')) {
-                tokens.discard_a_token();
-                return Selector::Combinator::Column;
-            }
-        }
-        }
+    auto const& next = tokens.next_token();
+
+    auto consume_single_delim_combinator = [&](auto combinator) {
+        tokens.discard_a_token();
+        tokens.discard_whitespace();
+        transaction.commit();
+        return combinator;
+    };
+
+    if (next.is_delim('>'))
+        return consume_single_delim_combinator(Selector::Combinator::ImmediateChild);
+
+    if (next.is_delim('+'))
+        return consume_single_delim_combinator(Selector::Combinator::NextSibling);
+
+    if (next.is_delim('~'))
+        return consume_single_delim_combinator(Selector::Combinator::SubsequentSibling);
+
+    if (next.is_delim('|') && tokens.peek_token(1).is_delim('|')) {
+        tokens.discard_a_token(); // |
+        tokens.discard_a_token(); // |
+        tokens.discard_whitespace();
+        transaction.commit();
+        return Selector::Combinator::Column;
     }
 
-    tokens.reconsume_current_input_token();
+    if (had_initial_whitespace) {
+        transaction.commit();
+        return Selector::Combinator::Descendant;
+    }
+
     return {};
 }
 
