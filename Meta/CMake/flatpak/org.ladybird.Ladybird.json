@@ -493,7 +493,7 @@
         {
           "type": "git",
           "url": "https://skia.googlesource.com/skia.git",
-          "commit": "7911bee5d90e994b6dde508a508576b9fded69d2",
+          "commit": "842fbf02329dfa555c0a022617a400fec8ff115c",
           "branch": "chrome/m144"
         },
         {
