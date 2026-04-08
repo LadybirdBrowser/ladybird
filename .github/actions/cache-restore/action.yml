@@ -22,10 +22,6 @@ inputs:
     description: 'Code coverage setting, ON or OFF, or debug setting, ALL or NORMAL'
     required: false
     default: 'OFF'
-  ccache_version:
-    description: 'Increment this number if CI has trouble with ccache.'
-    required: false
-    default: '0'
   ccache_path:
     description: 'Path to the ccache directory'
     required: false
@@ -58,9 +54,9 @@ runs:
       if: ${{ inputs.ccache_path != '' }}
       with:
         path: ${{ inputs.ccache_path }}
-        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
-          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}"
 
     - name: 'Configure Compiler Cache'
       if: ${{ inputs.os != 'Windows' && inputs.ccache_path != '' }}
@@ -99,6 +95,6 @@ runs:
       id: 'vcpkg'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
-        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | ${{ steps.date-stamp.outputs.timestamp }}'
         restore-keys: |
-          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | "${{ inputs.ccache_version }}"
+          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}"
