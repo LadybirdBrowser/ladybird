@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function test_invalid(selector) {
+            let supported = CSS.supports(`selector(${selector})`);
+            println(`${selector} is invalid: ${supported ? 'FAIL' : 'PASS'}`);
+        }
+        test_invalid("::slotted(> a)");
+        test_invalid("::slotted(+ a)");
+        test_invalid("::slotted(~ a)");
+        test_invalid(":host(> a)");
+        test_invalid(":host(+ a)");
+        test_invalid(":host(~ a)");
+    });
+</script>

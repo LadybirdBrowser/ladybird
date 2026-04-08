@@ -1,0 +1,6 @@
+::slotted(> a) is invalid: FAIL
+::slotted(+ a) is invalid: FAIL
+::slotted(~ a) is invalid: FAIL
+:host(> a) is invalid: FAIL
+:host(+ a) is invalid: FAIL
+:host(~ a) is invalid: FAIL
