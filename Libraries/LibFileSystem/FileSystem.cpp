@@ -279,7 +279,7 @@ ErrorOr<void> copy_file_or_directory(StringView destination_path, StringView sou
             return Error::from_errno(EISDIR);
         }
 
-        return copy_directory(final_destination_path, source_path, source_stat);
+        return copy_directory(final_destination_path, source_path, source_stat, link_mode, preserve_mode);
     }
 
     if (link_mode == LinkMode::Allowed)
