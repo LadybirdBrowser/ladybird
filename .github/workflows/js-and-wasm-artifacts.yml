@@ -75,6 +75,7 @@ jobs:
         with:
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
+          toolchain: ${{ matrix.toolchain }}
           cache_key_extra: 'LibJS and LibWasm Artifacts'
           ccache_path: ${{ env.CCACHE_DIR }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache

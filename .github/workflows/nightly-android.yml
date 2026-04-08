@@ -52,6 +52,7 @@ jobs:
         with:
           os: ${{ matrix.os_name }}
           arch: 'Lagom'
+          toolchain: 'Clang'
           cache_key_extra: 'Nightly Android'
           ccache_path: ${{ env.CCACHE_DIR }}
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
