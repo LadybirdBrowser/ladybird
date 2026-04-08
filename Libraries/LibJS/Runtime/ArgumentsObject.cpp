@@ -21,7 +21,6 @@ ArgumentsObject::ArgumentsObject(Realm& realm, Environment& environment, bool pa
 void ArgumentsObject::initialize(Realm& realm)
 {
     Base::initialize(realm);
-    set_has_parameter_map();
 }
 
 void ArgumentsObject::visit_edges(Cell::Visitor& visitor)

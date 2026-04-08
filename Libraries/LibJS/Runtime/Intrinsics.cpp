@@ -255,6 +255,7 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
 
     m_unmapped_arguments_object_shape = heap().allocate<Shape>(realm);
     m_unmapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
+    m_unmapped_arguments_object_shape->set_has_parameter_map();
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
     m_unmapped_arguments_object_shape->add_property_without_transition(vm.names.callee, 0);
@@ -264,6 +265,7 @@ void Intrinsics::initialize_intrinsics(Realm& realm)
 
     m_mapped_arguments_object_shape = heap().allocate<Shape>(realm);
     m_mapped_arguments_object_shape->set_prototype_without_transition(m_object_prototype);
+    m_mapped_arguments_object_shape->set_has_parameter_map();
     m_mapped_arguments_object_shape->add_property_without_transition(vm.names.length, Attribute::Writable | Attribute::Configurable);
     m_mapped_arguments_object_shape->add_property_without_transition(vm.well_known_symbol_iterator(), Attribute::Writable | Attribute::Configurable);
     m_mapped_arguments_object_shape->add_property_without_transition(vm.names.callee, Attribute::Writable | Attribute::Configurable);

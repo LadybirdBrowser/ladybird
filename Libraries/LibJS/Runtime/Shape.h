@@ -87,6 +87,8 @@ public:
     void set_property_attributes_without_transition(PropertyKey const&, PropertyAttributes);
 
     [[nodiscard]] bool is_dictionary() const { return m_dictionary; }
+    [[nodiscard]] bool has_parameter_map() const { return m_has_parameter_map; }
+    void set_has_parameter_map() { m_has_parameter_map = true; }
 
     [[nodiscard]] u32 dictionary_generation() const { return m_dictionary_generation; }
 
@@ -130,6 +132,7 @@ private:
 
     bool m_dictionary : 1 { false };
     bool m_is_prototype_shape : 1 { false };
+    bool m_has_parameter_map : 1 { false };
 
     GC::Ref<Realm> m_realm;
 
