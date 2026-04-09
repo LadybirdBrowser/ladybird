@@ -14,14 +14,6 @@
       ]
     },
     {
-      "name": "cairo",
-      "default-features": false,
-      "features": [
-        "x11"
-      ],
-      "platform": "linux"
-    },
-    {
       "name": "directx-headers",
       "platform": "windows"
     },
@@ -54,8 +46,21 @@
       "host": true
     },
     {
+      "name": "shaderc",
+      "platform": "linux",
+      "host": true
+    },
+    {
       "name": "vcpkg-tool-meson",
       "host": true
+    },
+    {
+      "name": "wayland",
+      "platform": "linux"
+    },
+    {
+      "name": "wayland-protocols",
+      "platform": "linux"
     }
   ],
   "features": {

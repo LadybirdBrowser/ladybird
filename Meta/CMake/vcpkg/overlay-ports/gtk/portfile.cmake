@@ -22,22 +22,25 @@ vcpkg_add_to_path("${PKGCONFIG_DIR}") # Post install script runs pkg-config so i
 vcpkg_add_to_path("${CURRENT_HOST_INSTALLED_DIR}/tools/glib/")
 
 set(x11 false)
+set(wayland false)
+set(vulkan disabled)
 set(win32 false)
 set(osx false)
 if(VCPKG_TARGET_IS_LINUX)
-    set(OPTIONS -Dwayland-backend=false) # CI missing at least wayland-protocols
-    set(x11 true)
-    # Enable the wayland gdk backend (only when building on Unix except for macOS)
+    set(wayland true)
+    set(vulkan enabled)
 elseif(VCPKG_TARGET_IS_WINDOWS)
     set(win32 true)
 elseif(VCPKG_TARGET_IS_OSX)
     set(osx true)
 endif()
 
-list(APPEND OPTIONS -Dx11-backend=${x11}) #Enable the X11 gdk backend (only when building on Unix)
-list(APPEND OPTIONS -Dbroadway-backend=false) #Enable the broadway (HTML5) gdk backend
-list(APPEND OPTIONS -Dwin32-backend=${win32}) #Enable the Windows gdk backend (only when building on Windows)
-list(APPEND OPTIONS -Dmacos-backend=${osx}) #Enable the macOS gdk backend (only when building on macOS)
+list(APPEND OPTIONS -Dx11-backend=${x11})
+list(APPEND OPTIONS -Dwayland-backend=${wayland})
+list(APPEND OPTIONS -Dbroadway-backend=false)
+list(APPEND OPTIONS -Dwin32-backend=${win32})
+list(APPEND OPTIONS -Dmacos-backend=${osx})
+list(APPEND OPTIONS -Dvulkan=${vulkan})
 
 if("introspection" IN_LIST FEATURES)
     list(APPEND OPTIONS_RELEASE -Dintrospection=enabled)
@@ -56,14 +59,13 @@ vcpkg_configure_meson(
         -Dbuild-tests=false
         -Ddocumentation=false
         -Dman-pages=false
-        -Dmedia-gstreamer=disabled  # Build the gstreamer media backend
-        -Dprint-cups=disabled       # Build the cups print backend
-        -Dvulkan=disabled           # Enable support for the Vulkan graphics API
-        -Dcloudproviders=disabled   # Enable the cloudproviders support
-        -Dsysprof=disabled          # include tracing support for sysprof
-        -Dtracker=disabled          # Enable Tracker3 filechooser search
-        -Dcolord=disabled           # Build colord support for the CUPS printing backend
-        -Df16c=disabled             # Enable F16C fast paths (requires F16C)
+        -Dmedia-gstreamer=disabled
+        -Dprint-cups=disabled
+        -Dcloudproviders=disabled
+        -Dsysprof=disabled
+        -Dtracker=disabled
+        -Dcolord=disabled
+        -Df16c=disabled
     OPTIONS_RELEASE
         ${OPTIONS_RELEASE}
     OPTIONS_DEBUG
@@ -77,6 +79,7 @@ vcpkg_configure_meson(
         sassc='${CURRENT_HOST_INSTALLED_DIR}/tools/sassc/bin/sassc${VCPKG_HOST_EXECUTABLE_SUFFIX}'
         "g-ir-compiler='${GIR_COMPILER}'"
         "g-ir-scanner='${GIR_SCANNER}'"
+        glslc='${CURRENT_HOST_INSTALLED_DIR}/tools/shaderc/glslc'
 )
 
 vcpkg_install_meson(ADD_BIN_TO_PATH)
