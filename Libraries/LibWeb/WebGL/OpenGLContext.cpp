@@ -8,7 +8,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
 #endif
@@ -289,8 +289,8 @@ void OpenGLContext::clear_buffer_to_default_values()
 #ifdef AK_OS_MACOS
 void OpenGLContext::allocate_iosurface_painting_surface()
 {
-    m_image_instance = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::create(m_size));
-    m_painting_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*m_image_instance, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
+    m_image_instance = make<Gfx::SharedImageInstance>(Gfx::SharedImageInstance::create(m_size));
+    m_painting_surface = Gfx::PaintingSurface::create_from_image_instance(*m_image_instance, m_skia_backend_context, Gfx::PaintingSurface::Origin::BottomLeft);
 
     EGLint const surface_attributes[] = {
         EGL_WIDTH,

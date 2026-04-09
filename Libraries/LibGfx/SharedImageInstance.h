@@ -11,7 +11,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Bitmap.h>
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImagePayload.h>
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 #    include <LibGfx/VulkanImage.h>
@@ -25,18 +25,18 @@ namespace Gfx {
 
 struct VulkanContext;
 
-class SharedImageBuffer {
-    AK_MAKE_NONCOPYABLE(SharedImageBuffer);
+class SharedImageInstance {
+    AK_MAKE_NONCOPYABLE(SharedImageInstance);
 
 public:
-    static SharedImageBuffer create(IntSize);
-    static ErrorOr<SharedImageBuffer> import_from_payload(SharedImage, [[maybe_unused]] VulkanContext const* = nullptr);
+    static SharedImageInstance create(IntSize);
+    static ErrorOr<SharedImageInstance> import_from_payload(SharedImagePayload, [[maybe_unused]] VulkanContext const* = nullptr);
 
-    SharedImageBuffer(SharedImageBuffer&&);
-    SharedImageBuffer& operator=(SharedImageBuffer&&);
-    ~SharedImageBuffer();
+    SharedImageInstance(SharedImageInstance&&);
+    SharedImageInstance& operator=(SharedImageInstance&&);
+    ~SharedImageInstance();
 
-    SharedImage export_payload() const;
+    SharedImagePayload export_payload() const;
 
     NonnullRefPtr<Bitmap> bitmap() const { return m_bitmap; }
 
@@ -50,10 +50,10 @@ public:
 
 private:
 #ifdef AK_OS_MACOS
-    SharedImageBuffer(Core::IOSurfaceHandle&&, NonnullRefPtr<Bitmap>);
+    SharedImageInstance(Core::IOSurfaceHandle&&, NonnullRefPtr<Bitmap>);
     Core::IOSurfaceHandle m_iosurface_handle;
 #else
-    explicit SharedImageBuffer(NonnullRefPtr<Bitmap>
+    explicit SharedImageInstance(NonnullRefPtr<Bitmap>
 #    ifdef USE_VULKAN_DMABUF_IMAGES
         ,
         RefPtr<VulkanImage> = {}

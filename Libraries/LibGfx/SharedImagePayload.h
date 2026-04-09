@@ -20,19 +20,19 @@
 
 namespace Gfx {
 
-class SharedImageBuffer;
+class SharedImageInstance;
 
-class SharedImage {
-    AK_MAKE_NONCOPYABLE(SharedImage);
+class SharedImagePayload {
+    AK_MAKE_NONCOPYABLE(SharedImagePayload);
 
 public:
-    SharedImage(SharedImage&&) = default;
-    SharedImage& operator=(SharedImage&&) = default;
-    ~SharedImage() = default;
+    SharedImagePayload(SharedImagePayload&&) = default;
+    SharedImagePayload& operator=(SharedImagePayload&&) = default;
+    ~SharedImagePayload() = default;
 
 #ifndef AK_OS_MACOS
-    explicit SharedImage(ShareableBitmap);
-    explicit SharedImage(LinuxDmaBufBackingStore);
+    explicit SharedImagePayload(ShareableBitmap);
+    explicit SharedImagePayload(LinuxDmaBufBackingStore);
 
     bool is_shareable_bitmap() const { return m_shareable_bitmap.has_value(); }
     ShareableBitmap release_shareable_bitmap() { return m_shareable_bitmap.release_value(); }
@@ -42,14 +42,14 @@ public:
 
 private:
 #ifdef AK_OS_MACOS
-    explicit SharedImage(Core::MachPort&&);
+    explicit SharedImagePayload(Core::MachPort&&);
     Core::MachPort m_port;
 #else
     Optional<ShareableBitmap> m_shareable_bitmap;
     Optional<LinuxDmaBufBackingStore> m_linux_dma_buf;
 #endif
 
-    friend class SharedImageBuffer;
+    friend class SharedImageInstance;
 
     template<typename U>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, U const&);
@@ -63,9 +63,9 @@ private:
 namespace IPC {
 
 template<>
-ErrorOr<void> encode(Encoder&, Gfx::SharedImage const&);
+ErrorOr<void> encode(Encoder&, Gfx::SharedImagePayload const&);
 
 template<>
-ErrorOr<Gfx::SharedImage> decode(Decoder&);
+ErrorOr<Gfx::SharedImagePayload> decode(Decoder&);
 
 }

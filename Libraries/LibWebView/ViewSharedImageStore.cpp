@@ -8,7 +8,7 @@
 #include <AK/StdLibExtras.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWebView/ViewSharedImageStore.h>
 
@@ -17,7 +17,7 @@ namespace WebView {
 struct ViewSharedImageStore::SharedBitmap {
     i32 id { -1 };
     Web::DevicePixelSize last_painted_size;
-    OwnPtr<Gfx::SharedImageBuffer> local_backing;
+    OwnPtr<Gfx::SharedImageInstance> local_backing;
     RefPtr<Gfx::PaintingSurface> readback_surface;
 };
 
@@ -67,7 +67,7 @@ void ViewSharedImageStore::did_paint(i32 bitmap_id, Gfx::IntSize size, Function<
     }
 }
 
-void ViewSharedImageStore::did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void ViewSharedImageStore::did_allocate_backing_stores(i32 front_bitmap_id, Gfx::SharedImagePayload front_backing_store, i32 back_bitmap_id, Gfx::SharedImagePayload back_backing_store)
 {
     if (m_has_usable_bitmap) {
         RefPtr<Gfx::Bitmap> bitmap;
@@ -82,16 +82,16 @@ void ViewSharedImageStore::did_allocate_backing_stores(i32 front_bitmap_id, Gfx:
     m_front_bitmap->id = front_bitmap_id;
     m_back_bitmap->id = back_bitmap_id;
 
-    auto update_bitmap = [](SharedBitmap& target, Gfx::SharedImage backing_store) {
+    auto update_bitmap = [](SharedBitmap& target, Gfx::SharedImagePayload backing_store) {
         target.local_backing.clear();
         target.readback_surface = nullptr;
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
         auto skia_backend_context = Gfx::SkiaBackendContext::the();
         Gfx::VulkanContext const* vulkan_context = skia_backend_context ? &skia_backend_context->vulkan_context() : nullptr;
-        auto local_backing = Gfx::SharedImageBuffer::import_from_payload(move(backing_store), vulkan_context);
+        auto local_backing = Gfx::SharedImageInstance::import_from_payload(move(backing_store), vulkan_context);
 #else
-        auto local_backing = Gfx::SharedImageBuffer::import_from_payload(move(backing_store));
+        auto local_backing = Gfx::SharedImageInstance::import_from_payload(move(backing_store));
 #endif
 
         if (local_backing.is_error()) {
@@ -99,11 +99,11 @@ void ViewSharedImageStore::did_allocate_backing_stores(i32 front_bitmap_id, Gfx:
             return;
         }
 
-        target.local_backing = make<Gfx::SharedImageBuffer>(local_backing.release_value());
+        target.local_backing = make<Gfx::SharedImageInstance>(local_backing.release_value());
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
         if (skia_backend_context && target.local_backing->vulkan_image())
-            target.readback_surface = Gfx::PaintingSurface::create_from_shared_image_buffer(*target.local_backing, *skia_backend_context, Gfx::PaintingSurface::Origin::TopLeft);
+            target.readback_surface = Gfx::PaintingSurface::create_from_image_instance(*target.local_backing, *skia_backend_context, Gfx::PaintingSurface::Origin::TopLeft);
 #endif
     };
 

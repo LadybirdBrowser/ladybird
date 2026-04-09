@@ -20,7 +20,7 @@
 #include <LibCore/SharedVersion.h>
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
@@ -166,7 +166,7 @@ public:
 
     void did_update_navigation_buttons_state(Badge<WebContentClient>, bool back_enabled, bool forward_enabled) const;
 
-    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store);
+    void did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImagePayload front_backing_store, i32 back_bitmap_id, Gfx::SharedImagePayload back_backing_store);
 
     enum class ScreenshotType {
         Visible,

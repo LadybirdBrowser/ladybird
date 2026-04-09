@@ -11,7 +11,7 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/Timer.h>
 #include <LibGfx/ImageFormats/PNGWriter.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Infra/Strings.h>
@@ -583,7 +583,7 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
     m_navigate_forward_action->set_enabled(forward_enabled);
 }
 
-void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
+void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImagePayload front_backing_store, i32 back_bitmap_id, Gfx::SharedImagePayload back_backing_store)
 {
     m_backing_store.did_allocate_backing_stores(front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
 }

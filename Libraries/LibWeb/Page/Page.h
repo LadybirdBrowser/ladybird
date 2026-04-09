@@ -20,7 +20,7 @@
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
 #include <LibGfx/ShareableBitmap.h>
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibGfx/Size.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Forward.h>
@@ -441,7 +441,7 @@ public:
     virtual void page_did_request_activate_tab() { }
     virtual void page_did_close_top_level_traversable() { }
     virtual void page_did_update_navigation_buttons_state([[maybe_unused]] bool back_enabled, [[maybe_unused]] bool forward_enabled) { }
-    virtual void page_did_allocate_backing_stores([[maybe_unused]] i32 front_bitmap_id, [[maybe_unused]] Gfx::SharedImage front_backing_store, [[maybe_unused]] i32 back_bitmap_id, [[maybe_unused]] Gfx::SharedImage back_backing_store) { }
+    virtual void page_did_allocate_backing_stores([[maybe_unused]] i32 front_bitmap_id, [[maybe_unused]] Gfx::SharedImagePayload front_backing_store, [[maybe_unused]] i32 back_bitmap_id, [[maybe_unused]] Gfx::SharedImagePayload back_backing_store) { }
 
     virtual void request_file(FileRequest) = 0;
 

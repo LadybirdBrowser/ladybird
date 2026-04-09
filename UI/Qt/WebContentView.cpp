@@ -20,7 +20,7 @@
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>

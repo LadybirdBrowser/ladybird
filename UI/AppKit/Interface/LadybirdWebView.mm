@@ -6,7 +6,7 @@
 
 #include <AK/Optional.h>
 #include <Interface/LadybirdWebViewBridge.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>

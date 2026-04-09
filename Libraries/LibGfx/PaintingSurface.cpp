@@ -6,7 +6,7 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibGfx/SkiaUtils.h>
 
 #include <core/SkColorSpace.h>
@@ -131,7 +131,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
 }
 
 #if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
-NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(SharedImageBuffer& shared_image_buffer, NonnullRefPtr<SkiaBackendContext> context, Origin origin)
+NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_image_instance(SharedImageInstance& image_instance, NonnullRefPtr<SkiaBackendContext> context, Origin origin)
 {
 #    ifdef AK_OS_MACOS
     context->lock();
@@ -139,7 +139,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(
         context->unlock();
     });
 
-    auto const& iosurface_handle = shared_image_buffer.iosurface_handle();
+    auto const& iosurface_handle = image_instance.iosurface_handle();
     auto metal_texture = context->metal_context().create_texture_from_iosurface(iosurface_handle);
     IntSize const size { metal_texture->width(), metal_texture->height() };
     auto image_info = SkImageInfo::Make(size.width(), size.height(), kBGRA_8888_SkColorType, kPremul_SkAlphaType, SkColorSpace::MakeSRGB());
@@ -149,7 +149,7 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, origin_to_sk_origin(origin), kBGRA_8888_SkColorType, nullptr, nullptr);
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
 #    else
-    auto vulkan_image = shared_image_buffer.vulkan_image();
+    auto vulkan_image = image_instance.vulkan_image();
     VERIFY(vulkan_image);
     return create_from_vkimage(move(context), vulkan_image.release_nonnull(), origin);
 #    endif

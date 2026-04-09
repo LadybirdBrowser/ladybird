@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/SharedImage.h>
+#include <LibGfx/SharedImagePayload.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -21,17 +21,17 @@ static Core::MachPort copy_send_right(Core::MachPort const& port)
 namespace Gfx {
 
 #ifdef AK_OS_MACOS
-SharedImage::SharedImage(Core::MachPort&& port)
+SharedImagePayload::SharedImagePayload(Core::MachPort&& port)
     : m_port(move(port))
 {
 }
 #else
-SharedImage::SharedImage(ShareableBitmap shareable_bitmap)
+SharedImagePayload::SharedImagePayload(ShareableBitmap shareable_bitmap)
     : m_shareable_bitmap(move(shareable_bitmap))
 {
 }
 
-SharedImage::SharedImage(LinuxDmaBufBackingStore backing_store)
+SharedImagePayload::SharedImagePayload(LinuxDmaBufBackingStore backing_store)
     : m_linux_dma_buf(move(backing_store))
 {
     VERIFY(m_linux_dma_buf->fd.fd() >= 0);
@@ -50,7 +50,7 @@ enum class SharedImageKind : u8 {
 #endif
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
+ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImagePayload const& shared_image)
 {
 #ifdef AK_OS_MACOS
     TRY(encoder.append_attachment(Attachment::from_mach_port(copy_send_right(shared_image.m_port), Core::MachPort::MessageRight::MoveSend)));
@@ -75,19 +75,19 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
 }
 
 template<>
-ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
+ErrorOr<Gfx::SharedImagePayload> decode(Decoder& decoder)
 {
 #ifdef AK_OS_MACOS
     auto attachment = decoder.attachments().dequeue();
     VERIFY(attachment.message_right() == Core::MachPort::MessageRight::MoveSend);
-    return Gfx::SharedImage { attachment.release_mach_port() };
+    return Gfx::SharedImagePayload { attachment.release_mach_port() };
 #else
     auto kind = static_cast<SharedImageKind>(TRY(decoder.decode<u8>()));
     switch (kind) {
     case SharedImageKind::Bitmap: {
         auto shareable_bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
         VERIFY(shareable_bitmap.is_valid());
-        return Gfx::SharedImage { move(shareable_bitmap) };
+        return Gfx::SharedImagePayload { move(shareable_bitmap) };
     }
     case SharedImageKind::LinuxDmaBuf: {
         Gfx::LinuxDmaBufBackingStore dma_buf;
@@ -101,11 +101,11 @@ ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
         dma_buf.plane.offset = TRY(decoder.decode<u32>());
         dma_buf.fd = TRY(decoder.decode<IPC::File>());
 
-        return Gfx::SharedImage { move(dma_buf) };
+        return Gfx::SharedImagePayload { move(dma_buf) };
     }
     }
 
-    return Error::from_string_literal("Unknown SharedImage kind");
+    return Error::from_string_literal("Unknown SharedImagePayload kind");
 #endif
 }
 

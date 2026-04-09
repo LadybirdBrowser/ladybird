@@ -50,8 +50,8 @@ set(SOURCES
     PathSkia.cpp
     Point.cpp
     Rect.cpp
-    SharedImage.cpp
-    SharedImageBuffer.cpp
+    SharedImageInstance.cpp
+    SharedImagePayload.cpp
     ShareableBitmap.cpp
     Size.cpp
     SkiaBackendContext.cpp

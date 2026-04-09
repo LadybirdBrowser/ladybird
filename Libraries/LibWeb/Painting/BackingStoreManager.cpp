@@ -6,7 +6,7 @@
 
 #include <LibCore/Timer.h>
 #include <LibGfx/PaintingSurface.h>
-#include <LibGfx/SharedImageBuffer.h>
+#include <LibGfx/SharedImageInstance.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/VulkanImage.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
@@ -47,8 +47,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     m_back_bitmap_id = m_next_bitmap_id++;
 
 #ifdef AK_OS_MACOS
-    auto front_buffer = Gfx::SharedImageBuffer::create(size);
-    auto back_buffer = Gfx::SharedImageBuffer::create(size);
+    auto front_buffer = Gfx::SharedImageInstance::create(size);
+    auto back_buffer = Gfx::SharedImageInstance::create(size);
 
     if (m_navigable->is_top_level_traversable()) {
         auto& page_client = m_navigable->top_level_traversable()->page().client();
@@ -56,8 +56,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     }
 
     if (skia_backend_context) {
-        front_store = Gfx::PaintingSurface::create_from_shared_image_buffer(front_buffer, *skia_backend_context);
-        back_store = Gfx::PaintingSurface::create_from_shared_image_buffer(back_buffer, *skia_backend_context);
+        front_store = Gfx::PaintingSurface::create_from_image_instance(front_buffer, *skia_backend_context);
+        back_store = Gfx::PaintingSurface::create_from_image_instance(back_buffer, *skia_backend_context);
     } else {
         front_store = Gfx::PaintingSurface::wrap_bitmap(*front_buffer.bitmap());
         back_store = Gfx::PaintingSurface::wrap_bitmap(*back_buffer.bitmap());
@@ -68,7 +68,7 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
         && m_navigable->is_top_level_traversable()) {
         struct AllocatedBackingStore {
             NonnullRefPtr<Gfx::PaintingSurface> painting_surface;
-            Gfx::SharedImage backing_store;
+            Gfx::SharedImagePayload backing_store;
         };
 
         auto create_linux_dma_buf_backing_store = [&](Gfx::IntSize backing_store_size) -> ErrorOr<AllocatedBackingStore> {
@@ -90,7 +90,7 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 
             return AllocatedBackingStore {
                 .painting_surface = Gfx::PaintingSurface::create_from_vkimage(*skia_backend_context, move(vulkan_image), Gfx::PaintingSurface::Origin::TopLeft),
-                .backing_store = Gfx::SharedImage(move(backing_store)),
+                .backing_store = Gfx::SharedImagePayload(move(backing_store)),
             };
         };
 
@@ -119,8 +119,8 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
     }
 #    endif
 
-    auto front_image_instance = Gfx::SharedImageBuffer::create(size);
-    auto back_image_instance = Gfx::SharedImageBuffer::create(size);
+    auto front_image_instance = Gfx::SharedImageInstance::create(size);
+    auto back_image_instance = Gfx::SharedImageInstance::create(size);
 
     if (m_navigable->is_top_level_traversable()) {
         auto& page_client = m_navigable->top_level_traversable()->page().client();
