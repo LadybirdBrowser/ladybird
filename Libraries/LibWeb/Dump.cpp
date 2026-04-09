@@ -351,13 +351,14 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
         if (auto image_data = static_cast<HTML::HTMLImageElement const&>(*layout_node.dom_node()).current_request().image_data()) {
             if (is<SVG::SVGDecodedImageData>(*image_data)) {
                 auto& svg_data = as<SVG::SVGDecodedImageData>(*image_data);
-                if (svg_data.svg_document().layout_node()) {
+                // NB: Called from debug dump code, no layout guarantee.
+                if (svg_data.svg_document().unsafe_layout_node()) {
                     ++indent;
                     for (size_t i = 0; i < indent; ++i)
                         builder.append("  "sv);
                     builder.append("(SVG-as-image isolated context)\n"sv);
 
-                    dump_tree(builder, *svg_data.svg_document().layout_node(), show_cascaded_properties, interactive);
+                    dump_tree(builder, *svg_data.svg_document().unsafe_layout_node(), show_cascaded_properties, interactive);
                     --indent;
                 }
             }

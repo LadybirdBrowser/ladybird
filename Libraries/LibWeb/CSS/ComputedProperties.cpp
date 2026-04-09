@@ -1349,7 +1349,7 @@ TextTransform ComputedProperties::text_transform() const
     return keyword_to_text_transform(value.to_keyword()).release_value();
 }
 
-ListStyleType ComputedProperties::list_style_type(HashMap<FlyString, CounterStyle> const& registered_counter_styles) const
+ListStyleType ComputedProperties::list_style_type(HashMap<FlyString, NonnullRefPtr<CSS::CounterStyle const>> const& registered_counter_styles) const
 {
     auto const& value = property(PropertyID::ListStyleType);
 

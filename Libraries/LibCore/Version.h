@@ -8,9 +8,10 @@
 #pragma once
 
 #include <AK/Forward.h>
+#include <LibCore/Export.h>
 
 namespace Core::Version {
 
-String read_long_version_string();
+CORE_API String read_long_version_string();
 
 }

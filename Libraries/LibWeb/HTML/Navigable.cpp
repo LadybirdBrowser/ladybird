@@ -2469,10 +2469,8 @@ void finalize_a_cross_document_navigation(GC::Ref<Navigable> navigable, HistoryH
 
     // AD-HOC: If we're inside a navigable container, let's trigger a relayout in the container document.
     //         This allows size negotiation between the containing document and SVG documents to happen.
-    if (auto container = navigable->container()) {
-        if (auto layout_node = container->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
-    }
+    if (auto container = navigable->container())
+        container->set_needs_layout_update(DOM::SetNeedsLayoutReason::FinalizeACrossDocumentNavigation);
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#url-and-history-update-steps
@@ -2608,8 +2606,7 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
         // NOTE: Resizing the viewport changes the reference value for viewport-relative CSS lengths.
         document->invalidate_style(DOM::StyleInvalidationReason::NavigableSetViewportSize);
         document->set_needs_media_query_evaluation();
-        if (auto layout_node = document->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
+        document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
 
     if (auto document = active_document()) {
@@ -2620,6 +2617,26 @@ void Navigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList inval
         // Schedule the HTML event loop to ensure that a `resize` event gets fired.
         HTML::main_thread_event_loop().schedule();
     }
+}
+
+void Navigable::clamp_viewport_scroll_offset()
+{
+    auto document = active_document();
+    if (!document || !document->layout_is_up_to_date())
+        return;
+    if (!document->paintable_box())
+        return;
+    auto scrollable_overflow_rect = document->paintable_box()->scrollable_overflow_rect();
+    if (!scrollable_overflow_rect.has_value())
+        return;
+    auto max_x = scrollable_overflow_rect->width() - m_viewport_size.width();
+    auto max_y = scrollable_overflow_rect->height() - m_viewport_size.height();
+    CSSPixelPoint clamped = {
+        max(CSSPixels(0), min(m_viewport_scroll_offset.x(), max_x)),
+        max(CSSPixels(0), min(m_viewport_scroll_offset.y(), max_y)),
+    };
+    if (clamped != m_viewport_scroll_offset)
+        perform_scroll_of_viewport_scrolling_box(clamped);
 }
 
 void Navigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_position)
@@ -2734,6 +2751,8 @@ String Navigable::selected_text() const
     auto document = active_document();
     if (!document)
         return String {};
+
+    document->update_layout(DOM::UpdateLayoutReason::NavigableSelectedText);
 
     auto const* input_element = as_if<HTML::HTMLInputElement>(document->active_element());
     if (input_element && input_element->type_state() == HTML::HTMLInputElement::TypeAttributeState::Password) {

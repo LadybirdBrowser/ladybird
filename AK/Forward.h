@@ -28,6 +28,7 @@ class Utf16StringData;
 
 enum class TrailingCodePointTransformation : u8;
 
+class AtomicRefCountedBase;
 class BigEndianInputBitStream;
 class BigEndianOutputBitStream;
 class Bitmap;
@@ -85,6 +86,9 @@ using Bytes = Span<u8>;
 
 template<typename T, AK::MemoryOrder DefaultMemoryOrder>
 class Atomic;
+
+template<typename T>
+class AtomicRefCounted;
 
 template<typename T, typename TSizeCalculationPolicy = DefaultSizeCalculationPolicy>
 class SinglyLinkedList;
@@ -176,6 +180,8 @@ class [[nodiscard]] ErrorOr;
 #if USING_AK_GLOBALLY
 using AK::Array;
 using AK::Atomic;
+using AK::AtomicRefCounted;
+using AK::AtomicRefCountedBase;
 using AK::Badge;
 using AK::BigEndianInputBitStream;
 using AK::BigEndianOutputBitStream;

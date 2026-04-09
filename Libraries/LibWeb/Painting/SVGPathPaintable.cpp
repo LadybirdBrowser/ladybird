@@ -113,7 +113,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
     auto paint_fill = [&] {
         auto fill_opacity = graphics_element.fill_opacity().value_or(1);
         auto winding_rule = to_gfx_winding_rule(graphics_element.fill_rule().value_or(SVG::FillRule::Nonzero));
-        if (auto paint_style = graphics_element.fill_paint_style(paint_context); paint_style.has_value()) {
+        if (auto paint_style = graphics_element.fill_paint_style(paint_context, &context); paint_style.has_value()) {
             context.display_list_recorder().fill_path({
                 .path = path,
                 .opacity = fill_opacity,
@@ -169,7 +169,7 @@ void SVGPathPaintable::paint(DisplayListRecordingContext& context, PaintPhase ph
             value *= viewbox_scale;
         float stroke_dashoffset = m_stroke_dashoffset * viewbox_scale;
 
-        if (auto paint_style = graphics_element.stroke_paint_style(paint_context); paint_style.has_value()) {
+        if (auto paint_style = graphics_element.stroke_paint_style(paint_context, &context); paint_style.has_value()) {
             context.display_list_recorder().stroke_path({
                 .cap_style = cap_style,
                 .join_style = join_style,

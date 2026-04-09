@@ -68,7 +68,8 @@ static CSSPixels normalized_diagonal_length(CSSPixelSize viewport_size)
 
 Gfx::Path SVGCircleElement::get_path(CSSPixelSize viewport_size)
 {
-    auto node = layout_node();
+    // NB: Called during SVG layout.
+    auto node = unsafe_layout_node();
     if (!node) {
         dbgln("FIXME: Null layout node in SVGCircleElement::get_path");
         return {};

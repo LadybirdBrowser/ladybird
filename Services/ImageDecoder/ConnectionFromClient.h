@@ -55,8 +55,8 @@ private:
 
     explicit ConnectionFromClient(NonnullOwnPtr<IPC::Transport>);
 
-    virtual Messages::ImageDecoderServer::DecodeImageResponse decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type) override;
-    virtual void cancel_decoding(i64 image_id) override;
+    virtual void decode_image(Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type, i64 request_id) override;
+    virtual void cancel_decoding(i64 request_id) override;
     virtual void request_animation_frames(i64 session_id, u32 start_frame_index, u32 count) override;
     virtual void stop_animation_decode(i64 session_id) override;
     virtual Messages::ImageDecoderServer::ConnectNewClientsResponse connect_new_clients(size_t count) override;
@@ -64,9 +64,8 @@ private:
 
     ErrorOr<IPC::File> connect_new_client();
 
-    NonnullRefPtr<Job> make_decode_image_job(i64 image_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
+    NonnullRefPtr<Job> make_decode_image_job(i64 request_id, Core::AnonymousBuffer, Optional<Gfx::IntSize> ideal_size, Optional<ByteString> mime_type);
 
-    i64 m_next_image_id { 0 };
     i64 m_next_session_id { 1 };
     HashMap<i64, NonnullRefPtr<Job>> m_pending_jobs;
     HashMap<i64, NonnullOwnPtr<AnimationSession>> m_animation_sessions;

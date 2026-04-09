@@ -955,6 +955,31 @@
             expectCacheStatus(url, response, "read-from-cache");
         })();
 
+        // Requsts with a Vary header with improper whitespace do not match normal response headers.
+        await (async () => {
+            url = await createRequest("/cache-test/vary/vertical-tab", {
+                headers: {
+                    "Cache-Control": "max-age=10",
+                    Vary: "Accept\v",
+                },
+            });
+
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/html",
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            // This would normally be a Vary mismatch, but "Accept\v" does not match "Accept".
+            response = await cacheFetch(url, {
+                headers: {
+                    Accept: "text/javascript",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+        })();
+
         // Responses with a Vary header that matches subsequent request headers after normalization may be used.
         await (async () => {
             url = await createRequest("/cache-test/vary/normalization", {

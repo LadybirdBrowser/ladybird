@@ -171,6 +171,7 @@ public:
     CSSPixelSize viewport_size() const { return m_viewport_size; }
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
+    void clamp_viewport_scroll_offset();
 
     Painting::BackingStoreManager& backing_store_manager() { return *m_backing_store_manager; }
 

@@ -21,11 +21,8 @@ namespace JS {
 
 static void update_function_name(Value value, Utf16FlyString const& name)
 {
-    if (!value.is_function())
-        return;
-    auto& function = value.as_function();
-    if (is<ECMAScriptFunctionObject>(function) && static_cast<ECMAScriptFunctionObject const&>(function).name().is_empty())
-        static_cast<ECMAScriptFunctionObject&>(function).set_name(name);
+    if (auto function = value.as_if<ECMAScriptFunctionObject>(); function && function->name().is_empty())
+        function->set_name(name);
 }
 
 static ThrowCompletionOr<ClassElementName> resolve_element_key(VM& vm, Bytecode::ClassElementDescriptor const& descriptor, Value property_key)

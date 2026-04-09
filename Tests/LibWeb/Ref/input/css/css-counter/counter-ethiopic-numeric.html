@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- This test is a copy of the WPT test css/css-counter-styles/ethiopic-numeric/counter-ethiopic-numeric.html but
+     modified to use the Noto Sans Ethiopic font since SerenitySans doesn't support ethiopic code points -->
+<link rel="help" href="https://drafts.csswg.org/css-counter-styles/#ethiopic-numeric-counter-style" />
+<link rel="match" href="../../../expected/css/css-counter/counter-ethiopic-numeric-ref.html" />
+<style type="text/css">
+    @font-face {
+        font-family: "Noto Sans Ethiopic";
+        src: url(../../../../Assets/NotoSansEthiopic.woff2) format("woff2");
+        unicode-range:
+            U+030E, U+1200-1399, U+2D80-2DDE, U+AB01-AB2E, U+1E7E0-1E7E6, U+1E7E8-1E7EB, U+1E7ED-1E7EE, U+1E7F0-1E7FE;
+    }
+
+    div {
+        float: left;
+        padding: 0.5em;
+    }
+    div::after {
+        font-family: "Noto Sans Ethiopic", serif;
+        content: counter(n, ethiopic-numeric);
+    }
+</style>
+<div style="counter-reset: n 1"></div>
+<div style="counter-reset: n 2"></div>
+<div style="counter-reset: n 3"></div>
+<div style="counter-reset: n 4"></div>
+<div style="counter-reset: n 5"></div>
+<div style="counter-reset: n 6"></div>
+<div style="counter-reset: n 7"></div>
+<div style="counter-reset: n 8"></div>
+<div style="counter-reset: n 9"></div>
+
+<div style="counter-reset: n 10"></div>
+<div style="counter-reset: n 11"></div>
+<div style="counter-reset: n 12"></div>
+<div style="counter-reset: n 43"></div>
+<div style="counter-reset: n 77"></div>
+<div style="counter-reset: n 80"></div>
+<div style="counter-reset: n 99"></div>
+<div style="counter-reset: n 100"></div>
+<div style="counter-reset: n 101"></div>
+<div style="counter-reset: n 222"></div>
+<div style="counter-reset: n 540"></div>
+<div style="counter-reset: n 999"></div>
+<div style="counter-reset: n 1000"></div>
+<div style="counter-reset: n 1005"></div>
+<div style="counter-reset: n 1060"></div>
+<div style="counter-reset: n 1065"></div>
+<div style="counter-reset: n 1800"></div>
+<div style="counter-reset: n 1860"></div>
+<div style="counter-reset: n 1865"></div>
+<div style="counter-reset: n 5865"></div>
+<div style="counter-reset: n 7005"></div>
+<div style="counter-reset: n 7800"></div>
+<div style="counter-reset: n 7864"></div>
+<div style="counter-reset: n 9999"></div>
+<div style="counter-reset: n 10000"></div>
+<div style="counter-reset: n 1000001"></div>
+<div style="counter-reset: n 78010092"></div>
+
+<div style="counter-reset: n 0"></div>
+<div style="counter-reset: n -1"></div>

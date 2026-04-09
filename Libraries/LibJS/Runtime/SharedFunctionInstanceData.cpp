@@ -78,9 +78,7 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
     //       and then reused in all subsequent function instantiations.
 
     // 2. Let code be func.[[ECMAScriptCode]].
-    ScopeNode const* scope_body = nullptr;
-    if (is<ScopeNode>(*m_ecmascript_code))
-        scope_body = static_cast<ScopeNode const*>(m_ecmascript_code.ptr());
+    auto const* scope_body = as_if<ScopeNode>(*m_ecmascript_code);
     m_has_scope_body = scope_body != nullptr;
 
     // 3. Let strict be func.[[Strict]].

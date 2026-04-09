@@ -145,7 +145,7 @@ private:
 
 using CursorData = Variant<NonnullRefPtr<CursorStyleValue const>, CursorPredefined>;
 
-using ListStyleType = Variant<Empty, Optional<CounterStyle const&>, String>;
+using ListStyleType = Variant<Empty, RefPtr<CounterStyle const>, String>;
 
 class InitialValues {
 public:
@@ -186,7 +186,7 @@ public:
     static Filter filter() { return Filter::make_none(); }
     static Color background_color() { return Color::Transparent; }
     static BackgroundBox background_color_clip() { return BackgroundBox::BorderBox; }
-    static ListStyleType list_style_type() { return Optional<CounterStyle const&> { CounterStyle::disc() }; }
+    static ListStyleType list_style_type() { return RefPtr<CounterStyle const> { CounterStyle::disc() }; }
     static ListStylePosition list_style_position() { return ListStylePosition::Outside; }
     static Visibility visibility() { return Visibility::Visible; }
     static FlexDirection flex_direction() { return FlexDirection::Row; }
@@ -311,8 +311,9 @@ public:
         : m_value(color)
     {
     }
-    SVGPaint(URL const& url)
+    SVGPaint(URL const& url, Optional<Color> fallback_color = {})
         : m_value(url)
+        , m_fallback_color(fallback_color)
     {
     }
 
@@ -320,9 +321,11 @@ public:
     bool is_url() const { return m_value.has<URL>(); }
     Color as_color() const { return m_value.get<Color>(); }
     URL const& as_url() const { return m_value.get<URL>(); }
+    Optional<Color> const& fallback_color() const { return m_fallback_color; }
 
 private:
     Variant<URL, Color> m_value;
+    Optional<Color> m_fallback_color;
 };
 
 // https://drafts.fxtf.org/css-masking-1/#typedef-mask-reference
@@ -633,7 +636,7 @@ public:
 
     Color webkit_text_fill_color() const { return m_inherited.webkit_text_fill_color; }
 
-    ListStyleType list_style_type() const { return m_inherited.list_style_type; }
+    ListStyleType const& list_style_type() const { return m_inherited.list_style_type; }
     ListStylePosition list_style_position() const { return m_inherited.list_style_position; }
 
     Optional<SVGPaint> const& fill() const { return m_inherited.fill; }

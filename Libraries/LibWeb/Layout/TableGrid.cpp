@@ -123,7 +123,8 @@ TableGrid TableGrid::calculate_row_column_grid(Box const& box, Vector<Cell>& cel
     auto process_col_group = [&](auto& col_group) {
         auto dom_node = col_group.dom_node();
         dom_node->for_each_in_subtree([&](auto& descendant) {
-            if (descendant.layout_node() && descendant.layout_node()->display().is_table_column()) {
+            // NB: Called during table layout tree construction.
+            if (descendant.unsafe_layout_node() && descendant.unsafe_layout_node()->display().is_table_column()) {
                 u32 span = 1;
                 if (auto const* col_element = as_if<HTML::HTMLTableColElement>(descendant))
                     span = col_element->span();

@@ -462,11 +462,9 @@ ThrowCompletionOr<Value> regexp_exec(VM& vm, Object& regexp_object, GC::Ref<Prim
     auto* typed_regexp_object = as_if<RegExpObject>(regexp_object);
 
     // 2. If IsCallable(exec) is true, then
-    if (exec.is_function()) {
-        auto& exec_function = exec.as_function();
-        if (typed_regexp_object && exec_function.builtin() == Bytecode::Builtin::RegExpPrototypeExec) {
+    if (auto exec_function = exec.as_if<FunctionObject>()) {
+        if (typed_regexp_object && exec_function->builtin() == Bytecode::Builtin::RegExpPrototypeExec)
             return regexp_builtin_exec(vm, *typed_regexp_object, string);
-        }
 
         // a. Let result be ? Call(exec, R, « S »).
         auto result = TRY(call(vm, exec_function, &regexp_object, string));
@@ -1209,18 +1207,16 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::compile)
         return vm.throw_completion<TypeError>(ErrorType::RegExpCompileError, "legacy features is not enabled");
 
     // 7. If Type(pattern) is Object and pattern has a [[RegExpMatcher]] internal slot, then
-    if (pattern.is_object() && is<RegExpObject>(pattern.as_object())) {
+    if (auto regexp_pattern = pattern.as_if<RegExpObject>()) {
         // a. If flags is not undefined, throw a TypeError exception.
         if (!flags.is_undefined())
             return vm.throw_completion<TypeError>(ErrorType::NotUndefined, flags);
 
-        auto& regexp_pattern = static_cast<RegExpObject&>(pattern.as_object());
-
         // b. Let P be pattern.[[OriginalSource]].
-        pattern = PrimitiveString::create(vm, regexp_pattern.pattern());
+        pattern = PrimitiveString::create(vm, regexp_pattern->pattern());
 
         // c. Let F be pattern.[[OriginalFlags]].
-        flags = PrimitiveString::create(vm, regexp_pattern.flags());
+        flags = PrimitiveString::create(vm, regexp_pattern->flags());
     }
     // 8. Else,
     //     a. Let P be pattern.

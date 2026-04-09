@@ -474,24 +474,20 @@ Unicode::CalendarPattern adjust_date_time_style_format(VM& vm, Unicode::Calendar
 ThrowCompletionOr<FormattableDateTime> to_date_time_formattable(VM& vm, Value value)
 {
     // 1. If IsTemporalObject(value) is true, return value.
-    if (value.is_object()) {
-        auto& object = value.as_object();
-
-        if (is<Temporal::Instant>(object))
-            return FormattableDateTime { static_cast<Temporal::Instant&>(object) };
-        if (is<Temporal::PlainDate>(object))
-            return FormattableDateTime { static_cast<Temporal::PlainDate&>(object) };
-        if (is<Temporal::PlainDateTime>(object))
-            return FormattableDateTime { static_cast<Temporal::PlainDateTime&>(object) };
-        if (is<Temporal::PlainMonthDay>(object))
-            return FormattableDateTime { static_cast<Temporal::PlainMonthDay&>(object) };
-        if (is<Temporal::PlainTime>(object))
-            return FormattableDateTime { static_cast<Temporal::PlainTime&>(object) };
-        if (is<Temporal::PlainYearMonth>(object))
-            return FormattableDateTime { static_cast<Temporal::PlainYearMonth&>(object) };
-        if (is<Temporal::ZonedDateTime>(object))
-            return FormattableDateTime { static_cast<Temporal::ZonedDateTime&>(object) };
-    }
+    if (auto instant = value.as_if<Temporal::Instant>())
+        return FormattableDateTime { *instant };
+    if (auto plain_date = value.as_if<Temporal::PlainDate>())
+        return FormattableDateTime { *plain_date };
+    if (auto plain_date_time = value.as_if<Temporal::PlainDateTime>())
+        return FormattableDateTime { *plain_date_time };
+    if (auto plain_month_day = value.as_if<Temporal::PlainMonthDay>())
+        return FormattableDateTime { *plain_month_day };
+    if (auto plain_time = value.as_if<Temporal::PlainTime>())
+        return FormattableDateTime { *plain_time };
+    if (auto plain_year_month = value.as_if<Temporal::PlainYearMonth>())
+        return FormattableDateTime { *plain_year_month };
+    if (auto zoned_date_time = value.as_if<Temporal::ZonedDateTime>())
+        return FormattableDateTime { *zoned_date_time };
 
     // 2. Return ? ToNumber(value).
     return FormattableDateTime { TRY(value.to_number(vm)).as_double() };

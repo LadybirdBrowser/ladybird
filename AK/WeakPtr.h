@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Forward.h>
 #include <AK/Weakable.h>
 
 namespace AK {
@@ -173,14 +174,14 @@ private:
     RefPtr<WeakLink> m_link;
 };
 
-template<typename T>
-template<typename U>
-inline ErrorOr<WeakPtr<U>> Weakable<T>::try_make_weak_ptr() const
+template<typename T, typename Callback>
+auto weak_callback(T& obj, Callback&& callback)
+requires(!IsBaseOf<AtomicRefCountedBase, T>)
 {
-    if (!m_link)
-        m_link = TRY(adopt_nonnull_ref_or_enomem(new (nothrow) WeakLink(const_cast<T&>(static_cast<T const&>(*this)))));
-
-    return WeakPtr<U>(m_link);
+    return [weak = obj.template make_weak_ptr<T>(), cb = forward<Callback>(callback)](auto&&... args) {
+        if (weak)
+            cb(*weak, forward<decltype(args)>(args)...);
+    };
 }
 
 template<typename T>
@@ -190,21 +191,6 @@ struct Formatter<WeakPtr<T>> : Formatter<T const*> {
         return Formatter<T const*>::format(builder, value.ptr());
     }
 };
-
-template<typename T>
-ErrorOr<WeakPtr<T>> try_make_weak_ptr_if_nonnull(T const* ptr)
-{
-    if (ptr) {
-        return ptr->template try_make_weak_ptr<T>();
-    }
-    return WeakPtr<T> {};
-}
-
-template<typename T>
-WeakPtr<T> make_weak_ptr_if_nonnull(T const* ptr)
-{
-    return MUST(try_make_weak_ptr_if_nonnull(ptr));
-}
 
 template<typename T>
 struct Traits<WeakPtr<T>> : public DefaultTraits<WeakPtr<T>> {
@@ -218,5 +204,6 @@ struct Traits<WeakPtr<T>> : public DefaultTraits<WeakPtr<T>> {
 }
 
 #if USING_AK_GLOBALLY
+using AK::weak_callback;
 using AK::WeakPtr;
 #endif

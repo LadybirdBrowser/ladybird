@@ -234,17 +234,16 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
     auto const& object = as_object();
 
     // 2. If argument is an Array exotic object, return true.
-    if (is<Array>(object))
+    if (::is<Array>(object))
         return true;
 
     // 3. If argument is a Proxy exotic object, then
     if (auto const* proxy = ::as_if<ProxyObject>(object)) {
-
         // a. Perform ? ValidateNonRevokedProxy(argument).
         TRY(proxy->validate_non_revoked_proxy());
 
         // b. Let proxyTarget be argument.[[ProxyTarget]].
-        auto& proxy_target = proxy->target();
+        auto const& proxy_target = proxy->target();
 
         // c. Return ? IsArray(proxyTarget).
         return Value(&proxy_target).is_array(vm);
@@ -256,8 +255,7 @@ ThrowCompletionOr<bool> Value::is_array(VM& vm) const
 
 Array& Value::as_array()
 {
-    ASSERT(is_object() && is<Array>(as_object()));
-    return static_cast<Array&>(as_object());
+    return *as_if<Array>();
 }
 
 // 7.2.3 IsCallable ( argument ), https://tc39.es/ecma262/#sec-iscallable
@@ -271,14 +269,12 @@ bool Value::is_function() const
 
 FunctionObject& Value::as_function()
 {
-    ASSERT(is_function());
-    return static_cast<FunctionObject&>(as_object());
+    return *as_if<FunctionObject>();
 }
 
 FunctionObject const& Value::as_function() const
 {
-    ASSERT(is_function());
-    return static_cast<FunctionObject const&>(as_object());
+    return *as_if<FunctionObject>();
 }
 
 // 7.2.4 IsConstructor ( argument ), https://tc39.es/ecma262/#sec-isconstructor
@@ -313,7 +309,7 @@ ThrowCompletionOr<bool> Value::is_regexp(VM& vm) const
 
     // 4. If argument has a [[RegExpMatcher]] internal slot, return true.
     // 5. Return false.
-    return is<RegExpObject>(as_object());
+    return ::is<RegExpObject>(as_object());
 }
 
 // 13.5.3 The typeof Operator, https://tc39.es/ecma262/#sec-typeof-operator
@@ -2184,12 +2180,10 @@ ThrowCompletionOr<Value> ordinary_has_instance(VM& vm, Value lhs, Value rhs)
     auto& rhs_function = rhs.as_function();
 
     // 2. If C has a [[BoundTargetFunction]] internal slot, then
-    if (is<BoundFunction>(rhs_function)) {
-        auto const& bound_target = static_cast<BoundFunction const&>(rhs_function);
-
+    if (auto const* bound_target = as_if<BoundFunction>(rhs_function)) {
         // a. Let BC be C.[[BoundTargetFunction]].
         // b. Return ? InstanceofOperator(O, BC).
-        return instance_of(vm, lhs, Value(&bound_target.bound_target_function()));
+        return instance_of(vm, lhs, Value(&bound_target->bound_target_function()));
     }
 
     // 3. If O is not an Object, return false.

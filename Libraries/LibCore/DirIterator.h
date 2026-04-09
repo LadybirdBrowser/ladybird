@@ -8,10 +8,11 @@
 #pragma once
 
 #include <LibCore/DirectoryEntry.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
-class DirIterator {
+class CORE_API DirIterator {
 public:
     enum Flags {
         NoFlags = 0x0,

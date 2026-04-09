@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>href - pattern element</title>
+<meta name="assert" content="The pattern element should accept href">
+<link rel="match" href="../../../../../expected/wpt-import/svg/linking/reftests/href-pattern-element-ref.html">
+<body>
+  <svg width="300" height="300" viewBox="0 0 300 300">
+    <pattern id="Pattern" x="0" y="0" width=".25" height=".25">
+      <rect x="0" y="0" width="25" height="25" fill="skyblue"/>
+      <circle cx="25" cy="25" r="20" fill="green" fill-opacity="0.5"/>
+    </pattern>
+    <pattern id="Pattern2" x="0" y="0" width=".25" height=".25">
+      <rect x="0" y="0" width="25" height="25" fill="skyblue"/>
+      <circle cx="25" cy="25" r="20" fill="red" fill-opacity="0.5"/>
+    </pattern>
+    <pattern id="CopiedPattern" href="#Pattern" xlink:href="#Pattern2">
+    </pattern>
+    <rect fill="url(#CopiedPattern)" stroke="black" x="0" y="0"
+          width="200" height="200"/>
+  </svg>
+</body>

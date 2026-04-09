@@ -207,7 +207,7 @@ ThrowCompletionOr<String> to_temporal_time_zone_identifier(VM& vm, Value tempora
 {
     // 1. If temporalTimeZoneLike is an Object and temporalTimeZoneLike has an [[InitializedTemporalZonedDateTime]]
     //    internal slot, return temporalTimeZoneLike.[[TimeZone]].
-    if (auto const* zoned_date_time = temporal_time_zone_like.as_if<ZonedDateTime>())
+    if (auto zoned_date_time = temporal_time_zone_like.as_if<ZonedDateTime>())
         return zoned_date_time->time_zone();
 
     // 2. If temporalTimeZoneLike is not a String, throw a TypeError exception.

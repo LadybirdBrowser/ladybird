@@ -307,8 +307,9 @@ void Node::recompute_containing_block(Badge<DOM::Document>)
                 if (dom_ancestor.ptr() == containing_block_dom_node)
                     break;
 
+                // NB: Called during containing block recomputation as part of layout.
                 // Check if this DOM element has an InlineNode in the layout tree.
-                auto layout_node = dom_ancestor->layout_node();
+                auto layout_node = dom_ancestor->unsafe_layout_node();
                 if (!layout_node || !is<InlineNode>(*layout_node))
                     continue;
 
@@ -506,14 +507,16 @@ GC::Ptr<HTML::Navigable> Node::navigable() const
 
 Viewport const& Node::root() const
 {
-    VERIFY(document().layout_node());
-    return *document().layout_node();
+    // NB: Called during layout, which is in progress.
+    VERIFY(document().unsafe_layout_node());
+    return *document().unsafe_layout_node();
 }
 
 Viewport& Node::root()
 {
-    VERIFY(document().layout_node());
-    return *document().layout_node();
+    // NB: Called during layout, which is in progress.
+    VERIFY(document().unsafe_layout_node());
+    return *document().unsafe_layout_node();
 }
 
 bool Node::is_floating() const
@@ -818,16 +821,24 @@ void NodeWithStyle::apply_style(CSS::ComputedProperties const& computed_style)
     computed_values.set_x(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::X)));
     computed_values.set_y(CSS::LengthPercentage::from_style_value(computed_style.property(CSS::PropertyID::Y)));
 
+    auto extract_paint_fallback_color = [&](CSS::URLStyleValue const& url_value) -> Optional<Color> {
+        if (auto const& fallback = url_value.paint_fallback()) {
+            if (fallback->has_color())
+                return fallback->to_color(color_resolution_context);
+        }
+        return {};
+    };
+
     auto const& fill = computed_style.property(CSS::PropertyID::Fill);
     if (fill.has_color())
         computed_values.set_fill(fill.to_color(color_resolution_context).value());
     else if (fill.is_url())
-        computed_values.set_fill(fill.as_url().url());
+        computed_values.set_fill(CSS::SVGPaint(fill.as_url().url(), extract_paint_fallback_color(fill.as_url())));
     auto const& stroke = computed_style.property(CSS::PropertyID::Stroke);
     if (stroke.has_color())
         computed_values.set_stroke(stroke.to_color(color_resolution_context).value());
     else if (stroke.is_url())
-        computed_values.set_stroke(stroke.as_url().url());
+        computed_values.set_stroke(CSS::SVGPaint(stroke.as_url().url(), extract_paint_fallback_color(stroke.as_url())));
 
     computed_values.set_stop_color(computed_style.color_or_fallback(CSS::PropertyID::StopColor, color_resolution_context, CSS::InitialValues::stop_color()));
 

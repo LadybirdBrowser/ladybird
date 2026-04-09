@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Reference: symbols function, invalid</title>
+<link rel="author" title="Xidorn Quan" href="https://www.upsuper.org/">
+<link rel="stylesheet" href="../../../../../input/wpt-import/css/css-counter-styles/counter-style-at-rule/support/test-common.css">
+<style type="text/css">
+  @counter-style cyclic {
+    system: cyclic;
+    symbols: '*' '\2020' '\2021' '\A7';
+    suffix: ' ';
+  }
+  @counter-style numeric {
+    system: numeric;
+    symbols: '0' '1' '2';
+    suffix: ' ';
+  }
+  @counter-style alphabetic {
+    system: alphabetic;
+    symbols: '\26AA' '\26AB';
+    suffix: ' ';
+  }
+  @counter-style symbolic {
+    system: symbolic;
+    symbols: '*' '\2020' '\2021' '\A7';
+    suffix: ' ';
+  }
+  @counter-style fixed {
+    system: fixed;
+    symbols: '\25F0' '\25F1' '\25F2' '\25F3';
+    suffix: ' ';
+  }
+  @counter-style counter {
+    symbols: '*';
+  }
+  @counter-style counters {
+    system: numeric;
+    symbols: '0' '1';
+  }
+  .counter { counter-reset: a; }
+  .counter p { counter-increment: a 1; }
+  .counter p::after {
+    content: counter(a, counter);
+  }
+  .counter, .counters {
+    list-style-type: none;
+    counter-reset: a;
+  }
+  .counter li, .counters li {
+    counter-increment: a;
+    padding-right: .5em;
+  }
+  .counter li::after {
+    content: counter(a, counter);
+  }
+  .counters .counters li::after {
+    content: counters(a, '.', counters);
+  }
+</style>
+<ol start="-2" style="list-style-type: symbolic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" style="list-style-type: cyclic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" style="list-style-type: numeric">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" style="list-style-type: alphabetic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" style="list-style-type: symbolic">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol start="-2" style="list-style-type: fixed">
+  <li><li><li><li><li>
+  <li><li><li><li><li>
+</ol>
+<ol class="counter">
+  <li><li><li><li><li>
+</ol>
+<ol class="counters">
+  <li><ol class="counters"><li><li><li><li><li></ol></li>
+  <li><ol class="counters"><li><li><li><li><li></ol></li>
+</ol>

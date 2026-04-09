@@ -449,6 +449,11 @@ void EventLoop::update_the_rendering()
             // NOTE: Recalculation of styles is handled by update_layout()
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
 
+            // Clamp viewport scroll offset to valid range after layout, in case the
+            // scrollable overflow area has shrunk (e.g. after a viewport size change).
+            if (auto navigable = document->navigable())
+                navigable->clamp_viewport_scroll_offset();
+
             // 2. Let hadInitialVisibleContentVisibilityDetermination be false.
             bool had_initial_visible_content_visibility_determination = false;
 
@@ -506,6 +511,10 @@ void EventLoop::update_the_rendering()
 
     // 19. For each doc of docs, run the update intersection observations steps for doc, passing in the relative high resolution time given now and doc's relevant global object as the timestamp. [INTERSECTIONOBSERVER]
     for (auto& document : docs) {
+        // NB: Layout may have been invalidated by previous steps (e.g. view transitions at step 18).
+        //     Re-run layout here since intersection observations need up-to-date geometry.
+        document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
+
         auto now = HighResolutionTime::relative_high_resolution_time(frame_timestamp, relevant_global_object(*document));
         document->run_the_update_intersection_observations_steps(now);
     }

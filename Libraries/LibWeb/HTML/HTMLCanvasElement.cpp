@@ -209,8 +209,7 @@ void HTMLCanvasElement::attribute_changed(FlyString const& local_name, Optional<
     if (local_name.is_one_of(HTML::AttributeNames::width, HTML::AttributeNames::height)) {
         notify_context_about_canvas_size_change();
         reset_context_to_default_state();
-        if (auto layout_node = this->layout_node())
-            layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLCanvasElementWidthOrHeightChange);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLCanvasElementWidthOrHeightChange);
     }
 }
 
@@ -326,7 +325,6 @@ String HTMLCanvasElement::to_data_url(StringView type, JS::Value js_quality)
         return "data:,"_string;
 
     // 3. Let file be a serialization of this canvas element's bitmap as a file, passing type and quality if given.
-    auto snapshot = Gfx::ImmutableBitmap::create_snapshot_from_painting_surface(*surface);
     auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, surface->size()));
     surface->read_into_bitmap(*bitmap);
     Optional<double> quality = js_quality.is_number() ? js_quality.as_double() : Optional<double>();

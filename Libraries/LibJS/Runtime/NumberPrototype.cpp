@@ -79,11 +79,11 @@ static ThrowCompletionOr<Value> this_number_value(VM& vm, Value value)
         return value;
 
     // 2. If Type(value) is Object and value has a [[NumberData]] internal slot, then
-    if (value.is_object() && is<NumberObject>(value.as_object())) {
+    if (auto number = value.as_if<NumberObject>()) {
         // a. Let n be value.[[NumberData]].
         // b. Assert: Type(n) is Number.
         // c. Return n.
-        return Value(static_cast<NumberObject&>(value.as_object()).number());
+        return number->number();
     }
 
     // 3. Throw a TypeError exception.

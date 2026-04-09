@@ -9,6 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Optional.h>
 #include <AK/StringView.h>
+#include <LibCore/Export.h>
 
 namespace Core::Environment {
 
@@ -58,18 +59,18 @@ EntryIterator entries();
 
 size_t size();
 
-bool has(StringView name);
+CORE_API bool has(StringView name);
 enum class SecureOnly {
     No,
     Yes,
 };
-Optional<StringView> get(StringView name, SecureOnly = SecureOnly::No);
+CORE_API Optional<StringView> get(StringView name, SecureOnly = SecureOnly::No);
 
 enum class Overwrite {
     No,
     Yes,
 };
-ErrorOr<void> set(StringView name, StringView value, Overwrite);
+CORE_API ErrorOr<void> set(StringView name, StringView value, Overwrite);
 ErrorOr<void> unset(StringView name);
 ErrorOr<void> put(StringView env);
 

@@ -6,10 +6,11 @@
 
 #pragma once
 
+#include <LibCore/Export.h>
 #include <LibCore/Socket.h>
 
 namespace Core {
 
-ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path = {});
+CORE_API ErrorOr<NonnullOwnPtr<Core::LocalSocket>> take_over_socket_from_system_server(ByteString const& socket_path = {});
 
 }

@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <LibCore/Event.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 #include <pthread.h>
 
 namespace Core {
@@ -23,7 +24,7 @@ enum class NotificationType : u8 {
 
 AK_ENUM_BITWISE_OPERATORS(NotificationType);
 
-class Notifier final : public EventReceiver {
+class CORE_API Notifier final : public EventReceiver {
     C_OBJECT(Notifier);
 
 public:

@@ -78,6 +78,9 @@ private:
 
     bool use_fixed_mode_layout() const;
 
+    CSSPixels table_wrapper_containing_block_width() const;
+    CSSPixels table_wrapper_containing_block_height() const;
+
     CSSPixels m_table_height { 0 };
     CSSPixels m_automatic_content_height { 0 };
 

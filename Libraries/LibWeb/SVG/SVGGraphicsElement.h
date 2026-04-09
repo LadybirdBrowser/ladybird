@@ -62,11 +62,14 @@ public:
         return 0;
     }
 
-    Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&) const;
-    Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&) const;
+    Optional<Painting::PaintStyle> fill_paint_style(SVGPaintContext const&, DisplayListRecordingContext* = nullptr) const;
+    Optional<Painting::PaintStyle> stroke_paint_style(SVGPaintContext const&, DisplayListRecordingContext* = nullptr) const;
 
     GC::Ptr<SVG::SVGMaskElement const> mask() const;
     GC::Ptr<SVG::SVGClipPathElement const> clip_path() const;
+
+    GC::Ptr<SVG::SVGPatternElement const> fill_pattern() const;
+    GC::Ptr<SVG::SVGPatternElement const> stroke_pattern() const;
 
     WebIDL::ExceptionOr<GC::Ref<Geometry::DOMRect>> get_b_box(Optional<SVGBoundingBoxOptions>);
     GC::Ref<SVGAnimatedTransformList> transform() const;
@@ -84,7 +87,7 @@ protected:
 
     virtual void initialize(JS::Realm&) override;
 
-    Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value) const;
+    Optional<Painting::PaintStyle> svg_paint_computed_value_to_gfx_paint_style(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, DisplayListRecordingContext* = nullptr) const;
 
     Gfx::AffineTransform m_transform = {};
 

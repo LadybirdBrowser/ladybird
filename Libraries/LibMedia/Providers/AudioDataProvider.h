@@ -42,7 +42,7 @@ public:
     ~AudioDataProvider();
 
     void set_error_handler(ErrorHandler&&);
-    void set_block_end_time_handler(BlockEndTimeHandler&&);
+    void set_duration_change_handler(BlockEndTimeHandler&&);
     void set_output_sample_specification(Audio::SampleSpecification);
 
     void start();
@@ -56,11 +56,11 @@ public:
 private:
     class ThreadData final : public AtomicRefCounted<ThreadData> {
     public:
-        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, NonnullOwnPtr<Audio::AudioConverter>&&);
+        ThreadData(NonnullRefPtr<Core::WeakEventLoopReference> const& main_thread_event_loop, NonnullRefPtr<Demuxer> const&, Track const&, AK::Duration, NonnullOwnPtr<Audio::AudioConverter>&&);
         ~ThreadData();
 
         void set_error_handler(ErrorHandler&&);
-        void set_block_end_time_handler(BlockEndTimeHandler&&);
+        void set_duration_change_handler(BlockEndTimeHandler&&);
         void set_output_sample_specification(Audio::SampleSpecification);
 
         void start();
@@ -79,6 +79,7 @@ private:
         void invoke_on_main_thread(Invokee);
         void dispatch_block_end_time(AudioBlock const&);
         void queue_block(AudioBlock&&);
+        void dispatch_error(DecoderError&&);
         void flush_decoder();
         DecoderErrorOr<void> retrieve_next_block(AudioBlock&);
         bool handle_seek();
@@ -111,6 +112,7 @@ private:
 
         NonnullRefPtr<Demuxer> m_demuxer;
         Track m_track;
+        AK::Duration m_duration;
         OwnPtr<AudioDecoder> m_decoder;
         bool m_decoder_needs_keyframe_next_seek { false };
         NonnullOwnPtr<Audio::AudioConverter> m_converter;
@@ -118,7 +120,7 @@ private:
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
-        BlockEndTimeHandler m_frame_end_time_handler;
+        BlockEndTimeHandler m_duration_change_handler;
         ErrorHandler m_error_handler;
         bool m_is_in_error_state { false };
 

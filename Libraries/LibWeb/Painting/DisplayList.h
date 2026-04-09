@@ -29,6 +29,7 @@ public:
 protected:
     Gfx::PaintingSurface& surface() const { return *m_surface; }
     void execute_impl(DisplayList&, ScrollStateSnapshot const& scroll_state);
+    void execute_display_list_into_surface(DisplayList&, Gfx::PaintingSurface&);
 
     ScrollStateSnapshotByDisplayList m_scroll_state_snapshots_by_display_list;
 

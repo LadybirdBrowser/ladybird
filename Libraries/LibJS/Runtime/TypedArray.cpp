@@ -558,18 +558,14 @@ void TypedArrayBase::visit_edges(Visitor& visitor)
             if (first_argument.as_object().is_typed_array()) {                                                              \
                 auto& arg_typed_array = static_cast<TypedArrayBase&>(first_argument.as_object());                           \
                 TRY(initialize_typed_array_from_typed_array(vm, *typed_array, arg_typed_array));                            \
-            } else if (is<ArrayBuffer>(first_argument.as_object())) {                                                       \
-                auto& array_buffer = static_cast<ArrayBuffer&>(first_argument.as_object());                                 \
-                TRY(initialize_typed_array_from_array_buffer(vm, *typed_array, array_buffer,                                \
+            } else if (auto* array_buffer = as_if<ArrayBuffer>(first_argument.as_object())) {                               \
+                TRY(initialize_typed_array_from_array_buffer(vm, *typed_array, *array_buffer,                               \
                     vm.argument(1), vm.argument(2)));                                                                       \
+            } else if (auto iterator = TRY(first_argument.get_method(vm, vm.well_known_symbol_iterator()))) {               \
+                auto values = TRY(iterator_to_list(vm, TRY(get_iterator_from_method(vm, first_argument, *iterator))));      \
+                TRY(initialize_typed_array_from_list(vm, *typed_array, values));                                            \
             } else {                                                                                                        \
-                auto iterator = TRY(first_argument.get_method(vm, vm.well_known_symbol_iterator()));                        \
-                if (iterator) {                                                                                             \
-                    auto values = TRY(iterator_to_list(vm, TRY(get_iterator_from_method(vm, first_argument, *iterator))));  \
-                    TRY(initialize_typed_array_from_list(vm, *typed_array, values));                                        \
-                } else {                                                                                                    \
-                    TRY(initialize_typed_array_from_array_like(vm, *typed_array, first_argument.as_object()));              \
-                }                                                                                                           \
+                TRY(initialize_typed_array_from_array_like(vm, *typed_array, first_argument.as_object()));                  \
             }                                                                                                               \
             return typed_array;                                                                                             \
         }                                                                                                                   \

@@ -25,13 +25,13 @@ GC_DEFINE_ALLOCATOR(Promise);
 ThrowCompletionOr<Object*> promise_resolve(VM& vm, Object& constructor, Value value)
 {
     // 1. If IsPromise(x) is true, then
-    if (value.is_object() && is<Promise>(value.as_object())) {
+    if (auto promise = value.as_if<Promise>()) {
         // a. Let xConstructor be ? Get(x, "constructor").
         auto value_constructor = TRY(value.as_object().get(vm.names.constructor));
 
         // b. If SameValue(xConstructor, C) is true, return x.
         if (same_value(value_constructor, &constructor))
-            return &static_cast<Promise&>(value.as_object());
+            return promise.ptr();
     }
 
     // 2. Let promiseCapability be ? NewPromiseCapability(C).

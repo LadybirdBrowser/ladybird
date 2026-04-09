@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 26 tests
 
-17 Pass
-9 Fail
+20 Pass
+6 Fail
 Pass	cx and cy presentation attributes supported on circle element
 Pass	cx and cy presentation attributes supported on ellipse element
 Pass	x, y, width, and height presentation attributes supported on foreignObject element
@@ -24,9 +24,9 @@ Fail	fill presentation attribute not supported on animateMotion
 Fail	fill presentation attribute not supported on animateTransform
 Fail	fill presentation attribute not supported on set
 Fail	transform presentation attribute supported on g
-Fail	patternTransform presentation attribute supported on pattern
-Fail	gradientTransform presentation attribute supported on linearGradient
-Fail	gradientTransform presentation attribute supported on radialGradient
+Pass	patternTransform presentation attribute supported on pattern
+Pass	gradientTransform presentation attribute supported on linearGradient
+Pass	gradientTransform presentation attribute supported on radialGradient
 Pass	transform presentation attribute not supported on pattern or gradient elements
 Pass	patternTransform presentation attribute not supported on g or gradient elements
 Pass	gradientTransform presentation attribute not supported on g or pattern elements

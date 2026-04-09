@@ -25,7 +25,7 @@ struct Header {
 
 [[nodiscard]] bool is_header_name(StringView);
 [[nodiscard]] bool is_header_value(StringView);
-[[nodiscard]] ByteString normalize_header_value(StringView);
+[[nodiscard]] StringView normalize_header_value(StringView);
 
 [[nodiscard]] bool is_forbidden_request_header(Header const&);
 [[nodiscard]] bool is_forbidden_response_header_name(StringView);

@@ -43,6 +43,7 @@ namespace Web::SVG::TagNames {
     __ENUMERATE_SVG_TAG(mask)                \
     __ENUMERATE_SVG_TAG(metadata)            \
     __ENUMERATE_SVG_TAG(path)                \
+    __ENUMERATE_SVG_TAG(pattern)             \
     __ENUMERATE_SVG_TAG(polygon)             \
     __ENUMERATE_SVG_TAG(polyline)            \
     __ENUMERATE_SVG_TAG(radialGradient)      \

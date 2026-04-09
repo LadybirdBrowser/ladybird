@@ -106,9 +106,9 @@ void DatePrototype::initialize(Realm& realm)
 ThrowCompletionOr<double> this_time_value(VM& vm, Value value)
 {
     // 1. If Type(value) is Object and value has a [[DateValue]] internal slot, then
-    if (value.is_object() && is<Date>(value.as_object())) {
+    if (auto date = value.as_if<Date>()) {
         // a. Return value.[[DateValue]].
-        return static_cast<Date&>(value.as_object()).date_value();
+        return date->date_value();
     }
 
     // 2. Throw a TypeError exception.

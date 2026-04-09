@@ -9,10 +9,11 @@
 
 #include <AK/Function.h>
 #include <LibCore/EventReceiver.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
-class Timer final : public EventReceiver {
+class CORE_API Timer final : public EventReceiver {
     C_OBJECT(Timer);
 
 public:

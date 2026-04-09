@@ -25,6 +25,7 @@ private:
         bool has_svg_root = false;
         bool layout_top_layer = false;
         bool layout_svg_mask_or_clip_path = false;
+        bool layout_svg_pattern = false;
     };
 
     i32 calculate_list_item_index(DOM::Node&);

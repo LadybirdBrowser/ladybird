@@ -60,6 +60,14 @@ public:
     ErrorOr<ByteBuffer> decrypt(ReadonlyBytes ciphertext, ReadonlyBytes iv, ReadonlyBytes aad, ReadonlyBytes tag) const;
 };
 
+class AESOCBCipher final : public AESCipher {
+public:
+    explicit AESOCBCipher(ReadonlyBytes key);
+
+    ErrorOr<ByteBuffer> encrypt(ReadonlyBytes plaintext, ReadonlyBytes iv, ReadonlyBytes aad, size_t tag_length) const;
+    ErrorOr<ByteBuffer> decrypt(ReadonlyBytes ciphertext, ReadonlyBytes iv, ReadonlyBytes aad, size_t tag_length) const;
+};
+
 class AESKWCipher final : public AESCipher {
 public:
     explicit AESKWCipher(ReadonlyBytes key);

@@ -12,6 +12,7 @@
 #include <LibWeb/Painting/DisplayListRecorder.h>
 
 class GrDirectContext;
+class SkPaint;
 
 namespace Web::Painting {
 
@@ -56,6 +57,8 @@ private:
     void add_clip_path(Gfx::Path const&) override;
 
     bool would_be_fully_clipped_by_painter(Gfx::IntRect) const override;
+
+    SkPaint paint_style_to_skia_paint(SVGPaintServerPaintStyle const&, Gfx::FloatRect const& bounding_rect);
 
     RefPtr<Gfx::SkiaBackendContext> m_context;
 };

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:h="http://www.w3.org/1999/xhtml">
+  <title>SVG paint server: paint fallback color</title>
+  <h:link rel="match" href="../../../../../expected/wpt-import/svg/painting/reftests/../../pservers/reftests/reference/green-100x100.svg"/>
+  <rect width="100" height="100" fill="url(#null) green"/>
+</svg>

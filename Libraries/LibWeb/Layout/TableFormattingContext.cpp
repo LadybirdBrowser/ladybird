@@ -21,6 +21,22 @@ TableFormattingContext::TableFormattingContext(LayoutState& state, LayoutMode la
 
 TableFormattingContext::~TableFormattingContext() = default;
 
+CSSPixels TableFormattingContext::table_wrapper_containing_block_width() const
+{
+    auto const* containing_block_used_values = m_state.try_get(*table_wrapper().containing_block());
+    if (!containing_block_used_values)
+        return 0;
+    return containing_block_used_values->content_width();
+}
+
+CSSPixels TableFormattingContext::table_wrapper_containing_block_height() const
+{
+    auto const* containing_block_used_values = m_state.try_get(*table_wrapper().containing_block());
+    if (!containing_block_used_values)
+        return 0;
+    return containing_block_used_values->content_height();
+}
+
 static inline bool is_table_column_group(Box const& box)
 {
     return box.display().is_table_column_group();
@@ -119,16 +135,17 @@ void TableFormattingContext::compute_constrainedness()
 void TableFormattingContext::compute_cell_measures()
 {
     // Implements https://www.w3.org/TR/css-tables-3/#computing-cell-measures.
-    auto const& containing_block = m_state.get(*table_wrapper().containing_block());
+    auto containing_block_width = table_wrapper_containing_block_width();
+    auto containing_block_height = table_wrapper_containing_block_height();
 
     compute_constrainedness();
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box->computed_values();
-        CSSPixels padding_top = computed_values.padding().top().to_px_or_zero(cell.box, containing_block.content_height());
-        CSSPixels padding_bottom = computed_values.padding().bottom().to_px_or_zero(cell.box, containing_block.content_height());
-        CSSPixels padding_left = computed_values.padding().left().to_px_or_zero(cell.box, containing_block.content_width());
-        CSSPixels padding_right = computed_values.padding().right().to_px_or_zero(cell.box, containing_block.content_width());
+        CSSPixels padding_top = computed_values.padding().top().to_px_or_zero(cell.box, containing_block_height);
+        CSSPixels padding_bottom = computed_values.padding().bottom().to_px_or_zero(cell.box, containing_block_height);
+        CSSPixels padding_left = computed_values.padding().left().to_px_or_zero(cell.box, containing_block_width);
+        CSSPixels padding_right = computed_values.padding().right().to_px_or_zero(cell.box, containing_block_width);
 
         auto const& cell_state = m_state.get(cell.box);
         auto use_collapsing_borders_model = cell_state.override_borders_data().has_value();
@@ -144,11 +161,11 @@ void TableFormattingContext::compute_cell_measures()
         auto max_content_height = calculate_max_content_height(cell.box, min_content_width);
 
         // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
-        auto min_height = computed_values.min_height().to_px(cell.box, containing_block.content_height());
+        auto min_height = computed_values.min_height().to_px(cell.box, containing_block_height);
         auto cell_intrinsic_height_offsets = padding_top + padding_bottom + border_top + border_bottom;
         cell.outer_min_height = max(min_height, min_content_height) + cell_intrinsic_height_offsets;
         // The outer min-content width of a table-cell is max(min-width, min-content width) adjusted by the cell intrinsic offsets.
-        auto min_width = computed_values.min_width().to_px(cell.box, containing_block.content_width());
+        auto min_width = computed_values.min_width().to_px(cell.box, containing_block_width);
         auto cell_intrinsic_width_offsets = padding_left + padding_right + border_left + border_right;
         // For fixed mode, according to https://www.w3.org/TR/css-tables-3/#computing-column-measures:
         // The min-content and max-content width of cells is considered zero unless they are directly specified as a length-percentage,
@@ -161,8 +178,8 @@ void TableFormattingContext::compute_cell_measures()
         // The tables specification isn't explicit on how to use the height and max-height CSS properties in the outer max-content formulas.
         // However, during this early phase we don't have enough information to resolve percentage sizes yet and the formulas for outer sizes
         // in the specification give enough clues to pick defaults in a way that makes sense.
-        auto height = computed_values.height().is_length() ? computed_values.height().to_px(cell.box, containing_block.content_height()) : 0;
-        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(cell.box, containing_block.content_height()) : CSSPixels::max();
+        auto height = computed_values.height().is_length() ? computed_values.height().to_px(cell.box, containing_block_height) : 0;
+        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(cell.box, containing_block_height) : CSSPixels::max();
         if (m_rows[cell.row_index].is_constrained) {
             // The outer max-content height of a table-cell in a constrained row is
             // max(min-height, height, min-content height, min(max-height, height)) adjusted by the cell intrinsic offsets.
@@ -175,8 +192,8 @@ void TableFormattingContext::compute_cell_measures()
         }
 
         // See the explanation for height and max_height above.
-        auto width = computed_values.width().is_length() ? computed_values.width().to_px(cell.box, containing_block.content_width()) : 0;
-        auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(cell.box, containing_block.content_width()) : CSSPixels::max();
+        auto width = computed_values.width().is_length() ? computed_values.width().to_px(cell.box, containing_block_width) : 0;
+        auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(cell.box, containing_block_width) : CSSPixels::max();
         if (use_fixed_mode_layout() && !width_is_specified_length_or_percentage) {
             continue;
         }
@@ -195,15 +212,16 @@ void TableFormattingContext::compute_cell_measures()
 
 void TableFormattingContext::compute_outer_content_sizes()
 {
-    auto const& containing_block = m_state.get(*table_wrapper().containing_block());
+    auto containing_block_width = table_wrapper_containing_block_width();
+    auto containing_block_height = table_wrapper_containing_block_height();
 
     size_t column_index = 0;
     TableGrid::for_each_child_box_matching(table_box(), is_table_column_group, [&](auto& column_group_box) {
         TableGrid::for_each_child_box_matching(column_group_box, is_table_column, [&](auto& column_box) {
             auto const& computed_values = column_box.computed_values();
-            auto min_width = computed_values.min_width().to_px(column_box, containing_block.content_width());
-            auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(column_box, containing_block.content_width()) : CSSPixels::max();
-            auto width = computed_values.width().to_px(column_box, containing_block.content_width());
+            auto min_width = computed_values.min_width().to_px(column_box, containing_block_width);
+            auto max_width = computed_values.max_width().is_length() ? computed_values.max_width().to_px(column_box, containing_block_width) : CSSPixels::max();
+            auto width = computed_values.width().to_px(column_box, containing_block_width);
             // The outer min-content width of a table-column or table-column-group is max(min-width, width).
             m_columns[column_index].min_size = max(min_width, width);
             // The outer max-content width of a table-column or table-column-group is max(min-width, min(max-width, width)).
@@ -216,9 +234,9 @@ void TableFormattingContext::compute_outer_content_sizes()
 
     for (auto& row : m_rows) {
         auto const& computed_values = row.box->computed_values();
-        auto min_height = computed_values.min_height().to_px(row.box, containing_block.content_height());
-        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(row.box, containing_block.content_height()) : CSSPixels::max();
-        auto height = computed_values.height().to_px(row.box, containing_block.content_height());
+        auto min_height = computed_values.min_height().to_px(row.box, containing_block_height);
+        auto max_height = computed_values.max_height().is_length() ? computed_values.max_height().to_px(row.box, containing_block_height) : CSSPixels::max();
+        auto height = computed_values.height().to_px(row.box, containing_block_height);
         // The outer min-content height of a table-row or table-row-group is max(min-height, height).
         row.min_size = max(min_height, height);
         // The outer max-content height of a table-row or table-row-group is max(min-height, min(max-height, height)).
@@ -229,12 +247,12 @@ void TableFormattingContext::compute_outer_content_sizes()
 template<>
 void TableFormattingContext::initialize_table_measures<TableFormattingContext::Row>()
 {
-    auto const& containing_block = m_state.get(*table_wrapper().containing_block());
+    auto containing_block_height = table_wrapper_containing_block_height();
 
     for (auto& cell : m_cells) {
         auto const& computed_values = cell.box->computed_values();
         if (cell.row_span == 1) {
-            auto specified_height = computed_values.height().to_px(cell.box, containing_block.content_height());
+            auto specified_height = computed_values.height().to_px(cell.box, containing_block_height);
             // https://www.w3.org/TR/css-tables-3/#row-layout makes specified cell height part of the initialization formula for row table measures:
             // This is done by running the same algorithm as the column measurement, with the span=1 value being initialized (for min-content) with
             // the largest of the resulting height of the previous row layout, the height specified on the corresponding table-row (if any), and
@@ -464,9 +482,15 @@ CSSPixels TableFormattingContext::compute_capmin()
     return capmin;
 }
 
-static bool width_is_auto_relative_to_state(CSS::Size const& width, LayoutState::UsedValues const& state)
+static bool width_is_auto_or_indefinite_percentage(CSS::Size const& width, LayoutState::UsedValues const* containing_block_state)
 {
-    return width.is_auto() || (width.contains_percentage() && !state.has_definite_width());
+    if (width.is_auto())
+        return true;
+    if (width.contains_percentage()) {
+        if (!containing_block_state || !containing_block_state->has_definite_width())
+            return true;
+    }
+    return false;
 }
 
 void TableFormattingContext::compute_table_width()
@@ -481,8 +505,7 @@ void TableFormattingContext::compute_table_width()
 
     // Percentages on 'width' and 'height' on the table are relative to the table wrapper box's containing block,
     // not the table wrapper box itself.
-    auto const& containing_block_state = m_state.get(*table_wrapper().containing_block());
-    CSSPixels width_of_table_wrapper_containing_block = containing_block_state.content_width();
+    CSSPixels width_of_table_wrapper_containing_block = table_wrapper_containing_block_width();
 
     // Compute undistributable space due to border spacing: https://www.w3.org/TR/css-tables-3/#computing-undistributable-space.
     auto undistributable_space = (m_columns.size() + 1) * border_spacing_horizontal();
@@ -514,7 +537,7 @@ void TableFormattingContext::compute_table_width()
         used_width = grid_min;
     } else if (m_available_space->width.is_max_content()) {
         used_width = grid_max;
-    } else if (width_is_auto_relative_to_state(computed_values.width(), containing_block_state)) {
+    } else if (width_is_auto_or_indefinite_percentage(computed_values.width(), m_state.try_get(*table_wrapper().containing_block()))) {
         // If the table-root has 'width: auto', the used width is the greater of
         // min(GRIDMAX, the table’s containing block width), the used min-width of the table.
         if (width_of_table_containing_block.is_definite())
@@ -948,7 +971,7 @@ void TableFormattingContext::compute_table_height()
         // If the table has a height property with a value other than auto, it is treated as a minimum height for the
         // table grid, and will eventually be distributed to the height of the rows if their collective minimum height
         // ends up smaller than this number.
-        CSSPixels height_of_table_containing_block = m_state.get(*table_wrapper().containing_block()).content_height();
+        CSSPixels height_of_table_containing_block = table_wrapper_containing_block_height();
         auto specified_table_height = table_box().computed_values().height().to_px(table_box(), height_of_table_containing_block);
         if (table_box().computed_values().box_sizing() == CSS::BoxSizing::BorderBox) {
             auto const& table_state = m_state.get(table_box());

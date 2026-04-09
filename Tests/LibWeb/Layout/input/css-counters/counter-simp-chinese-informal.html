@@ -1,0 +1,61 @@
+<!doctype html>
+<!-- This test is a copy of the WPT test css/css-counter-styles/simp-chinese-informal/counter-simp-chinese-informal.html
+     but modified to only include tests in the i32 range -->
+<style>
+    div::after {
+        content: counter(n, simp-chinese-informal);
+    }
+</style>
+<div style="counter-reset: n 0"></div>
+<div style="counter-reset: n 1"></div>
+<div style="counter-reset: n 2"></div>
+<div style="counter-reset: n 3"></div>
+<div style="counter-reset: n 4"></div>
+<div style="counter-reset: n 5"></div>
+<div style="counter-reset: n 6"></div>
+<div style="counter-reset: n 7"></div>
+<div style="counter-reset: n 8"></div>
+<div style="counter-reset: n 9"></div>
+
+<div style="counter-reset: n 10"></div>
+<div style="counter-reset: n 100"></div>
+<div style="counter-reset: n 1000"></div>
+
+<div style="counter-reset: n 11"></div>
+<div style="counter-reset: n 99"></div>
+<div style="counter-reset: n 101"></div>
+<div style="counter-reset: n 200"></div>
+<div style="counter-reset: n 6001"></div>
+
+<div style="counter-reset: n 10000"></div>
+<div style="counter-reset: n 20000"></div>
+<div style="counter-reset: n 50000"></div>
+<div style="counter-reset: n 99999"></div>
+
+<div style="counter-reset: n 12345"></div>
+<div style="counter-reset: n 10001"></div>
+<div style="counter-reset: n 10010"></div>
+<div style="counter-reset: n 10100"></div>
+<div style="counter-reset: n 11000"></div>
+
+<div style="counter-reset: n 100000000"></div>
+<div style="counter-reset: n 200000000"></div>
+<div style="counter-reset: n 500000000"></div>
+<div style="counter-reset: n 999999999"></div>
+
+<div style="counter-reset: n 123456789"></div>
+<div style="counter-reset: n 100000001"></div>
+<div style="counter-reset: n 100010000"></div>
+<div style="counter-reset: n 100100000"></div>
+<div style="counter-reset: n 101000000"></div>
+<div style="counter-reset: n 110000000"></div>
+
+<div style="counter-reset: n 1000000000"></div>
+<div style="counter-reset: n 1000000"></div>
+<div style="counter-reset: n 1000"></div>
+
+<div style="counter-reset: n -10000"></div>
+<div style="counter-reset: n -100000000"></div>
+<div style="counter-reset: n -2147483648"></div>
+
+<div style="counter-reset: n -1"></div>

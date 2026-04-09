@@ -211,6 +211,11 @@ sk_sp<SkImage> PaintingSurface::sk_image_snapshot() const
     return m_impl->surface->makeImageSnapshot();
 }
 
+RefPtr<SkiaBackendContext> PaintingSurface::skia_backend_context() const
+{
+    return m_impl->context;
+}
+
 void PaintingSurface::flush()
 {
     if (on_flush)

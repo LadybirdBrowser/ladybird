@@ -126,12 +126,10 @@ JS_ENUMERATE_NATIVE_ERRORS
 // 20.5.2.1 Error.isError ( arg ), https://tc39.es/ecma262/#sec-error.iserror
 JS_DEFINE_NATIVE_FUNCTION(ErrorConstructor::is_error)
 {
-    auto arg = vm.argument(0);
-
     // 1. If arg is not an Object, return false.
     // 2. If arg does not have an [[ErrorData]] internal slot, return false.
     // 3. Return true.
-    return arg.is_object() && is<Error>(arg.as_object());
+    return vm.argument(0).is<Error>();
 }
 
 }

@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 27 tests
 
-21 Pass
-6 Fail
+27 Pass
 Pass	Property list-style-type value 'none'
 Pass	Property list-style-type value 'disc'
 Pass	Property list-style-type value 'circle'
@@ -25,9 +24,9 @@ Pass	Property list-style-type value '"marker string"'
 Pass	Property list-style-type value '"Note: "'
 Pass	Property list-style-type value 'counter-Style-Name'
 Pass	Property list-style-type value 'CounterStyleName'
-Fail	Property list-style-type value 'symbols(cyclic "string")'
-Fail	Property list-style-type value 'symbols(cyclic "○" "●")'
-Fail	Property list-style-type value 'symbols(fixed "1")'
-Fail	Property list-style-type value 'symbols("string")'
-Fail	Property list-style-type value 'symbols(alphabetic "first" "second")'
-Fail	Property list-style-type value 'symbols(numeric "first" "second")'
+Pass	Property list-style-type value 'symbols(cyclic "string")'
+Pass	Property list-style-type value 'symbols(cyclic "○" "●")'
+Pass	Property list-style-type value 'symbols(fixed "1")'
+Pass	Property list-style-type value 'symbols("string")'
+Pass	Property list-style-type value 'symbols(alphabetic "first" "second")'
+Pass	Property list-style-type value 'symbols(numeric "first" "second")'

@@ -38,10 +38,7 @@ namespace JS {
             auto&& _temporary_result = (__VA_ARGS__));                                               \
         if (_temporary_result.is_error()) {                                                          \
             auto _completion = _temporary_result.release_error();                                    \
-                                                                                                     \
-            VERIFY(_completion.value().is_object());                                                 \
-            VERIFY(::AK::is<JS::InternalError>(_completion.value().as_object()));                    \
-                                                                                                     \
+            VERIFY(_completion.value().is<JS::InternalError>());                                     \
             return _completion;                                                                      \
         }                                                                                            \
         static_assert(!::AK::Detail::IsLvalueReference<decltype(_temporary_result.release_value())>, \

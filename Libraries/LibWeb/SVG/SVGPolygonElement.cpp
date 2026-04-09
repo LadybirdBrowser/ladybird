@@ -33,8 +33,7 @@ void SVGPolygonElement::attribute_changed(FlyString const& name, Optional<String
 
     if (name == SVG::AttributeNames::points) {
         m_points = AttributeParser::parse_points(value.value_or(String {}));
-        if (layout_node())
-            layout_node()->set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
+        set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
     }
 }
 

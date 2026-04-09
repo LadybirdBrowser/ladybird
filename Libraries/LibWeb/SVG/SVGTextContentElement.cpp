@@ -24,11 +24,12 @@ void SVGTextContentElement::initialize(JS::Realm& realm)
     Base::initialize(realm);
 }
 
+// NB: Called during painting.
 Optional<TextAnchor> SVGTextContentElement::text_anchor() const
 {
-    if (!layout_node())
+    if (!unsafe_layout_node())
         return {};
-    switch (layout_node()->computed_values().text_anchor()) {
+    switch (unsafe_layout_node()->computed_values().text_anchor()) {
     case CSS::TextAnchor::Start:
         return TextAnchor::Start;
     case CSS::TextAnchor::Middle:

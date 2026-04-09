@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1781 tests
 
-1076 Pass
-705 Fail
+1096 Pass
+685 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1494,34 +1494,34 @@ Pass	SVGElement interface: objects.stop must inherit property "ownerSVGElement" 
 Pass	SVGElement interface: objects.stop must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.stop must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.stop must inherit property "correspondingUseElement" with the proper type
-Fail	SVGPatternElement interface: existence and properties of interface object
-Fail	SVGPatternElement interface object length
-Fail	SVGPatternElement interface object name
-Fail	SVGPatternElement interface: existence and properties of interface prototype object
-Fail	SVGPatternElement interface: existence and properties of interface prototype object's "constructor" property
-Fail	SVGPatternElement interface: existence and properties of interface prototype object's @@unscopables property
+Pass	SVGPatternElement interface: existence and properties of interface object
+Pass	SVGPatternElement interface object length
+Pass	SVGPatternElement interface object name
+Pass	SVGPatternElement interface: existence and properties of interface prototype object
+Pass	SVGPatternElement interface: existence and properties of interface prototype object's "constructor" property
+Pass	SVGPatternElement interface: existence and properties of interface prototype object's @@unscopables property
 Fail	SVGPatternElement interface: attribute patternUnits
 Fail	SVGPatternElement interface: attribute patternContentUnits
 Fail	SVGPatternElement interface: attribute patternTransform
-Fail	SVGPatternElement interface: attribute x
-Fail	SVGPatternElement interface: attribute y
-Fail	SVGPatternElement interface: attribute width
-Fail	SVGPatternElement interface: attribute height
-Fail	SVGPatternElement interface: attribute viewBox
+Pass	SVGPatternElement interface: attribute x
+Pass	SVGPatternElement interface: attribute y
+Pass	SVGPatternElement interface: attribute width
+Pass	SVGPatternElement interface: attribute height
+Pass	SVGPatternElement interface: attribute viewBox
 Fail	SVGPatternElement interface: attribute preserveAspectRatio
-Fail	SVGPatternElement interface: attribute href
-Fail	SVGPatternElement must be primary interface of objects.pattern
-Fail	Stringification of objects.pattern
+Pass	SVGPatternElement interface: attribute href
+Pass	SVGPatternElement must be primary interface of objects.pattern
+Pass	Stringification of objects.pattern
 Fail	SVGPatternElement interface: objects.pattern must inherit property "patternUnits" with the proper type
 Fail	SVGPatternElement interface: objects.pattern must inherit property "patternContentUnits" with the proper type
 Fail	SVGPatternElement interface: objects.pattern must inherit property "patternTransform" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "x" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "y" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "width" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "height" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "viewBox" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "x" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "y" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "width" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "height" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "viewBox" with the proper type
 Fail	SVGPatternElement interface: objects.pattern must inherit property "preserveAspectRatio" with the proper type
-Fail	SVGPatternElement interface: objects.pattern must inherit property "href" with the proper type
+Pass	SVGPatternElement interface: objects.pattern must inherit property "href" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "className" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "ownerSVGElement" with the proper type
 Pass	SVGElement interface: objects.pattern must inherit property "viewportElement" with the proper type

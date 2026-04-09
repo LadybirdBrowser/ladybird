@@ -39,17 +39,16 @@ static ThrowCompletionOr<GC::Ref<AsyncGenerator>> async_generator_validate(VM& v
     // 1. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorContext]]).
     // 2. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorState]]).
     // 3. Perform ? RequireInternalSlot(generator, [[AsyncGeneratorQueue]]).
-    if (!generator.is_object() || !is<AsyncGenerator>(generator.as_object()))
+    auto async_generator = generator.as_if<AsyncGenerator>();
+    if (!async_generator)
         return vm.throw_completion<TypeError>(ErrorType::NotAnObjectOfType, "AsyncGenerator");
 
-    auto& async_generator = static_cast<AsyncGenerator&>(generator.as_object());
-
     // 4. If generator.[[GeneratorBrand]] is not generatorBrand, throw a TypeError exception.
-    if (async_generator.generator_brand() != generator_brand)
-        return vm.throw_completion<TypeError>(ErrorType::GeneratorBrandMismatch, async_generator.generator_brand().value_or("emp"_string), generator_brand.value_or("emp"_string));
+    if (async_generator->generator_brand() != generator_brand)
+        return vm.throw_completion<TypeError>(ErrorType::GeneratorBrandMismatch, async_generator->generator_brand().value_or("emp"_string), generator_brand.value_or("emp"_string));
 
     // 5. Return unused.
-    return async_generator;
+    return *async_generator;
 }
 
 // 27.6.1.2 AsyncGenerator.prototype.next ( value ), https://tc39.es/ecma262/#sec-asyncgenerator-prototype-next

@@ -112,6 +112,7 @@ public:
     virtual bool is_svg_geometry_box() const { return false; }
     virtual bool is_svg_clip_box() const { return false; }
     virtual bool is_svg_mask_box() const { return false; }
+    virtual bool is_svg_pattern_box() const { return false; }
     virtual bool is_svg_svg_box() const { return false; }
     virtual bool is_svg_graphics_box() const { return false; }
     virtual bool is_svg_foreign_object_box() const { return false; }

@@ -25,10 +25,9 @@ StyleSheetsActor::StyleSheetsActor(DevToolsServer& devtools, String name, WeakPt
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_style_sheet_sources(
             tab->description(),
-            [weak_self = make_weak_ptr<StyleSheetsActor>()](Web::CSS::StyleSheetIdentifier const& style_sheet, String source) {
-                if (auto self = weak_self.strong_ref())
-                    self->style_sheet_source_received(style_sheet, move(source));
-            });
+            weak_callback(*this, [](auto& self, Web::CSS::StyleSheetIdentifier const& style_sheet, String source) {
+                self.style_sheet_source_received(style_sheet, move(source));
+            }));
     }
 }
 

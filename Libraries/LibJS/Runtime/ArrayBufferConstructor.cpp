@@ -60,7 +60,7 @@ ThrowCompletionOr<GC::Ref<Object>> ArrayBufferConstructor::construct(FunctionObj
 
     if (byte_length_or_error.is_error()) {
         auto error = byte_length_or_error.release_error();
-        if (error.value().is_object() && is<RangeError>(error.value().as_object())) {
+        if (error.value().is<RangeError>()) {
             // Re-throw more specific RangeError
             return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "array buffer");
         }
@@ -81,16 +81,17 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayBufferConstructor::is_view)
 
     // 1. If arg is not an Object, return false.
     if (!arg.is_object())
-        return Value(false);
+        return false;
+    auto const& object = arg.as_object();
 
     // 2. If arg has a [[ViewedArrayBuffer]] internal slot, return true.
-    if (arg.as_object().is_typed_array())
-        return Value(true);
-    if (is<DataView>(arg.as_object()))
-        return Value(true);
+    if (object.is_typed_array())
+        return true;
+    if (is<DataView>(object))
+        return true;
 
     // 3. Return false.
-    return Value(false);
+    return false;
 }
 
 // 25.1.5.3 get ArrayBuffer [ @@species ], https://tc39.es/ecma262/#sec-get-arraybuffer-@@species

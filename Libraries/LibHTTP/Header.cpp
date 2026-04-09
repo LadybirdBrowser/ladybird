@@ -79,7 +79,7 @@ bool is_header_value(StringView header_value)
 }
 
 // https://fetch.spec.whatwg.org/#concept-header-value-normalize
-ByteString normalize_header_value(StringView potential_value)
+StringView normalize_header_value(StringView potential_value)
 {
     // To normalize a byte sequence potentialValue, remove any leading and trailing HTTP whitespace bytes from
     // potentialValue.

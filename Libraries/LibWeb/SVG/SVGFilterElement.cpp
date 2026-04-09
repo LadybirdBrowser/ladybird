@@ -271,7 +271,11 @@ Optional<Gfx::Filter> SVGFilterElement::gfx_filter(Layout::NodeWithStyle const& 
             if (!dom_node)
                 return IterationDecision::Continue;
 
-            auto* paintable_box = dom_node->paintable_box();
+            // NB: We use the unsafe accessor here because this is called from
+            //     resolve_paint_properties() during layout update, before the
+            //     layout-is-up-to-date flag has been set. The paintable is valid
+            //     since layout has already been performed at this point.
+            auto* paintable_box = dom_node->unsafe_paintable_box();
             if (!paintable_box)
                 return IterationDecision::Continue;
 

@@ -75,6 +75,8 @@ public:
 
     bool is_loading() const;
 
+    FlyString family_name() const { return m_family_name; }
+
 private:
     virtual void visit_edges(Visitor&) override;
 

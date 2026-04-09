@@ -24,14 +24,14 @@ ListItemMarkerBox::ListItemMarkerBox(DOM::Document& document, CSS::ListStyleType
 
 ListItemMarkerBox::~ListItemMarkerBox() = default;
 
-bool ListItemMarkerBox::counter_style_is_rendered_with_custom_image(Optional<CSS::CounterStyle const&> const& counter_style)
+bool ListItemMarkerBox::counter_style_is_rendered_with_custom_image(RefPtr<CSS::CounterStyle const> const& counter_style)
 {
     // https://drafts.csswg.org/css-counter-styles-3/#simple-symbolic
     // When used in list-style-type, a UA may instead render these styles using a UA-generated image or a UA-chosen font
     // instead of rendering the specified character in the element’s own font. If using an image, it must look similar
     // to the character, and must be sized to attractively fill a 1em by 1em square.
 
-    if (!counter_style.has_value())
+    if (!counter_style)
         return false;
 
     auto const& counter_style_name = counter_style->name();
@@ -50,7 +50,7 @@ Optional<String> ListItemMarkerBox::text() const
             // The element has no marker string.
             return {};
         },
-        [&](Optional<CSS::CounterStyle const&> const& counter_style) -> Optional<String> {
+        [&](RefPtr<CSS::CounterStyle const> const& counter_style) -> Optional<String> {
             // <counter-style>
             // Specifies the element’s marker string as the value of the list-item counter represented using the
             // specified <counter-style>. Specifically, the marker string is the result of generating a counter
@@ -63,7 +63,7 @@ Optional<String> ListItemMarkerBox::text() const
             // NB: Fallback to decimal if the counter style does not exist is handled within generate_a_counter_representation()
             auto counter_representation = CSS::generate_a_counter_representation(counter_style, m_list_item_element->document().registered_counter_styles(), index);
 
-            if (!counter_style.has_value())
+            if (!counter_style)
                 return MUST(String::formatted("{}. ", counter_representation));
 
             return MUST(String::formatted("{}{}{}", counter_style->prefix(), counter_representation, counter_style->suffix()));
@@ -96,9 +96,9 @@ CSSPixels ListItemMarkerBox::relative_size() const
     static constexpr float marker_image_size_factor = 0.35f;
     static constexpr float disclosure_marker_image_size_factor = 0.5f;
 
-    auto counter_style = m_list_style_type.get<Optional<CSS::CounterStyle const&>>();
+    auto const& counter_style = m_list_style_type.get<RefPtr<CSS::CounterStyle const>>();
 
-    VERIFY(counter_style.has_value());
+    VERIFY(counter_style);
 
     if (counter_style->name() == "square"_fly_string || counter_style->name() == "circle"_fly_string || counter_style->name() == "disc"_fly_string)
         return CSSPixels::nearest_value_for(ceilf(font_size * marker_image_size_factor));

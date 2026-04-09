@@ -20,6 +20,11 @@
 
 namespace Web::Layout {
 
+LayoutState::LayoutState(NodeWithStyle const& subtree_root)
+    : m_subtree_root(&subtree_root)
+{
+}
+
 LayoutState::~LayoutState()
 {
 }
@@ -52,6 +57,18 @@ LayoutState::UsedValues& LayoutState::populate_from_paintable(NodeWithStyle cons
     return used_values;
 }
 
+LayoutState::UsedValues& LayoutState::populate_node_from(LayoutState const& source, NodeWithStyle const& node)
+{
+    VERIFY(m_subtree_root);
+    auto index = node.layout_index();
+    VERIFY(!m_used_values_store.get(index));
+
+    auto& values = m_used_values_store.allocate(index);
+    values = source.get(node);
+    values.m_containing_block_used_values = nullptr;
+    return values;
+}
+
 LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const& node)
 {
     auto index = node.layout_index();
@@ -59,10 +76,16 @@ LayoutState::UsedValues& LayoutState::ensure_used_values_for(NodeWithStyle const
     if (auto* used_values = m_used_values_store.get(index))
         return *used_values;
 
-    // During subtree layout, all nodes outside the subtree must be pre-populated before running the formatting context
+    // During subtree layout, only the subtree root and nodes inside the subtree are allowed.
     VERIFY(!m_subtree_root || m_subtree_root == &node || m_subtree_root->is_inclusive_ancestor_of(node));
 
-    auto const* containing_block_used_values = (node.is_viewport() || m_subtree_root == &node) ? nullptr : &get(*node.containing_block());
+    UsedValues const* containing_block_used_values = nullptr;
+    if (m_subtree_root == &node) {
+        // For the subtree root, ancestor values are not available in the throwaway state.
+        containing_block_used_values = try_get(*node.containing_block());
+    } else if (!node.is_viewport()) {
+        containing_block_used_values = &get(*node.containing_block());
+    }
 
     auto& used_values = m_used_values_store.allocate(index);
     used_values.set_node(node, containing_block_used_values);

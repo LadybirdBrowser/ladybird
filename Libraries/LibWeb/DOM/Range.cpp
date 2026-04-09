@@ -112,7 +112,8 @@ void Range::update_associated_selection()
     auto& document = m_start_container->document();
     document.reset_cursor_blink_cycle();
 
-    if (auto* viewport = document.paintable()) {
+    // NB: Called during selection update after range change.
+    if (auto* viewport = document.unsafe_paintable()) {
         viewport->recompute_selection_states(*this);
         viewport->set_needs_display();
     }

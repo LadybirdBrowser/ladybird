@@ -206,3 +206,9 @@ test("legacy static properties with a temporary string", () => {
         expect(RegExp.$1).toBe("a");
     }
 });
+
+test("legacy octal escapes", () => {
+    expect(/\0111/.exec("\x091")?.[0]).toBe("\x091");
+    expect(/\0022/.exec("\x022")?.[0]).toBe("\x022");
+    expect(/\0003/.exec("\x003")?.[0]).toBe("\x003");
+});

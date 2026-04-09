@@ -348,11 +348,9 @@ InternalDuration combine_date_and_time_duration(DateDuration date_duration, Time
 ThrowCompletionOr<GC::Ref<Duration>> to_temporal_duration(VM& vm, Value item)
 {
     // 1. If item is an Object and item has an [[InitializedTemporalDuration]] internal slot, then
-    if (item.is_object() && is<Duration>(item.as_object())) {
-        auto const& duration = static_cast<Duration const&>(item.as_object());
-
+    if (auto duration = item.as_if<Duration>()) {
         // a. Return ! CreateTemporalDuration(item.[[Years]], item.[[Months]], item.[[Weeks]], item.[[Days]], item.[[Hours]], item.[[Minutes]], item.[[Seconds]], item.[[Milliseconds]], item.[[Microseconds]], item.[[Nanoseconds]]).
-        return MUST(create_temporal_duration(vm, duration.years(), duration.months(), duration.weeks(), duration.days(), duration.hours(), duration.minutes(), duration.seconds(), duration.milliseconds(), duration.microseconds(), duration.nanoseconds()));
+        return MUST(create_temporal_duration(vm, duration->years(), duration->months(), duration->weeks(), duration->days(), duration->hours(), duration->minutes(), duration->seconds(), duration->milliseconds(), duration->microseconds(), duration->nanoseconds()));
     }
 
     // 2. If item is not an Object, then

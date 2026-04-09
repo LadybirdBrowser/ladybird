@@ -166,16 +166,15 @@ JS_DEFINE_NATIVE_FUNCTION(FunctionPrototype::to_string)
     auto& function = function_value.as_function();
 
     // 2. If Type(func) is Object and func has a [[SourceText]] internal slot and func.[[SourceText]] is a sequence of Unicode code points and HostHasSourceTextAvailable(func) is true, then
-    if (is<ECMAScriptFunctionObject>(function)) {
+    if (auto const* ecma_script_function_object = as_if<ECMAScriptFunctionObject>(function)) {
         // a. Return CodePointsToString(func.[[SourceText]]).
-        return PrimitiveString::create(vm, static_cast<ECMAScriptFunctionObject&>(function).source_text());
+        return PrimitiveString::create(vm, ecma_script_function_object->source_text());
     }
 
     // 3. If func is a built-in function object, return an implementation-defined String source code representation of func. The representation must have the syntax of a NativeFunction. Additionally, if func has an [[InitialName]] internal slot and func.[[InitialName]] is a String, the portion of the returned String that would be matched by NativeFunctionAccessor[opt] PropertyName must be the value of func.[[InitialName]].
-    if (is<NativeFunction>(function)) {
+    if (auto const* native_function = as_if<NativeFunction>(function)) {
         // NOTE: once we remove name(), the fallback here can simply be an empty string.
-        auto const& native_function = static_cast<NativeFunction&>(function);
-        auto const name = native_function.initial_name().value_or(native_function.name());
+        auto const name = native_function->initial_name().value_or(native_function->name());
         return PrimitiveString::create(vm, ByteString::formatted("function {}() {{ [native code] }}", name));
     }
 

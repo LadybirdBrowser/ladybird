@@ -110,6 +110,8 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
         NamedPropertyID(CSS::PropertyID::TextDecoration),
         NamedPropertyID(CSS::PropertyID::TextRendering),
         NamedPropertyID(CSS::PropertyID::TextOverflow),
+        NamedPropertyID(CSS::PropertyID::Transform, SVG::AttributeNames::gradientTransform, { SVG::TagNames::linearGradient, SVG::TagNames::radialGradient }),
+        NamedPropertyID(CSS::PropertyID::Transform, SVG::AttributeNames::patternTransform, { SVG::TagNames::pattern }),
         NamedPropertyID(CSS::PropertyID::TransformOrigin),
         NamedPropertyID(CSS::PropertyID::UnicodeBidi),
         NamedPropertyID(CSS::PropertyID::Visibility),

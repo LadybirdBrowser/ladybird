@@ -31,10 +31,9 @@ WalkerActor::WalkerActor(DevToolsServer& devtools, String name, WeakPtr<TabActor
 
     if (auto tab = m_tab.strong_ref()) {
         devtools.delegate().listen_for_dom_mutations(tab->description(),
-            [weak_self = make_weak_ptr<WalkerActor>()](WebView::Mutation mutation) {
-                if (auto self = weak_self.strong_ref())
-                    self->new_dom_node_mutation(move(mutation));
-            });
+            weak_callback(*this, [](auto& self, WebView::Mutation mutation) {
+                self.new_dom_node_mutation(move(mutation));
+            }));
     }
 }
 

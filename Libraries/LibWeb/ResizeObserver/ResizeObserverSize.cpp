@@ -28,8 +28,11 @@ ResizeObserverSize::RawSize ResizeObserverSize::compute_box_size(DOM::Element& t
 
     // FIXME: If target is an SVGGraphicsElement that does not have an associated CSS layout box:
     // Otherwise:
-    if (target.paintable_box()) {
-        auto const& paintable_box = *target.paintable_box();
+    // NB: Layout was up to date when observations were gathered, but a previous
+    //     observer's callback may have invalidated it before we get here.
+    //     This matches the behavior of all major browsers.
+    if (target.unsafe_paintable_box()) {
+        auto const& paintable_box = *target.unsafe_paintable_box();
         switch (observed_box) {
         case Bindings::ResizeObserverBoxOptions::BorderBox:
             size.inline_size = paintable_box.border_box_width().to_double();

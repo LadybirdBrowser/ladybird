@@ -122,10 +122,9 @@ PageStyleActor::PageStyleActor(DevToolsServer& devtools, String name, WeakPtr<In
 {
     if (auto tab = InspectorActor::tab_for(m_inspector)) {
         devtools.delegate().listen_for_dom_properties(tab->description(),
-            [weak_self = make_weak_ptr<PageStyleActor>()](WebView::DOMNodeProperties const& properties) {
-                if (auto self = weak_self.strong_ref())
-                    self->received_dom_node_properties(properties);
-            });
+            weak_callback(*this, [](auto& self, WebView::DOMNodeProperties const& properties) {
+                self.received_dom_node_properties(properties);
+            }));
     }
 }
 

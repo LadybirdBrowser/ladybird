@@ -16,9 +16,10 @@ namespace Web::Painting {
 template<typename T>
 static T const* first_child_layout_node_of_type(SVG::SVGGraphicsElement const& graphics_element)
 {
-    if (!graphics_element.layout_node())
+    // NB: Called during painting.
+    if (!graphics_element.unsafe_layout_node())
         return nullptr;
-    return graphics_element.layout_node()->first_child_of_type<T>();
+    return graphics_element.unsafe_layout_node()->first_child_of_type<T>();
 }
 
 static auto get_mask_box(SVG::SVGGraphicsElement const& graphics_element)

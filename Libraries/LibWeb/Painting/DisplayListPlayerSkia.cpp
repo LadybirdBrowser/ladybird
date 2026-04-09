@@ -31,6 +31,7 @@
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
+#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/ShadowPainting.h>
 
 namespace Web::Painting {
@@ -479,7 +480,7 @@ static SkTileMode to_skia_tile_mode(SVGLinearGradientPaintStyle::SpreadMethod sp
     }
 }
 
-static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+static SkPaint gradient_paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
 {
     SkPaint paint;
 
@@ -528,6 +529,41 @@ static SkPaint paint_style_to_skia_paint(Painting::SVGGradientPaintStyle const& 
     }
 
     return paint;
+}
+
+SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(Painting::SVGPaintServerPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+{
+    if (auto const* gradient = as_if<SVGGradientPaintStyle>(paint_style))
+        return gradient_paint_style_to_skia_paint(*gradient, bounding_rect);
+
+    if (auto const* pattern = as_if<SVGPatternPaintStyle>(paint_style)) {
+        auto const& tile_rect = pattern->tile_rect();
+        auto tile_size = Gfx::IntSize(ceilf(tile_rect.width()), ceilf(tile_rect.height()));
+        if (tile_size.is_empty())
+            return {};
+
+        auto tile_surface = Gfx::PaintingSurface::create_with_size(m_context, tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied);
+
+        execute_display_list_into_surface(*pattern->tile_display_list(), *tile_surface);
+
+        auto image = tile_surface->sk_surface().makeImageSnapshot();
+
+        SkMatrix matrix;
+        matrix.setTranslate(tile_rect.x(), tile_rect.y());
+
+        matrix.preScale(tile_rect.width() / tile_size.width(), tile_rect.height() / tile_size.height());
+        if (auto transform = pattern->pattern_transform(); transform.has_value())
+            matrix = matrix * to_skia_matrix(transform.value());
+
+        auto sampling = SkSamplingOptions(SkFilterMode::kLinear);
+        auto shader = image->makeShader(SkTileMode::kRepeat, SkTileMode::kRepeat, sampling, &matrix);
+
+        SkPaint paint;
+        paint.setShader(shader);
+        return paint;
+    }
+
+    return {};
 }
 
 void DisplayListPlayerSkia::fill_path(FillPath const& command)

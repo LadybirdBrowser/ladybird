@@ -6,6 +6,7 @@
 
 #include <AK/IDAllocator.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>

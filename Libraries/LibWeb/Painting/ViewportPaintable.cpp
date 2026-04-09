@@ -562,14 +562,14 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container) && !range.start().node->is_inert()) {
-            if (auto* paintable = start_container->paintable())
+            if (auto* paintable = start_container->unsafe_paintable())
                 paintable->set_selection_state(SelectionState::StartAndEnd);
             return;
         }
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (auto* paintable = start_container->paintable(); paintable && !range.start().node->is_inert()) {
+    if (auto* paintable = start_container->unsafe_paintable(); paintable && !range.start().node->is_inert()) {
         if (is<DOM::Text>(*start_container))
             paintable->set_selection_state(SelectionState::Start);
         else
@@ -592,12 +592,12 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
-        if (auto* paintable = node->paintable())
+        if (auto* paintable = node->unsafe_paintable())
             paintable->set_selection_state(SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
-    if (auto* paintable = end_container->paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
+    if (auto* paintable = end_container->unsafe_paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
         paintable->set_selection_state(SelectionState::End);
     }
 }

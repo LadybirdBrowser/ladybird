@@ -545,20 +545,16 @@ ThrowCompletionOr<String> to_temporal_calendar_identifier(VM& vm, Value temporal
     // 1. If temporalCalendarLike is an Object and temporalCalendarLike has an [[InitializedTemporalDate]],
     //    [[InitializedTemporalDateTime]], [[InitializedTemporalMonthDay]], [[InitializedTemporalYearMonth]], or
     //    [[InitializedTemporalZonedDateTime]] internal slot, return temporalCalendarLike.[[Calendar]].
-    if (temporal_calendar_like.is_object()) {
-        auto const& temporal_calendar_object = temporal_calendar_like.as_object();
-
-        if (auto const* plain_date = as_if<PlainDate>(temporal_calendar_object))
-            return plain_date->calendar();
-        if (auto const* plain_date_time = as_if<PlainDateTime>(temporal_calendar_object))
-            return plain_date_time->calendar();
-        if (auto const* plain_month_day = as_if<PlainMonthDay>(temporal_calendar_object))
-            return plain_month_day->calendar();
-        if (auto const* plain_year_month = as_if<PlainYearMonth>(temporal_calendar_object))
-            return plain_year_month->calendar();
-        if (auto const* zoned_date_time = as_if<ZonedDateTime>(temporal_calendar_object))
-            return zoned_date_time->calendar();
-    }
+    if (auto plain_date = temporal_calendar_like.as_if<PlainDate>())
+        return plain_date->calendar();
+    if (auto plain_date_time = temporal_calendar_like.as_if<PlainDateTime>())
+        return plain_date_time->calendar();
+    if (auto plain_month_day = temporal_calendar_like.as_if<PlainMonthDay>())
+        return plain_month_day->calendar();
+    if (auto plain_year_month = temporal_calendar_like.as_if<PlainYearMonth>())
+        return plain_year_month->calendar();
+    if (auto zoned_date_time = temporal_calendar_like.as_if<ZonedDateTime>())
+        return zoned_date_time->calendar();
 
     // 2. If temporalCalendarLike is not a String, throw a TypeError exception.
     if (!temporal_calendar_like.is_string())

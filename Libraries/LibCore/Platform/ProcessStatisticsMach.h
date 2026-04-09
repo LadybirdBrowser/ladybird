@@ -12,11 +12,12 @@
 #    error "This file is only available on Mach platforms"
 #endif
 
+#include <LibCore/Export.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <mach/mach.h>
 
 namespace Core::Platform {
 
-MachPort register_with_mach_server(ByteString const& server_name);
+CORE_API MachPort register_with_mach_server(ByteString const& server_name);
 
 }

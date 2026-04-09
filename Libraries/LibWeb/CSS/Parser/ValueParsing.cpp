@@ -2701,7 +2701,6 @@ Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>
     // @counter-style rule, and in the counter() functions.
 
     // NB: The "names defined in this specification" are defined in the `CounterStyleNameKeyword` enum
-    // FIXME: Include the rest of the defined names in `CounterStyleNameKeyword`
     auto const& keyword = keyword_from_string(custom_ident.value());
     if (keyword.has_value() && keyword_to_counter_style_name_keyword(keyword.value()).has_value())
         custom_ident = custom_ident->to_ascii_lowercase();
@@ -2714,15 +2713,61 @@ Optional<FlyString> Parser::parse_counter_style_name(TokenStream<ComponentValue>
 RefPtr<StyleValue const> Parser::parse_counter_style_value(TokenStream<ComponentValue>& tokens)
 {
     // <counter-style> = <counter-style-name> | <symbols()>
+    // <symbols()> = symbols( <symbols-type>? [ <string> | <image> ]+ )
+    // <symbols-type> = cyclic | numeric | alphabetic | symbolic | fixed
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
+    // <counter-style-name>
     if (auto const& counter_style_name = parse_counter_style_name(tokens); counter_style_name.has_value()) {
         transaction.commit();
         return CounterStyleStyleValue::create(counter_style_name.value());
     }
 
-    // FIXME: Support <symbols()>
+    // <symbols()>
+    auto const& maybe_function_token = tokens.consume_a_token();
+
+    if (maybe_function_token.is_function("symbols"sv)) {
+        TokenStream argument_tokens { maybe_function_token.function().value };
+
+        // <symbols-type>?
+        // NB: <symbols-type> defaults to symbolic if not provided.
+        SymbolsType symbols_type = SymbolsType::Symbolic;
+        if (auto keyword = parse_keyword_value(argument_tokens); keyword) {
+            auto maybe_symbols_type = keyword_to_symbols_type(keyword->to_keyword());
+
+            if (!maybe_symbols_type.has_value())
+                return nullptr;
+
+            symbols_type = maybe_symbols_type.value();
+        }
+
+        // [ <string> | <image> ]+
+        // FIXME: In line with <symbol> we don't support <image> here - we may need to revisit this if other browsers
+        //        implement it.
+        Vector<FlyString> symbols;
+        while (argument_tokens.has_next_token()) {
+            auto maybe_string = parse_string_value(argument_tokens);
+
+            if (!maybe_string)
+                break;
+
+            symbols.append(maybe_string->string_value());
+        }
+
+        argument_tokens.discard_whitespace();
+
+        if (argument_tokens.has_next_token())
+            return nullptr;
+
+        // https://drafts.csswg.org/css-counter-styles-3/#symbols-function
+        // If the system is alphabetic or numeric, there must be at least two <string>s or <image>s, or else the function is invalid.
+        if (symbols.is_empty() || (first_is_one_of(symbols_type, SymbolsType::Alphabetic, SymbolsType::Numeric) && symbols.size() < 2))
+            return nullptr;
+
+        transaction.commit();
+        return CounterStyleStyleValue::create(CounterStyleStyleValue::SymbolsFunction { symbols_type, move(symbols) });
+    }
 
     return nullptr;
 }
@@ -2874,8 +2919,9 @@ RefPtr<StyleValue const> Parser::parse_paint_value(TokenStream<ComponentValue>& 
         tokens.discard_whitespace();
         if (auto color_or_none = parse_color_or_none(); color_or_none == nullptr) {
             // Fail to parse if the fallback is invalid, but otherwise ignore it.
-            // FIXME: Use fallback color
             return nullptr;
+        } else if (color_or_none.has_value() && *color_or_none && (*color_or_none)->has_color()) {
+            return URLStyleValue::create(url->as_url().url(), color_or_none->release_nonnull());
         }
         return url;
     }

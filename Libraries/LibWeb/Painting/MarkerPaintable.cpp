@@ -63,7 +63,7 @@ void MarkerPaintable::paint(DisplayListRecordingContext& context, PaintPhase pha
         return;
     }
 
-    auto const& counter_style = list_style_type.get<Optional<CSS::CounterStyle const&>>();
+    auto const& counter_style = list_style_type.get<RefPtr<CSS::CounterStyle const>>();
     VERIFY(Layout::ListItemMarkerBox::counter_style_is_rendered_with_custom_image(counter_style));
 
     if (counter_style->name() == "square"_fly_string) {

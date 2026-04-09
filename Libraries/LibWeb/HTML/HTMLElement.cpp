@@ -781,7 +781,8 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
         return TraversalDecision::Continue;
     });
 
-    if (auto paintable_box = this->paintable_box())
+    // NB: Called during inner text collection, layout may not be current.
+    if (auto paintable_box = this->unsafe_paintable_box())
         paintable_box->set_needs_paint_only_properties_update(true);
 }
 

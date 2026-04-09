@@ -52,7 +52,7 @@ static Optional<CSSPixelRect> scrollport_rect_in_viewport(Painting::PaintableBox
         return {};
     auto pixel_ratio = static_cast<float>(paintable_box.document().page().client().device_pixels_per_css_pixel());
     auto const& scroll_state = viewport_paintable->scroll_state_snapshot();
-    auto result = accumulated_visual_context->transform_rect_to_viewport(scrollport.to_type<float>() * pixel_ratio, scroll_state.device_offsets());
+    auto result = accumulated_visual_context->transform_rect_to_viewport(scrollport.to_type<float>() * pixel_ratio, scroll_state);
     return (result * (1.f / pixel_ratio)).to_type<CSSPixels>();
 }
 
@@ -110,6 +110,8 @@ void AutoScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const
 CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 {
     m_mouse_position = mouse_position;
+
+    m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
     auto* paintable_box = auto_scroll_paintable(m_container_element);
     if (!paintable_box)

@@ -39,9 +39,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
         auto const& object = item.as_object();
 
         // a. If item has an [[InitializedTemporalYearMonth]] internal slot, then
-        if (is<PlainYearMonth>(object)) {
-            auto const& plain_year_month = static_cast<PlainYearMonth const&>(object);
-
+        if (auto const* plain_year_month = as_if<PlainYearMonth>(object)) {
             // i. Let resolvedOptions be ? GetOptionsObject(options).
             auto resolved_options = TRY(get_options_object(vm, options));
 
@@ -49,7 +47,7 @@ ThrowCompletionOr<GC::Ref<PlainYearMonth>> to_temporal_year_month(VM& vm, Value 
             TRY(get_temporal_overflow_option(vm, resolved_options));
 
             // iii. Return ! CreateTemporalYearMonth(item.[[ISODate]], item.[[Calendar]]).
-            return MUST(create_temporal_year_month(vm, plain_year_month.iso_date(), plain_year_month.calendar()));
+            return MUST(create_temporal_year_month(vm, plain_year_month->iso_date(), plain_year_month->calendar()));
         }
 
         // b. Let calendar be ? GetTemporalCalendarIdentifierWithISODefault(item).

@@ -1,0 +1,174 @@
+Harness status: OK
+
+Found 169 tests
+
+169 Pass
+Pass	setup
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with altered plaintext
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv decryption with altered ciphertext
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv without encrypt usage
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv with mismatched key and algorithm
+Pass	AES-OCB 128-bit key, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, no additional data, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 192-bit key, no additional data, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 64-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 96-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 256-bit key, no additional data, 128-bit tag, 120-bit iv without decrypt usage
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 24-bits
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 48-bits
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 72-bits
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 95-bits
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 129-bits
+Pass	AES-OCB 128-bit key, illegal iv length 0-bits
+Pass	AES-OCB 128-bit key, illegal iv length 128-bits
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 24-bits
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 48-bits
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 72-bits
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 95-bits
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 129-bits
+Pass	AES-OCB 192-bit key, illegal iv length 0-bits
+Pass	AES-OCB 192-bit key, illegal iv length 128-bits
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 24-bits
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 48-bits
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 72-bits
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 95-bits
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 129-bits
+Pass	AES-OCB 256-bit key, illegal iv length 0-bits
+Pass	AES-OCB 256-bit key, illegal iv length 128-bits
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 24-bits decryption
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 48-bits decryption
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 72-bits decryption
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 95-bits decryption
+Pass	AES-OCB 128-bit key, 120-bit iv, illegal tag length 129-bits decryption
+Pass	AES-OCB 128-bit key, illegal iv length 0-bits decryption
+Pass	AES-OCB 128-bit key, illegal iv length 128-bits decryption
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 24-bits decryption
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 48-bits decryption
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 72-bits decryption
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 95-bits decryption
+Pass	AES-OCB 192-bit key, 120-bit iv, illegal tag length 129-bits decryption
+Pass	AES-OCB 192-bit key, illegal iv length 0-bits decryption
+Pass	AES-OCB 192-bit key, illegal iv length 128-bits decryption
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 24-bits decryption
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 48-bits decryption
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 72-bits decryption
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 95-bits decryption
+Pass	AES-OCB 256-bit key, 120-bit iv, illegal tag length 129-bits decryption
+Pass	AES-OCB 256-bit key, illegal iv length 0-bits decryption
+Pass	AES-OCB 256-bit key, illegal iv length 128-bits decryption

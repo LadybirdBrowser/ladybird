@@ -20,6 +20,8 @@
 
 namespace Web::Painting {
 
+class ScrollStateSnapshot;
+
 struct ScrollData {
     size_t scroll_frame_id;
     bool is_sticky;
@@ -83,9 +85,9 @@ public:
 
     void dump(StringBuilder&) const;
 
-    Optional<Gfx::FloatPoint> transform_point_for_hit_test(Gfx::FloatPoint, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const;
+    Optional<Gfx::FloatPoint> transform_point_for_hit_test(Gfx::FloatPoint, ScrollStateSnapshot const&) const;
     Gfx::FloatPoint inverse_transform_point(Gfx::FloatPoint) const;
-    Gfx::FloatRect transform_rect_to_viewport(Gfx::FloatRect const&, ReadonlySpan<Gfx::FloatPoint> scroll_offsets) const;
+    Gfx::FloatRect transform_rect_to_viewport(Gfx::FloatRect const&, ScrollStateSnapshot const&) const;
 
 private:
     AccumulatedVisualContext(size_t id, VisualContextData data, RefPtr<AccumulatedVisualContext const> parent)

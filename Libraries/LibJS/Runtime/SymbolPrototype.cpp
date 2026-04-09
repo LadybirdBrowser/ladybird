@@ -47,11 +47,11 @@ static ThrowCompletionOr<GC::Ref<Symbol>> this_symbol_value(VM& vm, Value value)
         return value.as_symbol();
 
     // 2. If value is an Object and value has a [[SymbolData]] internal slot, then
-    if (value.is_object() && is<SymbolObject>(value.as_object())) {
+    if (auto symbol = value.as_if<SymbolObject>()) {
         // a. Let s be value.[[SymbolData]].
         // b. Assert: s is a Symbol.
         // c. Return s.
-        return static_cast<SymbolObject&>(value.as_object()).primitive_symbol();
+        return symbol->primitive_symbol();
     }
 
     // 3. Throw a TypeError exception.

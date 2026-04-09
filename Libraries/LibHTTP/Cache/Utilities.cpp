@@ -643,7 +643,7 @@ ByteString normalize_request_vary_header_values(StringView header, HeaderList co
             }
 
             value.view().for_each_split_view(","sv, SplitBehavior::Nothing, [&](StringView field) {
-                values.append(field.trim_whitespace());
+                values.append(normalize_header_value(field));
             });
             return IterationDecision::Continue;
         });

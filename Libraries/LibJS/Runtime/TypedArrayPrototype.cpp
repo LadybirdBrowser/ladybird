@@ -1609,11 +1609,9 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::set)
         return vm.throw_completion<RangeError>(ErrorType::TypedArrayInvalidTargetOffset, "positive");
 
     // 6. If source is an Object that has a [[TypedArrayName]] internal slot, then
-    if (source.is_object() && is<TypedArrayBase>(source.as_object())) {
-        auto& source_typed_array = static_cast<TypedArrayBase&>(source.as_object());
-
+    if (auto source_typed_array = source.as_if<TypedArrayBase>()) {
         // a. Perform ? SetTypedArrayFromTypedArray(target, targetOffset, source).
-        TRY(set_typed_array_from_typed_array(vm, *typed_array, target_offset, source_typed_array));
+        TRY(set_typed_array_from_typed_array(vm, *typed_array, target_offset, *source_typed_array));
     }
     // 7. Else,
     else {

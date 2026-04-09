@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <metadata>
+    <link xmlns="http://www.w3.org/1999/xhtml" rel="author" title="Dan Glastonbury" href="mailto:dglastonbury@mozilla.com"/>
+    <link xmlns="http://www.w3.org/1999/xhtml" rel="help" href="https://www.w3.org/TR/SVG2/pservers.html"/>
+    <link xmlns="http://www.w3.org/1999/xhtml" rel="match" href="../../../../expected/wpt-import/svg/painting/currentColor-override-pserver-fallback-ref.svg"/>
+    <meta xmlns="http://www.w3.org/1999/xhtml" name="assert" content="missing pattern fallback inherits fill color via currentcolor."/>
+  </metadata>
+
+  <g fill="url(#NotFound) currentcolor" color="red">
+    <circle color="limegreen" stroke="black" cx="50" cy="50" r="40" />
+  </g>
+</svg>

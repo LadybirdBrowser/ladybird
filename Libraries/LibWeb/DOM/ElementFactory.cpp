@@ -120,6 +120,7 @@
 #include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGMetadataElement.h>
 #include <LibWeb/SVG/SVGPathElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGPolygonElement.h>
 #include <LibWeb/SVG/SVGPolylineElement.h>
 #include <LibWeb/SVG/SVGRadialGradientElement.h>
@@ -534,6 +535,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(JS::Realm& realm, Document& d
         return realm.create<SVG::SVGMetadataElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::path)
         return realm.create<SVG::SVGPathElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::pattern)
+        return realm.create<SVG::SVGPatternElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::polygon)
         return realm.create<SVG::SVGPolygonElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::polyline)

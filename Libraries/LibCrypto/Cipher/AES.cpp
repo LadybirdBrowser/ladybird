@@ -174,6 +174,80 @@ ErrorOr<ByteBuffer> AESGCMCipher::decrypt(ReadonlyBytes ciphertext, ReadonlyByte
     return out.slice(0, out_size + final_size);
 }
 
+AESOCBCipher::AESOCBCipher(ReadonlyBytes key)
+    : AESCipher(GET_CIPHER(key, ocb), key)
+{
+}
+
+ErrorOr<ByteBuffer> AESOCBCipher::encrypt(ReadonlyBytes plaintext, ReadonlyBytes iv, ReadonlyBytes aad, size_t tag_length) const
+{
+    auto tag_length_bytes = tag_length / 8;
+    VERIFY(tag_length_bytes >= 1 && tag_length_bytes <= 16);
+    auto ctx = TRY(OpenSSL_CIPHER_CTX::create());
+    OPENSSL_TRY(EVP_EncryptInit_ex(ctx.ptr(), m_cipher, nullptr, nullptr, nullptr));
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_SET_IVLEN, iv.size(), nullptr));
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_SET_TAG, tag_length_bytes, nullptr));
+    OPENSSL_TRY(EVP_EncryptInit_ex(ctx.ptr(), nullptr, nullptr, m_key.data(), iv.data()));
+
+    if (!aad.is_empty()) {
+        int aad_len = 0;
+        OPENSSL_TRY(EVP_EncryptUpdate(ctx.ptr(), nullptr, &aad_len, aad.data(), aad.size()));
+    }
+
+    auto ciphertext = TRY(ByteBuffer::create_uninitialized(plaintext.size()));
+    int out_len = 0;
+    OPENSSL_TRY(EVP_EncryptUpdate(ctx.ptr(), ciphertext.data(), &out_len, plaintext.data(), plaintext.size()));
+
+    int final_len = 0;
+    OPENSSL_TRY(EVP_EncryptFinal_ex(ctx.ptr(), ciphertext.data() + out_len, &final_len));
+
+    auto tag = TRY(ByteBuffer::create_uninitialized(tag_length_bytes));
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_GET_TAG, tag_length_bytes, tag.data()));
+
+    auto result = TRY(ByteBuffer::create_uninitialized(ciphertext.size() + tag.size()));
+    result.overwrite(0, ciphertext.data(), ciphertext.size());
+    result.overwrite(ciphertext.size(), tag.data(), tag.size());
+
+    return result;
+}
+
+ErrorOr<ByteBuffer> AESOCBCipher::decrypt(ReadonlyBytes ciphertext_with_tag, ReadonlyBytes iv, ReadonlyBytes aad, size_t tag_length) const
+{
+    auto tag_length_bytes = tag_length / 8;
+    VERIFY(tag_length_bytes >= 1 && tag_length_bytes <= 16);
+    auto split_index = ciphertext_with_tag.size() - tag_length_bytes;
+    auto ciphertext = ciphertext_with_tag.slice(0, split_index);
+    auto tag = ciphertext_with_tag.slice(split_index);
+
+    auto ctx = TRY(OpenSSL_CIPHER_CTX::create());
+    OPENSSL_TRY(EVP_DecryptInit_ex(ctx.ptr(), m_cipher, nullptr, nullptr, nullptr));
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_SET_IVLEN, iv.size(), nullptr));
+
+    // NOTE: In OCB mode, calling this with tag set to NULL sets the tag length.
+    // The tag length can only be set before specifying an IV.
+    // If this is not called prior to setting the IV, then a default tag length is used.
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_SET_TAG, tag_length_bytes, nullptr));
+    OPENSSL_TRY(EVP_DecryptInit_ex(ctx.ptr(), nullptr, nullptr, m_key.data(), iv.data()));
+
+    if (!aad.is_empty()) {
+        int aad_len = 0;
+        OPENSSL_TRY(EVP_DecryptUpdate(ctx.ptr(), nullptr, &aad_len, aad.data(), aad.size()));
+    }
+
+    auto plaintext = TRY(ByteBuffer::create_uninitialized(ciphertext.size()));
+
+    int out_len = 0;
+    OPENSSL_TRY(EVP_DecryptUpdate(ctx.ptr(), plaintext.data(), &out_len, ciphertext.data(), ciphertext.size()));
+
+    auto* mutable_tag = const_cast<u8*>(tag.data());
+    OPENSSL_TRY(EVP_CIPHER_CTX_ctrl(ctx.ptr(), EVP_CTRL_AEAD_SET_TAG, tag_length_bytes, mutable_tag));
+
+    int final_len = 0;
+    OPENSSL_TRY(EVP_DecryptFinal_ex(ctx.ptr(), plaintext.data() + out_len, &final_len));
+
+    return plaintext;
+}
+
 AESKWCipher::AESKWCipher(ReadonlyBytes key)
     : AESCipher(GET_CIPHER(key, wrap), key)
 {

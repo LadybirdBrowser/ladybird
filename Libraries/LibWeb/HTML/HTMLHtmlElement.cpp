@@ -42,8 +42,9 @@ bool HTMLHtmlElement::should_use_body_background_properties() const
     if (body_element && !body_element->computed_properties()->contain().is_empty())
         return false;
 
-    auto background_color = layout_node()->computed_values().background_color();
-    auto const& background_layers = layout_node()->background_layers();
+    // NB: Called during rendering, reading background properties.
+    auto background_color = unsafe_layout_node()->computed_values().background_color();
+    auto const& background_layers = unsafe_layout_node()->background_layers();
 
     return background_layers.is_empty() && background_color == Color::Transparent;
 }

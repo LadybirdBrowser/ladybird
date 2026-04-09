@@ -11,10 +11,12 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
+#include <LibCore/Export.h>
 
 namespace Core {
 
-class AnonymousBufferImpl final : public RefCounted<AnonymousBufferImpl> {
+// TODO: Hide the implementation from ABI
+class CORE_API AnonymousBufferImpl final : public RefCounted<AnonymousBufferImpl> {
 public:
     static ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> create(size_t);
     static ErrorOr<NonnullRefPtr<AnonymousBufferImpl>> create(int fd, size_t);
@@ -33,7 +35,7 @@ private:
     void* m_data { nullptr };
 };
 
-class AnonymousBuffer {
+class CORE_API AnonymousBuffer {
 public:
     static ErrorOr<AnonymousBuffer> create_with_size(size_t);
     static ErrorOr<AnonymousBuffer> create_from_anon_fd(int fd, size_t);
