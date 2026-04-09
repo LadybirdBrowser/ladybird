@@ -244,36 +244,27 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
 
             for (CSS::Selector const& selector : absolutized_selectors) {
                 MatchingRule matching_rule {
-                    scope_shadow_root,
-                    &rule,
-                    sheet,
-                    sheet.default_namespace(),
-                    selector,
-                    style_sheet_index,
-                    rule_index,
-                    selector.specificity(),
-                    cascade_origin,
-                    false,
+                    .shadow_root = scope_shadow_root,
+                    .rule = &rule,
+                    .sheet = sheet,
+                    .default_namespace = sheet.default_namespace(),
+                    .selector = selector,
+                    .style_sheet_index = style_sheet_index,
+                    .rule_index = rule_index,
+                    .specificity = selector.specificity(),
+                    .cascade_origin = cascade_origin,
+                    .contains_pseudo_element = selector.target_pseudo_element().has_value(),
+                    .slotted = selector.is_slotted(),
+                    .contains_part_pseudo_element = selector.has_part_pseudo_element(),
                 };
 
                 auto const& qualified_layer_name = matching_rule.qualified_layer_name();
                 auto& rule_cache = qualified_layer_name.is_empty() ? rule_caches.main : *rule_caches.by_layer.ensure(qualified_layer_name, [] { return make<RuleCache>(); });
 
-                bool contains_root_pseudo_class = false;
-                Optional<CSS::PseudoElement> pseudo_element;
-
                 collect_selector_insights(selector, insights);
 
+                bool contains_root_pseudo_class = false;
                 for (auto const& simple_selector : selector.compound_selectors().last().simple_selectors) {
-                    if (!matching_rule.contains_pseudo_element) {
-                        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement) {
-                            matching_rule.contains_pseudo_element = true;
-                            // FIXME: This wrongly assumes there is only one pseudo-element per selector.
-                            pseudo_element = simple_selector.pseudo_element().type();
-                            matching_rule.slotted = pseudo_element == PseudoElement::Slotted;
-                            matching_rule.contains_part_pseudo_element = pseudo_element == PseudoElement::Part;
-                        }
-                    }
                     if (!contains_root_pseudo_class) {
                         if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoClass
                             && simple_selector.pseudo_class().type == CSS::PseudoClass::Root) {
@@ -293,7 +284,7 @@ void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin
                     }
                 }
 
-                rule_cache.add_rule(matching_rule, pseudo_element, contains_root_pseudo_class);
+                rule_cache.add_rule(matching_rule, selector.target_pseudo_element().map([](auto& it) { return it.type(); }), contains_root_pseudo_class);
             }
             ++rule_index;
         });
