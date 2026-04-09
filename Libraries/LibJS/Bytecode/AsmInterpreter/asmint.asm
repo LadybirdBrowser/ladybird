@@ -1380,16 +1380,20 @@ handler PutByValue
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
-    branch_zero t5, .slow
+    branch_zero t5, .try_holey_array_slow
     mov t0, t5
     sub t0, 8
     load32 t0, [t0, 0]
-    branch_ge_unsigned t4, t0, .slow
+    branch_ge_unsigned t4, t0, .try_holey_array_slow
     load64 t1, [t5, t4, 8]
     mov t0, EMPTY_TAG_SHIFTED
-    branch_eq t1, t0, .slow
+    branch_eq t1, t0, .try_holey_array_slow
     load_operand t1, m_src
     store64 [t5, t4, 8], t1
+    dispatch_next
+.try_holey_array_slow:
+    call_interp asm_try_put_by_value_holey_array
+    branch_nonzero t0, .slow
     dispatch_next
 .try_typed_array:
     # t3 = Object*, t4 = index (u32, non-negative)
