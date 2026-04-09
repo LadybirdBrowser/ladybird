@@ -3,6 +3,7 @@ set(SOURCES
     Cell.cpp
     CellAllocator.cpp
     ConservativeHashMap.cpp
+    ConservativeHashTable.cpp
     ConservativeVector.cpp
     Root.cpp
     RootHashMap.cpp

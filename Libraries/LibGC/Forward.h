@@ -43,6 +43,9 @@ class ConservativeVector;
 template<typename K, typename V, typename KeyTraits, typename ValueTraits, bool IsOrdered>
 class ConservativeHashMap;
 
+template<typename T, typename TraitsForT, bool IsOrdered>
+class ConservativeHashTable;
+
 template<class T>
 class HeapVector;
 

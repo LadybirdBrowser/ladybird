@@ -479,6 +479,9 @@ public:
                 case HeapRoot::Type::ConservativeHashMap:
                     node.set("root"sv, "ConservativeHashMap"sv);
                     break;
+                case HeapRoot::Type::ConservativeHashTable:
+                    node.set("root"sv, "ConservativeHashTable"sv);
+                    break;
                 case HeapRoot::Type::ConservativeVector:
                     node.set("root"sv, "ConservativeVector"sv);
                     break;
@@ -974,6 +977,12 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
     for (auto& hash_map : m_conservative_hash_maps) {
         hash_map.for_each_possible_value([&](FlatPtr possible_value) {
             add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashMap }, min_block_address, max_block_address);
+        });
+    }
+
+    for (auto& hash_table : m_conservative_hash_tables) {
+        hash_table.for_each_possible_value([&](FlatPtr possible_value) {
+            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashTable }, min_block_address, max_block_address);
         });
     }
 
