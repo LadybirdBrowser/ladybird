@@ -78,6 +78,7 @@ struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
     Optional<HeadlessMode> headless_mode;
+    u32 screenshot_delay { 1 };
     int window_width { 800 };
     int window_height { 600 };
     NewWindow new_window { NewWindow::No };

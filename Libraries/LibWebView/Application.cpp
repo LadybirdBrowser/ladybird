@@ -131,6 +131,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<HeadlessMode> headless_mode;
     Optional<int> window_width;
     Optional<int> window_height;
+    Optional<u32> screenshot_delay;
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
@@ -189,6 +190,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         },
     });
 
+    args_parser.add_option(screenshot_delay, "Set the number of seconds to wait before taking a screenshot (only supported for headless screenshot mode)", "screenshot-delay", 0, "seconds");
     args_parser.add_option(window_width, "Set viewport width in pixels (default: 800) (currently only supported for headless mode)", "window-width", 0, "pixels");
     args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -295,6 +297,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .enable_content_filter = disable_content_filter ? EnableContentFilter::No : EnableContentFilter::Yes,
     };
 
+    if (screenshot_delay.has_value())
+        m_browser_options.screenshot_delay = *screenshot_delay;
     if (window_width.has_value())
         m_browser_options.window_width = *window_width;
     if (window_height.has_value())
@@ -559,7 +563,7 @@ ErrorOr<void> Application::launch_devtools_server()
     return {};
 }
 
-static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
+static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, u32 screenshot_timeout)
 {
     outln("Taking screenshot after {} seconds", screenshot_timeout);
 
@@ -624,7 +628,7 @@ ErrorOr<int> Application::execute()
 
             switch (*m_browser_options.headless_mode) {
             case HeadlessMode::Screenshot:
-                screenshot_timer = load_page_for_screenshot_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), 1);
+                screenshot_timer = load_page_for_screenshot_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), m_browser_options.screenshot_delay);
                 break;
             case HeadlessMode::LayoutTree:
                 load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
