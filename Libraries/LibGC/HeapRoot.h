@@ -14,6 +14,7 @@ namespace GC {
 
 struct GC_API HeapRoot {
     enum class Type {
+        ConservativeHashMap,
         ConservativeVector,
         HeapFunctionCapturedPointer,
         MustSurviveGC,

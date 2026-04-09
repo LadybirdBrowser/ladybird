@@ -476,6 +476,9 @@ public:
                 auto type = it.value.root_origin->type;
                 auto const* location = it.value.root_origin->location;
                 switch (type) {
+                case HeapRoot::Type::ConservativeHashMap:
+                    node.set("root"sv, "ConservativeHashMap"sv);
+                    break;
                 case HeapRoot::Type::ConservativeVector:
                     node.set("root"sv, "ConservativeVector"sv);
                     break;
@@ -966,6 +969,12 @@ NO_SANITIZE_ADDRESS void Heap::gather_conservative_roots(HashMap<Cell*, HeapRoot
                 add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeVector }, min_block_address, max_block_address);
             }
         }
+    }
+
+    for (auto& hash_map : m_conservative_hash_maps) {
+        hash_map.for_each_possible_value([&](FlatPtr possible_value) {
+            add_possible_value(possible_pointers, possible_value, HeapRoot { .type = HeapRoot::Type::ConservativeHashMap }, min_block_address, max_block_address);
+        });
     }
 
     {

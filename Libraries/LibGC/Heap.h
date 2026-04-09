@@ -19,6 +19,7 @@
 #include <LibCore/Forward.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/ConservativeHashMap.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Forward.h>
 #include <LibGC/HeapRoot.h>
@@ -87,6 +88,8 @@ public:
     void did_create_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
     void did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
 
+    void did_create_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase&);
+    void did_destroy_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase&);
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
 
@@ -180,6 +183,7 @@ private:
     RootVectorBase::List m_root_vectors;
     RootHashMapBase::List m_root_hash_maps;
     RootHashTableBase::List m_root_hash_tables;
+    ConservativeHashMapBase::List m_conservative_hash_maps;
     ConservativeVectorBase::List m_conservative_vectors;
     WeakContainer::List m_weak_containers;
 
@@ -258,6 +262,18 @@ inline void Heap::did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHash
 {
     VERIFY(m_root_hash_tables.contains(hash_table));
     m_root_hash_tables.remove(hash_table);
+}
+
+inline void Heap::did_create_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase& hash_map)
+{
+    VERIFY(!m_conservative_hash_maps.contains(hash_map));
+    m_conservative_hash_maps.append(hash_map);
+}
+
+inline void Heap::did_destroy_conservative_hash_map(Badge<ConservativeHashMapBase>, ConservativeHashMapBase& hash_map)
+{
+    VERIFY(m_conservative_hash_maps.contains(hash_map));
+    m_conservative_hash_maps.remove(hash_map);
 }
 
 inline void Heap::did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase& vector)

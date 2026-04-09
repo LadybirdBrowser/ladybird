@@ -2,6 +2,7 @@ set(SOURCES
     BlockAllocator.cpp
     Cell.cpp
     CellAllocator.cpp
+    ConservativeHashMap.cpp
     ConservativeVector.cpp
     Root.cpp
     RootHashMap.cpp
