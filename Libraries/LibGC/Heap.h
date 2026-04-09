@@ -25,6 +25,7 @@
 #include <LibGC/IdleCollectionPolicy.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootHashMap.h>
+#include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibGC/WeakBlock.h>
 #include <LibGC/WeakContainer.h>
@@ -82,6 +83,8 @@ public:
 
     void did_create_root_hash_map(Badge<RootHashMapBase>, RootHashMapBase&);
     void did_destroy_root_hash_map(Badge<RootHashMapBase>, RootHashMapBase&);
+    void did_create_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
+    void did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase&);
 
     void did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
     void did_destroy_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase&);
@@ -175,6 +178,7 @@ private:
     RootImpl::List m_roots;
     RootVectorBase::List m_root_vectors;
     RootHashMapBase::List m_root_hash_maps;
+    RootHashTableBase::List m_root_hash_tables;
     ConservativeVectorBase::List m_conservative_vectors;
     WeakContainer::List m_weak_containers;
 
@@ -241,6 +245,18 @@ inline void Heap::did_destroy_root_hash_map(Badge<RootHashMapBase>, RootHashMapB
 {
     VERIFY(m_root_hash_maps.contains(hash_map));
     m_root_hash_maps.remove(hash_map);
+}
+
+inline void Heap::did_create_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase& hash_table)
+{
+    VERIFY(!m_root_hash_tables.contains(hash_table));
+    m_root_hash_tables.append(hash_table);
+}
+
+inline void Heap::did_destroy_root_hash_table(Badge<RootHashTableBase>, RootHashTableBase& hash_table)
+{
+    VERIFY(m_root_hash_tables.contains(hash_table));
+    m_root_hash_tables.remove(hash_table);
 }
 
 inline void Heap::did_create_conservative_vector(Badge<ConservativeVectorBase>, ConservativeVectorBase& vector)

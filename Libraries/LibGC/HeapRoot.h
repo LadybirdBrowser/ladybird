@@ -20,6 +20,7 @@ struct GC_API HeapRoot {
         RegisterPointer,
         Root,
         RootHashMap,
+        RootHashTable,
         RootVector,
         StackPointer,
         VM,

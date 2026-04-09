@@ -40,4 +40,7 @@ class HeapVector;
 template<class T, size_t inline_capacity = 0>
 class RootVector;
 
+template<typename T, typename TraitsForT, bool IsOrdered>
+class RootHashTable;
+
 }
