@@ -50,9 +50,9 @@ Tests/LibWeb/WPT/MANIFEST.json
 
 test-dumps
 
-# HTTP Test server artifacts from ./Tests/LibWeb/Fixtures/http-test-server.py
-http-test-server.pid.txt
-http-test-server.log
+# Test server artifacts from ./Tests/LibWeb/Fixtures/test-server.py
+test-server.pid.txt
+test-server.log
 
 Meta/CMake/vcpkg/user-variables.cmake
 

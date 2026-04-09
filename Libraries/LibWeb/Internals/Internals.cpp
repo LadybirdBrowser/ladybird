@@ -434,7 +434,11 @@ String Internals::get_computed_aria_level(DOM::Element& element)
 
 u16 Internals::get_echo_server_port()
 {
-    return s_echo_server_port;
+    if (s_echo_server_port != 0)
+        return s_echo_server_port;
+    if (!s_multi_origin_server_ports.is_empty())
+        return s_multi_origin_server_ports[0];
+    return 0;
 }
 
 void Internals::set_echo_server_port(u16 const port)

@@ -5,6 +5,7 @@ import http.server
 import json
 import os
 import signal
+import socket
 import socketserver
 import sys
 import threading
@@ -15,18 +16,19 @@ from typing import List
 from typing import Optional
 
 """
-Multi-Origin HTTP Test Server for security/origin confusion testing.
+Unified HTTP Test Server for Ladybird web tests.
 
 Starts multiple HTTP servers on different ports, each representing a distinct origin.
-Supports virtual host routing for hostname-based origin testing.
+Origin 0 serves as the primary echo server for backward compatibility.
 
 Endpoints (per server):
-    - GET /static/<path>   : Serve static files
+    - GET /static/<path>   : Serve static files (with optional .headers sidecar)
     - POST /echo           : Create dynamic response endpoints
+    - GET /info            : Origin metadata (index, port, host)
     - GET/POST/etc /<path> : Serve previously registered echo responses
 
 Output format (JSON to stdout):
-    {"origins": [{"port": 8001, "host": "127.0.0.1"}, ...]}
+    {"origins": [{"index": 0, "port": 8001, "host": "127.0.0.1", "origin": "http://127.0.0.1:8001"}, ...]}
 """
 
 
@@ -210,12 +212,41 @@ class MultiOriginRequestHandler(http.server.SimpleHTTPRequestHandler):
         if echo.delay_ms:
             time.sleep(echo.delay_ms / 1000)
 
-        self.send_response_only(echo.status, echo.reason_phrase)
+        is_revalidation_request = "If-Modified-Since" in self.headers
+        send_not_modified = is_revalidation_request and "X-Ladybird-Respond-With-Not-Modified" in self.headers
+        send_incomplete_response = "X-Ladybird-Respond-With-Incomplete-Response" in self.headers
+        set_invalid_cookie = "X-Ladybird-Set-Invalid-Cookie" in self.headers
 
         response_headers = echo.headers.copy()
+
+        if send_not_modified:
+            self.send_response(304)
+        else:
+            self.send_response_only(echo.status, echo.reason_phrase)
+
+            if is_revalidation_request:
+                # Override the Last-Modified header to prevent cURL from thinking the response is still fresh.
+                response_headers["Last-Modified"] = "Thu, 01 Jan 1970 00:00:00 GMT"
+            elif send_incomplete_response:
+                # We emulate an incomplete response by advertising a 10KB file, but only sending 2KB.
+                response_headers["Content-Length"] = str(10 * 1024)
+
+        if set_invalid_cookie:
+            response_headers["Set-Cookie"] = "invalid=foo; Domain=\xc3\xa9\x6c\xc3\xa8\x76\x65\xff"
+
         for header, value in response_headers.items():
             self.send_header(header, value)
         self.end_headers()
+
+        if send_not_modified:
+            return
+
+        if send_incomplete_response:
+            self.wfile.write(b"a" * (2 * 1024))
+            self.wfile.flush()
+            self.connection.shutdown(socket.SHUT_WR)
+            self.connection.close()
+            return
 
         if echo.reflect_headers_in_body:
             headers = {k: self.headers.get_all(k) for k in self.headers.keys()}
@@ -223,6 +254,21 @@ class MultiOriginRequestHandler(http.server.SimpleHTTPRequestHandler):
             response_body = echo.body.replace("$HEADERS", headers_json) if echo.body else headers_json
         else:
             response_body = echo.body or ""
+
+        # FIXME: This only supports "Range: bytes=start-end" and "Range: bytes=start-". There are other formats to
+        #        support if needed: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Range#syntax
+        if "Range" in self.headers:
+            range_value = self.headers["Range"].strip()
+            assert range_value.startswith("bytes=")
+            assert range_value.count("-") == 1
+
+            range_value = range_value[len("bytes="):]
+            start, end = range_value.split("-")
+
+            if end:
+                response_body = response_body[int(start):min(int(end), len(response_body))]
+            else:
+                response_body = response_body[int(start):]
 
         self.wfile.write(response_body.encode("utf-8"))
 
@@ -239,12 +285,11 @@ def create_handler_class(static_directory: str, origin_index: int):
     ConfiguredHandler.static_directory = os.path.abspath(static_directory)
     ConfiguredHandler.origin_index = origin_index
     
-    # Override __init__ to pass origin_index
+    # Override __init__ to inject origin_index and directory
     def patched_init(self, *args, **kwargs):
-        kwargs['origin_index'] = origin_index
+        self.origin_index = origin_index
         kwargs['directory'] = os.path.abspath(static_directory)
         http.server.SimpleHTTPRequestHandler.__init__(self, *args, **kwargs)
-        self.origin_index = origin_index
     ConfiguredHandler.__init__ = patched_init
     
     return ConfiguredHandler
@@ -265,7 +310,7 @@ def start_servers(num_origins: int, static_directory: str, base_port: int = 0) -
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Multi-Origin HTTP Test Server")
+    parser = argparse.ArgumentParser(description="Unified HTTP Test Server for Ladybird web tests")
     parser.add_argument(
         "-n", "--num-origins",
         type=int,
