@@ -85,7 +85,7 @@ struct BrowserOptions {
     AllowPopups allow_popups { AllowPopups::No };
     DisableScripting disable_scripting { DisableScripting::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
-    Optional<ProcessType> debug_helper_process {};
+    Vector<ProcessType> debug_helper_processes {};
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_endpoint {};
     Optional<DNSSettings> dns_settings {};

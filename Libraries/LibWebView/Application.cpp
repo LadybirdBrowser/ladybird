@@ -21,6 +21,7 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/ProcessType.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -137,7 +138,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool disable_scripting = false;
     bool disable_sql_database = false;
     Optional<u16> devtools_port;
-    Optional<StringView> debug_process;
+    Vector<StringView> debug_processes;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_endpoint;
     Optional<StringView> user_agent_preset;
@@ -198,7 +199,18 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
-    args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)",
+        .long_name = "debug-process",
+        .value_name = "process-name",
+        .accept_value = [&](StringView value) {
+            if (value.is_empty())
+                return false;
+
+            debug_processes.append(value);
+            return true;
+        } });
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
 #if defined(AK_OS_MACOS)
     args_parser.add_option(webdriver_endpoint, "Mach server name for WebDriver IPC", "webdriver-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
@@ -263,16 +275,18 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
 
-    Optional<ProcessType> debug_process_type;
+    Vector<ProcessType> debug_process_types;
     Optional<ProcessType> profile_process_type;
 
-    if (debug_process.has_value())
-        debug_process_type = process_type_from_name(*debug_process);
+    for (auto& process_name : debug_processes) {
+        auto type = process_type_from_name(process_name);
+        debug_process_types.append(type);
+    }
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
-    if (debug_process_type == ProcessType::WebContent)
+    if (debug_process_types.contains_slow(ProcessType::WebContent))
         disable_site_isolation = true;
 
     m_browser_options = {
@@ -284,7 +298,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
-        .debug_helper_process = move(debug_process_type),
+        .debug_helper_processes = move(debug_process_types),
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
                 ? Optional<DNSSettings> { use_dns_over_tls
@@ -404,7 +418,7 @@ void Application::launch_spare_web_content_process()
         return;
 
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (browser_options().debug_helper_process == ProcessType::WebContent)
+    if (browser_options().debug_helper_processes.contains_slow(ProcessType::WebContent))
         return;
     // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
     if (browser_options().profile_helper_process == ProcessType::WebContent)
