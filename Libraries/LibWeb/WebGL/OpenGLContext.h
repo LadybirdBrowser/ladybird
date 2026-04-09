@@ -71,7 +71,7 @@ private:
     void free_surface_resources();
 #if defined(AK_OS_MACOS)
     void allocate_iosurface_painting_surface();
-#elif defined(USE_VULKAN_IMAGES)
+#elif defined(USE_VULKAN_DMABUF_IMAGES)
     void allocate_vkimage_painting_surface();
 #endif
 };

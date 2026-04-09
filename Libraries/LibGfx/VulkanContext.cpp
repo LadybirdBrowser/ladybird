@@ -114,7 +114,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     queue_create_info.pQueuePriorities = &queue_priority;
 
     VkPhysicalDeviceFeatures deviceFeatures {};
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
     Array<char const*, 4> device_extensions = {
         VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
@@ -139,7 +139,7 @@ static ErrorOr<VkDevice> create_logical_device(VkPhysicalDevice physical_device,
     return device;
 }
 
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
 static ErrorOr<VkCommandPool> create_command_pool(VkDevice logical_device, uint32_t queue_family_index)
 {
     VkCommandPoolCreateInfo command_pool_info = {
@@ -187,7 +187,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
     VkQueue graphics_queue;
     vkGetDeviceQueue(logical_device, graphics_queue_family, 0, &graphics_queue);
 
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
     VkCommandPool command_pool = TRY(create_command_pool(logical_device, graphics_queue_family));
     VkCommandBuffer command_buffer = TRY(allocate_command_buffer(logical_device, command_pool));
 
@@ -208,7 +208,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
         .logical_device = logical_device,
         .graphics_queue = graphics_queue,
         .graphics_queue_family = graphics_queue_family,
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
         .command_pool = command_pool,
         .command_buffer = command_buffer,
         .ext_procs = {
@@ -219,7 +219,7 @@ ErrorOr<VulkanContext> create_vulkan_context()
     };
 }
 
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
 VulkanImage::~VulkanImage()
 {
     if (image != VK_NULL_HANDLE) {

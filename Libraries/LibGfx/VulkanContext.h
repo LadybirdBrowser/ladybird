@@ -12,7 +12,7 @@
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
 #    include <vulkan/vulkan.h>
-#    if defined(USE_VULKAN_IMAGES)
+#    if defined(USE_VULKAN_DMABUF_IMAGES)
 #        include <libdrm/drm_fourcc.h>
 #    endif
 
@@ -25,7 +25,7 @@ struct VulkanContext {
     VkDevice logical_device { VK_NULL_HANDLE };
     VkQueue graphics_queue { VK_NULL_HANDLE };
     uint32_t graphics_queue_family { 0 };
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
     VkCommandPool command_pool { VK_NULL_HANDLE };
     VkCommandBuffer command_buffer { VK_NULL_HANDLE };
     struct
@@ -38,7 +38,7 @@ struct VulkanContext {
 
 ErrorOr<VulkanContext> create_vulkan_context();
 
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
 struct VulkanImage : public RefCounted<VulkanImage> {
     VkImage image { VK_NULL_HANDLE };
     VkDeviceMemory memory { VK_NULL_HANDLE };

@@ -26,7 +26,7 @@ extern "C" {
 #include <GLES3/gl3.h>
 
 // Enable WebGL if we're on MacOS and can use Metal or if we can use shareable Vulkan images
-#if defined(AK_OS_MACOS) || defined(USE_VULKAN_IMAGES)
+#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
 #    define ENABLE_WEBGL 1
 #endif
 
@@ -43,7 +43,7 @@ struct OpenGLContext::Impl {
     GLuint depth_buffer { 0 };
     EGLint texture_target { 0 };
 
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
     EGLImage egl_image { EGL_NO_IMAGE };
     struct {
         PFNEGLQUERYDMABUFFORMATSEXTPROC query_dma_buf_formats { nullptr };
@@ -89,7 +89,7 @@ void OpenGLContext::free_surface_resources()
         m_impl->depth_buffer = 0;
     }
 
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
     if (m_impl->egl_image != EGL_NO_IMAGE) {
         eglDestroyImage(m_impl->display, m_impl->egl_image);
         m_impl->egl_image = EGL_NO_IMAGE;
@@ -138,7 +138,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_PLATFORM_ANGLE_TYPE_ANGLE,
 #    if defined(AK_OS_MACOS)
         EGL_PLATFORM_ANGLE_TYPE_METAL_ANGLE,
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_DMABUF_IMAGES)
         EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE,
         EGL_PLATFORM_ANGLE_NATIVE_PLATFORM_TYPE_ANGLE,
         EGL_PLATFORM_SURFACELESS_MESA,
@@ -168,7 +168,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
 #    if defined(AK_OS_MACOS)
     eglGetConfigAttrib(display, config, EGL_BIND_TO_TEXTURE_TARGET_ANGLE, &texture_target);
     VERIFY(texture_target == EGL_TEXTURE_RECTANGLE_ANGLE || texture_target == EGL_TEXTURE_2D);
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_DMABUF_IMAGES)
     texture_target = EGL_TEXTURE_2D;
 #    endif
 
@@ -181,7 +181,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         EGL_TRUE,
         EGL_CONTEXT_OPENGL_BACKWARDS_COMPATIBLE_ANGLE,
         EGL_FALSE,
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
         // we need GL_OES_EGL_image
         EGL_EXTENSIONS_ENABLED_ANGLE,
         EGL_TRUE,
@@ -195,7 +195,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
         return {};
     }
 
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
     auto pfn_egl_query_dma_buf_formats_ext = reinterpret_cast<PFNEGLQUERYDMABUFFORMATSEXTPROC>(eglGetProcAddress("eglQueryDmaBufFormatsEXT"));
     if (!pfn_egl_query_dma_buf_formats_ext) {
         dbgln("eglQueryDmaBufFormatsEXT unavailable");
@@ -214,7 +214,7 @@ OwnPtr<OpenGLContext> OpenGLContext::create(NonnullRefPtr<Gfx::SkiaBackendContex
                                                          .config = config,
                                                          .context = context,
                                                          .texture_target = texture_target,
-#    ifdef USE_VULKAN_IMAGES
+#    ifdef USE_VULKAN_DMABUF_IMAGES
                                                          .ext_procs = {
                                                              .query_dma_buf_formats = pfn_egl_query_dma_buf_formats_ext,
                                                              .query_dma_buf_modifiers = pfn_egl_query_dma_buf_modifiers_ext,
@@ -318,7 +318,7 @@ void OpenGLContext::allocate_iosurface_painting_surface()
 }
 #endif
 
-#ifdef USE_VULKAN_IMAGES
+#ifdef USE_VULKAN_DMABUF_IMAGES
 void OpenGLContext::allocate_vkimage_painting_surface()
 {
     VkFormat vulkan_format = VK_FORMAT_B8G8R8A8_UNORM;
@@ -395,7 +395,7 @@ void OpenGLContext::allocate_painting_surface_if_needed()
 
 #    if defined(AK_OS_MACOS)
     allocate_iosurface_painting_surface();
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_DMABUF_IMAGES)
     allocate_vkimage_painting_surface();
 #    endif
     VERIFY(m_painting_surface);
@@ -453,7 +453,7 @@ void OpenGLContext::present(bool preserve_drawing_buffer)
     // eglWaitUntilWorkScheduledANGLE only has an effect on CGL and Metal backends, so we only use it on macOS.
 #    if defined(AK_OS_MACOS)
     eglWaitUntilWorkScheduledANGLE(m_impl->display);
-#    elif defined(USE_VULKAN_IMAGES)
+#    elif defined(USE_VULKAN_DMABUF_IMAGES)
     // FIXME: CPU sync for now, but it would be better to export a fence and have Skia wait for it before reading from the surface
     glFinish();
 #    endif
