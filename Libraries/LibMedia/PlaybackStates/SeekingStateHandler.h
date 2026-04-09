@@ -8,6 +8,7 @@
 
 #include <AK/HashTable.h>
 #include <AK/Time.h>
+#include <AK/Vector.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibMedia/PlaybackStates/Forward.h>
 #include <LibMedia/PlaybackStates/ResumingStateHandler.h>
@@ -90,6 +91,9 @@ public:
 private:
     void possibly_complete_seek()
     {
+        if (m_begin_seek_in_progress)
+            return;
+
         if (!m_video_seeks_pending.is_empty())
             return;
 
@@ -181,34 +185,38 @@ private:
 
     void begin_seek()
     {
+        m_begin_seek_in_progress = true;
         m_chosen_timestamp = AK::Duration::zero();
         m_audio_seeks_started = false;
         m_video_seeks_pending.clear();
         m_audio_seeks_pending.clear();
 
+        Vector<Track> video_tracks_to_seek;
         for (auto const& video_track_data : manager().m_video_track_datas) {
             if (video_track_data.display == nullptr)
                 continue;
             m_video_seeks_pending.set(video_track_data.track);
+            video_tracks_to_seek.append(video_track_data.track);
             video_track_data.display->pause_updates();
         }
 
         if (m_mode == SeekMode::Accurate || m_video_seeks_pending.is_empty()) {
-            auto mode = m_mode;
             m_chosen_timestamp = m_target_timestamp;
             begin_audio_seeks();
-            if (mode != SeekMode::Accurate)
-                return;
         }
 
-        for (auto const& track : m_video_seeks_pending)
+        for (auto const& track : video_tracks_to_seek)
             start_video_seek(track);
+
+        m_begin_seek_in_progress = false;
+        possibly_complete_seek();
     }
 
     AK::Duration m_target_timestamp;
     SeekMode m_mode { SeekMode::Accurate };
     AK::Duration m_chosen_timestamp { AK::Duration::zero() };
     bool m_audio_seeks_started { false };
+    bool m_begin_seek_in_progress { false };
     HashTable<Track> m_video_seeks_pending;
     HashTable<Track> m_audio_seeks_pending;
 };
