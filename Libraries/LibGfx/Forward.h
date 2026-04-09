@@ -30,6 +30,8 @@ class SharedImageBuffer;
 class ShareableBitmap;
 class SkiaBackendContext;
 struct SystemTheme;
+struct VulkanContext;
+class VulkanImage;
 
 template<typename T>
 class Triangle;

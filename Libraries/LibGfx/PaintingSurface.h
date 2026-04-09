@@ -11,17 +11,9 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/RefPtr.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/Forward.h>
 #include <LibGfx/Size.h>
 #include <LibGfx/SkiaBackendContext.h>
-
-#ifdef USE_VULKAN_DMABUF_IMAGES
-namespace Gfx {
-
-struct VulkanImage;
-
-}
-#endif
-
 #ifdef AK_OS_MACOS
 #    include <LibGfx/MetalContext.h>
 #endif

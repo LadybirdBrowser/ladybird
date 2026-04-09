@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
+ * Copyright (c) 2024-2026, Aliaksandr Kalenik <kalenik.aliaksandr@gmail.com>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -8,15 +8,19 @@
 
 #ifdef USE_VULKAN_DMABUF_IMAGES
 
-#    include <AK/Assertions.h>
+#    include <AK/Error.h>
 #    include <AK/NonnullRefPtr.h>
 #    include <AK/RefCounted.h>
-#    include <LibGfx/VulkanContext.h>
+#    include <AK/Vector.h>
+#    include <LibGfx/Forward.h>
+#    include <LibGfx/LinuxDmaBuf.h>
 #    include <libdrm/drm_fourcc.h>
+#    include <vulkan/vulkan.h>
 
 namespace Gfx {
 
-struct VulkanImage : public RefCounted<VulkanImage> {
+class VulkanImage : public RefCounted<VulkanImage> {
+public:
     VkImage image { VK_NULL_HANDLE };
     VkDeviceMemory memory { VK_NULL_HANDLE };
     struct {
@@ -31,29 +35,39 @@ struct VulkanImage : public RefCounted<VulkanImage> {
     } info;
     VulkanContext const& context;
 
+    explicit VulkanImage(VulkanContext const& context);
+    ~VulkanImage();
+
     int get_dma_buf_fd();
     void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
-    VulkanImage(VulkanContext const& context)
-        : context(context)
-    {
-    }
-    ~VulkanImage();
 };
 
-static inline uint32_t vk_format_to_drm_format(VkFormat format)
-{
-    switch (format) {
-    case VK_FORMAT_B8G8R8A8_UNORM:
-        return DRM_FORMAT_ARGB8888;
-    // add more as needed
-    default:
-        VERIFY_NOT_REACHED();
-        return DRM_FORMAT_INVALID;
-    }
+ErrorOr<VkFormat> drm_format_to_vk_format(u32 drm_format);
+ErrorOr<BitmapFormat> vk_format_to_bitmap_format(VkFormat format);
+
+uint32_t vk_format_to_drm_format(VkFormat format);
+
+ErrorOr<NonnullRefPtr<VulkanImage>> create_dma_buf_vulkan_image(
+    VulkanContext const& context,
+    IntSize size,
+    VkFormat format,
+    bool cpu_mappable);
+
+ErrorOr<NonnullRefPtr<VulkanImage>> create_dma_buf_vulkan_image(
+    VulkanContext const& context,
+    IntSize size,
+    VkFormat format,
+    VkMemoryPropertyFlags required_flags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+    VkMemoryPropertyFlags preferred_flags = 0,
+    ReadonlySpan<uint64_t> allowed_modifiers = {});
+
+ErrorOr<NonnullRefPtr<VulkanImage>> import_vulkan_image_from_dma_buf(
+    VulkanContext const& context,
+    IntSize size,
+    VkFormat format,
+    u64 modifier,
+    LinuxDmaBufPlaneLayout const& plane,
+    int fd);
+
 }
-
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers);
-
-}
-
 #endif
