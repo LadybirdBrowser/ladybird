@@ -122,6 +122,8 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
         "GC::ConservativeVector",
         "GC::ConservativeHashMap",
         "GC::ConservativeHashMapBase",
+        "GC::ConservativeHashTable",
+        "GC::ConservativeHashTableBase",
     };
     if (gc_infrastructure_types.contains(qualified_name)) {
         s_contains_gc_ptr_cache[record] = ContainsGCPtrResult::No;
@@ -193,7 +195,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
             return ContainsGCPtrResult::No;
 
         // Root types handle their own visiting
-        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::ConservativeHashMap" || template_name == "GC::RootHashTable")
+        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::ConservativeHashMap" || template_name == "GC::ConservativeHashTable" || template_name == "GC::RootHashTable")
             return ContainsGCPtrResult::No;
 
         // Check template arguments recursively for containers
@@ -234,6 +236,7 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "GC::RawRef",
             "GC::RootVector",
             "GC::ConservativeHashMap",
+            "GC::ConservativeHashTable",
             "GC::RootHashTable",
             "GC::Root",
         };
