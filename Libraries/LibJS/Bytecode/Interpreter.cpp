@@ -17,6 +17,7 @@
 #include <LibJS/Bytecode/Label.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
+#include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -707,6 +708,7 @@ void Interpreter::run_bytecode(size_t entry_point)
             HANDLE_INSTRUCTION(IteratorClose);
             HANDLE_INSTRUCTION(IteratorNext);
             HANDLE_INSTRUCTION(IteratorNextUnpack);
+            HANDLE_INSTRUCTION(ObjectPropertyIteratorNext);
             HANDLE_INSTRUCTION(IteratorToArray);
             HANDLE_INSTRUCTION_WITHOUT_EXCEPTION_CHECK(LeavePrivateEnvironment);
             HANDLE_INSTRUCTION(LeftShift);
@@ -1428,65 +1430,180 @@ inline ThrowCompletionOr<void> append(VM& vm, Value lhs, Value rhs, bool is_spre
     return {};
 }
 
-class JS_API PropertyNameIterator final
-    : public Object
-    , public BuiltinIterator {
-    JS_OBJECT(PropertyNameIterator, Object);
-    GC_DECLARE_ALLOCATOR(PropertyNameIterator);
-
-public:
-    virtual ~PropertyNameIterator() override = default;
-
-    BuiltinIterator* as_builtin_iterator_if_next_is_not_redefined(Value) override { return this; }
-    ThrowCompletionOr<void> next(VM& vm, bool& done, Value& value) override
-    {
-        while (true) {
-            if (m_iterator == m_properties.end()) {
-                done = true;
-                return {};
-            }
-
-            auto const& entry = *m_iterator;
-            ScopeGuard remove_first = [&] { ++m_iterator; };
-
-            // If the property is deleted, don't include it (invariant no. 2)
-            if (!TRY(m_object->has_property(entry)))
-                continue;
-
-            done = false;
-            value = entry.to_value(vm);
-            return {};
-        }
-    }
-
-private:
-    PropertyNameIterator(JS::Realm& realm, GC::Ref<Object> object, Vector<PropertyKey> properties)
-        : Object(realm, nullptr)
-        , m_object(object)
-        , m_properties(move(properties))
-        , m_iterator(m_properties.begin())
-    {
-    }
-
-    virtual void visit_edges(Visitor& visitor) override
-    {
-        Base::visit_edges(visitor);
-        visitor.visit(m_object);
-        for (auto& key : m_properties)
-            key.visit_edges(visitor);
-        if (!m_iterator.is_end())
-            m_iterator->visit_edges(visitor);
-    }
-
-    GC::Ref<Object> m_object;
-    Vector<PropertyKey> m_properties;
-    decltype(m_properties.begin()) m_iterator;
+struct FastPropertyNameIteratorData {
+    Vector<PropertyKey> properties;
+    PropertyNameIterator::FastPath fast_path { PropertyNameIterator::FastPath::None };
+    u32 indexed_property_count { 0 };
+    bool receiver_has_magical_length_property { false };
+    GC::Ptr<Shape> shape;
+    GC::Ptr<PrototypeChainValidity> prototype_chain_validity;
 };
 
-GC_DEFINE_ALLOCATOR(PropertyNameIterator);
+static bool shape_has_enumerable_string_property(Shape const& shape)
+{
+    for (auto const& [property_key, metadata] : shape.property_table()) {
+        if (property_key.is_string() && metadata.attributes.is_enumerable())
+            return true;
+    }
+    return false;
+}
+
+static bool property_name_iterator_fast_path_is_still_eligible(Object& object, PropertyNameIterator::FastPath fast_path, u32 indexed_property_count)
+{
+    Object const* object_to_check = &object;
+    bool is_receiver = true;
+
+    while (object_to_check) {
+        if (!object_to_check->eligible_for_own_property_enumeration_fast_path())
+            return false;
+
+        if (is_receiver) {
+            if (fast_path == PropertyNameIterator::FastPath::PackedIndexed) {
+                if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
+                    return false;
+                if (object_to_check->indexed_array_like_size() != indexed_property_count)
+                    return false;
+            } else if (object_to_check->indexed_array_like_size() != 0) {
+                return false;
+            }
+        } else if (object_to_check->indexed_array_like_size() != 0) {
+            return false;
+        }
+
+        object_to_check = object_to_check->prototype();
+        is_receiver = false;
+    }
+
+    return true;
+}
+
+static bool object_property_iterator_cache_matches(Object& object, ObjectPropertyIteratorCacheData const& cache)
+{
+    // A cache entry represents the fully flattened key snapshot for one bytecode
+    // site. Reusing it is only valid while the receiver still has the same local
+    // state and the prototype chain validity token says nothing above it changed.
+    if (object.has_magical_length_property() != cache.receiver_has_magical_length_property())
+        return false;
+
+    auto& shape = object.shape();
+    if (&shape != cache.shape())
+        return false;
+
+    if (shape.is_dictionary() && shape.dictionary_generation() != cache.shape_dictionary_generation())
+        return false;
+
+    if (cache.prototype_chain_validity() && !cache.prototype_chain_validity()->is_valid())
+        return false;
+
+    return property_name_iterator_fast_path_is_still_eligible(object, cache.fast_path(), cache.indexed_property_count());
+}
+
+static ThrowCompletionOr<Optional<FastPropertyNameIteratorData>> try_get_fast_property_name_iterator_data(Object& object)
+{
+    auto& vm = object.vm();
+    FastPropertyNameIteratorData result {};
+    result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+    result.receiver_has_magical_length_property = object.has_magical_length_property();
+    result.shape = &object.shape();
+
+    HashTable<GC::Ref<Object>> seen_objects;
+    size_t estimated_properties_count = 0;
+    bool prototype_chain_has_enumerable_named_properties = false;
+    for (auto object_to_check = GC::Ptr { &object }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+        if (!object_to_check->eligible_for_own_property_enumeration_fast_path())
+            return Optional<FastPropertyNameIteratorData> {};
+        if (&object == object_to_check.ptr()) {
+            if (object_to_check->indexed_array_like_size() != 0) {
+                if (object_to_check->indexed_storage_kind() != IndexedStorageKind::Packed)
+                    return Optional<FastPropertyNameIteratorData> {};
+                result.fast_path = PropertyNameIterator::FastPath::PackedIndexed;
+                result.indexed_property_count = object_to_check->indexed_array_like_size();
+            } else {
+                result.fast_path = PropertyNameIterator::FastPath::PlainNamed;
+            }
+        } else if (object_to_check->indexed_array_like_size() != 0) {
+            // The fast path only knows how to synthesize a packed indexed prefix
+            // for the receiver itself. As soon as indexed properties appear in
+            // the prototype chain, we fall back to the generic enumeration path.
+            return Optional<FastPropertyNameIteratorData> {};
+        } else if (!prototype_chain_has_enumerable_named_properties) {
+            prototype_chain_has_enumerable_named_properties = shape_has_enumerable_string_property(object_to_check->shape());
+        }
+        estimated_properties_count += object_to_check->shape().property_count();
+    }
+    seen_objects.clear_with_capacity();
+
+    if (auto* prototype = object.shape().prototype()) {
+        result.prototype_chain_validity = prototype->shape().prototype_chain_validity();
+        if (!result.prototype_chain_validity)
+            return Optional<FastPropertyNameIteratorData> {};
+    }
+
+    if (!prototype_chain_has_enumerable_named_properties) {
+        // Common case: only the receiver contributes enumerable string keys, so
+        // we can copy them straight from the shape without any shadowing work.
+        result.properties.ensure_capacity(object.shape().property_count());
+        for (auto const& [property_key, metadata] : object.shape().property_table()) {
+            if (property_key.is_string() && metadata.attributes.is_enumerable())
+                result.properties.append(property_key);
+        }
+        return result;
+    }
+
+    result.properties.ensure_capacity(estimated_properties_count);
+
+    HashTable<PropertyKey> seen_non_enumerable_properties;
+    Optional<HashTable<PropertyKey>> seen_properties;
+    auto ensure_seen_properties = [&] {
+        if (seen_properties.has_value())
+            return;
+        // Prototype shadowing ignores enumerability, so once we start looking
+        // above the receiver we need an explicit visited set for names we have
+        // already decided to expose from lower objects.
+        seen_properties = HashTable<PropertyKey> {};
+        seen_properties->ensure_capacity(result.properties.size());
+        for (auto const& property : result.properties)
+            seen_properties->set(property);
+    };
+
+    bool in_prototype_chain = false;
+    for (auto object_to_check = GC::Ptr { &object }; object_to_check && !seen_objects.contains(*object_to_check); object_to_check = TRY(object_to_check->internal_get_prototype_of())) {
+        seen_objects.set(*object_to_check);
+
+        // Arrays keep a non-enumerable magical `length` property outside the shape
+        // table, but it still shadows enumerable `length` properties higher up the
+        // prototype chain during for-in.
+        if (object_to_check->has_magical_length_property())
+            seen_non_enumerable_properties.set(vm.names.length);
+
+        for (auto const& [property_key, metadata] : object_to_check->shape().property_table()) {
+            if (!property_key.is_string())
+                continue;
+
+            bool enumerable = metadata.attributes.is_enumerable();
+            if (!enumerable)
+                seen_non_enumerable_properties.set(property_key);
+            if (in_prototype_chain && enumerable) {
+                if (seen_non_enumerable_properties.contains(property_key))
+                    continue;
+                ensure_seen_properties();
+                if (seen_properties->contains(property_key))
+                    continue;
+            }
+            if (enumerable)
+                result.properties.append(property_key);
+            if (seen_properties.has_value())
+                seen_properties->set(property_key);
+        }
+        in_prototype_chain = true;
+    }
+
+    return result;
+}
 
 // 14.7.5.9 EnumerateObjectProperties ( O ), https://tc39.es/ecma262/#sec-enumerate-object-properties
-inline ThrowCompletionOr<IteratorRecordImpl> get_object_property_iterator(Interpreter& interpreter, Value value)
+inline ThrowCompletionOr<GC::Ref<PropertyNameIterator>> get_object_property_iterator(Interpreter& interpreter, Value value, ObjectPropertyIteratorCache* cache = nullptr)
 {
     // While the spec does provide an algorithm, it allows us to implement it ourselves so long as we meet the following invariants:
     //    1- Returned property keys do not include keys that are Symbols
@@ -1506,6 +1623,43 @@ inline ThrowCompletionOr<IteratorRecordImpl> get_object_property_iterator(Interp
     auto object = TRY(value.to_object(vm));
     // Note: While the spec doesn't explicitly require these to be ordered, it says that the values should be retrieved via OwnPropertyKeys,
     //       so we just keep the order consistent anyway.
+
+    if (cache && cache->data) {
+        if (object_property_iterator_cache_matches(*object, *cache->data)) {
+            if (cache->reusable_property_name_iterator) {
+                // We keep one iterator object per bytecode site alive so hot
+                // loops can recycle it without allocating a new cell each time.
+                auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
+                cache->reusable_property_name_iterator = nullptr;
+                iterator.reset_with_cache_data(object, *cache->data, cache);
+                return iterator;
+            }
+
+            return PropertyNameIterator::create(interpreter.realm(), object, *cache->data, cache);
+        }
+    }
+
+    if (auto fast_iterator_data = TRY(try_get_fast_property_name_iterator_data(*object)); fast_iterator_data.has_value()) {
+        VERIFY(fast_iterator_data->shape);
+        auto cache_data = vm.heap().allocate<ObjectPropertyIteratorCacheData>(
+            vm,
+            move(fast_iterator_data->properties),
+            fast_iterator_data->fast_path,
+            fast_iterator_data->indexed_property_count,
+            fast_iterator_data->receiver_has_magical_length_property,
+            *fast_iterator_data->shape,
+            fast_iterator_data->prototype_chain_validity);
+        if (cache)
+            cache->data = cache_data;
+        if (cache && cache->reusable_property_name_iterator) {
+            auto& iterator = static_cast<PropertyNameIterator&>(*cache->reusable_property_name_iterator);
+            cache->reusable_property_name_iterator = nullptr;
+            iterator.reset_with_cache_data(object, cache_data, cache);
+            return iterator;
+        }
+
+        return PropertyNameIterator::create(interpreter.realm(), object, cache_data, cache);
+    }
 
     size_t estimated_properties_count = 0;
     HashTable<GC::Ref<Object>> seen_objects;
@@ -1552,8 +1706,7 @@ inline ThrowCompletionOr<IteratorRecordImpl> get_object_property_iterator(Interp
         in_prototype_chain = true;
     }
 
-    auto iterator = interpreter.realm().create<PropertyNameIterator>(interpreter.realm(), object, move(properties));
-    return IteratorRecordImpl { .done = false, .iterator = iterator, .next_method = js_undefined() };
+    return PropertyNameIterator::create(interpreter.realm(), object, move(properties));
 }
 
 ByteString Instruction::to_byte_string(Bytecode::Executable const& executable) const
@@ -3152,10 +3305,8 @@ ThrowCompletionOr<void> GetMethod::execute_impl(Bytecode::Interpreter& interpret
 
 NEVER_INLINE ThrowCompletionOr<void> GetObjectPropertyIterator::execute_impl(Bytecode::Interpreter& interpreter) const
 {
-    auto iterator_record = TRY(get_object_property_iterator(interpreter, interpreter.get(m_object)));
-    interpreter.set(m_dst_iterator_object, iterator_record.iterator);
-    interpreter.set(m_dst_iterator_next, iterator_record.next_method);
-    interpreter.set(m_dst_iterator_done, Value(iterator_record.done));
+    auto* cache = bit_cast<ObjectPropertyIteratorCache*>(m_cache);
+    interpreter.set(m_dst_iterator, TRY(get_object_property_iterator(interpreter, interpreter.get(m_object), cache)));
     return {};
 }
 
@@ -3202,6 +3353,18 @@ ThrowCompletionOr<void> IteratorNextUnpack::execute_impl(Bytecode::Interpreter& 
     auto& iteration_result = iteration_result_or_done.get<IterationResult>();
     interpreter.set(m_dst_done, TRY(iteration_result.done));
     interpreter.set(m_dst_value, TRY(iteration_result.value));
+    return {};
+}
+
+ThrowCompletionOr<void> ObjectPropertyIteratorNext::execute_impl(Bytecode::Interpreter& interpreter) const
+{
+    auto& iterator = static_cast<PropertyNameIterator&>(interpreter.get(m_iterator_object).as_object());
+    Value value;
+    bool done = false;
+    TRY(iterator.next(interpreter.vm(), done, value));
+    interpreter.set(m_dst_done, Value(done));
+    if (!done)
+        interpreter.set(m_dst_value, value);
     return {};
 }
 

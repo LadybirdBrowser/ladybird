@@ -239,6 +239,8 @@ i64 asm_slow_path_get_global(Interpreter*, u32 pc);
 i64 asm_slow_path_set_global(Interpreter*, u32 pc);
 i64 asm_slow_path_call(Interpreter*, u32 pc);
 i64 asm_slow_path_call_builtin(Interpreter*, u32 pc);
+i64 asm_slow_path_get_object_property_iterator(Interpreter*, u32 pc);
+i64 asm_slow_path_object_property_iterator_next(Interpreter*, u32 pc);
 i64 asm_slow_path_call_construct(Interpreter*, u32 pc);
 i64 asm_slow_path_new_object(Interpreter*, u32 pc);
 i64 asm_slow_path_cache_object_shape(Interpreter*, u32 pc);
@@ -414,6 +416,8 @@ i64 asm_fallback_handler(Interpreter* interp, u32 pc)
         return execute_throwing<Op::GetMethod>(*interp, pc);
     case Instruction::Type::GetObjectPropertyIterator:
         return execute_throwing<Op::GetObjectPropertyIterator>(*interp, pc);
+    case Instruction::Type::ObjectPropertyIteratorNext:
+        return execute_throwing<Op::ObjectPropertyIteratorNext>(*interp, pc);
     case Instruction::Type::HasPrivateId:
         return execute_throwing<Op::HasPrivateId>(*interp, pc);
     case Instruction::Type::ImportCall:
@@ -695,6 +699,16 @@ i64 asm_slow_path_set_global(Interpreter* interp, u32 pc)
 i64 asm_slow_path_call(Interpreter* interp, u32 pc)
 {
     return slow_path_throwing<Op::Call>(*interp, pc);
+}
+
+i64 asm_slow_path_get_object_property_iterator(Interpreter* interp, u32 pc)
+{
+    return slow_path_throwing<Op::GetObjectPropertyIterator>(*interp, pc);
+}
+
+i64 asm_slow_path_object_property_iterator_next(Interpreter* interp, u32 pc)
+{
+    return slow_path_throwing<Op::ObjectPropertyIteratorNext>(*interp, pc);
 }
 
 i64 asm_slow_path_call_builtin(Interpreter* interp, u32 pc)

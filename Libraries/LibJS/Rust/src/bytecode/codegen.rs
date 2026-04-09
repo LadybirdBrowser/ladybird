@@ -6538,18 +6538,17 @@ fn generate_for_in_statement(
     // Create TDZ for lexical declarations before evaluating the RHS expression.
     let entered_tdz = enter_for_in_of_head_tdz(generator, lhs);
 
-    // Evaluate RHS into `object`, allocate iterator registers, emit the
-    // null/undefined check + GetObjectPropertyIterator, then let `object`
-    // go out of scope so its register is freed before the loop body.
-    let (iterator_object, iterator_next_method, iterator_done) = {
+    // Evaluate RHS into `object`, allocate the internal property iterator
+    // register, emit the null/undefined check + GetObjectPropertyIterator,
+    // then let `object` go out of scope so its register is freed before the
+    // loop body.
+    let iterator_object = {
         let object = generate_expression_or_undefined(rhs, generator, None);
         if entered_tdz {
             leave_for_in_of_head_tdz(generator);
         }
 
         let iterator_object = generator.allocate_register();
-        let iterator_next_method = generator.allocate_register();
-        let iterator_done = generator.allocate_register();
 
         // Check for null/undefined
         let nullish_block = generator.make_block();
@@ -6566,14 +6565,14 @@ fn generate_for_in_statement(
         generator.switch_to_basic_block(continue_block);
 
         // Get property iterator
+        let cache = generator.next_object_property_iterator_cache();
         generator.emit(Instruction::GetObjectPropertyIterator {
-            dst_iterator_object: iterator_object.operand(),
-            dst_iterator_next: iterator_next_method.operand(),
-            dst_iterator_done: iterator_done.operand(),
+            dst_iterator: iterator_object.operand(),
             object: object.operand(),
+            cache: cache as u64,
         });
 
-        (iterator_object, iterator_next_method, iterator_done)
+        iterator_object
     };
     // Body evaluation: completion, then jump to update block.
     let completion = generator.allocate_completion_register();
@@ -6586,12 +6585,10 @@ fn generate_for_in_statement(
     generator.switch_to_basic_block(update_block);
     let next_value = generator.allocate_register();
     let done = generator.allocate_register();
-    generator.emit(Instruction::IteratorNextUnpack {
+    generator.emit(Instruction::ObjectPropertyIteratorNext {
         dst_value: next_value.operand(),
         dst_done: done.operand(),
         iterator_object: iterator_object.operand(),
-        iterator_next: iterator_next_method.operand(),
-        iterator_done: iterator_done.operand(),
     });
 
     let loop_continue_block = generator.make_block();

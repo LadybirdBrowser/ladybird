@@ -19,6 +19,38 @@
 namespace JS::Bytecode {
 
 GC_DEFINE_ALLOCATOR(Executable);
+GC_DEFINE_ALLOCATOR(ObjectPropertyIteratorCacheData);
+
+ObjectPropertyIteratorCacheData::ObjectPropertyIteratorCacheData(VM& vm, Vector<PropertyKey> properties, ObjectPropertyIteratorFastPath fast_path, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape> shape, GC::Ptr<PrototypeChainValidity> prototype_chain_validity)
+    : m_properties(move(properties))
+    , m_shape(shape)
+    , m_prototype_chain_validity(prototype_chain_validity)
+    , m_indexed_property_count(indexed_property_count)
+    , m_receiver_has_magical_length_property(receiver_has_magical_length_property)
+    , m_fast_path(fast_path)
+{
+    // The iterator fast path returns JS Values directly, so materialize the
+    // cached key list once up front instead of converting PropertyKeys during
+    // every ObjectPropertyIteratorNext.
+    m_property_values.ensure_capacity(indexed_property_count + m_properties.size());
+    for (u32 i = 0; i < indexed_property_count; ++i)
+        m_property_values.append(PropertyKey { i }.to_value(vm));
+    for (auto const& key : m_properties)
+        m_property_values.append(key.to_value(vm));
+
+    if (m_shape->is_dictionary())
+        m_shape_dictionary_generation = m_shape->dictionary_generation();
+}
+
+void ObjectPropertyIteratorCacheData::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_shape);
+    visitor.visit(m_prototype_chain_validity);
+    visitor.visit(m_property_values.span());
+    for (auto& key : m_properties)
+        key.visit_edges(visitor);
+}
 
 Executable::Executable(
     Vector<u8> bytecode,
@@ -32,6 +64,7 @@ Executable::Executable(
     size_t number_of_global_variable_caches,
     size_t number_of_template_object_caches,
     size_t number_of_object_shape_caches,
+    size_t number_of_object_property_iterator_caches,
     size_t number_of_registers,
     Strict strict)
     : GC::WeakContainer(heap())
@@ -49,6 +82,7 @@ Executable::Executable(
     global_variable_caches.resize(number_of_global_variable_caches);
     template_object_caches.resize(number_of_template_object_caches);
     object_shape_caches.resize(number_of_object_shape_caches);
+    object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
 }
 
 Executable::~Executable() = default;
@@ -61,7 +95,8 @@ void Executable::fixup_cache_pointers()
             property_lookup_caches.span(),
             global_variable_caches.span(),
             template_object_caches.span(),
-            object_shape_caches.span());
+            object_shape_caches.span(),
+            object_property_iterator_caches.span());
     }
 }
 
@@ -239,6 +274,10 @@ void Executable::visit_edges(Visitor& visitor)
     visitor.visit(constants);
     for (auto& cache : template_object_caches)
         visitor.visit(cache.cached_template_object);
+    for (auto& cache : object_property_iterator_caches)
+        visitor.visit(cache.data);
+    for (auto& cache : object_property_iterator_caches)
+        visitor.visit(cache.reusable_property_name_iterator);
     for (auto& data : shared_function_data)
         visitor.visit(data);
     for (auto& blueprint : class_blueprints) {

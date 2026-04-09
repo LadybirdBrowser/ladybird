@@ -348,10 +348,9 @@ op GetNewTarget < Instruction
 endop
 
 op GetObjectPropertyIterator < Instruction
-    m_dst_iterator_object: Operand
-    m_dst_iterator_next: Operand
-    m_dst_iterator_done: Operand
+    m_dst_iterator: Operand
     m_object: Operand
+    m_cache: ObjectPropertyIteratorCache*
 endop
 
 op GetPrivateById < Instruction
@@ -466,6 +465,12 @@ op IteratorNextUnpack < Instruction
     m_iterator_object: Operand
     m_iterator_next: Operand
     m_iterator_done: Operand
+endop
+
+op ObjectPropertyIteratorNext < Instruction
+    m_dst_value: Operand
+    m_dst_done: Operand
+    m_iterator_object: Operand
 endop
 
 op IteratorToArray < Instruction
@@ -950,4 +955,3 @@ op InitObjectLiteralProperty < Instruction
     m_shape_cache_index: u32
     m_property_slot: u32
 endop
-

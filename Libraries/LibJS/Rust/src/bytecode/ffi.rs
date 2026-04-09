@@ -189,6 +189,7 @@ pub struct FFIExecutableData {
     pub global_variable_cache_count: u32,
     pub template_object_cache_count: u32,
     pub object_shape_cache_count: u32,
+    pub object_property_iterator_cache_count: u32,
     pub number_of_registers: u32,
     pub is_strict: bool,
     pub length_identifier: FFIOptionalU32,
@@ -562,6 +563,7 @@ pub unsafe fn create_executable(
             global_variable_cache_count: generator.next_global_variable_cache,
             template_object_cache_count: generator.next_template_object_cache,
             object_shape_cache_count: generator.next_object_shape_cache,
+            object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
             number_of_registers: assembled.number_of_registers,
             is_strict: generator.strict,
             length_identifier: FFIOptionalU32::from(

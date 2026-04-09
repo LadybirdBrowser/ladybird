@@ -1450,7 +1450,7 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
             bool enumerable;
         };
         GC::ConservativeVector<OwnKey> keys { heap() };
-        keys.ensure_capacity(indexed_real_size() + shape().property_count());
+        keys.ensure_capacity(indexed_real_size() + shape().property_count() + (has_magical_length_property() ? 1 : 0));
 
         {
             auto indices = indexed_indices();
@@ -1464,6 +1464,9 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
                 keys.unchecked_append({ PropertyKey(index), enumerable });
             }
         }
+
+        if (has_magical_length_property())
+            keys.unchecked_append({ PropertyKey(vm.names.length), false });
 
         for (auto const& [property_key, metadata] : shape().property_table()) {
             if (!property_key.is_string())
@@ -1491,7 +1494,7 @@ ThrowCompletionOr<void> Object::for_each_own_property_with_enumerability(Functio
 
 size_t Object::own_properties_count() const
 {
-    return indexed_real_size() + shape().property_table().size();
+    return indexed_real_size() + shape().property_table().size() + (has_magical_length_property() ? 1 : 0);
 }
 
 // Simple side-effect free property lookup, following the prototype chain. Non-standard.
