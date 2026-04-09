@@ -120,52 +120,6 @@
       "platform": "windows"
     },
     {
-      "name": "qtbase",
-      "platform": "freebsd",
-      "default-features": false,
-      "features": [
-        "dbus",
-        "doubleconversion",
-        "fontconfig",
-        "freetype",
-        "gui",
-        "icu",
-        "jpeg",
-        "network",
-        "opengl",
-        "pcre2",
-        "png",
-        "thread",
-        "vulkan",
-        "widgets",
-        "xcb",
-        "xcb-xlib",
-        "xlib",
-        "xrender",
-        "zstd"
-      ]
-    },
-    {
-      "name": "qtbase",
-      "platform": "windows",
-      "default-features": false,
-      "features": [
-        "doubleconversion",
-        "freetype",
-        "gui",
-        "icu",
-        "jpeg",
-        "network",
-        "opengl",
-        "pcre2",
-        "png",
-        "thread",
-        "vulkan",
-        "widgets",
-        "zstd"
-      ]
-    },
-    {
       "name": "sdl3",
       "default-features": false
     },
@@ -225,6 +179,82 @@
     "woff2",
     "zlib"
   ],
+  "features": {
+    "gtk": {
+      "description": "Build with GTK 4 GUI framework",
+      "dependencies": [
+        {
+          "name": "libadwaita",
+          "platform": "linux"
+        },
+        {
+          "name": "wayland",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        },
+        {
+          "name": "wayland-protocols",
+          "platform": "linux",
+          "features": [
+            "force-build"
+          ]
+        }
+      ]
+    },
+    "qt": {
+      "description": "Build with Qt 6 GUI framework",
+      "dependencies": [
+        {
+          "name": "qtbase",
+          "platform": "freebsd",
+          "default-features": false,
+          "features": [
+            "dbus",
+            "doubleconversion",
+            "fontconfig",
+            "freetype",
+            "gui",
+            "icu",
+            "jpeg",
+            "network",
+            "opengl",
+            "pcre2",
+            "png",
+            "thread",
+            "vulkan",
+            "widgets",
+            "xcb",
+            "xcb-xlib",
+            "xlib",
+            "xrender",
+            "zstd"
+          ]
+        },
+        {
+          "name": "qtbase",
+          "platform": "windows",
+          "default-features": false,
+          "features": [
+            "doubleconversion",
+            "freetype",
+            "gui",
+            "icu",
+            "jpeg",
+            "network",
+            "opengl",
+            "pcre2",
+            "png",
+            "thread",
+            "vulkan",
+            "widgets",
+            "zstd"
+          ]
+        }
+      ]
+    }
+  },
   "overrides": [
     {
       "name": "angle",
@@ -263,8 +293,12 @@
       "version": "12.1.0#0"
     },
     {
+      "name": "gtk",
+      "version": "4.22.0"
+    },
+    {
       "name": "fontconfig",
-      "version": "2.15.0#4"
+      "version": "2.17.1#1"
     },
     {
       "name": "harfbuzz",
@@ -273,6 +307,10 @@
     {
       "name": "icu",
       "version": "78.2#0"
+    },
+    {
+      "name": "libadwaita",
+      "version": "1.8.4"
     },
     {
       "name": "libavif",
