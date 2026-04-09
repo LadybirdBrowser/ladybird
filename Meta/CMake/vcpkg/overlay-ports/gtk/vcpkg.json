@@ -1,0 +1,91 @@
+{
+  "name": "gtk",
+  "version": "4.22.0",
+  "description": "Portable library for creating graphical user interfaces.",
+  "homepage": "https://www.gtk.org/",
+  "license": "LGPL-2.0-only",
+  "supports": "!android & !xbox & !(arm64 & windows)",
+  "dependencies": [
+    {
+      "name": "cairo",
+      "default-features": false,
+      "features": [
+        "gobject"
+      ]
+    },
+    {
+      "name": "cairo",
+      "default-features": false,
+      "features": [
+        "x11"
+      ],
+      "platform": "linux"
+    },
+    {
+      "name": "directx-headers",
+      "platform": "windows"
+    },
+    "gdk-pixbuf",
+    {
+      "name": "gettext",
+      "host": true,
+      "default-features": false,
+      "features": [
+        "tools"
+      ]
+    },
+    "gettext-libintl",
+    "glib",
+    {
+      "name": "glib",
+      "host": true
+    },
+    "graphene",
+    {
+      "name": "harfbuzz",
+      "features": [
+        "glib"
+      ]
+    },
+    "libepoxy",
+    "pango",
+    {
+      "name": "sassc",
+      "host": true
+    },
+    {
+      "name": "vcpkg-tool-meson",
+      "host": true
+    }
+  ],
+  "features": {
+    "introspection": {
+      "description": "Build with introspection",
+      "supports": "!static & !windows",
+      "dependencies": [
+        {
+          "name": "gdk-pixbuf",
+          "default-features": false,
+          "features": [
+            "introspection"
+          ]
+        },
+        "gobject-introspection",
+        {
+          "name": "graphene",
+          "default-features": false,
+          "features": [
+            "introspection"
+          ]
+        },
+        {
+          "name": "pango",
+          "default-features": false,
+          "features": [
+            "introspection"
+          ]
+        }
+      ]
+    }
+  }
+}

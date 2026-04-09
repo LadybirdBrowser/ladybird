@@ -1,0 +1,13 @@
+diff --git a/meson.build b/meson.build
+index 713d87a531..e2e86726a2 100644
+--- a/meson.build
++++ b/meson.build
+@@ -1008,7 +1008,7 @@ if os_unix
+ endif
+ 
+ 
+-if not meson.is_cross_build()
++if false
+   gnome.post_install(
+     glib_compile_schemas: true,
+     gtk_update_icon_cache: get_option('build-demos'),
