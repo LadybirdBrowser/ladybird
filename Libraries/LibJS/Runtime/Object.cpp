@@ -1745,9 +1745,9 @@ void Object::ensure_indexed_elements(u32 needed_capacity)
 
 void Object::grow_indexed_elements(u32 needed_capacity)
 {
-    // Grow by at least 25%
+    // Grow by at least 50% to reduce copying during dense fills.
     u32 old_capacity = m_indexed_elements ? indexed_elements_capacity() : 0;
-    u32 new_capacity = max(needed_capacity, old_capacity + old_capacity / 4);
+    u32 new_capacity = max(needed_capacity, old_capacity + old_capacity / 2);
     new_capacity = max(new_capacity, static_cast<u32>(8));
 
     auto* new_elements = allocate_indexed_elements(new_capacity);
