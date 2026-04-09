@@ -71,9 +71,11 @@ def get_baseline_version(baseline, name):
         subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True)
 
     # Query the current vcpkg baseline for its version of this package, this becomes the reference for linting
+    # Clear GIT_DIR so git operates on the vcpkg repo, not the parent repo (pre-commit sets GIT_DIR)
+    env = {k: v for k, v in os.environ.items() if k != "GIT_DIR"}
     cmd = f"cd {VCPKG_REPO} && git show {baseline}:versions/baseline.json 2> /dev/null | grep -E -A 3 -e '\"{name}\"'"
     try:
-        result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True, env=env)
 
         if not result.returncode:
             json_string = result.stdout.decode("utf-8").replace("\n", "").removesuffix(",")
