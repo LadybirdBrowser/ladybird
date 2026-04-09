@@ -653,6 +653,22 @@ String Selector::serialize() const
     return MUST(s.to_string());
 }
 
+// https://drafts.csswg.org/selectors-4/#single-colon-pseudos
+bool is_legacy_single_colon_pseudo_element(PseudoElement pseudo_element)
+{
+    // The four Level 2 pseudo-elements (::before, ::after, ::first-line, and ::first-letter) may, for legacy reasons,
+    // be written with only a single ":" character at their front, making them resemble a <pseudo-class-selector>.
+    switch (pseudo_element) {
+    case PseudoElement::After:
+    case PseudoElement::Before:
+    case PseudoElement::FirstLetter:
+    case PseudoElement::FirstLine:
+        return true;
+    default:
+        return false;
+    }
+}
+
 // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors
 String serialize_a_group_of_selectors(SelectorList const& selectors)
 {

@@ -14,6 +14,26 @@
 
 namespace Web::CSS::Parser {
 
+static bool next_is_pseudo_element(TokenStream<ComponentValue>& tokens)
+{
+    auto& first = tokens.next_token();
+    auto& second = tokens.peek_token(1);
+    if (first.is(Token::Type::Colon)) {
+        // Pseudo-elements
+        if (second.is(Token::Type::Colon))
+            return true;
+
+        // Legacy single-colon pseudo-elements
+        if (second.is(Token::Type::Ident)) {
+            auto pseudo_element = pseudo_element_from_string(second.token().ident());
+            if (pseudo_element.has_value() && is_legacy_single_colon_pseudo_element(pseudo_element.value()))
+                return true;
+        }
+    }
+
+    return false;
+}
+
 Optional<SelectorList> Parser::parse_as_selector(SelectorParsingMode parsing_mode)
 {
     auto selector_list = parse_a_selector_list(m_token_stream, SelectorType::Standalone, parsing_mode);
@@ -525,260 +545,43 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
     return simple_selector;
 }
 
-Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selector(TokenStream<ComponentValue>& tokens)
+Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple_selector(TokenStream<ComponentValue>& tokens)
 {
     auto peek_token_ends_selector = [&]() -> bool {
         auto const& value = tokens.next_token();
-        return (value.is(Token::Type::EndOfFile) || value.is(Token::Type::Whitespace) || value.is(Token::Type::Comma));
+        return value.is(Token::Type::EndOfFile) || value.is(Token::Type::Whitespace) || value.is(Token::Type::Comma);
     };
 
     if (peek_token_ends_selector())
         return ParseError::SyntaxError;
 
-    // Note that we already consumed one colon before we entered this function.
-    // FIXME: Don't do that.
-    bool is_pseudo_element = false;
-    if (tokens.next_token().is(Token::Type::Colon)) {
-        is_pseudo_element = true;
-        tokens.discard_a_token();
-        if (peek_token_ends_selector())
-            return ParseError::SyntaxError;
-    }
-
-    if (is_pseudo_element) {
-        auto const& name_token = tokens.consume_a_token();
-        bool is_function = false;
-        FlyString pseudo_name;
-
-        if (name_token.is(Token::Type::Ident)) {
-            pseudo_name = name_token.token().ident();
-        } else if (name_token.is_function()) {
-            pseudo_name = name_token.function().name;
-            is_function = true;
-        } else {
-            ErrorReporter::the().report(InvalidSelectorError {
-                .value_string = name_token.to_string(),
-                .description = MUST(String::formatted("Pseudo-element should be an ident or function, got: '{}'", name_token.to_debug_string())),
-            });
-            return ParseError::SyntaxError;
-        }
-
-        bool is_aliased_pseudo = false;
-        auto pseudo_element = pseudo_element_from_string(pseudo_name);
-        if (!pseudo_element.has_value()) {
-            pseudo_element = aliased_pseudo_element_from_string(pseudo_name);
-            is_aliased_pseudo = pseudo_element.has_value();
-        }
-
-        if (pseudo_element.has_value()) {
-            auto metadata = pseudo_element_metadata(*pseudo_element);
-
-            // :has() is fussy about pseudo-elements inside it
-            if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
-                return ParseError::SyntaxError;
-            }
-
-            Selector::PseudoElementSelector::Value value = Empty {};
-            if (is_function) {
-                if (!metadata.is_valid_as_function) {
-                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                        .name = MUST(String::formatted("::{}", pseudo_name)),
-                        .value_string = name_token.to_string(),
-                        .description = "Not valid as a function."_string,
-                    });
-                    return ParseError::SyntaxError;
-                }
-
-                // Parse arguments
-                TokenStream function_tokens { name_token.function().value };
-                function_tokens.discard_whitespace();
-
-                switch (metadata.parameter_type) {
-                case PseudoElementMetadata::ParameterType::None:
-                    if (function_tokens.has_next_token()) {
-                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                            .name = MUST(String::formatted("::{}", pseudo_name)),
-                            .value_string = name_token.to_string(),
-                            .description = "Should have no arguments."_string,
-                        });
-                        return ParseError::SyntaxError;
-                    }
-                    break;
-                case PseudoElementMetadata::ParameterType::CompoundSelector: {
-                    auto compound_selector_or_error = parse_compound_selector(function_tokens);
-                    if (compound_selector_or_error.is_error()) {
-                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                            .name = MUST(String::formatted("::{}", pseudo_name)),
-                            .value_string = name_token.to_string(),
-                            .description = "Failed to parse argument as a compound selector."_string,
-                        });
-                        return ParseError::SyntaxError;
-                    }
-                    function_tokens.discard_whitespace();
-                    if (function_tokens.has_next_token()) {
-                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                            .name = MUST(String::formatted("::{}", pseudo_name)),
-                            .value_string = name_token.to_string(),
-                            .description = "Trailing tokens after compound selector argument."_string,
-                        });
-                        return ParseError::SyntaxError;
-                    }
-
-                    auto compound_selector = compound_selector_or_error.release_value();
-                    compound_selector.combinator = Selector::Combinator::None;
-                    value = Selector::create(Vector { move(compound_selector) });
-                    break;
-                }
-                case PseudoElementMetadata::ParameterType::IdentList: {
-                    // <ident>+
-                    Selector::PseudoElementSelector::IdentList idents;
-                    while (function_tokens.has_next_token()) {
-                        if (!function_tokens.next_token().is(Token::Type::Ident)) {
-                            ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                                .name = MUST(String::formatted("::{}", pseudo_name)),
-                                .value_string = name_token.to_string(),
-                                .description = "Contains invalid <ident>."_string,
-                            });
-                            return ParseError::SyntaxError;
-                        }
-                        idents.append(function_tokens.consume_a_token().token().ident());
-                        function_tokens.discard_whitespace();
-                    }
-                    value = move(idents);
-                    break;
-                }
-                case PseudoElementMetadata::ParameterType::PTNameSelector: {
-                    // <pt-name-selector> = '*' | <custom-ident>
-                    // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
-                    if (function_tokens.next_token().is_delim('*')) {
-                        function_tokens.discard_a_token(); // *
-                        value = Selector::PseudoElementSelector::PTNameSelector { .is_universal = true };
-                    } else if (auto custom_ident = parse_custom_ident(function_tokens, {}); custom_ident.has_value()) {
-                        value = Selector::PseudoElementSelector::PTNameSelector { .value = custom_ident.release_value() };
-                    } else {
-                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                            .name = MUST(String::formatted("::{}", pseudo_name)),
-                            .value_string = name_token.to_string(),
-                            .description = MUST(String::formatted("Invalid <pt-name-selector> - expected `*` or `<custom-ident>`, got `{}`", function_tokens.next_token().to_debug_string())),
-                        });
-                        return ParseError::SyntaxError;
-                    }
-                    function_tokens.discard_whitespace();
-                    if (function_tokens.has_next_token()) {
-                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                            .name = MUST(String::formatted("::{}", pseudo_name)),
-                            .value_string = name_token.to_string(),
-                            .description = "Invalid <pt-name-selector> - trailing tokens."_string,
-                        });
-                        return ParseError::SyntaxError;
-                    }
-                    break;
-                }
-                }
-
-            } else {
-                if (!metadata.is_valid_as_identifier) {
-                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
-                        .name = MUST(String::formatted("::{}", pseudo_name)),
-                        .value_string = name_token.to_string(),
-                        .description = "Only valid as a function."_string,
-                    });
-                    return ParseError::SyntaxError;
-                }
-            }
-
-            // Aliased pseudo-elements behave like their target pseudo-element, but serialize as themselves. So store their
-            // name like we do for unknown -webkit pseudos below.
-            if (is_aliased_pseudo) {
-                return Selector::SimpleSelector {
-                    .type = Selector::SimpleSelector::Type::PseudoElement,
-                    .value = Selector::PseudoElementSelector { pseudo_element.release_value(), pseudo_name.to_string().to_ascii_lowercase(), move(value) }
-                };
-            }
-
-            return Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoElement,
-                .value = Selector::PseudoElementSelector { pseudo_element.release_value(), move(value) }
-            };
-        }
-
-        // https://www.w3.org/TR/selectors-4/#compat
-        // All other pseudo-elements whose names begin with the string “-webkit-” (matched ASCII case-insensitively)
-        // and that are not functional notations must be treated as valid at parse time. (That is, ::-webkit-asdf is
-        // valid at parse time, but ::-webkit-jkl() is not.) If they’re not otherwise recognized and supported, they
-        // must be treated as matching nothing, and are unknown -webkit- pseudo-elements.
-        if (!is_function && pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
-            // :has() only allows a limited set of pseudo-elements inside it, which doesn't include unknown ones.
-            if (m_pseudo_class_context.contains_slow(PseudoClass::Has))
-                return ParseError::SyntaxError;
-
-            return Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoElement,
-                // Unknown -webkit- pseudo-elements must be serialized in ASCII lowercase.
-                .value = Selector::PseudoElementSelector { PseudoElement::UnknownWebKit, pseudo_name.to_string().to_ascii_lowercase() },
-            };
-        }
-
-        if (has_ignored_vendor_prefix(pseudo_name))
-            return ParseError::IncludesIgnoredVendorPrefix;
-
-        ErrorReporter::the().report(UnknownPseudoClassOrElementError {
-            .name = MUST(String::formatted("::{}", pseudo_name)),
-        });
+    if (!tokens.consume_a_token().is(Token::Type::Colon))
         return ParseError::SyntaxError;
-    }
 
     if (peek_token_ends_selector())
         return ParseError::SyntaxError;
 
-    auto const& pseudo_class_token = tokens.consume_a_token();
-
-    if (pseudo_class_token.is(Token::Type::Ident)) {
-        auto pseudo_name = pseudo_class_token.token().ident();
-
-        auto make_pseudo_class_selector = [](auto pseudo_class) {
-            return Selector::SimpleSelector {
-                .type = Selector::SimpleSelector::Type::PseudoClass,
-                .value = Selector::SimpleSelector::PseudoClassSelector { .type = pseudo_class }
-            };
-        };
+    if (tokens.next_token().is(Token::Type::Ident)) {
+        auto pseudo_name = tokens.consume_a_token().token().ident();
 
         if (auto pseudo_class = pseudo_class_from_string(pseudo_name); pseudo_class.has_value()) {
             if (!pseudo_class_metadata(pseudo_class.value()).is_valid_as_identifier) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted(":{}", pseudo_name)),
-                    .value_string = pseudo_class_token.to_string(),
+                    .value_string = pseudo_name.to_string(),
                     .description = "Only valid as a function."_string,
                 });
                 return ParseError::SyntaxError;
             }
-            return make_pseudo_class_selector(pseudo_class.value());
+
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::PseudoClass,
+                .value = Selector::SimpleSelector::PseudoClassSelector { .type = pseudo_class.value() }
+            };
         }
 
         if (has_ignored_vendor_prefix(pseudo_name))
             return ParseError::IncludesIgnoredVendorPrefix;
-
-        // Single-colon syntax allowed for ::after, ::before, ::first-letter and ::first-line for compatibility.
-        // https://www.w3.org/TR/selectors/#pseudo-element-syntax
-        if (auto pseudo_element = pseudo_element_from_string(pseudo_name); pseudo_element.has_value()) {
-            switch (pseudo_element.value()) {
-            case PseudoElement::After:
-            case PseudoElement::Before:
-            case PseudoElement::FirstLetter:
-            case PseudoElement::FirstLine:
-                // :has() is fussy about pseudo-elements inside it
-                if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(pseudo_element.value())) {
-                    return ParseError::SyntaxError;
-                }
-
-                return Selector::SimpleSelector {
-                    .type = Selector::SimpleSelector::Type::PseudoElement,
-                    .value = Selector::PseudoElementSelector { pseudo_element.value() }
-                };
-            default:
-                break;
-            }
-        }
 
         ErrorReporter::the().report(UnknownPseudoClassOrElementError {
             .name = MUST(String::formatted(":{}", pseudo_name)),
@@ -786,9 +589,9 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         return ParseError::SyntaxError;
     }
 
-    if (pseudo_class_token.is_function()) {
+    if (tokens.next_token().is_function()) {
         auto parse_an_plus_b_selector = [this](auto pseudo_class, Vector<ComponentValue> const& function_values, bool allow_of = false) -> ParseErrorOr<Selector::SimpleSelector> {
-            auto tokens = TokenStream<ComponentValue>(function_values);
+            TokenStream tokens { function_values };
             auto an_plus_b_pattern = parse_a_n_plus_b_pattern(tokens);
             if (!an_plus_b_pattern.has_value()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
@@ -833,7 +636,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             };
         };
 
-        auto const& pseudo_function = pseudo_class_token.function();
+        auto const& pseudo_function = tokens.consume_a_token().function();
         auto maybe_pseudo_class = pseudo_class_from_string(pseudo_function.name);
         if (!maybe_pseudo_class.has_value()) {
             ErrorReporter::the().report(UnknownPseudoClassOrElementError {
@@ -847,7 +650,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         if (!metadata.is_valid_as_function) {
             ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                 .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                .value_string = pseudo_class_token.to_string(),
+                .value_string = pseudo_function.name.to_string(),
                 .description = "Not valid as a function."_string,
             });
             return ParseError::SyntaxError;
@@ -856,7 +659,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         if (pseudo_function.value.is_empty()) {
             ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                 .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                .value_string = pseudo_class_token.to_string(),
+                .value_string = pseudo_function.name.to_string(),
                 .description = "Missing arguments."_string,
             });
             return ParseError::SyntaxError;
@@ -867,7 +670,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         if (pseudo_class == PseudoClass::Has && m_pseudo_class_context.contains_slow(PseudoClass::Has)) {
             ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                 .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                .value_string = pseudo_class_token.to_string(),
+                .value_string = pseudo_function.name.to_string(),
                 .description = ":has() is not allowed inside :has()."_string,
             });
             return ParseError::SyntaxError;
@@ -887,7 +690,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             if (compound_selector_or_error.is_error()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                    .value_string = pseudo_class_token.to_string(),
+                    .value_string = pseudo_function.name.to_string(),
                     .description = "Failed to parse argument as a compound selector."_string,
                 });
                 return ParseError::SyntaxError;
@@ -896,7 +699,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             if (function_token_stream.has_next_token()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted("::{}", pseudo_function.name)),
-                    .value_string = pseudo_class_token.to_string(),
+                    .value_string = pseudo_function.name.to_string(),
                     .description = "Trailing tokens after compound selector argument."_string,
                 });
                 return ParseError::SyntaxError;
@@ -939,7 +742,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
             if (!maybe_ident_token.is(Token::Type::Ident) || function_token_stream.has_next_token()) {
                 ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                     .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                    .value_string = pseudo_class_token.to_string(),
+                    .value_string = pseudo_function.name.to_string(),
                     .description = "Failed to parse argument as an ident."_string,
                 });
                 return ParseError::SyntaxError;
@@ -970,7 +773,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 if (!(language_token.is(Token::Type::Ident) || language_token.is(Token::Type::String))) {
                     ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                         .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                        .value_string = pseudo_class_token.to_string(),
+                        .value_string = pseudo_function.name.to_string(),
                         .description = "Failed to parse argument as a language range: Not a string/ident."_string,
                     });
                     return ParseError::SyntaxError;
@@ -983,7 +786,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 if (language_token_stream.has_next_token()) {
                     ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                         .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                        .value_string = pseudo_class_token.to_string(),
+                        .value_string = pseudo_function.name.to_string(),
                         .description = "Failed to parse argument as a language range: Has trailing tokens."_string,
                     });
                     return ParseError::SyntaxError;
@@ -1014,7 +817,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 if (!maybe_integer.is(Token::Type::Number) || !maybe_integer.token().number().is_integer()) {
                     ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                         .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                        .value_string = pseudo_class_token.to_string(),
+                        .value_string = pseudo_function.name.to_string(),
                         .description = "Failed to parse argument as a <level>: Not an <integer> literal."_string,
                     });
                     return ParseError::SyntaxError;
@@ -1023,7 +826,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
                 if (level_token_stream.has_next_token()) {
                     ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                         .name = MUST(String::formatted(":{}", pseudo_function.name)),
-                        .value_string = pseudo_class_token.to_string(),
+                        .value_string = pseudo_function.name.to_string(),
                         .description = "Failed to parse argument as a <level>: Has trailing tokens."_string,
                     });
                     return ParseError::SyntaxError;
@@ -1061,8 +864,223 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_simple_selec
         }
     }
     ErrorReporter::the().report(InvalidSelectorError {
-        .value_string = pseudo_class_token.to_string(),
-        .description = MUST(String::formatted("Pseudo-class should be an ident or function, got: '{}'", pseudo_class_token.to_debug_string())),
+        .value_string = tokens.next_token().to_string(),
+        .description = MUST(String::formatted("Pseudo-class should be an ident or function, got: '{}'", tokens.next_token().to_debug_string())),
+    });
+    return ParseError::SyntaxError;
+}
+
+Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_element_simple_selector(TokenStream<ComponentValue>& tokens)
+{
+    auto peek_token_ends_selector = [&]() -> bool {
+        auto const& value = tokens.next_token();
+        return value.is(Token::Type::EndOfFile) || value.is(Token::Type::Whitespace) || value.is(Token::Type::Comma);
+    };
+
+    if (peek_token_ends_selector())
+        return ParseError::SyntaxError;
+
+    if (!tokens.consume_a_token().is(Token::Type::Colon))
+        return ParseError::SyntaxError;
+    // A few pseudo-elements are allowed to have a single colon, like a pseudo-class.
+    bool const started_with_double_colon = tokens.next_token().is(Token::Type::Colon);
+    if (started_with_double_colon)
+        tokens.discard_a_token(); // :
+
+    auto const& name_token = tokens.consume_a_token();
+    bool is_function = false;
+    FlyString pseudo_name;
+
+    if (name_token.is(Token::Type::Ident)) {
+        pseudo_name = name_token.token().ident();
+    } else if (name_token.is_function()) {
+        pseudo_name = name_token.function().name;
+        is_function = true;
+    } else {
+        ErrorReporter::the().report(InvalidSelectorError {
+            .value_string = name_token.to_string(),
+            .description = MUST(String::formatted("Pseudo-element should be an ident or function, got: '{}'", name_token.to_debug_string())),
+        });
+        return ParseError::SyntaxError;
+    }
+
+    bool is_aliased_pseudo = false;
+    auto pseudo_element = pseudo_element_from_string(pseudo_name);
+    if (!pseudo_element.has_value()) {
+        pseudo_element = aliased_pseudo_element_from_string(pseudo_name);
+        is_aliased_pseudo = pseudo_element.has_value();
+    }
+
+    if (pseudo_element.has_value()) {
+        // :has() is fussy about pseudo-elements inside it
+        if (m_pseudo_class_context.contains_slow(PseudoClass::Has) && !is_has_allowed_pseudo_element(*pseudo_element)) {
+            return ParseError::SyntaxError;
+        }
+
+        // Support legacy single-colon syntax for some older pseudo-elements.
+        if (!started_with_double_colon) {
+            if (is_legacy_single_colon_pseudo_element(pseudo_element.value())) {
+                return Selector::SimpleSelector {
+                    .type = Selector::SimpleSelector::Type::PseudoElement,
+                    .value = Selector::PseudoElementSelector { pseudo_element.value() }
+                };
+            }
+            ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                .name = MUST(String::formatted(":{}", pseudo_name)),
+                .value_string = name_token.to_string(),
+                .description = "This is not a legacy pseudo-element."_string,
+            });
+            return ParseError::SyntaxError;
+        }
+
+        auto metadata = pseudo_element_metadata(*pseudo_element);
+
+        Selector::PseudoElementSelector::Value value = Empty {};
+        if (is_function) {
+            if (!metadata.is_valid_as_function) {
+                ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                    .name = MUST(String::formatted("::{}", pseudo_name)),
+                    .value_string = name_token.to_string(),
+                    .description = "Not valid as a function."_string,
+                });
+                return ParseError::SyntaxError;
+            }
+
+            // Parse arguments
+            TokenStream function_tokens { name_token.function().value };
+            function_tokens.discard_whitespace();
+
+            switch (metadata.parameter_type) {
+            case PseudoElementMetadata::ParameterType::None:
+                if (function_tokens.has_next_token()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted("::{}", pseudo_name)),
+                        .value_string = name_token.to_string(),
+                        .description = "Should have no arguments."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+                break;
+            case PseudoElementMetadata::ParameterType::CompoundSelector: {
+                auto compound_selector_or_error = parse_compound_selector(function_tokens);
+                if (compound_selector_or_error.is_error()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted("::{}", pseudo_name)),
+                        .value_string = name_token.to_string(),
+                        .description = "Failed to parse argument as a compound selector."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+                function_tokens.discard_whitespace();
+                if (function_tokens.has_next_token()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted("::{}", pseudo_name)),
+                        .value_string = name_token.to_string(),
+                        .description = "Trailing tokens after compound selector argument."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+
+                auto compound_selector = compound_selector_or_error.release_value();
+                compound_selector.combinator = Selector::Combinator::None;
+                value = Selector::create(Vector { move(compound_selector) });
+                break;
+            }
+            case PseudoElementMetadata::ParameterType::IdentList: {
+                // <ident>+
+                Selector::PseudoElementSelector::IdentList idents;
+                while (function_tokens.has_next_token()) {
+                    if (!function_tokens.next_token().is(Token::Type::Ident)) {
+                        ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                            .name = MUST(String::formatted("::{}", pseudo_name)),
+                            .value_string = name_token.to_string(),
+                            .description = "Contains invalid <ident>."_string,
+                        });
+                        return ParseError::SyntaxError;
+                    }
+                    idents.append(function_tokens.consume_a_token().token().ident());
+                    function_tokens.discard_whitespace();
+                }
+                value = move(idents);
+                break;
+            }
+            case PseudoElementMetadata::ParameterType::PTNameSelector: {
+                // <pt-name-selector> = '*' | <custom-ident>
+                // https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
+                if (function_tokens.next_token().is_delim('*')) {
+                    function_tokens.discard_a_token(); // *
+                    value = Selector::PseudoElementSelector::PTNameSelector { .is_universal = true };
+                } else if (auto custom_ident = parse_custom_ident(function_tokens, {}); custom_ident.has_value()) {
+                    value = Selector::PseudoElementSelector::PTNameSelector { .value = custom_ident.release_value() };
+                } else {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted("::{}", pseudo_name)),
+                        .value_string = name_token.to_string(),
+                        .description = MUST(String::formatted("Invalid <pt-name-selector> - expected `*` or `<custom-ident>`, got `{}`", function_tokens.next_token().to_debug_string())),
+                    });
+                    return ParseError::SyntaxError;
+                }
+                function_tokens.discard_whitespace();
+                if (function_tokens.has_next_token()) {
+                    ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                        .name = MUST(String::formatted("::{}", pseudo_name)),
+                        .value_string = name_token.to_string(),
+                        .description = "Invalid <pt-name-selector> - trailing tokens."_string,
+                    });
+                    return ParseError::SyntaxError;
+                }
+                break;
+            }
+            }
+
+        } else {
+            if (!metadata.is_valid_as_identifier) {
+                ErrorReporter::the().report(InvalidPseudoClassOrElementError {
+                    .name = MUST(String::formatted("::{}", pseudo_name)),
+                    .value_string = name_token.to_string(),
+                    .description = "Only valid as a function."_string,
+                });
+                return ParseError::SyntaxError;
+            }
+        }
+
+        // NB: Aliased pseudo-elements behave like their target pseudo-element, but serialize as themselves. So store
+        //     their name like we do for unknown -webkit pseudos below.
+        if (is_aliased_pseudo) {
+            return Selector::SimpleSelector {
+                .type = Selector::SimpleSelector::Type::PseudoElement,
+                .value = Selector::PseudoElementSelector { pseudo_element.release_value(), pseudo_name.to_string().to_ascii_lowercase(), move(value) }
+            };
+        }
+
+        return Selector::SimpleSelector {
+            .type = Selector::SimpleSelector::Type::PseudoElement,
+            .value = Selector::PseudoElementSelector { pseudo_element.release_value(), move(value) }
+        };
+    }
+
+    // https://drafts.csswg.org/selectors-4/#compat
+    // All other pseudo-elements whose names begin with the string “-webkit-” (matched ASCII case-insensitively)
+    // and that are not functional notations must be treated as valid at parse time. (That is, ::-webkit-asdf is
+    // valid at parse time, but ::-webkit-jkl() is not.) If they’re not otherwise recognized and supported, they
+    // must be treated as matching nothing, and are unknown -webkit- pseudo-elements.
+    if (!is_function && pseudo_name.starts_with_bytes("-webkit-"sv, CaseSensitivity::CaseInsensitive)) {
+        // NB: :has() only allows a limited set of pseudo-elements inside it, which doesn't include unknown ones.
+        if (m_pseudo_class_context.contains_slow(PseudoClass::Has))
+            return ParseError::SyntaxError;
+
+        return Selector::SimpleSelector {
+            .type = Selector::SimpleSelector::Type::PseudoElement,
+            // Unknown -webkit- pseudo-elements must be serialized in ASCII lowercase.
+            .value = Selector::PseudoElementSelector { PseudoElement::UnknownWebKit, pseudo_name.to_string().to_ascii_lowercase() },
+        };
+    }
+
+    if (has_ignored_vendor_prefix(pseudo_name))
+        return ParseError::IncludesIgnoredVendorPrefix;
+
+    ErrorReporter::the().report(UnknownPseudoClassOrElementError {
+        .name = MUST(String::formatted("::{}", pseudo_name)),
     });
     return ParseError::SyntaxError;
 }
@@ -1090,6 +1108,12 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
             .value = qualified_name.release_value(),
         };
     }
+
+    if (next_is_pseudo_element(tokens))
+        return TRY(parse_pseudo_element_simple_selector(tokens));
+
+    if (tokens.next_token().is(Token::Type::Colon))
+        return TRY(parse_pseudo_class_simple_selector(tokens));
 
     auto const& first_value = tokens.consume_a_token();
 
@@ -1153,9 +1177,6 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
 
     if (first_value.is_block() && first_value.block().is_square())
         return TRY(parse_attribute_simple_selector(first_value));
-
-    if (first_value.is(Token::Type::Colon))
-        return TRY(parse_pseudo_simple_selector(tokens));
 
     ErrorReporter::the().report(InvalidSelectorError {
         .value_string = tokens.dump_string(),

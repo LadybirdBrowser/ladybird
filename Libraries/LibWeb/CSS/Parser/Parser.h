@@ -593,7 +593,8 @@ private:
     };
     Optional<Selector::SimpleSelector::QualifiedName> parse_selector_qualified_name(TokenStream<ComponentValue>&, AllowWildcardName);
     ParseErrorOr<Selector::SimpleSelector> parse_attribute_simple_selector(ComponentValue const&);
-    ParseErrorOr<Selector::SimpleSelector> parse_pseudo_simple_selector(TokenStream<ComponentValue>&);
+    ParseErrorOr<Selector::SimpleSelector> parse_pseudo_class_simple_selector(TokenStream<ComponentValue>&);
+    ParseErrorOr<Selector::SimpleSelector> parse_pseudo_element_simple_selector(TokenStream<ComponentValue>&);
     ParseErrorOr<Optional<Selector::SimpleSelector>> parse_simple_selector(TokenStream<ComponentValue>&);
 
     NonnullRefPtr<MediaQuery> parse_media_query(TokenStream<ComponentValue>&);

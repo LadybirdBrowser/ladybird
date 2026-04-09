@@ -254,6 +254,8 @@ private:
     Array<u32, 8> m_ancestor_hashes;
 };
 
+bool is_legacy_single_colon_pseudo_element(PseudoElement);
+
 String serialize_a_group_of_selectors(SelectorList const& selectors);
 
 SelectorList adapt_nested_relative_selector_list(SelectorList const&);
