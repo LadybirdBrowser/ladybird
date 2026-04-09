@@ -44,9 +44,9 @@ runs:
       id: 'ccache'
       with:
         path: ${{ inputs.ccache_path }}
-        key: '"ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        key: ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ steps.date-stamp.outputs.timestamp }}
         restore-keys: |
-          "ccache" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}"
+          ccache | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }}
 
     - name: 'Configure Compiler Cache'
       if: ${{ inputs.os != 'Windows' }}
@@ -84,6 +84,6 @@ runs:
       id: 'vcpkg'
       with:
         path: ${{ inputs.vcpkg_cache_path }}
-        key: '"vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}" | ${{ steps.date-stamp.outputs.timestamp }}'
+        key: vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }} | ${{ steps.date-stamp.outputs.timestamp }}
         restore-keys: |
-          "vcpkg" | "${{ inputs.os }}" | "${{ inputs.arch }}" | "${{ inputs.toolchain }}" | "${{ inputs.cache_key_extra }}"
+          vcpkg | ${{ inputs.os }} | ${{ inputs.arch }} | ${{ inputs.toolchain }} | ${{ inputs.cache_key_extra }}
