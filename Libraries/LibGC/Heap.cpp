@@ -489,6 +489,9 @@ public:
                 case HeapRoot::Type::RootHashMap:
                     node.set("root"sv, "RootHashMap"sv);
                     break;
+                case HeapRoot::Type::RootHashTable:
+                    node.set("root"sv, "RootHashTable"sv);
+                    break;
                 case HeapRoot::Type::RegisterPointer:
                     node.set("root"sv, "RegisterPointer"sv);
                     if (it.value.root_origin->stack_frame_index.has_value())
@@ -787,6 +790,9 @@ void Heap::gather_roots(HashMap<Cell*, HeapRoot>& roots, Vector<StackFrameInfo>*
         for (auto& hash_map : m_root_hash_maps)
             hash_map.gather_roots(roots);
     }
+
+    for (auto& hash_table : m_root_hash_tables)
+        hash_table.gather_roots(roots);
 
     if constexpr (HEAP_DEBUG) {
         dbgln("gather_roots:");

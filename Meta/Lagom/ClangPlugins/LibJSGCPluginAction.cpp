@@ -115,6 +115,8 @@ static ContainsGCPtrResult record_contains_gc_ptr(clang::CXXRecordDecl const* re
         "GC::CellAllocator",
         "GC::TypeIsolatingCellAllocator",
         "GC::RootVector",
+        "GC::RootHashTable",
+        "GC::RootHashTableBase",
         "GC::Heap",
         "GC::MarkedVector",
         "GC::ConservativeVector",
@@ -189,7 +191,7 @@ static ContainsGCPtrResult type_contains_gc_ptr(clang::QualType const& type, std
             return ContainsGCPtrResult::No;
 
         // Root types handle their own visiting
-        if (template_name == "GC::Root" || template_name == "GC::RootVector")
+        if (template_name == "GC::Root" || template_name == "GC::RootVector" || template_name == "GC::RootHashTable")
             return ContainsGCPtrResult::No;
 
         // Check template arguments recursively for containers
@@ -229,6 +231,7 @@ static std::vector<clang::QualType> get_all_qualified_types(clang::QualType cons
             "GC::RawPtr",
             "GC::RawRef",
             "GC::RootVector",
+            "GC::RootHashTable",
             "GC::Root",
         };
 

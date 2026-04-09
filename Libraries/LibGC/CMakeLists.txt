@@ -5,6 +5,7 @@ set(SOURCES
     ConservativeVector.cpp
     Root.cpp
     RootHashMap.cpp
+    RootHashTable.cpp
     RootVector.cpp
     Heap.cpp
     HeapBlock.cpp
