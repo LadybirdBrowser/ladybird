@@ -7,6 +7,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/ConservativeHashMap.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapHashTable.h>
@@ -55,6 +56,17 @@ static bool possible_values_contain(GC::ConservativeVectorBase const& container,
             return true;
     }
     return false;
+}
+
+static bool possible_values_contain(GC::ConservativeHashMapBase const& container, GC::Cell* cell)
+{
+    bool found = false;
+    auto target = bit_cast<FlatPtr>(cell);
+    container.for_each_possible_value([&](FlatPtr value) {
+        if (value == target)
+            found = true;
+    });
+    return found;
 }
 
 TEST_CASE(root_vector_reports_roots)
@@ -253,4 +265,62 @@ TEST_CASE(empty_containers_report_no_roots)
     map.gather_roots(roots);
 
     EXPECT_EQ(roots.size(), 0u);
+}
+
+TEST_CASE(conservative_hash_map_reports_possible_values)
+{
+    auto& heap = test_heap();
+    GC::ConservativeHashMap<int, GC::Ref<TestCell>> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(42, cell);
+
+    EXPECT(possible_values_contain(map, cell.ptr()));
+}
+
+TEST_CASE(cleared_conservative_hash_map_reports_no_stale_values)
+{
+    auto& heap = test_heap();
+    GC::ConservativeHashMap<int, GC::Ref<TestCell>> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(42, cell);
+    map.clear();
+
+    EXPECT(!possible_values_contain(map, cell.ptr()));
+}
+
+TEST_CASE(removed_conservative_hash_map_entry_not_reported)
+{
+    auto& heap = test_heap();
+    GC::ConservativeHashMap<int, GC::Ref<TestCell>> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(42, cell);
+    map.remove(42);
+
+    EXPECT(!possible_values_contain(map, cell.ptr()));
+}
+
+TEST_CASE(conservative_hash_map_key_reports_possible_values)
+{
+    auto& heap = test_heap();
+    GC::ConservativeHashMap<GC::Ref<TestCell>, int> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(cell, 42);
+
+    EXPECT(possible_values_contain(map, cell.ptr()));
+}
+
+TEST_CASE(removed_conservative_hash_map_key_not_reported)
+{
+    auto& heap = test_heap();
+    GC::ConservativeHashMap<GC::Ref<TestCell>, int> map;
+
+    auto cell = heap.allocate<TestCell>();
+    map.set(cell, 42);
+    map.remove(cell);
+
+    EXPECT(!possible_values_contain(map, cell.ptr()));
 }
