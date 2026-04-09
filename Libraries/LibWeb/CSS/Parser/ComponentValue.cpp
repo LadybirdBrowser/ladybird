@@ -33,6 +33,26 @@ bool ComponentValue::is_function(StringView name) const
     return is_function() && function().name.equals_ignoring_ascii_case(name);
 }
 
+bool ComponentValue::is_delim(u32 delim) const
+{
+    switch (delim) {
+    // All of these have their own separate token types, and so passing them to is_delim() is incorrect and will never match.
+    case ':':
+    case ';':
+    case ',':
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case '(':
+    case ')':
+        dbgln("Calling is_delim() with a punctuation mark ({}) that has its own token type!", static_cast<char>(delim));
+        VERIFY_NOT_REACHED();
+    default:
+        return is(Token::Type::Delim) && token().delim() == delim;
+    }
+}
+
 bool ComponentValue::is_ident(StringView ident) const
 {
     return is(Token::Type::Ident) && token().ident().equals_ignoring_ascii_case(ident);
