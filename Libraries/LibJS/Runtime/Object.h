@@ -319,7 +319,7 @@ public:
                 callback(m_indexed_elements[i]);
             break;
         case IndexedStorageKind::Holey:
-            for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+            for (u32 i = 0, available_elements = min(m_indexed_array_like_size, indexed_elements_capacity()); i < available_elements; ++i) {
                 if (!m_indexed_elements[i].is_special_empty_value())
                     callback(m_indexed_elements[i]);
             }

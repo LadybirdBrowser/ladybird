@@ -112,6 +112,40 @@ describe("sparse arrays and holes", () => {
 
         if (oldProto !== undefined) Array.prototype[1] = oldProto;
     });
+
+    test("very large holey arrays behave correctly", () => {
+        const length = 20_000_000;
+        const arr = Array(length);
+
+        expect(arr.length).toBe(length);
+        expect(0 in arr).toBeFalse();
+        expect(arr[length - 1]).toBeUndefined();
+
+        arr[2] = "start";
+        arr[1_000_000] = "middle";
+        arr[length - 1] = "end";
+
+        expect(arr.length).toBe(length);
+        expect(arr[2]).toBe("start");
+        expect(arr[1_000_000]).toBe("middle");
+        expect(arr[length - 1]).toBe("end");
+        expect(999_999 in arr).toBeFalse();
+    });
+
+    test("densely filling a large holey array keeps implicit holes intact", () => {
+        const length = 100_000;
+        const arr = Array(length);
+
+        for (let i = 2; i < length; ++i)
+            arr[i] = i;
+
+        expect(arr.length).toBe(length);
+        expect(0 in arr).toBeFalse();
+        expect(1 in arr).toBeFalse();
+        expect(arr[2]).toBe(2);
+        expect(arr[50_000]).toBe(50_000);
+        expect(arr[length - 1]).toBe(length - 1);
+    });
 });
 
 describe("out of bounds access", () => {

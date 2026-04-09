@@ -1380,6 +1380,11 @@ handler PutByValue
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    branch_zero t5, .slow
+    mov t0, t5
+    sub t0, 8
+    load32 t0, [t0, 0]
+    branch_ge_unsigned t4, t0, .slow
     load64 t1, [t5, t4, 8]
     mov t0, EMPTY_TAG_SHIFTED
     branch_eq t1, t0, .slow
@@ -1622,6 +1627,11 @@ handler GetByValue
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    branch_zero t5, .slow
+    mov t0, t5
+    sub t0, 8
+    load32 t0, [t0, 0]
+    branch_ge_unsigned t4, t0, .slow
     load64 t0, [t5, t4, 8]
     mov t5, EMPTY_TAG_SHIFTED
     branch_eq t0, t5, .slow

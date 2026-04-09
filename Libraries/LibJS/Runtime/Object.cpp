@@ -1624,7 +1624,7 @@ void Object::visit_edges(Cell::Visitor& visitor)
             visitor.visit(m_indexed_elements[i]);
         break;
     case IndexedStorageKind::Holey:
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+        for (u32 i = 0, available_elements = min(m_indexed_array_like_size, indexed_elements_capacity()); i < available_elements; ++i) {
             if (!m_indexed_elements[i].is_special_empty_value())
                 visitor.visit(m_indexed_elements[i]);
         }
@@ -1686,7 +1686,6 @@ ThrowCompletionOr<Value> Object::ordinary_to_primitive(Value::PreferredType pref
 // Indexed property storage implementation
 
 static constexpr size_t SPARSE_ARRAY_HOLE_THRESHOLD = 200;
-static constexpr size_t LENGTH_SETTER_GENERIC_STORAGE_THRESHOLD = 4 * MiB;
 
 GenericIndexedPropertyStorage* Object::indexed_dictionary() const
 {
@@ -1769,7 +1768,7 @@ void Object::transition_to_dictionary()
 
     if (m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey) {
         // Transfer existing elements
-        u32 count = m_indexed_array_like_size;
+        u32 count = min(m_indexed_array_like_size, indexed_elements_capacity());
         for (u32 i = 0; i < count; ++i) {
             auto value = m_indexed_elements[i];
             if (!value.is_special_empty_value())
@@ -1797,6 +1796,8 @@ Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
     case IndexedStorageKind::Holey:
         if (index >= m_indexed_array_like_size)
             return {};
+        if (index >= indexed_elements_capacity())
+            return {};
         if (m_indexed_elements[index].is_special_empty_value())
             return {};
         return ValueAndAttributes { m_indexed_elements[index], default_attributes };
@@ -1809,6 +1810,9 @@ Optional<ValueAndAttributes> Object::indexed_get(u32 index) const
 void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
 {
     bool const storing_hole = value.is_special_empty_value();
+    u32 materialized_elements = 0;
+    if (m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey)
+        materialized_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
 
     if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
         indexed_dictionary()->put(index, value, attributes);
@@ -1826,7 +1830,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
     }
 
     // Check for sparse threshold
-    if (index > m_indexed_array_like_size + SPARSE_ARRAY_HOLE_THRESHOLD) {
+    if (index > materialized_elements + SPARSE_ARRAY_HOLE_THRESHOLD) {
         if (m_indexed_storage_kind != IndexedStorageKind::Dictionary)
             transition_to_dictionary();
         indexed_dictionary()->put(index, value, attributes);
@@ -1839,15 +1843,17 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
         u32 needed = index + 1;
         ensure_indexed_elements(needed);
         m_indexed_elements[index] = value;
-        m_indexed_array_like_size = index + 1;
+        m_indexed_array_like_size = max(m_indexed_array_like_size, index + 1);
         return;
     }
 
     // Packed or Holey
+    if (index >= materialized_elements)
+        ensure_indexed_elements(index + 1);
+
     if (index >= m_indexed_array_like_size) {
         // Growing
         u32 new_size = index + 1;
-        ensure_indexed_elements(new_size);
 
         if (m_indexed_storage_kind == IndexedStorageKind::Packed
             && (index > m_indexed_array_like_size || storing_hole)) {
@@ -1867,13 +1873,13 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
     // Only check when writing to the last index to avoid O(N^2) scanning.
     if (m_indexed_storage_kind == IndexedStorageKind::Holey && index == m_indexed_array_like_size - 1) {
         bool has_holes = false;
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+        for (u32 i = 0, available_elements = min(m_indexed_array_like_size, indexed_elements_capacity()); i < available_elements; ++i) {
             if (m_indexed_elements[i].is_special_empty_value()) {
                 has_holes = true;
                 break;
             }
         }
-        if (!has_holes)
+        if (!has_holes && indexed_elements_capacity() >= m_indexed_array_like_size)
             m_indexed_storage_kind = IndexedStorageKind::Packed;
     }
 }
@@ -1886,7 +1892,9 @@ bool Object::indexed_has(u32 index) const
     case IndexedStorageKind::Packed:
         return index < m_indexed_array_like_size;
     case IndexedStorageKind::Holey:
-        return index < m_indexed_array_like_size && !m_indexed_elements[index].is_special_empty_value();
+        return index < m_indexed_array_like_size
+            && index < indexed_elements_capacity()
+            && !m_indexed_elements[index].is_special_empty_value();
     case IndexedStorageKind::Dictionary:
         return indexed_dictionary()->has_index(index);
     }
@@ -1897,8 +1905,7 @@ void Object::indexed_delete(u32 index)
 {
     switch (m_indexed_storage_kind) {
     case IndexedStorageKind::None:
-        VERIFY_NOT_REACHED();
-        break;
+        return;
     case IndexedStorageKind::Packed:
         VERIFY(index < m_indexed_array_like_size);
         m_indexed_elements[index] = js_special_empty_value();
@@ -1906,6 +1913,8 @@ void Object::indexed_delete(u32 index)
         break;
     case IndexedStorageKind::Holey:
         VERIFY(index < m_indexed_array_like_size);
+        if (index >= indexed_elements_capacity())
+            return;
         m_indexed_elements[index] = js_special_empty_value();
         break;
     case IndexedStorageKind::Dictionary:
@@ -1916,7 +1925,7 @@ void Object::indexed_delete(u32 index)
 
 bool Object::set_indexed_array_like_size(size_t new_size)
 {
-    if (new_size == m_indexed_array_like_size && m_indexed_storage_kind != IndexedStorageKind::None)
+    if (new_size == m_indexed_array_like_size)
         return true;
 
     if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
@@ -1925,14 +1934,7 @@ bool Object::set_indexed_array_like_size(size_t new_size)
         return result;
     }
 
-    // For large sizes or sizes that don't fit in i32, use Dictionary
-    if (new_size > static_cast<size_t>(NumericLimits<i32>::max())
-        || (m_indexed_array_like_size < LENGTH_SETTER_GENERIC_STORAGE_THRESHOLD && new_size > LENGTH_SETTER_GENERIC_STORAGE_THRESHOLD)) {
-        transition_to_dictionary();
-        bool result = indexed_dictionary()->set_array_like_size(new_size);
-        m_indexed_array_like_size = indexed_dictionary()->array_like_size();
-        return result;
-    }
+    VERIFY(new_size <= NumericLimits<u32>::max());
 
     u32 old_size = m_indexed_array_like_size;
     auto new_size_u32 = static_cast<u32>(new_size);
@@ -1941,13 +1943,11 @@ bool Object::set_indexed_array_like_size(size_t new_size)
         if (new_size_u32 == 0)
             return true;
         m_indexed_storage_kind = IndexedStorageKind::Holey;
-        ensure_indexed_elements(new_size_u32);
         m_indexed_array_like_size = new_size_u32;
         return true;
     }
 
     if (new_size_u32 > old_size) {
-        ensure_indexed_elements(new_size_u32);
         if (m_indexed_storage_kind == IndexedStorageKind::Packed)
             m_indexed_storage_kind = IndexedStorageKind::Holey;
         m_indexed_array_like_size = new_size_u32;
@@ -1979,15 +1979,21 @@ ValueAndAttributes Object::indexed_take_first()
     }
 
     VERIFY(m_indexed_array_like_size > 0);
-    auto first = m_indexed_elements[0];
+    if (m_indexed_storage_kind == IndexedStorageKind::None) {
+        --m_indexed_array_like_size;
+        return {};
+    }
+
+    auto available_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
+    auto first = available_elements > 0 ? m_indexed_elements[0] : js_special_empty_value();
 
     // Shift all elements left
-    for (u32 i = 0; i + 1 < m_indexed_array_like_size; ++i)
+    for (u32 i = 0; i + 1 < available_elements; ++i)
         m_indexed_elements[i] = m_indexed_elements[i + 1];
 
     m_indexed_array_like_size--;
-    if (m_indexed_array_like_size < indexed_elements_capacity())
-        m_indexed_elements[m_indexed_array_like_size] = js_special_empty_value();
+    if (available_elements > 0)
+        m_indexed_elements[available_elements - 1] = js_special_empty_value();
 
     return { first, default_attributes };
 }
@@ -2002,6 +2008,11 @@ ValueAndAttributes Object::indexed_take_last()
 
     VERIFY(m_indexed_array_like_size > 0);
     m_indexed_array_like_size--;
+    if (m_indexed_storage_kind == IndexedStorageKind::None)
+        return {};
+    if (m_indexed_array_like_size >= indexed_elements_capacity())
+        return {};
+
     auto last = m_indexed_elements[m_indexed_array_like_size];
     m_indexed_elements[m_indexed_array_like_size] = js_special_empty_value();
 
@@ -2019,7 +2030,7 @@ size_t Object::indexed_real_size() const
         return m_indexed_array_like_size;
     case IndexedStorageKind::Holey: {
         size_t count = 0;
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+        for (u32 i = 0, available_elements = min(m_indexed_array_like_size, indexed_elements_capacity()); i < available_elements; ++i) {
             if (!m_indexed_elements[i].is_special_empty_value())
                 ++count;
         }
@@ -2045,8 +2056,9 @@ Vector<u32> Object::indexed_indices() const
     }
     case IndexedStorageKind::Holey: {
         Vector<u32> indices;
-        indices.ensure_capacity(m_indexed_array_like_size);
-        for (u32 i = 0; i < m_indexed_array_like_size; ++i) {
+        auto available_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
+        indices.ensure_capacity(available_elements);
+        for (u32 i = 0; i < available_elements; ++i) {
             if (!m_indexed_elements[i].is_special_empty_value())
                 indices.unchecked_append(i);
         }
