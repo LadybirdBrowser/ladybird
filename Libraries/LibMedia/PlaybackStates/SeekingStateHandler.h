@@ -194,9 +194,10 @@ private:
         }
 
         if (m_mode == SeekMode::Accurate || m_video_seeks_pending.is_empty()) {
+            auto mode = m_mode;
             m_chosen_timestamp = m_target_timestamp;
             begin_audio_seeks();
-            if (m_mode != SeekMode::Accurate)
+            if (mode != SeekMode::Accurate)
                 return;
         }
 
