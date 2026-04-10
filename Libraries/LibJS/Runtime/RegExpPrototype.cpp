@@ -261,8 +261,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
     array->put_direct(realm.intrinsics().regexp_builtin_exec_array_input_offset(), string);
 
     // Element 0: the full match substring.
-    auto match_str = Utf16String::from_utf16(utf16_view.substring_view(match_index, end_index - match_index));
-    array->indexed_put(0, PrimitiveString::create(vm, match_str));
+    array->indexed_put(0, PrimitiveString::create(vm, *string, match_index, end_index - match_index));
 
     bool has_groups = !named_groups.is_empty();
     auto groups = has_groups ? Object::create(realm, nullptr) : js_undefined();
@@ -282,9 +281,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
         int cap_end = (i < total_groups) ? compiled_regex->capture_slot(i * 2 + 1) : -1;
 
         if (cap_start >= 0 && cap_end >= 0) {
-            auto cap_view = utf16_view.substring_view(cap_start, cap_end - cap_start);
-            auto cap_str = Utf16String::from_utf16(cap_view);
-            captured_value = PrimitiveString::create(vm, cap_str);
+            captured_value = PrimitiveString::create(vm, *string, static_cast<size_t>(cap_start), static_cast<size_t>(cap_end - cap_start));
         } else {
             captured_value = js_undefined();
         }
@@ -1237,8 +1234,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                     }
 
                     // Add substring before this match.
-                    auto substring = utf16_view.substring_view(last_match_end, next_search_from - last_match_end);
-                    array->indexed_put(array_length, PrimitiveString::create(vm, substring));
+                    array->indexed_put(array_length, PrimitiveString::create(vm, *string, last_match_end, next_search_from - last_match_end));
                     ++array_length;
                     if (array_length == limit)
                         return array;
@@ -1265,8 +1261,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                         int cap_end = (i < total_groups) ? compiled_regex->capture_slot(i * 2 + 1) : -1;
 
                         if (cap_start >= 0 && cap_end >= 0) {
-                            auto cap_view = utf16_view.substring_view(cap_start, cap_end - cap_start);
-                            array->indexed_put(array_length, PrimitiveString::create(vm, cap_view));
+                            array->indexed_put(array_length, PrimitiveString::create(vm, *string, static_cast<size_t>(cap_start), static_cast<size_t>(cap_end - cap_start)));
                         } else {
                             array->indexed_put(array_length, js_undefined());
                         }
@@ -1279,8 +1274,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                 }
 
                 // Add trailing substring.
-                auto trailing = utf16_view.substring_view(last_match_end);
-                array->indexed_put(array_length, PrimitiveString::create(vm, trailing));
+                array->indexed_put(array_length, PrimitiveString::create(vm, *string, last_match_end, size - last_match_end));
 
                 return array;
             }
@@ -1379,10 +1373,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
         // iv. Else,
 
         // 1. Let T be the substring of S from p to q.
-        auto substring = string->utf16_string_view().substring_view(last_match_end, next_search_from - last_match_end);
-
         // 2. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
-        array->indexed_put(array_length, PrimitiveString::create(vm, substring));
+        array->indexed_put(array_length, PrimitiveString::create(vm, *string, last_match_end, next_search_from - last_match_end));
 
         // 3. Set lengthA to lengthA + 1.
         ++array_length;
@@ -1425,10 +1417,8 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
     }
 
     // 20. Let T be the substring of S from p to size.
-    auto substring = string->utf16_string_view().substring_view(last_match_end);
-
     // 21. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(lengthA)), T).
-    array->indexed_put(array_length, PrimitiveString::create(vm, substring));
+    array->indexed_put(array_length, PrimitiveString::create(vm, *string, last_match_end, string->length_in_utf16_code_units() - last_match_end));
 
     // 22. Return A.
     return array;

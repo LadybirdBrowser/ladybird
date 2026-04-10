@@ -117,6 +117,20 @@ TEST_CASE(primitive_string_substring_utf16_views_stay_deferred)
     EXPECT(!substring->has_utf16_string());
 }
 
+TEST_CASE(primitive_string_substring_equality_uses_utf16_code_units)
+{
+    TestVM test_vm;
+
+    char16_t const source_code_units[] = { u'x', u'x', u'x', 0xd800, 0xdc00, 0xdc00, u'x', u'x' };
+    char16_t const substring_code_units[] = { 0xd800, 0xdc00, 0xdc00 };
+
+    auto source = PrimitiveString::create(*test_vm.vm, Utf16View { source_code_units, 8 });
+    auto substring = PrimitiveString::create(*test_vm.vm, *source, 3, 3);
+    auto expected = PrimitiveString::create(*test_vm.vm, Utf16View { substring_code_units, 3 });
+
+    EXPECT(*substring == *expected);
+}
+
 TEST_CASE(deferred_primitive_strings_do_not_evict_cached_strings)
 {
     TestVM test_vm;

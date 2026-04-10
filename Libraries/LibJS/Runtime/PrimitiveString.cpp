@@ -255,11 +255,13 @@ bool PrimitiveString::operator==(PrimitiveString const& other) const
 {
     if (this == &other)
         return true;
+    if (length_in_utf16_code_units() != other.length_in_utf16_code_units())
+        return false;
     if (m_utf8_string.has_value() && other.m_utf8_string.has_value())
         return m_utf8_string->bytes_as_string_view() == other.m_utf8_string->bytes_as_string_view();
     if (m_utf16_string.has_value() && other.m_utf16_string.has_value())
         return *m_utf16_string == *other.m_utf16_string;
-    return utf8_string_view() == other.utf8_string_view();
+    return utf16_string_view() == other.utf16_string_view();
 }
 
 ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey const& property_key) const

@@ -245,6 +245,16 @@ test("cached UTF-16 code point length", () => {
     expect(match.codePointAt(0)).toBe(0x1f600);
 });
 
+test("UTF-16 captures", () => {
+    let result = /(\ud83d\ude00)(\ud83d)(\ude00)/.exec("😀😀");
+
+    expect(result).not.toBe(null);
+    expect(result[0]).toBe("😀😀");
+    expect(result[1]).toBe("😀");
+    expect(result[2]).toBe("\ud83d");
+    expect(result[3]).toBe("\ude00");
+});
+
 test("named groups source order", () => {
     // Test that named groups appear in source order, not match order
     let re = /(?<y>a)(?<x>a)|(?<x>b)(?<y>b)/;
