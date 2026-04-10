@@ -206,62 +206,141 @@ String Token::to_string() const
 
 String Token::to_debug_string() const
 {
+    auto append_quoted_string = [](StringBuilder& builder, StringView string) {
+        builder.append('"');
+        builder.append_escaped_for_json(string);
+        builder.append('"');
+    };
+
+    auto hash_type_name = [](HashType hash_type) -> StringView {
+        switch (hash_type) {
+        case HashType::Id:
+            return "Id"sv;
+        case HashType::Unrestricted:
+            return "Unrestricted"sv;
+        }
+        VERIFY_NOT_REACHED();
+    };
+
+    auto number_type_name = [](Number::Type number_type) -> StringView {
+        switch (number_type) {
+        case Number::Type::Number:
+            return "Number"sv;
+        case Number::Type::IntegerWithExplicitSign:
+            return "IntegerWithExplicitSign"sv;
+        case Number::Type::Integer:
+            return "Integer"sv;
+        }
+        VERIFY_NOT_REACHED();
+    };
+
+    StringBuilder builder;
+    bool has_type_specific_fields = false;
     switch (m_type) {
     case Type::Invalid:
         VERIFY_NOT_REACHED();
 
     case Type::EndOfFile:
-        return "__EOF__"_string;
+        builder.append("__EOF__("sv);
+        break;
     case Type::Ident:
-        return MUST(String::formatted("Ident: {}", ident()));
+        builder.append("Ident(value="sv);
+        append_quoted_string(builder, ident().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::Function:
-        return MUST(String::formatted("Function: {}", function()));
+        builder.append("Function(value="sv);
+        append_quoted_string(builder, function().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::AtKeyword:
-        return MUST(String::formatted("AtKeyword: {}", at_keyword()));
+        builder.append("AtKeyword(value="sv);
+        append_quoted_string(builder, at_keyword().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::Hash:
-        return MUST(String::formatted("Hash: {} (hash_type: {})", hash_value(), m_hash_type == HashType::Unrestricted ? "Unrestricted" : "Id"));
+        builder.append("Hash(value="sv);
+        append_quoted_string(builder, hash_value().bytes_as_string_view());
+        builder.appendff(", hash_type={}", hash_type_name(m_hash_type));
+        has_type_specific_fields = true;
+        break;
     case Type::String:
-        return MUST(String::formatted("String: {}", string()));
+        builder.append("String(value="sv);
+        append_quoted_string(builder, string().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::BadString:
-        return "BadString"_string;
+        builder.append("BadString("sv);
+        break;
     case Type::Url:
-        return MUST(String::formatted("Url: {}", url()));
+        builder.append("Url(value="sv);
+        append_quoted_string(builder, url().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::BadUrl:
-        return "BadUrl"_string;
+        builder.append("BadUrl("sv);
+        break;
     case Type::Delim:
-        return MUST(String::formatted("Delim: {}", m_value));
+        builder.append("Delim(value="sv);
+        append_quoted_string(builder, m_value.bytes_as_string_view());
+        builder.appendff(", code_point=U+{:04X}", delim());
+        has_type_specific_fields = true;
+        break;
     case Type::Number:
-        return MUST(String::formatted("Number: {}{} (number_type: {})", m_number_value.value() > 0 && m_number_value.is_integer_with_explicit_sign() ? "+" : "", m_number_value.value(), m_number_value.is_integer() ? "Integer" : "Number"));
+        builder.appendff("Number(value={}, number_type={}", m_number_value.value(), number_type_name(m_number_value.type()));
+        has_type_specific_fields = true;
+        break;
     case Type::Percentage:
-        return MUST(String::formatted("Percentage: {}% (number_type: {})", percentage(), m_number_value.is_integer() ? "Integer" : "Number"));
+        builder.appendff("Percentage(value={}, number_type={}", percentage(), number_type_name(m_number_value.type()));
+        has_type_specific_fields = true;
+        break;
     case Type::Dimension:
-        return MUST(String::formatted("Dimension: {}{} (number_type: {})", dimension_value(), dimension_unit(), m_number_value.is_integer() ? "Integer" : "Number"));
+        builder.appendff("Dimension(value={}, number_type={}, unit=", dimension_value(), number_type_name(m_number_value.type()));
+        append_quoted_string(builder, dimension_unit().bytes_as_string_view());
+        has_type_specific_fields = true;
+        break;
     case Type::Whitespace:
-        return "Whitespace"_string;
+        builder.append("Whitespace("sv);
+        break;
     case Type::CDO:
-        return "CDO"_string;
+        builder.append("CDO("sv);
+        break;
     case Type::CDC:
-        return "CDC"_string;
+        builder.append("CDC("sv);
+        break;
     case Type::Colon:
-        return "Colon"_string;
+        builder.append("Colon("sv);
+        break;
     case Type::Semicolon:
-        return "Semicolon"_string;
+        builder.append("Semicolon("sv);
+        break;
     case Type::Comma:
-        return "Comma"_string;
+        builder.append("Comma("sv);
+        break;
     case Type::OpenSquare:
-        return "OpenSquare"_string;
+        builder.append("OpenSquare("sv);
+        break;
     case Type::CloseSquare:
-        return "CloseSquare"_string;
+        builder.append("CloseSquare("sv);
+        break;
     case Type::OpenParen:
-        return "OpenParen"_string;
+        builder.append("OpenParen("sv);
+        break;
     case Type::CloseParen:
-        return "CloseParen"_string;
+        builder.append("CloseParen("sv);
+        break;
     case Type::OpenCurly:
-        return "OpenCurly"_string;
+        builder.append("OpenCurly("sv);
+        break;
     case Type::CloseCurly:
-        return "CloseCurly"_string;
+        builder.append("CloseCurly("sv);
+        break;
     }
-    VERIFY_NOT_REACHED();
+
+    builder.append(has_type_specific_fields ? ", source="sv : "source="sv);
+    append_quoted_string(builder, m_original_source_text.bytes_as_string_view());
+    builder.appendff(", start={}:{}, end={}:{})", m_start_position.line, m_start_position.column, m_end_position.line, m_end_position.column);
+    return builder.to_string_without_validation();
 }
 
 Token::Type Token::mirror_variant() const
