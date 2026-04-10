@@ -55,6 +55,7 @@
     background-clip: content-box;
     cursor: pointer;
     flex-shrink: 0;
+    text-align: left;
 }
 
 .timeline-fill {
