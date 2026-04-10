@@ -262,8 +262,11 @@ bool StringView::copy_characters_to_buffer(char* buffer, size_t buffer_size) con
 {
     // We must fit at least the NUL-terminator.
     VERIFY(buffer_size > 0);
+    VERIFY(buffer != nullptr);
 
     size_t characters_to_copy = min(m_length, buffer_size - 1);
+    // Explicitly verify that characters_to_copy does not exceed the destination buffer capacity.
+    VERIFY(characters_to_copy < buffer_size);
     __builtin_memcpy(buffer, m_characters, characters_to_copy);
     buffer[characters_to_copy] = 0;
 
