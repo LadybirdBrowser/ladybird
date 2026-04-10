@@ -1,1 +1,7 @@
-{}
+{
+    "<symbol>": {
+        "spec": "https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol",
+        "grammar": "<string> | <custom-ident>",
+        "__comment": "AD-HOC: The spec actually defines this as '<string> | <image> | <custom-ident>' but the image portion is considered at-risk and no other browser supports it"
+    }
+}
