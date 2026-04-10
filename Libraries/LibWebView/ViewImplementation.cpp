@@ -597,8 +597,8 @@ void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i3
     m_client_state.has_usable_bitmap = false;
     m_client_state.front_bitmap.id = front_bitmap_id;
     m_client_state.back_bitmap.id = back_bitmap_id;
-    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(front_backing_store)));
-    m_client_state.back_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_shared_image(move(back_backing_store)));
+    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_payload(move(front_backing_store)).release_value_but_fixme_should_propagate_errors());
+    m_client_state.back_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_payload(move(back_backing_store)).release_value_but_fixme_should_propagate_errors());
 }
 
 void ViewImplementation::update_zoom()

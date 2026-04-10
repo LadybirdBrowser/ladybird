@@ -30,11 +30,24 @@ SharedImage::SharedImage(ShareableBitmap shareable_bitmap)
     : m_shareable_bitmap(move(shareable_bitmap))
 {
 }
+
+SharedImage::SharedImage(LinuxDmaBufBackingStore backing_store)
+    : m_linux_dma_buf(move(backing_store))
+{
+    VERIFY(m_linux_dma_buf->fd.fd() >= 0);
+}
 #endif
 
 }
 
 namespace IPC {
+
+#if !defined(AK_OS_MACOS)
+enum class SharedImageKind : u8 {
+    Bitmap,
+    LinuxDmaBuf,
+};
+#endif
 
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
@@ -42,7 +55,21 @@ ErrorOr<void> encode(Encoder& encoder, Gfx::SharedImage const& shared_image)
 #ifdef AK_OS_MACOS
     TRY(encoder.append_attachment(Attachment::from_mach_port(copy_send_right(shared_image.m_port), Core::MachPort::MessageRight::MoveSend)));
 #else
-    TRY(encoder.encode(shared_image.m_shareable_bitmap));
+    if (shared_image.m_shareable_bitmap.has_value()) {
+        TRY(encoder.encode(static_cast<u8>(SharedImageKind::Bitmap)));
+        TRY(encoder.encode(shared_image.m_shareable_bitmap.value()));
+    } else {
+        VERIFY(shared_image.m_linux_dma_buf.has_value());
+        auto const& dma_buf = shared_image.m_linux_dma_buf.value();
+        TRY(encoder.encode(static_cast<u8>(SharedImageKind::LinuxDmaBuf)));
+        TRY(encoder.encode(dma_buf.drm_format));
+        TRY(encoder.encode(dma_buf.modifier));
+        TRY(encoder.encode(dma_buf.size.width()));
+        TRY(encoder.encode(dma_buf.size.height()));
+        TRY(encoder.encode(dma_buf.plane.stride));
+        TRY(encoder.encode(dma_buf.plane.offset));
+        TRY(encoder.encode(dma_buf.fd));
+    }
 #endif
     return {};
 }
@@ -55,9 +82,30 @@ ErrorOr<Gfx::SharedImage> decode(Decoder& decoder)
     VERIFY(attachment.message_right() == Core::MachPort::MessageRight::MoveSend);
     return Gfx::SharedImage { attachment.release_mach_port() };
 #else
-    auto shareable_bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
-    VERIFY(shareable_bitmap.is_valid());
-    return Gfx::SharedImage { move(shareable_bitmap) };
+    auto kind = static_cast<SharedImageKind>(TRY(decoder.decode<u8>()));
+    switch (kind) {
+    case SharedImageKind::Bitmap: {
+        auto shareable_bitmap = TRY(decoder.decode<Gfx::ShareableBitmap>());
+        VERIFY(shareable_bitmap.is_valid());
+        return Gfx::SharedImage { move(shareable_bitmap) };
+    }
+    case SharedImageKind::LinuxDmaBuf: {
+        Gfx::LinuxDmaBufBackingStore dma_buf;
+        dma_buf.drm_format = TRY(decoder.decode<u32>());
+        dma_buf.modifier = TRY(decoder.decode<u64>());
+        int width = TRY(decoder.decode<int>());
+        int height = TRY(decoder.decode<int>());
+        dma_buf.size = { width, height };
+
+        dma_buf.plane.stride = TRY(decoder.decode<u32>());
+        dma_buf.plane.offset = TRY(decoder.decode<u32>());
+        dma_buf.fd = TRY(decoder.decode<IPC::File>());
+
+        return Gfx::SharedImage { move(dma_buf) };
+    }
+    }
+
+    return Error::from_string_literal("Unknown SharedImage kind");
 #endif
 }
 

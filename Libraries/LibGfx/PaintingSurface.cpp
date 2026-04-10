@@ -52,6 +52,8 @@ static SkColorType vk_format_to_sk_color_type(VkFormat format)
     switch (format) {
     case VK_FORMAT_B8G8R8A8_UNORM:
         return kBGRA_8888_SkColorType;
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return kRGBA_8888_SkColorType;
     // add more as needed
     default:
         VERIFY_NOT_REACHED();
@@ -128,9 +130,10 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::wrap_bitmap(Bitmap& bitmap)
     return adopt_ref(*new PaintingSurface(make<Impl>(RefPtr<SkiaBackendContext> {}, size, surface, bitmap)));
 }
 
-#ifdef AK_OS_MACOS
+#if defined(AK_OS_MACOS) || defined(USE_VULKAN_DMABUF_IMAGES)
 NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(SharedImageBuffer& shared_image_buffer, NonnullRefPtr<SkiaBackendContext> context, Origin origin)
 {
+#    ifdef AK_OS_MACOS
     context->lock();
     ScopeGuard unlock_guard([&context] {
         context->unlock();
@@ -145,6 +148,11 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_from_shared_image_buffer(
     auto backend_render_target = GrBackendRenderTargets::MakeMtl(metal_texture->width(), metal_texture->height(), mtl_info);
     auto surface = SkSurfaces::WrapBackendRenderTarget(context->sk_context(), backend_render_target, origin_to_sk_origin(origin), kBGRA_8888_SkColorType, nullptr, nullptr);
     return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
+#    else
+    auto vulkan_image = shared_image_buffer.vulkan_image();
+    VERIFY(vulkan_image);
+    return create_from_vkimage(move(context), vulkan_image.release_nonnull(), origin);
+#    endif
 }
 #endif
 

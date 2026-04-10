@@ -49,7 +49,7 @@ void BackingStoreManager::reallocate_backing_stores(Gfx::IntSize size)
 
     if (m_navigable->is_top_level_traversable()) {
         auto& page_client = m_navigable->top_level_traversable()->page().client();
-        page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_buffer.export_shared_image(), m_back_bitmap_id, back_buffer.export_shared_image());
+        page_client.page_did_allocate_backing_stores(m_front_bitmap_id, front_buffer.export_payload(), m_back_bitmap_id, back_buffer.export_payload());
     }
 
 #ifdef AK_OS_MACOS
