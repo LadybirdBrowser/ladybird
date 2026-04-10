@@ -2,11 +2,11 @@ Harness status: OK
 
 Found 28 tests
 
-23 Pass
-2 Fail
+24 Pass
+1 Fail
 3 Optional Feature Unsupported
 Pass	Resolution of width is correct when pseudo-element argument is ignored (due to no colon)
-Fail	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
+Pass	Resolution of width is correct when pseudo-element argument is invalid (due to a trailing token)
 Pass	Resolution of width is correct for ::before and ::after pseudo-elements (single-colon)
 Pass	Resolution of width is correct for ::before and ::after pseudo-elements (double-colon)
 Pass	Pseudo-elements can use the full range of CSS syntax

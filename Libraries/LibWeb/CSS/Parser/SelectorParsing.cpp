@@ -54,29 +54,16 @@ Optional<SelectorList> Parser::parse_as_relative_selector(SelectorParsingMode pa
 
 Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_selector()
 {
-    // FIXME: This is quite janky. Selector parsing is not at all designed to allow parsing just a single part of a selector.
-    //        So, this code parses a whole selector, then rejects it if it's not a single pseudo-element simple selector.
-    //        Come back and fix this, future Sam!
-    auto maybe_selector_list = parse_a_selector_list(m_token_stream, SelectorType::Standalone, SelectorParsingMode::Standard);
-    if (maybe_selector_list.is_error())
+    auto component_values = consume_a_list_of_component_values(m_token_stream);
+    TokenStream tokens { component_values };
+    auto maybe_simple_selector = parse_pseudo_element_simple_selector(tokens);
+    if (maybe_simple_selector.is_error())
         return {};
-    auto& selector_list = maybe_selector_list.value();
-
-    if (selector_list.size() != 1)
+    if (tokens.has_next_token())
         return {};
-    auto& selector = selector_list.first();
-
-    if (selector->compound_selectors().size() != 1)
-        return {};
-    auto& first_compound_selector = selector->compound_selectors().first();
-
-    if (first_compound_selector.simple_selectors.size() != 1)
-        return {};
-    auto& simple_selector = first_compound_selector.simple_selectors.first();
-
+    auto simple_selector = maybe_simple_selector.release_value();
     if (simple_selector.type != Selector::SimpleSelector::Type::PseudoElement)
         return {};
-
     return simple_selector.pseudo_element();
 }
 
