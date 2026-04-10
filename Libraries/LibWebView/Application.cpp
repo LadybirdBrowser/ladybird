@@ -21,6 +21,7 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -137,6 +138,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool force_new_process = false;
     bool allow_popups = false;
     bool disable_scripting = false;
+    bool disable_cookies = false;
     bool disable_sql_database = false;
     Optional<u16> devtools_port;
     Vector<StringView> debug_processes;
@@ -199,6 +201,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(force_new_process, "Force creation of a new browser process", "force-new-process");
     args_parser.add_option(allow_popups, "Disable popup blocking by default", "allow-popups");
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
+    args_parser.add_option(disable_cookies, "Disable cookies by default", "disable-cookies");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
     args_parser.add_option(Core::ArgsParser::Option {
@@ -299,6 +302,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .force_new_process = force_new_process ? ForceNewProcess::Yes : ForceNewProcess::No,
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
+        .disable_cookies = disable_cookies ? DisableCookies::Yes : DisableCookies::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
         .debug_helper_processes = move(debug_process_types),
         .profile_helper_process = move(profile_process_type),
@@ -500,6 +504,8 @@ ErrorOr<void> Application::launch_request_server()
     m_request_server_client = TRY(launch_request_server_process());
 
     m_request_server_client->on_retrieve_http_cookie = [this](URL::URL const& url) {
+        if (m_browser_options.disable_cookies == DisableCookies::Yes)
+            return String {};
         return m_cookie_jar->get_cookie(url, HTTP::Cookie::Source::Http);
     };
 
@@ -1162,6 +1168,7 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
 
     view.debug_request("set-line-box-borders"sv, m_show_line_box_borders_action->checked() ? "on"sv : "off"sv);
     view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
+    view.debug_request("cookies"sv, m_browser_options.disable_cookies == DisableCookies::Yes ? "off"sv : "on"sv);
     view.debug_request("content-filtering"sv, m_enable_content_filtering_action->checked() ? "on"sv : "off"sv);
     view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     view.debug_request("spoof-user-agent"sv, m_user_agent_string);

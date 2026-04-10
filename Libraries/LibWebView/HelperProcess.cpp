@@ -9,6 +9,7 @@
 #include <LibCore/System.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/Utilities.h>
 
 namespace WebView {
@@ -105,6 +106,8 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
         arguments.append("--test-mode"sv);
     if (web_content_options.log_all_js_exceptions == WebView::LogAllJSExceptions::Yes)
         arguments.append("--log-all-js-exceptions"sv);
+    if (web_content_options.disable_cookies == WebView::DisableCookies::Yes)
+        arguments.append("--disable-cookies"sv);
     if (web_content_options.disable_site_isolation == WebView::DisableSiteIsolation::Yes)
         arguments.append("--disable-site-isolation"sv);
     if (web_content_options.enable_idl_tracing == WebView::EnableIDLTracing::Yes)

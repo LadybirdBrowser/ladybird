@@ -13,6 +13,7 @@
 #include <LibWeb/Bindings/NavigatorPrototype.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/HTML/Navigator.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -44,6 +45,16 @@ void Navigator::initialize(JS::Realm& realm)
     WEB_SET_PROTOTYPE_FOR_INTERFACE(Navigator);
     Base::initialize(realm);
     NavigatorGamepadPartial::check_for_connected_gamepads();
+}
+
+// https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-cookieenabled
+bool Navigator::cookie_enabled() const
+{
+    auto const& window = as<HTML::Window>(relevant_global_object(*this));
+    if (!window.page().is_cookies_enabled())
+        return false;
+
+    return !window.associated_document().is_cookie_averse();
 }
 
 // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-pdfviewerenabled

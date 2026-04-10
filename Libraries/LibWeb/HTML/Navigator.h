@@ -46,9 +46,8 @@ public:
     // FIXME: Implement NavigatorContentUtilsMixin
 
     // NavigatorCookies
-    // FIXME: Hook up to Agent level state
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-cookieenabled
-    bool cookie_enabled() const { return true; }
+    bool cookie_enabled() const;
 
     // NavigatorPlugins
     // https://html.spec.whatwg.org/multipage/system-state.html#dom-navigator-javaenabled

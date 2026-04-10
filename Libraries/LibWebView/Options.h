@@ -43,6 +43,11 @@ enum class DisableScripting {
     Yes,
 };
 
+enum class DisableCookies {
+    No,
+    Yes,
+};
+
 enum class DisableSQLDatabase {
     No,
     Yes,
@@ -85,6 +90,7 @@ struct BrowserOptions {
     ForceNewProcess force_new_process { ForceNewProcess::No };
     AllowPopups allow_popups { AllowPopups::No };
     DisableScripting disable_scripting { DisableScripting::No };
+    DisableCookies disable_cookies { DisableCookies::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
     Vector<ProcessType> debug_helper_processes {};
     Optional<ProcessType> profile_helper_process {};
@@ -174,6 +180,7 @@ struct WebContentOptions {
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };
     LogAllJSExceptions log_all_js_exceptions { LogAllJSExceptions::No };
+    DisableCookies disable_cookies { DisableCookies::No };
     DisableSiteIsolation disable_site_isolation { DisableSiteIsolation::No };
     EnableIDLTracing enable_idl_tracing { EnableIDLTracing::No };
     EnableMemoryHTTPCache enable_http_memory_cache { EnableMemoryHTTPCache::No };

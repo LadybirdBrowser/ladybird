@@ -34,6 +34,8 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebIDL/Tracing.h>
+#include <LibWebView/Application.h>
+#include <LibWebView/Options.h>
 #include <LibWebView/Plugins/ImageCodecPlugin.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/Utilities.h>
@@ -142,6 +144,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool expose_internals_object = false;
     bool wait_for_debugger = false;
     bool log_all_js_exceptions = false;
+    bool disable_cookies = false;
     bool disable_site_isolation = false;
     bool enable_idl_tracing = false;
     bool enable_http_memory_cache = false;
@@ -165,6 +168,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(wait_for_debugger, "Wait for debugger", "wait-for-debugger");
     args_parser.add_option(mach_server_name, "Mach server name", "mach-server-name", 0, "mach_server_name");
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
+    args_parser.add_option(disable_cookies, "Disable cookies", "disable-cookies");
     args_parser.add_option(disable_site_isolation, "Disable site isolation", "disable-site-isolation");
     args_parser.add_option(enable_idl_tracing, "Enable IDL tracing", "enable-idl-tracing");
     args_parser.add_option(enable_http_memory_cache, "Enable HTTP cache", "enable-http-memory-cache");
@@ -209,6 +213,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     }
 
     WebContent::PageClient::set_is_headless(is_headless);
+
+    if (disable_cookies)
+        WebView::Application::the().web_content_options().disable_cookies = WebView::DisableCookies::Yes;
 
     if (disable_site_isolation)
         WebView::disable_site_isolation();

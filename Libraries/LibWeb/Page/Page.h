@@ -127,6 +127,9 @@ public:
     bool is_scripting_enabled() const { return m_is_scripting_enabled; }
     void set_is_scripting_enabled(bool b) { m_is_scripting_enabled = b; }
 
+    bool is_cookies_enabled() const { return m_is_cookies_enabled; }
+    void set_is_cookies_enabled(bool b) { m_is_cookies_enabled = b; }
+
     bool should_block_pop_ups() const { return m_should_block_pop_ups; }
     void set_should_block_pop_ups(bool b) { m_should_block_pop_ups = b; }
 
@@ -286,6 +289,8 @@ private:
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
     bool m_is_scripting_enabled { true };
+
+    bool m_is_cookies_enabled { true };
 
     bool m_should_block_pop_ups { true };
 

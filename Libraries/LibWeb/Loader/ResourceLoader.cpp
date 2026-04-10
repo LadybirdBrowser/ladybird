@@ -512,7 +512,8 @@ void ResourceLoader::handle_network_response_headers(LoadRequest const& request,
         //     `Set-Cookie` headers given request and response.
         for (auto const& [header, value] : response_headers) {
             if (header.equals_ignoring_ascii_case("Set-Cookie"sv)) {
-                store_response_cookies(*request.page(), request.url().value(), value);
+                if (request.page()->is_cookies_enabled())
+                    store_response_cookies(*request.page(), request.url().value(), value);
             }
         }
     }

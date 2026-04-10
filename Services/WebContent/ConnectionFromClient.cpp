@@ -410,6 +410,11 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
         return;
     }
 
+    if (request == "cookies") {
+        page->page().set_is_cookies_enabled(argument == "on");
+        return;
+    }
+
     if (request == "block-pop-ups") {
         page->page().set_should_block_pop_ups(argument == "on");
         return;
