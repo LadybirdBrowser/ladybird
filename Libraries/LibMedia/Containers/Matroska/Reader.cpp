@@ -709,6 +709,12 @@ static AK::Duration block_timestamp_to_duration(AK::Duration cluster_timestamp, 
 
 DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
 {
+    ArmedScopeGuard error_guard = [&] {
+        // Similar to next_block(), we need to clear the last timestamp if we encounter an error, or a subsequent
+        // seek may not move the position to a keyframe to resume decoding properly.
+        m_last_timestamp.clear();
+    };
+
     Streamer streamer { m_stream_cursor };
     TRY(streamer.seek_to_position(block.data_position()));
     Vector<ByteBuffer> frames;
@@ -779,6 +785,7 @@ DecoderErrorOr<Vector<ByteBuffer>> SampleIterator::get_frames(Block block)
         frames.append(TRY(streamer.read_raw_octets(block.data_size())));
     }
 
+    error_guard.disarm();
     return frames;
 }
 
