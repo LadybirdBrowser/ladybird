@@ -36,6 +36,7 @@ public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, size_t code_unit_offset, size_t code_unit_length);
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create_from_unsigned_integer(VM&, u64);
 
@@ -61,16 +62,24 @@ public:
     [[nodiscard]] bool operator==(PrimitiveString const&) const;
 
 protected:
-    enum class RopeTag { Rope };
-    explicit PrimitiveString(RopeTag)
-        : m_is_rope(true)
+    enum class DeferredKind : u8 {
+        None,
+        Rope,
+        Substring,
+    };
+
+    explicit PrimitiveString(DeferredKind deferred_kind)
+        : m_deferred_kind(deferred_kind)
     {
     }
 
-    mutable bool m_is_rope { false };
+    mutable DeferredKind m_deferred_kind { DeferredKind::None };
 
     mutable Optional<String> m_utf8_string;
     mutable Optional<Utf16String> m_utf16_string;
+
+    bool m_utf8_string_is_in_cache { false };
+    bool m_utf16_string_is_in_cache { false };
 
     enum class EncodingPreference {
         UTF8,
@@ -79,13 +88,14 @@ protected:
 
 private:
     friend class RopeString;
+    friend class Substring;
 
     virtual void finalize() override;
 
     explicit PrimitiveString(Utf16String);
     explicit PrimitiveString(String);
 
-    void resolve_rope_if_needed(EncodingPreference) const;
+    void resolve_if_needed(EncodingPreference) const;
 };
 
 class RopeString final : public PrimitiveString {
@@ -106,6 +116,27 @@ private:
 
     mutable GC::Ptr<PrimitiveString> m_lhs;
     mutable GC::Ptr<PrimitiveString> m_rhs;
+};
+
+class Substring final : public PrimitiveString {
+    GC_CELL(Substring, PrimitiveString);
+    GC_DECLARE_ALLOCATOR(Substring);
+
+public:
+    virtual ~Substring() override;
+
+private:
+    friend class PrimitiveString;
+
+    explicit Substring(GC::Ref<PrimitiveString>, size_t code_unit_offset, size_t code_unit_length);
+
+    virtual void visit_edges(Visitor&) override;
+
+    void resolve(EncodingPreference) const;
+
+    mutable GC::Ptr<PrimitiveString> m_source_string;
+    size_t m_code_unit_offset { 0 };
+    size_t m_code_unit_length { 0 };
 };
 
 }

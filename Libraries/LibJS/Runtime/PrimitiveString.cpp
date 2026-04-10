@@ -27,6 +27,7 @@ static constexpr size_t MAX_LENGTH_FOR_STRING_CACHE = 256;
 
 GC_DEFINE_ALLOCATOR(PrimitiveString);
 GC_DEFINE_ALLOCATOR(RopeString);
+GC_DEFINE_ALLOCATOR(Substring);
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& string)
 {
@@ -49,6 +50,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, Utf16String const& stri
         return *it->value;
 
     auto new_string = vm.heap().allocate<PrimitiveString>(string);
+    new_string->m_utf16_string_is_in_cache = true;
     string_cache.set(move(string), new_string);
     return *new_string;
 }
@@ -85,6 +87,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, String const& string)
         return *it->value;
 
     auto new_string = vm.heap().allocate<PrimitiveString>(string);
+    new_string->m_utf8_string_is_in_cache = true;
     string_cache.set(move(string), new_string);
     return *new_string;
 }
@@ -130,6 +133,26 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, P
     return vm.heap().allocate<RopeString>(lhs, rhs);
 }
 
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& string, size_t code_unit_offset, size_t code_unit_length)
+{
+    auto string_length = string.length_in_utf16_code_units();
+    VERIFY(code_unit_offset <= string_length);
+    VERIFY(code_unit_length <= string_length - code_unit_offset);
+
+    if (code_unit_length == 0)
+        return vm.empty_string();
+
+    if (code_unit_offset == 0 && code_unit_length == string_length)
+        return string;
+
+    if (string.m_deferred_kind == DeferredKind::Substring) {
+        auto const& substring = static_cast<Substring const&>(string);
+        return create(vm, *substring.m_source_string, substring.m_code_unit_offset + code_unit_offset, code_unit_length);
+    }
+
+    return vm.heap().allocate<Substring>(string, code_unit_offset, code_unit_length);
+}
+
 PrimitiveString::PrimitiveString(Utf16String string)
     : m_utf16_string(move(string))
 {
@@ -145,24 +168,26 @@ PrimitiveString::~PrimitiveString() = default;
 void PrimitiveString::finalize()
 {
     Base::finalize();
-    if (has_utf16_string()) {
+    if (m_utf16_string_is_in_cache) {
         auto const& string = *m_utf16_string;
         if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
             vm().utf16_string_cache().remove(string);
     }
-    if (has_utf8_string()) {
+    if (m_utf8_string_is_in_cache) {
         auto const& string = *m_utf8_string;
         if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
-            vm().string_cache().remove(*m_utf8_string);
+            vm().string_cache().remove(string);
     }
 }
 
 bool PrimitiveString::is_empty() const
 {
-    if (m_is_rope) {
+    if (m_deferred_kind == DeferredKind::Rope) {
         // NOTE: We never make an empty rope string.
         return false;
     }
+    if (m_deferred_kind == DeferredKind::Substring)
+        return static_cast<Substring const&>(*this).m_code_unit_length == 0;
 
     if (has_utf16_string())
         return m_utf16_string->is_empty();
@@ -173,7 +198,7 @@ bool PrimitiveString::is_empty() const
 
 String PrimitiveString::utf8_string() const
 {
-    resolve_rope_if_needed(EncodingPreference::UTF8);
+    resolve_if_needed(EncodingPreference::UTF8);
 
     if (!has_utf8_string()) {
         VERIFY(has_utf16_string());
@@ -197,7 +222,7 @@ StringView PrimitiveString::utf8_string_view() const
 
 Utf16String PrimitiveString::utf16_string() const
 {
-    resolve_rope_if_needed(EncodingPreference::UTF16);
+    resolve_if_needed(EncodingPreference::UTF16);
 
     if (!has_utf16_string()) {
         VERIFY(has_utf8_string());
@@ -209,13 +234,20 @@ Utf16String PrimitiveString::utf16_string() const
 
 Utf16View PrimitiveString::utf16_string_view() const
 {
-    if (!has_utf16_string())
+    if (!has_utf16_string()) {
+        if (m_deferred_kind == DeferredKind::Substring) {
+            auto const& substring = static_cast<Substring const&>(*this);
+            return substring.m_source_string->utf16_string_view().substring_view(substring.m_code_unit_offset, substring.m_code_unit_length);
+        }
         (void)utf16_string();
+    }
     return *m_utf16_string;
 }
 
 size_t PrimitiveString::length_in_utf16_code_units() const
 {
+    if (m_deferred_kind == DeferredKind::Substring)
+        return static_cast<Substring const&>(*this).m_code_unit_length;
     return utf16_string_view().length_in_code_units();
 }
 
@@ -252,13 +284,20 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
     return create(vm, string.substring_view(index.as_index(), 1));
 }
 
-void PrimitiveString::resolve_rope_if_needed(EncodingPreference preference) const
+void PrimitiveString::resolve_if_needed(EncodingPreference preference) const
 {
-    if (!m_is_rope)
+    switch (m_deferred_kind) {
+    case DeferredKind::None:
         return;
+    case DeferredKind::Rope:
+        static_cast<RopeString const&>(*this).resolve(preference);
+        return;
+    case DeferredKind::Substring:
+        static_cast<Substring const&>(*this).resolve(preference);
+        return;
+    }
 
-    auto const& rope_string = static_cast<RopeString const&>(*this);
-    rope_string.resolve(preference);
+    VERIFY_NOT_REACHED();
 }
 
 void RopeString::resolve(EncodingPreference preference) const
@@ -277,7 +316,7 @@ void RopeString::resolve(EncodingPreference preference) const
     stack.append(m_lhs);
     while (!stack.is_empty()) {
         auto const* current = stack.take_last();
-        if (current->m_is_rope) {
+        if (current->m_deferred_kind == DeferredKind::Rope) {
             auto& current_rope_string = static_cast<RopeString const&>(*current);
             stack.append(current_rope_string.m_rhs);
             stack.append(current_rope_string.m_lhs);
@@ -304,7 +343,7 @@ void RopeString::resolve(EncodingPreference preference) const
         }
 
         m_utf16_string = builder.to_utf16_string();
-        m_is_rope = false;
+        m_deferred_kind = DeferredKind::None;
         m_lhs = nullptr;
         m_rhs = nullptr;
         return;
@@ -373,13 +412,13 @@ void RopeString::resolve(EncodingPreference preference) const
 
     // NOTE: We've already produced valid UTF-8 above, so there's no need for additional validation.
     m_utf8_string = builder.to_string_without_validation();
-    m_is_rope = false;
+    m_deferred_kind = DeferredKind::None;
     m_lhs = nullptr;
     m_rhs = nullptr;
 }
 
 RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rhs)
-    : PrimitiveString(RopeTag::Rope)
+    : PrimitiveString(DeferredKind::Rope)
     , m_lhs(lhs)
     , m_rhs(rhs)
 {
@@ -392,6 +431,37 @@ void RopeString::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_lhs);
     visitor.visit(m_rhs);
+}
+
+void Substring::resolve(EncodingPreference preference) const
+{
+    auto source_view = m_source_string->utf16_string_view().substring_view(m_code_unit_offset, m_code_unit_length);
+
+    if (preference == EncodingPreference::UTF16) {
+        m_utf16_string = Utf16String::from_utf16(source_view);
+    } else {
+        auto substring = Utf16String::from_utf16(source_view);
+        m_utf8_string = substring.to_utf8();
+    }
+
+    m_deferred_kind = DeferredKind::None;
+    m_source_string = nullptr;
+}
+
+Substring::Substring(GC::Ref<PrimitiveString> source_string, size_t code_unit_offset, size_t code_unit_length)
+    : PrimitiveString(DeferredKind::Substring)
+    , m_source_string(source_string)
+    , m_code_unit_offset(code_unit_offset)
+    , m_code_unit_length(code_unit_length)
+{
+}
+
+Substring::~Substring() = default;
+
+void Substring::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_source_string);
 }
 
 }
