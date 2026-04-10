@@ -2,6 +2,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWeb/Bindings/AgentType.h>
+#include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/Bindings/WorkerPrototype.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
@@ -20,6 +21,8 @@ endpoint WebWorkerServer {
                  Web::Bindings::AgentType agent_type) =|
 
     close_worker() =|
+
+    broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) =|
 
     handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) =|
 }

@@ -2,11 +2,13 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
+#include <LibWeb/HTML/BroadcastChannelMessage.h>
 
 endpoint WebWorkerClient {
     did_close_worker() =|
     did_fail_loading_worker_script() =|
     did_report_worker_exception(String message, String filename, u32 lineno, u32 colno) =|
     did_request_cookie(URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
+    did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) =|
     request_worker_agent(Web::Bindings::AgentType worker_type) => (IPC::TransportHandle handle, IPC::TransportHandle request_server_handle, IPC::TransportHandle image_decoder_handle)
 }

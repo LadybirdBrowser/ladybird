@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	Opaque origin should be serialized to "null"
+Pass	BroadcastChannel messages from opaque origins should be self-contained
+Pass	BroadcastChannel messages from data URL dedicated workers should be self-contained
+Pass	BroadcastChannel messages from data URL shared workers should be self-contained

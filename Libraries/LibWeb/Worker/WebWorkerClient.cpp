@@ -8,6 +8,8 @@
 
 namespace Web::HTML {
 
+HashTable<WebWorkerClient*> WebWorkerClient::s_all_clients;
+
 void WebWorkerClient::die()
 {
     // FIXME: Notify WorkerAgent that the worker is dead
@@ -38,6 +40,12 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
     return HTTP::Cookie::VersionedCookie {};
 }
 
+void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
+{
+    if (on_post_broadcast_channel_message)
+        on_post_broadcast_channel_message(move(message));
+}
+
 Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_worker_agent(Web::Bindings::AgentType worker_type)
 {
     if (on_request_worker_agent)
@@ -48,6 +56,12 @@ Messages::WebWorkerClient::RequestWorkerAgentResponse WebWorkerClient::request_w
 WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport)
     : IPC::ConnectionToServer<WebWorkerClientEndpoint, WebWorkerServerEndpoint>(*this, move(transport))
 {
+    s_all_clients.set(this);
+}
+
+WebWorkerClient::~WebWorkerClient()
+{
+    s_all_clients.remove(this);
 }
 
 }

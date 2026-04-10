@@ -37,6 +37,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -55,6 +56,7 @@
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/PermissionsPolicy/AutoplayAllowlist.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
+#include <LibWeb/Worker/WebWorkerClient.h>
 #include <LibWebView/Attribute.h>
 #include <LibWebView/ViewImplementation.h>
 #include <WebContent/ConnectionFromClient.h>
@@ -1386,6 +1388,17 @@ void ConnectionFromClient::cookies_changed(u64 page_id, Vector<HTTP::Cookie::Coo
 
         window->cookie_store()->process_cookie_changes(move(cookies));
     }
+}
+
+void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
+{
+    Web::HTML::BroadcastChannel::deliver_message_locally(message);
+    Web::HTML::WebWorkerClient::for_each_client([&](auto& client) {
+        if (client.pid() == message.source_process_id)
+            return IterationDecision::Continue;
+        client.async_broadcast_channel_message(message);
+        return IterationDecision::Continue;
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/speculative-loading.html#nav-traversal-ui:close-a-top-level-traversable

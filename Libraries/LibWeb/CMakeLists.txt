@@ -463,6 +463,7 @@ set(SOURCES
     HTML/BarProp.cpp
     HTML/BeforeUnloadEvent.cpp
     HTML/BroadcastChannel.cpp
+    HTML/BroadcastChannelMessage.cpp
     HTML/BrowsingContext.cpp
     HTML/BrowsingContextGroup.cpp
     HTML/Canvas/CanvasDrawImage.cpp

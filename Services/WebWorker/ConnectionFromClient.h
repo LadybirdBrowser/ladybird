@@ -11,6 +11,7 @@
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
@@ -48,6 +49,7 @@ private:
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void start_worker(URL::URL url, Web::Bindings::WorkerType type, Web::Bindings::RequestCredentials credentials, String name, Web::HTML::TransferDataEncoder, Web::HTML::SerializedEnvironmentSettingsObject, Web::Bindings::AgentType) override;
     virtual void handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) override;
+    virtual void broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) override;
 
     GC::Root<PageHost> m_page_host;
 

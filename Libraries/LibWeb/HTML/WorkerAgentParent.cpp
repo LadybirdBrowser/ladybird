@@ -72,6 +72,10 @@ void WorkerAgentParent::setup_worker_ipc_callbacks(JS::Realm& realm)
         auto& client = Bindings::principal_host_defined_page(realm).client();
         return client.page_did_request_cookie(url, source);
     };
+    m_worker_ipc->on_post_broadcast_channel_message = [realm = GC::RawRef { realm }](Web::HTML::BroadcastChannelMessage message) {
+        auto& client = Bindings::principal_host_defined_page(realm).client();
+        client.page_did_post_broadcast_channel_message(message);
+    };
     m_worker_ipc->on_request_worker_agent = [realm = GC::RawRef { realm }](Web::Bindings::AgentType worker_type) -> Messages::WebWorkerClient::RequestWorkerAgentResponse {
         auto& client = Bindings::principal_host_defined_page(realm).client();
         auto response = client.request_worker_agent(worker_type);

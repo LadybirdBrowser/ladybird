@@ -97,6 +97,11 @@ void PageHost::page_did_report_worker_exception(String const& message, String co
     m_client.async_did_report_worker_exception(message, filename, lineno, colno);
 }
 
+void PageHost::page_did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage const& message)
+{
+    m_client.async_did_post_broadcast_channel_message(message);
+}
+
 void PageHost::request_file(Web::FileRequest request)
 {
     m_client.request_file(move(request));

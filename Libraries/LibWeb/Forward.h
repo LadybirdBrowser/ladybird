@@ -870,6 +870,7 @@ enum class RequireWellFormed;
 enum class SandboxingFlagSet;
 
 struct Agent;
+struct BroadcastChannelMessage;
 struct DeserializedTransferRecord;
 struct EmbedderPolicy;
 struct Environment;
