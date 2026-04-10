@@ -977,6 +977,28 @@ void Application::initialize_actions()
     update_bookmarks_bar_action();
 
     m_bookmarks_menu->add_separator();
+
+    m_import_bookmarks_action = Action::create("Import Bookmarks..."sv, ActionID::ImportBookmarks, [this]() {
+        auto path = prompt_user_for_bookmarks_import_path();
+        if (!path.has_value())
+            return;
+
+        if (auto result = m_bookmark_store.import_bookmarks(*path); result.is_error())
+            display_error_dialog(MUST(String::formatted("Unable to import bookmarks: {}", result.error())));
+    });
+    m_bookmarks_menu->add_action(*m_import_bookmarks_action);
+
+    m_export_bookmarks_action = Action::create("Export Bookmarks..."sv, ActionID::ExportBookmarks, [this]() {
+        auto path = prompt_user_for_bookmarks_export_path();
+        if (!path.has_value())
+            return;
+
+        if (auto result = m_bookmark_store.export_bookmarks(*path); result.is_error())
+            display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", result.error())));
+    });
+    m_bookmarks_menu->add_action(*m_export_bookmarks_action);
+
+    m_bookmarks_menu->add_separator();
     m_bookmarks_menu_static_size = m_bookmarks_menu->size();
     create_bookmark_menu_items();
 

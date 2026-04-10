@@ -172,6 +172,8 @@ protected:
     virtual NonnullOwnPtr<Core::EventLoop> create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] StringView file) const { return {}; }
+    virtual Optional<ByteString> prompt_user_for_bookmarks_import_path() const { return {}; }
+    virtual Optional<ByteString> prompt_user_for_bookmarks_export_path() const { return {}; }
 
     virtual void rebuild_bookmarks_menu() const { }
     virtual void update_bookmarks_bar_display([[maybe_unused]] bool show_bookmarks_bar) const { }
@@ -301,6 +303,8 @@ private:
     RefPtr<Menu> m_bookmarks_menu;
     RefPtr<Action> m_toggle_bookmark_action;
     RefPtr<Action> m_toggle_bookmark_bar_action;
+    RefPtr<Action> m_import_bookmarks_action;
+    RefPtr<Action> m_export_bookmarks_action;
     size_t m_bookmarks_menu_static_size { 0 };
 
     RefPtr<Menu> m_bookmarks_bar_context_menu;

@@ -68,6 +68,17 @@ Optional<ByteString> Application::ask_user_for_download_path(StringView file) co
     return Ladybird::ns_string_to_byte_string([[panel URL] path]);
 }
 
+// FIXME: Implement bookmark import/export file dialogs for macOS using NSOpenPanel/NSSavePanel
+Optional<ByteString> Application::prompt_user_for_bookmarks_import_path() const
+{
+    return {};
+}
+
+Optional<ByteString> Application::prompt_user_for_bookmarks_export_path() const
+{
+    return {};
+}
+
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const
 {
     ApplicationDelegate* delegate = [NSApp delegate];

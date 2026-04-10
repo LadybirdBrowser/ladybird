@@ -17,6 +17,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFileOpenEvent>
 #include <QFormLayout>
 #include <QLineEdit>
@@ -162,6 +163,47 @@ Optional<ByteString> Application::ask_user_for_download_path(StringView file) co
     auto path = QFileDialog::getSaveFileName(nullptr, "Select save location", default_path);
     if (path.isNull())
         return {};
+
+    return ak_byte_string_from_qstring(path);
+}
+
+static QString default_bookmarks_directory()
+{
+    auto directory = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (!directory.isNull() && !directory.isEmpty())
+        return directory;
+    return QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
+}
+
+Optional<ByteString> Application::prompt_user_for_bookmarks_import_path() const
+{
+    auto directory = default_bookmarks_directory();
+    auto filter = QStringLiteral("Bookmark Files (*.html *.htm);;All Files (*)");
+    auto path = QFileDialog::getOpenFileName(active_tab(), QStringLiteral("Import Bookmarks"), directory, filter);
+
+    if (path.isNull())
+        return {};
+
+    return ak_byte_string_from_qstring(path);
+}
+
+Optional<ByteString> Application::prompt_user_for_bookmarks_export_path() const
+{
+    auto directory = default_bookmarks_directory();
+    if (!directory.isNull() && !directory.isEmpty()) {
+        QDir dir { directory };
+        directory = dir.filePath(QStringLiteral("Bookmarks.html"));
+    }
+
+    auto filter = QStringLiteral("Bookmark Files (*.html);;All Files (*)");
+    auto path = QFileDialog::getSaveFileName(active_tab(), QStringLiteral("Export Bookmarks"), directory, filter);
+
+    if (path.isNull())
+        return {};
+
+    QFileInfo info { path };
+    if (info.suffix().compare(QStringLiteral("html"), Qt::CaseInsensitive) != 0)
+        path.append(QStringLiteral(".html"));
 
     return ak_byte_string_from_qstring(path);
 }

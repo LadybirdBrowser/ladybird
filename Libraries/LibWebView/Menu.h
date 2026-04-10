@@ -49,6 +49,8 @@ enum class ActionID {
     DeleteBookmarkFolder,
     EditBookmark,
     EditBookmarkFolder,
+    ImportBookmarks,
+    ExportBookmarks,
 
     OpenAboutPage,
     OpenProcessesPage,

@@ -40,6 +40,8 @@ private:
     virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override;
 
     virtual Optional<ByteString> ask_user_for_download_path(StringView file) const override;
+    virtual Optional<ByteString> prompt_user_for_bookmarks_import_path() const override;
+    virtual Optional<ByteString> prompt_user_for_bookmarks_export_path() const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
     virtual void display_error_dialog(StringView error_message) const override;
 
