@@ -13,6 +13,8 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BookmarkHTMLExporter.h>
+#include <LibWebView/BookmarkHTMLImporter.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/Utilities.h>
 
@@ -225,6 +227,44 @@ Optional<BookmarkItem const&> BookmarkStore::BookmarkStore::find_item_by_id(Stri
 Optional<BookmarkItem&> BookmarkStore::BookmarkStore::find_mutable_item_by_id(StringView id)
 {
     return find_item_by_id_impl(m_items, id);
+}
+
+ErrorOr<void> BookmarkStore::import_bookmarks(ByteString const& path)
+{
+    if (!FileSystem::exists(path))
+        return Error::from_string_literal("Bookmark file does not exist");
+
+    auto file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+    auto content = TRY(file->read_until_eof());
+    auto html = StringView { content };
+
+    auto imported_items = TRY(import_bookmarks_from_html(html));
+    if (imported_items.is_empty())
+        return Error::from_string_literal("No bookmarks found in file");
+
+    // Add imported bookmarks into an "Imported Bookmarks" folder, preserving existing bookmarks
+    BookmarkItem folder {
+        .id = generate_random_uuid(),
+        .data = BookmarkItem::Folder {
+            .title = "Imported Bookmarks"_string,
+            .children = move(imported_items),
+        },
+    };
+
+    m_items.append(move(folder));
+
+    persist_bookmarks();
+    notify_observers();
+    return {};
+}
+
+ErrorOr<void> BookmarkStore::export_bookmarks(ByteString const& path) const
+{
+    auto html = TRY(export_bookmarks_to_html(m_items));
+
+    auto file = TRY(Core::File::open(path, Core::File::OpenMode::Write));
+    TRY(file->write_until_depleted(html.bytes()));
+    return {};
 }
 
 static Vector<BookmarkItem>& find_target_folder(Vector<BookmarkItem>& items, Optional<String const&> target_folder_id)

@@ -4,6 +4,8 @@ set(SOURCES
     Application.cpp
     Attribute.cpp
     Autocomplete.cpp
+    BookmarkHTMLExporter.cpp
+    BookmarkHTMLImporter.cpp
     BookmarkStore.cpp
     BrowserProcess.cpp
     ConsoleOutput.cpp

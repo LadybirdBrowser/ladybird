@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/Error.h>
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
@@ -60,6 +61,9 @@ public:
 
     Optional<BookmarkItem const&> find_bookmark_by_url(URL::URL const&) const;
     Optional<BookmarkItem const&> find_item_by_id(StringView id) const;
+
+    ErrorOr<void> import_bookmarks(ByteString const& path);
+    ErrorOr<void> export_bookmarks(ByteString const& path) const;
 
     void add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64, Optional<String const&> target_folder_id = {});
     void add_folder(Optional<String> title, Optional<String const&> target_folder_id = {});
