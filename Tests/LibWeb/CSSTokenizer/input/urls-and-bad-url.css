@@ -1,0 +1,1 @@
+a { background: url(foo.png); mask: url(bad' ); }

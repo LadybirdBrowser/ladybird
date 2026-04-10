@@ -13,6 +13,8 @@ def should_check_file(filename):
         return False
     if filename.startswith("Tests/LibWeb/Crash/"):
         return False
+    if filename.startswith("Tests/LibWeb/CSSTokenizer/"):
+        return False
     if filename.startswith("Tests/LibWeb/Layout/"):
         return False
     if filename.startswith("Tests/LibWeb/Ref/"):
