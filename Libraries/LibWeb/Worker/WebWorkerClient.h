@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Types.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibIPC/TransportHandle.h>
@@ -23,6 +24,9 @@ class WEB_API WebWorkerClient final
 public:
     explicit WebWorkerClient(NonnullOwnPtr<IPC::Transport>);
 
+    pid_t pid() const { return m_pid; }
+    void set_pid(pid_t pid) { m_pid = pid; }
+
     virtual void did_close_worker() override;
     virtual void did_fail_loading_worker_script() override;
     virtual void did_report_worker_exception(String message, String filename, u32 lineno, u32 colno) override;
@@ -37,6 +41,8 @@ public:
 
 private:
     virtual void die() override;
+
+    pid_t m_pid { -1 };
 };
 
 }
