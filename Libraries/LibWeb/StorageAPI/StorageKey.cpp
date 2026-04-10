@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
@@ -48,6 +50,24 @@ StorageKey obtain_a_storage_key_for_non_storage_purposes(HTML::Environment const
 
     // 2. Return a tuple consisting of origin.
     return { move(origin) };
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::StorageAPI::StorageKey const& key)
+{
+    TRY(encoder.encode(key.origin));
+    return {};
+}
+
+template<>
+ErrorOr<Web::StorageAPI::StorageKey> decode(Decoder& decoder)
+{
+    auto origin = TRY(decoder.decode<URL::Origin>());
+    return Web::StorageAPI::StorageKey { move(origin) };
 }
 
 }
