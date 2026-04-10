@@ -96,11 +96,11 @@ void WebViewBridge::enqueue_input_event(Web::PinchEvent event)
 
 Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
-    auto const* shared_image_buffer = backing_store().visible_shared_image_buffer();
-    if (!shared_image_buffer)
+    Gfx::Bitmap const* bitmap = backing_store().visible_bitmap();
+    if (!bitmap)
         return {};
 
-    return Paintable { shared_image_buffer, backing_store().visible_bitmap_size() };
+    return Paintable { *bitmap, backing_store().visible_bitmap_size(), backing_store().visible_bitmap_iosurface_ref() };
 }
 
 void WebViewBridge::update_zoom()

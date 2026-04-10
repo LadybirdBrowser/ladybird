@@ -977,9 +977,7 @@ struct HideCursor {
     auto paintable = m_web_view_bridge->paintable();
     if (!paintable.has_value())
         return;
-    auto [shared_image_buffer, bitmap_size] = *paintable;
-    VERIFY(shared_image_buffer);
-    auto bitmap = shared_image_buffer->bitmap();
+    auto [bitmap, bitmap_size, macos_iosurface_ref] = *paintable;
 
     CAMetalLayer* metal_layer = (CAMetalLayer*)self.layer;
     metal_layer.drawableSize = CGSizeMake(bitmap_size.width(), bitmap_size.height());
@@ -990,13 +988,13 @@ struct HideCursor {
         return;
 
     MTLTextureDescriptor* desc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                                                                    width:bitmap->width()
-                                                                                   height:bitmap->height()
+                                                                                    width:bitmap.width()
+                                                                                   height:bitmap.height()
                                                                                 mipmapped:NO];
     desc.storageMode = MTLStorageModeShared;
     desc.usage = MTLTextureUsageShaderRead;
     id<MTLTexture> src_texture = [m_metal_device newTextureWithDescriptor:desc
-                                                                iosurface:(IOSurfaceRef)shared_image_buffer->iosurface_handle().core_foundation_pointer()
+                                                                iosurface:(IOSurfaceRef)macos_iosurface_ref
                                                                     plane:0];
 
     id<MTLCommandBuffer> cmd_buf = [m_metal_queue commandBuffer];
@@ -1037,17 +1035,15 @@ struct HideCursor {
         return;
     }
 
-    auto [shared_image_buffer, bitmap_size] = *paintable;
-    VERIFY(shared_image_buffer);
-    auto bitmap = shared_image_buffer->bitmap();
+    auto [bitmap, bitmap_size, _] = *paintable;
 
-    VERIFY(bitmap->format() == Gfx::BitmapFormat::BGRA8888);
+    VERIFY(bitmap.format() == Gfx::BitmapFormat::BGRA8888);
 
     static constexpr size_t BITS_PER_COMPONENT = 8;
     static constexpr size_t BITS_PER_PIXEL = 32;
     static auto* color_space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
 
-    auto* provider = CGDataProviderCreateWithData(nil, bitmap->scanline_u8(0), bitmap->size_in_bytes(), nil);
+    auto* provider = CGDataProviderCreateWithData(nil, bitmap.scanline_u8(0), bitmap.size_in_bytes(), nil);
 
     // Ideally, this would be NSBitmapImageRep, but the equivalent factory initWithBitmapDataPlanes: does
     // not seem to actually respect endianness. We need NSBitmapFormatThirtyTwoBitLittleEndian, but the
@@ -1057,7 +1053,7 @@ struct HideCursor {
         bitmap_size.height(),
         BITS_PER_COMPONENT,
         BITS_PER_PIXEL,
-        bitmap->pitch(),
+        bitmap.pitch(),
         color_space,
         kCGBitmapByteOrder32Little | kCGImageAlphaFirst,
         provider,

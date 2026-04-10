@@ -1,4 +1,5 @@
 include(fontconfig)
+include(vulkan)
 
 set(SOURCES
     Application.cpp

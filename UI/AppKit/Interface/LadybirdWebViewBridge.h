@@ -42,8 +42,9 @@ public:
     void enqueue_input_event(Web::PinchEvent);
 
     struct Paintable {
-        Gfx::SharedImageBuffer const* shared_image_buffer { nullptr };
+        Gfx::Bitmap const& bitmap;
         Gfx::IntSize bitmap_size;
+        void* macos_iosurface_ref { nullptr };
     };
     Optional<Paintable> paintable();
 

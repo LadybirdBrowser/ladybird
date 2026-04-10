@@ -507,25 +507,23 @@ void WebContentView::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.scale(1 / m_device_pixel_ratio, 1 / m_device_pixel_ratio);
 
-    auto const* shared_image_buffer = backing_store().visible_shared_image_buffer();
-    auto const* bitmap = shared_image_buffer ? shared_image_buffer->bitmap().ptr() : nullptr;
-    auto bitmap_size = backing_store().visible_bitmap_size();
-
-    if (bitmap) {
-        QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);
+    auto paint_bitmap = [&](Gfx::Bitmap const& bitmap, Gfx::IntSize bitmap_size) {
+        QImage q_image(bitmap.scanline_u8(0), bitmap.width(), bitmap.height(), bitmap.pitch(), QImage::Format_RGB32);
         painter.drawImage(QPoint(0, 0), q_image, QRect(0, 0, bitmap_size.width(), bitmap_size.height()));
 
         if (bitmap_size.width() < width()) {
-            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap->height(), palette().base());
+            painter.fillRect(bitmap_size.width(), 0, width() - bitmap_size.width(), bitmap.height(), palette().base());
         }
         if (bitmap_size.height() < height()) {
             painter.fillRect(0, bitmap_size.height(), width(), height() - bitmap_size.height(), palette().base());
         }
-
+    };
+    auto* bitmap = backing_store().visible_bitmap();
+    if (!bitmap) {
+        painter.fillRect(rect(), palette().base());
         return;
     }
-
-    painter.fillRect(rect(), palette().base());
+    paint_bitmap(*bitmap, backing_store().visible_bitmap_size());
 }
 
 void WebContentView::resizeEvent(QResizeEvent* event)

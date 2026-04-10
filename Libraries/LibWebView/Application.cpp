@@ -13,6 +13,7 @@
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibGfx/SkiaBackendContext.h>
 #include <LibImageDecoderClient/Client.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/Loader/UserAgent.h>
@@ -364,6 +365,11 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     if (m_web_content_options.file_scheme_urls_have_tuple_origins == FileSchemeUrlsHaveTupleOrigins::Yes)
         URL::set_file_scheme_urls_have_tuple_origins();
+
+#ifdef USE_VULKAN_DMABUF_IMAGES
+    if (m_web_content_options.force_cpu_painting == ForceCPUPainting::No)
+        Gfx::SkiaBackendContext::initialize_gpu_backend();
+#endif
 
     initialize_actions();
 
