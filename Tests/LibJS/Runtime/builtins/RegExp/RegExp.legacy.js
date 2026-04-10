@@ -36,6 +36,21 @@ test("They should be read only", () => {
     expect(typeof RegExp.input).toBe(typeof String());
 });
 
+test("setting RegExp.input does not change the last match state", () => {
+    /((\d+)\.(\d+))/.exec("abc123.456def");
+
+    RegExp.input = "overridden";
+
+    expect(RegExp.input).toBe("overridden");
+    expect(RegExp.lastMatch).toBe("123.456");
+    expect(RegExp.lastParen).toBe("456");
+    expect(RegExp.leftContext).toBe("abc");
+    expect(RegExp.rightContext).toBe("def");
+    expect(RegExp.$1).toBe("123.456");
+    expect(RegExp.$2).toBe("123");
+    expect(RegExp.$3).toBe("456");
+});
+
 test("They should be read only (strict mode)", () => {
     "use strict";
 
@@ -205,6 +220,17 @@ test("legacy static properties with a temporary string", () => {
         expect(RegExp.rightContext).toBe("1");
         expect(RegExp.$1).toBe("a");
     }
+});
+
+test("legacy static properties preserve rope-backed UTF-16 strings", () => {
+    /(x)/.exec("😀" + "x1y");
+
+    expect(RegExp.input).toBe("😀x1y");
+    expect(RegExp.lastMatch).toBe("x");
+    expect(RegExp.lastParen).toBe("x");
+    expect(RegExp.leftContext).toBe("😀");
+    expect(RegExp.rightContext).toBe("1y");
+    expect(RegExp.$1).toBe("x");
 });
 
 test("legacy octal escapes", () => {

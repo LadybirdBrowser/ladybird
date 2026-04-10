@@ -21,6 +21,7 @@ public:
 
     virtual ThrowCompletionOr<Value> call() override;
     virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
+    virtual void visit_edges(Cell::Visitor&) override;
     ThrowCompletionOr<GC::Ref<Object>> construct_impl(FunctionObject& new_target, bool pattern_is_regexp);
 
     RegExpLegacyStaticProperties& legacy_static_properties() { return m_legacy_static_properties; }

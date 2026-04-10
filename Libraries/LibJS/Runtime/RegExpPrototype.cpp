@@ -330,7 +330,7 @@ static ThrowCompletionOr<Value> regexp_builtin_exec(VM& vm, RegExpObject& regexp
             cap_starts[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2) : -1;
             cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
         }
-        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(), string->utf16_string(), match_index, end_index, cap_count, cap_starts, cap_ends);
+        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(), string, match_index, end_index, cap_count, cap_starts, cap_ends);
     } else if (&realm == &regexp_object.realm()) {
         invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor());
     }
@@ -860,7 +860,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_replace_impl(VM& vm, Object& re
                             cap_starts[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2) : -1;
                             cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
                         }
-                        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(), string->utf16_string(), last_match_start, last_match_end, cap_count, cap_starts, cap_ends);
+                        update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(), string, last_match_start, last_match_end, cap_count, cap_starts, cap_ends);
                     }
 
                     // Fast path: if no matches were found, return the original string.
@@ -1252,7 +1252,7 @@ ThrowCompletionOr<Value> RegExpPrototype::symbol_split_impl(VM& vm, Object& rege
                             cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
                         }
                         update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(),
-                            string->utf16_string(), match_start, match_end, cap_count, cap_starts, cap_ends);
+                            string, match_start, match_end, cap_count, cap_starts, cap_ends);
                     }
 
                     // Add captures.
@@ -1488,7 +1488,7 @@ JS_DEFINE_NATIVE_FUNCTION(RegExpPrototype::test)
                             cap_ends[g] = (gi < total_groups) ? compiled_regex->capture_slot(gi * 2 + 1) : -1;
                         }
                         update_legacy_regexp_static_properties_lazy(realm.intrinsics().regexp_constructor(),
-                            string->utf16_string(), match_start, match_end, cap_count, cap_starts, cap_ends);
+                            string, match_start, match_end, cap_count, cap_starts, cap_ends);
                     } else {
                         invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor());
                     }

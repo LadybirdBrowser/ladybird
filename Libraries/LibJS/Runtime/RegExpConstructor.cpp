@@ -42,6 +42,12 @@ RegExpConstructor::RegExpConstructor(Realm& realm)
 {
 }
 
+void RegExpConstructor::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    m_legacy_static_properties.visit_edges(visitor);
+}
+
 void RegExpConstructor::initialize(Realm& realm)
 {
     auto& vm = this->vm();
