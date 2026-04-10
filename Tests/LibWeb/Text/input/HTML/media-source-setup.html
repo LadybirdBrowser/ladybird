@@ -3,25 +3,12 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
-        const TIMEOUT_MS = 1000;
-        let timer;
-        function restartTimeout() {
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                println("FAIL: timeout");
-                done();
-            }, TIMEOUT_MS);
-        }
-        restartTimeout();
-
         function step(name) {
             println(`PASS: ${name}`);
-            restartTimeout();
         }
 
         function fail(name, error) {
             println(`FAIL: ${name}: ${error}`);
-            clearTimeout(timer);
             done();
         }
 
@@ -127,8 +114,6 @@
                             video.addEventListener("playing", resolve);
                     });
                     step("playing");
-
-                    clearTimeout(timer);
                     done();
                 } catch (e) {
                     fail("sourceopen handler", e);

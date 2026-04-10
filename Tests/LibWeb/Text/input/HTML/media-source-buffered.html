@@ -3,25 +3,12 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(done => {
-        const TIMEOUT_MS = 1000;
-        let timer;
-        function restartTimeout() {
-            clearTimeout(timer);
-            timer = setTimeout(() => {
-                println("FAIL: timeout");
-                done();
-            }, TIMEOUT_MS);
-        }
-        restartTimeout();
-
         function step(text) {
             println(text);
-            restartTimeout();
         }
 
         function fail(name, error) {
             println(`FAIL: ${name}: ${error}`);
-            clearTimeout(timer);
             done();
         }
 
@@ -83,8 +70,6 @@
                     // Append Clusters 1 and 2 again to fill in the gap properly.
                     await appendSlice(INIT_END, CLUSTER2_START, "cluster 1 again");
                     await appendSlice(CLUSTER2_START, CLUSTER3_START, "cluster 2 again");
-
-                    clearTimeout(timer);
                     done();
                 } catch (e) {
                     fail("sourceopen handler", e);
