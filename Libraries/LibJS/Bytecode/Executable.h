@@ -95,6 +95,47 @@ struct ObjectShapeCache {
     Vector<u32> property_offsets;
 };
 
+enum class ObjectPropertyIteratorFastPath : u8 {
+    None,
+    PlainNamed,
+    PackedIndexed,
+};
+
+class JS_API ObjectPropertyIteratorCacheData final : public Cell {
+    GC_CELL(ObjectPropertyIteratorCacheData, Cell);
+    GC_DECLARE_ALLOCATOR(ObjectPropertyIteratorCacheData);
+
+public:
+    ObjectPropertyIteratorCacheData(VM&, Vector<PropertyKey>, ObjectPropertyIteratorFastPath, u32 indexed_property_count, bool receiver_has_magical_length_property, GC::Ref<Shape>, GC::Ptr<PrototypeChainValidity> = nullptr);
+    virtual ~ObjectPropertyIteratorCacheData() override = default;
+
+    [[nodiscard]] ReadonlySpan<PropertyKey> properties() const { return m_properties.span(); }
+    [[nodiscard]] ReadonlySpan<Value> property_values() const { return m_property_values.span(); }
+    [[nodiscard]] ObjectPropertyIteratorFastPath fast_path() const { return m_fast_path; }
+    [[nodiscard]] u32 indexed_property_count() const { return m_indexed_property_count; }
+    [[nodiscard]] bool receiver_has_magical_length_property() const { return m_receiver_has_magical_length_property; }
+    [[nodiscard]] GC::Ptr<Shape> shape() const { return m_shape; }
+    [[nodiscard]] GC::Ptr<PrototypeChainValidity> prototype_chain_validity() const { return m_prototype_chain_validity; }
+    [[nodiscard]] u32 shape_dictionary_generation() const { return m_shape_dictionary_generation; }
+
+private:
+    virtual void visit_edges(Visitor&) override;
+
+    Vector<PropertyKey> m_properties;
+    Vector<Value> m_property_values;
+    GC::Ptr<Shape> m_shape;
+    GC::Ptr<PrototypeChainValidity> m_prototype_chain_validity;
+    u32 m_indexed_property_count { 0 };
+    u32 m_shape_dictionary_generation { 0 };
+    bool m_receiver_has_magical_length_property { false };
+    ObjectPropertyIteratorFastPath m_fast_path { ObjectPropertyIteratorFastPath::None };
+};
+
+struct ObjectPropertyIteratorCache {
+    GC::Ptr<ObjectPropertyIteratorCacheData> data;
+    GC::Ptr<Object> reusable_property_name_iterator;
+};
+
 struct SourceRecord {
     u32 source_start_offset {};
     u32 source_end_offset {};
@@ -124,6 +165,7 @@ public:
         size_t number_of_global_variable_caches,
         size_t number_of_template_object_caches,
         size_t number_of_object_shape_caches,
+        size_t number_of_object_property_iterator_caches,
         size_t number_of_registers,
         Strict);
 
@@ -135,6 +177,7 @@ public:
     Vector<GlobalVariableCache> global_variable_caches;
     Vector<TemplateObjectCache> template_object_caches;
     Vector<ObjectShapeCache> object_shape_caches;
+    Vector<ObjectPropertyIteratorCache> object_property_iterator_caches;
     NonnullOwnPtr<StringTable> string_table;
     NonnullOwnPtr<IdentifierTable> identifier_table;
     NonnullOwnPtr<PropertyKeyTable> property_key_table;

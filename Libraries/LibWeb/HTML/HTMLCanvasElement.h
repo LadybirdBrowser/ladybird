@@ -54,6 +54,8 @@ public:
 
     Painting::ExternalContentSource& ensure_external_content_source();
 
+    CSS::ComputationContext canvas_font_computation_context();
+
 private:
     HTMLCanvasElement(DOM::Document&, DOM::QualifiedName);
 

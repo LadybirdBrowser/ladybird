@@ -479,6 +479,7 @@ struct CSSStyleSheetInit;
 struct FunctionParameterInternal;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
+struct NormalGap;
 struct RandomCachingKey;
 struct RequiredInvalidationAfterStyleChange;
 struct StyleSheetIdentifier;

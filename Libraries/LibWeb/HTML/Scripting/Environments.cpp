@@ -283,10 +283,8 @@ bool is_scripting_enabled(EnvironmentSettingsObject const& settings)
     // The user has not disabled scripting for realm at this time. (User agents may provide users with the option to disable scripting globally, or in a finer-grained manner, e.g., on a per-origin basis, down to the level of individual realms.)
     auto const& document = as<HTML::Window>(settings.global_object()).associated_document();
 
-    // NB: about:settings and about:processes are internal pages using javascript, so we do not consider user configuration for these pages.
-    if (document.url() != URL::about_settings()
-        && document.url() != URL::about_processes()
-        && !document.page().is_scripting_enabled())
+    // NB: WebUI pages are internal pages requiring javascript, so we do not consider user configuration for these.
+    if (!document.page().is_scripting_enabled() && !URL::is_webui_url(document.url()))
         return false;
 
     // Either settings's global object is not a Window object, or settings's global object's associated Document's active sandboxing flag set does not have its sandboxed scripts browsing context flag set.

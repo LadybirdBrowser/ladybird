@@ -519,8 +519,12 @@ ThrowCompletionOr<Value> Console::group()
     String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
-        auto formatted_data = TRY(m_client->formatter(data));
-        group_label = TRY(value_vector_to_string(formatted_data));
+        if (m_client) {
+            auto formatted_data = TRY(m_client->formatter(data));
+            group_label = TRY(value_vector_to_string(formatted_data));
+        } else {
+            group_label = TRY(value_vector_to_string(data));
+        }
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
@@ -553,8 +557,12 @@ ThrowCompletionOr<Value> Console::group_collapsed()
     String group_label {};
     auto data = vm_arguments();
     if (!data.is_empty()) {
-        auto formatted_data = TRY(m_client->formatter(data));
-        group_label = TRY(value_vector_to_string(formatted_data));
+        if (m_client) {
+            auto formatted_data = TRY(m_client->formatter(data));
+            group_label = TRY(value_vector_to_string(formatted_data));
+        } else {
+            group_label = TRY(value_vector_to_string(data));
+        }
     }
     // ... Otherwise, let groupLabel be an implementation-chosen label representing a group.
     else {
@@ -745,10 +753,10 @@ void Console::output_debug_message(LogLevel log_level, StringView output) const
     }
 }
 
-void Console::report_exception(JS::Error const& exception, bool in_promise) const
+void Console::report_exception(String const& name, String const& message, JS::ErrorData const& error_data, bool in_promise) const
 {
     if (m_client)
-        m_client->report_exception(exception, in_promise);
+        m_client->report_exception(name, message, error_data, in_promise);
 }
 
 ThrowCompletionOr<String> Console::value_vector_to_string(GC::RootVector<Value> const& values)

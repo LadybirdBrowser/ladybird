@@ -962,6 +962,7 @@ void EventHandler::maybe_show_context_menu(GC::Ref<DOM::Node> node, MouseEventCo
 void EventHandler::clear_mousedown_tracking()
 {
     m_mousedown_button = {};
+    m_mousedown_modifiers = UIEvents::KeyModifier::Mod_None;
     m_mousedown_target = nullptr;
     m_mousedown_visual_viewport_position = {};
     m_mousedown_click_count = 0;
@@ -1180,6 +1181,10 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 {
     if (button != UIEvents::MouseButton::Primary)
         return;
+#if defined(AK_OS_MACOS)
+    if (modifiers & UIEvents::KeyModifier::Mod_Ctrl)
+        return;
+#endif
 
     // https://html.spec.whatwg.org/multipage/interaction.html#data-model:click-focusable-5
     // When a user activates a click focusable focusable area, the user agent must run the focusing steps on that
@@ -1289,6 +1294,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
 
     m_mousedown_button = button;
+    m_mousedown_modifiers = modifiers;
     m_mousedown_target = node;
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
@@ -2071,7 +2077,10 @@ bool EventHandler::should_ignore_device_input_event() const
 
 bool EventHandler::is_dragging_element() const
 {
-    return m_mousedown_target && m_mousedown_visual_viewport_position.has_value() && m_mousedown_button == UIEvents::MouseButton::Primary;
+    return m_mousedown_target
+        && m_mousedown_visual_viewport_position.has_value()
+        && m_mousedown_button == UIEvents::MouseButton::Primary
+        && (m_mousedown_modifiers & UIEvents::KeyModifier::Mod_Ctrl) == 0;
 }
 
 void EventHandler::visit_edges(JS::Cell::Visitor& visitor) const

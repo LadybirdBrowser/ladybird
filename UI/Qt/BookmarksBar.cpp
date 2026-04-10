@@ -5,6 +5,7 @@
  */
 
 #include <LibWebView/Application.h>
+#include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/Icon.h>
 #include <UI/Qt/Menu.h>
@@ -45,6 +46,11 @@ BookmarksBar::BookmarksBar(QWidget* parent)
 
 void BookmarksBar::rebuild()
 {
+    for (auto* action : actions()) {
+        if (auto* menu = action->menu())
+            menu->close();
+    }
+
     clear();
 
     auto set_button_properties = [&](QToolButton* button, QString const& title) {
@@ -87,6 +93,24 @@ void BookmarksBar::rebuild()
             },
             [](WebView::Separator) {
             });
+    }
+}
+
+void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
+{
+    if (item.has_value()) {
+        m_selected_bookmark_menu_item_id = item->id;
+        m_selected_bookmark_menu_target_folder_id = target_folder_id.copy();
+
+        if (item->is_bookmark())
+            bookmark_context_menu().exec(position);
+        else if (item->is_folder())
+            bookmark_folder_context_menu().exec(position);
+    } else {
+        m_selected_bookmark_menu_item_id = {};
+        m_selected_bookmark_menu_target_folder_id = {};
+
+        bookmarks_bar_context_menu().exec(position);
     }
 }
 

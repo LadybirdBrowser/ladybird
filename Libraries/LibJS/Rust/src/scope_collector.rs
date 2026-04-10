@@ -55,7 +55,7 @@ use std::rc::Rc;
 
 use crate::ast::{
     FunctionScopeData, Identifier, LocalBinding, LocalVarKind, LocalVariable, ScopeData,
-    Utf16String, VarToInit,
+    SharedUtf16String, Utf16String, VarToInit,
 };
 use crate::parser::{DeclarationKind, FunctionKind, ParseError, ProgramType};
 use crate::u32_from_usize;
@@ -190,7 +190,7 @@ struct ScopeRecord {
     scope_data: Option<Rc<RefCell<ScopeData>>>,
 
     variables: HashMap<Utf16String, ScopeVariable>,
-    identifier_groups: HashMap<Utf16String, IdentifierGroup>,
+    identifier_groups: HashMap<SharedUtf16String, IdentifierGroup>,
     functions_to_hoist: Vec<HoistableFunction>,
 
     // Parameter tracking
@@ -251,7 +251,11 @@ impl ScopeRecord {
     }
 
     fn variable(&mut self, name: &[u16]) -> &mut ScopeVariable {
-        self.variables.entry(Utf16String::from(name)).or_default()
+        if !self.variables.contains_key(name) {
+            self.variables
+                .insert(Utf16String::from(name), ScopeVariable::default());
+        }
+        self.variables.get_mut(name).unwrap()
     }
 
     fn has_flag(&self, name: &[u16], flags: VarFlags) -> bool {
@@ -560,7 +564,7 @@ impl ScopeCollector {
         for (name, identifier) in bound_names {
             // Register the declaration identifier so it participates in scope analysis.
             if let Some(id) = identifier {
-                self.register_identifier(id.clone(), name, declaration_kind);
+                self.register_identifier(id.clone(), declaration_kind);
             }
 
             let mut scope_index = index;
@@ -605,7 +609,7 @@ impl ScopeCollector {
 
         // Register the name identifier so it participates in scope analysis.
         if let Some(ref id) = name_identifier {
-            self.register_identifier(id.clone(), name, None);
+            self.register_identifier(id.clone(), None);
         }
 
         if scope_level != ScopeLevel::NotTopLevel && scope_level != ScopeLevel::ModuleTopLevel {
@@ -671,13 +675,12 @@ impl ScopeCollector {
     pub fn register_identifier(
         &mut self,
         id: Rc<Identifier>,
-        name: &[u16],
         declaration_kind: Option<DeclarationKind>,
     ) {
         let index = self.current.expect("no current scope");
         self.records[index]
             .identifier_groups
-            .entry(Utf16String::from(name))
+            .entry(id.name.clone())
             .and_modify(|group| {
                 group.identifiers.push(id.clone());
                 if declaration_kind.is_some() && group.declaration_kind.is_none() {
@@ -722,7 +725,7 @@ impl ScopeCollector {
                 });
             }
             if let Some(ref id) = entry.identifier {
-                self.register_identifier(id.clone(), &entry.name, None);
+                self.register_identifier(id.clone(), None);
             }
             let var = self.records[index]
                 .variables
@@ -736,7 +739,7 @@ impl ScopeCollector {
         // declares the same name, it must not be optimized to a local, since the
         // default expression needs to resolve it from the outer scope.
         if has_parameter_expressions {
-            let names_to_mark: Vec<Utf16String> = self.records[index]
+            let names_to_mark: Vec<SharedUtf16String> = self.records[index]
                 .identifier_groups
                 .keys()
                 .filter(|name| !self.records[index].has_flag(name, VarFlags::FORBIDDEN_LEXICAL))
@@ -1000,7 +1003,7 @@ impl ScopeCollector {
         // (HashMap iteration order is arbitrary).
         let mut sorted_groups: Vec<_> = groups.into_iter().collect();
         sorted_groups.sort_by(|a, b| a.0.cmp(&b.0));
-        let mut propagate_to_parent: Vec<(Utf16String, IdentifierGroup)> = Vec::new();
+        let mut propagate_to_parent: Vec<(SharedUtf16String, IdentifierGroup)> = Vec::new();
         for (name, mut group) in sorted_groups {
             // Annotate each Identifier AST node with its declaration kind,
             // so the bytecode generator knows how to handle TDZ checks, etc.
@@ -1012,7 +1015,7 @@ impl ScopeCollector {
 
             let var_flags = records[index]
                 .variables
-                .get(&name)
+                .get(name.as_slice())
                 .map_or(VarFlags::EMPTY, |v| v.flags);
 
             // Determine what kind of local variable this is (if any).
@@ -1176,7 +1179,7 @@ impl ScopeCollector {
                             } else {
                                 let lvi = u32_from_usize(sd.local_variables.len());
                                 sd.local_variables.push(LocalVariable {
-                                    name: name.clone(),
+                                    name: name.to_utf16_string(),
                                     kind: LocalVarKind::Var,
                                 });
                                 for id in &group.identifiers {
@@ -1189,7 +1192,7 @@ impl ScopeCollector {
                                 .expect("local_var_kind must be set for local variables");
                             let lvi = u32_from_usize(sd.local_variables.len());
                             sd.local_variables.push(LocalVariable {
-                                name: name.clone(),
+                                name: name.to_utf16_string(),
                                 kind,
                             });
                             for id in &group.identifiers {
@@ -1270,7 +1273,7 @@ impl ScopeCollector {
             for i in (0..sd.children.len()).rev() {
                 if let crate::ast::StatementKind::FunctionDeclaration(ref fd) = sd.children[i].inner
                     && let Some(ref name_ident) = fd.name
-                    && seen_function_names.insert(name_ident.name.clone())
+                    && seen_function_names.insert(name_ident.name.to_utf16_string())
                 {
                     functions_to_initialize.push(crate::ast::FunctionToInit { child_index: i });
                 }

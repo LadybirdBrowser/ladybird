@@ -6,19 +6,13 @@
  */
 
 #include <AK/Bitmap.h>
+#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/GridFormattingContext.h>
 #include <LibWeb/Layout/ReplacedBox.h>
 
 namespace Web::Layout {
-
-static CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, Layout::Node const& grid_container, CSSPixels reference_value)
-{
-    return gap.visit(
-        [](CSS::NormalGap) { return CSSPixels(0); },
-        [&](auto const& gap) { return gap.to_px(grid_container, reference_value); });
-}
 
 static Alignment to_alignment(CSS::JustifyContent value)
 {
@@ -189,8 +183,8 @@ GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_auto()
 GridFormattingContext::GridTrack GridFormattingContext::GridTrack::create_gap(CSSPixels size)
 {
     return GridTrack {
-        .min_track_sizing_function = CSS::GridSize(CSS::Size::make_px(size)),
-        .max_track_sizing_function = CSS::GridSize(CSS::Size::make_px(size)),
+        .min_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(size))),
+        .max_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(size))),
         .base_size = size,
         .is_gap = true,
     };
@@ -255,7 +249,7 @@ int GridFormattingContext::count_of_repeated_auto_fill_or_fit_tracks(GridDimensi
 
     auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
     auto const& gap = dimension == GridDimension::Column ? grid_computed_values.column_gap() : grid_computed_values.row_gap();
-    auto gap_px = gap_to_px(gap, grid_container(), available_size.to_px_or_zero());
+    auto gap_px = gap_to_px(gap, available_size.to_px_or_zero());
     auto size_of_repeated_tracks_with_gap = size_of_repeated_tracks + repeat_track_list.size() * gap_px;
     // Otherwise, if the grid container has a definite min size in the relevant axis, the number of repetitions is the
     // smallest possible positive integer that fulfills that minimum requirement
@@ -644,7 +638,7 @@ void GridFormattingContext::initialize_gap_tracks(GridDimension dimension, Avail
     auto const& computed_gap = dimension == GridDimension::Column ? grid_container().computed_values().column_gap() : grid_container().computed_values().row_gap();
     CSSPixels gap_size = 0;
     if (!computed_gap.has<CSS::NormalGap>())
-        gap_size = gap_to_px(computed_gap, grid_container(), available_size.to_px_or_zero());
+        gap_size = gap_to_px(computed_gap, available_size.to_px_or_zero());
 
     gap_tracks.ensure_capacity(grid_tracks.size() - 1);
 
@@ -694,7 +688,7 @@ void GridFormattingContext::initialize_track_sizes(GridDimension dimension)
         if (!available_size.is_definite()
             && track.max_track_sizing_function.is_fit_content()
             && track.max_track_sizing_function.css_size().contains_percentage()) {
-            track.max_track_sizing_function = CSS::GridSize(CSS::Size::make_max_content());
+            track.max_track_sizing_function = CSS::GridSize(CSS::KeywordStyleValue::create(CSS::Keyword::MaxContent));
         }
 
         if (track.min_track_sizing_function.is_fixed(available_size)) {
@@ -1887,7 +1881,7 @@ void GridFormattingContext::resolve_track_spacing(GridDimension dimension)
 
     auto const& computed_gap = is_column_dimension ? grid_container().computed_values().column_gap() : grid_container().computed_values().row_gap();
     auto const& available_size = is_column_dimension ? m_available_space->width.to_px_or_zero() : m_available_space->height.to_px_or_zero();
-    space_between_tracks = max(space_between_tracks, gap_to_px(computed_gap, grid_container(), available_size));
+    space_between_tracks = max(space_between_tracks, gap_to_px(computed_gap, available_size));
 
     auto& gap_tracks = is_column_dimension ? m_column_gap_tracks : m_row_gap_tracks;
     for (auto& track : gap_tracks) {
@@ -1937,8 +1931,8 @@ void GridFormattingContext::collapse_auto_fit_tracks_if_needed(GridDimension dim
             continue;
 
         // NOTE: A collapsed track is treated as having a fixed track sizing function of 0px
-        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::Size::make_px(0));
-        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::Size::make_px(0));
+        tracks[track_index].min_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
+        tracks[track_index].max_track_sizing_function = CSS::GridSize(CSS::LengthStyleValue::create(CSS::Length::make_px(0)));
     }
 }
 
@@ -2175,7 +2169,7 @@ void GridFormattingContext::run(AvailableSpace const& available_space)
 
             if (i < tracks.size()) {
                 auto const& track = tracks[i];
-                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::Size::make_px(track.base_size) } });
+                result.append(CSS::ExplicitGridTrack { CSS::GridSize { CSS::LengthStyleValue::create(CSS::Length::make_px(track.base_size)) } });
             }
         }
         return result;

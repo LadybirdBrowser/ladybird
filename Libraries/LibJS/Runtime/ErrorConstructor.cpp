@@ -127,9 +127,16 @@ JS_ENUMERATE_NATIVE_ERRORS
 JS_DEFINE_NATIVE_FUNCTION(ErrorConstructor::is_error)
 {
     // 1. If arg is not an Object, return false.
+    auto object = vm.argument(0).as_if<Object>();
+    if (!object)
+        return false;
+
     // 2. If arg does not have an [[ErrorData]] internal slot, return false.
+    if (!object->has_error_data())
+        return false;
+
     // 3. Return true.
-    return vm.argument(0).is<Error>();
+    return true;
 }
 
 }

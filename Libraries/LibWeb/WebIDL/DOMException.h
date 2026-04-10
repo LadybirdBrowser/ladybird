@@ -8,6 +8,7 @@
 
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <LibJS/Runtime/ErrorData.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Export.h>
@@ -94,6 +95,7 @@ static u16 get_legacy_code_for_name(FlyString const& name)
 // https://webidl.spec.whatwg.org/#idl-DOMException
 class WEB_API DOMException
     : public Bindings::PlatformObject
+    , public JS::ErrorData
     , public Bindings::Serializable {
     WEB_PLATFORM_OBJECT(DOMException, Bindings::PlatformObject);
     GC_DECLARE_ALLOCATOR(DOMException);
@@ -120,8 +122,12 @@ protected:
     explicit DOMException(JS::Realm&);
 
     virtual void initialize(JS::Realm&) override;
+    virtual void visit_edges(Visitor&) override;
 
 private:
+    virtual ErrorData* error_data() final { return this; }
+    virtual ErrorData const* error_data() const final { return this; }
+
     FlyString m_name;
     Utf16FlyString m_message;
 };

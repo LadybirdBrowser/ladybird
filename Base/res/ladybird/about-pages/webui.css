@@ -1,0 +1,74 @@
+@media (prefers-color-scheme: light) {
+    :root {
+        --card-background-color: #f5f5f5;
+        --card-header-background-color: #f0f2f5;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --card-background-color: #242424;
+        --card-header-background-color: #252525;
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    max-width: 800px;
+
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    display: flex;
+    align-items: center;
+
+    margin-bottom: 30px;
+}
+
+header h1 {
+    font-size: 20px;
+}
+
+header img {
+    height: 48px;
+    margin-right: 10px;
+    float: left;
+}
+
+.card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 8px 4px;
+}
+
+.card {
+    background-color: var(--card-background-color);
+
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.card-body > hr {
+    margin: 0 8px 16px 8px;
+}
+
+.card-group {
+    margin-bottom: 20px;
+}
+
+.card-group:last-child {
+    margin-bottom: 0;
+}

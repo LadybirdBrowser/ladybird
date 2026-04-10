@@ -74,6 +74,9 @@ unsafe extern "C" {
         out_kind: *mut u8,
         out_id: *mut u32,
     ) -> i32;
+
+    fn unicode_is_id_start(code_point: u32) -> i32;
+    fn unicode_is_id_continue(code_point: u32) -> i32;
 }
 
 #[inline(always)]
@@ -243,4 +246,16 @@ pub(crate) fn resolve_property(name: &str, value: Option<&str>) -> Option<Resolv
     } else {
         None
     }
+}
+
+#[inline(always)]
+pub(crate) fn is_id_start(code_point: u32) -> bool {
+    // SAFETY: This forwards only a scalar value to the C++ helper.
+    unsafe { unicode_is_id_start(code_point) != 0 }
+}
+
+#[inline(always)]
+pub(crate) fn is_id_continue(code_point: u32) -> bool {
+    // SAFETY: This forwards only a scalar value to the C++ helper.
+    unsafe { unicode_is_id_continue(code_point) != 0 }
 }

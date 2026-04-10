@@ -1,0 +1,13 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let animation = target.animate([{ width: "fit-content(10px)" }, { width: "fit-content(20px)" }], { duration: 1000, fill: "forwards" });
+        animation.pause();
+        for (let time of [400, 600]) {
+            animation.currentTime = time;
+            println(target.computedStyleMap().get("width").toString());
+        }
+    });
+</script>

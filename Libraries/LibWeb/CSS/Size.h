@@ -37,6 +37,8 @@ public:
     static Size make_fit_content();
     static Size make_none();
 
+    static Size from_style_value(NonnullRefPtr<StyleValue const> const&);
+
     bool is_auto() const { return m_type == Type::Auto; }
     bool is_calculated() const { return m_type == Type::Calculated; }
     bool is_length() const { return m_type == Type::Length; }
@@ -87,8 +89,6 @@ public:
     void serialize(StringBuilder&, SerializationMode) const;
     String to_string(SerializationMode) const;
     bool operator==(Size const&) const = default;
-
-    bool is_computationally_independent() const { return !m_length_percentage.has_value() || m_length_percentage->is_computationally_independent(); }
 
 private:
     explicit Size(Type type, Optional<LengthPercentage> = {});

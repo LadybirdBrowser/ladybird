@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Badge.h>
+#include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <AK/Variant.h>
@@ -66,9 +67,12 @@ public:
     void edit_bookmark(StringView id, URL::URL url, Optional<String> title);
     void edit_folder(StringView id, Optional<String> title);
 
+    void move_item(StringView id, Optional<String const&> target_folder_id, size_t index);
     void remove_item(StringView id);
 
     void update_favicon(URL::URL const& url, String favicon_base64);
+
+    JsonValue serialize_items() const;
 
     static void add_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);
     static void remove_observer(Badge<BookmarkStoreObserver>, BookmarkStoreObserver&);

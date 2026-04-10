@@ -406,9 +406,9 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
             GC::Ptr<DOM::Element const> slot_shadow_host;
             if (auto const* slot_shadow_root = as_if<DOM::ShadowRoot>(matching_slot->root()))
                 slot_shadow_host = slot_shadow_root->host();
-            if (!SelectorEngine::matches(selector, *matching_slot, slot_shadow_host, context, PseudoElement::Slotted))
+            if (!SelectorEngine::matches(selector, { *matching_slot, PseudoElement::Slotted }, slot_shadow_host, context))
                 continue;
-        } else if (!SelectorEngine::matches(selector, abstract_element.element(), shadow_host_to_use, context, abstract_element.pseudo_element()))
+        } else if (!SelectorEngine::matches(selector, abstract_element, shadow_host_to_use, context))
             continue;
         matching_rules.append(&rule_to_run);
     }
@@ -1489,7 +1489,7 @@ ComputationContext const& StyleComputer::get_computation_context_for_property(Pr
             auto line_height_font_metrics = Length::FontMetrics {
                 style.font_size(),
                 style.first_available_computed_font(document().font_computer())->pixel_metrics(),
-                (inheritance_parent.has_value() && inheritance_parent->computed_properties()) ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
+                inheritance_parent.has_value() ? inheritance_parent->computed_properties()->line_height() : InitialValues::line_height()
             };
 
             m_cached_line_height_computation_context = {
@@ -2396,7 +2396,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_font_width(absolutized_value);
     case PropertyID::FontFeatureSettings:
     case PropertyID::FontVariationSettings:
-        return compute_font_feature_tag_value_list(absolutized_value, computation_context);
+        return compute_font_feature_tag_value_list(absolutized_value);
     case PropertyID::LetterSpacing:
     case PropertyID::WordSpacing:
         if (absolutized_value->to_keyword() == Keyword::Normal)
@@ -2449,12 +2449,10 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_animation_name(NonnullRef
 
 // https://drafts.csswg.org/css-fonts-4/#font-variation-settings-def
 // https://drafts.csswg.org/css-fonts/#font-feature-settings-prop
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& specified_value, ComputationContext const& computation_context)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_feature_tag_value_list(NonnullRefPtr<StyleValue const> const& absolutized_value)
 {
     // NB: The computation logic is the same for both font-feature-settings and font-variation-settings, first we
     //     deduplicate feature tags (with latter taking precedence), then we sort them in ascending order by code unit
-    auto const& absolutized_value = specified_value->absolutized(computation_context);
-
     if (absolutized_value->is_keyword())
         return absolutized_value;
 
@@ -2527,16 +2525,16 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_corner_shape(NonnullRefPt
     VERIFY_NOT_REACHED();
 }
 
-NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent)
+NonnullRefPtr<StyleValue const> StyleComputer::compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size)
 {
     // https://drafts.csswg.org/css-fonts/#font-size-prop
     // an absolute length
 
-    auto inherited_font_size = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
+    auto inherited_font_size = inheritance_parent.has_value()
         ? inheritance_parent->computed_properties()->font_size()
-        : InitialValues::font_size();
+        : initial_font_size;
 
-    auto inherited_math_depth = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
+    auto inherited_math_depth = inheritance_parent.has_value()
         ? inheritance_parent->computed_properties()->math_depth()
         : InitialValues::math_depth();
 
@@ -2621,7 +2619,7 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_font_weight(NonnullRefPtr
     // https://drafts.csswg.org/css-fonts-4/#font-weight-prop
     // a number, see below
 
-    auto inherited_font_weight = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
+    auto inherited_font_weight = inheritance_parent.has_value()
         ? inheritance_parent->computed_properties()->font_weight()
         : InitialValues::font_weight();
 
@@ -2884,11 +2882,11 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_position_area(NonnullRefP
 // https://w3c.github.io/mathml-core/#propdef-math-depth
 NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent)
 {
-    auto inherited_math_depth = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
+    auto inherited_math_depth = inheritance_parent.has_value()
         ? inheritance_parent->computed_properties()->math_depth()
         : InitialValues::math_depth();
 
-    auto inherited_math_style = (inheritance_parent.has_value() && inheritance_parent->computed_properties())
+    auto inherited_math_style = inheritance_parent.has_value()
         ? inheritance_parent->computed_properties()->math_style()
         : InitialValues::math_style();
 

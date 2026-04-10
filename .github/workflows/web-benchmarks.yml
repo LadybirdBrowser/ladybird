@@ -71,13 +71,11 @@ jobs:
         uses: ./.github/actions/cache-restore
         id: 'cache-restore'
         with:
-          runner_labels: ${{ matrix.runner_labels }}
           os: ${{ matrix.os_name }}
           arch: ${{ matrix.arch }}
           toolchain: 'Clang'
           cache_key_extra: 'Distribution'
           ccache_path: ${{ env.CCACHE_DIR }}
-          download_cache_path: ${{ github.workspace }}/Build/caches
           vcpkg_cache_path: ${{ github.workspace }}/Build/caches/vcpkg-binary-cache
 
       - name: 'Assign Build Parameters'
@@ -110,7 +108,6 @@ jobs:
       - name: 'Save Caches'
         uses: ./.github/actions/cache-save
         with:
-          runner_labels: ${{ matrix.runner_labels }}
           arch: ${{ matrix.arch }}
           ccache_path: ${{ env.CCACHE_DIR }}
           ccache_primary_key: ${{ steps.cache-restore.outputs.ccache_primary_key }}

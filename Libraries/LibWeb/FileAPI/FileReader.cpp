@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2023-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -29,9 +29,36 @@
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::FileAPI {
 
+struct ReadOperationState final : public JS::Cell {
+    GC_CELL(ReadOperationState, JS::Cell);
+    GC_DECLARE_ALLOCATOR(ReadOperationState);
+
+    explicit ReadOperationState(GC::Ref<Streams::ReadableStreamDefaultReader> reader, ByteBuffer bytes, bool is_first_chunk)
+        : reader(reader)
+        , bytes(move(bytes))
+        , is_first_chunk(is_first_chunk)
+    {
+    }
+
+    virtual void visit_edges(JS::Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(reader);
+        visitor.visit(process_next_chunk);
+    }
+
+    GC::Ref<Streams::ReadableStreamDefaultReader> reader;
+    GC::Ptr<GC::Function<void(GC::Ref<WebIDL::Promise>)>> process_next_chunk;
+    ByteBuffer bytes;
+    bool is_first_chunk { true };
+    Optional<MonotonicTime> progress_timer;
+};
+
+GC_DEFINE_ALLOCATOR(ReadOperationState);
 GC_DEFINE_ALLOCATOR(FileReader);
 
 FileReader::~FileReader() = default;
@@ -71,11 +98,14 @@ WebIDL::ExceptionOr<FileReader::Result> FileReader::blob_package_data(JS::Realm&
 {
     // A Blob has an associated package data algorithm, given bytes, a type, a optional mimeType, and a optional encodingName, which switches on type and runs the associated steps:
     switch (type) {
-    case Type::DataURL:
+    case Type::DataURL: {
         // Return bytes as a DataURL [RFC2397] subject to the considerations below:
         // Use mimeType as part of the Data URL if it is available in keeping with the Data URL specification [RFC2397].
         // If mimeType is not available return a Data URL without a media-type. [RFC2397].
-        return URL::create_with_data(mime_type.value_or(String {}), MUST(encode_base64(bytes)), true).to_string();
+        // https://github.com/w3c/FileAPI/issues/104
+        auto mime_string = mime_type.has_value() && !mime_type->is_empty() ? mime_type.value() : "application/octet-stream"_string;
+        return URL::create_with_data(mime_string, MUST(encode_base64(bytes)), true).to_string();
+    }
     case Type::Text: {
         // 1. Let encoding be failure.
         Optional<StringView> encoding;
@@ -173,102 +203,103 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
     bool is_first_chunk = true;
 
     // 10. In parallel, while true:
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap(), [this, chunk_promise, reader, bytes, is_first_chunk, &realm, type, encoding_name, blobs_type]() mutable {
-        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
-        Optional<MonotonicTime> progress_timer;
+    auto state = realm.create<ReadOperationState>(reader, move(bytes), is_first_chunk);
 
-        while (!m_is_aborted) {
-            auto& vm = realm.vm();
-            // FIXME: Try harder to not reach into the [[Promise]] slot of chunkPromise
-            auto promise = GC::Ref { as<JS::Promise>(*chunk_promise->promise()) };
+    state->process_next_chunk = GC::create_function(heap(), [this, state, &realm, type, encoding_name, blobs_type](GC::Ref<WebIDL::Promise> current_chunk_promise) mutable {
+        // 1. Wait for chunkPromise to be fulfilled or rejected.
+        WebIDL::react_to_promise(
+            current_chunk_promise,
+            GC::create_function(realm.heap(), [this, state, &realm, type, encoding_name, blobs_type](JS::Value promise_value) mutable -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-            // 1. Wait for chunkPromise to be fulfilled or rejected.
-            // FIXME: Create spec issue to use WebIDL react to promise steps here instead of this custom logic
-            HTML::main_thread_event_loop().spin_until(GC::create_function(heap(), [promise]() {
-                return promise->state() == JS::Promise::State::Fulfilled || promise->state() == JS::Promise::State::Rejected;
-            }));
+                if (m_is_aborted)
+                    return JS::js_undefined();
 
-            if (m_is_aborted)
-                return;
-
-            // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
-            // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
-            if (promise->state() == JS::Promise::State::Fulfilled && is_first_chunk) {
-                queue_a_task(GC::create_function(heap(), [this, &realm]() {
-                    dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadstart));
-                }));
-            }
-
-            // 3. Set isFirstChunk to false.
-            is_first_chunk = false;
-
-            VERIFY(promise->result().is_object());
-            auto& result = promise->result().as_object();
-
-            auto value = MUST(result.get(vm.names.value));
-            auto done = MUST(result.get(vm.names.done));
-
-            // 4. If chunkPromise is fulfilled with an object whose done property is false and whose value property is a Uint8Array object, run these steps:
-            if (promise->state() == JS::Promise::State::Fulfilled && !done.as_bool() && is<JS::Uint8Array>(value.as_object())) {
-                // 1. Let bs be the byte sequence represented by the Uint8Array object.
-                auto const& byte_sequence = as<JS::Uint8Array>(value.as_object());
-
-                // 2. Append bs to bytes.
-                bytes.append(byte_sequence.data());
-
-                // 3. If roughly 50ms have passed since these steps were last invoked, queue a task to fire a progress event called progress at fr.
-                auto now = MonotonicTime::now();
-                bool enough_time_passed = !progress_timer.has_value() || (now - progress_timer.value() >= AK::Duration::from_milliseconds(50));
-                // WPT tests for this and expects no progress event to fire when there isn't any data.
-                // See http://wpt.live/FileAPI/reading-data-section/filereader_events.any.html
-                bool contained_data = byte_sequence.array_length().length() > 0;
-                if (enough_time_passed && contained_data) {
+                // 2. If chunkPromise is fulfilled, and isFirstChunk is true, queue a task to fire a progress event called loadstart at fr.
+                // NOTE: ISSUE 2 We might change loadstart to be dispatched synchronously, to align with XMLHttpRequest behavior. [Issue #119]
+                if (state->is_first_chunk) {
                     queue_a_task(GC::create_function(heap(), [this, &realm]() {
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
+                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadstart));
                     }));
-                    progress_timer = now;
                 }
 
-                // 4. Set chunkPromise to the result of reading a chunk from stream with reader.
-                chunk_promise = reader->read();
-            }
-            // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
-            else if (promise->state() == JS::Promise::State::Fulfilled && done.as_bool()) {
-                queue_a_task(GC::create_function(heap(), [this, bytes, type, &realm, encoding_name, blobs_type]() {
-                    // 1. Set fr’s state to "done".
-                    m_state = State::Done;
+                // 3. Set isFirstChunk to false.
+                state->is_first_chunk = false;
 
-                    // 2. Let result be the result of package data given bytes, type, blob’s type, and encodingName.
-                    auto result = blob_package_data(realm, bytes, type, blobs_type, encoding_name);
+                VERIFY(promise_value.is_object());
+                auto& result = promise_value.as_object();
 
-                    // 3. If package data threw an exception error:
-                    if (result.is_error()) {
-                        // FIXME: 1. Set fr’s error to error.
+                auto& vm = realm.vm();
+                auto value = MUST(result.get(vm.names.value));
+                auto done = MUST(result.get(vm.names.done));
 
-                        // 2. Fire a progress event called error at fr.
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                // 4. If chunkPromise is fulfilled with an object whose done property is false and whose value property is a Uint8Array object, run these steps:
+                if (!done.as_bool() && value.is_object() && is<JS::Uint8Array>(value.as_object())) {
+                    // 1. Let bs be the byte sequence represented by the Uint8Array object.
+                    auto const& byte_sequence = as<JS::Uint8Array>(value.as_object());
+
+                    // 2. Append bs to bytes.
+                    state->bytes.append(byte_sequence.data());
+
+                    // 3. If roughly 50ms have passed since these steps were last invoked, queue a task to fire a progress event called progress at fr.
+                    auto now = MonotonicTime::now();
+                    bool enough_time_passed = !state->progress_timer.has_value() || (now - state->progress_timer.value() >= AK::Duration::from_milliseconds(50));
+                    // WPT tests for this and expects no progress event to fire when there isn't any data.
+                    // See http://wpt.live/FileAPI/reading-data-section/filereader_events.any.html
+                    bool contained_data = byte_sequence.array_length().length() > 0;
+                    if (enough_time_passed && contained_data) {
+                        queue_a_task(GC::create_function(heap(), [this, &realm]() {
+                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::progress));
+                        }));
+                        state->progress_timer = now;
                     }
-                    // 4. Else:
-                    else {
-                        // 1. Set fr’s result to result.
-                        m_result = result.release_value();
 
-                        // 2. Fire a progress event called load at the fr.
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::load));
-                    }
+                    // 4. Set chunkPromise to the result of reading a chunk from stream with reader.
+                    auto next_chunk_promise = state->reader->read();
+                    state->process_next_chunk->function()(next_chunk_promise);
+                }
+                // 5. Otherwise, if chunkPromise is fulfilled with an object whose done property is true, queue a task to run the following steps and abort this algorithm:
+                else if (done.as_bool()) {
+                    queue_a_task(GC::create_function(heap(), [this, bytes = move(state->bytes), type, &realm, encoding_name, blobs_type]() {
+                        // 1. Set fr’s state to "done".
+                        m_state = State::Done;
 
-                    // 5. If fr’s state is not "loading", fire a progress event called loadend at the fr.
-                    if (m_state != State::Loading)
-                        dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+                        // 2. Let result be the result of package data given bytes, type, blob’s type, and encodingName.
+                        auto result = blob_package_data(realm, bytes, type, blobs_type, encoding_name);
 
-                    // NOTE: Event handler for the load or error events could have started another load, if that happens
-                    //       the loadend event for this load is not fired.
-                }));
+                        // 3. If package data threw an exception error:
+                        if (result.is_error()) {
+                            // FIXME: 1. Set fr’s error to error.
 
-                return;
-            }
+                            // 2. Fire a progress event called error at fr.
+                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::error));
+                        }
+                        // 4. Else:
+                        else {
+                            // 1. Set fr’s result to result.
+                            m_result = result.release_value();
+
+                            // 2. Fire a progress event called load at the fr.
+                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::load));
+                        }
+
+                        // 5. If fr’s state is not "loading", fire a progress event called loadend at the fr.
+                        if (m_state != State::Loading)
+                            dispatch_event(DOM::Event::create(realm, HTML::EventNames::loadend));
+
+                        // NOTE: Event handler for the load or error events could have started another load, if that happens
+                        //       the loadend event for this load is not fired.
+                    }));
+                }
+
+                return JS::js_undefined();
+            }),
             // 6. Otherwise, if chunkPromise is rejected with an error error, queue a task to run the following steps and abort this algorithm:
-            else if (promise->state() == JS::Promise::State::Rejected) {
+            GC::create_function(realm.heap(), [this, &realm](JS::Value) -> WebIDL::ExceptionOr<JS::Value> {
+                HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+                if (m_is_aborted)
+                    return JS::js_undefined();
+
                 queue_a_task(GC::create_function(heap(), [this, &realm]() {
                     // 1. Set fr’s state to "done".
                     m_state = State::Done;
@@ -286,9 +317,13 @@ WebIDL::ExceptionOr<void> FileReader::read_operation(Blob& blob, Type type, Opti
                     //       loadend event for this load is not fired.
                 }));
 
-                return;
-            }
-        }
+                return JS::js_undefined();
+            }));
+    });
+
+    HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(heap(), [chunk_promise, state, &realm]() mutable {
+        HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        state->process_next_chunk->function()(chunk_promise);
     }));
 
     return {};

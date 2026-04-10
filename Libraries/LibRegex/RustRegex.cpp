@@ -20,6 +20,8 @@ int unicode_is_valid_ecma262_property(unsigned char const*, size_t, unsigned cha
 uint32_t unicode_get_string_property_data(unsigned char const*, size_t, uint32_t*, uint32_t);
 int unicode_resolve_property(unsigned char const*, size_t, unsigned char const*, size_t, int, unsigned char*, uint32_t*);
 int unicode_resolved_property_matches(uint32_t, unsigned char, uint32_t);
+int unicode_is_id_start(uint32_t);
+int unicode_is_id_continue(uint32_t);
 }
 
 extern "C" bool unicode_property_matches(
@@ -375,6 +377,16 @@ extern "C" uint32_t unicode_get_string_property_data(
     }
 
     return total_size;
+}
+
+extern "C" int unicode_is_id_start(uint32_t code_point)
+{
+    return Unicode::code_point_has_identifier_start_property(code_point) ? 1 : 0;
+}
+
+extern "C" int unicode_is_id_continue(uint32_t code_point)
+{
+    return Unicode::code_point_has_identifier_continue_property(code_point) ? 1 : 0;
 }
 
 namespace regex {

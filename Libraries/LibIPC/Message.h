@@ -44,9 +44,6 @@ public:
 private:
     MessageDataType m_data;
     Vector<Attachment> m_attachments;
-#ifdef AK_OS_WINDOWS
-    Vector<size_t> m_handle_offsets;
-#endif
 };
 
 enum class ErrorCode : u32 {

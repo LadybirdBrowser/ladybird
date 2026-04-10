@@ -352,6 +352,34 @@ test("named group names accept literal and escaped surrogate pairs", () => {
     }
 });
 
+test("named group names accept Unicode ID_Start characters", () => {
+    // U+03B1 GREEK SMALL LETTER ALPHA — ID_Start (regression: must still work)
+    const m = new RegExp("(?<\u03B1>x)").exec("x");
+    expect(m).not.toBeNull();
+    expect(m.groups["\u03B1"]).toBe("x");
+});
+
+test("named group names reject non-ID_Start as first character", () => {
+    // U+0300 COMBINING GRAVE ACCENT — Alphabetic but NOT ID_Start
+    expect(() => {
+        new RegExp("(?<\u0300>a)");
+    }).toThrowWithMessage(SyntaxError, "RegExp compile error: invalid group name");
+});
+
+test("named group names accept ID_Continue connector punctuation", () => {
+    // U+203F UNDERTIE — General_Category=Pc, ID_Continue (was rejected before fix)
+    const m = /(?<a‿b>x)/.exec("x");
+    expect(m).not.toBeNull();
+    expect(m.groups["a‿b"]).toBe("x");
+});
+
+test("named group names still accept digits as ID_Continue", () => {
+    // Digit in continue position (regression: must still work)
+    const m = new RegExp("(?<a1>x)").exec("x");
+    expect(m).not.toBeNull();
+    expect(m.groups["a1"]).toBe("x");
+});
+
 test("named backreferences accept literal and escaped surrogate pairs", () => {
     for (const pattern of [
         "(?<a\ud835\udcf8>.)\\k<a\ud835\udcf8>",

@@ -361,6 +361,7 @@ CACHE_POINTER_TYPES = {
     "GlobalVariableCache*": "global_variable_caches",
     "TemplateObjectCache*": "template_object_caches",
     "ObjectShapeCache*": "object_shape_caches",
+    "ObjectPropertyIteratorCache*": "object_property_iterator_caches",
 }
 
 
@@ -608,7 +609,8 @@ def generate_fixup_cache_function(ops: List[OpDef]) -> str:
     lines.append("    Span<PropertyLookupCache> property_lookup_caches,")
     lines.append("    Span<GlobalVariableCache> global_variable_caches,")
     lines.append("    Span<TemplateObjectCache> template_object_caches,")
-    lines.append("    Span<ObjectShapeCache> object_shape_caches)")
+    lines.append("    Span<ObjectShapeCache> object_shape_caches,")
+    lines.append("    Span<ObjectPropertyIteratorCache> object_property_iterator_caches)")
     lines.append("{")
     lines.append('    // Sentinel value used to indicate "no cache" (originally u32::MAX).')
     lines.append("    static constexpr u64 NO_CACHE = NumericLimits<u32>::max();")
@@ -704,7 +706,8 @@ void fixup_instruction_cache(
     Span<PropertyLookupCache> property_lookup_caches,
     Span<GlobalVariableCache> global_variable_caches,
     Span<TemplateObjectCache> template_object_caches,
-    Span<ObjectShapeCache> object_shape_caches);
+    Span<ObjectShapeCache> object_shape_caches,
+    Span<ObjectPropertyIteratorCache> object_property_iterator_caches);
 
 } // namespace JS::Bytecode
 """

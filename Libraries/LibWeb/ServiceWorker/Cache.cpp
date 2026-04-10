@@ -264,20 +264,13 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
         if (is<ServiceWorkerGlobalScope>(inner_request->client()->global_object()))
             inner_request->set_service_workers_mode(Fetch::Infrastructure::Request::ServiceWorkersMode::None);
 
-        // 4. Set r’s initiator to "fetch" and destination to "subresource".
-        // FIXME: Spec issue: There is no "fetch" initiator (spec probably wants initiator type). And there is no
-        //        "subresource" destination (so we set it to the "empty string" destination for now).
-        //        https://github.com/w3c/ServiceWorker/issues/1718
-        inner_request->set_initiator_type(Fetch::Infrastructure::Request::InitiatorType::Fetch);
-        inner_request->set_destination({});
-
-        // 5. Add r to requestList.
+        // 4. Add r to requestList.
         request_list->elements().append(inner_request);
 
-        // 6. Let responsePromise be a new promise.
+        // 5. Let responsePromise be a new promise.
         auto response_promise = WebIDL::create_promise(realm);
 
-        // 7. Run the following substeps in parallel:
+        // 6. Run the following substeps in parallel:
         Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, fetch_controllers, inner_request, response_promise]() {
             // * Append the result of fetching r.
             Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
@@ -343,7 +336,7 @@ GC::Ref<WebIDL::Promise> Cache::add_all(ReadonlySpan<Fetch::RequestInfo> request
             // Note: The cache commit is allowed when the response’s body is fully received.
         }));
 
-        // 8. Add responsePromise to responsePromises.
+        // 7. Add responsePromise to responsePromises.
         response_promises->elements().append(response_promise);
     }
 

@@ -5,10 +5,12 @@
  */
 
 #include <LibWebView/Application.h>
+#include <LibWebView/BookmarkStore.h>
 #include <LibWebView/Menu.h>
 
 #import <Interface/BookmarkFolder.h>
 #import <Interface/BookmarksBar.h>
+#import <Interface/Event.h>
 #import <Interface/Menu.h>
 #import <Utilities/Conversions.h>
 
@@ -285,6 +287,31 @@ static Optional<WebView::Menu&> find_bookmark_folder_by_id(WebView::Menu& menu, 
         [NSMenu popUpContextMenu:self.bookmark_context_menu withEvent:event forView:control];
     else if ([type isEqualToString:@"folder"])
         [NSMenu popUpContextMenu:self.bookmark_folder_context_menu withEvent:event forView:control];
+}
+
+- (void)showContextMenu:(Gfx::IntPoint)content_position
+                   view:(NSView*)view
+           bookmarkItem:(Optional<WebView::BookmarkItem const&>)item
+         targetFolderID:(Optional<String const&>)target_folder_id
+{
+    auto* event = Ladybird::create_context_menu_mouse_event(view, content_position);
+
+    if (item.has_value()) {
+        self.selected_bookmark_menu_item_id = Ladybird::string_to_ns_string(item->id);
+        self.selected_bookmark_menu_target_folder_id = target_folder_id.has_value()
+            ? Ladybird::string_to_ns_string(*target_folder_id)
+            : nil;
+
+        if (item->is_bookmark())
+            [NSMenu popUpContextMenu:self.bookmark_context_menu withEvent:event forView:view];
+        else if (item->is_folder())
+            [NSMenu popUpContextMenu:self.bookmark_folder_context_menu withEvent:event forView:view];
+    } else {
+        self.selected_bookmark_menu_item_id = @"";
+        self.selected_bookmark_menu_target_folder_id = nil;
+
+        [NSMenu popUpContextMenu:self.bookmarks_bar_context_menu withEvent:event forView:view];
+    }
 }
 
 - (void)showContextMenuForEvent:(NSEvent*)event

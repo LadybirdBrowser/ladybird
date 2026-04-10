@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2024-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,6 +14,12 @@ namespace Web::DOM {
 
 AbstractElement::AbstractElement(GC::Ref<Element> element, Optional<CSS::PseudoElement> pseudo_element)
     : m_element(element)
+    , m_pseudo_element(move(pseudo_element))
+{
+}
+
+AbstractElement::AbstractElement(Element const& element, Optional<CSS::PseudoElement> pseudo_element)
+    : m_element(const_cast<Element&>(element))
     , m_pseudo_element(move(pseudo_element))
 {
 }

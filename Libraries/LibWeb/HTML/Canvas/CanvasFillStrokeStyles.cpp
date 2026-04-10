@@ -40,7 +40,7 @@ void CanvasFillStrokeStyles<IncludingClass>::set_fill_style(FillOrStrokeStyleVar
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
             // FIXME: Parse a color value
             // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-            auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
+            auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, string, CSS::PropertyID::Color);
             if (style_value && style_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
 
@@ -97,7 +97,7 @@ void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleV
             // 2. Let parsedValue be the result of parsing the given value with context if non-null.
             // FIXME: Parse a color value
             // https://drafts.csswg.org/css-color/#parse-a-css-color-value
-            auto style_value = parse_css_value(CSS::Parser::ParsingParams(), string, CSS::PropertyID::Color);
+            auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, string, CSS::PropertyID::Color);
             if (style_value && style_value->has_color()) {
                 CSS::ColorResolutionContext color_resolution_context {};
 
@@ -124,7 +124,7 @@ void CanvasFillStrokeStyles<IncludingClass>::set_stroke_style(FillOrStrokeStyleV
             // FIXME: 2. If the given value is a CanvasPattern object that is marked as not origin-clean, then set this's origin-clean flag to false.
 
             // 3. Set this's stroke style to the given value.
-            my_drawing_state().fill_style = GC::Ref { *fill_or_stroke_style };
+            my_drawing_state().stroke_style = GC::Ref { *fill_or_stroke_style };
         });
 }
 

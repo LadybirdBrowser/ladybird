@@ -6,53 +6,34 @@
 
 #pragma once
 
-#include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
 namespace Web::CSS {
 
 class FitContentStyleValue final : public StyleValue {
 public:
-    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create()
-    {
-        return adopt_ref(*new (nothrow) FitContentStyleValue());
-    }
-    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(LengthPercentage length_percentage)
-    {
-        return adopt_ref(*new (nothrow) FitContentStyleValue(move(length_percentage)));
-    }
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create();
+    static ValueComparingNonnullRefPtr<FitContentStyleValue const> create(NonnullRefPtr<StyleValue const> length_percentage);
     virtual ~FitContentStyleValue() override = default;
 
-    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override
-    {
-        if (!m_length_percentage.has_value()) {
-            builder.append("fit-content"sv);
-            return;
-        }
-        builder.append("fit-content("sv);
-        m_length_percentage->serialize(builder, mode);
-        builder.append(')');
-    }
+    virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
+    virtual void serialize(StringBuilder& builder, SerializationMode mode) const override;
 
-    bool equals(StyleValue const& other) const override
-    {
-        if (type() != other.type())
-            return false;
-        return m_length_percentage == other.as_fit_content().m_length_percentage;
-    }
+    bool equals(StyleValue const& other) const override;
 
-    virtual bool is_computationally_independent() const override { return !m_length_percentage.has_value() || m_length_percentage->is_computationally_independent(); }
+    virtual bool is_computationally_independent() const override { return !m_length_percentage || m_length_percentage->is_computationally_independent(); }
 
-    [[nodiscard]] Optional<LengthPercentage> const& length_percentage() const { return m_length_percentage; }
+    [[nodiscard]] Optional<LengthPercentage> length_percentage() const;
+    RefPtr<StyleValue const> length_percentage_style_value() const { return m_length_percentage; }
 
 private:
-    FitContentStyleValue(Optional<LengthPercentage> length_percentage = {})
+    FitContentStyleValue(ValueComparingRefPtr<StyleValue const> length_percentage = {})
         : StyleValue(Type::FitContent)
         , m_length_percentage(move(length_percentage))
     {
     }
 
-    Optional<LengthPercentage> m_length_percentage;
+    ValueComparingRefPtr<StyleValue const> m_length_percentage;
 };
 
 }

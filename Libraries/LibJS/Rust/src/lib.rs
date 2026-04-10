@@ -1471,7 +1471,7 @@ unsafe fn extract_module_declarations(
 
                     // Get the binding name from the AST (e.g., "*default*" for anonymous defaults).
                     let binding_name = if let Some(name_ident) = &fd.name {
-                        name_ident.name.clone()
+                        name_ident.name.to_utf16_string()
                     } else {
                         continue;
                     };
@@ -1759,9 +1759,9 @@ fn extract_gdi_common(
     for child in scope.children.iter().rev() {
         if let StatementKind::FunctionDeclaration(ref fd) = child.inner
             && let Some(ref name_ident) = fd.name
-            && seen_names.insert(name_ident.name.clone())
+            && seen_names.insert(name_ident.name.to_utf16_string())
         {
-            functions_to_init.push((fd.function_id, name_ident.name.clone()));
+            functions_to_init.push((fd.function_id, name_ident.name.to_utf16_string()));
         }
     }
     for (function_id, name) in &functions_to_init {
@@ -2270,13 +2270,13 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
     for parameter in &function_data.parameters {
         match &parameter.binding {
             ast::FunctionParameterBinding::Identifier(ident) => {
-                if parameter_names.insert(ident.name.clone()) && !ident.is_local() {
+                if parameter_names.insert(ident.name.to_utf16_string()) && !ident.is_local() {
                     parameters_in_environment += 1;
                 }
             }
             ast::FunctionParameterBinding::BindingPattern(pattern) => {
                 for_each_binding_pattern_identifier(pattern, &mut |ident| {
-                    if parameter_names.insert(ident.name.clone()) && !ident.is_local() {
+                    if parameter_names.insert(ident.name.to_utf16_string()) && !ident.is_local() {
                         parameters_in_environment += 1;
                     }
                 });

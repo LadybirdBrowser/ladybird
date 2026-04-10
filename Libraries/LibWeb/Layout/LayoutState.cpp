@@ -130,46 +130,16 @@ static bool inline_axis_is_horizontal(CSS::WritingMode writing_mode)
     return writing_mode == CSS::WritingMode::HorizontalTb;
 }
 
-static bool inline_axis_is_reverse(CSS::WritingMode writing_mode, CSS::Direction direction)
-{
-    switch (writing_mode) {
-    case CSS::WritingMode::HorizontalTb:
-    case CSS::WritingMode::VerticalRl:
-    case CSS::WritingMode::VerticalLr:
-    case CSS::WritingMode::SidewaysRl:
-        return direction == CSS::Direction::Rtl;
-    case CSS::WritingMode::SidewaysLr:
-        return direction == CSS::Direction::Ltr;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-static bool block_axis_is_reverse(CSS::WritingMode writing_mode)
-{
-    switch (writing_mode) {
-    case CSS::WritingMode::HorizontalTb:
-    case CSS::WritingMode::VerticalLr:
-    case CSS::WritingMode::SidewaysLr:
-        return false;
-    case CSS::WritingMode::VerticalRl:
-    case CSS::WritingMode::SidewaysRl:
-        return true;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 static PhysicalOverflowDirections physical_overflow_directions(Box const& box)
 {
     auto const& computed_values = box.computed_values();
     LogicalAxis inline_axis {
         .is_horizontal = inline_axis_is_horizontal(computed_values.writing_mode()),
-        .is_reverse = inline_axis_is_reverse(computed_values.writing_mode(), computed_values.direction()),
+        .is_reverse = computed_values.inline_axis_is_reverse(),
     };
     LogicalAxis block_axis {
         .is_horizontal = !inline_axis.is_horizontal,
-        .is_reverse = block_axis_is_reverse(computed_values.writing_mode()),
+        .is_reverse = computed_values.block_axis_is_reverse(),
     };
 
     auto horizontal_and_vertical_axes = [&]() {

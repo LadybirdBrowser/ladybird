@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        let channel = new MessageChannel();
+        channel.port2.postMessage("x");
+        channel.port2.close();
+
+        window.onmessage = event => {
+            let transferred = event.ports[0];
+            transferred.onmessage = message => {
+                println(message.data);
+                done();
+            };
+            transferred.start();
+        };
+
+        window.postMessage("transfer", "*", [channel.port1]);
+    });
+</script>

@@ -172,6 +172,7 @@ pub struct Generator {
     pub next_global_variable_cache: u32,
     pub next_template_object_cache: u32,
     pub next_object_shape_cache: u32,
+    pub next_object_property_iterator_cache: u32,
 
     // --- Codegen state ---
     pub strict: bool,
@@ -316,6 +317,7 @@ impl Generator {
             next_global_variable_cache: 0,
             next_template_object_cache: 0,
             next_object_shape_cache: 0,
+            next_object_property_iterator_cache: 0,
             strict: false,
             function_environment_needed: true,
             enclosing_function_kind: FunctionKind::Normal,
@@ -815,6 +817,10 @@ impl Generator {
     next_cache_method!(next_global_variable_cache, next_global_variable_cache);
     next_cache_method!(next_template_object_cache, next_template_object_cache);
     next_cache_method!(next_object_shape_cache, next_object_shape_cache);
+    next_cache_method!(
+        next_object_property_iterator_cache,
+        next_object_property_iterator_cache
+    );
 
     // --- Lexical environment helpers ---
 

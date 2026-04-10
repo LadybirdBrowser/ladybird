@@ -1271,7 +1271,16 @@ private:
 
         // 7. For each document of documentsToFireBeforeunload, queue a global task on the navigation and traversal task source given document's relevant global object to run the steps:
         for (auto& document : m_phase2_documents) {
-            queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*document), GC::create_function(heap(), [this, document] {
+            // AD-HOC: Queue with a null document instead of using queue_global_task. Tasks associated with a document
+            //         are only runnable when fully active. In the async state machine, documents can become non
+            //         fully-active between queue and execution time, causing the task to be permanently stuck.
+            //         A null-document task is always runnable; we check validity inside.
+            queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [this, document] {
+                if (document->has_been_destroyed() || !document->is_fully_active()) {
+                    did_complete_phase2_task();
+                    return;
+                }
+
                 // 1. Let (unloadPromptShownForThisDocument, unloadPromptCanceledByThisDocument) be the result of running the steps to fire beforeunload given document and unloadPromptShown.
                 auto [unload_prompt_shown_for_this_document, unload_prompt_canceled_by_this_document] = document->steps_to_fire_beforeunload(m_unload_prompt_shown);
 

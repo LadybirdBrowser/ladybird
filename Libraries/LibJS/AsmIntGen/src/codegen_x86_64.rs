@@ -849,11 +849,16 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             if insn.operands.len() >= 2 {
                 let offset = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
-                // Load the u32 operand raw value from bytecode.
-                // Use r11 as scratch to avoid clobbering src if it's rax.
-                w!(out, "    mov r11d, DWORD PTR [r14 + r13 + {offset}]");
-                // Store value into values array
-                w!(out, "    mov QWORD PTR [r15 + r11 * 8], {src}");
+                // Load the u32 operand raw value from bytecode without
+                // clobbering the source value register.
+                if src == "r11" {
+                    w!(out, "    mov eax, DWORD PTR [r14 + r13 + {offset}]");
+                    w!(out, "    mov QWORD PTR [r15 + rax * 8], {src}");
+                } else {
+                    w!(out, "    mov r11d, DWORD PTR [r14 + r13 + {offset}]");
+                    // Store value into values array
+                    w!(out, "    mov QWORD PTR [r15 + r11 * 8], {src}");
+                }
             }
         }
 

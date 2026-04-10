@@ -11,6 +11,7 @@
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -82,6 +83,35 @@ int main()
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE = {}", plc_entries + offsetof(PropertyLookupCache::Entry, prototype));
     outln("const PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE_CHAIN_VALIDITY = {}", plc_entries + offsetof(PropertyLookupCache::Entry, prototype_chain_validity));
 
+    // ObjectPropertyIteratorCacheData layout
+    outln("\n# ObjectPropertyIteratorCacheData layout");
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES, ObjectPropertyIteratorCacheData, m_properties);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES, ObjectPropertyIteratorCacheData, m_property_values);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE, ObjectPropertyIteratorCacheData, m_shape);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY, ObjectPropertyIteratorCacheData, m_prototype_chain_validity);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT, ObjectPropertyIteratorCacheData, m_indexed_property_count);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION, ObjectPropertyIteratorCacheData, m_shape_dictionary_generation);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_FAST_PATH, ObjectPropertyIteratorCacheData, m_fast_path);
+
+    // ObjectPropertyIteratorCache layout
+    outln("\n# ObjectPropertyIteratorCache layout");
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PTR, ObjectPropertyIteratorCache, data);
+    EMIT_OFFSET(OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR, ObjectPropertyIteratorCache, reusable_property_name_iterator);
+
+    // PropertyNameIterator layout
+    outln("\n# PropertyNameIterator layout");
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_OBJECT, PropertyNameIterator, m_object);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_PROPERTY_CACHE, PropertyNameIterator, m_property_cache);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE, PropertyNameIterator, m_shape);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY, PropertyNameIterator, m_prototype_chain_validity);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT, PropertyNameIterator, m_iterator_cache_slot);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT, PropertyNameIterator, m_indexed_property_count);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY, PropertyNameIterator, m_next_indexed_property);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_NEXT_PROPERTY, PropertyNameIterator, m_next_property);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY, PropertyNameIterator, m_shape_is_dictionary);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION, PropertyNameIterator, m_shape_dictionary_generation);
+    EMIT_OFFSET(PROPERTY_NAME_ITERATOR_FAST_PATH, PropertyNameIterator, m_fast_path);
+
     // Executable layout
     outln("\n# Executable layout");
     EMIT_OFFSET(EXECUTABLE_PROPERTY_LOOKUP_CACHES, Executable, property_lookup_caches);
@@ -111,6 +141,12 @@ int main()
     outln("const INDEXED_STORAGE_KIND_HOLEY = {}", static_cast<u8>(IndexedStorageKind::Holey));
     outln("const INDEXED_STORAGE_KIND_DICTIONARY = {}", static_cast<u8>(IndexedStorageKind::Dictionary));
 
+    // ObjectPropertyIteratorFastPath enum values
+    outln("\n# ObjectPropertyIteratorFastPath enum values");
+    outln("const OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE = {}", static_cast<u8>(ObjectPropertyIteratorFastPath::None));
+    outln("const OBJECT_PROPERTY_ITERATOR_FAST_PATH_PLAIN_NAMED = {}", static_cast<u8>(ObjectPropertyIteratorFastPath::PlainNamed));
+    outln("const OBJECT_PROPERTY_ITERATOR_FAST_PATH_PACKED_INDEXED = {}", static_cast<u8>(ObjectPropertyIteratorFastPath::PackedIndexed));
+
     // Vector<Value> layout (used for bytecode)
     outln("\n# Vector<Value> layout");
     {
@@ -123,6 +159,8 @@ int main()
 
         // Composite offset for Executable.bytecode data pointer
         outln("const EXECUTABLE_BYTECODE_DATA = {}", offsetof(Executable, bytecode) + vec_data);
+        outln("const OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA = {}", offsetof(ObjectPropertyIteratorCacheData, m_property_values) + vec_data);
+        outln("const OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE = {}", offsetof(ObjectPropertyIteratorCacheData, m_property_values) + vec_size);
     }
 
     // PutKind enum

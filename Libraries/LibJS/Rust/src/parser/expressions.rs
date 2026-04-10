@@ -504,10 +504,8 @@ impl Parser<'_> {
                     return (arrow, false);
                 }
                 let token = self.consume_and_check_identifier();
-                let value = self.token_value(&token).to_vec();
-                let id = self.make_identifier(start, value.clone());
-                self.scope_collector
-                    .register_identifier(id.clone(), &value, None);
+                let id = self.make_identifier(start, self.token_identifier_name(&token));
+                self.scope_collector.register_identifier(id.clone(), None);
                 (self.expression(start, ExpressionKind::Identifier(id)), true)
             }
 
@@ -654,18 +652,14 @@ impl Parser<'_> {
                         );
                     }
                     let token = self.consume_and_check_identifier();
-                    let value = self.token_value(&token).to_vec();
-                    let id = self.make_identifier(start, value.clone());
-                    self.scope_collector
-                        .register_identifier(id.clone(), &value, None);
+                    let id = self.make_identifier(start, self.token_identifier_name(&token));
+                    self.scope_collector.register_identifier(id.clone(), None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else if self.match_token(TokenType::EscapedKeyword) {
                     self.syntax_error("Keyword must not contain escaped characters");
                     let token = self.consume_and_check_identifier();
-                    let value = self.token_value(&token).to_vec();
-                    let id = self.make_identifier(start, value.clone());
-                    self.scope_collector
-                        .register_identifier(id.clone(), &value, None);
+                    let id = self.make_identifier(start, self.token_identifier_name(&token));
+                    self.scope_collector.register_identifier(id.clone(), None);
                     (self.expression(start, ExpressionKind::Identifier(id)), true)
                 } else {
                     self.expected("primary expression");
@@ -885,8 +879,7 @@ impl Parser<'_> {
                     let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
                     for (name, id) in &bound_names {
                         self.check_identifier_name_for_assignment_validity(name, false);
-                        self.scope_collector
-                            .register_identifier(id.clone(), name, None);
+                        self.scope_collector.register_identifier(id.clone(), None);
                     }
                     self.pattern_bound_names = saved_bound_names;
                     self.consume();
@@ -978,12 +971,11 @@ impl Parser<'_> {
                     )
                 } else if self.match_identifier_name() {
                     let token = self.consume();
-                    let value = self.token_value(&token).to_vec();
                     // C++ uses rule_start (period position) for property identifiers.
-                    let property = self.expression(
-                        start,
-                        ExpressionKind::Identifier(self.make_identifier(start, value)),
-                    );
+                    let property_identifier =
+                        self.make_identifier(start, self.token_identifier_name(&token));
+                    let property =
+                        self.expression(start, ExpressionKind::Identifier(property_identifier));
                     (
                         self.expression(
                             start,
@@ -1386,9 +1378,11 @@ impl Parser<'_> {
                         if self.match_identifier_name() {
                             let property_start = self.position();
                             let token = self.consume();
-                            let value = self.token_value(&token).to_vec();
                             references.push(OptionalChainReference::MemberReference {
-                                identifier: self.make_identifier(property_start, value),
+                                identifier: self.make_identifier(
+                                    property_start,
+                                    self.token_identifier_name(&token),
+                                ),
                                 mode: OptionalChainMode::Optional,
                             });
                         } else {
@@ -1415,9 +1409,9 @@ impl Parser<'_> {
                 } else if self.match_identifier_name() {
                     let property_start = self.position();
                     let token = self.consume();
-                    let value = self.token_value(&token).to_vec();
                     references.push(OptionalChainReference::MemberReference {
-                        identifier: self.make_identifier(property_start, value),
+                        identifier: self
+                            .make_identifier(property_start, self.token_identifier_name(&token)),
                         mode: OptionalChainMode::NotOptional,
                     });
                 } else {
@@ -1735,8 +1729,7 @@ impl Parser<'_> {
             && let Some(kv) = &key_value
         {
             let id = self.make_identifier(obj_start, kv.clone());
-            self.scope_collector
-                .register_identifier(id.clone(), &id.name, None);
+            self.scope_collector.register_identifier(id.clone(), None);
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             self.consume(); // consume '='
             // NB: Add a syntax error for CoverInitializedName. This error will
@@ -1767,8 +1760,7 @@ impl Parser<'_> {
                 self.syntax_error(&format!("'{name_str}' is a reserved keyword"));
             }
             let id = self.make_identifier(obj_start, kv);
-            self.scope_collector
-                .register_identifier(id.clone(), &id.name, None);
+            self.scope_collector.register_identifier(id.clone(), None);
             let value = self.expression(obj_start, ExpressionKind::Identifier(id));
             return ObjectProperty {
                 range: self.range_from(obj_start),

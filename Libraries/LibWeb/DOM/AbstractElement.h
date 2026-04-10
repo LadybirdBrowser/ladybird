@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Sam Atkins <sam@ladybird.org>
+ * Copyright (c) 2025-2026, Sam Atkins <sam@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -14,9 +14,11 @@
 namespace Web::DOM {
 
 // Either an Element or a PseudoElement
+// FIXME: Figure out const-correctness for the Element.
 class WEB_API AbstractElement {
 public:
     AbstractElement(GC::Ref<Element>, Optional<CSS::PseudoElement> = {});
+    AbstractElement(Element const&, Optional<CSS::PseudoElement> = {});
 
     Document& document() const;
 

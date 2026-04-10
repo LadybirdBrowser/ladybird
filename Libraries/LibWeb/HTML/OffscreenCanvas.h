@@ -67,6 +67,8 @@ public:
     void set_oncontextrestored(GC::Ptr<WebIDL::CallbackType>);
     GC::Ptr<WebIDL::CallbackType> oncontextrestored();
 
+    CSS::ComputationContext canvas_font_computation_context() const;
+
 private:
     OffscreenCanvas(JS::Realm&, RefPtr<Gfx::Bitmap> bitmap);
 

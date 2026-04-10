@@ -78,6 +78,7 @@ struct BrowserOptions {
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
     Optional<HeadlessMode> headless_mode;
+    u32 screenshot_delay { 1 };
     int window_width { 800 };
     int window_height { 600 };
     NewWindow new_window { NewWindow::No };
@@ -85,7 +86,7 @@ struct BrowserOptions {
     AllowPopups allow_popups { AllowPopups::No };
     DisableScripting disable_scripting { DisableScripting::No };
     DisableSQLDatabase disable_sql_database { DisableSQLDatabase::No };
-    Optional<ProcessType> debug_helper_process {};
+    Vector<ProcessType> debug_helper_processes {};
     Optional<ProcessType> profile_helper_process {};
     Optional<ByteString> webdriver_endpoint {};
     Optional<DNSSettings> dns_settings {};

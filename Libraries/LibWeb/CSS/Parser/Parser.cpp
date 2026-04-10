@@ -47,6 +47,11 @@ ParsingParams::ParsingParams(ParsingMode mode)
 {
 }
 
+ParsingParams::ParsingParams(ValueParsingContext value_context)
+    : value_context(Vector { move(value_context) })
+{
+}
+
 ParsingParams::ParsingParams(JS::Realm& realm, ParsingMode mode)
     : realm(realm)
     , mode(mode)
@@ -1932,7 +1937,7 @@ bool Parser::context_allows_tree_counting_functions() const
         if (context.has<DescriptorContext>())
             return false;
 
-        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
+        if (auto const* special_context = context.get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::DOMMatrixInitString, SpecialContext::MediaCondition))
             return false;
 
         // TODO: Handle other contexts where tree counting functions are not allowed
@@ -1943,7 +1948,12 @@ bool Parser::context_allows_tree_counting_functions() const
 
 bool Parser::context_allows_random_functions() const
 {
+    if (auto const* special_context = m_value_context.first().get_pointer<SpecialContext>(); special_context && first_is_one_of(*special_context, SpecialContext::CanvasContextGenericValue, SpecialContext::OnScreenCanvasContextFontValue))
+        return false;
+
     // For now we only allow random functions within property contexts, see https://drafts.csswg.org/css-values-5/#issue-cd071f29
+    // FIXME: Should this instead check that the top-level context is a property context (our current configuration
+    //        allows these within DOMMatrixInitString for example)
     return m_value_context.contains([](ValueParsingContext context) { return context.has<PropertyID>(); });
 }
 

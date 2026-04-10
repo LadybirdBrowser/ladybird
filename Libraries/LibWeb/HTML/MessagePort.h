@@ -79,6 +79,10 @@ private:
 
     bool is_entangled() const;
 
+    void dispatch_pending_messages();
+    void flush_pending_outgoing_messages();
+    void queue_message_task(SerializedTransferRecord&&);
+    void drain_transport();
     void post_message_task_steps(SerializedTransferRecord&);
     void post_port_message(SerializedTransferRecord const&);
     ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
@@ -94,6 +98,9 @@ private:
 
     GC::Ptr<DOM::EventTarget> m_worker_event_target;
 
+    Vector<SerializedTransferRecord> m_pending_incoming_messages;
+    Vector<SerializedTransferRecord> m_pending_outgoing_messages;
+    bool m_should_shutdown_on_enable { false };
     bool m_enabled { false };
 };
 

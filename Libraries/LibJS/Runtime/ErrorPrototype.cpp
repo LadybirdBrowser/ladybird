@@ -78,35 +78,35 @@ JS_DEFINE_NATIVE_FUNCTION(ErrorPrototype::stack_getter)
     auto this_object = TRY(PrototypeObject::this_object(vm));
 
     // 3. If E does not have an [[ErrorData]] internal slot, return undefined.
-    auto* error = as_if<Error>(*this_object);
-    if (!error)
+    auto* error_data = this_object->error_data();
+    if (!error_data)
         return js_undefined();
 
     // OPTIMIZATION: Avoid recomputing the stack string if we already have it cached.
     //               At least one major engine does this as well, so it's not expected that changing
     //               the name or message properties updates the stack string.
-    if (error->cached_string())
-        return error->cached_string();
+    if (error_data->cached_string())
+        return error_data->cached_string();
 
     // 4. Return ? GetStackString(error).
     // NOTE: These steps are not implemented based on the proposal, but to roughly follow behavior of other browsers.
 
     String name {};
-    if (auto name_property = TRY(error->get(vm.names.name)); !name_property.is_undefined())
+    if (auto name_property = TRY(this_object->get(vm.names.name)); !name_property.is_undefined())
         name = TRY(name_property.to_string(vm));
     else
         name = "Error"_string;
 
     Utf16String message {};
-    if (auto message_property = TRY(error->get(vm.names.message)); !message_property.is_undefined())
+    if (auto message_property = TRY(this_object->get(vm.names.message)); !message_property.is_undefined())
         message = TRY(message_property.to_utf16_string(vm));
 
     auto header = message.is_empty()
         ? move(name)
         : MUST(String::formatted("{}: {}", name, message));
 
-    auto string = PrimitiveString::create(vm, Utf16String::formatted("{}\n{}", header, error->stack_string()));
-    error->set_cached_string(string);
+    auto string = PrimitiveString::create(vm, Utf16String::formatted("{}\n{}", header, error_data->stack_string()));
+    error_data->set_cached_string(string);
     return string;
 }
 

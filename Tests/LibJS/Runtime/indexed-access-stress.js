@@ -112,6 +112,122 @@ describe("sparse arrays and holes", () => {
 
         if (oldProto !== undefined) Array.prototype[1] = oldProto;
     });
+
+    test("writing through a hole still respects prototype setters", () => {
+        const oldDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "1");
+        let seen = undefined;
+
+        try {
+            Object.defineProperty(Array.prototype, "1", {
+                configurable: true,
+                set(value) {
+                    seen = value;
+                },
+            });
+
+            const arr = Array(3);
+            arr[1] = "value";
+
+            expect(seen).toBe("value");
+            expect(Object.prototype.hasOwnProperty.call(arr, 1)).toBeFalse();
+        } finally {
+            delete Array.prototype[1];
+            if (oldDescriptor !== undefined) Object.defineProperty(Array.prototype, "1", oldDescriptor);
+        }
+    });
+
+    test("writing through a hole respects inherited non-writable properties", () => {
+        const oldDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "1");
+
+        try {
+            Object.defineProperty(Array.prototype, "1", {
+                value: "proto",
+                writable: false,
+                configurable: true,
+            });
+
+            const arr = Array(3);
+            arr[1] = "value";
+
+            expect(arr[1]).toBe("proto");
+            expect(Object.prototype.hasOwnProperty.call(arr, 1)).toBeFalse();
+        } finally {
+            delete Array.prototype[1];
+            if (oldDescriptor !== undefined) Object.defineProperty(Array.prototype, "1", oldDescriptor);
+        }
+    });
+
+    test("strict mode writing through a hole respects inherited non-writable properties", () => {
+        const oldDescriptor = Object.getOwnPropertyDescriptor(Array.prototype, "1");
+
+        try {
+            Object.defineProperty(Array.prototype, "1", {
+                value: "proto",
+                writable: false,
+                configurable: true,
+            });
+
+            expect(() => {
+                "use strict";
+                const arr = Array(3);
+                arr[1] = "value";
+            }).toThrow(TypeError);
+        } finally {
+            delete Array.prototype[1];
+            if (oldDescriptor !== undefined) Object.defineProperty(Array.prototype, "1", oldDescriptor);
+        }
+    });
+
+    test("writing through a hole respects non-extensible arrays", () => {
+        const arr = Array(3);
+        Object.preventExtensions(arr);
+        arr[1] = "value";
+
+        expect(arr[1]).toBeUndefined();
+        expect(1 in arr).toBeFalse();
+    });
+
+    test("strict mode writing through a hole respects non-extensible arrays", () => {
+        expect(() => {
+            "use strict";
+            const arr = Array(3);
+            Object.preventExtensions(arr);
+            arr[1] = "value";
+        }).toThrow(TypeError);
+    });
+
+    test("very large holey arrays behave correctly", () => {
+        const length = 20_000_000;
+        const arr = Array(length);
+
+        expect(arr.length).toBe(length);
+        expect(0 in arr).toBeFalse();
+        expect(arr[length - 1]).toBeUndefined();
+
+        arr[2] = "start";
+        arr[1_000_000] = "middle";
+        arr[length - 1] = "end";
+
+        expect(arr.length).toBe(length);
+        expect(arr[2]).toBe("start");
+        expect(arr[1_000_000]).toBe("middle");
+        expect(arr[length - 1]).toBe("end");
+        expect(999_999 in arr).toBeFalse();
+    });
+
+    test("densely filling a large holey array keeps implicit holes intact", () => {
+        const length = 100_000;
+        const arr = Array(length);
+
+        for (let i = 2; i < length; ++i) arr[i] = i;
+
+        expect(arr.length).toBe(length);
+        expect(0 in arr).toBeFalse();
+        expect(1 in arr).toBeFalse();
+        expect(arr[2]).toBe(2);
+        expect(arr[50_000]).toBe(50_000);
+        expect(arr[length - 1]).toBe(length - 1);
+    });
 });
 
 describe("out of bounds access", () => {

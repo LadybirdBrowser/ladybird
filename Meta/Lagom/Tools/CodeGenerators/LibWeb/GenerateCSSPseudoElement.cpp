@@ -87,6 +87,8 @@ Optional<PseudoElement> aliased_pseudo_element_from_string(StringView);
 WEB_API StringView pseudo_element_name(PseudoElement);
 
 bool is_has_allowed_pseudo_element(PseudoElement);
+bool is_tree_abiding_pseudo_element(PseudoElement);
+bool is_element_backed_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
 bool pseudo_element_supports_property(PseudoElement, PropertyID);
 
@@ -205,6 +207,65 @@ bool is_has_allowed_pseudo_element(PseudoElement pseudo_element)
         if (pseudo_element.has("alias-for"sv))
             return;
         if (!pseudo_element.get_bool("is-allowed-in-has"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+
+        member_generator.append(R"~~~(
+    case PseudoElement::@name:titlecase@:
+        return true;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    default:
+        return false;
+    }
+}
+
+bool is_tree_abiding_pseudo_element(PseudoElement pseudo_element)
+{
+    // Element-backed pseudo-elements are always tree-abiding.
+    // https://drafts.csswg.org/css-pseudo-4/#element-backed
+    if (is_element_backed_pseudo_element(pseudo_element))
+        return true;
+
+    switch (pseudo_element) {
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
+        if (!pseudo_element.get_bool("is-tree-abiding"sv).value_or(false))
+            return;
+
+        auto member_generator = generator.fork();
+        member_generator.set("name:titlecase", title_casify(name));
+
+        member_generator.append(R"~~~(
+    case PseudoElement::@name:titlecase@:
+        return true;
+)~~~");
+    });
+
+    generator.append(R"~~~(
+    default:
+        return false;
+    }
+}
+
+bool is_element_backed_pseudo_element(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+)~~~");
+
+    pseudo_elements_data.for_each_member([&](auto& name, JsonValue const& value) {
+        auto& pseudo_element = value.as_object();
+        if (pseudo_element.has("alias-for"sv))
+            return;
+        if (!pseudo_element.get_bool("is-element-backed"sv).value_or(false))
             return;
 
         auto member_generator = generator.fork();

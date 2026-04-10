@@ -246,10 +246,10 @@ static bool needs_comment_between(Parser::ComponentValue const& first, Parser::C
             return true;
         if (!second.is_token())
             return false;
-        if (second.token().type() == Parser::Token::Type::Delim)
-            return second.is_delim('-') || second.is_delim('(');
+        if (second.is_delim('-'))
+            return true;
         return first_is_one_of(second.token().type(),
-            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::Number, Parser::Token::Type::Percentage, Parser::Token::Type::Dimension, Parser::Token::Type::CDC);
+            Parser::Token::Type::Ident, Parser::Token::Type::Url, Parser::Token::Type::BadUrl, Parser::Token::Type::Number, Parser::Token::Type::Percentage, Parser::Token::Type::Dimension, Parser::Token::Type::CDC, Parser::Token::Type::OpenParen);
     }
 
     if (first.is(Parser::Token::Type::AtKeyword)

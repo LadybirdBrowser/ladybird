@@ -262,6 +262,8 @@ void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
 void HTMLMediaElement::cancel_the_fetching_process()
 {
     m_current_fetch_generation++;
+    if (m_remote_fetch_data && m_remote_fetch_data->stream)
+        m_remote_fetch_data->stream->close();
     m_remote_fetch_data.clear();
 }
 
@@ -1169,14 +1171,10 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     m_remote_fetch_data = make<RemoteFetchData>();
     m_remote_fetch_data->url_record = url_record;
     m_remote_fetch_data->stream = Media::IncrementallyPopulatedStream::create_empty();
-    m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [&fetch_data = *m_remote_fetch_data](auto& self, u64 offset) {
+    m_remote_fetch_data->stream->set_data_request_callback(GC::weak_callback(*this, [](auto& self, u64 offset) {
         self.restart_fetch_at_offset(offset);
     }));
-    m_remote_fetch_data->failure_callback = [&stream = *m_remote_fetch_data->stream, failure_callback = move(failure_callback)](String error_message) {
-        // Ensure that we unblock any reads if we stop the fetch due to some failure.
-        stream.close();
-        failure_callback(move(error_message));
-    };
+    m_remote_fetch_data->failure_callback = move(failure_callback);
 
     set_up_playback_manager_for_remote();
 
@@ -1784,12 +1782,11 @@ void HTMLMediaElement::set_up_playback_manager_for_remote()
 
             // 1. The user agent should cancel the fetching process.
             VERIFY(self->m_remote_fetch_data);
-            auto fetch_data = move(self->m_remote_fetch_data);
-            if (fetch_data->fetch_controller)
-                fetch_data->fetch_controller->stop_fetch();
+            auto failure_callback = move(self->m_remote_fetch_data->failure_callback);
+            self->cancel_the_fetching_process();
 
             // 2. Abort this subalgorithm, returning to the resource selection algorithm.
-            fetch_data->failure_callback(MUST(String::from_utf8(error.description())));
+            failure_callback(MUST(String::from_utf8(error.description())));
         });
     });
 
@@ -2378,9 +2375,9 @@ void HTMLMediaElement::seek_element(double playback_position, MediaSeekMode seek
     //    playback position, then the adjusted new playback position must also be after the current playback position.
     auto manager_seek_mode = Media::SeekMode::Accurate;
     if (seek_mode == MediaSeekMode::ApproximateForSpeed) {
-        if (playback_position <= current_playback_position())
+        if (playback_position < current_playback_position())
             manager_seek_mode = Media::SeekMode::FastBefore;
-        else
+        else if (playback_position > current_playback_position())
             manager_seek_mode = Media::SeekMode::FastAfter;
     }
 

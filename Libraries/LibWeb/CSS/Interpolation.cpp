@@ -22,6 +22,8 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
@@ -571,44 +573,10 @@ static void append_grid_track_with_line_names(GridTrackSizeList& list, ExplicitG
         list.append(line_names.release_value());
 }
 
-static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationContext const& calculation_context, GridTrackSizeList const& from, GridTrackSizeList const& to, float delta)
+static Optional<GridTrackSizeList> interpolate_grid_track_size_list(DOM::Element& element, CalculationContext const& calculation_context, GridTrackSizeList const& from, GridTrackSizeList const& to, float delta)
 {
-    auto interpolate_css_size = [&](Size const& from_size, Size const& to_size) -> Size {
-        if (from_size.is_length_percentage() && to_size.is_length_percentage()) {
-            auto interpolated_length = interpolate_length_percentage(calculation_context, from_size.length_percentage(), to_size.length_percentage(), delta);
-            return Size::make_length_percentage(*interpolated_length);
-        }
-
-        if (from_size.type() != to_size.type())
-            return delta < 0.5f ? from_size : to_size;
-
-        switch (from_size.type()) {
-        case Size::Type::FitContent: {
-            if (!from_size.fit_content_available_space().has_value() || !to_size.fit_content_available_space().has_value())
-                break;
-            auto interpolated_available_space = interpolate_length_percentage(calculation_context, *from_size.fit_content_available_space(), *to_size.fit_content_available_space(), delta);
-            if (!interpolated_available_space.has_value())
-                break;
-            return Size::make_fit_content(interpolated_available_space.release_value());
-        }
-        default:
-            break;
-        }
-
-        return delta < 0.5f ? from_size : to_size;
-    };
-
     auto interpolate_grid_size = [&](GridSize const& from_grid_size, GridSize const& to_grid_size) -> GridSize {
-        if (from_grid_size.is_flexible_length() || to_grid_size.is_flexible_length()) {
-            if (from_grid_size.is_flexible_length() && to_grid_size.is_flexible_length()) {
-                auto interpolated_flex = interpolate_raw(from_grid_size.flex_factor(), to_grid_size.flex_factor(), delta);
-                return GridSize { Flex::make_fr(interpolated_flex) };
-            }
-        } else {
-            auto interpolated_size = interpolate_css_size(from_grid_size.css_size(), to_grid_size.css_size());
-            return GridSize { move(interpolated_size) };
-        }
-        return delta < 0.5f ? from_grid_size : to_grid_size;
+        return GridSize { *interpolate_value(element, calculation_context, from_grid_size.style_value(), to_grid_size.style_value(), delta, AllowDiscrete::Yes) };
     };
 
     auto expanded_from = expand_grid_tracks_and_lines(from);
@@ -635,7 +603,7 @@ static Optional<GridTrackSizeList> interpolate_grid_track_size_list(CalculationC
             if (from_repeat.repeat_count() != to_repeat.repeat_count() || from_repeat.grid_track_size_list().track_list().size() != to_repeat.grid_track_size_list().track_list().size())
                 return {};
 
-            auto interpolated_repeat_grid_tracks = interpolate_grid_track_size_list(calculation_context, from_repeat.grid_track_size_list(), to_repeat.grid_track_size_list(), delta);
+            auto interpolated_repeat_grid_tracks = interpolate_grid_track_size_list(element, calculation_context, from_repeat.grid_track_size_list(), to_repeat.grid_track_size_list(), delta);
             if (!interpolated_repeat_grid_tracks.has_value())
                 return {};
 
@@ -789,7 +757,7 @@ ValueComparingRefPtr<StyleValue const> interpolate_property(DOM::Element& elemen
             auto from_list = from->as_grid_track_size_list().grid_track_size_list();
             auto to_list = to->as_grid_track_size_list().grid_track_size_list();
 
-            auto interpolated_grid_tack_size_list = interpolate_grid_track_size_list(calculation_context, from_list, to_list, delta);
+            auto interpolated_grid_tack_size_list = interpolate_grid_track_size_list(element, calculation_context, from_list, to_list, delta);
             if (!interpolated_grid_tack_size_list.has_value())
                 return interpolate_discrete(from, to, delta, allow_discrete);
 
@@ -1856,6 +1824,22 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
 
         return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()));
     }
+    case StyleValue::Type::FitContent: {
+        auto const& from_length_percentage = from.as_fit_content().length_percentage_style_value();
+        auto const& to_length_percentage = to.as_fit_content().length_percentage_style_value();
+        if (!from_length_percentage || !to_length_percentage)
+            return {};
+
+        auto interpolated_length_percentage = interpolate_value_impl(element, calculation_context, *from_length_percentage, *to_length_percentage, delta, allow_discrete);
+        if (!interpolated_length_percentage)
+            return {};
+
+        return FitContentStyleValue::create(interpolated_length_percentage.release_nonnull());
+    }
+    case StyleValue::Type::Flex: {
+        auto interpolated_value = interpolate_raw(from.as_flex().flex().to_fr(), to.as_flex().flex().to_fr(), delta, calculation_context.accepted_type_ranges.get(ValueType::Flex));
+        return FlexStyleValue::create(Flex::make_fr(interpolated_value));
+    }
     case StyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers
         // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
@@ -2330,65 +2314,11 @@ static T composite_raw_values(T underlying_raw_value, T animated_raw_value)
     return underlying_raw_value + animated_raw_value;
 }
 
-static Optional<LengthPercentage> add_length_percentages(CalculationContext const& calculation_context, LengthPercentage const& a, LengthPercentage const& b)
+static Optional<GridTrackSizeList> composite_grid_track_size_list(PropertyID property_id, CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated, Bindings::CompositeOperation composite_operation)
 {
-    if (a.is_length() && b.is_length() && a.length().unit() == b.length().unit()) {
-        return LengthPercentage { Length { a.length().raw_value() + b.length().raw_value(), a.length().unit() } };
-    }
-
-    if (a.is_percentage() && b.is_percentage()) {
-        return LengthPercentage { Percentage { a.percentage().value() + b.percentage().value() } };
-    }
-
-    auto a_style_value = length_percentage_or_auto_to_style_value(a);
-    auto b_style_value = length_percentage_or_auto_to_style_value(b);
-
-    auto a_node = CalculationNode::from_style_value(a_style_value, calculation_context);
-    auto b_node = CalculationNode::from_style_value(b_style_value, calculation_context);
-
-    auto sum = SumCalculationNode::create({ a_node, b_node });
-    auto simplified = simplify_a_calculation_tree(sum, calculation_context, {});
-    auto result_type = a_node->numeric_type()->added_to(*b_node->numeric_type());
-    if (!result_type.has_value())
-        return {};
-
-    auto calculated = CalculatedStyleValue::create(simplified, *result_type, calculation_context);
-    return LengthPercentage::from_style_value(calculated);
-}
-
-static Optional<GridTrackSizeList> composite_grid_track_size_list(CalculationContext const& calculation_context, GridTrackSizeList const& underlying, GridTrackSizeList const& animated)
-{
-    auto composite_css_size = [&calculation_context](Size const& underlying_size, Size const& animated_size) -> Optional<Size> {
-        if (underlying_size.is_length_percentage() && animated_size.is_length_percentage()) {
-            auto composited = add_length_percentages(calculation_context, underlying_size.length_percentage(), animated_size.length_percentage());
-            if (!composited.has_value())
-                return {};
-            return Size::make_length_percentage(*composited);
-        }
-
-        if (underlying_size.is_fit_content() && animated_size.is_fit_content()) {
-            if (!underlying_size.fit_content_available_space().has_value() || !animated_size.fit_content_available_space().has_value())
-                return {};
-            auto composited = add_length_percentages(calculation_context, *underlying_size.fit_content_available_space(), *animated_size.fit_content_available_space());
-            if (!composited.has_value())
-                return {};
-            return Size::make_fit_content(*composited);
-        }
-
-        return {};
-    };
-
     auto composite_grid_size = [&](GridSize const& underlying_grid_size, GridSize const& animated_grid_size) -> Optional<GridSize> {
-        if (underlying_grid_size.is_flexible_length() && animated_grid_size.is_flexible_length()) {
-            auto composited_flex = underlying_grid_size.flex_factor() + animated_grid_size.flex_factor();
-            return GridSize { Flex::make_fr(composited_flex) };
-        }
-
-        if (!underlying_grid_size.is_flexible_length() && !animated_grid_size.is_flexible_length()) {
-            auto composited_size = composite_css_size(underlying_grid_size.css_size(), animated_grid_size.css_size());
-            if (composited_size.has_value())
-                return GridSize { move(*composited_size) };
-        }
+        if (auto composited_value = composite_value(property_id, underlying_grid_size.style_value(), animated_grid_size.style_value(), composite_operation))
+            return GridSize { *composited_value };
 
         return {};
     };
@@ -2416,7 +2346,7 @@ static Optional<GridTrackSizeList> composite_grid_track_size_list(CalculationCon
             if (underlying_repeat.repeat_count() != animated_repeat.repeat_count() || underlying_repeat.grid_track_size_list().track_list().size() != animated_repeat.grid_track_size_list().track_list().size())
                 return {};
 
-            auto composited_repeat_grid_tracks = composite_grid_track_size_list(calculation_context, underlying_repeat.grid_track_size_list(), animated_repeat.grid_track_size_list());
+            auto composited_repeat_grid_tracks = composite_grid_track_size_list(property_id, calculation_context, underlying_repeat.grid_track_size_list(), animated_repeat.grid_track_size_list(), composite_operation);
             if (!composited_repeat_grid_tracks.has_value())
                 return {};
 
@@ -2655,10 +2585,26 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
 
         return {};
     }
+    case StyleValue::Type::FitContent: {
+        auto underlying_length_percentage = underlying_value.as_fit_content().length_percentage_style_value();
+        auto animated_length_percentage = animated_value.as_fit_content().length_percentage_style_value();
+        if (!underlying_length_percentage || !animated_length_percentage)
+            return {};
+
+        auto composited_length_percentage = composite_value(property_id, *underlying_length_percentage, *animated_length_percentage, composite_operation);
+        if (!composited_length_percentage)
+            return {};
+
+        return FitContentStyleValue::create(composited_length_percentage.release_nonnull());
+    }
+    case StyleValue::Type::Flex: {
+        auto result = composite_raw_values(underlying_value.as_flex().flex().to_fr(), animated_value.as_flex().flex().to_fr());
+        return FlexStyleValue::create(Flex::make_fr(result));
+    }
     case StyleValue::Type::GridTrackSizeList: {
         auto underlying_list = underlying_value.as_grid_track_size_list().grid_track_size_list();
         auto animated_list = animated_value.as_grid_track_size_list().grid_track_size_list();
-        auto composited_list = composite_grid_track_size_list(calculation_context, underlying_list, animated_list);
+        auto composited_list = composite_grid_track_size_list(property_id, calculation_context, underlying_list, animated_list, composite_operation);
         if (!composited_list.has_value())
             return {};
         return GridTrackSizeListStyleValue::create(composited_list.release_value());

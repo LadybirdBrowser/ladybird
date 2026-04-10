@@ -3,29 +3,21 @@ description: 'Saves caches of build artifacts.'
 author: 'Andrew Kaster <akaster@serenityos.org>'
 
 inputs:
-  runner_labels:
-    description: 'Runner selection labels'
-    required: true
   arch:
     description: 'Target Architecture to restore caches for'
-    required: false
-    default: 'x86_64'
+    required: true
   ccache_path:
     description: 'Path to the ccache directory'
-    required: false
-    default: ''
+    required: true
   ccache_primary_key:
     description: 'Primary ccache key'
-    required: false
-    default: ''
+    required: true
   vcpkg_cache_path:
     description: 'Path to the vcpkg binary cache directory'
-    required: false
-    default: ''
+    required: true
   vcpkg_cache_primary_key:
     description: 'Primary vcpkg binary cache key'
-    required: false
-    default: ''
+    required: true
 
 runs:
   using: 'composite'
@@ -34,13 +26,11 @@ runs:
       shell: bash
       env:
         CCACHE_DIR: ${{ inputs.ccache_path }}
-      if: ${{ inputs.ccache_path != '' }}
       run: |
         ccache --evict-older-than=1d
 
     - name: 'Compiler Cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.ccache_path != '' }}
       with:
         path: ${{ inputs.ccache_path }}
         key: ${{ inputs.ccache_primary_key }}
@@ -49,13 +39,11 @@ runs:
       shell: bash
       env:
         CCACHE_DIR: ${{ inputs.ccache_path }}
-      if: ${{ inputs.ccache_path != '' }}
       run: |
         ccache -s
 
     - name: 'vcpkg binary cache'
       uses: actions/cache/save@v4
-      if: ${{ inputs.vcpkg_cache_path != '' }}
       with:
         path: ${{ inputs.vcpkg_cache_path }}
         key: ${{ inputs.vcpkg_cache_primary_key }}

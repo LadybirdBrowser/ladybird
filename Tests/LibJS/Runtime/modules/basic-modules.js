@@ -148,6 +148,16 @@ describe("in- and exports", () => {
         expect(result).toHaveProperty("namedVarValue", 3 + 3);
     });
 
+    test("for-in can enumerate module namespace objects", () => {
+        const result = expectModulePassed("./basic-export-types.mjs");
+        const keys = [];
+        for (const key in result) {
+            keys.push(key);
+        }
+
+        expect(keys).toEqual(Object.keys(result));
+    });
+
     test("default exports", () => {
         const result = expectModulePassed("./module-with-default.mjs");
         expect(result).toHaveProperty("defaultValue");

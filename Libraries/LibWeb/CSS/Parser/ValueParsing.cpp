@@ -3618,15 +3618,15 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
         return nullptr;
     TokenStream argument_tokens { function.value };
     argument_tokens.discard_whitespace();
-    auto maybe_length = parse_length_percentage(argument_tokens);
-    if (!maybe_length.has_value())
+    auto length_percentage_value = parse_length_percentage_value(argument_tokens);
+    if (!length_percentage_value)
         return nullptr;
     argument_tokens.discard_whitespace();
     if (argument_tokens.has_next_token())
         return nullptr;
 
     transaction.commit();
-    return FitContentStyleValue::create(maybe_length.release_value());
+    return FitContentStyleValue::create(length_percentage_value.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
@@ -4472,10 +4472,11 @@ Optional<GridSize> Parser::parse_grid_track_breadth(TokenStream<ComponentValue>&
     if (auto inflexible_breadth = parse_grid_inflexible_breadth(tokens); inflexible_breadth.has_value())
         return inflexible_breadth;
 
-    // FIXME: Handle calculated flex values.
-    if (auto flex_value = parse_flex_value(tokens); flex_value && flex_value->is_flex()) {
-        if (auto flex = flex_value->as_flex().flex(); flex.raw_value() >= 0)
-            return GridSize(flex);
+    if (auto flex_value = parse_flex_value(tokens)) {
+        if (flex_value->is_flex() && flex_value->as_flex().raw_value() < 0)
+            return {};
+
+        return GridSize(flex_value.release_nonnull());
     }
 
     return {};
@@ -4486,8 +4487,8 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
 {
     // <inflexible-breadth>  = <length-percentage [0,∞]> | min-content | max-content | auto
 
-    if (auto fixed_breadth = parse_grid_fixed_breadth(tokens); fixed_breadth.has_value())
-        return GridSize { Size::make_length_percentage(fixed_breadth.value()) };
+    if (auto fixed_breadth = parse_grid_fixed_breadth(tokens))
+        return GridSize { fixed_breadth.release_nonnull() };
 
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
@@ -4497,11 +4498,11 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
     auto const& token = tokens.consume_a_token();
     if (token.is_ident("max-content"sv)) {
         transaction.commit();
-        return GridSize(Size::make_max_content());
+        return GridSize(KeywordStyleValue::create(Keyword::MaxContent));
     }
     if (token.is_ident("min-content"sv)) {
         transaction.commit();
-        return GridSize(Size::make_min_content());
+        return GridSize(KeywordStyleValue::create(Keyword::MinContent));
     }
     if (token.is_ident("auto"sv)) {
         transaction.commit();
@@ -4512,20 +4513,20 @@ Optional<GridSize> Parser::parse_grid_inflexible_breadth(TokenStream<ComponentVa
 }
 
 // https://www.w3.org/TR/css-grid-2/#typedef-fixed-breadth
-Optional<LengthPercentage> Parser::parse_grid_fixed_breadth(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_grid_fixed_breadth(TokenStream<ComponentValue>& tokens)
 {
     // <fixed-breadth> = <length-percentage [0,∞]>
 
     auto transaction = tokens.begin_transaction();
-    auto length_percentage = parse_length_percentage(tokens);
-    if (!length_percentage.has_value())
+    auto length_percentage = parse_length_percentage_value(tokens);
+    if (!length_percentage)
         return {};
-    if (length_percentage->is_length() && length_percentage->length().raw_value() < 0)
+    if (length_percentage->is_length() && length_percentage->as_length().raw_value() < 0)
         return {};
-    if (length_percentage->is_percentage() && length_percentage->percentage().value() < 0)
+    if (length_percentage->is_percentage() && length_percentage->as_percentage().raw_value() < 0)
         return {};
     transaction.commit();
-    return length_percentage.release_value();
+    return length_percentage;
 }
 
 // https://www.w3.org/TR/css-grid-2/#typedef-line-names
@@ -4772,12 +4773,12 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
             auto function_tokens = TokenStream(function_token.value);
             function_tokens.discard_whitespace();
             auto maybe_length_percentage = parse_grid_fixed_breadth(function_tokens);
-            if (!maybe_length_percentage.has_value())
+            if (!maybe_length_percentage)
                 return {};
             if (function_tokens.has_next_token())
                 return {};
             transaction.commit();
-            return ExplicitGridTrack(GridSize(Size::make_fit_content(maybe_length_percentage.release_value())));
+            return ExplicitGridTrack(GridSize(FitContentStyleValue::create(maybe_length_percentage.release_nonnull())));
         }
     }
 
@@ -4801,14 +4802,26 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
         auto const& function_token = token.function();
         if (function_token.name.equals_ignoring_ascii_case("minmax"sv)) {
             {
-                GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto&& it) { return GridSize(Size::make_length_percentage(it)); }); };
+                GridMinMaxParamParser parse_min = [this](auto& tokens) -> Optional<GridSize> {
+                    if (auto result = parse_grid_fixed_breadth(tokens))
+                        return GridSize(result.release_nonnull());
+                    return {};
+                };
+
                 GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_track_breadth(tokens); };
+
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
             {
                 GridMinMaxParamParser parse_min = [this](auto& tokens) { return parse_grid_inflexible_breadth(tokens); };
-                GridMinMaxParamParser parse_max = [this](auto& tokens) { return parse_grid_fixed_breadth(tokens).map([](auto&& it) { return GridSize(Size::make_length_percentage(it)); }); };
+
+                GridMinMaxParamParser parse_max = [this](auto& tokens) -> Optional<GridSize> {
+                    if (auto result = parse_grid_fixed_breadth(tokens))
+                        return GridSize(result.release_nonnull());
+                    return {};
+                };
+
                 if (auto result = parse_grid_minmax(tokens, parse_min, parse_max); result.has_value())
                     return result;
             }
@@ -4817,8 +4830,8 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
         }
     }
 
-    if (auto fixed_breadth = parse_grid_fixed_breadth(tokens); fixed_breadth.has_value()) {
-        return ExplicitGridTrack(GridSize { Size::make_length_percentage(fixed_breadth.release_value()) });
+    if (auto fixed_breadth = parse_grid_fixed_breadth(tokens)) {
+        return ExplicitGridTrack(GridSize { fixed_breadth.release_nonnull() });
     }
 
     return {};
@@ -5074,8 +5087,10 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::TranslateZArgument:
                     // Percentages are disallowed for the Z axis
                     return CalculationContext {};
+                case SpecialContext::CanvasContextGenericValue:
                 case SpecialContext::DOMMatrixInitString:
                 case SpecialContext::MediaCondition:
+                case SpecialContext::OnScreenCanvasContextFontValue:
                     return {};
                 }
                 VERIFY_NOT_REACHED();
@@ -5217,18 +5232,8 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
                 if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
                     return NumericCalculationNode::create(Angle { numeric_value, angle_type.release_value() }, context);
 
-                if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value()) {
-                    // https://www.w3.org/TR/css3-grid-layout/#fr-unit
-                    // NOTE: <flex> values are not <length>s (nor are they compatible with <length>s, like some <percentage> values),
-                    //       so they cannot be represented in or combined with other unit types in calc() expressions.
-                    // FIXME: Flex is allowed in calc(), so figure out what this spec text means and how to implement it.
-                    ErrorReporter::the().report(InvalidValueError {
-                        .value_type = "math-function"_fly_string,
-                        .value_string = component_value->to_string(),
-                        .description = "Rejecting <flex> in math function."_string,
-                    });
-                    return nullptr;
-                }
+                if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value())
+                    return NumericCalculationNode::create(Flex { numeric_value, flex_type.release_value() }, context);
 
                 if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
                     return NumericCalculationNode::create(Frequency { numeric_value, frequency_type.release_value() }, context);

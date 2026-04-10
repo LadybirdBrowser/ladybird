@@ -21,6 +21,7 @@
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/ProcessType.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/Utilities.h>
@@ -131,13 +132,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     Optional<HeadlessMode> headless_mode;
     Optional<int> window_width;
     Optional<int> window_height;
+    Optional<u32> screenshot_delay;
     bool new_window = false;
     bool force_new_process = false;
     bool allow_popups = false;
     bool disable_scripting = false;
     bool disable_sql_database = false;
     Optional<u16> devtools_port;
-    Optional<StringView> debug_process;
+    Vector<StringView> debug_processes;
     Optional<StringView> profile_process;
     Optional<StringView> webdriver_endpoint;
     Optional<StringView> user_agent_preset;
@@ -189,6 +191,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         },
     });
 
+    args_parser.add_option(screenshot_delay, "Set the number of seconds to wait before taking a screenshot (only supported for headless screenshot mode)", "screenshot-delay", 0, "seconds");
     args_parser.add_option(window_width, "Set viewport width in pixels (default: 800) (currently only supported for headless mode)", "window-width", 0, "pixels");
     args_parser.add_option(window_height, "Set viewport height in pixels (default: 600) (currently only supported for headless mode)", "window-height", 0, "pixels");
     args_parser.add_option(certificates, "Path to a certificate file", "certificate", 'C', "certificate");
@@ -198,7 +201,18 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(disable_scripting, "Disable scripting by default", "disable-scripting");
     args_parser.add_option(disable_sql_database, "Disable SQL database", "disable-sql-database");
     args_parser.add_option(file_scheme_urls_have_tuple_origins, "Treat file:// URLs as having tuple origins", "tuple-file-origins");
-    args_parser.add_option(debug_process, "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)", "debug-process", 0, "process-name");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Optional,
+        .help_string = "Wait for a debugger to attach to the given process name (WebContent, RequestServer, etc.)",
+        .long_name = "debug-process",
+        .value_name = "process-name",
+        .accept_value = [&](StringView value) {
+            if (value.is_empty())
+                return false;
+
+            debug_processes.append(value);
+            return true;
+        } });
     args_parser.add_option(profile_process, "Enable callgrind profiling of the given process name (WebContent, RequestServer, etc.)", "profile-process", 0, "process-name");
 #if defined(AK_OS_MACOS)
     args_parser.add_option(webdriver_endpoint, "Mach server name for WebDriver IPC", "webdriver-mach-server-name", 0, "name", Core::ArgsParser::OptionHideMode::CommandLineAndMarkdown);
@@ -263,16 +277,18 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     if (!dns_server_port.has_value())
         dns_server_port = use_dns_over_tls ? 853 : 53;
 
-    Optional<ProcessType> debug_process_type;
+    Vector<ProcessType> debug_process_types;
     Optional<ProcessType> profile_process_type;
 
-    if (debug_process.has_value())
-        debug_process_type = process_type_from_name(*debug_process);
+    for (auto& process_name : debug_processes) {
+        auto type = process_type_from_name(process_name);
+        debug_process_types.append(type);
+    }
     if (profile_process.has_value())
         profile_process_type = process_type_from_name(*profile_process);
 
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
-    if (debug_process_type == ProcessType::WebContent)
+    if (debug_process_types.contains_slow(ProcessType::WebContent))
         disable_site_isolation = true;
 
     m_browser_options = {
@@ -284,7 +300,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .allow_popups = allow_popups ? AllowPopups::Yes : AllowPopups::No,
         .disable_scripting = disable_scripting ? DisableScripting::Yes : DisableScripting::No,
         .disable_sql_database = disable_sql_database ? DisableSQLDatabase::Yes : DisableSQLDatabase::No,
-        .debug_helper_process = move(debug_process_type),
+        .debug_helper_processes = move(debug_process_types),
         .profile_helper_process = move(profile_process_type),
         .dns_settings = (dns_server_address.has_value()
                 ? Optional<DNSSettings> { use_dns_over_tls
@@ -295,6 +311,8 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .enable_content_filter = disable_content_filter ? EnableContentFilter::No : EnableContentFilter::Yes,
     };
 
+    if (screenshot_delay.has_value())
+        m_browser_options.screenshot_delay = *screenshot_delay;
     if (window_width.has_value())
         m_browser_options.window_width = *window_width;
     if (window_height.has_value())
@@ -404,7 +422,7 @@ void Application::launch_spare_web_content_process()
         return;
 
     // Disable spare processes when debugging WebContent. Otherwise, it breaks running `gdb attach -p $(pidof WebContent)`.
-    if (browser_options().debug_helper_process == ProcessType::WebContent)
+    if (browser_options().debug_helper_processes.contains_slow(ProcessType::WebContent))
         return;
     // Disable spare processes when profiling WebContent. This reduces callgrind logging we are not interested in.
     if (browser_options().profile_helper_process == ProcessType::WebContent)
@@ -559,7 +577,7 @@ ErrorOr<void> Application::launch_devtools_server()
     return {};
 }
 
-static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, int screenshot_timeout)
+static NonnullRefPtr<Core::Timer> load_page_for_screenshot_and_exit(Core::EventLoop& event_loop, HeadlessWebView& view, URL::URL const& url, u32 screenshot_timeout)
 {
     outln("Taking screenshot after {} seconds", screenshot_timeout);
 
@@ -624,7 +642,7 @@ ErrorOr<int> Application::execute()
 
             switch (*m_browser_options.headless_mode) {
             case HeadlessMode::Screenshot:
-                screenshot_timer = load_page_for_screenshot_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), 1);
+                screenshot_timer = load_page_for_screenshot_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), m_browser_options.screenshot_delay);
                 break;
             case HeadlessMode::LayoutTree:
                 load_page_for_info_and_exit(*m_event_loop, *view, m_browser_options.urls.first(), WebView::PageInfoType::LayoutTree | WebView::PageInfoType::PaintTree);
@@ -934,6 +952,10 @@ void Application::initialize_actions()
     m_motion_menu->items().first().get<NonnullRefPtr<Action>>()->set_checked(true);
 
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
+    m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
+        open_url_in_new_tab(URL::about_bookmarks(), Web::HTML::ActivateTab::Yes);
+    }));
+    m_bookmarks_menu->add_separator();
 
     m_toggle_bookmark_action = Action::create("Toggle Bookmark"sv, ActionID::ToggleBookmark, [this]() {
         auto view = active_web_view();

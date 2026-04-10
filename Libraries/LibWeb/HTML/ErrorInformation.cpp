@@ -36,8 +36,8 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     //        to the entire source document! Calculate that somehow.
 
     // NB: If we got an Error object, then try and extract the information from the location the object was made.
-    if (auto error = exception.as_if<JS::Error>()) {
-        for (auto const& frame : error->traceback()) {
+    if (auto object = exception.as_if<JS::Object>(); object && object->error_data()) {
+        for (auto const& frame : object->error_data()->traceback()) {
             auto source_range = frame.source_range();
             if (source_range.start.line != 0 || source_range.start.column != 0) {
                 attributes.filename = MUST(String::from_byte_string(source_range.filename()));

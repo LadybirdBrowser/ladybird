@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 233 tests
 
-227 Pass
-6 Fail
+230 Pass
+3 Fail
 Pass	abs(1) should be used-value-equivalent to 1
 Pass	sign(1) should be used-value-equivalent to 1
 Pass	abs(-1) should be used-value-equivalent to 1
@@ -228,9 +228,9 @@ Pass	calc(5s + 15s * sign(38px - 2em)) should be used-value-equivalent to -10s
 Fail	calc(100dpi + 20dpi * sign(42px - 2em)) should be used-value-equivalent to 120dpi
 Fail	calc(100dpi + 20dpi * sign(40px - 2em)) should be used-value-equivalent to 100dpi
 Fail	calc(100dpi + 20dpi * sign(38px - 2em)) should be used-value-equivalent to 80dpi
-Fail	calc(3fr + 1fr * sign(42px - 2em)) should be used-value-equivalent to 4fr
-Fail	calc(3fr + 1fr * sign(40px - 2em)) should be used-value-equivalent to 3fr
-Fail	calc(3fr + 1fr * sign(38px - 2em)) should be used-value-equivalent to 2fr
+Pass	calc(3fr + 1fr * sign(42px - 2em)) should be used-value-equivalent to 4fr
+Pass	calc(3fr + 1fr * sign(40px - 2em)) should be used-value-equivalent to 3fr
+Pass	calc(3fr + 1fr * sign(38px - 2em)) should be used-value-equivalent to 2fr
 Pass	calc(2.5 - sign(33px - 2rem) / 2) should be used-value-equivalent to 2
 Pass	calc(2.5 - sign(32px - 2rem) / 2) should be used-value-equivalent to 2.5
 Pass	calc(2.5 - sign(31px - 2rem) / 2) should be used-value-equivalent to 3

@@ -97,7 +97,7 @@ public:
     ThrowCompletionOr<Value> time_end();
 
     void output_debug_message(LogLevel log_level, StringView output) const;
-    void report_exception(JS::Error const&, bool) const;
+    void report_exception(String const& name, String const& message, JS::ErrorData const&, bool) const;
 
 private:
     explicit Console(Realm&);
@@ -126,7 +126,7 @@ public:
     virtual ThrowCompletionOr<Value> printer(Console::LogLevel log_level, PrinterArguments) = 0;
 
     virtual void add_css_style_to_current_message(StringView) { }
-    virtual void report_exception(JS::Error const&, bool) { }
+    virtual void report_exception(String const&, String const&, JS::ErrorData const&, bool) { }
 
     virtual void clear() = 0;
     virtual void end_group() = 0;

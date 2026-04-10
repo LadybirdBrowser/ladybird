@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	FileReader readyState during readAsDataURL
+Pass	readAsDataURL result for Blob with specified MIME type
+Pass	readAsDataURL result for Blob with unspecified MIME type
+Pass	readAsDataURL result for empty Blob

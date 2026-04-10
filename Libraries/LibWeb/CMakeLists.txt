@@ -264,6 +264,7 @@ set(SOURCES
     CSS/StyleValues/EasingStyleValue.cpp
     CSS/StyleValues/EdgeStyleValue.cpp
     CSS/StyleValues/FilterValueListStyleValue.cpp
+    CSS/StyleValues/FitContentStyleValue.cpp
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp
     CSS/StyleValues/FontVariantAlternatesFunctionStyleValue.cpp
@@ -828,7 +829,6 @@ set(SOURCES
     Page/EventHandler.cpp
     Page/InputEvent.cpp
     Page/Page.cpp
-    Page/SharedBackingStore.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
     Painting/BackingStoreManager.cpp

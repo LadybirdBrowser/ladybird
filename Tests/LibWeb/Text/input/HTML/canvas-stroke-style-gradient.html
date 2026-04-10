@@ -1,0 +1,14 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const gradient = ctx.createLinearGradient(0, 0, 120, 0);
+
+        ctx.strokeStyle = gradient;
+
+        println(ctx.strokeStyle === gradient ? "PASS" : "FAIL");
+    });
+</script>

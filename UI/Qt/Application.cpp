@@ -10,6 +10,7 @@
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
+#include <UI/Qt/WebContentView.h>
 
 #include <QClipboard>
 #include <QDesktopServices>
@@ -245,6 +246,14 @@ void Application::update_bookmarks_bar_display(bool show_bookmarks_bar) const
     for (auto* widget : QApplication::topLevelWidgets()) {
         if (auto* window = as_if<BrowserWindow>(widget))
             window->update_bookmarks_bar_display(show_bookmarks_bar);
+    }
+}
+
+void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
+{
+    if (auto* active_tab = this->active_tab()) {
+        auto position = active_tab->view().mapToGlobal(QPoint { content_position.x(), content_position.y() });
+        active_tab->bookmarks_bar().show_context_menu(position, item, target_folder_id);
     }
 }
 

@@ -604,6 +604,35 @@ public:
     Optional<BaselineMetric> dominant_baseline() const { return m_inherited.dominant_baseline; }
     UnicodeBidi unicode_bidi() const { return m_noninherited.unicode_bidi; }
     WritingMode writing_mode() const { return m_inherited.writing_mode; }
+
+    bool inline_axis_is_reverse() const
+    {
+        switch (writing_mode()) {
+        case WritingMode::HorizontalTb:
+        case WritingMode::VerticalRl:
+        case WritingMode::VerticalLr:
+        case WritingMode::SidewaysRl:
+            return direction() == Direction::Rtl;
+        case WritingMode::SidewaysLr:
+            return direction() == Direction::Ltr;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
+    bool block_axis_is_reverse() const
+    {
+        switch (writing_mode()) {
+        case WritingMode::HorizontalTb:
+        case WritingMode::VerticalLr:
+        case WritingMode::SidewaysLr:
+            return false;
+        case WritingMode::VerticalRl:
+        case WritingMode::SidewaysRl:
+            return true;
+        }
+        VERIFY_NOT_REACHED();
+    }
+
     UserSelect user_select() const { return m_noninherited.user_select; }
     Isolation isolation() const { return m_noninherited.isolation; }
     Containment const& contain() const { return m_noninherited.contain; }

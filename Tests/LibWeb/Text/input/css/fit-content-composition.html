@@ -1,0 +1,17 @@
+<!doctype html>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        target.style.width = "fit-content(5px)";
+        let animation = target.animate([
+            { offset: 0, composite: "add", width: "fit-content(5px)" },
+            { offset: 1, composite: "add", width: "fit-content(15px)" },
+        ], { duration: 1000, fill: "forwards" });
+        animation.pause();
+        for (let time of [0, 500, 1000]) {
+            animation.currentTime = time;
+            println(target.computedStyleMap().get("width").toString());
+        }
+    });
+</script>

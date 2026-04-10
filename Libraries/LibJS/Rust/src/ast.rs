@@ -550,6 +550,75 @@ impl Utf16String {
     }
 }
 
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct SharedUtf16String(pub Rc<Utf16String>);
+
+impl SharedUtf16String {
+    pub fn new(value: Utf16String) -> Self {
+        Self(Rc::new(value))
+    }
+
+    pub fn to_utf16_string(&self) -> Utf16String {
+        self.0.as_ref().clone()
+    }
+}
+
+impl From<Utf16String> for SharedUtf16String {
+    fn from(value: Utf16String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<Vec<u16>> for SharedUtf16String {
+    fn from(value: Vec<u16>) -> Self {
+        Self::new(Utf16String::from(value))
+    }
+}
+
+impl From<&[u16]> for SharedUtf16String {
+    fn from(value: &[u16]) -> Self {
+        Self::new(Utf16String::from(value))
+    }
+}
+
+impl std::ops::Deref for SharedUtf16String {
+    type Target = Utf16String;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_ref()
+    }
+}
+
+impl std::borrow::Borrow<[u16]> for SharedUtf16String {
+    fn borrow(&self) -> &[u16] {
+        self.0.as_slice()
+    }
+}
+
+impl AsRef<[u16]> for SharedUtf16String {
+    fn as_ref(&self) -> &[u16] {
+        self.0.as_slice()
+    }
+}
+
+impl PartialEq<[u16]> for SharedUtf16String {
+    fn eq(&self, other: &[u16]) -> bool {
+        self.0.as_slice() == other
+    }
+}
+
+impl PartialEq<&[u16]> for SharedUtf16String {
+    fn eq(&self, other: &&[u16]) -> bool {
+        self.0.as_slice() == *other
+    }
+}
+
+impl PartialEq<Utf16String> for SharedUtf16String {
+    fn eq(&self, other: &Utf16String) -> bool {
+        self.0.as_slice() == other.as_slice()
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Position {
     pub line: u32,
@@ -726,7 +795,7 @@ pub enum LocalType {
 #[derive(Clone, Debug)]
 pub struct Identifier {
     pub range: SourceRange,
-    pub name: Utf16String,
+    pub name: SharedUtf16String,
     // Scope analysis results — set by scope collector after parsing.
     pub local_type: Cell<Option<LocalType>>,
     pub local_index: Cell<u32>,
@@ -736,7 +805,7 @@ pub struct Identifier {
 }
 
 impl Identifier {
-    pub fn new(range: SourceRange, name: Utf16String) -> Self {
+    pub fn new(range: SourceRange, name: SharedUtf16String) -> Self {
         Self {
             range,
             name,

@@ -1,0 +1,20 @@
+Harness status: OK
+
+Found 15 tests
+
+15 Pass
+Pass	Cannot construct without new
+Pass	inherits from Error: prototype-side
+Pass	does not inherit from Error: class-side
+Pass	message property descriptor
+Pass	message getter performs brand checks (i.e. is not [LegacyLenientThis])
+Pass	name property descriptor
+Pass	name getter performs brand checks (i.e. is not [LegacyLenientThis])
+Pass	code property descriptor
+Pass	code getter performs brand checks (i.e. is not [LegacyLenientThis])
+Pass	code property is not affected by shadowing the name property
+Pass	Object.prototype.toString behavior is like other interfaces
+Pass	Inherits its toString() from Error.prototype
+Pass	toString() behavior from Error.prototype applies as expected
+Pass	DOMException.prototype.toString() applied to DOMException.prototype throws because of name/message brand checks
+Pass	If the implementation has a stack property on normal errors, it also does on DOMExceptions

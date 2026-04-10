@@ -19,6 +19,8 @@ class Flex {
 public:
     Flex(double value, FlexUnit unit);
     static Flex make_fr(double);
+    static Flex from_style_value(NonnullRefPtr<StyleValue const> const&);
+
     Flex percentage_of(Percentage const&) const;
 
     void serialize(StringBuilder&, SerializationMode = SerializationMode::Normal) const;

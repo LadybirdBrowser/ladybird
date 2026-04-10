@@ -68,7 +68,9 @@ ErrorOr<File> decode(Decoder& decoder)
     int fd = attachment.to_fd();
     if (fd < 0)
         return Error::from_string_literal("Failed to obtain fd from attachment");
+#ifndef AK_OS_WINDOWS
     TRY(Core::System::set_close_on_exec(fd, true));
+#endif
     return File::adopt_fd(fd);
 }
 

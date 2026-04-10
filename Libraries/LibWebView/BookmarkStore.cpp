@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
-#include <AK/JsonValue.h>
 #include <AK/Random.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -308,6 +308,74 @@ void BookmarkStore::remove_item(StringView id)
     }
 }
 
+static bool is_descendant_of(BookmarkItem const& ancestor, StringView descendant_id)
+{
+    if (!ancestor.is_folder())
+        return false;
+
+    for (auto const& child : ancestor.folder().children) {
+        if (child.id == descendant_id)
+            return true;
+        if (is_descendant_of(child, descendant_id))
+            return true;
+    }
+
+    return false;
+}
+
+void BookmarkStore::move_item(StringView id, Optional<String const&> target_folder_id, size_t index)
+{
+    if (target_folder_id.has_value()) {
+        if (id == *target_folder_id)
+            return;
+
+        auto item = find_item_by_id(id);
+        if (!item.has_value())
+            return;
+
+        // Disallow moving a folder to one of its own descendents.
+        if (is_descendant_of(*item, *target_folder_id))
+            return;
+    }
+
+    auto source_list = find_containing_item_list(id);
+    if (!source_list.has_value())
+        return;
+
+    // Check if source and target are the same list before removal. We cannot hold a reference to the target list across
+    // the removal, as that may shift elements in memory and invalidate the reference.
+    bool same_list = &source_list.value() == &find_target_folder(m_items, target_folder_id);
+
+    Optional<BookmarkItem> moved_item;
+    Optional<size_t> item_index;
+
+    for (auto [i, item] : enumerate(*source_list)) {
+        if (item.id == id) {
+            moved_item = move(item);
+            item_index = i;
+
+            source_list->remove(i);
+            break;
+        }
+    }
+
+    if (!moved_item.has_value())
+        return;
+
+    // When moving within the same list, the caller provides the index relative to the original list (before removal).
+    // Adjust for the removed item if it was before the target position.
+    if (same_list && *item_index < index && index > 0)
+        --index;
+
+    auto& target_list = find_target_folder(m_items, target_folder_id);
+    index = min(index, target_list.size());
+
+    target_list.insert(index, moved_item.release_value());
+
+    persist_bookmarks();
+    notify_observers();
+}
+
 void BookmarkStore::update_favicon(URL::URL const& url, String favicon_base64_png)
 {
     auto item = find_bookmark_by_url(url);
@@ -354,18 +422,22 @@ Optional<Vector<BookmarkItem>&> BookmarkStore::find_containing_item_list(StringV
     return find_containing_item_list_impl(m_items, id);
 }
 
-void BookmarkStore::persist_bookmarks()
+JsonValue BookmarkStore::serialize_items() const
 {
-    JsonObject root;
-    root.set(VERSION_KEY, 1);
-
     JsonArray items;
     items.ensure_capacity(m_items.size());
 
     for (auto const& item : m_items)
         items.must_append(serialize_bookmark_item(item));
 
-    root.set(ITEMS_KEY, move(items));
+    return items;
+}
+
+void BookmarkStore::persist_bookmarks()
+{
+    JsonObject root;
+    root.set(VERSION_KEY, 1);
+    root.set(ITEMS_KEY, serialize_items());
 
     if (auto result = write_json_file(m_bookmarks_path, root); result.is_error())
         warnln("Unable to persist Ladybird bookmarks: {}", result.error());

@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        let canvas = document.createElement("canvas");
+        let context = canvas.getContext("2d");
+
+        context.font = "random(10px, 20px) serif";
+        println(context.font);
+
+        context.letterSpacing = "random(10px, 20px)";
+        println(context.letterSpacing);
+
+        context.fillStyle = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(context.fillStyle);
+
+        context.strokeStyle = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(context.strokeStyle);
+
+        context.filter = "blur(random(10px, 20px))";
+        println(context.filter);
+
+        let gradient = context.createLinearGradient(0, 0, 10, 0);
+        try {
+            gradient.addColorStop(0, "rgb(random(30, 10) random(60, 10) random(90, 10))");
+            println("FAIL");
+        } catch (e) {
+            println(e.name);
+        }
+
+        context.shadowColor = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(context.shadowColor);
+
+        let offscreenCanvas = new OffscreenCanvas(10, 10);
+        let offscreenContext = offscreenCanvas.getContext("2d");
+
+        offscreenContext.font = "random(10px, 20px) serif";
+        println(offscreenContext.font);
+
+        offscreenContext.letterSpacing = "random(10px, 20px)";
+        println(offscreenContext.letterSpacing);
+
+        offscreenContext.fillStyle = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(offscreenContext.fillStyle);
+
+        offscreenContext.strokeStyle = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(offscreenContext.strokeStyle);
+
+        offscreenContext.filter = "blur(random(10px, 20px))";
+        println(offscreenContext.filter);
+
+        let offscreenGradient = offscreenContext.createLinearGradient(0, 0, 10, 0);
+        try {
+            offscreenGradient.addColorStop(0, "rgb(random(30, 10) random(60, 10) random(90, 10))");
+            println("FAIL");
+        } catch (e) {
+            println(e.name);
+        }
+
+        offscreenContext.shadowColor = "rgb(random(30, 10) random(60, 10) random(90, 10))";
+        println(offscreenContext.shadowColor);
+    });
+</script>

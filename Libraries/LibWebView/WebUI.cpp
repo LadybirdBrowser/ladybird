@@ -8,6 +8,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI.h>
+#include <LibWebView/WebUI/BookmarksUI.h>
 #include <LibWebView/WebUI/ProcessesUI.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
@@ -29,7 +30,9 @@ ErrorOr<RefPtr<WebUI>> WebUI::create(WebContentClient& client, String host)
 {
     RefPtr<WebUI> web_ui;
 
-    if (host == "processes"sv)
+    if (host == "bookmarks"sv)
+        web_ui = TRY(create_web_ui<BookmarksUI>(client, move(host)));
+    else if (host == "processes"sv)
         web_ui = TRY(create_web_ui<ProcessesUI>(client, move(host)));
     else if (host == "settings"sv)
         web_ui = TRY(create_web_ui<SettingsUI>(client, move(host)));

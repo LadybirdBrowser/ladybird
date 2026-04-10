@@ -83,7 +83,7 @@ Selector::Selector(Vector<CompoundSelector>&& compound_selectors)
             if (simple_selector.type == SimpleSelector::Type::PseudoElement) {
                 if (simple_selector.pseudo_element().type() == PseudoElement::Part)
                     m_contains_part_pseudo_element = true;
-                m_pseudo_element = simple_selector.pseudo_element();
+                m_target_pseudo_element = simple_selector.pseudo_element();
             }
         }
     }
@@ -623,21 +623,23 @@ String Selector::serialize() const
         //    followed by the combinator ">", "+", "~", ">>", "||", as appropriate, followed by another
         //    single SPACE (U+0020) if the combinator was not whitespace, to s.
         if (i != compound_selectors().size() - 1) {
-            s.append(' ');
-            // Note: The combinator that appears between parts `i` and `i+1` appears with the `i+1` selector,
-            //       so we have to check that one.
+            // NB: The combinator that appears between parts `i` and `i+1` appears with the `i+1` selector,
+            //     so we have to check that one.
             switch (compound_selectors()[i + 1].combinator) {
-            case Selector::Combinator::ImmediateChild:
-                s.append("> "sv);
+            case Combinator::Descendant:
+                s.append(' ');
                 break;
-            case Selector::Combinator::NextSibling:
-                s.append("+ "sv);
+            case Combinator::ImmediateChild:
+                s.append(" > "sv);
                 break;
-            case Selector::Combinator::SubsequentSibling:
-                s.append("~ "sv);
+            case Combinator::NextSibling:
+                s.append(" + "sv);
                 break;
-            case Selector::Combinator::Column:
-                s.append("|| "sv);
+            case Combinator::SubsequentSibling:
+                s.append(" ~ "sv);
+                break;
+            case Combinator::Column:
+                s.append(" || "sv);
                 break;
             default:
                 break;
@@ -651,6 +653,22 @@ String Selector::serialize() const
     }
 
     return MUST(s.to_string());
+}
+
+// https://drafts.csswg.org/selectors-4/#single-colon-pseudos
+bool is_legacy_single_colon_pseudo_element(PseudoElement pseudo_element)
+{
+    // The four Level 2 pseudo-elements (::before, ::after, ::first-line, and ::first-letter) may, for legacy reasons,
+    // be written with only a single ":" character at their front, making them resemble a <pseudo-class-selector>.
+    switch (pseudo_element) {
+    case PseudoElement::After:
+    case PseudoElement::Before:
+    case PseudoElement::FirstLetter:
+    case PseudoElement::FirstLine:
+        return true;
+    default:
+        return false;
+    }
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-group-of-selectors

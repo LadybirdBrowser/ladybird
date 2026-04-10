@@ -225,7 +225,10 @@ intptr_t TransportMachPort::io_thread_loop()
     }
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
-    mark_peer_eof();
+    // Stopping for transfer tears down the old endpoint on purpose. Do not surface that as peer EOF;
+    // the receive and send rights are about to be adopted by the new transport owner.
+    if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire))
+        mark_peer_eof();
     return 0;
 }
 
@@ -272,8 +275,7 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
 
     // Send one complex Mach message: port descriptors for attachments and one out-of-line region for the byte
     // payload. This keeps right transfer atomic and lets the kernel use virtual-copy for the payload.
-    auto const ret = mach_msg(header, MACH_SEND_MSG | MACH_SEND_TIMEOUT, msg_size, 0,
-        MACH_PORT_NULL, 5000 /* 5 sec timeout */, MACH_PORT_NULL);
+    auto const ret = mach_msg(header, MACH_SEND_MSG, msg_size, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
     if (ret != KERN_SUCCESS) {
         dbgln("TransportMachPort: send failed: {} (send_port={:x})", mach_error_string(ret), m_send_port.port());
         mark_peer_eof();
@@ -378,7 +380,10 @@ TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_po
 
 ErrorOr<TransportHandle> TransportMachPort::release_for_transfer()
 {
-    stop_io_thread(IOThreadState::Stopped);
+    // From this point on, shutdown of the old endpoint is part of handing the transport to another
+    // MessagePort, not evidence that the peer disconnected.
+    m_is_being_transferred.store(true, AK::MemoryOrder::memory_order_release);
+    stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     m_is_open = false;
 
     mach_port_t prev = MACH_PORT_NULL;

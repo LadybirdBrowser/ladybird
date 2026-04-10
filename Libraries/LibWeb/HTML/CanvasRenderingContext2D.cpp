@@ -261,6 +261,7 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
 
 static float resolved_letter_spacing(CanvasState::DrawingState const& drawing_state, HTMLCanvasElement& canvas_element)
 {
+    // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
     CSS::Length::ResolutionContext context = [&] {
         if (canvas_element.computed_properties())
             return CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
@@ -1124,7 +1125,7 @@ void CanvasRenderingContext2D::set_shadow_color(String color)
     auto& context = canvas_element();
 
     // 2. Let parsedValue be the result of parsing the given value with context if non-null.
-    auto style_value = parse_css_value(CSS::Parser::ParsingParams(), color, CSS::PropertyID::Color);
+    auto style_value = parse_css_value(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, color, CSS::PropertyID::Color);
     if (style_value && style_value->has_color()) {
         DOM::AbstractElement abstract_element { context };
         context.document().update_style_if_needed_for_element(abstract_element);
@@ -1229,8 +1230,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
         return;
     }
 
-    auto& realm = static_cast<CanvasRenderingContext2D&>(*this).realm();
-    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams(realm), filter);
+    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, filter);
 
     // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
     //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
@@ -1242,6 +1242,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
         DOM::AbstractElement abstract_element { canvas_element() };
         document.update_style_if_needed_for_element(abstract_element);
 
+        // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
         auto length_resolution_context = canvas_element().computed_properties()
             ? CSS::Length::ResolutionContext::for_element(abstract_element)
             : CSS::Length::ResolutionContext::for_document(document);

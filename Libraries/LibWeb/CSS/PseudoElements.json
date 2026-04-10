@@ -36,19 +36,23 @@
     "alias-for": "slider-thumb"
   },
   "after": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-after",
+    "is-tree-abiding": true
   },
   "backdrop": {
     "spec": "https://drafts.csswg.org/css-position-4/#selectordef-backdrop"
   },
   "before": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-before",
+    "is-tree-abiding": true
   },
   "details-content": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-details-content",
+    "is-element-backed": true
   },
   "file-selector-button": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-file-selector-button"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-file-selector-button",
+    "is-element-backed": true
   },
   "first-letter": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-first-letter",
@@ -82,15 +86,18 @@
     ]
   },
   "marker": {
-    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker"
+    "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-marker",
+    "is-tree-abiding": true
   },
   "part": {
     "spec": "https://drafts.csswg.org/css-shadow-1/#selectordef-part",
     "type": "function",
-    "function-syntax": "<ident>+"
+    "function-syntax": "<ident>+",
+    "is-element-backed": true
   },
   "placeholder": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-placeholder",
+    "is-tree-abiding": true,
     "property-whitelist": [
       "#font-properties",
       "color",
@@ -127,7 +134,8 @@
   "slotted": {
     "spec": "https://drafts.csswg.org/css-shadow-1/#slotted-pseudo",
     "type": "function",
-    "function-syntax": "<compound-selector>"
+    "function-syntax": "<compound-selector>",
+    "is-element-backed": true
   },
   "view-transition": {
     "spec": "https://drafts.csswg.org/css-view-transitions-1/#selectordef-view-transition",

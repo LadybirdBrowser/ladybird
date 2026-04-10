@@ -32,7 +32,7 @@ static ErrorOr<NonnullRefPtr<ClientType>> launch_server_process(
         });
     }
 
-    if (browser_options.debug_helper_process == process_type)
+    if (browser_options.debug_helper_processes.contains_slow(process_type))
         arguments.append("--wait-for-debugger"sv);
 
     for (auto [i, path] : enumerate(candidate_server_paths)) {

@@ -126,15 +126,12 @@ Length::ResolutionContext Length::ResolutionContext::for_element(DOM::AbstractEl
 {
     auto const* root_element = element.element().document().document_element();
 
-    if (!element.computed_properties() || !root_element || !root_element->computed_properties())
-        return for_document(element.element().document());
-
-    CSSPixelRect viewport_rect;
-    if (auto navigable = element.element().navigable())
-        viewport_rect = navigable->viewport_rect();
+    VERIFY(element.computed_properties());
+    VERIFY(root_element);
+    VERIFY(root_element->computed_properties());
 
     return Length::ResolutionContext {
-        .viewport_rect = viewport_rect,
+        .viewport_rect = element.element().navigable()->viewport_rect(),
         .font_metrics = { element.computed_properties()->font_size(), element.computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() },
         .root_font_metrics = { root_element->computed_properties()->font_size(), root_element->computed_properties()->first_available_computed_font(element.document().font_computer())->pixel_metrics(), element.computed_properties()->line_height() }
     };

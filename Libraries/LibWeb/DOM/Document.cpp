@@ -2091,11 +2091,11 @@ void Document::invalidate_style_for_elements_affected_by_pseudo_class_change(CSS
             return false;
 
         SelectorEngine::MatchContext context;
-        if (SelectorEngine::matches(selector, element, {}, context, {}))
+        if (SelectorEngine::matches(selector, element, {}, context))
             return true;
-        if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::Before))
+        if (SelectorEngine::matches(selector, { element, CSS::PseudoElement::Before }, {}, context))
             return true;
-        if (SelectorEngine::matches(selector, element, {}, context, CSS::PseudoElement::After))
+        if (SelectorEngine::matches(selector, { element, CSS::PseudoElement::After }, {}, context))
             return true;
         return false;
     };

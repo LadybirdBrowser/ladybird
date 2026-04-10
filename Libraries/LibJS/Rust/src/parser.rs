@@ -38,7 +38,8 @@ use std::rc::Rc;
 
 use crate::ast::{
     BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier,
-    PrivateIdentifier, ProgramData, ScopeData, SourceRange, Statement, StatementKind, Utf16String,
+    PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement,
+    StatementKind, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -255,7 +256,7 @@ pub struct Parser<'a> {
     /// Caller drains this after calling parse_binding_pattern.
     /// Each entry is (name, identifier) — allows scope analysis to annotate
     /// binding pattern identifiers with local variable info.
-    pub(crate) pattern_bound_names: Vec<(Utf16String, Rc<Identifier>)>,
+    pub(crate) pattern_bound_names: Vec<(SharedUtf16String, Rc<Identifier>)>,
 
     /// Set during synthesize_binding_pattern to allow MemberExpressions as binding targets.
     allow_member_expressions: bool,
@@ -370,9 +371,19 @@ impl<'a> Parser<'a> {
     pub(crate) fn make_identifier(
         &self,
         start: Position,
-        name: impl Into<Utf16String>,
+        name: impl Into<SharedUtf16String>,
     ) -> Rc<Identifier> {
         Rc::new(Identifier::new(self.range_from(start), name.into()))
+    }
+
+    pub(crate) fn token_identifier_name(&self, token: &Token) -> SharedUtf16String {
+        if let Some(value) = &token.shared_identifier_value {
+            value.clone()
+        } else if let Some(value) = &token.identifier_value {
+            SharedUtf16String::from(value.clone())
+        } else {
+            SharedUtf16String::from(self.token_value(token))
+        }
     }
 
     pub(crate) fn register_function_parameters_with_scope(
@@ -396,7 +407,7 @@ impl<'a> Parser<'a> {
                         info_index += 1;
                         (pi.name.clone(), pi.is_rest, pi.is_from_pattern)
                     } else {
-                        (id.name.clone(), parameter.is_rest, false)
+                        (id.name.to_utf16_string(), parameter.is_rest, false)
                     };
                     entries.push(ParameterEntry {
                         name,
@@ -870,6 +881,9 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn token_value<'b>(&'b self, token: &'b Token) -> &'b [u16] {
+        if let Some(ref value) = token.shared_identifier_value {
+            return value.as_slice();
+        }
         if let Some(ref value) = token.identifier_value {
             return value;
         }
@@ -1347,7 +1361,7 @@ fn collect_binding_names(
 ) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
-            names.insert(identifier.name.clone());
+            names.insert(identifier.name.to_utf16_string());
         }
         crate::ast::VariableDeclaratorTarget::BindingPattern(pattern) => {
             collect_binding_pattern_names(pattern, names);
@@ -1364,7 +1378,7 @@ fn collect_binding_pattern_names(
         if let Some(ref alias) = entry.alias {
             match alias {
                 crate::ast::BindingEntryAlias::Identifier(identifier) => {
-                    names.insert(identifier.name.clone());
+                    names.insert(identifier.name.to_utf16_string());
                 }
                 crate::ast::BindingEntryAlias::BindingPattern(nested) => {
                     collect_binding_pattern_names(nested, names);
@@ -1372,7 +1386,7 @@ fn collect_binding_pattern_names(
                 crate::ast::BindingEntryAlias::MemberExpression(_) => {}
             }
         } else if let Some(crate::ast::BindingEntryName::Identifier(identifier)) = &entry.name {
-            names.insert(identifier.name.clone());
+            names.insert(identifier.name.to_utf16_string());
         }
     }
 }
@@ -1395,12 +1409,12 @@ fn collect_module_declared_names(
         }
         StatementKind::FunctionDeclaration(data) => {
             if let Some(ref name) = data.name {
-                names.insert(name.name.clone());
+                names.insert(name.name.to_utf16_string());
             }
         }
         StatementKind::ClassDeclaration(data) => {
             if let Some(ref name) = data.name {
-                names.insert(name.name.clone());
+                names.insert(name.name.to_utf16_string());
             }
         }
         StatementKind::Import(data) => {

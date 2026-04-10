@@ -3,28 +3,24 @@ set(SOURCES
     Connection.cpp
     Decoder.cpp
     Encoder.cpp
+    File.cpp
+    Message.cpp
     TransportHandle.cpp
 )
 
 if (APPLE AND NOT IOS)
     list(APPEND SOURCES
         AttachmentMachPort.cpp
-        File.cpp
         MachBootstrapListener.cpp
-        Message.cpp
         TransportBootstrapMach.cpp
         TransportMachPort.cpp)
 elseif (UNIX)
     list(APPEND SOURCES
         Attachment.cpp
-        File.cpp
-        Message.cpp
         TransportSocket.cpp)
 else()
     list(APPEND SOURCES
         Attachment.cpp
-        FileWindows.cpp
-        MessageWindows.cpp
         TransportSocketWindows.cpp)
 endif()
 

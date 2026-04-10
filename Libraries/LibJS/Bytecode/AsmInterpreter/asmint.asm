@@ -1380,11 +1380,20 @@ handler PutByValue
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    branch_zero t5, .try_holey_array_slow
+    mov t0, t5
+    sub t0, 8
+    load32 t0, [t0, 0]
+    branch_ge_unsigned t4, t0, .try_holey_array_slow
     load64 t1, [t5, t4, 8]
     mov t0, EMPTY_TAG_SHIFTED
-    branch_eq t1, t0, .slow
+    branch_eq t1, t0, .try_holey_array_slow
     load_operand t1, m_src
     store64 [t5, t4, 8], t1
+    dispatch_next
+.try_holey_array_slow:
+    call_interp asm_try_put_by_value_holey_array
+    branch_nonzero t0, .slow
     dispatch_next
 .try_typed_array:
     # t3 = Object*, t4 = index (u32, non-negative)
@@ -1622,6 +1631,11 @@ handler GetByValue
     load32 t5, [t3, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
     branch_ge_unsigned t4, t5, .slow
     load64 t5, [t3, OBJECT_INDEXED_ELEMENTS]
+    branch_zero t5, .slow
+    mov t0, t5
+    sub t0, 8
+    load32 t0, [t0, 0]
+    branch_ge_unsigned t4, t0, .slow
     load64 t0, [t5, t4, 8]
     mov t5, EMPTY_TAG_SHIFTED
     branch_eq t0, t5, .slow
@@ -2007,6 +2021,102 @@ end
 # because the operation is inherently complex (object allocation, prototype
 # chain walks, etc). Having them here avoids the generic fallback handler's
 # overhead of saving/restoring all temporaries.
+
+handler GetObjectPropertyIterator
+    call_slow_path asm_slow_path_get_object_property_iterator
+end
+
+handler ObjectPropertyIteratorNext
+    load_operand t1, m_iterator_object
+    extract_tag t2, t1
+    branch_ne t2, OBJECT_TAG, .slow
+    unbox_object t3, t1
+
+    load8 t4, [t3, PROPERTY_NAME_ITERATOR_FAST_PATH]
+    mov t0, OBJECT_PROPERTY_ITERATOR_FAST_PATH_NONE
+    branch_eq t4, t0, .slow
+
+    # These guards mirror PropertyNameIterator::fast_path_still_valid(). If the
+    # receiver or prototype chain no longer matches the cached snapshot, we drop
+    # to C++ and continue in deoptimized mode for the rest of the enumeration.
+    load64 t5, [t3, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE]
+    load64 t6, [t3, PROPERTY_NAME_ITERATOR_OBJECT]
+    load64 t7, [t3, PROPERTY_NAME_ITERATOR_SHAPE]
+    load64 t8, [t6, OBJECT_SHAPE]
+    branch_ne t8, t7, .slow
+
+    load8 t2, [t3, PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY]
+    branch_zero t2, .check_receiver
+    load32 t0, [t8, SHAPE_DICTIONARY_GENERATION]
+    load32 t2, [t3, PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION]
+    branch_ne t0, t2, .slow
+
+.check_receiver:
+    mov t0, OBJECT_PROPERTY_ITERATOR_FAST_PATH_PACKED_INDEXED
+    branch_ne t4, t0, .check_proto
+    load8 t0, [t6, OBJECT_INDEXED_STORAGE_KIND]
+    mov t2, INDEXED_STORAGE_KIND_PACKED
+    branch_ne t0, t2, .slow
+    load32 t0, [t6, OBJECT_INDEXED_ARRAY_LIKE_SIZE]
+    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
+    branch_ne t0, t2, .slow
+
+.check_proto:
+    load64 t0, [t3, PROPERTY_NAME_ITERATOR_PROTOTYPE_CHAIN_VALIDITY]
+    branch_zero t0, .next_key
+    load8 t2, [t0, PROTOTYPE_CHAIN_VALIDITY_VALID]
+    branch_zero t2, .slow
+
+.next_key:
+    # property_values is laid out as:
+    #   [receiver packed index keys..., flattened named keys...]
+    load32 t0, [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
+    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
+    branch_ge_unsigned t0, t2, .named
+    load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    load64 t8, [t8, t0, 8]
+    add t0, 1
+    store32 [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY], t0
+    store_operand m_dst_value, t8
+    mov t0, BOOLEAN_FALSE
+    store_operand m_dst_done, t0
+    dispatch_next
+
+.named:
+    load64 t0, [t3, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY]
+    load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE]
+    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
+    sub t8, t2
+    branch_ge_unsigned t0, t8, .done
+    mov t8, t0
+    add t8, t2
+    load64 t5, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
+    load64 t8, [t5, t8, 8]
+    add t0, 1
+    store64 [t3, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY], t0
+    store_operand m_dst_value, t8
+    mov t0, BOOLEAN_FALSE
+    store_operand m_dst_done, t0
+    dispatch_next
+
+.done:
+    load64 t5, [t3, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT]
+    branch_zero t5, .store_done
+    # Return the exhausted iterator object to the bytecode-site cache so the
+    # next execution of this loop can reset and reuse it.
+    mov t0, 0
+    store64 [t3, PROPERTY_NAME_ITERATOR_OBJECT], t0
+    store64 [t5, OBJECT_PROPERTY_ITERATOR_CACHE_REUSABLE_PROPERTY_NAME_ITERATOR], t3
+    store64 [t3, PROPERTY_NAME_ITERATOR_ITERATOR_CACHE_SLOT], t0
+
+.store_done:
+    mov t0, BOOLEAN_TRUE
+    store_operand m_dst_done, t0
+    dispatch_next
+
+.slow:
+    call_slow_path asm_slow_path_object_property_iterator_next
+end
 
 handler CallConstruct
     call_slow_path asm_slow_path_call_construct

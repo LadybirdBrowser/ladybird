@@ -16,36 +16,6 @@
 
 namespace Web::Layout {
 
-static bool inline_axis_is_reverse(CSS::WritingMode writing_mode, CSS::Direction direction)
-{
-    switch (writing_mode) {
-    case CSS::WritingMode::HorizontalTb:
-    case CSS::WritingMode::VerticalRl:
-    case CSS::WritingMode::VerticalLr:
-    case CSS::WritingMode::SidewaysRl:
-        return direction == CSS::Direction::Rtl;
-    case CSS::WritingMode::SidewaysLr:
-        return direction == CSS::Direction::Ltr;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-static bool block_axis_is_reverse(CSS::WritingMode writing_mode)
-{
-    switch (writing_mode) {
-    case CSS::WritingMode::HorizontalTb:
-    case CSS::WritingMode::VerticalLr:
-    case CSS::WritingMode::SidewaysLr:
-        return false;
-    case CSS::WritingMode::VerticalRl:
-    case CSS::WritingMode::SidewaysRl:
-        return true;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
 CSSPixels FlexFormattingContext::get_pixel_width(FlexItem const& item, CSS::Size const& size) const
 {
     return calculate_inner_width(item.box, m_available_space->width, size);
@@ -306,8 +276,8 @@ bool FlexFormattingContext::cross_axis_is_reverse() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto reverse = main_axis_is_parallel_to_inline_axis(flex_container())
-        ? block_axis_is_reverse(computed_values.writing_mode())
-        : inline_axis_is_reverse(computed_values.writing_mode(), computed_values.direction());
+        ? computed_values.block_axis_is_reverse()
+        : computed_values.inline_axis_is_reverse();
     if (computed_values.flex_wrap() == CSS::FlexWrap::WrapReverse)
         reverse = !reverse;
     return reverse;
@@ -317,8 +287,8 @@ bool FlexFormattingContext::is_direction_reverse() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto reverse = is_row_layout()
-        ? inline_axis_is_reverse(computed_values.writing_mode(), computed_values.direction())
-        : block_axis_is_reverse(computed_values.writing_mode());
+        ? computed_values.inline_axis_is_reverse()
+        : computed_values.block_axis_is_reverse();
     if (m_flex_direction == CSS::FlexDirection::ColumnReverse || m_flex_direction == CSS::FlexDirection::RowReverse)
         reverse = !reverse;
     return reverse;
@@ -2456,25 +2426,18 @@ double FlexFormattingContext::FlexLine::sum_of_scaled_flex_shrink_factor_of_unfr
     return sum;
 }
 
-static CSSPixels gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, Layout::Node const& grid_container, CSSPixels reference_value)
-{
-    return gap.visit(
-        [](CSS::NormalGap) { return CSSPixels(0); },
-        [&](auto const& gap) { return gap.to_px(grid_container, reference_value); });
-}
-
 CSSPixels FlexFormattingContext::main_gap() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto const& gap = is_row_layout() ? computed_values.column_gap() : computed_values.row_gap();
-    return gap_to_px(gap, flex_container(), inner_main_size(m_flex_container_state));
+    return gap_to_px(gap, inner_main_size(m_flex_container_state));
 }
 
 CSSPixels FlexFormattingContext::cross_gap() const
 {
     auto const& computed_values = flex_container().computed_values();
     auto gap = is_row_layout() ? computed_values.row_gap() : computed_values.column_gap();
-    return gap_to_px(gap, flex_container(), inner_cross_size(m_flex_container_state));
+    return gap_to_px(gap, inner_cross_size(m_flex_container_state));
 }
 
 }

@@ -8,6 +8,7 @@ set(SOURCES
     Bytecode/Instruction.cpp
     Bytecode/Interpreter.cpp
     Bytecode/Label.cpp
+    Bytecode/PropertyNameIterator.cpp
     Bytecode/PropertyKeyTable.cpp
     Bytecode/RegexTable.cpp
     Bytecode/StringTable.cpp
@@ -79,6 +80,7 @@ set(SOURCES
     Runtime/Environment.cpp
     Runtime/Error.cpp
     Runtime/ErrorConstructor.cpp
+    Runtime/ErrorData.cpp
     Runtime/ErrorPrototype.cpp
     Runtime/ErrorTypes.cpp
     Runtime/ExecutionContext.cpp

@@ -751,7 +751,7 @@ impl Parser<'_> {
             {
                 self.pattern_bound_names.clear();
                 let pattern = self.parse_binding_pattern();
-                let names_to_check: Vec<Utf16String> = self
+                let names_to_check: Vec<SharedUtf16String> = self
                     .pattern_bound_names
                     .iter()
                     .map(|(n, _)| n.clone())
@@ -782,9 +782,8 @@ impl Parser<'_> {
                     .add_catch_parameter_pattern(&bound_names);
                 // Register each binding pattern identifier for scope analysis
                 // so they get is_local() annotations (matching variable declarations).
-                for (name, id) in &self.pattern_bound_names {
-                    self.scope_collector
-                        .register_identifier(id.clone(), name, None);
+                for (_name, id) in &self.pattern_bound_names {
+                    self.scope_collector.register_identifier(id.clone(), None);
                 }
                 Some(CatchBinding::BindingPattern(pattern))
             } else if self.match_identifier() {
@@ -794,10 +793,9 @@ impl Parser<'_> {
                 self.check_identifier_name_for_assignment_validity(&value, false);
                 let id = Rc::new(Identifier::new(
                     self.range_from(parameter_start),
-                    value.clone().into(),
+                    self.token_identifier_name(&token),
                 ));
-                self.scope_collector
-                    .register_identifier(id.clone(), &value, None);
+                self.scope_collector.register_identifier(id.clone(), None);
                 self.scope_collector
                     .add_catch_parameter_identifier(&value, id.clone());
                 Some(CatchBinding::Identifier(id))
@@ -812,7 +810,7 @@ impl Parser<'_> {
         };
 
         // Collect catch parameter names for post-body validation.
-        let catch_names: Vec<Utf16String> = match &parameter {
+        let catch_names: Vec<SharedUtf16String> = match &parameter {
             Some(CatchBinding::Identifier(id)) => vec![id.name.clone()],
             Some(CatchBinding::BindingPattern(_)) => self
                 .pattern_bound_names
@@ -1059,8 +1057,7 @@ impl Parser<'_> {
                     let bound_names: Vec<_> = self.pattern_bound_names.drain(..).collect();
                     for (name, id) in &bound_names {
                         self.check_identifier_name_for_assignment_validity(name, false);
-                        self.scope_collector
-                            .register_identifier(id.clone(), name, None);
+                        self.scope_collector.register_identifier(id.clone(), None);
                     }
                     ForInOfLhs::Pattern(pattern)
                 } else {

@@ -143,7 +143,8 @@ pub fn field_type_info(ty: &str) -> FieldType {
         "PropertyLookupCache*"
         | "GlobalVariableCache*"
         | "TemplateObjectCache*"
-        | "ObjectShapeCache*" => ("u64", 8, 8, "u64"),
+        | "ObjectShapeCache*"
+        | "ObjectPropertyIteratorCache*" => ("u64", 8, 8, "u64"),
         _ => unreachable!("Unknown field type: {ty}"),
     }
     .into()

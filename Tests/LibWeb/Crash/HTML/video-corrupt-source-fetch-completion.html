@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<video id="video"></video>
+<script>
+    (async () => {
+        const port = internals.getEchoServerPort();
+        const echoBaseURL = `http://localhost:${port}`;
+
+        // Valid EBML header with doc_type "webm" (passes Matroska sniff), followed by 0x00, which fails
+        // at read_element_id in parse_initial_data. The content is padded to exceed the buffer used by
+        // RequestServer to ensure that the fetch completes after the demuxer initializes and encounters an error.
+        let body = "GkXfo4tCgoR3ZWJtQoeBBAAA" + "A".repeat(524264);
+
+        await fetch(`${echoBaseURL}/echo`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                method: "GET",
+                path: "/echo/corrupt-webm",
+                status: 200,
+                headers: {
+                    "Content-Type": "video/webm",
+                    "Cache-Control": "no-store",
+                },
+                body: body,
+                body_encoding: "base64",
+            }),
+        });
+
+        const errorPromise = new Promise(resolve => video.addEventListener("error", resolve));
+        video.src = `${echoBaseURL}/echo/corrupt-webm`;
+        await errorPromise;
+        document.documentElement.classList.remove("test-wait");
+    })();
+</script>

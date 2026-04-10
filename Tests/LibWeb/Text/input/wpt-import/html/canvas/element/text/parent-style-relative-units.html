@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<title>Canvas test: CanvasTextDrawingStyles.font with canvas relative units</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-font">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<canvas id="canvas" style="font-size: 30px; line-height: 40px"></canvas>
+<script>
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  test(() => {
+    ctx.font = "2em serif";
+    assert_equals(ctx.font, "60px serif");
+  }, "Font-size based on canvas element font-size");
+
+  test(() => {
+    // Line-height should be forced to normal, but also irrelevant for resolving
+    // lh-units for font-size.
+    ctx.font = "2lh/100 serif";
+    assert_equals(ctx.font, "80px serif");
+  }, "Font-size based on canvas element line-height");
+</script>
+

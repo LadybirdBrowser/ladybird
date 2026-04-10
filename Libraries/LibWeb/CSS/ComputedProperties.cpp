@@ -238,43 +238,7 @@ Variant<LengthPercentage, NormalGap> ComputedProperties::gap_value(PropertyID id
 
 Size ComputedProperties::size_value(PropertyID id) const
 {
-    auto const& value = property(id);
-    if (value.is_keyword()) {
-        switch (value.to_keyword()) {
-        case Keyword::Auto:
-            return Size::make_auto();
-        case Keyword::MinContent:
-            return Size::make_min_content();
-        case Keyword::MaxContent:
-            return Size::make_max_content();
-        case Keyword::None:
-            return Size::make_none();
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-    if (value.is_fit_content()) {
-        auto& fit_content = value.as_fit_content();
-        if (auto length_percentage = fit_content.length_percentage(); length_percentage.has_value())
-            return Size::make_fit_content(length_percentage.release_value());
-        return Size::make_fit_content();
-    }
-
-    if (value.is_calculated())
-        return Size::make_calculated(value.as_calculated());
-
-    if (value.is_percentage())
-        return Size::make_percentage(value.as_percentage().percentage());
-
-    if (value.is_length())
-        return Size::make_length(value.as_length().length());
-
-    // FIXME: Support `anchor-size(..)`
-    if (value.is_anchor_size())
-        return Size::make_none();
-
-    dbgln("FIXME: Unsupported size value: `{}`, treating as `auto`", value.to_string(SerializationMode::Normal));
-    return Size::make_auto();
+    return Size::from_style_value(property(id));
 }
 
 Length ComputedProperties::length(PropertyID property_id) const

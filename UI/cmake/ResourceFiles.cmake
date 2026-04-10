@@ -70,9 +70,11 @@ list(TRANSFORM INTERNAL_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladyb
 
 set(ABOUT_PAGES
     about.html
+    bookmarks.html
     newtab.html
     processes.html
     settings.html
+    webui.css
 )
 list(TRANSFORM ABOUT_PAGES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/")
 

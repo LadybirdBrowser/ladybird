@@ -36,7 +36,7 @@ public:
 
     void wait_until_readable();
 
-    ErrorOr<void> transfer_message(ReadonlyBytes, Vector<size_t> const& handle_offsets);
+    void post_message(Vector<u8> const&, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
         No,
@@ -44,14 +44,15 @@ public:
     };
     struct Message {
         Vector<u8> bytes;
-        Queue<Attachment> attachments; // always empty, present to avoid OS #ifdefs in Connection.cpp
+        Queue<Attachment> attachments;
     };
     ShouldShutdown read_as_many_messages_as_possible_without_blocking(Function<void(Message&&)>&&);
 
     ErrorOr<TransportHandle> release_for_transfer();
 
 private:
-    ErrorOr<void> duplicate_handles(Bytes, Vector<size_t> const& handle_offsets);
+    ErrorOr<Vector<u8>> serialize_attachments(Vector<Attachment>&);
+    Attachment deserialize_attachment(ReadonlyBytes&);
     ErrorOr<void> transfer(ReadonlyBytes);
 
 private:

@@ -2561,4 +2561,11 @@ bool FormattingContext::should_treat_max_height_as_none(Box const& box, Availabl
     return false;
 }
 
+CSSPixels FormattingContext::gap_to_px(Variant<CSS::LengthPercentage, CSS::NormalGap> const& gap, CSSPixels reference_value) const
+{
+    return gap.visit(
+        [](CSS::NormalGap) { return CSSPixels(0); },
+        [&](auto const& gap) { return gap.to_px(context_box(), reference_value); });
+}
+
 }
