@@ -17,7 +17,7 @@
 namespace Web::CSS::Parser {
 
 // U+FFFD REPLACEMENT CHARACTER (�)
-#define REPLACEMENT_CHARACTER 0xFFFD
+static constexpr u32 REPLACEMENT_CHARACTER = 0xFFFD;
 static constexpr u32 TOKENIZER_EOF = 0xFFFFFFFF;
 
 static inline void log_parse_error(SourceLocation const& location = SourceLocation::current())
