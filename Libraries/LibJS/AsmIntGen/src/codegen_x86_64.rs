@@ -29,6 +29,39 @@ pub fn generate(program: &Program) -> String {
     w!(out, "#endif");
     w!(out);
 
+    // ABI-neutral argument register aliases. The generated code uses ARG0..ARG3
+    // (and the ARG*D 32-bit forms) whenever it sets up a C call, so the same
+    // emit sites work for System V AMD64 and Windows x64 without Rust-side
+    // branching. The preprocessor picks the right physical register per ABI.
+    //
+    // The Interpreter* save slot offset also differs per ABI, because the
+    // Win64 prologue pushes extra callee-saved registers (rsi, rdi) and
+    // reserves 32 bytes of shadow space; see generate_entry_point for the
+    // layout. Every read/write of that slot goes through INTERP_SLOT so the
+    // offset is defined in exactly one place.
+    w!(out, "#ifdef _WIN64");
+    w!(out, "#  define ARG0  rcx");
+    w!(out, "#  define ARG0D ecx");
+    w!(out, "#  define ARG1  rdx");
+    w!(out, "#  define ARG1D edx");
+    w!(out, "#  define ARG2  r8");
+    w!(out, "#  define ARG2D r8d");
+    w!(out, "#  define ARG3  r9");
+    w!(out, "#  define ARG3D r9d");
+    w!(out, "#  define INTERP_SLOT [rbp - 64]");
+    w!(out, "#else");
+    w!(out, "#  define ARG0  rdi");
+    w!(out, "#  define ARG0D edi");
+    w!(out, "#  define ARG1  rsi");
+    w!(out, "#  define ARG1D esi");
+    w!(out, "#  define ARG2  rdx");
+    w!(out, "#  define ARG2D edx");
+    w!(out, "#  define ARG3  rcx");
+    w!(out, "#  define ARG3D ecx");
+    w!(out, "#  define INTERP_SLOT [rbp - 48]");
+    w!(out, "#endif");
+    w!(out);
+
     w!(out, ".text");
     w!(out);
 
@@ -150,7 +183,10 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
 
 fn generate_entry_point(out: &mut String, program: &Program) {
     // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm)
-    // System V AMD64: rdi=bytecode, esi=entry_point, rdx=values, rcx=vm
+    //   System V AMD64: rdi=bytecode, esi=entry_point, rdx=values, rcx=vm
+    //   Windows x64:    rcx=bytecode, edx=entry_point, r8=values,  r9=vm
+    // The ARG* preprocessor macros hide this difference; we read each incoming
+    // argument through its ARG slot and pin it into its callee-saved home.
 
     // Save callee-saved registers
     w!(out, "    push rbp");
@@ -171,21 +207,23 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     // Align stack to 16 bytes (pushed rbp + 5 regs = 48 bytes, need one more for alignment)
     w!(out, "    sub rsp, 8");
 
-    // Set up pinned registers
-    // rdi=bytecode (pb), esi=entry_point (pc), rdx=values, rcx=vm
-    w!(out, "    mov r14, rdi          # pb = bytecode base");
-    w!(out, "    mov r13d, esi         # pc = entry_point");
-    w!(out, "    mov r15, rdx          # values = values array");
-    // Store VM* on the stack for C++ calls, pin exec_ctx instead
+    // Set up pinned registers from the incoming arguments.
+    w!(out, "    mov r14, ARG0          # pb = bytecode base");
+    w!(out, "    mov r13d, ARG1D        # pc = entry_point");
+    w!(out, "    mov r15, ARG2          # values = values array");
+    // Store VM* on the stack for C++ calls, pin exec_ctx instead.
     let interp_ctx = program
         .constants
         .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
         .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
-    w!(out, "    mov QWORD PTR [rbp - 48], rcx  # save VM*");
     w!(
         out,
-        "    mov rbx, QWORD PTR [rcx + {interp_ctx}]  # exec_ctx"
+        "    mov QWORD PTR INTERP_SLOT, ARG3  # save VM*"
+    );
+    w!(
+        out,
+        "    mov rbx, QWORD PTR [ARG3 + {interp_ctx}]  # exec_ctx"
     );
     w!(
         out,
@@ -204,9 +242,9 @@ fn generate_fallback_handler(out: &mut String, program: &Program) {
     // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
-    // Set up args: rdi=vm (from stack), esi=pc (r13d)
-    w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
-    w!(out, "    mov esi, r13d");
+    // Set up args: ARG0=vm (from stack), ARG1D=pc (r13d)
+    w!(out, "    mov ARG0, QWORD PTR INTERP_SLOT");
+    w!(out, "    mov ARG1D, r13d");
     w!(out, "    call CSYM(asm_fallback_handler)");
     // Check for exit (return < 0)
     w!(out, "    test rax, rax");
@@ -246,7 +284,7 @@ fn emit_state_reload(out: &mut String, program: &Program) {
         .get("SIZEOF_EXECUTION_CONTEXT")
         .copied()
         .expect("SIZEOF_EXECUTION_CONTEXT constant required");
-    w!(out, "    mov rcx, QWORD PTR [rbp - 48]");
+    w!(out, "    mov rcx, QWORD PTR INTERP_SLOT");
     w!(out, "    mov rbx, QWORD PTR [rcx + {interp_ctx}]");
     w!(out, "    mov rcx, QWORD PTR [rbx + {exec_executable}]");
     w!(out, "    mov r14, QWORD PTR [rcx + {exec_bytecode}]");
@@ -434,7 +472,7 @@ fn emit_instruction(
                 .get("VM_RUNNING_EXECUTION_CONTEXT")
                 .copied()
                 .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
-            w!(out, "    mov rcx, QWORD PTR [rbp - 48]");
+            w!(out, "    mov rcx, QWORD PTR INTERP_SLOT");
             w!(out, "    mov rbx, QWORD PTR [rcx + {interp_ctx}]");
         }
 
@@ -442,7 +480,7 @@ fn emit_instruction(
         "load_vm" => {
             if let Some(op) = insn.operands.first() {
                 let dst = resolve_op(op, handler, program);
-                w!(out, "    mov {dst}, QWORD PTR [rbp - 48]");
+                w!(out, "    mov {dst}, QWORD PTR INTERP_SLOT");
             }
         }
 
@@ -478,9 +516,9 @@ fn emit_instruction(
         // context, since exception handling may have unwound inline frames.
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                // Set up args: rdi=vm (from stack), esi=pc
-                w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
-                w!(out, "    mov esi, r13d");
+                // Set up args: ARG0=vm (from stack), ARG1D=pc
+                w!(out, "    mov ARG0, QWORD PTR INTERP_SLOT");
+                w!(out, "    mov ARG1D, r13d");
                 w!(out, "    call CSYM({func_name})");
                 // Check for exit (return < 0)
                 w!(out, "    test rax, rax");
@@ -501,7 +539,7 @@ fn emit_instruction(
         // Result is in rax (t0). NOT terminal: handler continues after.
         "call_helper" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                w!(out, "    mov rdi, rcx");
+                w!(out, "    mov ARG0, rcx");
                 w!(out, "    call CSYM({func_name})");
             }
         }
@@ -512,8 +550,8 @@ fn emit_instruction(
         // handler continues after.
         "call_interp" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
-                w!(out, "    mov esi, r13d");
+                w!(out, "    mov ARG0, QWORD PTR INTERP_SLOT");
+                w!(out, "    mov ARG1D, r13d");
                 w!(out, "    call CSYM({func_name})");
             }
         }
@@ -526,7 +564,7 @@ fn emit_instruction(
             if let Some(op) = insn.operands.first() {
                 let func = resolve_op(op, handler, program);
                 w!(out, "    mov r11, {func}");
-                w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
+                w!(out, "    mov ARG0, QWORD PTR INTERP_SLOT");
                 w!(out, "    call r11");
                 w!(out, "    mov rcx, rdx");
             }
