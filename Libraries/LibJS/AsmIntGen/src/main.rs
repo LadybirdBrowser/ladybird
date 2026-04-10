@@ -322,6 +322,7 @@ fn main() {
                 object_format = match val.as_str() {
                     "macho" => ObjectFormat::MachO,
                     "elf" => ObjectFormat::Elf,
+                    "coff" => ObjectFormat::Coff,
                     other => {
                         eprintln!("Unknown object format: {other}");
                         std::process::exit(1);

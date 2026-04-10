@@ -54,6 +54,9 @@ fn emit_symbol_addr(out: &mut String, dst: &str, symbol: &str, fmt: ObjectFormat
             w!(out, "    adrp {dst}, {symbol}");
             w!(out, "    add {dst}, {dst}, :lo12:{symbol}");
         }
+        ObjectFormat::Coff => {
+            unreachable!("Windows ARM64 (Coff) is not yet supported by the aarch64 asmint backend");
+        }
     }
 }
 
