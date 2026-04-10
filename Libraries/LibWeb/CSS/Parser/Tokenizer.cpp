@@ -879,8 +879,10 @@ Token Tokenizer::consume_string_token(u32 ending_code_point)
         auto input = next_code_point();
 
         // ending code point
-        if (input == ending_code_point)
+        if (input == ending_code_point) {
+            // Return the <string-token>.
             return Token::create_string(builder.to_fly_string_without_validation(), input_since(original_source_text_start_byte_offset_including_quotation_mark));
+        }
 
         // EOF
         if (is_eof(input)) {
