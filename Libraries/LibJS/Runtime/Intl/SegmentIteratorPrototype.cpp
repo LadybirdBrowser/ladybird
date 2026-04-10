@@ -65,7 +65,7 @@ JS_DEFINE_NATIVE_FUNCTION(SegmentIteratorPrototype::next)
     // NOTE: This is already handled by LibUnicode.
 
     // 10. Let segmentData be CreateSegmentDataObject(segmenter, string, startIndex, endIndex).
-    auto segment_data = TRY(create_segment_data_object(vm, segmenter, string, start_index, end_index));
+    auto segment_data = TRY(create_segment_data_object(vm, segmenter, iterator->segments().segments_primitive_string(), string, start_index, end_index));
 
     // 11. Return CreateIterResultObject(segmentData, false).
     return create_iterator_result_object(vm, segment_data, false);

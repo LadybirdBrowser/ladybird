@@ -34,7 +34,7 @@ ReadonlySpan<ResolutionOptionDescriptor> Segmenter::resolution_option_descriptor
 }
 
 // 19.7.1 CreateSegmentDataObject ( segmenter, string, startIndex, endIndex ), https://tc39.es/ecma402/#sec-createsegmentdataobject
-ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, Utf16View const& string, size_t start_index, size_t end_index)
+ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::Segmenter const& segmenter, PrimitiveString const& string_value, Utf16View const& string, size_t start_index, size_t end_index)
 {
     auto& realm = *vm.current_realm();
 
@@ -54,16 +54,15 @@ ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM& vm, Unicode::S
     auto result = Object::create(realm, realm.intrinsics().object_prototype());
 
     // 6. Let segment be the substring of string from startIndex to endIndex.
-    auto segment = string.substring_view(start_index, end_index - start_index);
 
     // 7. Perform ! CreateDataPropertyOrThrow(result, "segment", segment).
-    MUST(result->create_data_property_or_throw(vm.names.segment, PrimitiveString::create(vm, segment)));
+    MUST(result->create_data_property_or_throw(vm.names.segment, PrimitiveString::create(vm, string_value, start_index, end_index - start_index)));
 
     // 8. Perform ! CreateDataPropertyOrThrow(result, "index", 𝔽(startIndex)).
     MUST(result->create_data_property_or_throw(vm.names.index, Value(start_index)));
 
     // 9. Perform ! CreateDataPropertyOrThrow(result, "input", string).
-    MUST(result->create_data_property_or_throw(vm.names.input, PrimitiveString::create(vm, string)));
+    MUST(result->create_data_property_or_throw(vm.names.input, &string_value));
 
     // 10. Let granularity be segmenter.[[SegmenterGranularity]].
     auto granularity = segmenter.segmenter_granularity();

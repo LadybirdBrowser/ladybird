@@ -43,7 +43,7 @@ private:
     OwnPtr<Unicode::Segmenter> m_segmenter;
 };
 
-ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM&, Unicode::Segmenter const&, Utf16View const&, size_t start_index, size_t end_index);
+ThrowCompletionOr<GC::Ref<Object>> create_segment_data_object(VM&, Unicode::Segmenter const&, PrimitiveString const&, Utf16View const&, size_t start_index, size_t end_index);
 
 enum class Direction {
     Before,

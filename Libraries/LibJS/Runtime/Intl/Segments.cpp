@@ -13,7 +13,7 @@ namespace JS::Intl {
 GC_DEFINE_ALLOCATOR(Segments);
 
 // 19.5.1 CreateSegmentsObject ( segmenter, string ), https://tc39.es/ecma402/#sec-createsegmentsobject
-GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
+GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segmenter, GC::Ref<PrimitiveString> string)
 {
     // 1. Let internalSlotsList be « [[SegmentsSegmenter]], [[SegmentsString]] ».
     // 2. Let segments be OrdinaryObjectCreate(%IntlSegmentsPrototype%, internalSlotsList).
@@ -24,12 +24,19 @@ GC::Ref<Segments> Segments::create(Realm& realm, Unicode::Segmenter const& segme
 }
 
 // 19.5 Segments Objects, https://tc39.es/ecma402/#sec-segments-objects
-Segments::Segments(Realm& realm, Unicode::Segmenter const& segmenter, Utf16String string)
+Segments::Segments(Realm& realm, Unicode::Segmenter const& segmenter, GC::Ref<PrimitiveString> string)
     : Object(ConstructWithPrototypeTag::Tag, realm.intrinsics().intl_segments_prototype())
     , m_segments_segmenter(segmenter.clone())
-    , m_segments_string(move(string))
+    , m_segments_string_value(string)
+    , m_segments_string(string->utf16_string())
 {
     m_segments_segmenter->set_segmented_text(m_segments_string);
+}
+
+void Segments::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_segments_string_value);
 }
 
 }

@@ -103,6 +103,19 @@ describe("correct behavior", () => {
         expect(index).toBe(1);
     });
 
+    test("segment data preserves rope-backed UTF-16 strings", () => {
+        const string = "😀" + "x";
+        const segmenter = new Intl.Segmenter("en", { granularity: "grapheme" });
+        const segments = segmenter.segment(string);
+
+        const first = segments.containing(0);
+        expect(first.segment).toBe("😀");
+        expect(first.index).toBe(0);
+        expect(first.input).toBe(string);
+
+        expect(Array.from(segments, segment => segment.segment)).toEqual(["😀", "x"]);
+    });
+
     test("word segmentation of string with mid-word punctuation", () => {
         const string = "The quick (“brown”) fox can’t jump 32.3 feet, right?";
 

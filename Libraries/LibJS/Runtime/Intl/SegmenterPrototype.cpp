@@ -67,10 +67,10 @@ JS_DEFINE_NATIVE_FUNCTION(SegmenterPrototype::segment)
     auto segmenter = TRY(typed_this_object(vm));
 
     // 3. Let string be ? ToString(string).
-    auto string = TRY(vm.argument(0).to_utf16_string(vm));
+    auto string = TRY(vm.argument(0).to_primitive_string(vm));
 
     // 4. Return ! CreateSegmentsObject(segmenter, string).
-    return Segments::create(realm, segmenter->segmenter(), move(string));
+    return Segments::create(realm, segmenter->segmenter(), string);
 }
 
 }
