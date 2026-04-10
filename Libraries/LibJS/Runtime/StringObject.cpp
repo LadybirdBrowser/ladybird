@@ -73,7 +73,8 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
 
     // 6. Let str be S.[[StringData]].
     // 7. Assert: Type(str) is String.
-    auto str = string.primitive_string().utf16_string_view();
+    auto& primitive_string = string.primitive_string();
+    auto str = primitive_string.utf16_string_view();
 
     // 8. Let len be the length of str.
     auto length = str.length_in_code_units();
@@ -83,7 +84,7 @@ static ThrowCompletionOr<Optional<PropertyDescriptor>> string_get_own_property(S
         return Optional<PropertyDescriptor> {};
 
     // 10. Let resultStr be the substring of str from ℝ(index) to ℝ(index) + 1.
-    auto result_str = PrimitiveString::create(vm, str.substring_view(index.as_index(), 1));
+    auto result_str = PrimitiveString::create(vm, primitive_string, index.as_index(), 1);
 
     // 11. Return the PropertyDescriptor { [[Value]]: resultStr, [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }.
     return PropertyDescriptor {

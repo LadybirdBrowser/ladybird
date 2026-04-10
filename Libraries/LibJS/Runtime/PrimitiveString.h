@@ -36,7 +36,7 @@ public:
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, FlyString const&);
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, PrimitiveString&);
-    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString&, size_t code_unit_offset, size_t code_unit_length);
+    [[nodiscard]] static GC::Ref<PrimitiveString> create(VM&, PrimitiveString const&, size_t code_unit_offset, size_t code_unit_length);
 
     [[nodiscard]] static GC::Ref<PrimitiveString> create_from_unsigned_integer(VM&, u64);
 

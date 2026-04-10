@@ -285,7 +285,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::at)
         return js_undefined();
 
     // 7. Return ? Get(O, ! ToString(𝔽(k))).
-    return PrimitiveString::create(vm, string->utf16_string_view().substring_view(index.value(), 1));
+    return PrimitiveString::create(vm, *string, index.value(), 1);
 }
 
 // 22.1.3.2 String.prototype.charAt ( pos ), https://tc39.es/ecma262/#sec-string.prototype.charat
@@ -304,7 +304,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::char_at)
         return PrimitiveString::create(vm, String {});
 
     // 6. Return the substring of S from position to position + 1.
-    return PrimitiveString::create(vm, string->utf16_string_view().substring_view(position, 1));
+    return PrimitiveString::create(vm, *string, position, 1);
 }
 
 // 22.1.3.3 String.prototype.charCodeAt ( pos ), https://tc39.es/ecma262/#sec-string.prototype.charcodeat
@@ -1147,7 +1147,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::slice)
         return PrimitiveString::create(vm, String {});
 
     // 13. Return the substring of S from from to to.
-    return PrimitiveString::create(vm, string->utf16_string_view().substring_view(int_start, int_end - int_start));
+    return PrimitiveString::create(vm, *string, int_start, int_end - int_start);
 }
 
 // 22.1.3.23 String.prototype.split ( separator, limit ), https://tc39.es/ecma262/#sec-string.prototype.split
@@ -1232,10 +1232,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
             ++position;
             continue;
         }
-        auto segment = string->utf16_string_view().substring_view(start, position - start);
-
         // b. Append T to substrings.
-        MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, segment)));
+        MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, start, position - start)));
         ++array_length;
 
         // c. If the number of elements in substrings is lim, return CreateArrayFromList(substrings).
@@ -1250,10 +1248,8 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::split)
     }
 
     // 15. Let T be the substring of S from i.
-    auto rest = string->utf16_string_view().substring_view(start);
-
     // 16. Append T to substrings.
-    MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, rest)));
+    MUST(array->create_data_property_or_throw(array_length, PrimitiveString::create(vm, *string, start, string_length - start)));
 
     // 17. Return CreateArrayFromList(substrings).
     return array;
@@ -1345,7 +1341,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::substring)
     size_t to = max(final_start, final_end);
 
     // 10. Return the substring of S from from to to.
-    return PrimitiveString::create(vm, string->utf16_string_view().substring_view(from, to - from));
+    return PrimitiveString::create(vm, *string, from, to - from);
 }
 
 enum class TargetCase {
@@ -1588,7 +1584,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::substr)
         return PrimitiveString::create(vm, String {});
 
     // 11. Return the substring of S from intStart to intEnd.
-    return PrimitiveString::create(vm, string->utf16_string_view().substring_view(int_start, int_end - int_start));
+    return PrimitiveString::create(vm, *string, int_start, int_end - int_start);
 }
 
 // B.2.2.2.1 CreateHTML ( string, tag, attribute, value ), https://tc39.es/ecma262/#sec-createhtml

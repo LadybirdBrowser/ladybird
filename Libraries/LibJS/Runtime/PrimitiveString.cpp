@@ -133,7 +133,7 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, P
     return vm.heap().allocate<RopeString>(lhs, rhs);
 }
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& string, size_t code_unit_offset, size_t code_unit_length)
+GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString const& string, size_t code_unit_offset, size_t code_unit_length)
 {
     auto string_length = string.length_in_utf16_code_units();
     VERIFY(code_unit_offset <= string_length);
@@ -143,14 +143,14 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& string
         return vm.empty_string();
 
     if (code_unit_offset == 0 && code_unit_length == string_length)
-        return string;
+        return const_cast<PrimitiveString&>(string);
 
     if (string.m_deferred_kind == DeferredKind::Substring) {
         auto const& substring = static_cast<Substring const&>(string);
         return create(vm, *substring.m_source_string, substring.m_code_unit_offset + code_unit_offset, code_unit_length);
     }
 
-    return vm.heap().allocate<Substring>(string, code_unit_offset, code_unit_length);
+    return vm.heap().allocate<Substring>(const_cast<PrimitiveString&>(string), code_unit_offset, code_unit_length);
 }
 
 PrimitiveString::PrimitiveString(Utf16String string)
@@ -283,7 +283,7 @@ ThrowCompletionOr<Optional<Value>> PrimitiveString::get(VM& vm, PropertyKey cons
     if (string.length_in_code_units() <= index.as_index())
         return Optional<Value> {};
 
-    return create(vm, string.substring_view(index.as_index(), 1));
+    return create(vm, *this, index.as_index(), 1);
 }
 
 void PrimitiveString::resolve_if_needed(EncodingPreference preference) const
