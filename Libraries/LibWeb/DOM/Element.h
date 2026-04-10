@@ -355,6 +355,7 @@ public:
     bool has_pseudo_element(CSS::PseudoElement) const;
     bool has_pseudo_elements() const;
     void clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>);
+    void clear_pseudo_element_layout_nodes(Badge<Document>);
 
     void serialize_children_as_json(JsonObjectSerializer<StringBuilder>&) const;
 

@@ -1906,6 +1906,15 @@ void Element::clear_pseudo_element_nodes(Badge<Layout::TreeBuilder>)
     }
 }
 
+void Element::clear_pseudo_element_layout_nodes(Badge<Document>)
+{
+    if (m_pseudo_element_data) {
+        for (auto& pseudo_element : *m_pseudo_element_data) {
+            pseudo_element.value->set_layout_node(nullptr);
+        }
+    }
+}
+
 void Element::serialize_children_as_json(JsonObjectSerializer<StringBuilder>& element_object) const
 {
     bool has_pseudo_elements = this->has_pseudo_elements();

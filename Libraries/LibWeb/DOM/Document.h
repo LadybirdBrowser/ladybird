@@ -1081,6 +1081,7 @@ private:
 
     void invalidate_style_of_elements_affected_by_has();
 
+    void clear_layout_and_paintable_nodes_for_inactive_document();
     void tear_down_layout_tree();
 
     void update_active_element();

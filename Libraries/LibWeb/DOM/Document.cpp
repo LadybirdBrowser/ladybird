@@ -1171,6 +1171,16 @@ void Document::tear_down_layout_tree()
     m_needs_full_layout_tree_update = true;
 }
 
+void Document::clear_layout_and_paintable_nodes_for_inactive_document()
+{
+    for_each_in_inclusive_subtree([&](auto& node) {
+        node.clear_layout_node_and_paintable({});
+        if (auto* element = as_if<Element>(node))
+            element->clear_pseudo_element_layout_nodes({});
+        return TraversalDecision::Continue;
+    });
+}
+
 Color Document::background_color() const
 {
     // CSS2 says we should use the HTML element's background color unless it's transparent...
@@ -4601,6 +4611,12 @@ void Document::destroy()
     // 6. Run any unloading document cleanup steps for document that are defined by this specification and other applicable specifications.
     run_unloading_cleanup_steps();
 
+    // AD-HOC: Destruction does not go through did_stop_being_active_document_in_navigable(),
+    //         but stale per-node and root layout/paintable pointers can still keep the old
+    //         layout tree alive until GC runs.
+    clear_layout_and_paintable_nodes_for_inactive_document();
+    tear_down_layout_tree();
+
     // 7. Remove any tasks whose document is document from any task queue (without running those tasks).
     HTML::main_thread_event_loop().task_queue().remove_tasks_matching([this](auto& task) {
         return task.document() == this;
@@ -4995,6 +5011,7 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
 
 void Document::did_stop_being_active_document_in_navigable()
 {
+    clear_layout_and_paintable_nodes_for_inactive_document();
     tear_down_layout_tree();
 
     schedule_html_parser_end_check();

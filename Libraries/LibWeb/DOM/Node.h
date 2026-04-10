@@ -25,6 +25,8 @@
 
 namespace Web::DOM {
 
+class Document;
+
 enum class NameOrDescription {
     Name,
     Description
@@ -325,6 +327,7 @@ public:
     void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
     void set_needs_layout_update(SetNeedsLayoutReason);
 
+    void clear_layout_node_and_paintable(Badge<Document>);
     void set_layout_node(Badge<Layout::Node>, GC::Ref<Layout::Node>);
     void detach_layout_node(Badge<Layout::TreeBuilder>);
 
