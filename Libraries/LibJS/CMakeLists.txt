@@ -316,19 +316,25 @@ if(NOT BUILD_SHARED_LIBS)
     file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
 endif()
 
-# AsmInterpreter: generate platform-specific assembly from DSL
-# NB: Win64 uses a different ABI (shadow space, different arg registers)
-#     from SysV AMD64, and the x86_64 backend only supports SysV for now.
-if (NOT WIN32 AND ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$"))
+# AsmInterpreter: generate platform-specific assembly from DSL.
+# Supports SysV AMD64 (Linux/BSD), Mach-O (macOS x86_64 and Apple Silicon),
+# PE/COFF (Windows x64), and AAPCS64 (Linux/macOS aarch64).
+if ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(x86_64|amd64|AMD64)$")
     set(ASMINT_ARCH "x86_64")
-elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64)$")
+elseif ("${CMAKE_SYSTEM_PROCESSOR}" MATCHES "^(aarch64|arm64)$" AND NOT WIN32)
+    # Windows ARM64 would need SEH emission in the aarch64 backend, which
+    # is not yet implemented.
     set(ASMINT_ARCH "aarch64")
 endif()
 
 if (DEFINED ASMINT_ARCH)
     enable_language(ASM)
     set(ASMINTGEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/AsmIntGen")
-    set(ASMINTGEN_BIN "${ASMINTGEN_DIR}/target/release/asmintgen")
+    if (WIN32)
+        set(ASMINTGEN_BIN "${ASMINTGEN_DIR}/target/release/asmintgen.exe")
+    else()
+        set(ASMINTGEN_BIN "${ASMINTGEN_DIR}/target/release/asmintgen")
+    endif()
     set(ASMINT_DSL "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/asmint.asm")
     set(ASMINT_GENERATED_S "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asmint_${ASMINT_ARCH}.S")
     set(ASM_OFFSETS_FILE "${CMAKE_CURRENT_BINARY_DIR}/Bytecode/AsmInterpreter/asm_offsets.conf")
@@ -337,7 +343,15 @@ if (DEFINED ASMINT_ARCH)
     # offsetof() to emit struct field offsets as DSL constants.
     add_executable(gen_asm_offsets "${CMAKE_CURRENT_SOURCE_DIR}/Bytecode/AsmInterpreter/gen_asm_offsets.cpp")
     target_link_libraries(gen_asm_offsets PRIVATE AK)
-    target_compile_definitions(gen_asm_offsets PRIVATE private=public protected=public)
+    # NB: MSVC's STL headers contain `#define private EMIT WARNING` guards in
+    # xkeycheck.h that refuse to compile if `private` has been macro-redefined.
+    # _ALLOW_KEYWORD_MACROS disables those guards so our `private=public` trick
+    # can coexist with <memory>, <exception>, etc.
+    target_compile_definitions(gen_asm_offsets PRIVATE
+        private=public
+        protected=public
+        _ALLOW_KEYWORD_MACROS
+    )
     # NB: Strip fuzzer sanitizer flags so gen_asm_offsets can define its own main().
     if (ENABLE_FUZZERS_LIBFUZZER)
         target_compile_options(gen_asm_offsets PRIVATE -fno-sanitize=fuzzer)
@@ -383,6 +397,8 @@ if (DEFINED ASMINT_ARCH)
 
     if (APPLE)
         set(ASMINT_OBJ_FORMAT "macho")
+    elseif (WIN32)
+        set(ASMINT_OBJ_FORMAT "coff")
     else()
         set(ASMINT_OBJ_FORMAT "elf")
     endif()
@@ -406,5 +422,14 @@ if (DEFINED ASMINT_ARCH)
         COMMENT "Generating asmint_${ASMINT_ARCH}.S from DSL"
     )
 
+    if (WIN32)
+        # CMake forwards LibJS's MSVC_DEBUG_INFORMATION_FORMAT property to
+        # every source language, but clang-cl's ASM mode doesn't recognize
+        # the /Z7 vs /Zi mapping CMake infers from it. Clear the property on
+        # the generated .S so its compile line is plain "/c asmint.S".
+        set_source_files_properties("${ASMINT_GENERATED_S}" PROPERTIES
+            MSVC_DEBUG_INFORMATION_FORMAT ""
+        )
+    endif()
     target_sources(LibJS PRIVATE "${ASMINT_GENERATED_S}")
 endif()
