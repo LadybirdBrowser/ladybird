@@ -62,17 +62,45 @@ pub fn generate(program: &Program) -> String {
     w!(out, "#endif");
     w!(out);
 
+    // @feat.00 is a magic COFF absolute symbol whose value is a bitfield of
+    // compiler-level protection features the object opts into. clang-cl
+    // bakes this into every C/C++ object under /guard:cf with value 0x800
+    // (= CFG compatible); without it, link.exe treats our object as CFG-
+    // unknown and silently reduces the /GUARD:CF coverage of the final
+    // image. We hand-emit the same block clang itself produces for C
+    // sources compiled with -Xclang -cfguard so asmint_x86_64.obj lines up
+    // with the rest of LibJS's object files.
+    //
+    // Setting 0x800 is an opt-in *declaration*, not a runtime enforcement:
+    // it does not inject __guard_check_icall_fptr calls into our handlers.
+    // The only indirect branch in the blob is `jmp [r12 + rax*8]`, and x64
+    // CFG validates indirect calls, not indirect jumps, so dispatch is
+    // unaffected at runtime. asm_interpreter_entry is only ever reached
+    // via a direct `call` from AsmInterpreter::run, so the call site is
+    // likewise unaffected.
+    if matches!(program.object_format, ObjectFormat::Coff) {
+        w!(out, ".def    @feat.00;");
+        w!(out, ".scl    3;");
+        w!(out, ".type   0;");
+        w!(out, ".endef");
+        w!(out, ".globl  @feat.00");
+        w!(out, "@feat.00 = 0x800");
+        w!(out);
+    }
+
     w!(out, ".text");
     w!(out);
 
-    // Generate dispatch table
-    // The table contains absolute addresses that need relocation, so on Linux
-    // it must go in .data.rel.ro (not .rodata) to avoid DT_TEXTREL in PIE.
-    w!(out, "#ifdef __APPLE__");
-    w!(out, ".section __DATA,__const");
-    w!(out, "#else");
-    w!(out, ".section .data.rel.ro");
-    w!(out, "#endif");
+    // Generate dispatch table.
+    // The table contains absolute addresses that need relocation. On ELF it
+    // must go in .data.rel.ro (not .rodata) to avoid DT_TEXTREL in PIE. On
+    // Mach-O it lives in __DATA,__const. On PE/COFF .rdata is the standard
+    // read-only data section.
+    match program.object_format {
+        ObjectFormat::MachO => w!(out, ".section __DATA,__const"),
+        ObjectFormat::Elf => w!(out, ".section .data.rel.ro"),
+        ObjectFormat::Coff => w!(out, ".section .rdata,\"dr\""),
+    }
     w!(out, ".p2align 3");
     w!(out, "asm_dispatch_table:");
 
@@ -102,7 +130,7 @@ pub fn generate(program: &Program) -> String {
     w!(out, ".text");
     w!(out);
 
-    emit_proc_start(&mut out);
+    emit_proc_start(&mut out, program.object_format);
 
     // Generate entry point
     generate_entry_point(&mut out, program);
@@ -116,42 +144,64 @@ pub fn generate(program: &Program) -> String {
     }
 
     generate_exit_point(&mut out, program.object_format);
-    emit_proc_end(&mut out);
-    emit_file_trailer(&mut out);
+    emit_proc_end(&mut out, program.object_format);
+    emit_file_trailer(&mut out, program.object_format);
 
     out
 }
 
-fn emit_proc_start(out: &mut String) {
+fn emit_proc_start(out: &mut String, fmt: ObjectFormat) {
     // Start one unwind-covered region for the entire monolithic interpreter
-    // blob, from the entry label through the last handler.
+    // blob, from the entry label through the last handler. ELF and Mach-O use
+    // DWARF CFI; PE/COFF uses the MASM-style .seh_* directives that clang's
+    // integrated assembler understands.
     w!(out, ".globl CSYM(asm_interpreter_entry)");
     w!(out, ".p2align 4");
     w!(out, "CSYM(asm_interpreter_entry):");
-    w!(out, "    .cfi_startproc");
+    match fmt {
+        ObjectFormat::Elf | ObjectFormat::MachO => {
+            w!(out, "    .cfi_startproc");
+        }
+        ObjectFormat::Coff => {
+            w!(out, "    .seh_proc CSYM(asm_interpreter_entry)");
+        }
+    }
 }
 
-fn emit_proc_end(out: &mut String) {
+fn emit_proc_end(out: &mut String, fmt: ObjectFormat) {
     // Close the interpreter's unwind frame after the last handler so any PC
     // within the handler blob can unwind back to the C++ caller.
-    w!(out, ".cfi_endproc");
+    match fmt {
+        ObjectFormat::Elf | ObjectFormat::MachO => w!(out, ".cfi_endproc"),
+        ObjectFormat::Coff => w!(out, "    .seh_endproc"),
+    }
     w!(out);
 }
 
-fn emit_file_trailer(out: &mut String) {
-    // Mark stack as non-executable (required by Linux linker)
-    w!(out, "#ifndef __APPLE__");
-    w!(out, ".section .note.GNU-stack,\"\",@progbits");
-    w!(out, "#endif");
+fn emit_file_trailer(out: &mut String, fmt: ObjectFormat) {
+    // Mark stack as non-executable (required by Linux linker). Only ELF
+    // understands .note.GNU-stack; Mach-O and PE/COFF don't need it.
+    if matches!(fmt, ObjectFormat::Elf) {
+        w!(out, ".section .note.GNU-stack,\"\",@progbits");
+    }
 }
 
 fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
     // Shared exit path: restore callee-saved registers and return.
     // Keep this at the end of the proc so its CFI state does not affect
     // later handler PCs. Mach-O's assembler rejects epilogue CFI directives,
-    // so only emit those for ELF.
+    // so only emit those for ELF. PE/COFF uses SEH unwind metadata emitted
+    // at the prologue (see generate_entry_point); the epilogue itself has
+    // no per-instruction directives.
     w!(out, ".Lexit:");
-    w!(out, "    add rsp, 8");
+    if matches!(fmt, ObjectFormat::Coff) {
+        // Release interp slot (8) + shadow space (32).
+        w!(out, "    add rsp, 40");
+        w!(out, "    pop rsi");
+        w!(out, "    pop rdi");
+    } else {
+        w!(out, "    add rsp, 8");
+    }
     w!(out, "    pop r15");
     if matches!(fmt, ObjectFormat::Elf) {
         w!(out, "    .cfi_restore r15");
@@ -187,25 +237,98 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     //   Windows x64:    rcx=bytecode, edx=entry_point, r8=values,  r9=vm
     // The ARG* preprocessor macros hide this difference; we read each incoming
     // argument through its ARG slot and pin it into its callee-saved home.
+    //
+    // Stack frame layout after the prologue (with rbp as the frame pointer):
+    //
+    //   System V (Elf/Mach-O)          Windows x64 (Coff)
+    //   ------------------------       --------------------------------
+    //   rbp+8  return address          rbp+8   return address
+    //   rbp+0  saved rbp               rbp+0   saved rbp
+    //   rbp-8  saved rbx               rbp-8   saved rbx
+    //   rbp-16 saved r12               rbp-16  saved r12
+    //   rbp-24 saved r13               rbp-24  saved r13
+    //   rbp-32 saved r14               rbp-32  saved r14
+    //   rbp-40 saved r15               rbp-40  saved r15
+    //   rbp-48 Interpreter* slot       rbp-48  saved rdi
+    //     (sub rsp, 8 align pad)       rbp-56  saved rsi
+    //     rsp = rbp - 48               rbp-64  Interpreter* slot
+    //                                  rbp-96..rbp-65  shadow space
+    //                                  rsp = rbp - 96
+    //
+    // On Win64, rsi/rdi are callee-saved (not scratch as on SysV), so we push
+    // them here and pop them in the epilogue. That lets the handler bodies
+    // keep treating them as scratch temporaries without any ABI-specific
+    // register-allocation logic.
 
-    // Save callee-saved registers
+    let is_coff = matches!(program.object_format, ObjectFormat::Coff);
+
+    // Save callee-saved registers. SEH directives must appear in prologue
+    // order, immediately after the instruction they describe. We deliberately
+    // omit .seh_setframe: the frame is fixed-size and has no dynamic
+    // allocations, so rsp-relative unwinding (via .seh_pushreg + .seh_stackalloc)
+    // is sufficient, and this avoids having to match Microsoft's strict
+    // push-then-alloca-then-setframe ordering in a prologue that interleaves
+    // frame-pointer setup with callee-saved pushes.
     w!(out, "    push rbp");
-    w!(out, "    .cfi_def_cfa_offset 16");
-    w!(out, "    .cfi_offset rbp, -16");
+    if is_coff {
+        w!(out, "    .seh_pushreg rbp");
+    } else {
+        w!(out, "    .cfi_def_cfa_offset 16");
+        w!(out, "    .cfi_offset rbp, -16");
+    }
     w!(out, "    mov rbp, rsp");
-    w!(out, "    .cfi_def_cfa_register rbp");
+    if !is_coff {
+        w!(out, "    .cfi_def_cfa_register rbp");
+    }
     w!(out, "    push rbx");
-    w!(out, "    .cfi_offset rbx, -24");
+    if is_coff {
+        w!(out, "    .seh_pushreg rbx");
+    } else {
+        w!(out, "    .cfi_offset rbx, -24");
+    }
     w!(out, "    push r12");
-    w!(out, "    .cfi_offset r12, -32");
+    if is_coff {
+        w!(out, "    .seh_pushreg r12");
+    } else {
+        w!(out, "    .cfi_offset r12, -32");
+    }
     w!(out, "    push r13");
-    w!(out, "    .cfi_offset r13, -40");
+    if is_coff {
+        w!(out, "    .seh_pushreg r13");
+    } else {
+        w!(out, "    .cfi_offset r13, -40");
+    }
     w!(out, "    push r14");
-    w!(out, "    .cfi_offset r14, -48");
+    if is_coff {
+        w!(out, "    .seh_pushreg r14");
+    } else {
+        w!(out, "    .cfi_offset r14, -48");
+    }
     w!(out, "    push r15");
-    w!(out, "    .cfi_offset r15, -56");
-    // Align stack to 16 bytes (pushed rbp + 5 regs = 48 bytes, need one more for alignment)
-    w!(out, "    sub rsp, 8");
+    if is_coff {
+        w!(out, "    .seh_pushreg r15");
+    } else {
+        w!(out, "    .cfi_offset r15, -56");
+    }
+    if is_coff {
+        // Win64: rsi and rdi are callee-saved. Preserve them so the handler
+        // bodies can keep using them as scratch t3/t4.
+        w!(out, "    push rdi");
+        w!(out, "    .seh_pushreg rdi");
+        w!(out, "    push rsi");
+        w!(out, "    .seh_pushreg rsi");
+        // Reserve 8 bytes for the Interpreter* slot + 32 bytes of shadow
+        // space that every C callee requires. 40 keeps rsp 16-byte aligned
+        // before the next call (8 pushes + 40 = 104 bytes, and 104 % 16 == 8,
+        // which matches Win64's "misaligned-by-8 on entry" convention).
+        w!(out, "    sub rsp, 40");
+        w!(out, "    .seh_stackalloc 40");
+        w!(out, "    .seh_endprologue");
+    } else {
+        // Align stack to 16 bytes (pushed rbp + 5 regs = 48 bytes, need one
+        // more for alignment). Also serves as the Interpreter* slot.
+        w!(out, "    sub rsp, 8");
+    }
 
     // Set up pinned registers from the incoming arguments.
     w!(out, "    mov r14, ARG0          # pb = bytecode base");
