@@ -45,7 +45,7 @@
         header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 16px;
             margin-bottom: 24px;
             padding-bottom: 16px;
             border-bottom: 1px solid var(--border-primary);
@@ -58,6 +58,12 @@
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+
+        .title-timestamp {
+            color: var(--text-secondary);
+            font-size: 18px;
+            font-weight: normal;
         }
 
         h1::before {
@@ -272,6 +278,25 @@
         .copy-btn.copied {
             color: var(--accent-green);
             border-color: var(--accent-green);
+        }
+
+        #copy-run-command-btn {
+            margin-left: auto;
+            width: auto;
+            height: auto;
+            padding: 10px;
+            gap: 8px;
+            border-radius: 6px;
+        }
+
+        #copy-run-command-btn .stat-label {
+            margin-top: 0;
+        }
+
+        .copy-btn-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .expand-icon {
@@ -582,7 +607,11 @@
 <body>
     <div class="container">
         <header>
-            <h1>Test Results</h1>
+            <h1>
+                <span>Test Results</span>
+                <span class="title-timestamp" id="page-timestamp"></span>
+            </h1>
+            <button class="copy-btn" id="copy-run-command-btn"></button>
             <div class="search-box">
                 <span class="search-icon">&#128269;</span>
                 <input type="text" id="search" placeholder="Filter tests..." autocomplete="off">
@@ -603,11 +632,27 @@
         let currentIndex = -1;
         let testElements = [];
 
+        function setCopyButtonContents(btn, icon) {
+            if (btn.id !== 'copy-run-command-btn') return btn.innerHTML = icon;
+            btn.innerHTML = `<span class="stat-label">Copy Run Cmd</span><span class="copy-btn-icon">${icon}</span>`;
+        }
+
+        function renderHeader(data) {
+            const date = new Date(data.generatedAt * 1000);
+            const pad2 = (value) => String(value).padStart(2, '0');
+            document.getElementById('page-timestamp').textContent = `${date.getFullYear()}/${pad2(date.getMonth() + 1)}/${pad2(date.getDate())} at ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+            const copyRunCommandButton = document.getElementById('copy-run-command-btn');
+            setCopyButtonContents(copyRunCommandButton, copySvg);
+            copyRunCommandButton.title = data.invocationCommandLine;
+            copyRunCommandButton.onclick = e => copyText(e, copyRunCommandButton, data.invocationCommandLine);
+        }
+
         function loadResults() {
             if (typeof RESULTS_DATA === 'undefined') {
                 document.getElementById('content').innerHTML = '<div class="empty-state"><h2>No Results</h2><p>results.js not found</p></div>';
                 return;
             }
+            renderHeader(RESULTS_DATA);
             renderResults(RESULTS_DATA);
             setupKeyboardNav();
         }
@@ -665,7 +710,7 @@
                         ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
                         ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
                         <span class="test-name">${item.name}</span>
-                        ${item.result ? `<button class="copy-btn" onclick="copyTestName(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
+                        ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
                         <span class="expand-icon">&#9654;</span>
                     </div>
                     <div class="test-content">`;
@@ -701,13 +746,13 @@
             return { bar, tabs };
         }
 
-        function copyTestName(event, btn, name) {
-            event.stopPropagation();
-            navigator.clipboard.writeText(name).then(function() {
-                btn.innerHTML = checkSvg;
+        function copyText(event, btn, text) {
+            event?.stopPropagation();
+            navigator.clipboard.writeText(text).then(function() {
+                setCopyButtonContents(btn, checkSvg);
                 btn.classList.add('copied');
                 setTimeout(function() {
-                    btn.innerHTML = copySvg;
+                    setCopyButtonContents(btn, copySvg);
                     btn.classList.remove('copied');
                 }, 1500);
             });

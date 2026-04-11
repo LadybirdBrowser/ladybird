@@ -452,6 +452,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 {
     auto& app = Application::the();
     bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
+    auto const generated_at = UnixDateTime::now();
 
     // Count results
     size_t fail_count = 0;
@@ -482,6 +483,8 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
     js.append("const RESULTS_DATA = {\n"sv);
     js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
         s_total_tests, fail_count, timeout_count, crashed_count, skipped_count);
+    js.appendff("  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
+    js.appendff("  \"invocationCommandLine\": {},\n", JsonValue(app.invocation_command_line).serialized());
     js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
     js.append("  \"tests\": [\n"sv);
 
@@ -1724,6 +1727,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 #else
     auto app = TRY(TestWeb::Application::create(arguments, OptionalNone {}));
 #endif
+    app->invocation_command_line = MUST(String::join(' ', arguments.strings));
 
     if (app->repeat_count > 1 && app->rebaseline) {
         warnln("Error: --repeat cannot be used together with --rebaseline.");
