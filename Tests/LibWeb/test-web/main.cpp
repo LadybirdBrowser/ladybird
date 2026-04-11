@@ -10,6 +10,7 @@
 
 #include "Application.h"
 #include "Debug.h"
+#include "TestRunCapture.h"
 #include "TestWeb.h"
 #include "TestWebView.h"
 
@@ -28,7 +29,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/MappedFile.h>
-#include <LibCore/Notifier.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
@@ -210,109 +210,12 @@ struct TestRunContext {
 
 static TestRunContext* s_run_context { nullptr };
 
-struct ViewOutputCapture {
-    StringBuilder stdout_buffer;
-    StringBuilder stderr_buffer;
-    RefPtr<Core::Notifier> stdout_notifier;
-    RefPtr<Core::Notifier> stderr_notifier;
-};
-
-static HashMap<WebView::ViewImplementation const*, NonnullOwnPtr<ViewOutputCapture>> s_output_captures;
-
-static ViewOutputCapture& output_capture_for_view(WebView::ViewImplementation const& view)
-{
-    auto capture = s_output_captures.get(&view);
-    VERIFY(capture.has_value());
-    return *capture.value();
-}
-
-static void setup_output_capture_for_view(TestWebView& view)
-{
-    auto pid = view.web_content_pid();
-    auto process = Application::the().find_process(pid);
-    if (!process.has_value())
-        return;
-
-    auto& output_capture = process->output_capture();
-    if (!output_capture.stdout_file && !output_capture.stderr_file)
-        return;
-
-    auto view_capture = make<ViewOutputCapture>();
-
-    if (output_capture.stdout_file) {
-        auto fd = output_capture.stdout_file->fd();
-        view_capture->stdout_notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
-        view_capture->stdout_notifier->on_activation = [fd, &capture = *view_capture]() {
-            char buffer[4096];
-            auto nread = read(fd, buffer, sizeof(buffer));
-            if (nread > 0) {
-                StringView message { buffer, static_cast<size_t>(nread) };
-
-                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                    (void)Core::System::write(STDOUT_FILENO, message.bytes());
-
-                capture.stdout_buffer.append(message);
-            } else {
-                capture.stdout_notifier->set_enabled(false);
-            }
-        };
-    }
-
-    if (output_capture.stderr_file) {
-        auto fd = output_capture.stderr_file->fd();
-        view_capture->stderr_notifier = Core::Notifier::construct(fd, Core::Notifier::Type::Read);
-        view_capture->stderr_notifier->on_activation = [fd, &capture = *view_capture]() {
-            char buffer[4096];
-            auto nread = read(fd, buffer, sizeof(buffer));
-            if (nread > 0) {
-                StringView message { buffer, static_cast<size_t>(nread) };
-
-                if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                    (void)Core::System::write(STDERR_FILENO, message.bytes());
-
-                capture.stderr_buffer.append(message);
-            } else {
-                capture.stderr_notifier->set_enabled(false);
-            }
-        };
-    }
-
-    s_output_captures.set(&view, move(view_capture));
-}
-
 static ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
     auto& app = Application::the();
     auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path);
     TRY(Core::Directory::create(base_path.dirname(), Core::Directory::CreateDirectories::Yes));
     return base_path.string();
-}
-
-static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
-{
-    auto base_path = TRY(prepare_output_path(test));
-
-    // Write stdout if not empty
-    if (!capture.stdout_buffer.is_empty()) {
-        auto stdout_path = ByteString::formatted("{}.stdout.html", base_path);
-        auto file = TRY(Core::File::open(stdout_path, Core::File::OpenMode::Write));
-        auto html = convert_ansi_to_html(capture.stdout_buffer.string_view());
-        TRY(file->write_until_depleted(html.string_view()));
-    }
-
-    // Write stderr if not empty
-    if (!capture.stderr_buffer.is_empty()) {
-        auto stderr_path = ByteString::formatted("{}.stderr.html", base_path);
-        auto file = TRY(Core::File::open(stderr_path, Core::File::OpenMode::Write));
-        auto html = convert_ansi_to_html(capture.stderr_buffer.string_view());
-        TRY(file->write_until_depleted(html.string_view()));
-    }
-
-    // Clear buffers for next test
-    capture.stdout_buffer.clear();
-    capture.stderr_buffer.clear();
-
-    return {};
 }
 
 static constexpr StringView test_result_to_string(TestResult result)
@@ -591,15 +494,13 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
 
         auto const& test = tests[result.test_index];
         auto base_path = TRY(prepare_output_path(test));
-        bool has_stdout = FileSystem::exists(ByteString::formatted("{}.stdout.html", base_path));
-        bool has_stderr = FileSystem::exists(ByteString::formatted("{}.stderr.html", base_path));
+        bool has_std_logs = FileSystem::exists(ByteString::formatted("{}.logs.html", base_path));
 
-        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasStdout\": {}, \"hasStderr\": {}",
+        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasLogs\": {}",
             test.safe_relative_path,
             test_result_to_string(result.result),
             test_mode_to_string(test.mode),
-            has_stdout ? "true" : "false",
-            has_stderr ? "true" : "false");
+            has_std_logs ? "true" : "false");
         if ((test.mode == TestMode::Ref || test.mode == TestMode::Screenshot) && test.diff_pixel_error_count > 0)
             js.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
         js.append(" }"sv);
@@ -1178,11 +1079,12 @@ static void run_screenshot_test(TestWebView& view, TestRunContext& context, Test
     view.load(url);
 }
 
-static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app)
+static void run_test(TestWebView& view, TestRunContext& context, size_t test_index, Application& app, TestRunCapture& test_run_capture)
 {
     s_current_test_index_by_view.set(&view, test_index);
 
     auto& test = context.tests[test_index];
+    test_run_capture.begin_test_output_capture(view, test);
     auto timeout_in_milliseconds = app.per_test_timeout_in_seconds * 1000;
 
     test.timeout_timer = Core::Timer::create_single_shot(timeout_in_milliseconds, [&view, &context, test_index]() {
@@ -1259,7 +1161,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     view.load(URL::about_blank());
 }
 
-static void set_ui_callbacks_for_tests(TestWebView& view)
+static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_run_capture)
 {
     view.on_request_file_picker = [&](auto const& accepted_file_types, auto allow_multiple_files) {
         // Create some dummy files for tests.
@@ -1307,27 +1209,16 @@ static void set_ui_callbacks_for_tests(TestWebView& view)
         view.alert_closed();
     };
 
-    view.on_web_content_crashed = [&view]() {
-        if (auto index = s_current_test_index_by_view.get(&view); index.has_value()) {
-            if (s_run_context) {
-                auto& capture = output_capture_for_view(view);
-                (void)write_output_for_test(s_run_context->tests[*index], capture);
-            }
-        }
-
-        // Re-setup output capture for the respawned WebContent process
-        // (handle_web_content_process_crash already ran and respawned it)
-        s_output_captures.remove(&view);
-        setup_output_capture_for_view(view);
+    view.on_web_content_crashed = [&view, &test_run_capture]() {
+        test_run_capture.write_test_output(view);
 
         if (auto index = s_current_test_index_by_view.get(&view); index.has_value()) {
             view.on_test_complete({ *index, TestResult::Crashed });
         }
     };
 
-    view.on_web_content_process_change_for_cross_site_navigation = [&view]() {
-        s_output_captures.remove(&view);
-        setup_output_capture_for_view(view);
+    view.on_web_content_process_change_for_cross_site_navigation = [&view, &test_run_capture]() {
+        test_run_capture.rebind_test_output_capture(view);
     };
 }
 
@@ -1433,6 +1324,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
 
+    TestRunCapture test_run_capture;
+
     for (size_t i = 0; i < concurrency; ++i) {
         auto view = TestWebView::create(theme, window_size);
         view->on_load_finish = [&](auto const&) { ++loaded_web_views; };
@@ -1447,10 +1340,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     Core::EventLoop::current().spin_until([&]() {
         return loaded_web_views == concurrency;
     });
-
-    // Set up output capture for each view if results directory is specified
-    for (auto& view : views)
-        setup_output_capture_for_view(*view);
 
     // Initialize view display states (used for idle tracking even when not on TTY)
     s_view_display_states.resize(concurrency);
@@ -1521,7 +1410,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto digits_for_test_id = static_cast<size_t>(log10(tests.size()) + 1);
 
     for (auto [view_id, view] : enumerate(views)) {
-        set_ui_callbacks_for_tests(*view);
+        set_ui_callbacks_for_tests(*view, test_run_capture);
         view->clear_content_filters();
 
         auto cleanup_test = [&, view = view.ptr()](size_t test_index, TestResult test_result) {
@@ -1594,7 +1483,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
             // Reset promise and attach completion callback
             view->reset_test_promise();
-            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, digits_for_view_id, digits_for_test_id, use_live_display](auto result) {
+            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, digits_for_view_id, digits_for_test_id, use_live_display, &test_run_capture](auto result) {
                 cleanup_test(result.test_index, result.result);
 
                 auto& test = tests[result.test_index];
@@ -1605,12 +1494,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 test.end_time = UnixDateTime::now();
 
-                // Write captured stdout/stderr to results directory.
+                // Write captured std logs to results directory.
                 // NOTE: On crashes, we already flushed it in on_web_content_crashed.
-                if (result.result != TestResult::Crashed) {
-                    auto& capture = output_capture_for_view(*view);
-                    (void)write_output_for_test(test, capture);
-                }
+                if (result.result != TestResult::Crashed)
+                    test_run_capture.write_test_output(*view);
 
                 if (!app.quiet && app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
                     auto duration = test.end_time - test.start_time;
@@ -1700,7 +1587,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (s_skipped_tests.contains_slow(tests[index].input_path))
                     view->on_test_complete({ index, TestResult::Skipped });
                 else
-                    run_test(*view, context, index, app);
+                    run_test(*view, context, index, app, test_run_capture);
             });
         };
 
