@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <AK/Find.h>
 #include <LibCore/EventLoop.h>
 #include <LibRequests/Request.h>
@@ -15,6 +16,8 @@
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/HistoryDebug.h>
+#include <LibWebView/HistoryStore.h>
 
 namespace WebView {
 
@@ -41,6 +44,18 @@ Optional<AutocompleteEngine const&> find_autocomplete_engine_by_name(StringView 
 Autocomplete::Autocomplete() = default;
 Autocomplete::~Autocomplete() = default;
 
+static Vector<String> merge_suggestions(Vector<String> history_suggestions, Vector<String> remote_suggestions)
+{
+    history_suggestions.ensure_capacity(history_suggestions.size() + remote_suggestions.size());
+
+    for (auto& suggestion : remote_suggestions) {
+        if (!history_suggestions.contains_slow(suggestion))
+            history_suggestions.unchecked_append(move(suggestion));
+    }
+
+    return history_suggestions;
+}
+
 void Autocomplete::query_autocomplete_engine(String query)
 {
     if (m_request) {
@@ -48,41 +63,60 @@ void Autocomplete::query_autocomplete_engine(String query)
         m_request.clear();
     }
 
-    auto trimmed_query = query.bytes_as_string_view().trim_whitespace();
-    if (trimmed_query.is_empty() || trimmed_query.starts_with(file_url_prefix)) {
-        invoke_autocomplete_query_complete({});
+    auto trimmed_query = MUST(String::from_utf8(query.bytes_as_string_view().trim_whitespace()));
+    m_query = move(query);
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Autocomplete query='{}' trimmed='{}'", m_query, trimmed_query);
+
+    m_history_suggestions = Application::history_store().autocomplete_suggestions(trimmed_query);
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] History autocomplete suggestions for '{}': {}", trimmed_query, history_log_suggestions(m_history_suggestions));
+
+    invoke_autocomplete_query_complete(m_history_suggestions);
+
+    if (trimmed_query.is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete for empty query");
+        return;
+    }
+
+    if (trimmed_query.starts_with_bytes(file_url_prefix)) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete for file URL query '{}'", trimmed_query);
         return;
     }
 
     auto engine = Application::settings().autocomplete_engine();
     if (!engine.has_value()) {
-        invoke_autocomplete_query_complete({});
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping remote autocomplete because no engine is configured");
         return;
     }
 
-    auto url_string = MUST(String::formatted(engine->query_url, URL::percent_encode(query)));
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Fetching remote autocomplete suggestions from {} for '{}'", engine->name, m_query);
+
+    auto url_string = MUST(String::formatted(engine->query_url, URL::percent_encode(m_query)));
     auto url = URL::Parser::basic_parse(url_string);
 
-    if (!url.has_value()) {
-        invoke_autocomplete_query_complete({});
+    if (!url.has_value())
         return;
-    }
 
     m_request = Application::request_server_client().start_request("GET"sv, *url);
-    m_query = move(query);
 
     m_request->set_buffered_request_finished_callback(
-        [this, engine = engine.release_value()](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
+        [this, engine = engine.release_value(), query = m_query](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
+
+            if (m_query != query) {
+                dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Discarding stale remote autocomplete response for '{}' while current query is '{}'", query, m_query);
+                return;
+            }
 
             if (network_error.has_value()) {
                 warnln("Unable to fetch autocomplete suggestions: {}", Requests::network_error_to_string(*network_error));
-                invoke_autocomplete_query_complete({});
+                invoke_autocomplete_query_complete(m_history_suggestions);
                 return;
             }
             if (response_code.has_value() && *response_code >= 400) {
                 warnln("Received error response code {} from autocomplete engine: {}", *response_code, reason_phrase);
-                invoke_autocomplete_query_complete({});
+                invoke_autocomplete_query_complete(m_history_suggestions);
                 return;
             }
 
@@ -90,9 +124,17 @@ void Autocomplete::query_autocomplete_engine(String query)
 
             if (auto result = received_autocomplete_respsonse(engine, content_type, payload); result.is_error()) {
                 warnln("Unable to handle autocomplete response: {}", result.error());
-                invoke_autocomplete_query_complete({});
+                invoke_autocomplete_query_complete(m_history_suggestions);
             } else {
-                invoke_autocomplete_query_complete(result.release_value());
+                auto remote_suggestions = result.release_value();
+
+                dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Remote autocomplete suggestions for '{}': {}", query, history_log_suggestions(remote_suggestions));
+
+                auto merged_suggestions = merge_suggestions(m_history_suggestions, move(remote_suggestions));
+
+                dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Merged autocomplete suggestions for '{}': {}", query, history_log_suggestions(merged_suggestions));
+
+                invoke_autocomplete_query_complete(move(merged_suggestions));
             }
         });
 }
@@ -208,6 +250,8 @@ ErrorOr<Vector<String>> Autocomplete::received_autocomplete_respsonse(Autocomple
 
 void Autocomplete::invoke_autocomplete_query_complete(Vector<String> suggestions) const
 {
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Delivering {} autocomplete suggestion(s)", suggestions.size());
+
     if (on_autocomplete_query_complete)
         on_autocomplete_query_complete(move(suggestions));
 }

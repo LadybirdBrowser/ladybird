@@ -21,6 +21,54 @@ static URL::URL parse_url(StringView url)
     return parsed_url.release_value();
 }
 
+static void populate_history_for_url_autocomplete_tests(WebView::HistoryStore& store)
+{
+    store.record_visit(parse_url("https://www.google.com/"sv), {}, UnixDateTime::from_seconds_since_epoch(30));
+    store.record_visit(parse_url("https://x.com/"sv), {}, UnixDateTime::from_seconds_since_epoch(20));
+    store.record_visit(parse_url("https://github.com/LadybirdBrowser/ladybird"sv), {}, UnixDateTime::from_seconds_since_epoch(10));
+}
+
+static void expect_history_autocomplete_ignores_url_boilerplate(WebView::HistoryStore& store)
+{
+    populate_history_for_url_autocomplete_tests(store);
+
+    EXPECT(store.autocomplete_suggestions("https://"sv, 8).is_empty());
+    EXPECT(store.autocomplete_suggestions("https://www."sv, 8).is_empty());
+    EXPECT(store.autocomplete_suggestions("www."sv, 8).is_empty());
+
+    auto git_suggestions = store.autocomplete_suggestions("git"sv, 8);
+    VERIFY(git_suggestions.size() == 1);
+    EXPECT_EQ(git_suggestions[0], "https://github.com/LadybirdBrowser/ladybird"_string);
+
+    auto https_goo_suggestions = store.autocomplete_suggestions("https://goo"sv, 8);
+    VERIFY(https_goo_suggestions.size() == 1);
+    EXPECT_EQ(https_goo_suggestions[0], "https://www.google.com/"_string);
+}
+
+static void expect_history_autocomplete_requires_three_characters_for_title_matches(WebView::HistoryStore& store)
+{
+    store.record_visit(parse_url("https://example.com/"sv), "Foo bar baz wip wap wop"_string, UnixDateTime::from_seconds_since_epoch(10));
+
+    EXPECT(store.autocomplete_suggestions("w"sv, 8).is_empty());
+    EXPECT(store.autocomplete_suggestions("wi"sv, 8).is_empty());
+
+    auto suggestions = store.autocomplete_suggestions("wip"sv, 8);
+    VERIFY(suggestions.size() == 1);
+    EXPECT_EQ(suggestions[0], "https://example.com/"_string);
+}
+
+static void expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(WebView::HistoryStore& store)
+{
+    store.record_visit(parse_url("https://example.com/wip-path"sv), "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
+
+    EXPECT(store.autocomplete_suggestions("w"sv, 8).is_empty());
+    EXPECT(store.autocomplete_suggestions("wi"sv, 8).is_empty());
+
+    auto suggestions = store.autocomplete_suggestions("wip"sv, 8);
+    VERIFY(suggestions.size() == 1);
+    EXPECT_EQ(suggestions[0], "https://example.com/wip-path"_string);
+}
+
 TEST_CASE(record_and_lookup_history_entries)
 {
     auto store = WebView::HistoryStore::create();
@@ -54,6 +102,49 @@ TEST_CASE(history_autocomplete_prefers_url_prefix_then_recency)
     EXPECT_EQ(suggestions[2], "https://beta.example.com/"_string);
 }
 
+TEST_CASE(history_autocomplete_trims_whitespace)
+{
+    auto store = WebView::HistoryStore::create();
+
+    store->record_visit(parse_url("https://ladybird.dev/"sv), "Ladybird"_string, UnixDateTime::from_seconds_since_epoch(10));
+
+    auto suggestions = store->autocomplete_suggestions("  ladybird  "sv, 8);
+
+    VERIFY(suggestions.size() == 1);
+    EXPECT_EQ(suggestions[0], "https://ladybird.dev/"_string);
+}
+
+TEST_CASE(history_autocomplete_ignores_www_prefix_for_host_matches)
+{
+    auto store = WebView::HistoryStore::create();
+
+    store->record_visit(parse_url("https://www.google.com/"sv), "Google"_string, UnixDateTime::from_seconds_since_epoch(20));
+    store->record_visit(parse_url("https://www.goodreads.com/"sv), "Goodreads"_string, UnixDateTime::from_seconds_since_epoch(10));
+
+    auto suggestions = store->autocomplete_suggestions("goo"sv, 8);
+
+    VERIFY(suggestions.size() == 2);
+    EXPECT_EQ(suggestions[0], "https://www.google.com/"_string);
+    EXPECT_EQ(suggestions[1], "https://www.goodreads.com/"_string);
+}
+
+TEST_CASE(history_autocomplete_ignores_scheme_and_www_boilerplate_prefixes)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_history_autocomplete_ignores_url_boilerplate(*store);
+}
+
+TEST_CASE(history_autocomplete_requires_three_characters_for_title_matches)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_history_autocomplete_requires_three_characters_for_title_matches(*store);
+}
+
+TEST_CASE(history_autocomplete_requires_three_characters_for_non_prefix_url_matches)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
+}
 TEST_CASE(non_browsable_urls_are_not_recorded)
 {
     auto store = WebView::HistoryStore::create();
@@ -107,4 +198,59 @@ TEST_CASE(persisted_history_survives_reopen)
         EXPECT_EQ(entry->visit_count, 1u);
         EXPECT_EQ(entry->last_visited_time, UnixDateTime::from_seconds_since_epoch(77));
     }
+}
+
+TEST_CASE(persisted_history_autocomplete_ignores_scheme_and_www_boilerplate_prefixes)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-autocomplete-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+
+    expect_history_autocomplete_ignores_url_boilerplate(*store);
+}
+
+TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_title_matches)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-title-autocomplete-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+
+    expect_history_autocomplete_requires_three_characters_for_title_matches(*store);
+}
+
+TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_non_prefix_url_matches)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-url-autocomplete-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+
+    expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
+}
 }

@@ -231,9 +231,7 @@
 
 - (void)clearHistory:(id)sender
 {
-    for (TabController* controller in self.managed_tabs) {
-        [controller clearHistory];
-    }
+    WebView::Application::the().clear_history();
 }
 
 - (NSMenuItem*)createApplicationMenu

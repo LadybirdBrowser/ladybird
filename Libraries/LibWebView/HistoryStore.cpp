@@ -6,43 +6,99 @@
 
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
+#include <AK/Utf8View.h>
 #include <LibDatabase/Database.h>
 #include <LibURL/URL.h>
+#include <LibWebView/HistoryDebug.h>
 #include <LibWebView/HistoryStore.h>
 
 namespace WebView {
 
 static constexpr auto DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT = 8uz;
+static constexpr size_t MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH = 3;
 
-static bool matches_query(HistoryEntry const& entry, StringView query)
+static Optional<StringView> url_without_scheme(StringView url)
 {
-    if (entry.url.contains(query, CaseSensitivity::CaseInsensitive))
+    auto scheme_separator = url.find("://"sv);
+    if (!scheme_separator.has_value())
+        return {};
+
+    return url.substring_view(*scheme_separator + 3);
+}
+
+static StringView autocomplete_searchable_url(StringView url)
+{
+    auto stripped_url = url_without_scheme(url).value_or(url);
+    if (stripped_url.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+        stripped_url = stripped_url.substring_view(4);
+
+    return stripped_url;
+}
+
+static StringView autocomplete_url_query(StringView query)
+{
+    auto stripped_query = url_without_scheme(query).value_or(query);
+    if (stripped_query.starts_with("www."sv, CaseSensitivity::CaseInsensitive))
+        stripped_query = stripped_query.substring_view(4);
+
+    return stripped_query;
+}
+
+static StringView autocomplete_title_query(StringView query)
+{
+    if (Utf8View { query }.length() < MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH)
+        return {};
+
+    return query;
+}
+
+static StringView autocomplete_url_contains_query(StringView query)
+{
+    // Non-prefix URL matches get noisy very quickly, so only enable them
+    // once the user has typed enough to disambiguate path fragments.
+    if (Utf8View { query }.length() < MINIMUM_TITLE_AUTOCOMPLETE_QUERY_LENGTH)
+        return {};
+
+    return query;
+}
+
+static bool matches_query(HistoryEntry const& entry, StringView title_query, StringView url_query)
+{
+    auto searchable_url = autocomplete_searchable_url(entry.url.bytes_as_string_view());
+    if (!url_query.is_empty() && searchable_url.starts_with(url_query, CaseSensitivity::CaseInsensitive))
         return true;
 
-    return entry.title.has_value()
-        && entry.title->contains(query, CaseSensitivity::CaseInsensitive);
+    auto url_contains_query = autocomplete_url_contains_query(url_query);
+    if (!url_contains_query.is_empty() && searchable_url.contains(url_contains_query, CaseSensitivity::CaseInsensitive))
+        return true;
+
+    return !title_query.is_empty()
+        && entry.title.has_value()
+        && entry.title->contains(title_query, CaseSensitivity::CaseInsensitive);
 }
 
-static u8 match_rank(HistoryEntry const& entry, StringView query)
+static u8 match_rank(HistoryEntry const& entry, StringView title_query, StringView url_query)
 {
-    auto url = entry.url.bytes_as_string_view();
+    auto searchable_url = autocomplete_searchable_url(entry.url.bytes_as_string_view());
 
-    if (entry.url.equals_ignoring_ascii_case(query))
-        return 0;
-    if (url.starts_with(query, CaseSensitivity::CaseInsensitive))
-        return 1;
-    if (auto scheme_separator = url.find("://"sv); scheme_separator.has_value() && url.substring_view(*scheme_separator + 3).starts_with(query, CaseSensitivity::CaseInsensitive))
+    if (!url_query.is_empty()) {
+        if (searchable_url.equals_ignoring_ascii_case(url_query))
+            return 0;
+        if (searchable_url.starts_with(url_query, CaseSensitivity::CaseInsensitive))
+            return 1;
+    }
+
+    if (!title_query.is_empty() && entry.title.has_value() && entry.title->starts_with_bytes(title_query, CaseSensitivity::CaseInsensitive))
         return 2;
-    if (entry.title.has_value() && entry.title->starts_with_bytes(query, CaseSensitivity::CaseInsensitive))
-        return 3;
-    return 4;
+
+    return 3;
 }
 
-static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringView query)
+static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringView title_query, StringView url_query)
 {
     quick_sort(matches, [&](auto const* left, auto const* right) {
-        auto left_rank = match_rank(*left, query);
-        auto right_rank = match_rank(*right, query);
+        auto left_rank = match_rank(*left, title_query, url_query);
+        auto right_rank = match_rank(*right, title_query, url_query);
         if (left_rank != right_rank)
             return left_rank < right_rank;
 
@@ -58,6 +114,11 @@ static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringVi
 
 ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& database)
 {
+    if (auto database_path = database.database_path(); database_path.has_value())
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening persisted history store at {}", database_path->string());
+    else
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening memory-backed persisted history store");
+
     Statements statements {};
 
     auto create_history_table = TRY(database.prepare_statement(R"#(
@@ -99,16 +160,37 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
     )#"sv));
     statements.search_entries = TRY(database.prepare_statement(R"#(
         SELECT url
-        FROM History
-        WHERE INSTR(LOWER(url), LOWER(?)) > 0
-           OR INSTR(LOWER(title), LOWER(?)) > 0
+        FROM (
+            SELECT
+                url,
+                title,
+                visit_count,
+                last_visited_time,
+                CASE
+                    WHEN LOWER(CASE
+                        WHEN INSTR(url, '://') > 0 THEN SUBSTR(url, INSTR(url, '://') + 3)
+                        ELSE url
+                    END) LIKE 'www.%'
+                    THEN SUBSTR(CASE
+                        WHEN INSTR(url, '://') > 0 THEN SUBSTR(url, INSTR(url, '://') + 3)
+                        ELSE url
+                    END, 5)
+                    ELSE CASE
+                        WHEN INSTR(url, '://') > 0 THEN SUBSTR(url, INSTR(url, '://') + 3)
+                        ELSE url
+                    END
+                END AS searchable_url
+            FROM History
+        )
+        WHERE ((? != '' AND LOWER(searchable_url) LIKE LOWER(?) || '%')
+            OR (? != '' AND INSTR(LOWER(searchable_url), LOWER(?)) > 0)
+            OR (? != '' AND INSTR(LOWER(title), LOWER(?)) > 0))
         ORDER BY
             CASE
-                WHEN LOWER(url) = LOWER(?) THEN 0
-                WHEN LOWER(url) LIKE LOWER(?) || '%' THEN 1
-                WHEN INSTR(LOWER(url), '://' || LOWER(?)) > 0 THEN 2
-                WHEN LOWER(title) LIKE LOWER(?) || '%' THEN 3
-                ELSE 4
+                WHEN ? != '' AND LOWER(searchable_url) = LOWER(?) THEN 0
+                WHEN ? != '' AND LOWER(searchable_url) LIKE LOWER(?) || '%' THEN 1
+                WHEN ? != '' AND LOWER(title) LIKE LOWER(?) || '%' THEN 2
+                ELSE 3
             END,
             visit_count DESC,
             last_visited_time DESC,
@@ -123,6 +205,8 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
 
 NonnullOwnPtr<HistoryStore> HistoryStore::create()
 {
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Opening transient history store");
+
     return adopt_own(*new HistoryStore { OptionalNone {} });
 }
 
@@ -143,15 +227,21 @@ HistoryStore::~HistoryStore() = default;
 
 Optional<String> HistoryStore::normalize_url(URL::URL const& url)
 {
-    if (url.scheme().is_empty())
+    if (url.scheme().is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping history entry without a scheme: {}", url);
         return {};
+    }
 
-    if (url.scheme().is_one_of("about"sv, "data"sv))
+    if (url.scheme().is_one_of("about"sv, "data"sv)) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping non-browsable history URL: {}", url);
         return {};
+    }
 
     auto normalized_url = url.serialize(URL::ExcludeFragment::Yes);
-    if (normalized_url.is_empty())
+    if (normalized_url.is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Skipping history entry with an empty normalized URL: {}", url);
         return {};
+    }
 
     return normalized_url;
 }
@@ -165,6 +255,12 @@ void HistoryStore::record_visit(URL::URL const& url, Optional<String> title, Uni
     if (!normalized_url.has_value())
         return;
 
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Recording visit in {} store: url='{}' title='{}' visited_at={}",
+        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        *normalized_url,
+        title.has_value() ? title->bytes_as_string_view() : "<none>"sv,
+        visited_at.seconds_since_epoch());
+
     if (m_persisted_storage.has_value())
         m_persisted_storage->record_visit(*normalized_url, title, visited_at);
     else
@@ -176,12 +272,19 @@ void HistoryStore::update_title(URL::URL const& url, String const& title)
     if (m_is_disabled)
         return;
 
-    if (title.is_empty())
+    if (title.is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Ignoring empty history title update for {}", url);
         return;
+    }
 
     auto normalized_url = normalize_url(url);
     if (!normalized_url.has_value())
         return;
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Updating history title in {} store: url='{}' title='{}'",
+        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        *normalized_url,
+        title);
 
     if (m_persisted_storage.has_value())
         m_persisted_storage->update_title(*normalized_url, title);
@@ -198,9 +301,21 @@ Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
     if (!normalized_url.has_value())
         return {};
 
-    if (m_persisted_storage.has_value())
-        return m_persisted_storage->entry_for_url(*normalized_url);
-    return m_transient_storage.entry_for_url(*normalized_url);
+    auto entry = m_persisted_storage.has_value()
+        ? m_persisted_storage->entry_for_url(*normalized_url)
+        : m_transient_storage.entry_for_url(*normalized_url);
+
+    if (entry.has_value()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Found history entry for '{}': title='{}' visits={} last_visited={}",
+            entry->url,
+            entry->title.has_value() ? entry->title->bytes_as_string_view() : "<none>"sv,
+            entry->visit_count,
+            entry->last_visited_time.seconds_since_epoch());
+    } else {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] No history entry found for '{}'", *normalized_url);
+    }
+
+    return entry;
 }
 
 Vector<String> HistoryStore::autocomplete_suggestions(StringView query, size_t limit)
@@ -209,18 +324,35 @@ Vector<String> HistoryStore::autocomplete_suggestions(StringView query, size_t l
         return {};
 
     auto trimmed_query = query.trim_whitespace();
-    if (trimmed_query.is_empty())
+    if (trimmed_query.is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] History autocomplete query is empty after trimming");
         return {};
+    }
 
-    if (m_persisted_storage.has_value())
-        return m_persisted_storage->autocomplete_suggestions(trimmed_query, limit);
-    return m_transient_storage.autocomplete_suggestions(trimmed_query, limit);
+    auto title_query = autocomplete_title_query(trimmed_query);
+    auto url_query = autocomplete_url_query(trimmed_query);
+
+    auto suggestions = m_persisted_storage.has_value()
+        ? m_persisted_storage->autocomplete_suggestions(title_query, url_query, limit)
+        : m_transient_storage.autocomplete_suggestions(title_query, url_query, limit);
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] {} history autocomplete suggestions for '{}' (title_query='{}', url_query='{}', limit={}): {}",
+        m_persisted_storage.has_value() ? "SQL"sv : "Transient"sv,
+        trimmed_query,
+        title_query,
+        url_query,
+        limit,
+        history_log_suggestions(suggestions));
+
+    return suggestions;
 }
 
 void HistoryStore::clear()
 {
     if (m_is_disabled)
         return;
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing {} history store", m_persisted_storage.has_value() ? "SQL"sv : "transient"sv);
     if (m_persisted_storage.has_value())
         m_persisted_storage->clear();
     else
@@ -231,6 +363,10 @@ void HistoryStore::remove_entries_accessed_since(UnixDateTime since)
 {
     if (m_is_disabled)
         return;
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Removing {} history entries accessed since {}",
+        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        since.seconds_since_epoch());
     if (m_persisted_storage.has_value())
         m_persisted_storage->remove_entries_accessed_since(since);
     else
@@ -277,16 +413,16 @@ Optional<HistoryEntry> HistoryStore::TransientStorage::entry_for_url(String cons
     return *entry;
 }
 
-Vector<String> HistoryStore::TransientStorage::autocomplete_suggestions(StringView query, size_t limit)
+Vector<String> HistoryStore::TransientStorage::autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit)
 {
     Vector<HistoryEntry const*> matches;
 
     for (auto const& entry : m_entries) {
-        if (matches_query(entry.value, query))
+        if (matches_query(entry.value, title_query, url_query))
             matches.append(&entry.value);
     }
 
-    sort_matching_entries(matches, query);
+    sort_matching_entries(matches, title_query, url_query);
 
     Vector<String> suggestions;
     suggestions.ensure_capacity(min(limit, matches.size()));
@@ -349,22 +485,31 @@ Optional<HistoryEntry> HistoryStore::PersistedStorage::entry_for_url(String cons
     return entry;
 }
 
-Vector<String> HistoryStore::PersistedStorage::autocomplete_suggestions(StringView query, size_t limit)
+Vector<String> HistoryStore::PersistedStorage::autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit)
 {
     Vector<String> suggestions;
     suggestions.ensure_capacity(min(limit, DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT));
+    auto url_query_string = MUST(String::from_utf8(url_query));
+    auto title_query_string = MUST(String::from_utf8(title_query));
+    auto url_contains_query_string = MUST(String::from_utf8(autocomplete_url_contains_query(url_query)));
 
     database.execute_statement(
         statements.search_entries,
         [&](auto statement_id) {
             suggestions.append(database.result_column<String>(statement_id, 0));
         },
-        MUST(String::from_utf8(query)),
-        MUST(String::from_utf8(query)),
-        MUST(String::from_utf8(query)),
-        MUST(String::from_utf8(query)),
-        MUST(String::from_utf8(query)),
-        MUST(String::from_utf8(query)),
+        url_query_string,
+        url_query_string,
+        url_contains_query_string,
+        url_contains_query_string,
+        title_query_string,
+        title_query_string,
+        url_query_string,
+        url_query_string,
+        url_query_string,
+        url_query_string,
+        title_query_string,
+        title_query_string,
         static_cast<i64>(limit));
 
     return suggestions;

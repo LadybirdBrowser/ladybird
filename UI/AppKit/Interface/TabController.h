@@ -28,8 +28,6 @@
 - (void)onEnterFullscreenWindow;
 - (void)onExitFullscreenWindow;
 
-- (void)clearHistory;
-
 - (void)focusLocationToolbarItem;
 
 @end

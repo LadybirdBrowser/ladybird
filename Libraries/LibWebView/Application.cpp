@@ -20,6 +20,7 @@
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/ProcessType.h>
 #include <LibWebView/URL.h>
@@ -463,10 +464,19 @@ ErrorOr<void> Application::launch_services()
         auto database_path = ByteString::formatted("{}/Ladybird", Core::StandardPaths::user_data_directory());
 
         m_database = TRY(Database::Database::create(database_path, "Ladybird"sv));
+        m_history_database = TRY(Database::Database::create(database_path, "History"sv));
+
+        if (auto history_database_path = m_history_database->database_path(); history_database_path.has_value())
+            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is enabled, using {}", history_database_path->string());
+
         m_cookie_jar = TRY(CookieJar::create(*m_database));
+        m_history_store = TRY(HistoryStore::create(*m_history_database));
         m_storage_jar = TRY(StorageJar::create(*m_database));
     } else {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
+
         m_cookie_jar = CookieJar::create();
+        m_history_store = HistoryStore::create_disabled();
         m_storage_jar = StorageJar::create();
     }
 
@@ -822,6 +832,13 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);
     }
+}
+
+void Application::clear_history()
+{
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Clearing browsing history");
+
+    m_history_store->clear();
 }
 
 void Application::initialize_actions()

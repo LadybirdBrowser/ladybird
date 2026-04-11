@@ -39,6 +39,7 @@ private:
     void invoke_autocomplete_query_complete(Vector<String> suggestions) const;
 
     String m_query;
+    Vector<String> m_history_suggestions;
     RefPtr<Requests::Request> m_request;
 };
 

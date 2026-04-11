@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
@@ -17,6 +19,18 @@
 namespace WebView {
 
 HashTable<WebContentClient*> WebContentClient::s_clients;
+
+static Optional<String> history_title(Utf16String const& title, URL::URL const& url)
+{
+    if (title.is_empty())
+        return {};
+
+    auto title_utf8 = title.to_utf8();
+    if (title_utf8 == url.serialize() || title_utf8 == url.serialize(URL::ExcludeFragment::Yes))
+        return {};
+
+    return title_utf8;
+}
 
 WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, ViewImplementation& view)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
@@ -128,6 +142,14 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->set_url({}, url);
+        auto title = history_title(view->title(), url);
+
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
+            page_id,
+            url,
+            title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
+
+        Application::history_store().record_visit(url, move(title));
 
         if (view->on_load_finish)
             view->on_load_finish(url);
@@ -205,6 +227,17 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
         process->set_title(title);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        if (!title.is_empty()) {
+            auto title_utf8 = title.to_utf8();
+
+            dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Title changed for page {} at '{}' to '{}'",
+                page_id,
+                view->url(),
+                title_utf8);
+
+            Application::history_store().update_title(view->url(), title_utf8);
+        }
+
         if (title.is_empty())
             title = Utf16String::from_utf8(view->url().serialize());
 

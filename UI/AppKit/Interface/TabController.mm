@@ -196,11 +196,6 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     }
 }
 
-- (void)clearHistory
-{
-    // FIXME: Reimplement clearing history using WebContent's history.
-}
-
 - (void)focusLocationToolbarItem
 {
     [self.window makeFirstResponder:self.location_toolbar_item.view];

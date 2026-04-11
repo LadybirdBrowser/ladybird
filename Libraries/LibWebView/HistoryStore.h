@@ -60,7 +60,7 @@ private:
         void update_title(String const& url, String title);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<String> autocomplete_suggestions(StringView query, size_t limit);
+        Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);
 
         void clear();
         void remove_entries_accessed_since(UnixDateTime since);
@@ -74,7 +74,7 @@ private:
         void update_title(String const& url, String const& title);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<String> autocomplete_suggestions(StringView query, size_t limit);
+        Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);
 
         void clear();
         void remove_entries_accessed_since(UnixDateTime since);

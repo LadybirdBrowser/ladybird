@@ -63,9 +63,11 @@ public:
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 
     static BookmarkStore& bookmark_store() { return the().m_bookmark_store; }
+    static HistoryStore& history_store() { return *the().m_history_store; }
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
+    void clear_history();
 
     virtual void show_bookmark_context_menu(Gfx::IntPoint, Optional<BookmarkItem const&>, [[maybe_unused]] Optional<String const&> target_folder_id) { }
 
@@ -257,6 +259,7 @@ private:
 
     BookmarkStore m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
+    OwnPtr<HistoryStore> m_history_store;
 
     Main::Arguments m_arguments;
     BrowserOptions m_browser_options;
@@ -270,6 +273,7 @@ private:
     bool m_has_queued_task_to_launch_spare_web_content_process { false };
 
     RefPtr<Database::Database> m_database;
+    RefPtr<Database::Database> m_history_database;
     OwnPtr<CookieJar> m_cookie_jar;
     OwnPtr<StorageJar> m_storage_jar;
 
