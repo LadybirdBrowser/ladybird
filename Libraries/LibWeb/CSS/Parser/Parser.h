@@ -398,6 +398,7 @@ private:
     RefPtr<CalculationNode const> parse_math_function(Function const&, CalculationContext const&);
     RefPtr<CalculationNode const> parse_a_calc_function_node(Function const&, CalculationContext const&);
     RefPtr<StyleValue const> parse_keyword_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_specific_keyword_value(TokenStream<ComponentValue>&, Keyword);
     RefPtr<StyleValue const> parse_hue_none_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_solidus_and_alpha_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_rgb_color_value(TokenStream<ComponentValue>&);

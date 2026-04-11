@@ -197,7 +197,7 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
 
                     return parse_comma_separated_value_list(tokens, [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
                         auto const parse_value = [&]() -> RefPtr<StyleValue const> {
-                            if (auto keyword_value = parse_keyword_value(tokens); keyword_value && keyword_value->to_keyword() == Keyword::Infinite)
+                            if (auto keyword_value = parse_specific_keyword_value(tokens, Keyword::Infinite))
                                 return keyword_value;
 
                             if (auto integer_value = parse_integer_value(tokens, infinite_integer_range); integer_value)

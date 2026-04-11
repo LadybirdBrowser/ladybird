@@ -1242,6 +1242,18 @@ RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>
     return nullptr;
 }
 
+RefPtr<StyleValue const> Parser::parse_specific_keyword_value(TokenStream<ComponentValue>& tokens, Keyword keyword)
+{
+    auto transaction = tokens.begin_transaction();
+
+    if (auto keyword_value = parse_keyword_value(tokens); keyword_value && keyword_value->to_keyword() == keyword) {
+        transaction.commit();
+        return keyword_value;
+    }
+
+    return nullptr;
+}
+
 // https://drafts.csswg.org/scroll-animations-1/#funcdef-scroll
 RefPtr<FunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream<ComponentValue>& tokens)
 {
@@ -3626,20 +3638,21 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
     RefPtr<StyleValue const> annotation;
 
     while (tokens.has_next_token()) {
-        auto transaction = tokens.begin_transaction();
+        tokens.discard_whitespace();
 
         // historical-forms
-        if (auto keyword_value = parse_keyword_value(tokens); keyword_value && keyword_value->to_keyword() == Keyword::HistoricalForms) {
+        if (auto maybe_historical_forms = parse_specific_keyword_value(tokens, Keyword::HistoricalForms)) {
             if (historical_forms)
                 return nullptr;
 
-            transaction.commit();
-            historical_forms = keyword_value;
+            historical_forms = maybe_historical_forms;
             continue;
         }
 
         if (!tokens.next_token().is_function())
             break;
+
+        auto transaction = tokens.begin_transaction();
 
         auto function = tokens.consume_a_token().function();
 

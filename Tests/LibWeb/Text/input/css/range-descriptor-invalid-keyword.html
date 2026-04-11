@@ -1,0 +1,12 @@
+<!doctype html>
+<style>
+    @counter-style invalid-keyword {
+        range: auto 1 2;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        println(document.styleSheets[0].cssRules[0].cssText);
+    });
+</script>
