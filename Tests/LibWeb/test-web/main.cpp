@@ -1605,17 +1605,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 test.end_time = UnixDateTime::now();
 
-                if (result.result == TestResult::Timeout && app.debug_timeouts) {
-                    auto& capture = output_capture_for_view(*view);
-                    StringBuilder diagnostics;
-                    append_timeout_diagnostics_to_stderr(diagnostics, *view, test, view_id);
-                    auto diagnostics_view = diagnostics.string_view();
-                    capture.stderr_buffer.append(diagnostics_view);
-
-                    if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                        (void)Core::System::write(STDERR_FILENO, diagnostics_view.bytes());
-                }
-
                 // Write captured stdout/stderr to results directory.
                 // NOTE: On crashes, we already flushed it in on_web_content_crashed.
                 if (result.result != TestResult::Crashed) {
@@ -1680,17 +1669,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                         outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
                     else
                         outln("Fail-fast: {}: {}", test_result_to_string(result.result), test.relative_path);
-
-                    if (result.result == TestResult::Timeout) {
-                        auto& capture = output_capture_for_view(*view);
-                        StringBuilder backtrace_output;
-                        append_timeout_backtraces_to_stderr(backtrace_output, *view, test, view_id);
-                        auto backtrace_output_view = backtrace_output.string_view();
-                        capture.stderr_buffer.append(backtrace_output_view);
-
-                        if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT)
-                            (void)Core::System::write(STDERR_FILENO, backtrace_output_view.bytes());
-                    }
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
