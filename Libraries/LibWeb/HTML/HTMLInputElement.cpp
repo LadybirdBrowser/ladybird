@@ -185,11 +185,6 @@ void HTMLInputElement::adjust_computed_style(CSS::ComputedProperties& style)
     if (style.display().is_inline_outside() && style.display().is_flow_inside())
         style.set_property(CSS::PropertyID::Display, CSS::DisplayStyleValue::create(CSS::Display::from_short(CSS::Display::Short::InlineBlock)));
 
-    if (type_state() != TypeAttributeState::FileUpload) {
-        if (style.property(CSS::PropertyID::Width).has_auto())
-            style.set_property(CSS::PropertyID::Width, CSS::LengthStyleValue::create(CSS::Length(size(), CSS::LengthUnit::Ch)));
-    }
-
     // NOTE: Other browsers apply a minimum height of a single line's line-height to single-line input elements.
     if (is_single_line() && style.property(CSS::PropertyID::Height).has_auto()) {
         auto current_line_height = style.line_height().to_double();
