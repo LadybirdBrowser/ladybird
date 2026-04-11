@@ -26,6 +26,7 @@ static constexpr auto URL_KEY = "url"sv;
 static constexpr auto TITLE_KEY = "title"sv;
 static constexpr auto FAVICON_KEY = "favicon"sv;
 static constexpr auto CHILDREN_KEY = "children"sv;
+static constexpr auto DATE_ADDED_KEY = "dateAdded"sv;
 
 static constexpr auto TYPE_BOOKMARK = "bookmark"sv;
 static constexpr auto TYPE_FOLDER = "folder"sv;
@@ -47,6 +48,10 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
         auto type = object.get_string(TYPE_KEY);
         auto title = object.get_string(TITLE_KEY);
 
+        auto date_added = UnixDateTime {};
+        if (auto date_added_ms = object.get_integer<i64>(DATE_ADDED_KEY); date_added_ms.has_value())
+            date_added = UnixDateTime::from_milliseconds_since_epoch(*date_added_ms);
+
         if (type == TYPE_BOOKMARK) {
             auto url_string = object.get_string(URL_KEY);
             if (!url_string.has_value())
@@ -60,6 +65,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
 
             items.empend(
                 id.release_value(),
+                date_added,
                 BookmarkItem::Bookmark {
                     .url = url.release_value(),
                     .title = title.map([](auto title) { return title; }),
@@ -72,6 +78,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
 
             items.empend(
                 id.release_value(),
+                date_added,
                 BookmarkItem::Folder {
                     .title = title.map([](auto title) { return title; }),
                     .children = move(children),
@@ -86,6 +93,7 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
 {
     JsonObject object;
     object.set(ID_KEY, item.id);
+    object.set(DATE_ADDED_KEY, item.date_added.milliseconds_since_epoch());
 
     item.data.visit(
         [&](BookmarkItem::Bookmark const& bookmark) {
@@ -118,9 +126,12 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
 
 static Vector<BookmarkItem> create_default_bookmarks()
 {
+    auto now = UnixDateTime::now();
+
     return {
         {
             .id = generate_random_uuid(),
+            .date_added = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value(),
                 .title = "Ladybird"_string,
@@ -129,6 +140,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
         },
         {
             .id = generate_random_uuid(),
+            .date_added = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://github.com/LadybirdBrowser/ladybird"sv).release_value(),
                 .title = "Ladybird GitHub"_string,
@@ -137,6 +149,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
         },
         {
             .id = generate_random_uuid(),
+            .date_added = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://discord.com/invite/nvfjVJ4Svh"sv).release_value(),
                 .title = "Ladybird Discord"_string,
@@ -241,6 +254,7 @@ void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<
 {
     BookmarkItem item {
         .id = generate_random_uuid(),
+        .date_added = UnixDateTime::now(),
         .data = BookmarkItem::Bookmark {
             .url = move(url),
             .title = move(title),
@@ -258,6 +272,7 @@ void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> t
 {
     BookmarkItem item {
         .id = generate_random_uuid(),
+        .date_added = UnixDateTime::now(),
         .data = BookmarkItem::Folder {
             .title = move(title),
             .children = {},

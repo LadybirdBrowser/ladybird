@@ -10,6 +10,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibURL/URL.h>
@@ -30,6 +31,7 @@ struct WEBVIEW_API BookmarkItem {
     };
 
     String id;
+    UnixDateTime date_added;
     Variant<Bookmark, Folder> data;
 
     bool is_bookmark() const { return data.has<Bookmark>(); }
