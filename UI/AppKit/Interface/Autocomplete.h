@@ -17,7 +17,7 @@
 
 @end
 
-@interface Autocomplete : NSPopover
+@interface Autocomplete : NSObject
 
 - (instancetype)init:(id<AutocompleteObserver>)observer
      withToolbarItem:(NSToolbarItem*)toolbar_item;

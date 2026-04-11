@@ -453,6 +453,11 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [delegate setActiveTab:[self tab]];
 }
 
+- (void)windowDidResignKey:(NSNotification*)notification
+{
+    [self.autocomplete close];
+}
+
 - (BOOL)windowShouldClose:(NSWindow*)sender
 {
     // Prevent closing on first request so WebContent can cleanly shutdown (e.g. asking if the user is sure they want
@@ -480,8 +485,15 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     [[[self tab] web_view] setWindowPosition:position];
 }
 
+- (void)windowWillStartLiveResize:(NSNotification*)notification
+{
+    [self.autocomplete close];
+}
+
 - (void)windowDidResize:(NSNotification*)notification
 {
+    [self.autocomplete close];
+
     if (self.location_toolbar_item_width != nil) {
         self.location_toolbar_item_width.active = NO;
     }
@@ -641,6 +653,7 @@ static NSString* const TOOLBAR_TAB_OVERVIEW_IDENTIFIER = @"ToolbarTabOverviewIde
     auto* location_search_field = (LocationSearchField*)[self.location_toolbar_item view];
 
     auto url_string = Ladybird::ns_string_to_string([location_search_field stringValue]);
+    [self.autocomplete close];
     [self setLocationFieldText:url_string];
 }
 

@@ -9,7 +9,25 @@
 
 static NSString* const AUTOCOMPLETE_IDENTIFIER = @"Autocomplete";
 static constexpr auto MAX_NUMBER_OF_ROWS = 8uz;
-static constexpr auto POPOVER_PADDING = 6uz;
+static constexpr CGFloat const POPOVER_PADDING = 6;
+static constexpr CGFloat const MINIMUM_WIDTH = 100;
+
+@interface AutocompleteWindow : NSWindow
+@end
+
+@implementation AutocompleteWindow
+
+- (BOOL)canBecomeKeyWindow
+{
+    return NO;
+}
+
+- (BOOL)canBecomeMainWindow
+{
+    return NO;
+}
+
+@end
 
 @interface Autocomplete () <NSTableViewDataSource, NSTableViewDelegate>
 {
@@ -19,6 +37,9 @@ static constexpr auto POPOVER_PADDING = 6uz;
 @property (nonatomic, weak) id<AutocompleteObserver> observer;
 @property (nonatomic, weak) NSToolbarItem* toolbar_item;
 
+@property (nonatomic, strong) AutocompleteWindow* popup_window;
+@property (nonatomic, strong) NSView* content_view;
+@property (nonatomic, strong) NSScrollView* scroll_view;
 @property (nonatomic, strong) NSTableView* table_view;
 
 @end
@@ -35,11 +56,11 @@ static constexpr auto POPOVER_PADDING = 6uz;
         auto* column = [[NSTableColumn alloc] init];
         [column setEditable:NO];
 
-        self.table_view = [[NSTableView alloc] init];
+        self.table_view = [[NSTableView alloc] initWithFrame:NSZeroRect];
         [self.table_view setAction:@selector(selectSuggestion:)];
         [self.table_view setBackgroundColor:[NSColor clearColor]];
-        [self.table_view setIntercellSpacing:NSMakeSize(0, 5)];
         [self.table_view setHeaderView:nil];
+        [self.table_view setIntercellSpacing:NSMakeSize(0, 5)];
         [self.table_view setRefusesFirstResponder:YES];
         [self.table_view setRowSizeStyle:NSTableViewRowSizeStyleDefault];
         [self.table_view addTableColumn:column];
@@ -47,21 +68,28 @@ static constexpr auto POPOVER_PADDING = 6uz;
         [self.table_view setDelegate:self];
         [self.table_view setTarget:self];
 
-        auto* scroll_view = [[NSScrollView alloc] init];
-        [scroll_view setHasVerticalScroller:YES];
-        [scroll_view setDocumentView:self.table_view];
-        [scroll_view setDrawsBackground:NO];
+        self.scroll_view = [[NSScrollView alloc] initWithFrame:NSZeroRect];
+        [self.scroll_view setBorderType:NSNoBorder];
+        [self.scroll_view setDrawsBackground:NO];
+        [self.scroll_view setHasVerticalScroller:YES];
+        [self.scroll_view setDocumentView:self.table_view];
 
-        auto* content_view = [[NSView alloc] init];
-        [content_view addSubview:scroll_view];
+        self.content_view = [[NSView alloc] initWithFrame:NSZeroRect];
+        [self.content_view setWantsLayer:YES];
+        [self.content_view.layer setBackgroundColor:[NSColor windowBackgroundColor].CGColor];
+        [self.content_view.layer setCornerRadius:8];
+        [self.content_view addSubview:self.scroll_view];
 
-        auto* controller = [[NSViewController alloc] init];
-        [controller setView:content_view];
-
-        [self setAnimates:NO];
-        [self setBehavior:NSPopoverBehaviorTransient];
-        [self setContentViewController:controller];
-        [self setValue:[NSNumber numberWithBool:YES] forKeyPath:@"shouldHideAnchor"];
+        self.popup_window = [[AutocompleteWindow alloc] initWithContentRect:NSZeroRect
+                                                                  styleMask:NSWindowStyleMaskBorderless
+                                                                    backing:NSBackingStoreBuffered
+                                                                      defer:NO];
+        [self.popup_window setBackgroundColor:[NSColor clearColor]];
+        [self.popup_window setContentView:self.content_view];
+        [self.popup_window setHasShadow:YES];
+        [self.popup_window setLevel:NSPopUpMenuWindowLevel];
+        [self.popup_window setOpaque:NO];
+        [self.popup_window setReleasedWhenClosed:NO];
     }
 
     return self;
@@ -74,25 +102,27 @@ static constexpr auto POPOVER_PADDING = 6uz;
     m_suggestions = move(suggestions);
     [self.table_view reloadData];
 
-    if (m_suggestions.is_empty()) {
+    if (m_suggestions.is_empty())
         [self close];
-    } else {
+    else
         [self show];
-    }
 }
 
 - (BOOL)close
 {
-    if (!self.isShown)
+    if (!self.popup_window.isVisible)
         return NO;
 
-    [super close];
+    if (auto* parent_window = [self.toolbar_item.view window])
+        [parent_window removeChildWindow:self.popup_window];
+
+    [self.popup_window orderOut:nil];
     return YES;
 }
 
 - (Optional<String>)selectedSuggestion
 {
-    if (!self.isShown || self.table_view.numberOfRows == 0)
+    if (!self.popup_window.isVisible || self.table_view.numberOfRows == 0)
         return {};
 
     auto row = [self.table_view selectedRow];
@@ -107,8 +137,9 @@ static constexpr auto POPOVER_PADDING = 6uz;
     if (self.table_view.numberOfRows == 0)
         return NO;
 
-    if (!self.isShown) {
+    if (!self.popup_window.isVisible) {
         [self show];
+        [self selectRow:0];
         return YES;
     }
 
@@ -121,8 +152,9 @@ static constexpr auto POPOVER_PADDING = 6uz;
     if (self.table_view.numberOfRows == 0)
         return NO;
 
-    if (!self.isShown) {
+    if (!self.popup_window.isVisible) {
         [self show];
+        [self selectRow:self.table_view.numberOfRows - 1];
         return YES;
     }
 
@@ -140,26 +172,33 @@ static constexpr auto POPOVER_PADDING = 6uz;
 
 - (void)show
 {
-    auto height = (self.table_view.rowHeight + self.table_view.intercellSpacing.height) * min(self.table_view.numberOfRows, MAX_NUMBER_OF_ROWS);
-    auto frame = NSMakeRect(0, 0, [[self.toolbar_item view] frame].size.width, height);
+    auto* toolbar_view = self.toolbar_item.view;
+    auto* parent_window = [toolbar_view window];
+    if (parent_window == nil)
+        return;
 
-    [self.table_view.enclosingScrollView setFrame:NSInsetRect(frame, 0, POPOVER_PADDING)];
-    [self setContentSize:frame.size];
+    auto visible_row_count = min(m_suggestions.size(), MAX_NUMBER_OF_ROWS);
+    auto table_height = (self.table_view.rowHeight + self.table_view.intercellSpacing.height) * visible_row_count;
+    auto width = max<CGFloat>(toolbar_view.frame.size.width, MINIMUM_WIDTH);
+    auto content_size = NSMakeSize(width, table_height + (POPOVER_PADDING * 2));
 
+    [self.content_view setFrame:NSMakeRect(0, 0, content_size.width, content_size.height)];
+    [self.scroll_view setFrame:NSInsetRect(self.content_view.bounds, 0, POPOVER_PADDING)];
+    [self.scroll_view setHasVerticalScroller:m_suggestions.size() > MAX_NUMBER_OF_ROWS];
     [self.table_view deselectAll:nil];
     [self.table_view scrollRowToVisible:0];
 
-    [self showRelativeToToolbarItem:self.toolbar_item];
+    auto anchor_rect = [toolbar_view convertRect:toolbar_view.bounds toView:nil];
+    auto popup_rect = [parent_window convertRectToScreen:anchor_rect];
+    popup_rect.origin.y -= content_size.height;
+    popup_rect.size = content_size;
 
-    auto* window = [self.toolbar_item.view window];
-    auto* first_responder = [window firstResponder];
+    [self.popup_window setFrame:popup_rect display:NO];
 
-    [self showRelativeToRect:self.toolbar_item.view.frame
-                      ofView:self.toolbar_item.view
-               preferredEdge:NSRectEdgeMaxY];
+    if (!self.popup_window.isVisible)
+        [parent_window addChildWindow:self.popup_window ordered:NSWindowAbove];
 
-    if (first_responder)
-        [window makeFirstResponder:first_responder];
+    [self.popup_window orderFront:nil];
 }
 
 - (void)selectRow:(NSInteger)row
