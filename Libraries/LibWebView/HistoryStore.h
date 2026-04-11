@@ -20,6 +20,7 @@ namespace WebView {
 struct WEBVIEW_API HistoryEntry {
     String url;
     Optional<String> title;
+    Optional<String> favicon_base64_png;
     u64 visit_count { 0 };
     UnixDateTime last_visited_time;
 };
@@ -37,6 +38,7 @@ public:
 
     void record_visit(URL::URL const&, Optional<String> title = {}, UnixDateTime visited_at = UnixDateTime::now());
     void update_title(URL::URL const&, String const& title);
+    void update_favicon(URL::URL const&, String const& favicon_base64_png);
 
     Optional<HistoryEntry> entry_for_url(URL::URL const&);
     Vector<String> autocomplete_suggestions(StringView query, size_t limit = 8);
@@ -48,6 +50,7 @@ private:
     struct Statements {
         Database::StatementID upsert_entry { 0 };
         Database::StatementID update_title { 0 };
+        Database::StatementID update_favicon { 0 };
         Database::StatementID get_entry { 0 };
         Database::StatementID search_entries { 0 };
         Database::StatementID clear_entries { 0 };
@@ -58,6 +61,7 @@ private:
     public:
         void record_visit(String url, Optional<String> title, UnixDateTime visited_at);
         void update_title(String const& url, String title);
+        void update_favicon(String const& url, String favicon_base64_png);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
         Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);
@@ -72,6 +76,7 @@ private:
     struct PersistedStorage {
         void record_visit(String const& url, Optional<String> const& title, UnixDateTime visited_at);
         void update_title(String const& url, String const& title);
+        void update_favicon(String const& url, String const& favicon_base64_png);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
         Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);

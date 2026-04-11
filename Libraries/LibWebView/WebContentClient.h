@@ -8,7 +8,10 @@
 
 #include <AK/HashMap.h>
 #include <AK/NonnullRawPtr.h>
+#include <AK/Optional.h>
 #include <AK/SourceLocation.h>
+#include <AK/String.h>
+#include <AK/StringView.h>
 #include <LibGfx/SharedImage.h>
 #include <LibHTTP/Header.h>
 #include <LibIPC/ConnectionToServer.h>
@@ -60,6 +63,8 @@ public:
     void set_pid(pid_t pid) { m_process_handle.pid = pid; }
 
 private:
+    void maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const&, Optional<String> title, StringView reason);
+
     virtual void die() override;
 
     virtual void did_paint(u64 page_id, Gfx::IntRect, i32) override;
@@ -154,6 +159,7 @@ private:
     Optional<ViewImplementation&> view_for_page_id(u64, SourceLocation = SourceLocation::current());
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
+    HashMap<u64, String> m_history_recorded_urls_for_current_load;
 
     ProcessHandle m_process_handle;
 

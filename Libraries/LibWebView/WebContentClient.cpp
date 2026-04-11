@@ -65,11 +65,13 @@ void WebContentClient::register_view(u64 page_id, ViewImplementation& view)
 {
     VERIFY(page_id > 0);
     m_views.set(page_id, view);
+    m_history_recorded_urls_for_current_load.remove(page_id);
 }
 
 void WebContentClient::unregister_view(u64 page_id)
 {
     m_views.remove(page_id);
+    m_history_recorded_urls_for_current_load.remove(page_id);
     if (m_views.is_empty())
         async_close_server();
 }
@@ -113,10 +115,31 @@ void WebContentClient::did_request_new_process_for_navigation(u64 page_id, URL::
         view->create_new_process_for_cross_site_navigation(url);
 }
 
+void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, URL::URL const& url, Optional<String> title, StringView reason)
+{
+    auto normalized_url = HistoryStore::normalize_url(url);
+    if (!normalized_url.has_value())
+        return;
+
+    if (auto recorded_url = m_history_recorded_urls_for_current_load.get(page_id); recorded_url.has_value() && *recorded_url == *normalized_url) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Visit for page {} at '{}' was already recorded during this load before {}", page_id, *normalized_url, reason);
+        return;
+    }
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Recording history visit for page {} at '{}' after {}", page_id, *normalized_url, reason);
+
+    // Title and favicon updates already give us a useful history entry, so
+    // do not wait for did_finish_loading() on pages that never reach it.
+    Application::history_store().record_visit(url, move(title));
+    m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
+}
+
 void WebContentClient::did_start_loading(u64 page_id, URL::URL url, bool is_redirect)
 {
     if (auto process = WebView::Application::the().find_process(m_process_handle.pid); process.has_value())
         process->set_title(OptionalNone {});
+
+    m_history_recorded_urls_for_current_load.remove(page_id);
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
         view->set_url({}, url);
@@ -149,7 +172,11 @@ void WebContentClient::did_finish_loading(u64 page_id, URL::URL url)
             url,
             title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
 
-        Application::history_store().record_visit(url, move(title));
+        maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
+        if (title.has_value())
+            Application::history_store().update_title(url, *title);
+        if (view->favicon_base64_png().has_value())
+            Application::history_store().update_favicon(url, *view->favicon_base64_png());
 
         if (view->on_load_finish)
             view->on_load_finish(url);
@@ -230,6 +257,7 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
         if (!title.is_empty()) {
             auto title_utf8 = title.to_utf8();
 
+            maybe_record_history_visit_for_current_load(page_id, view->url(), title_utf8, "title change"sv);
             dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Title changed for page {} at '{}' to '{}'",
                 page_id,
                 view->url(),
@@ -556,8 +584,10 @@ void WebContentClient::did_change_favicon(u64 page_id, Gfx::ShareableBitmap favi
         return;
     }
 
-    if (auto view = view_for_page_id(page_id); view.has_value())
+    if (auto view = view_for_page_id(page_id); view.has_value()) {
+        maybe_record_history_visit_for_current_load(page_id, view->url(), history_title(view->title(), view->url()), "favicon change"sv);
         view->set_favicon({}, *favicon.bitmap());
+    }
 }
 
 void WebContentClient::did_request_document_cookie_version_index(u64 page_id, i64 document_id, String domain)

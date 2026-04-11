@@ -125,6 +125,7 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         CREATE TABLE IF NOT EXISTS History (
             url TEXT PRIMARY KEY,
             title TEXT NOT NULL,
+            favicon TEXT,
             visit_count INTEGER NOT NULL,
             last_visited_time INTEGER NOT NULL
         );
@@ -153,8 +154,13 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         SET title = ?
         WHERE url = ?;
     )#"sv));
+    statements.update_favicon = TRY(database.prepare_statement(R"#(
+        UPDATE History
+        SET favicon = ?
+        WHERE url = ?;
+    )#"sv));
     statements.get_entry = TRY(database.prepare_statement(R"#(
-        SELECT title, visit_count, last_visited_time
+        SELECT title, visit_count, last_visited_time, COALESCE(favicon, '')
         FROM History
         WHERE url = ?;
     )#"sv));
@@ -292,6 +298,28 @@ void HistoryStore::update_title(URL::URL const& url, String const& title)
         m_transient_storage.update_title(*normalized_url, title);
 }
 
+void HistoryStore::update_favicon(URL::URL const& url, String const& favicon_base64_png)
+{
+    if (favicon_base64_png.is_empty()) {
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Ignoring empty history favicon update for {}", url);
+        return;
+    }
+
+    auto normalized_url = normalize_url(url);
+    if (!normalized_url.has_value())
+        return;
+
+    dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Updating history favicon in {} store: url='{}' bytes={}",
+        m_persisted_storage.has_value() ? "SQL"sv : "transient"sv,
+        *normalized_url,
+        favicon_base64_png.bytes().size());
+
+    if (m_persisted_storage.has_value())
+        m_persisted_storage->update_favicon(*normalized_url, favicon_base64_png);
+    else
+        m_transient_storage.update_favicon(*normalized_url, favicon_base64_png);
+}
+
 Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
 {
     if (m_is_disabled)
@@ -306,11 +334,12 @@ Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
         : m_transient_storage.entry_for_url(*normalized_url);
 
     if (entry.has_value()) {
-        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Found history entry for '{}': title='{}' visits={} last_visited={}",
+        dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Found history entry for '{}': title='{}' visits={} last_visited={} has_favicon={}",
             entry->url,
             entry->title.has_value() ? entry->title->bytes_as_string_view() : "<none>"sv,
             entry->visit_count,
-            entry->last_visited_time.seconds_since_epoch());
+            entry->last_visited_time.seconds_since_epoch(),
+            entry->favicon_base64_png.has_value());
     } else {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] No history entry found for '{}'", *normalized_url);
     }
@@ -380,6 +409,7 @@ void HistoryStore::TransientStorage::record_visit(String url, Optional<String> t
         auto new_entry = HistoryEntry {
             .url = url,
             .title = move(title),
+            .favicon_base64_png = {},
             .visit_count = 1,
             .last_visited_time = visited_at,
         };
@@ -402,6 +432,15 @@ void HistoryStore::TransientStorage::update_title(String const& url, String titl
         return;
 
     entry->value.title = move(title);
+}
+
+void HistoryStore::TransientStorage::update_favicon(String const& url, String favicon_base64_png)
+{
+    auto entry = m_entries.find(url);
+    if (entry == m_entries.end())
+        return;
+
+    entry->value.favicon_base64_png = move(favicon_base64_png);
 }
 
 Optional<HistoryEntry> HistoryStore::TransientStorage::entry_for_url(String const& url)
@@ -464,6 +503,15 @@ void HistoryStore::PersistedStorage::update_title(String const& url, String cons
         url);
 }
 
+void HistoryStore::PersistedStorage::update_favicon(String const& url, String const& favicon_base64_png)
+{
+    database.execute_statement(
+        statements.update_favicon,
+        {},
+        favicon_base64_png,
+        url);
+}
+
 Optional<HistoryEntry> HistoryStore::PersistedStorage::entry_for_url(String const& url)
 {
     Optional<HistoryEntry> entry;
@@ -472,10 +520,12 @@ Optional<HistoryEntry> HistoryStore::PersistedStorage::entry_for_url(String cons
         statements.get_entry,
         [&](auto statement_id) {
             auto title = database.result_column<String>(statement_id, 0);
+            auto favicon = database.result_column<String>(statement_id, 3);
 
             entry = HistoryEntry {
                 .url = url,
                 .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
+                .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
                 .visit_count = database.result_column<u64>(statement_id, 1),
                 .last_visited_time = database.result_column<UnixDateTime>(statement_id, 2),
             };

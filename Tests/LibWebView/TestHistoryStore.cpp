@@ -145,6 +145,19 @@ TEST_CASE(history_autocomplete_requires_three_characters_for_non_prefix_url_matc
     auto store = WebView::HistoryStore::create();
     expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
 }
+
+TEST_CASE(history_favicon_updates_entry)
+{
+    auto store = WebView::HistoryStore::create();
+    auto url = parse_url("https://ladybird.dev/"sv);
+
+    store->record_visit(url, "Ladybird"_string, UnixDateTime::from_seconds_since_epoch(10));
+    store->update_favicon(url, "Zm9v"_string);
+
+    auto entry = store->entry_for_url(url);
+    VERIFY(entry.has_value());
+    EXPECT_EQ(entry->favicon_base64_png, Optional<String> { "Zm9v"_string });
+}
 TEST_CASE(non_browsable_urls_are_not_recorded)
 {
     auto store = WebView::HistoryStore::create();
@@ -169,6 +182,7 @@ TEST_CASE(disabled_history_store_ignores_updates)
     EXPECT(!store->entry_for_url(url).has_value());
     EXPECT(store->autocomplete_suggestions("example"sv, 8).is_empty());
 }
+
 TEST_CASE(persisted_history_survives_reopen)
 {
     auto database_directory = ByteString::formatted(
@@ -185,6 +199,7 @@ TEST_CASE(persisted_history_survives_reopen)
         auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
         auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
         store->record_visit(parse_url("https://persist.example.com/"sv), "Persisted title"_string, UnixDateTime::from_seconds_since_epoch(77));
+        store->update_favicon(parse_url("https://persist.example.com/"sv), "Zm9v"_string);
     }
 
     {
@@ -197,6 +212,7 @@ TEST_CASE(persisted_history_survives_reopen)
         EXPECT_EQ(entry->title, Optional<String> { "Persisted title"_string });
         EXPECT_EQ(entry->visit_count, 1u);
         EXPECT_EQ(entry->last_visited_time, UnixDateTime::from_seconds_since_epoch(77));
+        EXPECT_EQ(entry->favicon_base64_png, Optional<String> { "Zm9v"_string });
     }
 }
 
@@ -252,5 +268,4 @@ TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_non_prefi
     auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
 
     expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
-}
 }

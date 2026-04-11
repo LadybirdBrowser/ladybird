@@ -18,6 +18,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -111,8 +112,10 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Gfx::Bitmap const&
             m_favicon_base64_png = favicon_base64_png.release_value();
     }
 
-    if (m_favicon_base64_png.has_value())
+    if (m_favicon_base64_png.has_value()) {
         Application::bookmark_store().update_favicon(m_url, *m_favicon_base64_png);
+        Application::history_store().update_favicon(m_url, *m_favicon_base64_png);
+    }
 
     if (on_favicon_change)
         on_favicon_change(favicon);
