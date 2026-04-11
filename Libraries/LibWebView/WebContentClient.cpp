@@ -279,6 +279,12 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
 void WebContentClient::did_change_url(u64 page_id, URL::URL url)
 {
     if (auto view = view_for_page_id(page_id); view.has_value()) {
+        // Some navigations report the same URL more than once. Keep those
+        // duplicate updates inside LibWebView so frontends do not reset
+        // location bar state or steal focus for a no-op change.
+        if (view->url() == url)
+            return;
+
         view->set_url({}, url);
 
         if (view->on_url_change)
