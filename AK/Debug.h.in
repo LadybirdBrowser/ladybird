@@ -178,6 +178,10 @@
 #    cmakedefine01 LINE_EDITOR_DEBUG
 #endif
 
+#ifndef WEBVIEW_HISTORY_DEBUG
+#    cmakedefine01 WEBVIEW_HISTORY_DEBUG
+#endif
+
 #ifndef LZW_DEBUG
 #    cmakedefine01 LZW_DEBUG
 #endif

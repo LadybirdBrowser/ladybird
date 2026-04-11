@@ -11,6 +11,7 @@ set(SOURCES
     DOMNodeProperties.cpp
     FileDownloader.cpp
     HeadlessWebView.cpp
+    HistoryStore.cpp
     HelperProcess.cpp
     Menu.cpp
     Mutation.cpp
