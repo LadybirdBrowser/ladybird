@@ -47,11 +47,11 @@ void SVGLinearGradientElement::attribute_changed(FlyString const& name, Optional
 // https://www.w3.org/TR/SVG11/pservers.html#LinearGradientElementX1Attribute
 NumberPercentage SVGLinearGradientElement::start_x() const
 {
-    HashTable<SVGGradientElement const*> seen_gradients;
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
     return start_x_impl(seen_gradients);
 }
 
-NumberPercentage SVGLinearGradientElement::start_x_impl(HashTable<SVGGradientElement const*>& seen_gradients) const
+NumberPercentage SVGLinearGradientElement::start_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
 {
     if (m_x1.has_value())
         return *m_x1;
@@ -64,11 +64,11 @@ NumberPercentage SVGLinearGradientElement::start_x_impl(HashTable<SVGGradientEle
 // https://www.w3.org/TR/SVG11/pservers.html#LinearGradientElementY1Attribute
 NumberPercentage SVGLinearGradientElement::start_y() const
 {
-    HashTable<SVGGradientElement const*> seen_gradients;
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
     return start_y_impl(seen_gradients);
 }
 
-NumberPercentage SVGLinearGradientElement::start_y_impl(HashTable<SVGGradientElement const*>& seen_gradients) const
+NumberPercentage SVGLinearGradientElement::start_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
 {
     if (m_y1.has_value())
         return *m_y1;
@@ -81,11 +81,11 @@ NumberPercentage SVGLinearGradientElement::start_y_impl(HashTable<SVGGradientEle
 // https://www.w3.org/TR/SVG11/pservers.html#LinearGradientElementX2Attribute
 NumberPercentage SVGLinearGradientElement::end_x() const
 {
-    HashTable<SVGGradientElement const*> seen_gradients;
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
     return end_x_impl(seen_gradients);
 }
 
-NumberPercentage SVGLinearGradientElement::end_x_impl(HashTable<SVGGradientElement const*>& seen_gradients) const
+NumberPercentage SVGLinearGradientElement::end_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
 {
     if (m_x2.has_value())
         return *m_x2;
@@ -98,11 +98,11 @@ NumberPercentage SVGLinearGradientElement::end_x_impl(HashTable<SVGGradientEleme
 // https://www.w3.org/TR/SVG11/pservers.html#LinearGradientElementY2Attribute
 NumberPercentage SVGLinearGradientElement::end_y() const
 {
-    HashTable<SVGGradientElement const*> seen_gradients;
+    GC::RootHashTable<SVGGradientElement const*> seen_gradients(heap());
     return end_y_impl(seen_gradients);
 }
 
-NumberPercentage SVGLinearGradientElement::end_y_impl(HashTable<SVGGradientElement const*>& seen_gradients) const
+NumberPercentage SVGLinearGradientElement::end_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
 {
     if (m_y2.has_value())
         return *m_y2;
