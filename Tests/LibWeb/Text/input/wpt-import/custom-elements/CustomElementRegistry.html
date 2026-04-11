@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Custom Elements: CustomElementRegistry interface</title>
+<meta name="author" title="Ryosuke Niwa" href="mailto:rniwa@webkit.org">
+<meta name="assert" content="CustomElementRegistry interface must exist">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+</head>
+<body>
+<div id="log"></div>
+<script>
+
+const moveBefore_supported = ("moveBefore" in Element.prototype);
+
+test(function () {
+    assert_true('define' in CustomElementRegistry.prototype, '"define" exists on CustomElementRegistry.prototype');
+    assert_true('define' in customElements, '"define" exists on window.customElements');
+}, 'CustomElementRegistry interface must have define as a method');
+
+test(function () {
+    assert_throws_js(TypeError, function () { customElements.define('badname', 1); },
+        'customElements.define must throw a TypeError when the element interface is a number');
+    assert_throws_js(TypeError, function () { customElements.define('badname', '123'); },
+        'customElements.define must throw a TypeError when the element interface is a string');
+    assert_throws_js(TypeError, function () { customElements.define('badname', {}); },
+        'customElements.define must throw a TypeError when the element interface is an object');
+    assert_throws_js(TypeError, function () { customElements.define('badname', []); },
+        'customElements.define must throw a TypeError when the element interface is an array');
+}, 'customElements.define must throw when the element interface is not a constructor');
+
+test(function () {
+    customElements.define('custom-html-element', HTMLElement);
+}, 'customElements.define must not throw the constructor is HTMLElement');
+
+test(function () {
+    class MyCustomElement extends HTMLElement {};
+
+    assert_throws_dom('SyntaxError', function () { customElements.define(null, MyCustomElement); },
+        'customElements.define must throw a SyntaxError if the tag name is null');
+    assert_throws_dom('SyntaxError', function () { customElements.define('', MyCustomElement); },
+        'customElements.define must throw a SyntaxError if the tag name is empty');
+    assert_throws_dom('SyntaxError', function () { customElements.define('abc', MyCustomElement); },
+        'customElements.define must throw a SyntaxError if the tag name does not contain "-"');
+    assert_throws_dom('SyntaxError', function () { customElements.define('a-Bc', MyCustomElement); },
+        'customElements.define must throw a SyntaxError if the tag name contains an upper case letter');
+
+    var builtinTagNames = [
+        'annotation-xml',
+        'color-profile',
+        'font-face',
+        'font-face-src',
+        'font-face-uri',
+        'font-face-format',
+        'font-face-name',
+        'missing-glyph'
+    ];
+
+    for (var tagName of builtinTagNames) {
+        assert_throws_dom('SyntaxError', function () { customElements.define(tagName, MyCustomElement); },
+            'customElements.define must throw a SyntaxError if the tag name is "' + tagName + '"');
+    }
+
+}, 'customElements.define must throw with an invalid name');
+
+test(function () {
+    class SomeCustomElement extends HTMLElement {};
+
+    var calls = [];
+    var OtherCustomElement = new Proxy(class extends HTMLElement {}, {
+        get: function (target, name) {
+            calls.push(name);
+            return target[name];
+        }
+    })
+
+    customElements.define('some-custom-element', SomeCustomElement);
+    assert_throws_dom('NotSupportedError', function () { customElements.define('some-custom-element', OtherCustomElement); },
+        'customElements.define must throw a NotSupportedError if the specified tag name is already used');
+    assert_array_equals(calls, [], 'customElements.define must validate the custom element name before getting the prototype of the constructor');
+
+}, 'customElements.define must throw when there is already a custom element of the same name');
+
+test(function () {
+    class AnotherCustomElement extends HTMLElement {};
+
+    customElements.define('another-custom-element', AnotherCustomElement);
+    assert_throws_dom('NotSupportedError', function () { customElements.define('some-other-element', AnotherCustomElement); },
+        'customElements.define must throw a NotSupportedError if the specified class already defines an element');
+
+}, 'customElements.define must throw a NotSupportedError when there is already a custom element with the same class');
+
+test(function () {
+    var outerCalls = [];
+    var OuterCustomElement = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            outerCalls.push(name);
+            customElements.define('inner-custom-element', InnerCustomElement);
+            return target[name];
+        }
+    });
+    var innerCalls = [];
+    var InnerCustomElement = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            outerCalls.push(name);
+            return target[name];
+        }
+    });
+
+    assert_throws_dom('NotSupportedError', function () { customElements.define('outer-custom-element', OuterCustomElement); },
+        'customElements.define must throw a NotSupportedError if the specified class already defines an element');
+    assert_array_equals(outerCalls, ['prototype'], 'customElements.define must get "prototype"');
+    assert_array_equals(innerCalls, [],
+        'customElements.define must throw a NotSupportedError when element definition is running flag is set'
+        + ' before getting the prototype of the constructor');
+
+}, 'customElements.define must throw a NotSupportedError when element definition is running flag is set');
+
+test(function () {
+    var calls = [];
+    var ElementWithBadInnerConstructor = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            calls.push(name);
+            customElements.define('inner-custom-element', 1);
+            return target[name];
+        }
+    });
+
+    assert_throws_js(TypeError, function () {
+        customElements.define('element-with-bad-inner-constructor', ElementWithBadInnerConstructor);
+    }, 'customElements.define must throw a NotSupportedError if IsConstructor(constructor) is false');
+
+    assert_array_equals(calls, ['prototype'], 'customElements.define must get "prototype"');
+}, 'customElements.define must check IsConstructor on the constructor before checking the element definition is running flag');
+
+test(function () {
+    var calls = [];
+    var ElementWithBadInnerName = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            calls.push(name);
+            customElements.define('badname', class extends HTMLElement {});
+            return target[name];
+        }
+    });
+
+    assert_throws_dom('SyntaxError', function () {
+        customElements.define('element-with-bad-inner-name', ElementWithBadInnerName);
+    }, 'customElements.define must throw a SyntaxError if the specified name is not a valid custom element name');
+
+    assert_array_equals(calls, ['prototype'], 'customElements.define must get "prototype"');
+}, 'customElements.define must validate the custom element name before checking the element definition is running flag');
+
+test(function () {
+    var unresolvedElement = document.createElement('constructor-calls-define');
+    document.body.appendChild(unresolvedElement);
+    var elementUpgradedDuringUpgrade = document.createElement('defined-during-upgrade');
+    document.body.appendChild(elementUpgradedDuringUpgrade);
+
+    var DefinedDuringUpgrade = class extends HTMLElement { };
+
+    class ConstructorCallsDefine extends HTMLElement {
+        constructor() {
+            customElements.define('defined-during-upgrade', DefinedDuringUpgrade);
+            assert_false(unresolvedElement instanceof ConstructorCallsDefine);
+            assert_true(elementUpgradedDuringUpgrade instanceof DefinedDuringUpgrade);
+            super();
+            assert_true(unresolvedElement instanceof ConstructorCallsDefine);
+            assert_true(elementUpgradedDuringUpgrade instanceof DefinedDuringUpgrade);
+        }
+    }
+
+    assert_false(unresolvedElement instanceof ConstructorCallsDefine);
+    assert_false(elementUpgradedDuringUpgrade instanceof DefinedDuringUpgrade);
+
+    customElements.define('constructor-calls-define', ConstructorCallsDefine);
+}, 'customElements.define unset the element definition is running flag before upgrading custom elements');
+
+(function () {
+    var testCase = async_test('customElements.define must not throw'
+        +' when defining another custom element in a different global object during Get(constructor, "prototype")');
+
+    var iframe = document.createElement('iframe');
+    iframe.onload = function () {
+        testCase.step(function () {
+            var InnerCustomElement = class extends iframe.contentWindow.HTMLElement {};
+            var calls = [];
+            var proxy = new Proxy(class extends HTMLElement { }, {
+                get: function (target, name) {
+                    calls.push(name);
+                    if (name === "prototype") {
+                        iframe.contentWindow.customElements.define('another-custom-element', InnerCustomElement);
+                    }
+                    return target[name];
+                }
+            })
+            customElements.define('element-with-inner-element-define', proxy);
+            assert_array_equals(calls, ['prototype', 'disabledFeatures', 'formAssociated'],
+                                'customElements.define must get "prototype", "disabledFeatures", and "formAssociated" on the constructor');
+            assert_true(iframe.contentDocument.createElement('another-custom-element') instanceof InnerCustomElement);
+        });
+        document.body.removeChild(iframe);
+        testCase.done();
+    }
+
+    document.body.appendChild(iframe);
+})();
+
+test(function () {
+    var calls = [];
+    var ElementWithBadInnerName = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            calls.push(name);
+            customElements.define('badname', class extends HTMLElement {});
+            return target[name];
+        }
+    });
+
+    assert_throws_dom('SyntaxError', function () {
+        customElements.define('element-with-bad-inner-name', ElementWithBadInnerName);
+    }, 'customElements.define must throw a SyntaxError if the specified name is not a valid custom element name');
+
+    assert_array_equals(calls, ['prototype'], 'customElements.define must get "prototype"');
+}, '');
+
+test(function () {
+    var calls = [];
+    var proxy = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            calls.push(name);
+            return target[name];
+        }
+    });
+    customElements.define('proxy-element', proxy);
+    assert_array_equals(calls, ['prototype', 'disabledFeatures', 'formAssociated']);
+}, 'customElements.define must get "prototype", "disabledFeatures", and "formAssociated" property of the constructor');
+
+test(function () {
+    var err = {name: 'expectedError'}
+    var proxy = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) {
+            throw err;
+        }
+    });
+    assert_throws_exactly(err, function () { customElements.define('element-with-string-prototype', proxy); });
+}, 'customElements.define must rethrow an exception thrown while getting "prototype" property of the constructor');
+
+test(function () {
+    var returnedValue;
+    var proxy = new Proxy(class extends HTMLElement { }, {
+        get: function (target, name) { return returnedValue; }
+    });
+
+    returnedValue = null;
+    assert_throws_js(TypeError, function () { customElements.define('element-with-string-prototype', proxy); },
+        'customElements.define must throw when "prototype" property of the constructor is null');
+    returnedValue = undefined;
+    assert_throws_js(TypeError, function () { customElements.define('element-with-string-prototype', proxy); },
+        'customElements.define must throw when "prototype" property of the constructor is undefined');
+    returnedValue = 'hello';
+    assert_throws_js(TypeError, function () { customElements.define('element-with-string-prototype', proxy); },
+        'customElements.define must throw when "prototype" property of the constructor is a string');
+    returnedValue = 1;
+    assert_throws_js(TypeError, function () { customElements.define('element-with-string-prototype', proxy); },
+        'customElements.define must throw when "prototype" property of the constructor is a number');
+
+}, 'customElements.define must throw when "prototype" property of the constructor is not an object');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            calls.push(name);
+            return target[name];
+        }
+    });
+    customElements.define('element-with-proxy-prototype', constructor);
+    assert_array_equals(calls,
+        moveBefore_supported ? ['connectedCallback', 'disconnectedCallback', 'connectedMoveCallback', 'adoptedCallback', 'attributeChangedCallback'] :
+        ['connectedCallback', 'disconnectedCallback', 'adoptedCallback', 'attributeChangedCallback']);
+}, 'customElements.define must get callbacks of the constructor prototype');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    var err = {name: 'expectedError'}
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'disconnectedCallback')
+                throw err;
+            return target[name];
+        }
+    });
+    assert_throws_exactly(err, function () { customElements.define('element-with-throwing-callback', constructor); });
+    assert_array_equals(calls, ['connectedCallback', 'disconnectedCallback'],
+        'customElements.define must not get callbacks after one of the get throws');
+}, 'customElements.define must rethrow an exception thrown while getting callbacks on the constructor prototype');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'adoptedCallback')
+                return 1;
+            return target[name];
+        }
+    });
+    assert_throws_js(TypeError, function () { customElements.define('element-with-throwing-callback', constructor); });
+    assert_array_equals(calls,
+        moveBefore_supported ?
+            ['connectedCallback', 'disconnectedCallback', 'connectedMoveCallback', 'adoptedCallback'] :
+            ['connectedCallback', 'disconnectedCallback', 'adoptedCallback'],
+        'customElements.define must not get callbacks after one of the conversion throws');
+}, 'customElements.define must rethrow an exception thrown while converting a callback value to Function callback type');
+
+test(function () {
+    var constructor = function () {}
+    constructor.prototype.attributeChangedCallback = function () { };
+    var prototypeCalls = [];
+    var callOrder = 0;
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            if (name == 'prototype' || name == 'observedAttributes')
+                throw 'Unexpected access to observedAttributes';
+            prototypeCalls.push(callOrder++);
+            prototypeCalls.push(name);
+            return target[name];
+        }
+    });
+    var constructorCalls = [];
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            constructorCalls.push(callOrder++);
+            constructorCalls.push(name);
+            return target[name];
+        }
+    });
+    customElements.define('element-with-attribute-changed-callback', proxy);
+    assert_array_equals(prototypeCalls,
+        moveBefore_supported ?
+            [1, 'connectedCallback', 2, 'disconnectedCallback', 3, 'connectedMoveCallback', 4, 'adoptedCallback', 5, 'attributeChangedCallback'] :
+            [1, 'connectedCallback', 2, 'disconnectedCallback', 3, 'adoptedCallback', 4, 'attributeChangedCallback']);
+    assert_array_equals(constructorCalls, [0, 'prototype',
+                                           6, 'observedAttributes',
+                                           7, 'disabledFeatures',
+                                           8, 'formAssociated']);
+}, 'customElements.define must get "observedAttributes" property on the constructor prototype when "attributeChangedCallback" is present');
+
+test(function () {
+    var constructor = function () {}
+    constructor.prototype.attributeChangedCallback = function () { };
+    var calls = [];
+    var err = {name: 'expectedError'};
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'observedAttributes')
+                throw err;
+            return target[name];
+        }
+    });
+    assert_throws_exactly(err, function () { customElements.define('element-with-throwing-observed-attributes', proxy); });
+    assert_array_equals(calls, ['prototype', 'observedAttributes'],
+        'customElements.define must get "prototype" and "observedAttributes" on the constructor');
+}, 'customElements.define must rethrow an exception thrown while getting observedAttributes on the constructor prototype');
+
+test(function () {
+    var constructor = function () {}
+    constructor.prototype.attributeChangedCallback = function () { };
+    var calls = [];
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'observedAttributes')
+                return 1;
+            return target[name];
+        }
+    });
+    assert_throws_js(TypeError, function () { customElements.define('element-with-invalid-observed-attributes', proxy); });
+    assert_array_equals(calls, ['prototype', 'observedAttributes'],
+        'customElements.define must get "prototype" and "observedAttributes" on the constructor');
+}, 'customElements.define must rethrow an exception thrown while converting the value of observedAttributes to sequence<DOMString>');
+
+  test(function () {
+    var err = {name: 'SomeError'};
+    var constructor = function () {}
+    constructor.prototype.attributeChangedCallback = function () { };
+    constructor.observedAttributes = {[Symbol.iterator]: function *() {
+        yield 'foo';
+        throw err;
+    }};
+    assert_throws_exactly(err, function () { customElements.define('element-with-generator-observed-attributes', constructor); });
+}, 'customElements.define must rethrow an exception thrown while iterating over observedAttributes to sequence<DOMString>');
+
+test(function () {
+    var constructor = function () {}
+    constructor.prototype.attributeChangedCallback = function () { };
+    constructor.observedAttributes = {[Symbol.iterator]: 1};
+    assert_throws_js(TypeError, function () { customElements.define('element-with-observed-attributes-with-uncallable-iterator', constructor); });
+}, 'customElements.define must rethrow an exception thrown while retrieving Symbol.iterator on observedAttributes');
+
+test(function () {
+    var constructor = function () {}
+    constructor.observedAttributes = 1;
+    customElements.define('element-without-callback-with-invalid-observed-attributes', constructor);
+}, 'customElements.define must not throw even if "observedAttributes" fails to convert if "attributeChangedCallback" is not defined');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    var err = {name: 'expectedError'}
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'disabledFeatures')
+                throw err;
+            return target[name];
+        }
+    });
+    assert_throws_exactly(err, () => customElements.define('element-with-throwing-disabled-features', proxy));
+    assert_array_equals(calls, ['prototype', 'disabledFeatures'],
+        'customElements.define must get "prototype" and "disabledFeatures" on the constructor');
+}, 'customElements.define must rethrow an exception thrown while getting disabledFeatures on the constructor prototype');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'disabledFeatures')
+                return 1;
+            return target[name];
+        }
+    });
+    assert_throws_js(TypeError, () => customElements.define('element-with-invalid-disabled-features', proxy));
+    assert_array_equals(calls, ['prototype', 'disabledFeatures'],
+        'customElements.define must get "prototype" and "disabledFeatures" on the constructor');
+}, 'customElements.define must rethrow an exception thrown while converting the value of disabledFeatures to sequence<DOMString>');
+
+test(function () {
+    var constructor = function () {}
+    var err = {name: 'SomeError'};
+    constructor.disabledFeatures = {[Symbol.iterator]: function *() {
+        yield 'foo';
+        throw err;
+    }};
+    assert_throws_exactly(err, () => customElements.define('element-with-generator-disabled-features', constructor));
+}, 'customElements.define must rethrow an exception thrown while iterating over disabledFeatures to sequence<DOMString>');
+
+test(function () {
+    var constructor = function () {}
+    constructor.disabledFeatures = {[Symbol.iterator]: 1};
+    assert_throws_js(TypeError, () => customElements.define('element-with-disabled-features-with-uncallable-iterator', constructor));
+}, 'customElements.define must rethrow an exception thrown while retrieving Symbol.iterator on disabledFeatures');
+
+test(function () {
+    var constructor = function () {}
+    var calls = [];
+    var err = {name: 'expectedError'};
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'formAssociated')
+                throw err;
+            return target[name];
+        }
+    });
+    assert_throws_exactly(err,
+        () => customElements.define('element-with-throwing-form-associated', proxy));
+    assert_array_equals(calls, ['prototype', 'disabledFeatures', 'formAssociated'],
+        'customElements.define must get "prototype", "disabledFeatures", and ' +
+        '"formAssociated" on the constructor');
+}, 'customElements.define must rethrow an exception thrown while getting ' +
+   'formAssociated on the constructor prototype');
+
+test(function () {
+    var constructor = function () {}
+    var prototypeCalls = [];
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function(target, name) {
+            prototypeCalls.push(name)
+            return target[name];
+        }
+    });
+    var constructorCalls = [];
+    var proxy = new Proxy(constructor, {
+        get: function (target, name) {
+            constructorCalls.push(name);
+            if (name == 'formAssociated')
+                return 1;
+            return target[name];
+        }
+    });
+    customElements.define('element-with-form-associated-true', proxy);
+    assert_array_equals(constructorCalls,
+        ['prototype', 'disabledFeatures', 'formAssociated'],
+        'customElements.define must get "prototype", "disabledFeatures", and ' +
+        '"formAssociated" on the constructor');
+    assert_array_equals(
+        prototypeCalls,
+        moveBefore_supported ? ['connectedCallback', 'disconnectedCallback', 'connectedMoveCallback', 'adoptedCallback',
+         'attributeChangedCallback', 'formAssociatedCallback',
+         'formResetCallback', 'formDisabledCallback',
+         'formStateRestoreCallback'] :
+        ['connectedCallback', 'disconnectedCallback', 'adoptedCallback',
+         'attributeChangedCallback', 'formAssociatedCallback',
+         'formResetCallback', 'formDisabledCallback',
+         'formStateRestoreCallback'],
+        'customElements.define must get 8 callbacks on the prototype');
+}, 'customElements.define must get four additional callbacks on the prototype' +
+   ' if formAssociated is converted to true');
+
+test(function () {
+    var constructor = function() {};
+    var proxy = new Proxy(constructor, {
+        get: function(target, name) {
+            if (name == 'formAssociated')
+                return {};  // Any object is converted to 'true'.
+            return target[name];
+        }
+    });
+    var calls = [];
+    var err = {name: 'expectedError'};
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            calls.push(name);
+            if (name == 'formDisabledCallback')
+                throw err;
+            return target[name];
+        }
+    });
+    assert_throws_exactly(err,
+        () => customElements.define('element-with-throwing-callback-2', proxy));
+    assert_array_equals(calls, moveBefore_supported ? ['connectedCallback', 'disconnectedCallback', 'connectedMoveCallback',
+                                'adoptedCallback', 'attributeChangedCallback',
+                                'formAssociatedCallback', 'formResetCallback',
+                                'formDisabledCallback'] : ['connectedCallback', 'disconnectedCallback',
+                                'adoptedCallback', 'attributeChangedCallback',
+                                'formAssociatedCallback', 'formResetCallback',
+                                'formDisabledCallback'],
+        'customElements.define must not get callbacks after one of the get throws');
+
+    var calls2 = [];
+    constructor.prototype = new Proxy(constructor.prototype, {
+        get: function (target, name) {
+            calls2.push(name);
+            if (name == 'formResetCallback')
+                return 43;  // Can't convert to a Function.
+            return target[name];
+        }
+    });
+    assert_throws_js(TypeError,
+        () => customElements.define('element-with-throwing-callback-3', proxy));
+    assert_array_equals(calls2, moveBefore_supported ? ['connectedCallback', 'disconnectedCallback', 'connectedMoveCallback',
+                                 'adoptedCallback', 'attributeChangedCallback',
+                                 'formAssociatedCallback', 'formResetCallback'] : ['connectedCallback', 'disconnectedCallback',
+                                 'adoptedCallback', 'attributeChangedCallback',
+                                 'formAssociatedCallback', 'formResetCallback'],
+        'customElements.define must not get callbacks after one of the get throws');
+}, 'customElements.define must rethrow an exception thrown while getting ' +
+   'additional formAssociated callbacks on the constructor prototype');
+
+test(function () {
+    class MyCustomElement extends HTMLElement {};
+    customElements.define('my-custom-element', MyCustomElement);
+
+    var instance = new MyCustomElement;
+    assert_true(instance instanceof MyCustomElement,
+        'An instance of a custom HTML element be an instance of the associated interface');
+
+    assert_true(instance instanceof HTMLElement,
+        'An instance of a custom HTML element must inherit from HTMLElement');
+
+    assert_equals(instance.localName, 'my-custom-element',
+        'An instance of a custom element must use the associated tag name');
+
+    assert_equals(instance.namespaceURI, 'http://www.w3.org/1999/xhtml',
+        'A custom element HTML must use HTML namespace');
+
+}, 'customElements.define must define an instantiatable custom element');
+
+test(function () {
+    var disconnectedElement = document.createElement('some-custom');
+    var connectedElementBeforeShadowHost = document.createElement('some-custom');
+    var connectedElementAfterShadowHost = document.createElement('some-custom');
+    var elementInShadowTree = document.createElement('some-custom');
+    var childElementOfShadowHost = document.createElement('some-custom');
+    var customShadowHost = document.createElement('some-custom');
+    var elementInNestedShadowTree = document.createElement('some-custom');
+
+    var container = document.createElement('div');
+    var shadowHost = document.createElement('div');
+    var shadowRoot = shadowHost.attachShadow({mode: 'closed'});
+    container.appendChild(connectedElementBeforeShadowHost);
+    container.appendChild(shadowHost);
+    container.appendChild(connectedElementAfterShadowHost);
+    shadowHost.appendChild(childElementOfShadowHost);
+    shadowRoot.appendChild(elementInShadowTree);
+    shadowRoot.appendChild(customShadowHost);
+
+    var innerShadowRoot = customShadowHost.attachShadow({mode: 'closed'});
+    innerShadowRoot.appendChild(elementInNestedShadowTree);
+
+    var calls = [];
+    class SomeCustomElement extends HTMLElement {
+        constructor() {
+            super();
+            calls.push(this);
+        }
+    };
+
+    document.body.appendChild(container);
+    customElements.define('some-custom', SomeCustomElement);
+    assert_array_equals(calls, [connectedElementBeforeShadowHost, elementInShadowTree, customShadowHost, elementInNestedShadowTree, childElementOfShadowHost, connectedElementAfterShadowHost]);
+}, 'customElements.define must upgrade elements in the shadow-including tree order');
+
+test(function () {
+    assert_true('get' in CustomElementRegistry.prototype, '"get" exists on CustomElementRegistry.prototype');
+    assert_true('get' in customElements, '"get" exists on window.customElements');
+}, 'CustomElementRegistry interface must have get as a method');
+
+test(function () {
+    assert_equals(customElements.get('a-b'), undefined);
+}, 'customElements.get must return undefined when the registry does not contain an entry with the given name');
+
+test(function () {
+    assert_equals(customElements.get('html'), undefined);
+    assert_equals(customElements.get('span'), undefined);
+    assert_equals(customElements.get('div'), undefined);
+    assert_equals(customElements.get('g'), undefined);
+    assert_equals(customElements.get('ab'), undefined);
+}, 'customElements.get must return undefined when the registry does not contain an entry with the given name even if the name was not a valid custom element name');
+
+test(function () {
+    assert_equals(customElements.get('existing-custom-element'), undefined);
+    class ExistingCustomElement extends HTMLElement {};
+    customElements.define('existing-custom-element', ExistingCustomElement);
+    assert_equals(customElements.get('existing-custom-element'), ExistingCustomElement);
+}, 'customElements.get return the constructor of the entry with the given name when there is a matching entry.');
+
+test(function () {
+    assert_true(customElements.whenDefined('some-name') instanceof Promise);
+}, 'customElements.whenDefined must return a promise for a valid custom element name');
+
+test(function () {
+    assert_equals(customElements.whenDefined('some-name'), customElements.whenDefined('some-name'));
+}, 'customElements.whenDefined must return the same promise each time invoked for a valid custom element name which has not been defined');
+
+promise_test(function () {
+    var resolved = false;
+    var rejected = false;
+    customElements.whenDefined('a-b').then(function () { resolved = true; }, function () { rejected = true; });
+    return Promise.resolve().then(function () {
+        assert_false(resolved, 'The promise returned by "whenDefined" must not be resolved until a custom element is defined');
+        assert_false(rejected, 'The promise returned by "whenDefined" must not be rejected until a custom element is defined');
+    });
+}, 'customElements.whenDefined must return an unresolved promise when the registry does not contain the entry with the given name')
+
+promise_test(function () {
+    var promise = customElements.whenDefined('badname');
+    promise.then(function (value) { promise.resolved = value; }, function (value) { promise.rejected = value; });
+
+    assert_false('resolved' in promise, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+    assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+
+    return Promise.resolve().then(function () {
+        assert_false('resolved' in promise, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_true('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+    });
+}, 'customElements.whenDefined must return a rejected promise when the given name is not a valid custom element name');
+
+promise_test(function () {
+    class PreexistingCustomElement extends HTMLElement { };
+    customElements.define('preexisting-custom-element', PreexistingCustomElement);
+
+    var promise = customElements.whenDefined('preexisting-custom-element');
+    promise.then(function (value) { promise.resolved = value; }, function (value) { promise.rejected = value; });
+
+    assert_false('resolved' in promise, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+    assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+
+    return Promise.resolve().then(function () {
+        assert_true('resolved' in promise, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_equals(promise.resolved, PreexistingCustomElement,
+            'The promise returned by "whenDefined" must be resolved with the constructor of the element when a custom element is defined');
+        assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+    });
+}, 'customElements.whenDefined must return a resolved promise when the registry contains the entry with the given name');
+
+promise_test(function () {
+    class AnotherExistingCustomElement extends HTMLElement {};
+    customElements.define('another-existing-custom-element', AnotherExistingCustomElement);
+
+    var promise1 = customElements.whenDefined('another-existing-custom-element');
+    var promise2 = customElements.whenDefined('another-existing-custom-element');
+    promise1.then(function (value) { promise1.resolved = value; }, function (value) { promise1.rejected = value; });
+    promise2.then(function (value) { promise2.resolved = value; }, function (value) { promise2.rejected = value; });
+
+    assert_not_equals(promise1, promise2);
+    assert_false('resolved' in promise1, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+    assert_false('resolved' in promise2, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+    assert_false('rejected' in promise1, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+    assert_false('rejected' in promise2, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+
+    return Promise.resolve().then(function () {
+        assert_true('resolved' in promise1, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_equals(promise1.resolved, AnotherExistingCustomElement, 'The promise returned by "whenDefined" must be resolved with the constructor of the element when a custom element is defined');
+        assert_false('rejected' in promise1, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+
+        assert_true('resolved' in promise2, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_equals(promise2.resolved, AnotherExistingCustomElement, 'The promise returned by "whenDefined" must be resolved with the constructor of the element when a custom element is defined');
+        assert_false('rejected' in promise2, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+    });
+}, 'customElements.whenDefined must return a new resolved promise each time invoked when the registry contains the entry with the given name');
+
+promise_test(function () {
+    class ElementDefinedAfterWhenDefined extends HTMLElement { };
+    var promise = customElements.whenDefined('element-defined-after-whendefined');
+    promise.then(function (value) { promise.resolved = value; }, function (value) { promise.rejected = value; });
+
+    assert_false('resolved' in promise, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+    assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+
+    var promiseAfterDefine;
+    return Promise.resolve().then(function () {
+        assert_false('resolved' in promise, 'The promise returned by "whenDefined" must not be resolved until the element is defined');
+        assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected until the element is defined');
+        assert_equals(customElements.whenDefined('element-defined-after-whendefined'), promise,
+            '"whenDefined" must return the same unresolved promise before the custom element is defined');
+        customElements.define('element-defined-after-whendefined', ElementDefinedAfterWhenDefined);
+        assert_false('resolved' in promise, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+        assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+
+        promiseAfterDefine = customElements.whenDefined('element-defined-after-whendefined');
+        promiseAfterDefine.then(function (value) { promiseAfterDefine.resolved = value; }, function (value) { promiseAfterDefine.rejected = value; });
+        assert_not_equals(promiseAfterDefine, promise, '"whenDefined" must return a resolved promise once the custom element is defined');
+        assert_false('resolved' in promiseAfterDefine, 'The promise returned by "whenDefined" must not be resolved until the end of the next microtask');
+        assert_false('rejected' in promiseAfterDefine, 'The promise returned by "whenDefined" must not be rejected until the end of the next microtask');
+    }).then(function () {
+        assert_true('resolved' in promise, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_equals(promise.resolved, ElementDefinedAfterWhenDefined,
+            'The promise returned by "whenDefined" must be resolved with the constructor of the element when a custom element is defined');
+        assert_false('rejected' in promise, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+
+        assert_true('resolved' in promiseAfterDefine, 'The promise returned by "whenDefined" must be resolved when a custom element is defined');
+        assert_equals(promiseAfterDefine.resolved, ElementDefinedAfterWhenDefined,
+            'The promise returned by "whenDefined" must be resolved with the constructor of the element when a custom element is defined');
+        assert_false('rejected' in promiseAfterDefine, 'The promise returned by "whenDefined" must not be rejected when a custom element is defined');
+    });
+}, 'A promise returned by customElements.whenDefined must be resolved by "define"');
+
+promise_test(function () {
+    class ResolvedCustomElement extends HTMLElement {};
+    customElements.define('resolved-custom-element', ResolvedCustomElement);
+    return customElements.whenDefined('resolved-custom-element').then(function (value) {
+        assert_equals(value, ResolvedCustomElement, 'The promise returned by "whenDefined" must resolve with the defined class');
+    });
+}, 'A promise returned by customElements.whenDefined must be resolved with the defined class');
+
+promise_test(function () {
+    var promise = customElements.whenDefined('not-resolved-yet-custom-element').then(function (value) {
+        assert_equals(value, NotResolvedYetCustomElement, 'The promise returned by "whenDefined" must resolve with the defined class once such class is defined');
+    });
+    class NotResolvedYetCustomElement extends HTMLElement {};
+    customElements.define('not-resolved-yet-custom-element', NotResolvedYetCustomElement);
+    return promise;
+}, 'A promise returned by customElements.whenDefined must be resolved with the defined class once such class is defined');
+</script>
+</body>
+</html>
