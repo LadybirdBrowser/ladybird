@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 46 tests
 
-41 Pass
-5 Fail
+46 Pass
 Pass	CustomElementRegistry interface must have define as a method
 Pass	customElements.define must throw when the element interface is not a constructor
 Pass	customElements.define must not throw the constructor is HTMLElement
@@ -19,10 +18,10 @@ Pass	Custom Elements: CustomElementRegistry interface
 Pass	customElements.define must get "prototype", "disabledFeatures", and "formAssociated" property of the constructor
 Pass	customElements.define must rethrow an exception thrown while getting "prototype" property of the constructor
 Pass	customElements.define must throw when "prototype" property of the constructor is not an object
-Fail	customElements.define must get callbacks of the constructor prototype
+Pass	customElements.define must get callbacks of the constructor prototype
 Pass	customElements.define must rethrow an exception thrown while getting callbacks on the constructor prototype
-Fail	customElements.define must rethrow an exception thrown while converting a callback value to Function callback type
-Fail	customElements.define must get "observedAttributes" property on the constructor prototype when "attributeChangedCallback" is present
+Pass	customElements.define must rethrow an exception thrown while converting a callback value to Function callback type
+Pass	customElements.define must get "observedAttributes" property on the constructor prototype when "attributeChangedCallback" is present
 Pass	customElements.define must rethrow an exception thrown while getting observedAttributes on the constructor prototype
 Pass	customElements.define must rethrow an exception thrown while converting the value of observedAttributes to sequence<DOMString>
 Pass	customElements.define must rethrow an exception thrown while iterating over observedAttributes to sequence<DOMString>
@@ -33,8 +32,8 @@ Pass	customElements.define must rethrow an exception thrown while converting the
 Pass	customElements.define must rethrow an exception thrown while iterating over disabledFeatures to sequence<DOMString>
 Pass	customElements.define must rethrow an exception thrown while retrieving Symbol.iterator on disabledFeatures
 Pass	customElements.define must rethrow an exception thrown while getting formAssociated on the constructor prototype
-Fail	customElements.define must get four additional callbacks on the prototype if formAssociated is converted to true
-Fail	customElements.define must rethrow an exception thrown while getting additional formAssociated callbacks on the constructor prototype
+Pass	customElements.define must get four additional callbacks on the prototype if formAssociated is converted to true
+Pass	customElements.define must rethrow an exception thrown while getting additional formAssociated callbacks on the constructor prototype
 Pass	customElements.define must define an instantiatable custom element
 Pass	customElements.define must upgrade elements in the shadow-including tree order
 Pass	CustomElementRegistry interface must have get as a method

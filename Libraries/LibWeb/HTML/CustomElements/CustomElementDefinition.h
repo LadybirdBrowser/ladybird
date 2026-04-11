@@ -81,8 +81,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-lifecycle-callbacks
     // A collection of lifecycle callbacks
-    //     A map, whose keys are the strings "connectedCallback", "disconnectedCallback", "adoptedCallback", "attributeChangedCallback",
-    //     "formAssociatedCallback", "formDisabledCallback", "formResetCallback", and "formStateRestoreCallback".
+    //     A map, whose keys are the strings "connectedCallback", "disconnectedCallback", "connectedMoveCallback",
+    //     "adoptedCallback", "attributeChangedCallback", "formAssociatedCallback", "formDisabledCallback",
+    //     "formResetCallback", and "formStateRestoreCallback".
     //     The corresponding values are either a Web IDL Function callback function type value, or null.
     //     By default the value of each entry is null.
     OrderedHashMap<FlyString, GC::Ptr<WebIDL::CallbackType>> m_lifecycle_callbacks;
