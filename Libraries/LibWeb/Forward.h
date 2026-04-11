@@ -1047,6 +1047,13 @@ class AutoplayAllowlist;
 
 }
 
+namespace Web::PermissionsAPI {
+
+class Permissions;
+class PermissionStatus;
+
+}
+
 namespace Web::Platform {
 
 class Timer;

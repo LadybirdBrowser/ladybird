@@ -68,6 +68,7 @@ public:
     [[nodiscard]] GC::Ref<CredentialManagement::CredentialsContainer> credentials();
     [[nodiscard]] GC::Ref<WebIDL::Promise> get_battery();
     [[nodiscard]] GC::Ref<WebXR::XRSystem> xr();
+    [[nodiscard]] GC::Ref<PermissionsAPI::Permissions> permissions();
 
     GC::Ref<ServiceWorker::ServiceWorkerContainer> service_worker();
 
@@ -121,6 +122,9 @@ private:
 
     // https://immersive-web.github.io/webxr/#dom-navigator-xr
     GC::Ptr<WebXR::XRSystem> m_xr;
+
+    // https://w3c.github.io/permissions/#navigator-and-workernavigator-extension
+    GC::Ptr<PermissionsAPI::Permissions> m_permissions;
 };
 
 }

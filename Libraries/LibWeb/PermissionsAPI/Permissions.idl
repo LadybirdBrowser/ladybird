@@ -1,0 +1,9 @@
+// https://w3c.github.io/permissions/#permissions-interface
+[Exposed=(Window,Worker)]
+interface Permissions {
+    Promise<PermissionStatus> query(object permissionDesc);
+};
+
+dictionary PermissionDescriptor {
+    required DOMString name;
+};

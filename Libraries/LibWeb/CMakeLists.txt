@@ -901,6 +901,9 @@ set(SOURCES
     PerformanceTimeline/PerformanceObserver.cpp
     PerformanceTimeline/PerformanceObserverEntryList.cpp
     PermissionsPolicy/AutoplayAllowlist.cpp
+    PermissionsAPI/Permissions.cpp
+    PermissionsAPI/PermissionStore.cpp
+    PermissionsAPI/PermissionStatus.cpp
     PixelUnits.cpp
     Platform/EventLoopPlugin.cpp
     Platform/FontPlugin.cpp

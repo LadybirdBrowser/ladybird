@@ -1,0 +1,54 @@
+Harness status: OK
+
+Found 48 tests
+
+43 Pass
+5 Fail
+Pass	idl_test setup
+Pass	idl_test validation
+Pass	Partial interface Navigator: original interface defined
+Pass	Partial interface Navigator: valid exposure set
+Pass	Partial interface Navigator: member names are unique
+Pass	Partial interface WorkerNavigator: original interface defined
+Pass	Partial interface WorkerNavigator: valid exposure set
+Pass	Partial interface WorkerNavigator: member names are unique
+Pass	Partial interface Navigator[2]: member names are unique
+Pass	Partial interface mixin NavigatorID: member names are unique
+Pass	Navigator includes NavigatorID: member names are unique
+Pass	Navigator includes NavigatorLanguage: member names are unique
+Pass	Navigator includes NavigatorOnLine: member names are unique
+Pass	Navigator includes NavigatorContentUtils: member names are unique
+Pass	Navigator includes NavigatorCookies: member names are unique
+Pass	Navigator includes NavigatorPlugins: member names are unique
+Pass	Navigator includes NavigatorConcurrentHardware: member names are unique
+Pass	WorkerNavigator includes NavigatorID: member names are unique
+Pass	WorkerNavigator includes NavigatorLanguage: member names are unique
+Pass	WorkerNavigator includes NavigatorOnLine: member names are unique
+Pass	WorkerNavigator includes NavigatorConcurrentHardware: member names are unique
+Pass	Permissions interface: existence and properties of interface object
+Pass	Permissions interface object length
+Pass	Permissions interface object name
+Pass	Permissions interface: existence and properties of interface prototype object
+Pass	Permissions interface: existence and properties of interface prototype object's "constructor" property
+Pass	Permissions interface: existence and properties of interface prototype object's @@unscopables property
+Pass	Permissions interface: operation query(object)
+Pass	Permissions must be primary interface of navigator.permissions
+Pass	Stringification of navigator.permissions
+Pass	Permissions interface: navigator.permissions must inherit property "query(object)" with the proper type
+Pass	Permissions interface: calling query(object) on navigator.permissions with too few arguments must throw TypeError
+Pass	PermissionStatus interface: existence and properties of interface object
+Pass	PermissionStatus interface object length
+Pass	PermissionStatus interface object name
+Pass	PermissionStatus interface: existence and properties of interface prototype object
+Pass	PermissionStatus interface: existence and properties of interface prototype object's "constructor" property
+Pass	PermissionStatus interface: existence and properties of interface prototype object's @@unscopables property
+Pass	PermissionStatus interface: attribute state
+Pass	PermissionStatus interface: attribute name
+Pass	PermissionStatus interface: attribute onchange
+Fail	PermissionStatus must be primary interface of permissionStatus
+Fail	Stringification of permissionStatus
+Fail	PermissionStatus interface: permissionStatus must inherit property "state" with the proper type
+Fail	PermissionStatus interface: permissionStatus must inherit property "name" with the proper type
+Fail	PermissionStatus interface: permissionStatus must inherit property "onchange" with the proper type
+Pass	Navigator interface: attribute permissions
+Pass	Navigator interface: navigator must inherit property "permissions" with the proper type
