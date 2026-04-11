@@ -451,6 +451,7 @@ static ByteString test_mode_to_string(TestMode mode)
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
+    bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
 
     // Count results
     size_t fail_count = 0;
@@ -481,6 +482,7 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
     js.append("const RESULTS_DATA = {\n"sv);
     js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
         s_total_tests, fail_count, timeout_count, crashed_count, skipped_count);
+    js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
     js.append("  \"tests\": [\n"sv);
 
     bool first = true;
@@ -1665,9 +1667,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
         }
     }
+    bool has_helper_output = test_run_capture.write_helper_process_output();
 
     // Generate result files (JSON data and HTML index)
-    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty()) {
+    if (app.quiet || app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT || !non_passing_tests.is_empty() || has_helper_output) {
         if (auto result = generate_result_files(tests, non_passing_tests); result.is_error())
             warnln("Failed to generate result files: {}", result.error());
         else

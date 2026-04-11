@@ -40,6 +40,7 @@ ErrorOr<bool> CaptureFile::transfer_to_output_file()
     if (m_writer_path.is_empty())
         return false;
 
+    (void)Core::System::unlink(m_destination_path);
     ScopeGuard cleanup = [&] {
         (void)Core::System::unlink(m_writer_path);
         m_writer_path = {};

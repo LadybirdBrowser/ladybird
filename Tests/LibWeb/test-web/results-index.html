@@ -339,6 +339,13 @@
             background: white;
         }
 
+        .inline-file-frame {
+            width: 100%;
+            height: 75vh;
+            border: none;
+            overflow: auto;
+        }
+
         .preview-image {
             max-width: 100%;
             display: block;
@@ -608,10 +615,9 @@
         function renderResults(data) {
             const content = document.getElementById('content');
 
-            if (data.tests.length === 0) {
-                content.innerHTML = '<div class="empty-state"><h2>All Tests Passed!</h2><p>No failing tests to display.</p></div>';
-                return;
-            }
+            const items = data.hasLogs
+                ? [{ name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...data.tests]
+                : data.tests;
 
             let html = `
                 <div class="summary">
@@ -638,33 +644,41 @@
                 </div>
                 <div class="test-list" id="testList">
             `;
-
-            for (const test of data.tests) {
-                const testId = test.name.replace(/[^a-zA-Z0-9]/g, '-');
-                const tabs = buildTabs(test);
-
-                html += `
-                    <div class="test-item" data-name="${test.name.toLowerCase()}" id="test-${testId}">
-                        <div class="test-header" onclick="toggleTest('${testId}')">
-                            <span class="result-badge ${test.result}">${test.result}</span>
-                            <span class="mode-badge">${test.mode}</span>
-                            <span class="test-name">${test.name}</span>
-                            <button class="copy-btn" onclick="copyTestName(event, this, '${test.name}')" title="Copy test path">${copySvg}</button>
-                            <span class="expand-icon">&#9654;</span>
-                        </div>
-                        <div class="test-content">
-                            <div class="tab-bar">${tabs.bar}</div>
-                            <div class="preview-container" id="preview-${testId}">
-                                <div class="loading">Select a tab to view content</div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+            for (const test of items) {
+                html += renderResultItem(test);
             }
-
             html += '</div>';
+            if (items.every(test => test.mode === 'LOGS')) {
+                html += '<div class="empty-state"><h2>All items Passed!</h2><p>No failing items to display.</p></div>';
+            }
             content.innerHTML = html;
             testElements = Array.from(document.querySelectorAll('.test-item'));
+        }
+
+        function renderResultItem(item) {
+            const testId = item.name.replace(/[^a-zA-Z0-9]/g, '-');
+            const tabs = item.inlineFileResult ? null : buildTabs(item);
+
+            let html = `
+                <div class="test-item" data-name="${item.name.toLowerCase()}" id="test-${testId}">
+                    <div class="test-header" onclick="toggleTest('${testId}')">
+                        ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
+                        ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
+                        <span class="test-name">${item.name}</span>
+                        ${item.result ? `<button class="copy-btn" onclick="copyTestName(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
+                        <span class="expand-icon">&#9654;</span>
+                    </div>
+                    <div class="test-content">`;
+            if (tabs) {
+                html += `<div class="tab-bar">${tabs.bar}</div>
+                        <div class="preview-container" id="preview-${testId}">
+                            <div class="loading">Select a tab to view content</div>
+                        </div>`;
+            } else if (item.inlineFileResult) {
+                html += `<iframe class="inline-file-frame" src="${item.inlineFileResult}"></iframe>`;
+            }
+            html += `</div></div>`;
+            return html;
         }
 
         function buildTabs(test) {
