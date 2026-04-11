@@ -828,6 +828,9 @@ void Application::clear_browsing_data(ClearBrowsingDataOptions const& options)
         });
     }
 
+    if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes)
+        m_history_store->remove_entries_accessed_since(options.since);
+
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
         m_cookie_jar->expire_cookies_accessed_since(options.since);
         m_storage_jar->remove_items_accessed_since(options.since);

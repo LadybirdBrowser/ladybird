@@ -336,6 +336,10 @@ void SettingsUI::clear_browsing_data(JsonValue const& options)
         ? Application::ClearBrowsingDataOptions::Delete::Yes
         : Application::ClearBrowsingDataOptions::Delete::No;
 
+    clear_browsing_data_options.delete_history = options.as_object().get_bool("history"sv).value_or(false)
+        ? Application::ClearBrowsingDataOptions::Delete::Yes
+        : Application::ClearBrowsingDataOptions::Delete::No;
+
     clear_browsing_data_options.delete_site_data = options.as_object().get_bool("siteData"sv).value_or(false)
         ? Application::ClearBrowsingDataOptions::Delete::Yes
         : Application::ClearBrowsingDataOptions::Delete::No;

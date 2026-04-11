@@ -124,6 +124,7 @@ public:
 
         UnixDateTime since { UnixDateTime::earliest() };
         Delete delete_cached_files { Delete::No };
+        Delete delete_history { Delete::No };
         Delete delete_site_data { Delete::No };
     };
     void clear_browsing_data(ClearBrowsingDataOptions const&);

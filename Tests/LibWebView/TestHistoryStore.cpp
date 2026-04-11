@@ -205,7 +205,23 @@ TEST_CASE(disabled_history_store_ignores_updates)
     store->clear();
 
     EXPECT(!store->entry_for_url(url).has_value());
-    EXPECT(store->autocomplete_suggestions("example"sv, 8).is_empty());
+    EXPECT(store->autocomplete_entries("example"sv, 8).is_empty());
+}
+
+TEST_CASE(history_entries_accessed_since_can_be_removed)
+{
+    auto store = WebView::HistoryStore::create();
+
+    auto older_url = parse_url("https://older.example.com/"sv);
+    auto newer_url = parse_url("https://newer.example.com/"sv);
+
+    store->record_visit(older_url, "Older"_string, UnixDateTime::from_seconds_since_epoch(10));
+    store->record_visit(newer_url, "Newer"_string, UnixDateTime::from_seconds_since_epoch(20));
+
+    store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(15));
+
+    EXPECT(store->entry_for_url(older_url).has_value());
+    EXPECT(!store->entry_for_url(newer_url).has_value());
 }
 
 TEST_CASE(persisted_history_survives_reopen)
@@ -238,6 +254,38 @@ TEST_CASE(persisted_history_survives_reopen)
         EXPECT_EQ(entry->visit_count, 1u);
         EXPECT_EQ(entry->last_visited_time, UnixDateTime::from_seconds_since_epoch(77));
         EXPECT_EQ(entry->favicon_base64_png, Optional<String> { "Zm9v"_string });
+    }
+}
+
+TEST_CASE(persisted_history_entries_accessed_since_can_be_removed)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-remove-since-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto older_url = parse_url("https://older.example.com/"sv);
+    auto newer_url = parse_url("https://newer.example.com/"sv);
+
+    {
+        auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+        store->record_visit(older_url, "Older"_string, UnixDateTime::from_seconds_since_epoch(10));
+        store->record_visit(newer_url, "Newer"_string, UnixDateTime::from_seconds_since_epoch(20));
+        store->remove_entries_accessed_since(UnixDateTime::from_seconds_since_epoch(15));
+    }
+
+    {
+        auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+        auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+
+        EXPECT(store->entry_for_url(older_url).has_value());
+        EXPECT(!store->entry_for_url(newer_url).has_value());
     }
 }
 
