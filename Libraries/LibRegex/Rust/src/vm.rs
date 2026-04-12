@@ -841,6 +841,38 @@ fn match_simple_scan(scan: &SimpleScan, cp: u32) -> bool {
     }
 }
 
+/// Match a single code point against a SimpleMatch, respecting active modifiers.
+#[inline(always)]
+fn match_simple_with_modifiers(matcher: &SimpleMatch, cp: u32, modifiers: &ActiveModifiers) -> bool {
+    match matcher {
+        SimpleMatch::AnyChar { dot_all } => {
+            let dot_all = *dot_all || modifiers.dot_all;
+            dot_all || !is_line_terminator(cp)
+        }
+        SimpleMatch::Char(c) => {
+            if modifiers.ignore_case {
+                case_fold_eq(cp, *c, false)
+            } else {
+                cp == *c
+            }
+        }
+        SimpleMatch::CharNoCase(lo, _hi) => case_fold_eq(cp, *lo, false),
+        SimpleMatch::CharClass { ranges, negated } => {
+            let in_class = match_char_class(cp, ranges, modifiers.ignore_case, false, false);
+            in_class != *negated
+        }
+        SimpleMatch::BuiltinClass(class) => match_builtin_class(cp, *class, false),
+        SimpleMatch::UnicodeProperty(data) => {
+            let matched =
+                match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
+            matched != data.negated
+        }
+        SimpleMatch::Union(lhs, rhs) => {
+            match_simple_with_modifiers(lhs, cp, modifiers) || match_simple_with_modifiers(rhs, cp, modifiers)
+        }
+    }
+}
+
 /// Match a single code point against a SimpleMatch.
 #[inline(always)]
 fn match_simple_match(matcher: &SimpleMatch, cp: u32) -> bool {
@@ -3168,7 +3200,9 @@ impl<'a, I: Input> Vm<'a, I> {
             SimpleMatch::Union(lhs, rhs) => {
                 while *pos < len && count < limit {
                     let cp = input.code_unit(*pos) as u32;
-                    if !match_simple_match(lhs, cp) && !match_simple_match(rhs, cp) {
+                    if !match_simple_with_modifiers(lhs, cp, modifiers)
+                        && !match_simple_with_modifiers(rhs, cp, modifiers)
+                    {
                         break;
                     }
                     *pos += 1;

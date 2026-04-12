@@ -502,29 +502,7 @@ impl Compiler {
             }
             Atom::BuiltinCharacterClass(class) => Some(SimpleMatch::BuiltinClass(*class)),
             Atom::CharacterClass(cc) => match &cc.body {
-                CharacterClassBody::Ranges(ranges_vec) => {
-                    let mut ranges = Vec::new();
-                    for r in ranges_vec {
-                        match r {
-                            CharacterClassRange::Single(c) => {
-                                if *c > 0xFFFF && !self.program.unicode && !self.program.unicode_sets {
-                                    return None;
-                                }
-                                ranges.push(CharRange { start: *c, end: *c });
-                            }
-                            CharacterClassRange::Range(lo, hi) => {
-                                ranges.push(CharRange { start: *lo, end: *hi });
-                            }
-                            _ => return None,
-                        }
-                    }
-                    // Sort ranges by start code point for binary search in the VM.
-                    ranges.sort_by_key(|r| r.start);
-                    Some(SimpleMatch::CharClass {
-                        ranges,
-                        negated: cc.negated,
-                    })
-                }
+                CharacterClassBody::Ranges(ranges_vec) => self.try_simple_match_for_ranges(ranges_vec, cc.negated),
                 CharacterClassBody::UnicodeSet(expr) => self.try_simple_match_for_unicode_set(expr, cc.negated),
             },
             Atom::UnicodeProperty(up) => {
@@ -1172,6 +1150,86 @@ impl Compiler {
             return Self::negate_simple_match(matchers.into_iter().next().unwrap());
         }
         None
+    }
+
+    /// Try to build a `SimpleMatch` for a `CharacterClassBody::Ranges`.
+    ///
+    /// If all elements are plain chars/ranges, returns a single `CharClass`.
+    /// If the class is non-negated and contains builtins or Unicode properties,
+    /// collects plain ranges into one `CharClass` and each builtin/property into its
+    /// own `SimpleMatch`, then folds them into a `Union`.
+    fn try_simple_match_for_ranges(&self, ranges_vec: &[CharacterClassRange], negated: bool) -> Option<SimpleMatch> {
+        let has_complex = ranges_vec.iter().any(|r| {
+            matches!(
+                r,
+                CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_)
+            )
+        });
+
+        if !has_complex {
+            let mut ranges = Vec::new();
+            for r in ranges_vec {
+                match r {
+                    CharacterClassRange::Single(c) => {
+                        if *c > 0xFFFF && !self.program.unicode && !self.program.unicode_sets {
+                            return None;
+                        }
+                        ranges.push(CharRange { start: *c, end: *c });
+                    }
+                    CharacterClassRange::Range(lo, hi) => {
+                        ranges.push(CharRange { start: *lo, end: *hi });
+                    }
+                    _ => return None,
+                }
+            }
+            ranges.sort_by_key(|r| r.start);
+            return Some(SimpleMatch::CharClass { ranges, negated });
+        }
+
+        if negated {
+            return None;
+        }
+
+        let mut plain_ranges: Vec<CharRange> = Vec::new();
+        let mut matchers: Vec<SimpleMatch> = Vec::new();
+
+        for r in ranges_vec {
+            match r {
+                CharacterClassRange::Single(c) => {
+                    if *c > 0xFFFF && !self.program.unicode && !self.program.unicode_sets {
+                        return None;
+                    }
+                    plain_ranges.push(CharRange { start: *c, end: *c });
+                }
+                CharacterClassRange::Range(lo, hi) => {
+                    plain_ranges.push(CharRange { start: *lo, end: *hi });
+                }
+                CharacterClassRange::BuiltinClass(bc) => {
+                    matchers.push(SimpleMatch::BuiltinClass(*bc));
+                }
+                CharacterClassRange::UnicodeProperty(up) => {
+                    if libunicode_rust::character_types::is_string_property(&up.name) {
+                        return None;
+                    }
+                    matchers.push(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
+                        negated: up.negated,
+                        name: up.name.clone(),
+                        value: up.value.clone(),
+                        resolved: None,
+                    })));
+                }
+            }
+        }
+
+        if !plain_ranges.is_empty() {
+            plain_ranges.sort_by_key(|r| r.start);
+            matchers.push(SimpleMatch::CharClass {
+                ranges: plain_ranges,
+                negated: false,
+            });
+        }
+
+        Self::build_union_simple_match(matchers)
     }
 
     /// Try to build a `SimpleMatch` for a `/v`-mode character class `UnicodeSet` body.

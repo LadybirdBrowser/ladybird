@@ -13,3 +13,14 @@ test("/v mode union of range class and unicode property in lazy quantifier does 
         "\ufe0f\u20e34\ufe0f\u20e34",
     ]);
 });
+
+test("mixed character class in lazy quantifier does not hit backtrack limit", () => {
+    let str =
+        "PYzJdxPYzJdxPYzJdx\t\ud83e\udd84\ud83c\udf0a\ud83d\udd25\t\u304b\u0330\u030a\u0307\t  \n\u65e5\u0332\u0300\u0304\ud83d\udc69\u200d\ud83c\udfa8\ud83d\udc68\u200d\ud83d\udd2c \n\u0433\u0306\u0305\u030b\ue0f9\n\u000b\t ;\n\f\n\u000b\n'+[-\ud83d\udc0d\ud83d\udc0d\ud83d\udc0d\ud83d\udc0d-\u3044\u0306\u0305-\ue567\u08fb\udfeb\ud814\udca0\ud814\udc9d";
+    expect(() =>
+        str.match(/[\x57-\x6cæ\0\SA-M\xa5]*?.{2}\uec19|(?<g1>(?<!\k<g1>))^Q+?\1🍕{0,}|(?<!\k<g1>)\d+?\u{f9bf5}/is)
+    ).not.toThrow();
+    expect(
+        str.match(/[\x57-\x6cæ\0\SA-M\xa5]*?.{2}\uec19|(?<g1>(?<!\k<g1>))^Q+?\1🍕{0,}|(?<!\k<g1>)\d+?\u{f9bf5}/is)
+    ).toBeNull();
+});
