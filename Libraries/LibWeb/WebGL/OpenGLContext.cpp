@@ -9,6 +9,9 @@
 #include <AK/String.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibGfx/SharedImageBuffer.h>
+#ifdef USE_VULKAN_DMABUF_IMAGES
+#    include <LibGfx/VulkanImage.h>
+#endif
 #include <LibWeb/WebGL/OpenGLContext.h>
 
 #include <EGL/egl.h>
