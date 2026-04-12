@@ -26,6 +26,11 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text)
 {
 }
 
+TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node)
+    : Node(document, &text, attach_to_dom_node)
+{
+}
+
 TextNode::~TextNode() = default;
 
 // https://w3c.github.io/mathml-core/#new-text-transform-values
