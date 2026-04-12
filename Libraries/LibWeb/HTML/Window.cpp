@@ -7,6 +7,7 @@
  */
 
 #include <AK/Utf8View.h>
+#include <LibCore/Markers.h>
 #include <LibGC/WeakHashSet.h>
 #include <LibIPC/File.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -108,6 +109,11 @@ void Window::for_each_active(Function<IterationDecision(Window&)> callback)
 // https://html.spec.whatwg.org/multipage/imagebitmap-and-animations.html#run-the-animation-frame-callbacks
 void run_animation_frame_callbacks(DOM::Document& document, double now)
 {
+    MARKER_SCOPE_FIELDS("requestAnimationFrame callbacks"sv, "Text"sv, Core::MarkerCategory::Timer,
+        {
+            { "type"sv, "requestAnimationFrame"sv },
+            { "time"sv, now },
+        });
     // FIXME: Bring this closer to the spec.
     document.window()->animation_frame_callback_driver().run(now);
 }
@@ -1324,6 +1330,8 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Value message, W
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options
 WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, WindowPostMessageOptions const& options)
 {
+    MARKER_INSTANT("Window.postMessage"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, options.target_origin } });
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
     return window_post_message_steps(message, options);
@@ -1332,6 +1340,8 @@ WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, WindowPostMess
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage
 WebIDL::ExceptionOr<void> Window::post_message(JS::Value message, String const& target_origin, Vector<GC::Root<JS::Object>> const& transfer)
 {
+    MARKER_INSTANT("Window.postMessage"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, target_origin } });
     // The Window interface's postMessage(message, targetOrigin, transfer) method steps are to run the window post message
     // steps given this, message, and «[ "targetOrigin" → targetOrigin, "transfer" → transfer ]».
     return window_post_message_steps(message, WindowPostMessageOptions { { .transfer = transfer }, target_origin });

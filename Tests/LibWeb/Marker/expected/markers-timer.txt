@@ -1,1 +1,3 @@
-FAIL no setTimeout marker
+PASS setTimeout marker found
+PASS timer is Interval
+PASS has delay field

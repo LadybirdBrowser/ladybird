@@ -7,6 +7,7 @@
 
 #include <AK/TemporaryChange.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Markers.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -31,6 +32,122 @@
 #include <LibWeb/Platform/Timer.h>
 
 namespace Web::HTML {
+
+static StringView task_source_marker_name(Task::Source source)
+{
+    switch (source) {
+    case Task::Source::Unspecified:
+        return "Task: Unspecified"sv;
+    case Task::Source::DOMManipulation:
+        return "Task: DOM Manipulation"sv;
+    case Task::Source::UserInteraction:
+        return "Task: User Interaction"sv;
+    case Task::Source::Networking:
+        return "Task: Networking"sv;
+    case Task::Source::HistoryTraversal:
+        return "Task: History Traversal"sv;
+    case Task::Source::IdleTask:
+        return "Task: Idle"sv;
+    case Task::Source::PostedMessage:
+        return "Task: Posted Message"sv;
+    case Task::Source::Microtask:
+        return "Task: Microtask"sv;
+    case Task::Source::TimerTask:
+        return "Task: Timer"sv;
+    case Task::Source::JavaScriptEngine:
+        return "Task: JS Engine"sv;
+    case Task::Source::Geolocation:
+        return "Task: Geolocation"sv;
+    case Task::Source::BitmapTask:
+        return "Task: Bitmap"sv;
+    case Task::Source::NavigationAndTraversal:
+        return "Task: Navigation"sv;
+    case Task::Source::FileReading:
+        return "Task: File Reading"sv;
+    case Task::Source::IntersectionObserver:
+        return "Task: IntersectionObserver"sv;
+    case Task::Source::PerformanceTimeline:
+        return "Task: Performance Timeline"sv;
+    case Task::Source::CanvasBlobSerializationTask:
+        return "Task: Canvas Blob"sv;
+    case Task::Source::Clipboard:
+        return "Task: Clipboard"sv;
+    case Task::Source::Permissions:
+        return "Task: Permissions"sv;
+    case Task::Source::FontLoading:
+        return "Task: Font Loading"sv;
+    case Task::Source::RemoteEvent:
+        return "Task: Remote Event"sv;
+    case Task::Source::Rendering:
+        return "Task: Rendering"sv;
+    case Task::Source::DatabaseAccess:
+        return "Task: Database"sv;
+    case Task::Source::WebSocket:
+        return "Task: WebSocket"sv;
+    case Task::Source::MediaCapabilities:
+        return "Task: Media Capabilities"sv;
+    case Task::Source::Gamepad:
+        return "Task: Gamepad"sv;
+    case Task::Source::WebGL:
+        return "Task: WebGL"sv;
+    case Task::Source::Crypto:
+        return "Task: Crypto"sv;
+    case Task::Source::UniqueTaskSourceStart:
+    default:
+        // Per-instance unique task sources (HTMLMediaElement etc.) fall
+        // through here. Their values are >= UniqueTaskSourceStart.
+        return "Task: Unique"sv;
+    }
+}
+
+// Map task sources to marker categories so the marker chart picks the
+// right color: Idle tasks render white (transparent), DOM/Network/Timer
+// tasks pick up their category color, etc. Without this all tasks land
+// in the Other (grey) bucket.
+static Core::MarkerCategory task_source_marker_category(Task::Source source)
+{
+    switch (source) {
+    case Task::Source::IdleTask:
+        return Core::MarkerCategory::Idle;
+    case Task::Source::DOMManipulation:
+    case Task::Source::UserInteraction:
+    case Task::Source::HistoryTraversal:
+    case Task::Source::NavigationAndTraversal:
+    case Task::Source::IntersectionObserver:
+    case Task::Source::Clipboard:
+    case Task::Source::Permissions:
+    case Task::Source::Gamepad:
+        return Core::MarkerCategory::DOM;
+    case Task::Source::Networking:
+    case Task::Source::WebSocket:
+    case Task::Source::RemoteEvent:
+        return Core::MarkerCategory::Network;
+    case Task::Source::TimerTask:
+        return Core::MarkerCategory::Timer;
+    case Task::Source::JavaScriptEngine:
+    case Task::Source::Microtask:
+    case Task::Source::Crypto:
+        return Core::MarkerCategory::JavaScript;
+    case Task::Source::BitmapTask:
+    case Task::Source::CanvasBlobSerializationTask:
+    case Task::Source::Rendering:
+    case Task::Source::WebGL:
+        return Core::MarkerCategory::Graphics;
+    case Task::Source::FontLoading:
+        return Core::MarkerCategory::Style;
+    case Task::Source::MediaCapabilities:
+        return Core::MarkerCategory::Media;
+    case Task::Source::DatabaseAccess:
+    case Task::Source::FileReading:
+    case Task::Source::PerformanceTimeline:
+    case Task::Source::Geolocation:
+    case Task::Source::PostedMessage:
+    case Task::Source::Unspecified:
+    case Task::Source::UniqueTaskSourceStart:
+    default:
+        return Core::MarkerCategory::Other;
+    }
+}
 
 GC_DEFINE_ALLOCATOR(EventLoop);
 
@@ -147,6 +264,9 @@ void EventLoop::process()
 
         // 5. Set the event loop's currently running task to oldestTask.
         m_currently_running_task = oldest_task.ptr();
+
+        MARKER_SCOPE(task_source_marker_name(oldest_task->source()),
+            "Task"sv, task_source_marker_category(oldest_task->source()));
 
         // 6. Perform oldestTask's steps.
         oldest_task->execute();
