@@ -70,6 +70,13 @@ public:
 
     bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
 
+    Optional<MiddleButtonScrollHandler&> middle_button_scroll_handler() const
+    {
+        if (m_middle_button_scroll_handler)
+            return *m_middle_button_scroll_handler;
+        return {};
+    }
+
 private:
     EventResult focus_next_element();
     EventResult focus_previous_element();
@@ -157,6 +164,7 @@ private:
     OwnPtr<Unicode::Segmenter> m_word_segmenter;
 
     OwnPtr<AutoScrollHandler> m_auto_scroll_handler;
+    OwnPtr<MiddleButtonScrollHandler> m_middle_button_scroll_handler;
 };
 
 }

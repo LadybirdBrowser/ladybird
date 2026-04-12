@@ -15,6 +15,8 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/Layout/InlineNode.h>
+#include <LibWeb/Page/EventHandler.h>
+#include <LibWeb/Page/MiddleButtonScrollHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BackgroundPainting.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
@@ -683,6 +685,7 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                     direction == ScrollDirection::Vertical);
             }
         }
+
         if (auto resizer_rect = absolute_resizer_rect(metrics); resizer_rect.has_value()) {
             bool bottom_left_resizer = is_chrome_mirrored();
             CSSPixels padding = metrics.resize_gripper_padding;
@@ -703,7 +706,56 @@ void PaintableBox::paint(DisplayListRecordingContext& context, PaintPhase phase)
                 paint_resizer_line(step + 1, dark);
             }
         }
+
+        paint_middle_button_scroll_indicator(context);
     }
+}
+
+void PaintableBox::paint_middle_button_scroll_indicator(DisplayListRecordingContext& context) const
+{
+    static constexpr Gfx::Color CIRCLE_COLOR = Gfx::Color { Gfx::Color::White }.with_alpha(220);
+    static constexpr Gfx::Color ARROW_COLOR = Gfx::Color::DarkGray;
+
+    static constexpr auto RADIUS = 16;
+    static constexpr auto ARROW_SIZE = 6;
+    static constexpr auto ARROW_OFFSET = 8;
+
+    if (!is_viewport_paintable())
+        return;
+
+    auto navigable = document().navigable();
+    if (!navigable)
+        return;
+
+    auto handler = navigable->event_handler().middle_button_scroll_handler();
+    if (!handler.has_value())
+        return;
+
+    auto& recorder = context.display_list_recorder();
+    auto device_origin = context.rounded_device_point(handler->origin()).to_type<int>();
+
+    Gfx::IntRect circle { device_origin.x() - RADIUS, device_origin.y() - RADIUS, RADIUS * 2, RADIUS * 2 };
+    recorder.fill_ellipse(circle, CIRCLE_COLOR);
+    recorder.draw_ellipse(circle, ARROW_COLOR, 1);
+
+    auto paint_arrow = [&](Gfx::FloatPoint p1, Gfx::FloatPoint p2, Gfx::FloatPoint p3) {
+        Gfx::Path path;
+        path.move_to(p1);
+        path.line_to(p2);
+        path.line_to(p3);
+        path.close();
+
+        recorder.fill_path({ .path = move(path), .paint_style_or_color = ARROW_COLOR });
+    };
+
+    auto x = static_cast<float>(device_origin.x());
+    auto y = static_cast<float>(device_origin.y());
+
+    // FIXME: We could paint a subset of these arrows depending on which direction the container may be scrolled.
+    paint_arrow({ x, y - ARROW_OFFSET - ARROW_SIZE }, { x - ARROW_SIZE, y - ARROW_OFFSET }, { x + ARROW_SIZE, y - ARROW_OFFSET });
+    paint_arrow({ x, y + ARROW_OFFSET + ARROW_SIZE }, { x - ARROW_SIZE, y + ARROW_OFFSET }, { x + ARROW_SIZE, y + ARROW_OFFSET });
+    paint_arrow({ x - ARROW_OFFSET - ARROW_SIZE, y }, { x - ARROW_OFFSET, y - ARROW_SIZE }, { x - ARROW_OFFSET, y + ARROW_SIZE });
+    paint_arrow({ x + ARROW_OFFSET + ARROW_SIZE, y }, { x + ARROW_OFFSET, y - ARROW_SIZE }, { x + ARROW_OFFSET, y + ARROW_SIZE });
 }
 
 void PaintableBox::paint_inspector_overlay_internal(DisplayListRecordingContext& context) const

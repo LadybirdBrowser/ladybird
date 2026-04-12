@@ -323,6 +323,8 @@ protected:
 private:
     [[nodiscard]] virtual bool is_paintable_box() const final { return true; }
 
+    void paint_middle_button_scroll_indicator(DisplayListRecordingContext&) const;
+
     GC::Ptr<StackingContext> m_stacking_context;
 
     Optional<OverflowData> m_overflow_data;

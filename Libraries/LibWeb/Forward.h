@@ -23,6 +23,7 @@ class DisplayListRecordingContext;
 class DragAndDropEventHandler;
 class ElementResizeAction;
 class EventHandler;
+class MiddleButtonScrollHandler;
 class InputEventsTarget;
 class LoadRequest;
 class Page;

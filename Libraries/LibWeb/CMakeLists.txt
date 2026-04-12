@@ -828,6 +828,7 @@ set(SOURCES
     Page/ElementResizeAction.cpp
     Page/EventHandler.cpp
     Page/InputEvent.cpp
+    Page/MiddleButtonScrollHandler.cpp
     Page/Page.cpp
     Painting/AccumulatedVisualContext.cpp
     Painting/BackgroundPainting.cpp
