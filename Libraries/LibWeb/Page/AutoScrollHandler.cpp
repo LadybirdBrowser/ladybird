@@ -79,15 +79,6 @@ static bool is_in_form_associated_text_control(DOM::Element const& element)
     return is<HTML::FormAssociatedTextControlElement>(host);
 }
 
-// Returns the paintable box that manages the scrollport for an auto-scroll container element. When the element is the
-// document's scrolling element, the viewport paintable is the scroll container.
-static Painting::PaintableBox* auto_scroll_paintable(DOM::Element& element)
-{
-    if (element.document().scrolling_element().ptr() == &element)
-        return element.document().paintable();
-    return element.paintable_box();
-}
-
 AutoScrollHandler::AutoScrollHandler(HTML::Navigable& navigable, DOM::Element& container)
     : m_navigable(navigable)
     , m_container_element(container)
@@ -106,7 +97,7 @@ CSSPixelPoint AutoScrollHandler::process(CSSPixelPoint mouse_position)
 
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
-    auto* paintable_box = auto_scroll_paintable(m_container_element);
+    auto paintable_box = auto_scroll_paintable(m_container_element);
     if (!paintable_box)
         return mouse_position;
 
@@ -148,6 +139,15 @@ GC::Ptr<DOM::Element> AutoScrollHandler::find_scrollable_ancestor(Painting::Pain
     return {};
 }
 
+// Returns the paintable box that manages the scrollport for an auto-scroll container element. When the element is the
+// document's scrolling element, the viewport paintable is the scroll container.
+GC::Ptr<Painting::PaintableBox> AutoScrollHandler::auto_scroll_paintable(DOM::Element& element)
+{
+    if (element.document().scrolling_element().ptr() == &element)
+        return element.document().paintable();
+    return element.paintable_box();
+}
+
 void AutoScrollHandler::activate()
 {
     m_active = true;
@@ -172,7 +172,7 @@ void AutoScrollHandler::perform_tick()
     auto& document = *m_navigable->active_document();
     document.update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
 
-    auto* paintable_box = auto_scroll_paintable(m_container_element);
+    auto paintable_box = auto_scroll_paintable(m_container_element);
     if (!paintable_box || !document.paintable()) {
         deactivate();
         return;

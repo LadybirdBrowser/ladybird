@@ -25,6 +25,7 @@ public:
     bool is_active() const { return m_active; }
 
     static GC::Ptr<DOM::Element> find_scrollable_ancestor(Painting::Paintable const&);
+    static GC::Ptr<Painting::PaintableBox> auto_scroll_paintable(DOM::Element&);
 
 private:
     void activate();
