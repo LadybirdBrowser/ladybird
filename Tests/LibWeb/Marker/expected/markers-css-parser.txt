@@ -1,1 +1,2 @@
-FAIL no ParseCSS marker
+PASS ParseCSS marker found
+PASS ParseCSS is Interval
