@@ -46,11 +46,11 @@
 
 namespace Web::Layout {
 
-Node::Node(DOM::Document& document, DOM::Node* node)
+Node::Node(DOM::Document& document, DOM::Node* node, AttachToDOMNode attach_to_dom_node)
     : m_dom_node(node ? *node : document)
     , m_anonymous(node == nullptr)
 {
-    if (node)
+    if (node && attach_to_dom_node == AttachToDOMNode::Yes)
         node->set_layout_node({}, *this);
 }
 
