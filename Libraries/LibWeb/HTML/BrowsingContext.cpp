@@ -157,8 +157,8 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_browsi
         browsing_context->m_virtual_browsing_context_group_id = creator->browsing_context()->top_level_browsing_context()->m_virtual_browsing_context_group_id;
     }
 
-    // FIXME: 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
-    SandboxingFlagSet sandbox_flags = {};
+    // 6. Let sandboxFlags be the result of determining the creation sandboxing flags given browsingContext and embedder.
+    auto sandbox_flags = determine_the_creation_sandboxing_flags(*browsing_context, embedder);
 
     // 7. Let origin be the result of determining the origin given about:blank, sandboxFlags, and creatorOrigin.
     auto origin = determine_the_origin(URL::about_blank(), sandbox_flags, creator_origin);
