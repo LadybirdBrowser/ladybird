@@ -235,7 +235,11 @@ public:
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
 protected:
-    Node(DOM::Document&, DOM::Node*);
+    enum class AttachToDOMNode {
+        No,
+        Yes,
+    };
+    Node(DOM::Document&, DOM::Node*, AttachToDOMNode = AttachToDOMNode::Yes);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
