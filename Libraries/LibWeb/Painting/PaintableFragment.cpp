@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Painting/TextPaintable.h>
@@ -47,6 +48,10 @@ PaintableFragment::PaintableFragment(Layout::LineBoxFragment const& fragment)
     , m_writing_mode(fragment.writing_mode())
     , m_has_trailing_whitespace(fragment.has_trailing_whitespace())
 {
+    if (auto const* text_node = as_if<Layout::TextNode>(*m_layout_node))
+        m_dom_start_offset_in_node = text_node->dom_start_offset() + m_start_offset;
+    else
+        m_dom_start_offset_in_node = m_start_offset;
 }
 
 CSSPixelRect const PaintableFragment::absolute_rect() const
@@ -106,13 +111,13 @@ size_t PaintableFragment::index_in_node_for_point(CSSPixelPoint position) const
         });
     }
 
-    return m_start_offset + tracker.resolve();
+    return dom_start_offset_in_node() + tracker.resolve();
 }
 
 Optional<PaintableFragment::SelectionOffsets> PaintableFragment::compute_selection_offsets(Paintable::SelectionState selection_state, size_t start_offset_in_code_units, size_t end_offset_in_code_units) const
 {
-    auto const start_index = m_start_offset;
-    auto const end_index = m_start_offset + m_length_in_code_units;
+    auto const dom_start = dom_start_offset_in_node();
+    auto const dom_end = dom_start + m_length_in_code_units;
 
     switch (selection_state) {
     case Paintable::SelectionState::None:
@@ -120,28 +125,28 @@ Optional<PaintableFragment::SelectionOffsets> PaintableFragment::compute_selecti
     case Paintable::SelectionState::Full:
         return SelectionOffsets { 0, m_length_in_code_units, true };
     case Paintable::SelectionState::StartAndEnd:
-        if (start_index > end_offset_in_code_units || end_index < start_offset_in_code_units)
+        if (dom_start > end_offset_in_code_units || dom_end < start_offset_in_code_units)
             return {};
         return SelectionOffsets {
-            start_offset_in_code_units - min(start_offset_in_code_units, m_start_offset),
-            min(end_offset_in_code_units - m_start_offset, m_length_in_code_units),
-            end_offset_in_code_units >= end_index,
+            start_offset_in_code_units - min(start_offset_in_code_units, dom_start),
+            min(end_offset_in_code_units - dom_start, m_length_in_code_units),
+            end_offset_in_code_units >= dom_end,
         };
     case Paintable::SelectionState::Start:
-        if (end_index < start_offset_in_code_units)
+        if (dom_end < start_offset_in_code_units)
             return {};
         return SelectionOffsets {
-            start_offset_in_code_units - min(start_offset_in_code_units, m_start_offset),
+            start_offset_in_code_units - min(start_offset_in_code_units, dom_start),
             m_length_in_code_units,
             true,
         };
     case Paintable::SelectionState::End:
-        if (start_index > end_offset_in_code_units)
+        if (dom_start > end_offset_in_code_units)
             return {};
         return SelectionOffsets {
             0,
-            min(end_offset_in_code_units - m_start_offset, m_length_in_code_units),
-            end_offset_in_code_units >= end_index,
+            min(end_offset_in_code_units - dom_start, m_length_in_code_units),
+            end_offset_in_code_units >= dom_end,
         };
     }
     VERIFY_NOT_REACHED();
