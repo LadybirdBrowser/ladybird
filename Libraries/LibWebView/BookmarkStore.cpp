@@ -27,6 +27,7 @@ static constexpr auto TITLE_KEY = "title"sv;
 static constexpr auto FAVICON_KEY = "favicon"sv;
 static constexpr auto CHILDREN_KEY = "children"sv;
 static constexpr auto DATE_ADDED_KEY = "dateAdded"sv;
+static constexpr auto LAST_MODIFIED_KEY = "lastModified"sv;
 
 static constexpr auto TYPE_BOOKMARK = "bookmark"sv;
 static constexpr auto TYPE_FOLDER = "folder"sv;
@@ -52,6 +53,10 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
         if (auto date_added_ms = object.get_integer<i64>(DATE_ADDED_KEY); date_added_ms.has_value())
             date_added = UnixDateTime::from_milliseconds_since_epoch(*date_added_ms);
 
+        auto last_modified = UnixDateTime {};
+        if (auto last_modified_ms = object.get_integer<i64>(LAST_MODIFIED_KEY); last_modified_ms.has_value())
+            last_modified = UnixDateTime::from_milliseconds_since_epoch(*last_modified_ms);
+
         if (type == TYPE_BOOKMARK) {
             auto url_string = object.get_string(URL_KEY);
             if (!url_string.has_value())
@@ -66,6 +71,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
             items.empend(
                 id.release_value(),
                 date_added,
+                last_modified,
                 BookmarkItem::Bookmark {
                     .url = url.release_value(),
                     .title = title.map([](auto title) { return title; }),
@@ -79,6 +85,7 @@ static Vector<BookmarkItem> parse_bookmark_items(JsonArray const& array)
             items.empend(
                 id.release_value(),
                 date_added,
+                last_modified,
                 BookmarkItem::Folder {
                     .title = title.map([](auto title) { return title; }),
                     .children = move(children),
@@ -94,6 +101,7 @@ static JsonObject serialize_bookmark_item(BookmarkItem const& item)
     JsonObject object;
     object.set(ID_KEY, item.id);
     object.set(DATE_ADDED_KEY, item.date_added.milliseconds_since_epoch());
+    object.set(LAST_MODIFIED_KEY, item.last_modified.milliseconds_since_epoch());
 
     item.data.visit(
         [&](BookmarkItem::Bookmark const& bookmark) {
@@ -132,6 +140,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
         {
             .id = generate_random_uuid(),
             .date_added = now,
+            .last_modified = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://ladybird.org/"sv).release_value(),
                 .title = "Ladybird"_string,
@@ -141,6 +150,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
         {
             .id = generate_random_uuid(),
             .date_added = now,
+            .last_modified = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://github.com/LadybirdBrowser/ladybird"sv).release_value(),
                 .title = "Ladybird GitHub"_string,
@@ -150,6 +160,7 @@ static Vector<BookmarkItem> create_default_bookmarks()
         {
             .id = generate_random_uuid(),
             .date_added = now,
+            .last_modified = now,
             .data = BookmarkItem::Bookmark {
                 .url = URL::Parser::basic_parse("https://discord.com/invite/nvfjVJ4Svh"sv).release_value(),
                 .title = "Ladybird Discord"_string,
@@ -255,6 +266,7 @@ void BookmarkStore::add_bookmark(URL::URL url, Optional<String> title, Optional<
     BookmarkItem item {
         .id = generate_random_uuid(),
         .date_added = UnixDateTime::now(),
+        .last_modified = UnixDateTime::now(),
         .data = BookmarkItem::Bookmark {
             .url = move(url),
             .title = move(title),
@@ -273,6 +285,7 @@ void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> t
     BookmarkItem item {
         .id = generate_random_uuid(),
         .date_added = UnixDateTime::now(),
+        .last_modified = UnixDateTime::now(),
         .data = BookmarkItem::Folder {
             .title = move(title),
             .children = {},
@@ -294,6 +307,7 @@ void BookmarkStore::edit_bookmark(StringView id, URL::URL url, Optional<String> 
     auto& bookmark = item->bookmark();
     bookmark.url = move(url);
     bookmark.title = move(title);
+    item->last_modified = UnixDateTime::now();
 
     persist_bookmarks();
     notify_observers();
@@ -306,6 +320,7 @@ void BookmarkStore::edit_folder(StringView id, Optional<String> title)
         return;
 
     item->folder().title = move(title);
+    item->last_modified = UnixDateTime::now();
 
     persist_bookmarks();
     notify_observers();
@@ -386,6 +401,7 @@ void BookmarkStore::move_item(StringView id, Optional<String const&> target_fold
     index = min(index, target_list.size());
 
     target_list.insert(index, moved_item.release_value());
+    target_list[index].last_modified = UnixDateTime::now();
 
     persist_bookmarks();
     notify_observers();
@@ -403,6 +419,7 @@ void BookmarkStore::update_favicon(URL::URL const& url, String favicon_base64_pn
         return;
 
     bookmark.favicon_base64_png = move(favicon_base64_png);
+    const_cast<BookmarkItem&>(*item).last_modified = UnixDateTime::now();
 
     persist_bookmarks();
     notify_observers();

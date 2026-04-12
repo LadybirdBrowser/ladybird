@@ -32,6 +32,7 @@ struct WEBVIEW_API BookmarkItem {
 
     String id;
     UnixDateTime date_added;
+    UnixDateTime last_modified;
     Variant<Bookmark, Folder> data;
 
     bool is_bookmark() const { return data.has<Bookmark>(); }
