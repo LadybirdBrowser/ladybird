@@ -184,10 +184,10 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
                 // would look above if selecting upward.
                 HitTestResult hit_test_result {
                     .paintable = const_cast<Paintable&>(fragment.paintable()),
-                    .index_in_node = fragment.start_offset(),
+                    .index_in_node = fragment.dom_start_offset_in_node(),
                 };
                 if (fragment_absolute_rect.bottom() - 1 <= local_position.y()) { // fully below the fragment
-                    hit_test_result.index_in_node += fragment.length_in_code_units();
+                    hit_test_result.index_in_node = fragment.dom_end_offset_in_node();
                     hit_test_result.vertical_distance = local_position.y() - fragment_absolute_rect.bottom();
                 } else if (local_position.y() < fragment_absolute_rect.top()) { // fully above the fragment
                     hit_test_result.vertical_distance = fragment_absolute_rect.top() - local_position.y();
@@ -196,7 +196,7 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
                     if (local_position.x() < fragment_absolute_rect.left()) {
                         hit_test_result.horizontal_distance = fragment_absolute_rect.left() - local_position.x();
                     } else {
-                        hit_test_result.index_in_node += fragment.length_in_code_units();
+                        hit_test_result.index_in_node = fragment.dom_end_offset_in_node();
                         hit_test_result.horizontal_distance = local_position.x() - fragment_absolute_rect.right();
                     }
                 }
@@ -409,8 +409,8 @@ void paint_text_fragment(DisplayListRecordingContext& context, PaintableFragment
         painter.draw_glyph_run(baseline_start, *glyph_run, span.text_color, fragment_device_rect, scale, fragment.orientation());
     } else {
         auto range_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
-            fragment.start_offset() + span.start_code_unit,
-            fragment.start_offset() + span.end_code_unit);
+            fragment.dom_start_offset_in_node() + span.start_code_unit,
+            fragment.dom_start_offset_in_node() + span.end_code_unit);
         auto span_rect = context.rounded_device_rect(range_rect).to_type<int>();
         painter.save();
         painter.add_clip_rect(span_rect);
@@ -427,9 +427,9 @@ Optional<PaintableFragment const&> PaintableWithLines::fragment_at_position(DOM:
         auto const* text_paintable = as_if<TextPaintable>(fragment.paintable());
         if (!text_paintable)
             return false;
-        if (position.offset() < fragment.start_offset())
+        if (position.offset() < fragment.dom_start_offset_in_node())
             return false;
-        if (position.offset() > fragment.start_offset() + fragment.length_in_code_units())
+        if (position.offset() > fragment.dom_end_offset_in_node())
             return false;
         return position.node() == text_paintable->dom_node();
     });
@@ -567,8 +567,8 @@ void paint_text_decoration(DisplayListRecordingContext& context, TextPaintable c
     auto fragment_box = fragment.absolute_rect();
     if (span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units()) {
         auto span_rect = fragment.range_rect(Paintable::SelectionState::StartAndEnd,
-            fragment.start_offset() + span.start_code_unit,
-            fragment.start_offset() + span.end_code_unit);
+            fragment.dom_start_offset_in_node() + span.start_code_unit,
+            fragment.dom_start_offset_in_node() + span.end_code_unit);
         fragment_box.set_x(span_rect.x());
         fragment_box.set_width(span_rect.width());
     }

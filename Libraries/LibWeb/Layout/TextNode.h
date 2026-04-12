@@ -27,6 +27,10 @@ public:
 
     DOM::Text const& dom_node() const { return static_cast<DOM::Text const&>(*Node::dom_node()); }
 
+    virtual size_t dom_start_offset() const { return 0; }
+
+    virtual size_t dom_length() const { return dom_node().data().length_in_code_units(); }
+
     Utf16String const& text_for_rendering() const;
 
     struct Chunk {
