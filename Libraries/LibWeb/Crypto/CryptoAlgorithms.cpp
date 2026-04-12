@@ -6665,7 +6665,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
         auto data = move(key_data.get<ByteBuffer>());
 
         // 3. If the length in bits of data is not 448 then throw a DataError.
-        if (data.size() * 8 != 448)
+        // AD-HOC: The spec has a typo with the size of the key length
+        //         See spec comment: https://github.com/w3c/webcrypto/pull/425#discussion_r3070135408
+        if (data.size() * 8 != 456)
             return WebIDL::DataError::create(m_realm, "Invalid key length"_utf16);
 
         // 4. Let algorithm be a new KeyAlgorithm object.
