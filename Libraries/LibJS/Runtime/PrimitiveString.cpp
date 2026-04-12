@@ -145,6 +145,11 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString const& 
     if (code_unit_offset == 0 && code_unit_length == string_length)
         return const_cast<PrimitiveString&>(string);
 
+    if (code_unit_length == 1) {
+        if (auto code_unit = string.utf16_string_view().code_unit_at(code_unit_offset); is_ascii(code_unit))
+            return vm.single_ascii_character_string(static_cast<u8>(code_unit));
+    }
+
     if (string.m_deferred_kind == DeferredKind::Substring) {
         auto const& substring = static_cast<Substring const&>(string);
         return create(vm, *substring.m_source_string, substring.m_code_unit_offset + code_unit_offset, code_unit_length);

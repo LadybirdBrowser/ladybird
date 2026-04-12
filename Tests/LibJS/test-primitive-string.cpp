@@ -83,6 +83,17 @@ TEST_CASE(primitive_string_substring_materializes_rope_ranges)
     EXPECT(substring->utf8_string_view() == "bc"sv);
 }
 
+TEST_CASE(primitive_string_substring_reuses_cached_single_ascii_strings)
+{
+    TestVM test_vm;
+
+    GC::Root<PrimitiveString> cached_b = PrimitiveString::create(*test_vm.vm, "b"_string);
+    auto string = PrimitiveString::create(*test_vm.vm, "abcd"_string);
+    auto substring = PrimitiveString::create(*test_vm.vm, *string, 1, 1);
+
+    EXPECT_EQ(substring.ptr(), cached_b.ptr());
+}
+
 TEST_CASE(primitive_string_substring_handles_surrogate_boundaries)
 {
     TestVM test_vm;
