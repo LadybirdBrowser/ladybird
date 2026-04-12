@@ -10,6 +10,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/NumberFormat.h>
 #include <AK/StringBuilder.h>
+#include <LibCore/Markers.h>
 #include <LibJS/Console.h>
 #include <LibJS/Print.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -623,6 +624,10 @@ ThrowCompletionOr<Value> Console::time()
 
     // 2. Otherwise, set the value of the entry with key label in the associated timer table to the current time.
     m_timer_table.set(label, Core::ElapsedTimer::start_new());
+
+    MARKER_INTERVAL_START(label, "ConsoleTime"sv, Core::MarkerCategory::JavaScript,
+        { { "name"sv, label } });
+
     return js_undefined();
 }
 
@@ -698,6 +703,9 @@ ThrowCompletionOr<Value> Console::time_end()
         return js_undefined();
     }
     auto start_time = maybe_start_time->value;
+
+    MARKER_INTERVAL_END(label, "ConsoleTime"sv, Core::MarkerCategory::JavaScript,
+        { { "name"sv, label } });
 
     // 3. Remove timerTable[label].
     m_timer_table.remove(label);

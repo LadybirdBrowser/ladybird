@@ -1,1 +1,2 @@
-FAIL no ConsoleTime markers
+PASS console.time start found
+PASS console.timeEnd end found
