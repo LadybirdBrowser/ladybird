@@ -5,6 +5,7 @@
  */
 
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
+#include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/Op.h>
@@ -238,7 +239,10 @@ i64 asm_try_set_global_env_binding(Interpreter*, u32 pc);
 i64 asm_slow_path_get_global(Interpreter*, u32 pc);
 i64 asm_slow_path_set_global(Interpreter*, u32 pc);
 i64 asm_slow_path_call(Interpreter*, u32 pc);
-i64 asm_slow_path_call_builtin(Interpreter*, u32 pc);
+#define DECLARE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...) \
+    i64 asm_slow_path_call_builtin_##snake_case_name(Interpreter*, u32 pc);
+JS_ENUMERATE_BUILTINS(DECLARE_CALL_BUILTIN_SLOW_PATH)
+#undef DECLARE_CALL_BUILTIN_SLOW_PATH
 i64 asm_slow_path_get_object_property_iterator(Interpreter*, u32 pc);
 i64 asm_slow_path_object_property_iterator_next(Interpreter*, u32 pc);
 i64 asm_slow_path_call_construct(Interpreter*, u32 pc);
@@ -711,10 +715,13 @@ i64 asm_slow_path_object_property_iterator_next(Interpreter* interp, u32 pc)
     return slow_path_throwing<Op::ObjectPropertyIteratorNext>(*interp, pc);
 }
 
-i64 asm_slow_path_call_builtin(Interpreter* interp, u32 pc)
-{
-    return slow_path_throwing<Op::CallBuiltin>(*interp, pc);
-}
+#define DEFINE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...)                 \
+    i64 asm_slow_path_call_builtin_##snake_case_name(Interpreter* interp, u32 pc) \
+    {                                                                             \
+        return slow_path_throwing<Op::CallBuiltin##name>(*interp, pc);            \
+    }
+JS_ENUMERATE_BUILTINS(DEFINE_CALL_BUILTIN_SLOW_PATH)
+#undef DEFINE_CALL_BUILTIN_SLOW_PATH
 
 i64 asm_slow_path_call_construct(Interpreter* interp, u32 pc)
 {

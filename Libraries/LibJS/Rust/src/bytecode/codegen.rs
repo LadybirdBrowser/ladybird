@@ -3391,17 +3391,17 @@ fn generate_call_expression(
                 expression_string,
                 arguments,
             });
-        } else if let Some(b) = builtin {
-            if builtin_argument_count(b) == arguments.len() {
-                generator.emit(Instruction::CallBuiltin {
-                    dst: dst.operand(),
-                    callee: callee.operand(),
-                    this_value: this_value.operand(),
-                    argument_count: u32_from_usize(arguments.len()),
-                    builtin: b,
+        } else if let Some(builtin) = builtin {
+            if builtin_argument_count(builtin) == arguments.len() {
+                emit_builtin_call(
+                    generator,
+                    builtin,
+                    dst.operand(),
+                    callee.operand(),
+                    this_value.operand(),
                     expression_string,
                     arguments,
-                });
+                );
             } else {
                 generator.emit(Instruction::Call {
                     dst: dst.operand(),
@@ -8728,6 +8728,93 @@ fn builtin_argument_count(builtin: u8) -> usize {
         BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => 0,
         BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => 0,
         _ => usize::MAX,
+    }
+}
+
+fn emit_builtin_call(
+    generator: &mut Generator,
+    builtin: u8,
+    dst: Operand,
+    callee: Operand,
+    this_value: Operand,
+    expression_string: Option<StringTableIndex>,
+    arguments: Vec<Operand>,
+) {
+    macro_rules! emit_nullary_builtin_instruction {
+        ($instruction:ident) => {
+            generator.emit(Instruction::$instruction {
+                dst,
+                callee,
+                this_value,
+                expression_string,
+            })
+        };
+    }
+
+    macro_rules! emit_unary_builtin_instruction {
+        ($instruction:ident) => {
+            generator.emit(Instruction::$instruction {
+                dst,
+                callee,
+                this_value,
+                argument: arguments[0],
+                expression_string,
+            })
+        };
+    }
+
+    macro_rules! emit_binary_builtin_instruction {
+        ($instruction:ident) => {
+            generator.emit(Instruction::$instruction {
+                dst,
+                callee,
+                this_value,
+                argument0: arguments[0],
+                argument1: arguments[1],
+                expression_string,
+            })
+        };
+    }
+
+    match builtin {
+        BUILTIN_MATH_ABS => emit_unary_builtin_instruction!(CallBuiltinMathAbs),
+        BUILTIN_MATH_LOG => emit_unary_builtin_instruction!(CallBuiltinMathLog),
+        BUILTIN_MATH_POW => emit_binary_builtin_instruction!(CallBuiltinMathPow),
+        BUILTIN_MATH_EXP => emit_unary_builtin_instruction!(CallBuiltinMathExp),
+        BUILTIN_MATH_CEIL => emit_unary_builtin_instruction!(CallBuiltinMathCeil),
+        BUILTIN_MATH_FLOOR => emit_unary_builtin_instruction!(CallBuiltinMathFloor),
+        BUILTIN_MATH_IMUL => emit_binary_builtin_instruction!(CallBuiltinMathImul),
+        BUILTIN_MATH_RANDOM => emit_nullary_builtin_instruction!(CallBuiltinMathRandom),
+        BUILTIN_MATH_ROUND => emit_unary_builtin_instruction!(CallBuiltinMathRound),
+        BUILTIN_MATH_SQRT => emit_unary_builtin_instruction!(CallBuiltinMathSqrt),
+        BUILTIN_MATH_SIN => emit_unary_builtin_instruction!(CallBuiltinMathSin),
+        BUILTIN_MATH_COS => emit_unary_builtin_instruction!(CallBuiltinMathCos),
+        BUILTIN_MATH_TAN => emit_unary_builtin_instruction!(CallBuiltinMathTan),
+        BUILTIN_REGEXP_PROTOTYPE_EXEC => {
+            emit_unary_builtin_instruction!(CallBuiltinRegExpPrototypeExec);
+        }
+        BUILTIN_REGEXP_PROTOTYPE_REPLACE => {
+            emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeReplace);
+        }
+        BUILTIN_REGEXP_PROTOTYPE_SPLIT => {
+            emit_binary_builtin_instruction!(CallBuiltinRegExpPrototypeSplit);
+        }
+        BUILTIN_ORDINARY_HAS_INSTANCE => {
+            emit_unary_builtin_instruction!(CallBuiltinOrdinaryHasInstance);
+        }
+        BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT => {
+            emit_nullary_builtin_instruction!(CallBuiltinArrayIteratorPrototypeNext);
+        }
+        BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT => {
+            emit_nullary_builtin_instruction!(CallBuiltinMapIteratorPrototypeNext);
+        }
+        BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => {
+            emit_nullary_builtin_instruction!(CallBuiltinSetIteratorPrototypeNext);
+        }
+        BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => {
+            emit_nullary_builtin_instruction!(CallBuiltinStringIteratorPrototypeNext);
+        }
+        _ => unreachable!(),
     }
 }
 

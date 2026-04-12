@@ -11,6 +11,7 @@
 #include <LibGC/RootHashMap.h>
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/FormatOperand.h>
 #include <LibJS/Bytecode/Instruction.h>
 #include <LibJS/Bytecode/Interpreter.h>
@@ -636,7 +637,10 @@ void Interpreter::run_bytecode(size_t entry_point)
             DISPATCH_NEXT(Call);
         }
 
-            HANDLE_INSTRUCTION(CallBuiltin);
+#define HANDLE_CALL_BUILTIN_INSTRUCTION(name, ...) \
+    HANDLE_INSTRUCTION(CallBuiltin##name);
+            JS_ENUMERATE_BUILTINS(HANDLE_CALL_BUILTIN_INSTRUCTION)
+#undef HANDLE_CALL_BUILTIN_INSTRUCTION
 
         handle_CallConstruct: {
             auto& instruction = *reinterpret_cast<Op::CallConstruct const*>(&bytecode[program_counter]);
@@ -2812,51 +2816,6 @@ void SetLexicalEnvironment::execute_impl(Bytecode::Interpreter& interpreter) con
     interpreter.running_execution_context().lexical_environment = &as<Environment>(interpreter.get(m_environment).as_cell());
 }
 
-static ThrowCompletionOr<Value> dispatch_builtin_call(Bytecode::Interpreter& interpreter, Bytecode::Builtin builtin, ReadonlySpan<Operand> arguments)
-{
-    switch (builtin) {
-    case Builtin::MathAbs:
-        return TRY(MathObject::abs_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathLog:
-        return TRY(MathObject::log_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathPow:
-        return TRY(MathObject::pow_impl(interpreter.vm(), interpreter.get(arguments.data()[0]), interpreter.get(arguments.data()[1])));
-    case Builtin::MathExp:
-        return TRY(MathObject::exp_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathCeil:
-        return TRY(MathObject::ceil_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathFloor:
-        return TRY(MathObject::floor_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathImul:
-        return TRY(MathObject::imul_impl(interpreter.vm(), interpreter.get(arguments.data()[0]), interpreter.get(arguments.data()[1])));
-    case Builtin::MathRandom:
-        return MathObject::random_impl();
-    case Builtin::MathRound:
-        return TRY(MathObject::round_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathSqrt:
-        return TRY(MathObject::sqrt_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathSin:
-        return TRY(MathObject::sin_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathCos:
-        return TRY(MathObject::cos_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::MathTan:
-        return TRY(MathObject::tan_impl(interpreter.vm(), interpreter.get(arguments.data()[0])));
-    case Builtin::RegExpPrototypeExec:
-    case Builtin::RegExpPrototypeReplace:
-    case Builtin::RegExpPrototypeSplit:
-    case Builtin::ArrayIteratorPrototypeNext:
-    case Builtin::MapIteratorPrototypeNext:
-    case Builtin::SetIteratorPrototypeNext:
-    case Builtin::StringIteratorPrototypeNext:
-        VERIFY_NOT_REACHED();
-    case Builtin::OrdinaryHasInstance:
-        VERIFY_NOT_REACHED();
-    case Bytecode::Builtin::__Count:
-        VERIFY_NOT_REACHED();
-    }
-    VERIFY_NOT_REACHED();
-}
-
 template<CallType call_type>
 NEVER_INLINE static ThrowCompletionOr<void> execute_call(
     Bytecode::Interpreter& interpreter,
@@ -2921,17 +2880,99 @@ ThrowCompletionOr<void> CallDirectEval::execute_impl(Bytecode::Interpreter& inte
     return execute_call<CallType::DirectEval>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
 }
 
-ThrowCompletionOr<void> CallBuiltin::execute_impl(Bytecode::Interpreter& interpreter) const
+template<Builtin builtin, typename Callback>
+ALWAYS_INLINE static ThrowCompletionOr<void> execute_specialized_builtin_call(
+    Bytecode::Interpreter& interpreter,
+    Operand callee_operand,
+    Operand this_value_operand,
+    ReadonlySpan<Operand> arguments,
+    Operand dst,
+    Optional<StringTableIndex> const expression_string,
+    Strict strict,
+    Callback callback)
 {
-    auto callee = interpreter.get(m_callee);
-
-    if (callee.is_function() && callee.as_function().builtin() == m_builtin) [[likely]] {
-        interpreter.set(dst(), TRY(dispatch_builtin_call(interpreter, m_builtin, { m_arguments, m_argument_count })));
+    auto callee = interpreter.get(callee_operand);
+    if (callee.is_function() && callee.as_function().builtin() == builtin) [[likely]] {
+        interpreter.set(dst, TRY(callback(arguments)));
         return {};
     }
-
-    return execute_call<CallType::Call>(interpreter, callee, interpreter.get(m_this_value), { m_arguments, m_argument_count }, m_dst, m_expression_string, strict());
+    return execute_call<CallType::Call>(interpreter, callee, interpreter.get(this_value_operand), arguments, dst, expression_string, strict);
 }
+
+#define JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(name, implementation)                                                                                                                                                 \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                                                                                   \
+    {                                                                                                                                                                                                                   \
+        Operand arguments[] { m_argument };                                                                                                                                                                             \
+        return execute_specialized_builtin_call<Builtin::name>(interpreter, m_callee, m_this_value, arguments, m_dst, m_expression_string, strict(), [&](ReadonlySpan<Operand> arguments) -> ThrowCompletionOr<Value> { \
+            return implementation(interpreter.vm(), interpreter.get(arguments[0]));                                                                                                                                     \
+        });                                                                                                                                                                                                             \
+    }
+
+#define JS_DEFINE_BINARY_BUILTIN_CALL_EXECUTE_IMPL(name, implementation)                                                                                                                                                \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                                                                                   \
+    {                                                                                                                                                                                                                   \
+        Operand arguments[] { m_argument0, m_argument1 };                                                                                                                                                               \
+        return execute_specialized_builtin_call<Builtin::name>(interpreter, m_callee, m_this_value, arguments, m_dst, m_expression_string, strict(), [&](ReadonlySpan<Operand> arguments) -> ThrowCompletionOr<Value> { \
+            return implementation(interpreter.vm(), interpreter.get(arguments[0]), interpreter.get(arguments[1]));                                                                                                      \
+        });                                                                                                                                                                                                             \
+    }
+
+#define JS_DEFINE_NULLARY_BUILTIN_CALL_EXECUTE_IMPL(name, implementation)                                                                                                                              \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                                                                  \
+    {                                                                                                                                                                                                  \
+        return execute_specialized_builtin_call<Builtin::name>(interpreter, m_callee, m_this_value, {}, m_dst, m_expression_string, strict(), [&](ReadonlySpan<Operand>) -> ThrowCompletionOr<Value> { \
+            return implementation();                                                                                                                                                                   \
+        });                                                                                                                                                                                            \
+    }
+
+#define JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(name, ...)                                                                                                \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                         \
+    {                                                                                                                                                         \
+        return execute_call<CallType::Call>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), {}, m_dst, m_expression_string, strict()); \
+    }
+
+#define JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(name, ...)                                                                                                 \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                                \
+    {                                                                                                                                                                \
+        Operand arguments[] { m_argument };                                                                                                                          \
+        return execute_call<CallType::Call>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), arguments, m_dst, m_expression_string, strict()); \
+    }
+
+#define JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(name, ...)                                                                                                \
+    ThrowCompletionOr<void> CallBuiltin##name::execute_impl(Bytecode::Interpreter& interpreter) const                                                                \
+    {                                                                                                                                                                \
+        Operand arguments[] { m_argument0, m_argument1 };                                                                                                            \
+        return execute_call<CallType::Call>(interpreter, interpreter.get(m_callee), interpreter.get(m_this_value), arguments, m_dst, m_expression_string, strict()); \
+    }
+
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathAbs, MathObject::abs_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathLog, MathObject::log_impl)
+JS_DEFINE_BINARY_BUILTIN_CALL_EXECUTE_IMPL(MathPow, MathObject::pow_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathExp, MathObject::exp_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathCeil, MathObject::ceil_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathFloor, MathObject::floor_impl)
+JS_DEFINE_BINARY_BUILTIN_CALL_EXECUTE_IMPL(MathImul, MathObject::imul_impl)
+JS_DEFINE_NULLARY_BUILTIN_CALL_EXECUTE_IMPL(MathRandom, MathObject::random_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathRound, MathObject::round_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathSqrt, MathObject::sqrt_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathSin, MathObject::sin_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathCos, MathObject::cos_impl)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(MathTan, MathObject::tan_impl)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(RegExpPrototypeExec)
+JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(RegExpPrototypeReplace)
+JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(RegExpPrototypeSplit)
+JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(OrdinaryHasInstance)
+JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(ArrayIteratorPrototypeNext)
+JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(MapIteratorPrototypeNext)
+JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(SetIteratorPrototypeNext)
+JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(StringIteratorPrototypeNext)
+
+#undef JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL
+#undef JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL
+#undef JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL
+#undef JS_DEFINE_NULLARY_BUILTIN_CALL_EXECUTE_IMPL
+#undef JS_DEFINE_BINARY_BUILTIN_CALL_EXECUTE_IMPL
+#undef JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL
 
 template<CallType call_type>
 NEVER_INLINE static ThrowCompletionOr<void> call_with_argument_array(

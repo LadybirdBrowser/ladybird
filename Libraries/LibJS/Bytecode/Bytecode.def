@@ -75,15 +75,171 @@ op Call < Instruction
     m_arguments: Operand[]
 endop
 
-op CallBuiltin < Instruction
-    m_length: u32
+op CallBuiltinMathAbs < Instruction
     m_dst: Operand
     m_callee: Operand
     m_this_value: Operand
-    m_argument_count: u32
-    m_builtin: Builtin
+    m_argument: Operand
     m_expression_string: Optional<StringTableIndex>
-    m_arguments: Operand[]
+endop
+
+op CallBuiltinMathLog < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathPow < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument0: Operand
+    m_argument1: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathExp < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathCeil < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathFloor < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathImul < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument0: Operand
+    m_argument1: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathRandom < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathRound < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathSqrt < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathSin < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathCos < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMathTan < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinRegExpPrototypeExec < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinRegExpPrototypeReplace < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument0: Operand
+    m_argument1: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinRegExpPrototypeSplit < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument0: Operand
+    m_argument1: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinOrdinaryHasInstance < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinArrayIteratorPrototypeNext < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinMapIteratorPrototypeNext < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinSetIteratorPrototypeNext < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
+op CallBuiltinStringIteratorPrototypeNext < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_expression_string: Optional<StringTableIndex>
 endop
 
 op CallConstruct < Instruction
