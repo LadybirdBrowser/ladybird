@@ -209,7 +209,9 @@ public:
                     if (should_clear_back_store) {
                         // Embedded navigables leave their PaintConfig canvas unfilled, so double-buffered back stores
                         // must be cleared before repainting.
+                        m_backing_stores.back_store->lock_context();
                         m_backing_stores.back_store->canvas().clear(SK_ColorTRANSPARENT);
+                        m_backing_stores.back_store->unlock_context();
                     }
                     m_skia_player->execute(*m_cached_display_list, m_cached_scroll_state_snapshot, *m_backing_stores.back_store);
                     i32 rendered_bitmap_id = m_backing_stores.back_bitmap_id;
