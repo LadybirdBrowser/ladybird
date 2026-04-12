@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Markers.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
@@ -506,7 +507,15 @@ void AudioDataProvider::ThreadData::push_data_and_decode_a_block()
         }
     } else {
         auto sample = sample_result.release_value();
+        MARKER_START_TIME(audio_decode_marker_start);
         auto decode_result = m_decoder->receive_coded_data(sample.timestamp(), sample.data());
+        MARKER_INTERVAL("Audio decode"sv, "MediaDecode"sv, Core::MarkerCategory::Media,
+            audio_decode_marker_start,
+            {
+                { "kind"sv, "audio"sv },
+                { "bytes"sv, sample.data().size() },
+                { "pts_us"sv, sample.timestamp().to_microseconds() },
+            });
         if (decode_result.is_error()) {
             set_error_and_wait_for_seek(decode_result.release_error());
             return;

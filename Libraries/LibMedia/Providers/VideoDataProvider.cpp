@@ -5,6 +5,7 @@
  */
 
 #include <LibCore/EventLoop.h>
+#include <LibCore/Markers.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegVideoDecoder.h>
@@ -511,7 +512,15 @@ void VideoDataProvider::ThreadData::push_data_and_decode_some_frames()
         auto coded_frame = sample_result.release_value();
         dispatch_frame_end_time(coded_frame);
 
+        MARKER_START_TIME(decode_marker_start);
         auto decode_result = m_decoder->receive_coded_data(coded_frame.timestamp(), coded_frame.duration(), coded_frame.data());
+        MARKER_INTERVAL("Video decode"sv, "MediaDecode"sv, Core::MarkerCategory::Media,
+            decode_marker_start,
+            {
+                { "kind"sv, "video"sv },
+                { "bytes"sv, coded_frame.data().size() },
+                { "pts_us"sv, coded_frame.timestamp().to_microseconds() },
+            });
         if (decode_result.is_error()) {
             set_error_and_wait_for_seek(decode_result.release_error());
             return;
