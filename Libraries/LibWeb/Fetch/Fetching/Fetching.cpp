@@ -12,6 +12,7 @@
 #include <AK/Base64.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
+#include <LibCore/Markers.h>
 #include <LibHTTP/Cache/MemoryCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/Method.h>
@@ -158,6 +159,9 @@ static void store_response_in_cache(HTTP::MemoryCache& http_cache, Infrastructur
 GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure::Request& request, Infrastructure::FetchAlgorithms const& algorithms, UseParallelQueue use_parallel_queue)
 {
     dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'fetch' with: request @ {}", &request);
+
+    MARKER_INSTANT("Fetch start"sv, "Text"sv, Core::MarkerCategory::Network,
+        { { "name"sv, request.url().to_string() } });
 
     auto& vm = realm.vm();
 

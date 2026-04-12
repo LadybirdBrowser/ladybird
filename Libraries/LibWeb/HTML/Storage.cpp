@@ -7,6 +7,7 @@
  */
 
 #include <AK/String.h>
+#include <LibCore/Markers.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/StoragePrototype.h>
@@ -90,6 +91,9 @@ Optional<String> Storage::get_item(String const& key) const
 // https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-setitem
 WebIDL::ExceptionOr<void> Storage::set_item(String const& key, String const& value)
 {
+    MARKER_INSTANT("Storage.setItem"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, key } });
+
     // 1. Let oldValue be null.
     // 2. Let reorder be true.
     bool reorder = true;

@@ -8,6 +8,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Markers.h>
 #include <LibGC/DeferGC.h>
 #include <LibJS/Module.h>
 #include <LibJS/Runtime/Array.h>
@@ -725,7 +726,11 @@ void queue_mutation_observer_microtask()
                     MUST(wrapped_records->create_data_property(property_index, record.ptr()));
                 }
 
+                MARKER_START_TIME(mutation_observer_marker_start);
                 (void)WebIDL::invoke_callback(callback, mutation_observer, WebIDL::ExceptionBehavior::Report, { { wrapped_records, mutation_observer } });
+                MARKER_INTERVAL("MutationObserver callback"sv, "Text"sv,
+                    Core::MarkerCategory::DOM, mutation_observer_marker_start,
+                    { { "name"sv, MUST(String::formatted("{} records", records.size())) } });
             }
         }
 

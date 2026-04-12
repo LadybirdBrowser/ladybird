@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Markers.h>
 #include <LibWeb/Bindings/HistoryPrototype.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
@@ -172,6 +173,11 @@ bool can_have_its_url_rewritten(DOM::Document const& document, URL::URL const& t
 // https://html.spec.whatwg.org/multipage/history.html#shared-history-push/replace-state-steps
 WebIDL::ExceptionOr<void> History::shared_history_push_replace_state(JS::Value data, Optional<String> const& url, HistoryHandlingBehavior history_handling)
 {
+    MARKER_INSTANT(
+        history_handling == HistoryHandlingBehavior::Push ? "history.pushState"sv : "history.replaceState"sv,
+        "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, url.value_or(""_string) } });
+
     auto& vm = this->vm();
 
     // 1. Let document be history's relevant global object's associated Document.

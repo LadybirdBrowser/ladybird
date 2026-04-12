@@ -6,6 +6,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibCore/Markers.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibRequests/RequestClient.h>
@@ -40,6 +41,9 @@ GC_DEFINE_ALLOCATOR(WebSocket);
 // https://websockets.spec.whatwg.org/#dom-websocket-websocket
 WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& realm, String const& url, Optional<Variant<String, Vector<String>>> const& protocols)
 {
+    MARKER_INSTANT("WebSocket.new"sv, "Text"sv, Core::MarkerCategory::Network,
+        { { "name"sv, url } });
+
     auto& vm = realm.vm();
 
     auto web_socket = realm.create<WebSocket>(realm);
@@ -299,6 +303,9 @@ WebIDL::ExceptionOr<void> WebSocket::close(Optional<u16> code, Optional<String> 
 // https://websockets.spec.whatwg.org/#dom-websocket-send
 WebIDL::ExceptionOr<void> WebSocket::send(Variant<GC::Root<WebIDL::BufferSource>, GC::Root<FileAPI::Blob>, String> const& data)
 {
+    MARKER_INSTANT("WebSocket.send"sv, "Text"sv, Core::MarkerCategory::Network,
+        { { "name"sv, url() } });
+
     auto state = ready_state();
     if (state == Requests::WebSocket::ReadyState::Connecting)
         return WebIDL::InvalidStateError::create(realm(), "Websocket is still CONNECTING"_utf16);

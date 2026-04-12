@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Markers.h>
 #include <LibJS/Runtime/Promise.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/PlaybackManager.h>
@@ -508,6 +509,9 @@ void HTMLMediaElement::set_duration(double duration)
 
 GC::Ref<WebIDL::Promise> HTMLMediaElement::play()
 {
+    MARKER_INSTANT("HTMLMediaElement.play"sv, "Text"sv, Core::MarkerCategory::Media,
+        { { "name"sv, current_src() } });
+
     auto& realm = this->realm();
 
     // FIXME: 1. If the media element is not allowed to play, then return a promise rejected with a "NotAllowedError" DOMException.

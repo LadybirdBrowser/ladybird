@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Markers.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibUnicode/CharacterTypes.h>
@@ -1262,6 +1263,9 @@ void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPix
 
 EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers, int click_count)
 {
+    MARKER_INSTANT("Mouse down"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, MUST(String::formatted("button={} count={}", button, click_count)) } });
+
     if (should_ignore_device_input_event())
         return EventResult::Dropped;
 
@@ -1762,6 +1766,9 @@ EventResult EventHandler::input_event(FlyString const& event_name, FlyString con
 
 EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat)
 {
+    MARKER_INSTANT("Key down"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, MUST(String::formatted("key={} repeat={}", static_cast<u32>(key), repeat)) } });
+
     if (!m_navigable->active_document())
         return EventResult::Dropped;
     if (!m_navigable->active_document()->is_fully_active())

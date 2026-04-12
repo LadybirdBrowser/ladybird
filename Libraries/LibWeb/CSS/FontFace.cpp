@@ -6,6 +6,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <LibCore/Markers.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/FontSupport.h>
@@ -709,6 +710,9 @@ void FontFace::set_line_gap_override_impl(NonnullRefPtr<StyleValue const> const&
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-load
 GC::Ref<WebIDL::Promise> FontFace::load()
 {
+    MARKER_INSTANT("FontFace.load"sv, "Text"sv, Core::MarkerCategory::Network,
+        { { "name"sv, m_family } });
+
     //  1. Let font face be the FontFace object on which this method was called.
     auto& font_face = *this;
 

@@ -8,6 +8,7 @@
 
 #include <AK/Utf16String.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Markers.h>
 #include <LibGC/Function.h>
 #include <LibGC/Root.h>
 #include <LibJS/Runtime/ModuleRequest.h>
@@ -66,7 +67,14 @@ static void parse_off_thread(NonnullRefPtr<JS::SourceCode const> source_code, JS
     Threading::ThreadPool::the().submit([utf16_data, length, type, line_number_offset,
                                             callback,
                                             event_loop_weak = move(event_loop_weak)]() {
+        MARKER_START_TIME(parse_start);
         auto* parsed = JS::RustIntegration::parse_program(utf16_data, length, type, line_number_offset);
+        MARKER_INTERVAL(
+            type == JS::RustIntegration::ProgramType::Module ? "Parse module"sv : "Parse script"sv,
+            "ParseScript"sv, Core::MarkerCategory::Parser, parse_start,
+            {
+                { "kind"sv, type == JS::RustIntegration::ProgramType::Module ? "module"sv : "script"sv },
+            });
 
         auto origin = event_loop_weak->take();
         if (!origin)

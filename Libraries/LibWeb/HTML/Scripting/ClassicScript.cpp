@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <LibCore/ElapsedTimer.h>
+#include <LibCore/Markers.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
@@ -131,6 +132,7 @@ JS::Completion ClassicScript::run(RethrowErrors rethrow_errors, GC::Ptr<JS::Envi
     // 7. Otherwise, set evaluationStatus to ScriptEvaluation(script's record).
     else {
         auto timer = Core::ElapsedTimer::start_new();
+        MARKER_SCOPE("Evaluate script"sv, "EvaluateScript"sv, Core::MarkerCategory::JavaScript);
 
         evaluation_status = vm().run(*m_script_record, lexical_environment_override);
 

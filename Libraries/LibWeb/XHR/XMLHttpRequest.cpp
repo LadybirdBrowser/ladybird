@@ -12,6 +12,7 @@
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
 #include <AK/QuickSort.h>
+#include <LibCore/Markers.h>
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
@@ -539,6 +540,9 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 {
     auto& vm = this->vm();
     auto& realm = *vm.current_realm();
+
+    MARKER_INSTANT("XMLHttpRequest.send"sv, "Text"sv, Core::MarkerCategory::Network,
+        { { "name"sv, MUST(String::formatted("{} {}", m_request_method, m_request_url.to_string())) } });
 
     // 1. If this’s state is not opened, then throw an "InvalidStateError" DOMException.
     if (m_state != State::Opened)
