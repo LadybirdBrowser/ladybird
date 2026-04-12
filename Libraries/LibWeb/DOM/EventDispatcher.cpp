@@ -7,6 +7,7 @@
 
 #include <AK/Assertions.h>
 #include <AK/TypeCasts.h>
+#include <LibCore/Markers.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/DOM/AbortSignal.h>
@@ -362,6 +363,18 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
         // 12. If activationTarget is non-null and activationTarget has legacy-pre-activation behavior, then run activationTarget’s legacy-pre-activation behavior.
         if (activation_target)
             activation_target->legacy_pre_activation_behavior();
+
+        Core::MarkerScope _dom_event_marker { "DOMEvent"sv, "DOMEvent"sv, Core::MarkerCategory::DOM,
+            [&]() -> Vector<Core::MarkerField, 4> {
+                Vector<Core::MarkerField, 4> fields;
+                fields.append({ "eventType"sv, event.type().to_string() });
+                if (is<Node>(*target))
+                    fields.append({ "target"sv, as<Node>(*target).node_name().to_string() });
+                fields.append({ "bubbles"sv, event.bubbles() });
+                fields.append({ "cancelable"sv, event.cancelable() });
+                fields.append({ "isTrusted"sv, event.is_trusted() });
+                return fields;
+            } };
 
         // 13. For each struct of event’s path, in reverse order:
         for (auto& entry : event.path().in_reverse()) {

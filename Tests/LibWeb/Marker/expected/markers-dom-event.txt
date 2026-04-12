@@ -1,1 +1,4 @@
-FAIL no DOMEvent click marker
+PASS click event found
+PASS target is BUTTON
+PASS bubbles is boolean
+PASS isTrusted is boolean
