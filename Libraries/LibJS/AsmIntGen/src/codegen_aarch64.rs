@@ -657,6 +657,13 @@ fn emit_str64(out: &mut String, src: &str, base: &str, offset: i64) {
 fn emit_mov_imm(out: &mut String, dst: &str, val: i64) {
     let uval = val as u64;
 
+    // Writing a w-register zero-extends into the corresponding x-register.
+    // Prefer the 32-bit materialization when the upper half is known zero.
+    if dst.starts_with('x') && uval <= 0xFFFF_FFFF {
+        emit_mov_imm32(out, &to_w_reg(dst), val);
+        return;
+    }
+
     // Check if it fits in a single movz (16-bit value at any position)
     if uval == 0 {
         w!(out, "    mov {dst}, #0");
