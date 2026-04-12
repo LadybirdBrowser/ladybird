@@ -131,7 +131,7 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
         on_web_content_process_change_for_cross_site_navigation();
 
     // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
+    m_backing_store.clear_backup_bitmap();
     handle_resize();
 
     load(url);
@@ -139,14 +139,10 @@ void ViewImplementation::create_new_process_for_cross_site_navigation(URL::URL c
 
 void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id, Gfx::IntSize size)
 {
-    if (m_client_state.back_bitmap.id == bitmap_id) {
-        m_client_state.has_usable_bitmap = true;
-        m_client_state.back_bitmap.last_painted_size = size.to_type<Web::DevicePixels>();
-        swap(m_client_state.back_bitmap, m_client_state.front_bitmap);
-        m_backup_shared_image_buffer = nullptr;
+    m_backing_store.did_paint(bitmap_id, size, [this] {
         if (on_ready_to_paint)
             on_ready_to_paint();
-    }
+    });
 
     client().async_ready_to_paint(page_id());
 }
@@ -589,16 +585,7 @@ void ViewImplementation::did_update_navigation_buttons_state(Badge<WebContentCli
 
 void ViewImplementation::did_allocate_backing_stores(Badge<WebContentClient>, i32 front_bitmap_id, Gfx::SharedImage front_backing_store, i32 back_bitmap_id, Gfx::SharedImage back_backing_store)
 {
-    if (m_client_state.has_usable_bitmap) {
-        // NOTE: We keep the outgoing front bitmap as a backup so we have something to paint until we get a new one.
-        m_backup_shared_image_buffer = move(m_client_state.front_bitmap.shared_image_buffer);
-        m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
-    }
-    m_client_state.has_usable_bitmap = false;
-    m_client_state.front_bitmap.id = front_bitmap_id;
-    m_client_state.back_bitmap.id = back_bitmap_id;
-    m_client_state.front_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_payload(move(front_backing_store)).release_value_but_fixme_should_propagate_errors());
-    m_client_state.back_bitmap.shared_image_buffer = make<Gfx::SharedImageBuffer>(Gfx::SharedImageBuffer::import_from_payload(move(back_backing_store)).release_value_but_fixme_should_propagate_errors());
+    m_backing_store.did_allocate_backing_stores(front_bitmap_id, move(front_backing_store), back_bitmap_id, move(back_backing_store));
 }
 
 void ViewImplementation::update_zoom()
@@ -622,6 +609,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 {
     if (create_new_client == CreateNewClient::Yes) {
         m_client_state = {};
+        m_backing_store.reset();
 
         // FIXME: Fail to open the tab, rather than crashing the whole application if this fails.
         m_client_state.client = Application::the().launch_web_content_process(*this).release_value_but_fixme_should_propagate_errors();
@@ -683,7 +671,7 @@ void ViewImplementation::handle_web_content_process_crash(LoadErrorPage load_err
     VERIFY(m_client_state.client);
 
     // Don't keep a stale backup bitmap around.
-    m_backup_shared_image_buffer = nullptr;
+    m_backing_store.clear_backup_bitmap();
 
     handle_resize();
 
@@ -783,14 +771,7 @@ NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(Sc
 
     switch (type) {
     case ScreenshotType::Visible: {
-        Gfx::Bitmap const* visible_bitmap = nullptr;
-        if (m_client_state.has_usable_bitmap) {
-            VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-            visible_bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
-        } else if (m_backup_shared_image_buffer) {
-            visible_bitmap = m_backup_shared_image_buffer->bitmap().ptr();
-        }
-        if (visible_bitmap) {
+        if (Gfx::Bitmap const* visible_bitmap = m_backing_store.visible_bitmap()) {
             if (auto result = save_screenshot(visible_bitmap); result.is_error())
                 promise->reject(result.release_error());
             else

@@ -20,6 +20,7 @@
 #include <LibGfx/ImageFormats/PNGWriter.h>
 #include <LibGfx/Palette.h>
 #include <LibGfx/Rect.h>
+#include <LibGfx/SharedImageBuffer.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -506,17 +507,9 @@ void WebContentView::paintEvent(QPaintEvent*)
     QPainter painter(this);
     painter.scale(1 / m_device_pixel_ratio, 1 / m_device_pixel_ratio);
 
-    Gfx::Bitmap const* bitmap = nullptr;
-    Gfx::IntSize bitmap_size;
-
-    if (m_client_state.has_usable_bitmap) {
-        VERIFY(m_client_state.front_bitmap.shared_image_buffer);
-        bitmap = m_client_state.front_bitmap.shared_image_buffer->bitmap().ptr();
-        bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
-    } else if (m_backup_shared_image_buffer) {
-        bitmap = m_backup_shared_image_buffer->bitmap().ptr();
-        bitmap_size = m_backup_bitmap_size.to_type<int>();
-    }
+    auto const* shared_image_buffer = backing_store().visible_shared_image_buffer();
+    auto const* bitmap = shared_image_buffer ? shared_image_buffer->bitmap().ptr() : nullptr;
+    auto bitmap_size = backing_store().visible_bitmap_size();
 
     if (bitmap) {
         QImage q_image(bitmap->scanline_u8(0), bitmap->width(), bitmap->height(), bitmap->pitch(), QImage::Format_RGB32);

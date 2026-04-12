@@ -27,6 +27,7 @@ set(SOURCES
     URL.cpp
     UserAgent.cpp
     Utilities.cpp
+    ViewSharedImageStore.cpp
     ViewImplementation.cpp
     WebContentClient.cpp
     WebUI.cpp

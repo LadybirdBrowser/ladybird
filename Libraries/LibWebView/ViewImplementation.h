@@ -21,7 +21,6 @@
 #include <LibGfx/Cursor.h>
 #include <LibGfx/Forward.h>
 #include <LibGfx/SharedImage.h>
-#include <LibGfx/SharedImageBuffer.h>
 #include <LibHTTP/Header.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
@@ -39,6 +38,7 @@
 #include <LibWebView/Forward.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/Settings.h>
+#include <LibWebView/ViewSharedImageStore.h>
 #include <LibWebView/WebContentClient.h>
 
 namespace WebView {
@@ -289,6 +289,9 @@ protected:
 
     void set_url(URL::URL);
 
+    ViewSharedImageStore& backing_store() { return m_backing_store; }
+    ViewSharedImageStore const& backing_store() const { return m_backing_store; }
+
     virtual void update_zoom();
 
     void handle_resize();
@@ -315,19 +318,10 @@ protected:
 
     void initialize_context_menus();
 
-    struct SharedBitmap {
-        i32 id { -1 };
-        Web::DevicePixelSize last_painted_size;
-        OwnPtr<Gfx::SharedImageBuffer> shared_image_buffer;
-    };
-
     struct ClientState {
         RefPtr<WebContentClient> client;
         String client_handle;
-        SharedBitmap front_bitmap;
-        SharedBitmap back_bitmap;
         u64 page_index { 0 };
-        bool has_usable_bitmap { false };
     } m_client_state;
 
     URL::URL m_url;
@@ -381,8 +375,7 @@ protected:
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
 
-    OwnPtr<Gfx::SharedImageBuffer> m_backup_shared_image_buffer;
-    Web::DevicePixelSize m_backup_bitmap_size;
+    ViewSharedImageStore m_backing_store;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;

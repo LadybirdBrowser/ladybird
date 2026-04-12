@@ -96,20 +96,11 @@ void WebViewBridge::enqueue_input_event(Web::PinchEvent event)
 
 Optional<WebViewBridge::Paintable> WebViewBridge::paintable()
 {
-    Gfx::SharedImageBuffer const* shared_image_buffer = nullptr;
-    Gfx::IntSize bitmap_size;
-
-    if (m_client_state.has_usable_bitmap) {
-        shared_image_buffer = m_client_state.front_bitmap.shared_image_buffer.ptr();
-        bitmap_size = m_client_state.front_bitmap.last_painted_size.to_type<int>();
-    } else {
-        shared_image_buffer = m_backup_shared_image_buffer.ptr();
-        bitmap_size = m_backup_bitmap_size.to_type<int>();
-    }
-
+    auto const* shared_image_buffer = backing_store().visible_shared_image_buffer();
     if (!shared_image_buffer)
         return {};
-    return Paintable { shared_image_buffer, bitmap_size };
+
+    return Paintable { shared_image_buffer, backing_store().visible_bitmap_size() };
 }
 
 void WebViewBridge::update_zoom()

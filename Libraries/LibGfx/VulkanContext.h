@@ -8,6 +8,7 @@
 
 #ifdef USE_VULKAN
 
+#    include <AK/Error.h>
 #    include <vulkan/vulkan.h>
 
 namespace Gfx {
