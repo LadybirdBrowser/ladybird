@@ -1,0 +1,16 @@
+$bc2d85a0 string-from-char-code-builtin.js:3:1
+  Registers: 9
+  Blocks:    1
+  Constants:
+    [0] = Int32(65)
+    [1] = Int32(66)
+
+block0:
+  [   0] GetLexicalEnvironment dst:reg4
+  [   8] GetGlobal dst:reg6, `String`
+  [  20] GetById dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  40] CallBuiltinStringFromCharCode dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
+  [  58] GetGlobal dst:reg7, `String`
+  [  70] GetById dst:reg8, base:reg7, `fromCharCode` (String.fromCharCode)
+  [  90] Call dst:reg6, callee:reg8, this_value:reg7, String.fromCharCode, arguments:[Int32(65), Int32(66)]
+  [  b8] End value:reg6

@@ -14,6 +14,7 @@
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
+#include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
@@ -268,6 +269,7 @@ u64 asm_helper_to_boolean(u64 encoded_value);
 u64 asm_helper_math_exp(u64 encoded_value);
 u64 asm_helper_empty_string(u64);
 u64 asm_helper_single_ascii_character_string(u64 encoded_value);
+u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
 i64 asm_try_inline_call(Interpreter*, u32 pc);
 i64 asm_pop_inline_frame(Interpreter*, u32 pc);
 i64 asm_pop_inline_frame_end(Interpreter*, u32 pc);
@@ -1303,6 +1305,12 @@ u64 asm_helper_empty_string(u64)
 u64 asm_helper_single_ascii_character_string(u64 encoded_value)
 {
     return bit_cast<u64>(Value(&Interpreter::vm().single_ascii_character_string(static_cast<u8>(encoded_value))));
+}
+
+u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value)
+{
+    char16_t code_unit = static_cast<char16_t>(encoded_value);
+    return bit_cast<u64>(Value(PrimitiveString::create(Interpreter::vm(), Utf16View(&code_unit, 1))));
 }
 
 } // extern "C"

@@ -18,6 +18,8 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~StringConstructor() override = default;
 
+    static ThrowCompletionOr<Value> from_char_code_impl(VM&, Value);
+
     virtual ThrowCompletionOr<Value> call() override;
     virtual ThrowCompletionOr<GC::Ref<Object>> construct(FunctionObject& new_target) override;
 

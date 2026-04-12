@@ -2131,6 +2131,31 @@ handler CallBuiltinStringIteratorPrototypeNext
     call_slow_path asm_slow_path_call_builtin_string_iterator_prototype_next
 end
 
+handler CallBuiltinStringFromCharCode
+    validate_callee_builtin BUILTIN_STRING_FROM_CHAR_CODE, .slow
+
+    load_operand t1, m_argument
+    extract_tag t3, t1
+    branch_ne t3, INT32_TAG, .slow
+    unbox_int32 t0, t1
+    and t0, 0xffff
+    branch_ge_unsigned t0, 0x80, .single_code_unit
+
+    mov t1, t0
+    call_helper asm_helper_single_ascii_character_string
+    store_operand m_dst, t0
+    dispatch_next
+
+.single_code_unit:
+    mov t1, t0
+    call_helper asm_helper_single_utf16_code_unit_string
+    store_operand m_dst, t0
+    dispatch_next
+
+.slow:
+    call_slow_path asm_slow_path_call_builtin_string_from_char_code
+end
+
 handler CallBuiltinStringPrototypeCharCodeAt
     validate_callee_builtin BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT, .slow
 

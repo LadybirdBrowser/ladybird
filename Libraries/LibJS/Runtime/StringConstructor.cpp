@@ -35,7 +35,7 @@ void StringConstructor::initialize(Realm& realm)
 
     u8 attr = Attribute::Writable | Attribute::Configurable;
     define_native_function(realm, vm.names.raw, raw, 1, attr);
-    define_native_function(realm, vm.names.fromCharCode, from_char_code, 1, attr);
+    define_native_function(realm, vm.names.fromCharCode, from_char_code, 1, attr, Bytecode::Builtin::StringFromCharCode);
     define_native_function(realm, vm.names.fromCodePoint, from_code_point, 1, attr);
 
     define_direct_property(vm.names.length, Value(1), Attribute::Configurable);
@@ -86,8 +86,18 @@ ThrowCompletionOr<GC::Ref<Object>> StringConstructor::construct(FunctionObject& 
 }
 
 // 22.1.2.1 String.fromCharCode ( ...codeUnits ), https://tc39.es/ecma262/#sec-string.fromcharcode
+ThrowCompletionOr<Value> StringConstructor::from_char_code_impl(VM& vm, Value code_unit)
+{
+    auto value = static_cast<char16_t>(TRY(code_unit.to_u16(vm)));
+    return PrimitiveString::create(vm, Utf16View(&value, 1));
+}
+
+// 22.1.2.1 String.fromCharCode ( ...codeUnits ), https://tc39.es/ecma262/#sec-string.fromcharcode
 JS_DEFINE_NATIVE_FUNCTION(StringConstructor::from_char_code)
 {
+    if (vm.argument_count() == 1)
+        return from_char_code_impl(vm, vm.argument(0));
+
     // 1. Let result be the empty String.
     StringBuilder builder(StringBuilder::Mode::UTF16, vm.argument_count());
 

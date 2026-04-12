@@ -42,6 +42,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -2966,6 +2967,7 @@ JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(ArrayIteratorPrototypeNext)
 JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(MapIteratorPrototypeNext)
 JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(SetIteratorPrototypeNext)
 JS_DEFINE_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(StringIteratorPrototypeNext)
+JS_DEFINE_UNARY_BUILTIN_CALL_EXECUTE_IMPL(StringFromCharCode, StringConstructor::from_char_code_impl)
 JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(StringPrototypeCharCodeAt)
 JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_EXECUTE_IMPL(StringPrototypeCharAt)
 

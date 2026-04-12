@@ -242,6 +242,14 @@ op CallBuiltinStringIteratorPrototypeNext < Instruction
     m_expression_string: Optional<StringTableIndex>
 endop
 
+op CallBuiltinStringFromCharCode < Instruction
+    m_dst: Operand
+    m_callee: Operand
+    m_this_value: Operand
+    m_argument: Operand
+    m_expression_string: Optional<StringTableIndex>
+endop
+
 op CallBuiltinStringPrototypeCharCodeAt < Instruction
     m_dst: Operand
     m_callee: Operand
