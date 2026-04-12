@@ -435,6 +435,9 @@ fn first_filter_matches<I: Input>(program: &Program, input: I, pos: usize, filte
                 match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
             matched != data.negated
         }
+        SimpleMatch::Union(lhs, rhs) => {
+            first_filter_matches(program, input, pos, lhs) || first_filter_matches(program, input, pos, rhs)
+        }
     }
 }
 
@@ -852,6 +855,7 @@ fn match_simple_match(matcher: &SimpleMatch, cp: u32) -> bool {
                 match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
             matched != data.negated
         }
+        SimpleMatch::Union(lhs, rhs) => match_simple_match(lhs, cp) || match_simple_match(rhs, cp),
     }
 }
 
@@ -3018,6 +3022,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     matched != data.negated
                 }
             }
+            SimpleMatch::Union(lhs, rhs) => self.match_simple(cp, lhs) || self.match_simple(cp, rhs),
         }
     }
 
@@ -3154,6 +3159,16 @@ impl<'a, I: Input> Vm<'a, I> {
                     let matched =
                         match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
                     if matched == data.negated {
+                        break;
+                    }
+                    *pos += 1;
+                    count += 1;
+                }
+            }
+            SimpleMatch::Union(lhs, rhs) => {
+                while *pos < len && count < limit {
+                    let cp = input.code_unit(*pos) as u32;
+                    if !match_simple_match(lhs, cp) && !match_simple_match(rhs, cp) {
                         break;
                     }
                     *pos += 1;

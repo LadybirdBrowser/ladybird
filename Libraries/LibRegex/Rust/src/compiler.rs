@@ -501,34 +501,32 @@ impl Compiler {
                 }
             }
             Atom::BuiltinCharacterClass(class) => Some(SimpleMatch::BuiltinClass(*class)),
-            Atom::CharacterClass(cc) => {
-                // Only use simple match for character classes without v-flag set operations.
-                let ranges_vec = match &cc.body {
-                    CharacterClassBody::Ranges(ranges) => ranges,
-                    CharacterClassBody::UnicodeSet(_) => return None,
-                };
-                let mut ranges = Vec::new();
-                for r in ranges_vec {
-                    match r {
-                        CharacterClassRange::Single(c) => {
-                            if *c > 0xFFFF && !self.program.unicode && !self.program.unicode_sets {
-                                return None;
+            Atom::CharacterClass(cc) => match &cc.body {
+                CharacterClassBody::Ranges(ranges_vec) => {
+                    let mut ranges = Vec::new();
+                    for r in ranges_vec {
+                        match r {
+                            CharacterClassRange::Single(c) => {
+                                if *c > 0xFFFF && !self.program.unicode && !self.program.unicode_sets {
+                                    return None;
+                                }
+                                ranges.push(CharRange { start: *c, end: *c });
                             }
-                            ranges.push(CharRange { start: *c, end: *c });
+                            CharacterClassRange::Range(lo, hi) => {
+                                ranges.push(CharRange { start: *lo, end: *hi });
+                            }
+                            _ => return None,
                         }
-                        CharacterClassRange::Range(lo, hi) => {
-                            ranges.push(CharRange { start: *lo, end: *hi });
-                        }
-                        _ => return None, // BuiltinClass or UnicodeProperty in class
                     }
+                    // Sort ranges by start code point for binary search in the VM.
+                    ranges.sort_by_key(|r| r.start);
+                    Some(SimpleMatch::CharClass {
+                        ranges,
+                        negated: cc.negated,
+                    })
                 }
-                // Sort ranges by start code point for binary search in the VM.
-                ranges.sort_by_key(|r| r.start);
-                Some(SimpleMatch::CharClass {
-                    ranges,
-                    negated: cc.negated,
-                })
-            }
+                CharacterClassBody::UnicodeSet(expr) => self.try_simple_match_for_unicode_set(expr, cc.negated),
+            },
             Atom::UnicodeProperty(up) => {
                 // String properties (e.g. Basic_Emoji) can match multi-character
                 // sequences and cannot use simple matching.
@@ -1083,6 +1081,183 @@ impl Compiler {
         }
     }
 
+    /// Try to extract a `SimpleMatch` for a single `ClassSetOperand` in the context of
+    /// a `LazyLoop`/`GreedyLoop`. Returns `None` for operands that require multi-character
+    /// matching (string literals) or set operations that can't be represented as a simple test.
+    fn try_simple_match_for_operand(operand: &ClassSetOperand) -> Option<SimpleMatch> {
+        match operand {
+            ClassSetOperand::Char(c) => Some(SimpleMatch::Char(*c)),
+            ClassSetOperand::Range(lo, hi) => Some(SimpleMatch::CharClass {
+                ranges: vec![CharRange { start: *lo, end: *hi }],
+                negated: false,
+            }),
+            ClassSetOperand::BuiltinClass(bc) => Some(SimpleMatch::BuiltinClass(*bc)),
+            ClassSetOperand::UnicodeProperty(up) => {
+                if libunicode_rust::character_types::is_string_property(&up.name) {
+                    return None;
+                }
+                Some(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
+                    negated: up.negated,
+                    name: up.name.clone(),
+                    value: up.value.clone(),
+                    resolved: None,
+                })))
+            }
+            ClassSetOperand::NestedClass(cc) => match &cc.body {
+                CharacterClassBody::Ranges(ranges_vec) => {
+                    let mut ranges = Vec::new();
+                    for r in ranges_vec {
+                        match r {
+                            CharacterClassRange::Single(cp) => {
+                                ranges.push(CharRange { start: *cp, end: *cp });
+                            }
+                            CharacterClassRange::Range(lo, hi) => {
+                                ranges.push(CharRange { start: *lo, end: *hi });
+                            }
+                            _ => return None,
+                        }
+                    }
+                    ranges.sort_by_key(|r| r.start);
+                    Some(SimpleMatch::CharClass {
+                        ranges,
+                        negated: cc.negated,
+                    })
+                }
+                CharacterClassBody::UnicodeSet(inner_expr) => {
+                    if cc.negated {
+                        let ClassSetExpression::Union(inner_operands) = inner_expr else {
+                            return None;
+                        };
+                        let matchers: Option<Vec<SimpleMatch>> =
+                            inner_operands.iter().map(Self::try_simple_match_for_operand).collect();
+                        let matchers = matchers?;
+                        Self::build_union_simple_match_negated(matchers)
+                    } else {
+                        let ClassSetExpression::Union(inner_operands) = inner_expr else {
+                            return None;
+                        };
+                        let matchers: Option<Vec<SimpleMatch>> =
+                            inner_operands.iter().map(Self::try_simple_match_for_operand).collect();
+                        let matchers = matchers?;
+                        Self::build_union_simple_match(matchers)
+                    }
+                }
+            },
+            ClassSetOperand::StringLiteral(_) => None,
+        }
+    }
+
+    fn build_union_simple_match(matchers: Vec<SimpleMatch>) -> Option<SimpleMatch> {
+        let mut iter = matchers.into_iter();
+        let first = iter.next()?;
+        Some(iter.fold(first, |acc, m| SimpleMatch::Union(Box::new(acc), Box::new(m))))
+    }
+
+    fn negate_simple_match(matcher: SimpleMatch) -> Option<SimpleMatch> {
+        match matcher {
+            SimpleMatch::CharClass { ranges, negated } => Some(SimpleMatch::CharClass {
+                ranges,
+                negated: !negated,
+            }),
+            SimpleMatch::UnicodeProperty(mut data) => {
+                data.negated = !data.negated;
+                Some(SimpleMatch::UnicodeProperty(data))
+            }
+            _ => None,
+        }
+    }
+
+    fn build_union_simple_match_negated(matchers: Vec<SimpleMatch>) -> Option<SimpleMatch> {
+        if matchers.len() == 1 {
+            return Self::negate_simple_match(matchers.into_iter().next().unwrap());
+        }
+        None
+    }
+
+    /// Try to build a `SimpleMatch` for a `/v`-mode character class `UnicodeSet` body.
+    ///
+    /// For unions that can't be collapsed into a flat range set, we try to build a `SimpleMatch::Union`
+    /// so that quantifiers can still use the optimized `GreedyLoop`/`LazyLoop` path.
+    fn try_simple_match_for_unicode_set(&self, expr: &ClassSetExpression, negated: bool) -> Option<SimpleMatch> {
+        if let Some(ranges) = Self::try_extract_union_ranges(expr) {
+            let mut sorted = ranges;
+            sorted.sort_by_key(|r| r.start);
+            return Some(SimpleMatch::CharClass {
+                ranges: sorted,
+                negated,
+            });
+        }
+
+        if negated {
+            return None;
+        }
+
+        let ClassSetExpression::Union(operands) = expr else {
+            return None;
+        };
+
+        if operands.is_empty() {
+            return None;
+        }
+
+        let matchers: Option<Vec<SimpleMatch>> = operands.iter().map(Self::try_simple_match_for_operand).collect();
+        let matchers = matchers?;
+        Self::build_union_simple_match(matchers)
+    }
+
+    fn try_extract_union_ranges(expr: &ClassSetExpression) -> Option<Vec<CharRange>> {
+        let ClassSetExpression::Union(operands) = expr else {
+            return None;
+        };
+
+        let mut ranges = Vec::new();
+        for operand in operands {
+            match operand {
+                ClassSetOperand::Char(c) => {
+                    ranges.push(CharRange { start: *c, end: *c });
+                }
+                ClassSetOperand::Range(lo, hi) => {
+                    ranges.push(CharRange { start: *lo, end: *hi });
+                }
+                ClassSetOperand::NestedClass(cc) => match &cc.body {
+                    CharacterClassBody::Ranges(class_ranges) => {
+                        for r in class_ranges {
+                            match r {
+                                CharacterClassRange::Single(cp) => {
+                                    ranges.push(CharRange { start: *cp, end: *cp });
+                                }
+                                CharacterClassRange::Range(lo, hi) => {
+                                    ranges.push(CharRange { start: *lo, end: *hi });
+                                }
+                                CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_) => {
+                                    return None;
+                                }
+                            }
+                        }
+                        if cc.negated {
+                            return None;
+                        }
+                    }
+                    CharacterClassBody::UnicodeSet(inner_expr) => {
+                        if cc.negated {
+                            return None;
+                        }
+                        let inner = Self::try_extract_union_ranges(inner_expr)?;
+                        ranges.extend(inner);
+                    }
+                },
+                ClassSetOperand::BuiltinClass(_)
+                | ClassSetOperand::UnicodeProperty(_)
+                | ClassSetOperand::StringLiteral(_) => {
+                    return None;
+                }
+            }
+        }
+
+        ranges.sort_by_key(|r| r.start);
+        Some(ranges)
+    }
+
     /// Lower a `/v` character class expression.
     ///
     /// Negation is expressed as a negative lookahead plus `AnyChar` because
@@ -1099,8 +1274,11 @@ impl Compiler {
             return;
         }
 
-        // For now, compile unicode set classes as disjunctions of their operands.
-        // This is correct but not optimal — future optimization can merge ranges.
+        if let Some(ranges) = Self::try_extract_union_ranges(expr) {
+            self.emit(Instruction::CharClass { ranges, negated });
+            return;
+        }
+
         if negated {
             let forward = !self.backward;
             let look_start = self.emit(Instruction::LookStart {

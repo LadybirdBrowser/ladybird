@@ -465,23 +465,31 @@ impl Regex {
     /// Post-process the program to resolve Unicode property names to ICU enum IDs.
     /// This allows O(1) trie lookups at match time instead of string-based resolution.
     fn resolve_properties(program: &mut crate::bytecode::Program) {
-        let resolve = |data: &mut crate::bytecode::UnicodePropertyData| {
+        fn resolve_data(data: &mut crate::bytecode::UnicodePropertyData) {
             if data.resolved.is_none() {
                 data.resolved = compiler::resolve_property(&data.name, data.value.as_deref());
             }
-        };
+        }
+        fn resolve_simple_match(matcher: &mut crate::bytecode::SimpleMatch) {
+            match matcher {
+                crate::bytecode::SimpleMatch::UnicodeProperty(data) => resolve_data(data),
+                crate::bytecode::SimpleMatch::Union(lhs, rhs) => {
+                    resolve_simple_match(lhs);
+                    resolve_simple_match(rhs);
+                }
+                _ => {}
+            }
+        }
         for inst in &mut program.instructions {
             match inst {
                 Instruction::UnicodeProperty(data) => {
-                    resolve(data);
+                    resolve_data(data);
                 }
                 Instruction::StringPropertyMatch { property, .. } => {
-                    resolve(property);
+                    resolve_data(property);
                 }
                 Instruction::GreedyLoop { matcher, .. } | Instruction::LazyLoop { matcher, .. } => {
-                    if let crate::bytecode::SimpleMatch::UnicodeProperty(data) = matcher {
-                        resolve(data);
-                    }
+                    resolve_simple_match(matcher);
                 }
                 _ => {}
             }
