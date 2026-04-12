@@ -7,6 +7,7 @@
  */
 
 #include <AK/Vector.h>
+#include <LibCore/Markers.h>
 #include <LibIPC/Connection.h>
 #include <LibIPC/Message.h>
 #include <LibIPC/Stub.h>
@@ -71,6 +72,9 @@ void ConnectionBase::handle_messages()
 
         if (!is_open())
             dbgln("Handling message while connection closed: {}", message->message_name());
+
+        StringView const message_name { message->message_name(), strlen(message->message_name()) };
+        MARKER_SCOPE(message_name, "IPCHandle"sv, Core::MarkerCategory::IPC);
 
         auto handler_result = m_local_stub.handle(move(message));
         if (handler_result.is_error()) {
