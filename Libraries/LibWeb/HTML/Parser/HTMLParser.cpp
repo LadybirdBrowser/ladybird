@@ -10,6 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/SourceLocation.h>
 #include <AK/Utf32View.h>
+#include <LibCore/Markers.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
@@ -270,7 +271,13 @@ void HTMLParser::run(URL::URL const& url, HTMLTokenizer::StopAtInsertionPoint st
 {
     m_document->set_url(url);
     m_document->set_source(m_tokenizer.source());
-    run(stop_at_insertion_point);
+
+    {
+        MARKER_SCOPE_FIELDS("Parse HTML"sv, "Text"sv, Core::MarkerCategory::DOM,
+            { { "name"sv, url.to_string() } });
+        run(stop_at_insertion_point);
+    }
+
     the_end(*m_document, this);
 }
 
@@ -458,6 +465,8 @@ void HTMLParserEndState::advance_to_asap_scripts_phase()
         document->load_timing_info().dom_content_loaded_event_start_time = HighResolutionTime::current_high_resolution_time(relevant_global_object(*document));
 
         // 2. Fire an event named DOMContentLoaded at the Document object, with its bubbles attribute initialized to true.
+        MARKER_INSTANT("DOMContentLoaded"sv, "Text"sv, Core::MarkerCategory::DOM,
+            { { "name"sv, document->url().to_string() } });
         auto content_loaded_event = DOM::Event::create(document->realm(), HTML::EventNames::DOMContentLoaded);
         content_loaded_event->set_bubbles(true);
         document->dispatch_event(content_loaded_event);
@@ -501,6 +510,8 @@ void HTMLParserEndState::complete()
         // 5. Fire an event named load at window, with legacy target override flag set.
         // FIXME: The legacy target override flag is currently set by a virtual override of dispatch_event()
         //        We should reorganize this so that the flag appears explicitly here instead.
+        MARKER_INSTANT("Load"sv, "Text"sv, Core::MarkerCategory::DOM,
+            { { "name"sv, document->url().to_string() } });
         window.dispatch_event(DOM::Event::create(document->realm(), HTML::EventNames::load));
 
         // FIXME: 6. Invoke WebDriver BiDi load complete with the Document's browsing context, and a new WebDriver BiDi navigation status whose id is the Document object's navigation id, status is "complete", and url is the Document object's URL.
