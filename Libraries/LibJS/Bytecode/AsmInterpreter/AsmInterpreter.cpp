@@ -266,6 +266,8 @@ i64 asm_slow_path_put_by_value(Interpreter*, u32 pc);
 i64 asm_try_put_by_value_holey_array(Interpreter*, u32 pc);
 u64 asm_helper_to_boolean(u64 encoded_value);
 u64 asm_helper_math_exp(u64 encoded_value);
+u64 asm_helper_empty_string(u64);
+u64 asm_helper_single_ascii_character_string(u64 encoded_value);
 i64 asm_try_inline_call(Interpreter*, u32 pc);
 i64 asm_pop_inline_frame(Interpreter*, u32 pc);
 i64 asm_pop_inline_frame_end(Interpreter*, u32 pc);
@@ -1291,6 +1293,16 @@ u64 asm_helper_math_exp(u64 encoded_value)
 {
     auto value = bit_cast<Value>(encoded_value);
     return bit_cast<u64>(Value(::exp(value.as_double())));
+}
+
+u64 asm_helper_empty_string(u64)
+{
+    return bit_cast<u64>(Value(&Interpreter::vm().empty_string()));
+}
+
+u64 asm_helper_single_ascii_character_string(u64 encoded_value)
+{
+    return bit_cast<u64>(Value(&Interpreter::vm().single_ascii_character_string(static_cast<u8>(encoded_value))));
 }
 
 } // extern "C"

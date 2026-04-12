@@ -8624,6 +8624,7 @@ const BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT: u8 = 18;
 const BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT: u8 = 19;
 const BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT: u8 = 20;
 const BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT: u8 = 21;
+const BUILTIN_STRING_PROTOTYPE_CHAR_AT: u8 = 22;
 
 /// Detect known builtin methods from a callee expression (e.g. Math.abs).
 /// Returns the Builtin enum value as u8, matching Builtins.h ordering.
@@ -8637,6 +8638,9 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
     let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
         return None;
     };
+    if property_ident.name == utf16!("charAt") {
+        return Some(BUILTIN_STRING_PROTOTYPE_CHAR_AT);
+    }
     if property_ident.name == utf16!("charCodeAt") {
         return Some(BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT);
     }
@@ -8732,6 +8736,7 @@ fn builtin_argument_count(builtin: u8) -> usize {
         BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => 0,
         BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => 0,
         BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => 1,
+        BUILTIN_STRING_PROTOTYPE_CHAR_AT => 1,
         _ => usize::MAX,
     }
 }
@@ -8821,6 +8826,9 @@ fn emit_builtin_call(
         }
         BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => {
             emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharCodeAt);
+        }
+        BUILTIN_STRING_PROTOTYPE_CHAR_AT => {
+            emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharAt);
         }
         _ => unreachable!(),
     }

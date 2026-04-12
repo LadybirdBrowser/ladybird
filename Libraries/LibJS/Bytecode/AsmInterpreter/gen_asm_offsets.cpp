@@ -201,6 +201,7 @@ int main()
     outln("const BUILTIN_MATH_SQRT = {}", static_cast<u8>(Bytecode::Builtin::MathSqrt));
     outln("const BUILTIN_MATH_EXP = {}", static_cast<u8>(Bytecode::Builtin::MathExp));
     outln("const BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT = {}", static_cast<u8>(Bytecode::Builtin::StringPrototypeCharCodeAt));
+    outln("const BUILTIN_STRING_PROTOTYPE_CHAR_AT = {}", static_cast<u8>(Bytecode::Builtin::StringPrototypeCharAt));
 
     // FunctionObject layout
     outln("\n# FunctionObject layout");

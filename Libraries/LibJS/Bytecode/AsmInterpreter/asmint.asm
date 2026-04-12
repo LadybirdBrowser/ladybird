@@ -2159,6 +2159,38 @@ handler CallBuiltinStringPrototypeCharCodeAt
     call_slow_path asm_slow_path_call_builtin_string_prototype_char_code_at
 end
 
+handler CallBuiltinStringPrototypeCharAt
+    validate_callee_builtin BUILTIN_STRING_PROTOTYPE_CHAR_AT, .slow
+
+    load_operand t1, m_this_value
+    extract_tag t3, t1
+    branch_ne t3, STRING_TAG, .slow
+    unbox_object t2, t1
+
+    load_operand t1, m_argument
+    extract_tag t3, t1
+    branch_ne t3, INT32_TAG, .slow
+    unbox_int32 t4, t1
+    branch_negative t4, .empty
+
+    load_primitive_string_utf16_code_unit .empty, .slow
+    branch_ge_unsigned t0, 0x80, .slow
+
+    mov t1, t0
+    call_helper asm_helper_single_ascii_character_string
+    store_operand m_dst, t0
+    dispatch_next
+
+.empty:
+    mov t1, 0
+    call_helper asm_helper_empty_string
+    store_operand m_dst, t0
+    dispatch_next
+
+.slow:
+    call_slow_path asm_slow_path_call_builtin_string_prototype_char_at
+end
+
 # ============================================================================
 # Slow-path-only handlers
 # ============================================================================

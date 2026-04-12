@@ -34,7 +34,8 @@ namespace JS::Bytecode {
     O(MapIteratorPrototypeNext, map_iterator_prototype_next, MapIteratorPrototype, next, 0)          \
     O(SetIteratorPrototypeNext, set_iterator_prototype_next, SetIteratorPrototype, next, 0)          \
     O(StringIteratorPrototypeNext, string_iterator_prototype_next, StringIteratorPrototype, next, 0) \
-    O(StringPrototypeCharCodeAt, string_prototype_char_code_at, StringPrototype, charCodeAt, 1)
+    O(StringPrototypeCharCodeAt, string_prototype_char_code_at, StringPrototype, charCodeAt, 1)      \
+    O(StringPrototypeCharAt, string_prototype_char_at, StringPrototype, charAt, 1)
 
 enum class Builtin : u8 {
 #define DEFINE_BUILTIN_ENUM(name, ...) name,
