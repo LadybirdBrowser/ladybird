@@ -13,3 +13,11 @@ test("basic arguments object", () => {
     expect(bar("hello", "friends", ":^)")).toBe("friends");
     expect(bar("hello")).toBe(undefined);
 });
+
+test("arrow function access keeps mapped parameter bindings in the environment", () => {
+    function outer(value) {
+        return (() => arguments[0])();
+    }
+
+    expect(outer(42)).toBe(42);
+});

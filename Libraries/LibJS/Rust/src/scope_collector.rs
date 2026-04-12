@@ -447,7 +447,8 @@ impl ScopeCollector {
         let index = self.current.expect("close_scope with no current scope");
 
         if let Some(parent_index) = self.records[index].parent
-            && !self.records[index].has_function_parameters
+            && (self.records[index].scope_type != ScopeType::Function
+                || self.records[index].is_arrow_function)
         {
             let c = &self.records[index];
             let arguments = c.contains_access_to_arguments_object_in_non_strict_mode;
