@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 454 tests
 
-446 Pass
-8 Fail
+454 Pass
 Pass	Bad usages: importKey(spki, X25519, true, [encrypt])
 Pass	Bad usages: importKey(spki, X25519, false, [encrypt])
 Pass	Bad usages: importKey(spki, X25519, true, [decrypt])
@@ -428,14 +427,14 @@ Pass	Missing JWK 'kty' parameter: importKey(jwk(private), {name: X25519}, true, 
 Pass	Missing JWK 'kty' parameter: importKey(jwk(private), {name: X25519}, false, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: X25519}, true, [])
 Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: X25519}, false, [])
-Fail	Invalid key pair: importKey(jwk(private), X25519, true, [deriveKey])
-Fail	Invalid key pair: importKey(jwk(private), X25519, true, [deriveBits, deriveKey])
-Fail	Invalid key pair: importKey(jwk(private), X25519, true, [deriveBits])
-Fail	Invalid key pair: importKey(jwk(private), X25519, true, [deriveKey, deriveBits, deriveKey, deriveBits])
-Fail	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey])
-Fail	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits, deriveKey])
-Fail	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits])
-Fail	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Invalid key pair: importKey(jwk(private), X25519, true, [deriveKey])
+Pass	Invalid key pair: importKey(jwk(private), X25519, true, [deriveBits, deriveKey])
+Pass	Invalid key pair: importKey(jwk(private), X25519, true, [deriveBits])
+Pass	Invalid key pair: importKey(jwk(private), X25519, true, [deriveKey, deriveBits, deriveKey, deriveBits])
+Pass	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey])
+Pass	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits, deriveKey])
+Pass	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveBits])
+Pass	Invalid key pair: importKey(jwk(private), {name: X25519}, true, [deriveKey, deriveBits, deriveKey, deriveBits])
 Pass	Missing algorithm name: importKey(pkcs8, {}, true, deriveKey)
 Pass	Missing algorithm name: importKey(pkcs8, {}, false, deriveKey)
 Pass	Missing algorithm name: importKey(pkcs8, {}, true, deriveBits)

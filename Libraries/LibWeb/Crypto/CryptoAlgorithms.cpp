@@ -6094,6 +6094,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
             if (private_key.size() != 32)
                 return WebIDL::DataError::create(m_realm, "Invalid key length"_utf16);
 
+            ::Crypto::Curves::Ed25519 curve;
+            auto derived_public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(private_key));
+            if (derived_public_key != public_key)
+                return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
+
             // 2. Let key be a new CryptoKey object that represents the Ed25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
 
@@ -6598,6 +6603,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
             auto private_key = TRY(base64_url_bytes_decode(m_realm, jwk.d.value()));
             if (private_key.size() != 57)
                 return WebIDL::DataError::create(m_realm, "Invalid key length"_utf16);
+
+            ::Crypto::Curves::Ed448 curve;
+            auto derived_public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(private_key));
+            if (derived_public_key != public_key)
+                return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the Ed448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
@@ -7327,6 +7337,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
             if (private_key.size() != 32)
                 return WebIDL::DataError::create(m_realm, "Invalid key length"_utf16);
 
+            ::Crypto::Curves::X25519 curve;
+            auto derived_public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(private_key));
+            if (derived_public_key != public_key)
+                return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
+
             // 2. Let key be a new CryptoKey object that represents the X25519 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });
 
@@ -7939,6 +7954,11 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
             auto private_key = TRY(base64_url_bytes_decode(m_realm, jwk.d.value()));
             if (private_key.size() != 56)
                 return WebIDL::DataError::create(m_realm, "Invalid key length"_utf16);
+
+            ::Crypto::Curves::X448 curve;
+            auto derived_public_key = TRY_OR_THROW_OOM(m_realm->vm(), curve.generate_public_key(private_key));
+            if (derived_public_key != public_key)
+                return WebIDL::DataError::create(m_realm, "Invalid key pair"_utf16);
 
             // 2. Let key be a new CryptoKey object that represents the X448 private key identified by interpreting jwk according to Section 2 of [RFC8037].
             key = CryptoKey::create(m_realm, CryptoKey::InternalKeyData { private_key });

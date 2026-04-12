@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 530 tests
 
-526 Pass
-4 Fail
+530 Pass
 Pass	Bad usages: importKey(spki, Ed25519, true, [encrypt])
 Pass	Bad usages: importKey(spki, Ed25519, false, [encrypt])
 Pass	Bad usages: importKey(spki, Ed25519, true, [verify, encrypt])
@@ -496,10 +495,10 @@ Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: Ed25519}, true
 Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: Ed25519}, false, [verify])
 Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: Ed25519}, true, [verify, verify])
 Pass	Missing JWK 'crv' parameter: importKey(jwk (public) , {name: Ed25519}, false, [verify, verify])
-Fail	Invalid key pair: importKey(jwk(private), Ed25519, true, [sign])
-Fail	Invalid key pair: importKey(jwk(private), Ed25519, true, [sign, sign])
-Fail	Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign])
-Fail	Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])
+Pass	Invalid key pair: importKey(jwk(private), Ed25519, true, [sign])
+Pass	Invalid key pair: importKey(jwk(private), Ed25519, true, [sign, sign])
+Pass	Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign])
+Pass	Invalid key pair: importKey(jwk(private), {name: Ed25519}, true, [sign, sign])
 Pass	Missing algorithm name: importKey(spki, {}, true, verify)
 Pass	Missing algorithm name: importKey(spki, {}, false, verify)
 Pass	Missing algorithm name: importKey(pkcs8, {}, true, sign)
