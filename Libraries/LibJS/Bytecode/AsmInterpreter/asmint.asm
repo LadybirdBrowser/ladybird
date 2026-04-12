@@ -367,6 +367,55 @@ macro validate_callee_builtin(expected_builtin, fail)
     branch_ne t3, expected_builtin, fail
 end
 
+# Load a UTF-16 code unit from a primitive string with resident UTF-16 data.
+# Input:
+#   t2 = PrimitiveString*
+#   t4 = non-negative code-unit index
+# Output:
+#   t0 = zero-extended code unit
+# Clobbers:
+#   t3, t5
+# Jumps to out_of_bounds if index >= string length.
+# Jumps to fail if the string would require resolving deferred data.
+macro load_primitive_string_utf16_code_unit(out_of_bounds, fail)
+    load8 t3, [t2, PRIMITIVE_STRING_DEFERRED_KIND]
+    branch_ne t3, PRIMITIVE_STRING_DEFERRED_KIND_NONE, fail
+
+    load64 t5, [t2, PRIMITIVE_STRING_UTF16_STRING]
+    branch_zero t5, fail
+
+    load8 t3, [t2, PRIMITIVE_STRING_UTF16_SHORT_STRING_BYTE_COUNT_AND_FLAG]
+    and t3, UTF16_SHORT_STRING_FLAG
+    branch_zero t3, .long_storage
+
+    load8 t3, [t2, PRIMITIVE_STRING_UTF16_SHORT_STRING_BYTE_COUNT_AND_FLAG]
+    shr t3, UTF16_SHORT_STRING_BYTE_COUNT_SHIFT_COUNT
+    branch_ge_unsigned t4, t3, out_of_bounds
+    mov t0, t2
+    add t0, PRIMITIVE_STRING_UTF16_SHORT_STRING_STORAGE
+    load8 t0, [t0, t4]
+    jmp .done
+
+.long_storage:
+    load64 t3, [t5, UTF16_STRING_DATA_LENGTH_IN_CODE_UNITS]
+    branch_negative t3, .utf16_storage
+    branch_ge_unsigned t4, t3, out_of_bounds
+    add t5, UTF16_STRING_DATA_STRING_STORAGE
+    load8 t0, [t5, t4]
+    jmp .done
+
+.utf16_storage:
+    shl t3, 1
+    shr t3, 1
+    branch_ge_unsigned t4, t3, out_of_bounds
+    mov t0, t4
+    add t0, t4
+    add t5, UTF16_STRING_DATA_STRING_STORAGE
+    load16 t0, [t5, t0]
+
+.done:
+end
+
 # Dispatch the instruction at current pc (without advancing).
 # Clobbers t0.
 macro dispatch_current()
@@ -2080,6 +2129,34 @@ end
 
 handler CallBuiltinStringIteratorPrototypeNext
     call_slow_path asm_slow_path_call_builtin_string_iterator_prototype_next
+end
+
+handler CallBuiltinStringPrototypeCharCodeAt
+    validate_callee_builtin BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT, .slow
+
+    load_operand t1, m_this_value
+    extract_tag t3, t1
+    branch_ne t3, STRING_TAG, .slow
+    unbox_object t2, t1
+
+    load_operand t1, m_argument
+    extract_tag t3, t1
+    branch_ne t3, INT32_TAG, .slow
+    unbox_int32 t4, t1
+    branch_negative t4, .out_of_bounds
+
+    load_primitive_string_utf16_code_unit .out_of_bounds, .slow
+    box_int32_clean t1, t0
+    store_operand m_dst, t1
+    dispatch_next
+
+.out_of_bounds:
+    mov t0, CANON_NAN_BITS
+    store_operand m_dst, t0
+    dispatch_next
+
+.slow:
+    call_slow_path asm_slow_path_call_builtin_string_prototype_char_code_at
 end
 
 # ============================================================================

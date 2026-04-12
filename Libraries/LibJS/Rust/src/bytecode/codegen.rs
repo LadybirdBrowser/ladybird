@@ -8623,6 +8623,7 @@ const BUILTIN_ARRAY_ITERATOR_PROTOTYPE_NEXT: u8 = 17;
 const BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT: u8 = 18;
 const BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT: u8 = 19;
 const BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT: u8 = 20;
+const BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT: u8 = 21;
 
 /// Detect known builtin methods from a callee expression (e.g. Math.abs).
 /// Returns the Builtin enum value as u8, matching Builtins.h ordering.
@@ -8633,10 +8634,13 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
     if member_data.computed {
         return None;
     }
-    let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
+    let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
         return None;
     };
-    let ExpressionKind::Identifier(property_ident) = &member_data.property.inner else {
+    if property_ident.name == utf16!("charCodeAt") {
+        return Some(BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT);
+    }
+    let ExpressionKind::Identifier(base_ident) = &member_data.object.inner else {
         return None;
     };
     // Must match JS_ENUMERATE_BUILTINS order in Builtins.h.
@@ -8727,6 +8731,7 @@ fn builtin_argument_count(builtin: u8) -> usize {
         BUILTIN_MAP_ITERATOR_PROTOTYPE_NEXT => 0,
         BUILTIN_SET_ITERATOR_PROTOTYPE_NEXT => 0,
         BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => 0,
+        BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => 1,
         _ => usize::MAX,
     }
 }
@@ -8813,6 +8818,9 @@ fn emit_builtin_call(
         }
         BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT => {
             emit_nullary_builtin_instruction!(CallBuiltinStringIteratorPrototypeNext);
+        }
+        BUILTIN_STRING_PROTOTYPE_CHAR_CODE_AT => {
+            emit_unary_builtin_instruction!(CallBuiltinStringPrototypeCharCodeAt);
         }
         _ => unreachable!(),
     }

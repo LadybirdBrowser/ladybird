@@ -183,7 +183,7 @@ void StringPrototype::initialize(Realm& realm)
     // 22.1.3 Properties of the String Prototype Object, https://tc39.es/ecma262/#sec-properties-of-the-string-prototype-object
     define_native_function(realm, vm.names.at, at, 1, attr);
     define_native_function(realm, vm.names.charAt, char_at, 1, attr);
-    define_native_function(realm, vm.names.charCodeAt, char_code_at, 1, attr);
+    define_native_function(realm, vm.names.charCodeAt, char_code_at, 1, attr, Bytecode::Builtin::StringPrototypeCharCodeAt);
     define_native_function(realm, vm.names.codePointAt, code_point_at, 1, attr);
     define_native_function(realm, vm.names.concat, concat, 1, attr);
     define_native_function(realm, vm.names.endsWith, ends_with, 1, attr);
