@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head>
+  <title>CSS Test: :first-letter</title>
+  <link rel="author" title="Boris Zbarsky" href="mailto:bzbarsky@mit.edu" />
+  <link rel="author" title="Mozilla Corporation" href="http://mozilla.com/" />
+  <link rel="help" href="http://www.w3.org/TR/CSS21/syndata.html#charset" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-nested-001-ref.xht"/>
+  <style type="text/css">
+  div { color: black; font-size: 3em; }
+  div:first-letter { color: green; }
+  </style>
+</head>
+<body>
+  <div>
+    <span>  </span>
+    <span>
+      This is text
+    </span>
+  </div>
+
+
+</body></html>

@@ -26,7 +26,11 @@
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Painting/PaintableFragment.h>
+#include <LibWeb/Painting/PaintableWithLines.h>
 #include <LibWeb/Painting/ViewportPaintable.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -1210,19 +1214,36 @@ GC::Ref<Geometry::DOMRectList> Range::get_client_rects()
             // 2. For each Text node selected or partially selected by the range (including when the boundary-points
             // are identical), include scaled DOMRect object (for the part that is selected, not the whole line box).
             auto const& text = static_cast<DOM::Text const&>(*node);
-            auto paintable = text.paintable();
-            if (paintable && selection_state != Painting::Paintable::SelectionState::None) {
-                auto containing_block = paintable->containing_block();
-                if (auto const* paintable_lines = as_if<Painting::PaintableWithLines>(containing_block.ptr())) {
-                    auto fragments = paintable_lines->fragments();
-                    for (auto frag = fragments.begin(); frag != fragments.end(); frag++) {
-                        auto rect = frag->range_rect(selection_state, start_offset(), end_offset());
-                        rects.append(Geometry::DOMRect::create(realm(), rect.to_type<float>()));
-                    }
-                } else {
-                    dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
-                }
+            if (selection_state == Painting::Paintable::SelectionState::None)
+                continue;
+
+            Layout::TextOffsetMapping mapping { text };
+            if (!mapping.primary()) {
+                dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
+                continue;
             }
+            size_t filter_dom_start = 0;
+            size_t filter_dom_end = NumericLimits<size_t>::max();
+            switch (selection_state) {
+            case Painting::Paintable::SelectionState::Full:
+                break;
+            case Painting::Paintable::SelectionState::StartAndEnd:
+                filter_dom_start = start_offset();
+                filter_dom_end = end_offset();
+                break;
+            case Painting::Paintable::SelectionState::Start:
+                filter_dom_start = start_offset();
+                break;
+            case Painting::Paintable::SelectionState::End:
+                filter_dom_end = end_offset();
+                break;
+            case Painting::Paintable::SelectionState::None:
+                VERIFY_NOT_REACHED();
+            }
+            mapping.for_each_paintable_fragment_in_dom_range(filter_dom_start, filter_dom_end, [&](Painting::PaintableFragment const& fragment) {
+                auto rect = fragment.range_rect(selection_state, start_offset(), end_offset());
+                rects.append(Geometry::DOMRect::create(realm(), rect.to_type<float>()));
+            });
         }
     }
     return Geometry::DOMRectList::create(realm(), move(rects));

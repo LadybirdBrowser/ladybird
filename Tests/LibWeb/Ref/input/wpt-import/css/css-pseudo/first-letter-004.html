@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test: ::first-letter formatting</title>
+    <link rel="author" title="Chris Nardi" href="mailto:csnardi1@gmail.com">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-004-ref.html">
+    <link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo">
+    <meta name="assert" content="Test checks that punctuation and letters with combining characters still have proper ::first-letter styling.">
+    <style>
+        div {
+            font-size: 36px;
+        }
+        div::first-letter {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <p>Test passes if the "T" and surrounding punctuation below are green.</p>
+    <div>&#x104e;&#x300;T&#x300;&#x104e;&#x300;est</div>
+</body>
+</html>

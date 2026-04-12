@@ -1,0 +1,22 @@
+<!DOCTYPE HTML>
+<title>CSS Test: The element's own ::marker should be skipped when finding the ::first-letter content</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#application-in-css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-skip-marker-ref.html">
+<style>
+body { margin-left:100px; }
+ol > li { list-style-position: inside }
+li::first-letter { color: green }
+li:first-child { list-style-type: lower-alpha; list-style-type: '::marker ' }
+li:last-child::marker { content: '::marker ' }
+</style>
+<ol>
+  <li>item</li>
+  <li>item</li>
+</ol>
+
+<ul>
+  <li>item</li>
+  <li>item</li>
+</ul>

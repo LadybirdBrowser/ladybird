@@ -7217,7 +7217,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
             for (; i < text_block.positions.size() - 1 && match_index.value() > text_block.positions[i + 1].start_offset; ++i)
                 match_start_position = &text_block.positions[i + 1];
 
-            auto start_position = match_index.value() - match_start_position->start_offset;
+            auto start_position = match_index.value() - match_start_position->start_offset + match_start_position->dom_offset_within_node;
             auto& start_dom_node = match_start_position->dom_node;
 
             auto* match_end_position = match_start_position;
@@ -7225,7 +7225,7 @@ Vector<GC::Root<Range>> Document::find_matching_text(String const& query, CaseSe
                 match_end_position = &text_block.positions[i + 1];
 
             auto& end_dom_node = match_end_position->dom_node;
-            auto end_position = match_index.value() + utf16_query.length_in_code_units() - match_end_position->start_offset;
+            auto end_position = match_index.value() + utf16_query.length_in_code_units() - match_end_position->start_offset + match_end_position->dom_offset_within_node;
 
             matches.append(Range::create(start_dom_node, start_position, end_dom_node, end_position));
             match_start_position = match_end_position;

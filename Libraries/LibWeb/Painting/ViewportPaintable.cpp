@@ -9,8 +9,10 @@
 #include <LibWeb/CSS/VisualViewport.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -578,6 +580,21 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
         return TraversalDecision::Continue;
     });
 
+    auto set_selection_state_on_all_slices = [](DOM::Node& container, SelectionState state) {
+        if (auto* text = as_if<DOM::Text>(container)) {
+            Layout::TextOffsetMapping mapping { *text };
+            mapping.for_each_fragment([&](Layout::TextNode& slice) {
+                if (auto paintable = slice.first_paintable())
+                    paintable->set_selection_state(state);
+            });
+            return;
+        }
+        if (auto* layout_node = container.unsafe_layout_node()) {
+            if (auto paintable = layout_node->first_paintable())
+                paintable->set_selection_state(state);
+        }
+    };
+
     auto start_container = range.start_container();
     auto end_container = range.end_container();
 
@@ -591,18 +608,17 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
 
         // 2. If it's a text node, mark it as StartAndEnd and return.
         if (is<DOM::Text>(*start_container) && !range.start().node->is_inert()) {
-            if (auto paintable = start_container->unsafe_paintable())
-                paintable->set_selection_state(SelectionState::StartAndEnd);
+            set_selection_state_on_all_slices(*start_container, SelectionState::StartAndEnd);
             return;
         }
     }
 
     // 3. Mark the selection start node as Start (if text) or Full (if anything else).
-    if (auto paintable = start_container->unsafe_paintable(); paintable && !range.start().node->is_inert()) {
+    if (!range.start().node->is_inert() && start_container->unsafe_layout_node()) {
         if (is<DOM::Text>(*start_container))
-            paintable->set_selection_state(SelectionState::Start);
+            set_selection_state_on_all_slices(*start_container, SelectionState::Start);
         else
-            paintable->set_selection_state(SelectionState::Full);
+            set_selection_state_on_all_slices(*start_container, SelectionState::Full);
     }
 
     // 4. Mark the nodes between the start and end of the selection as Full.
@@ -621,13 +637,12 @@ void ViewportPaintable::recompute_selection_states(DOM::Range& range)
     for (auto* node = start_at; node && (node != stop_at && !(node == end_container && !end_container->has_children())); node = node->next_in_pre_order(end_container)) {
         if (node->is_inert())
             continue;
-        if (auto paintable = node->unsafe_paintable())
-            paintable->set_selection_state(SelectionState::Full);
+        set_selection_state_on_all_slices(*node, SelectionState::Full);
     }
 
     // 5. Mark the selection end node as End if it is a text node.
-    if (auto paintable = end_container->unsafe_paintable(); paintable && !range.end().node->is_inert() && is<DOM::Text>(*end_container)) {
-        paintable->set_selection_state(SelectionState::End);
+    if (!range.end().node->is_inert() && is<DOM::Text>(*end_container) && end_container->unsafe_layout_node()) {
+        set_selection_state_on_all_slices(*end_container, SelectionState::End);
     }
 }
 

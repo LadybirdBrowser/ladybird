@@ -1,0 +1,22 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: First-letter with the 'tibetan mark ang khang gyas' punctuation character</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#first-letter" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-punctuation-005-ref.xht" />
+        <meta name="assert" content="Punctuation characters defined in Unicode [UNICODE] in (Ps),(Pe),(Pi),(Pf) and (Po) punctuation classes that precede or follow the first letter are included in first-letter selection - 'tibetan mark ang khang gyas'." />
+        <style type="text/css">
+            div:first-letter
+            {
+                color: green;
+                font-size: 36px;
+                line-height: 2;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if the "T" and surrounding punctuation below are green.</p>
+        <div>&#x0F3D;T&#x0F3D;est</div>
+    </body>
+</html>

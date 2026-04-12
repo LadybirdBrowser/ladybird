@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSS Test: ::first-letter formatting</title>
+    <link rel="author" title="Johannes Odland" href="mailto:johannes.odland@gmail.com">
+    <link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-punctuation-and-space-ref.html">
+    <link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#first-letter-pseudo">
+    <meta name="assert" content="Test checks that punctuation, intervening space separators and letters still have proper ::first-letter styling.">
+    <style>
+        div {
+            font-size: 36px;
+        }
+        div::first-letter {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <p>Test passes if the "T"s and preceding punctuation below are green.</p>
+    <div>– Test</div>
+    <div>« Test</div>
+    <div>&#xab;&nbsp;Test</div>
+</body>
+</html>

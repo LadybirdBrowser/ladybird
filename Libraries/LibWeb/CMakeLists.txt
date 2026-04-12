@@ -799,6 +799,7 @@ set(SOURCES
     Layout/TextAreaBox.cpp
     Layout/TextInputBox.cpp
     Layout/TextNode.cpp
+    Layout/TextOffsetMapping.cpp
     Layout/TreeBuilder.cpp
     Layout/VideoBox.cpp
     Layout/Viewport.cpp

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<title>CSS Pseudo Test: ::first-letter text from ::before and ::after</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#generated-content">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-with-before-after-ref.html">
+<style>
+  #t1::before { content: "F" }
+  #t2::before { content: "First-letter" }
+  div::first-letter { color: green; }
+</style>
+<p>Both 'F's below should be green.</p>
+<div id="t1">irst-letter</div>
+<div id="t2"></div>

@@ -13,7 +13,9 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Range.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 
 namespace Web::DOM {
 
@@ -138,14 +140,17 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         return {};
 
     // NB: Called during DOM text mutation, layout is stale.
-    if (auto* text_node = as_if<Layout::TextNode>(unsafe_layout_node())) {
-        // NOTE: Since the text node's data has changed, we need to invalidate the text for rendering.
-        //       This ensures that the new text is reflected in layout, even if we don't end up
-        //       doing a full layout tree rebuild.
-        text_node->invalidate_text_for_rendering();
+    if (auto* text = as_if<Text>(*this)) {
+        Layout::TextOffsetMapping mapping { *text };
+        mapping.for_each_fragment([](Layout::TextNode& slice) {
+            // NB: Since the text node's data has changed, we need to invalidate the text for rendering.
+            //     This ensures that the new text is reflected in layout, even if we don't end up doing a full layout
+            //     tree rebuild.
+            slice.invalidate_text_for_rendering();
 
-        // We also need to relayout.
-        text_node->set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
+            // We also need to relayout.
+            slice.set_needs_layout_update(SetNeedsLayoutReason::CharacterDataReplaceData);
+        });
     }
 
     document().bump_character_data_version();
