@@ -9,9 +9,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/Optional.h>
 #include <AK/TemporaryChange.h>
+#include <AK/Utf16String.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Enums.h>
@@ -23,9 +26,11 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/ShadowRoot.h>
+#include <LibWeb/DOM/Text.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
+#include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/FieldSetBox.h>
 #include <LibWeb/Layout/ImageBox.h>
 #include <LibWeb/Layout/InlineNode.h>
@@ -273,6 +278,204 @@ private:
 };
 
 GC_DEFINE_ALLOCATOR(GeneratedContentImageProvider);
+
+struct FirstLetterTarget {
+    GC::Ref<TextNode> text_node;
+    size_t letter_start { 0 };
+    size_t letter_end { 0 };
+};
+
+// https://drafts.csswg.org/css-pseudo-4/#first-letter-pattern
+static Optional<FirstLetterTarget> find_first_letter_in_text(TextNode& text_node)
+{
+    // NB: Matches the first-letter text pattern: (P (Zs|P)*)? (L|N|S) ((Zs|P-(Ps|Pd))* (P-(Ps|Pd))?)?
+
+    // For the preceding run: Zs excluding U+3000 IDEOGRAPHIC SPACE.
+    auto is_preceding_intervening_space = [](u32 code_point) {
+        if (code_point == 0x3000)
+            return false;
+        return Unicode::code_point_has_space_separator_general_category(code_point);
+    };
+
+    // For the trailing run: Zs excluding U+3000 IDEOGRAPHIC SPACE and word separators.
+    auto is_trailing_intervening_space = [](u32 code_point) {
+        // NB: css-text-4 defines word separators as a non-exhaustive list, but of the seven code
+        //     points it names only U+0020 SPACE and U+00A0 NO-BREAK SPACE are in the Zs category;
+        //     the rest are in Po and would never reach this check. Fixed-width spaces are explicitly
+        //     not word separators per the spec's note, so they remain valid intervening Zs here.
+        if (code_point == 0x0020 || code_point == 0x00A0 || code_point == 0x3000)
+            return false;
+        return Unicode::code_point_has_space_separator_general_category(code_point);
+    };
+
+    auto is_trailing_punctuation = [](u32 code_point) {
+        if (!Unicode::code_point_has_punctuation_general_category(code_point))
+            return false;
+
+        // NB: The css-pseudo specification excludes Ps and Pd classes (closing punctuation and dashes) from the
+        //     trailing run, whereas CSS 2.1 allowed all classes in both the preceding and trailing runs.
+        static auto const ps = Unicode::general_category_from_string("Ps"sv).value();
+        static auto const pd = Unicode::general_category_from_string("Pd"sv).value();
+        return !Unicode::code_point_has_general_category(code_point, ps)
+            && !Unicode::code_point_has_general_category(code_point, pd);
+    };
+
+    auto is_first_letter_character = [](u32 code_point) {
+        return Unicode::code_point_has_letter_general_category(code_point)
+            || Unicode::code_point_has_number_general_category(code_point)
+            || Unicode::code_point_has_symbol_general_category(code_point);
+    };
+
+    auto view = text_node.dom_node().data().utf16_view();
+    auto const code_units = view.length_in_code_units();
+
+    // When white-space preserves segment breaks, a newline before any letter puts the letter on a later line, so the
+    // first formatted line is empty and ::first-letter must not match.
+    auto const white_space_collapse = text_node.computed_values().white_space_collapse();
+    auto const preserves_segment_breaks = first_is_one_of(white_space_collapse,
+        CSS::WhiteSpaceCollapse::Preserve, CSS::WhiteSpaceCollapse::PreserveBreaks, CSS::WhiteSpaceCollapse::BreakSpaces);
+
+    auto advance = [&](size_t index) {
+        return index + AK::UnicodeUtils::code_unit_length_for_code_point(view.code_point_at(index));
+    };
+
+    auto grapheme_segmenter = text_node.document().grapheme_segmenter().clone();
+    grapheme_segmenter->set_segmented_text(view);
+
+    auto advance_cluster = [&](size_t index) -> size_t {
+        return grapheme_segmenter->next_boundary(index).value_or(code_units);
+    };
+
+    for (size_t match_start = 0; match_start < code_units; match_start = advance(match_start)) {
+        size_t cursor = match_start;
+        auto starting_code_point = view.code_point_at(cursor);
+
+        if (preserves_segment_breaks && (starting_code_point == '\n' || starting_code_point == '\r'))
+            return {};
+
+        // A valid match starts with either a P, or the letter itself.
+        bool const has_preceding = Unicode::code_point_has_punctuation_general_category(starting_code_point);
+        if (!has_preceding && !is_first_letter_character(starting_code_point))
+            continue;
+
+        if (has_preceding) {
+            // Preceding group: P followed by (Zs|P)*.
+            cursor = advance_cluster(cursor);
+            while (cursor < code_units) {
+                auto code_point = view.code_point_at(cursor);
+                if (!Unicode::code_point_has_punctuation_general_category(code_point)
+                    && !is_preceding_intervening_space(code_point))
+                    break;
+                cursor = advance_cluster(cursor);
+            }
+        }
+
+        // The letter (L|N|S) must follow the preceding group. If the preceding punctuation consumed the entire text
+        // node, accept it as the first-letter.
+        if (cursor >= code_units)
+            return FirstLetterTarget { text_node, match_start, cursor };
+        if (!is_first_letter_character(view.code_point_at(cursor)))
+            continue;
+
+        auto letter_end = advance_cluster(cursor);
+
+        // Trailing group: greedy match of (Zs|P-(Ps|Pd))*.
+        while (letter_end < code_units) {
+            auto code_point = view.code_point_at(letter_end);
+            if (!is_trailing_intervening_space(code_point) && !is_trailing_punctuation(code_point))
+                break;
+            letter_end = advance_cluster(letter_end);
+        }
+
+        return FirstLetterTarget { text_node, match_start, letter_end };
+    }
+    return {};
+}
+
+// https://drafts.csswg.org/css-pseudo-4/#first-letter-application
+static Optional<FirstLetterTarget> find_first_letter_in_block(BlockContainer& block)
+{
+    // NB: This walks a block container's inline descendants looking for the first-letter text. If the block has block
+    //     children instead of inline, recurses into each in-flow block child in turn.
+
+    auto is_marker_content = [](Node const& node) {
+        return is<ListItemMarkerBox>(node) || node.generated_for_pseudo_element() == CSS::PseudoElement::Marker;
+    };
+
+    if (block.children_are_inline()) {
+        Optional<FirstLetterTarget> result;
+        block.for_each_in_subtree([&](Node& node) {
+            if (is_marker_content(node) || node.is_out_of_flow())
+                return TraversalDecision::SkipChildrenAndContinue;
+            if (auto* text_node = as_if<TextNode>(node)) {
+                result = find_first_letter_in_text(*text_node);
+                return result.has_value() ? TraversalDecision::Break : TraversalDecision::Continue;
+            }
+            if (is<InlineNode>(node))
+                return TraversalDecision::Continue;
+
+            return TraversalDecision::Break;
+        });
+        return result;
+    }
+
+    // We have no inline content of our own but ::first-letter can still apply to text in an in-flow block descendant,
+    // so walk into each in-flow block child in document order until one yields a letter.
+    for (auto* child = block.first_child(); child; child = child->next_sibling()) {
+        if (is_marker_content(*child))
+            continue;
+        if (child->is_out_of_flow())
+            continue;
+        auto* inner_block = as_if<BlockContainer>(*child);
+        if (!inner_block)
+            break;
+        // Stop descending if this child block defines its own ::first-letter: the child will style the first letter
+        // inside it, so the ancestor's ::first-letter must not also claim the same letter.
+        if (auto* dom_element = as_if<DOM::Element>(inner_block->dom_node()); dom_element && dom_element->computed_properties(CSS::PseudoElement::FirstLetter))
+            break;
+        if (auto target = find_first_letter_in_block(*inner_block); target.has_value())
+            return target;
+        if (!inner_block->is_anonymous())
+            break;
+    }
+    return {};
+}
+
+void TreeBuilder::create_first_letter_wrapper_if_needed(DOM::Element& element, BlockContainer& block_container)
+{
+    auto first_letter_style = element.computed_properties(CSS::PseudoElement::FirstLetter);
+    if (!first_letter_style)
+        return;
+
+    auto target = find_first_letter_in_block(block_container);
+    if (!target.has_value())
+        return;
+
+    auto& text_node = *target->text_node;
+    auto& dom_text = const_cast<DOM::Text&>(text_node.dom_node());
+    auto const full_length = dom_text.data().length_in_code_units();
+
+    auto const letter_end = target->letter_end;
+
+    auto& document = element.document();
+    auto& heap = document.heap();
+
+    auto remainder_slice = heap.allocate<TextSliceNode>(document, dom_text, Node::AttachToDOMNode::Yes, letter_end, full_length - letter_end);
+    auto first_letter_slice = heap.allocate<TextSliceNode>(document, dom_text, Node::AttachToDOMNode::No, 0, letter_end);
+    remainder_slice->set_first_letter_slice(*first_letter_slice);
+
+    auto first_letter_wrapper = heap.allocate<InlineNode>(document, nullptr, *first_letter_style);
+    first_letter_wrapper->set_generated_for(CSS::PseudoElement::FirstLetter, element);
+    first_letter_wrapper->set_children_are_inline(true);
+    first_letter_wrapper->append_child(*first_letter_slice);
+    element.set_pseudo_element_node({}, CSS::PseudoElement::FirstLetter, first_letter_wrapper);
+
+    auto* parent = text_node.parent();
+    VERIFY(parent);
+    parent->insert_before(*first_letter_wrapper, text_node);
+    parent->insert_before(*remainder_slice, text_node);
+    parent->remove_child(text_node);
+}
 
 GC::Ptr<NodeWithStyle> TreeBuilder::create_pseudo_element_if_needed(DOM::Element& element, CSS::PseudoElement pseudo_element, Optional<AppendOrPrepend> insertion_mode)
 {
@@ -998,6 +1201,9 @@ void TreeBuilder::update_layout_tree_after_children(DOM::Node& dom_node, GC::Ref
 
         create_pseudo_element_if_needed(element, CSS::PseudoElement::After, AppendOrPrepend::Append);
         pop_parent();
+
+        if (auto* block_container = as_if<BlockContainer>(*layout_node))
+            create_first_letter_wrapper_if_needed(element, *block_container);
     }
 
     // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements

@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<title>CSS Test: A child's ::marker should be excluded when finding the ::first-letter content</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#application-in-css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-exclude-block-child-marker-ref.html">
+<style>
+body { margin-left: 5em; font-size: 12px; }
+li, o { list-style-position: inside }
+li::first-letter { color: green }
+li:first-child > * { list-style-type: lower-alpha; list-style-type: 'marker ' }
+li:last-child > ::marker { content: 'marker ' }
+span, o { display:list-item; }
+</style>
+<ol>
+  <li><span>item</span>after</li>
+  <li><span>item</span>after</li>
+</ol>
+<ul>
+  <li><span>item</span>after</li>
+  <li><span>item</span>after</li>
+</ul>
+<ol>
+  <li><o>item</o>after</li>
+  <li><o>item</o>after</li>
+</ol>
+<ul>
+  <li><o>item</o>after</li>
+  <li><o>item</o>after</li>
+</ul>

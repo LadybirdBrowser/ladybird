@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/first-letter-trailing-exclusions-ref.html">
+<style>
+  div { font-size: 36px; font-family: serif; line-height: 1.2; }
+  div::first-letter { color: green; }
+</style>
+<p>Test passes if only the <strong>green</strong> portions at the start of each line match the reference.</p>
+
+<!-- Ps (Open Punctuation) should be EXCLUDED from the trailing run. -->
+<div>(A(est</div>
+<div>[A[est</div>
+<div>{A{est</div>
+
+<!-- Pd (Dash Punctuation) should be EXCLUDED from the trailing run. -->
+<div>-A-est</div>
+
+<!-- Pe (Close Punctuation) should be INCLUDED in the trailing run. -->
+<div>(A)est</div>
+
+<!-- Pi / Pf (Initial / Final Quote Punctuation) should be INCLUDED. -->
+<div>&#x201c;A&#x201d;est</div>
+
+<!-- Po (Other Punctuation) should be INCLUDED. -->
+<div>A!est</div>
+
+<!-- Word separator (ASCII space) should BREAK the trailing run after the first punctuation. -->
+<div>A! !est</div>
+
+<!-- Word separator (NBSP) should BREAK the trailing run. -->
+<div>A!&#xa0;!est</div>
+
+<!-- Ps in preceding position is still INCLUDED (only the trailing run excludes Ps/Pd). -->
+<div>(A est</div>
+
+<!-- Pd in preceding position is still INCLUDED. -->
+<div>-A est</div>

@@ -121,6 +121,7 @@ public:
     virtual bool is_inline_node() const { return false; }
     virtual bool is_break_node() const { return false; }
     virtual bool is_text_node() const { return false; }
+    virtual bool is_text_slice_node() const { return false; }
     virtual bool is_viewport() const { return false; }
     virtual bool is_svg_box() const { return false; }
     virtual bool is_svg_geometry_box() const { return false; }
@@ -234,11 +235,12 @@ public:
     [[nodiscard]] bool has_been_wrapped_in_table_wrapper() const { return m_has_been_wrapped_in_table_wrapper; }
     void set_has_been_wrapped_in_table_wrapper(bool value) { m_has_been_wrapped_in_table_wrapper = value; }
 
-protected:
     enum class AttachToDOMNode {
         No,
         Yes,
     };
+
+protected:
     Node(DOM::Document&, DOM::Node*, AttachToDOMNode = AttachToDOMNode::Yes);
 
     virtual void visit_edges(Cell::Visitor&) override;

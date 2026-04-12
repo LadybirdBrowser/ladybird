@@ -33,6 +33,23 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode att
 
 TextNode::~TextNode() = default;
 
+GC_DEFINE_ALLOCATOR(TextSliceNode);
+
+TextSliceNode::TextSliceNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode attach_to_dom_node, size_t dom_start_offset, size_t dom_length)
+    : TextNode(document, text, attach_to_dom_node)
+    , m_dom_start_offset(dom_start_offset)
+    , m_dom_length_in_code_units(dom_length)
+{
+}
+
+TextSliceNode::~TextSliceNode() = default;
+
+void TextSliceNode::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_first_letter_slice);
+}
+
 // https://w3c.github.io/mathml-core/#new-text-transform-values
 static Utf16String apply_math_auto_text_transform(Utf16String const& string)
 {
@@ -328,6 +345,8 @@ void TextNode::compute_text_for_rendering()
     auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
     auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
     auto text = apply_text_transform(dom_node().data(), computed_values().text_transform(), lang);
+    if (dom_start_offset() > 0 || dom_length() < dom_node().data().length_in_code_units())
+        text = Utf16String::from_utf16(text.utf16_view().substring_view(dom_start_offset(), dom_length()));
 
     // The logic below deals with converting whitespace characters. If we don't have them, return early.
     if (text.is_empty() || !any_of(text, is_ascii_space)) {

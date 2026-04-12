@@ -583,6 +583,24 @@ void LayoutState::commit(Box& root)
             transfer_box_model_metrics(line_paintable->box_model(), *used_values);
     }
 
+    // Ensure anonymous InlineNode ancestors of painted InlineNodes also get paintables. This handles cases like
+    // ::first-letter inside ::before, where the first-letter wrapper has a paintable but the ::before InlineNode above
+    // it does not.
+    for (auto const& paintable : inline_node_paintables.values()) {
+        for (auto const* ancestor = paintable->layout_node().parent(); ancestor; ancestor = ancestor->parent()) {
+            if (!is<InlineNode>(*ancestor) || ancestor->dom_node())
+                break;
+            auto& inline_ancestor = const_cast<InlineNode&>(static_cast<InlineNode const&>(*ancestor));
+            if (inline_ancestor.first_paintable())
+                break;
+            auto line_paintable = inline_ancestor.create_paintable_for_line_with_index(paintable->line_index());
+            inline_ancestor.add_paintable(line_paintable);
+            inline_node_paintables.set(line_paintable.ptr());
+            if (auto const* used_values = try_get(inline_ancestor))
+                transfer_box_model_metrics(line_paintable->box_model(), *used_values);
+        }
+    }
+
     // Resolve relative positions for regular boxes (not line box fragments):
     // NOTE: This needs to occur before fragments are transferred into the corresponding inline paintables, because
     //       after this transfer, the containing_line_box_fragment will no longer be valid.

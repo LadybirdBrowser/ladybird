@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<title>CSS Test: The element's own ::marker should be skipped when finding the ::first-letter content</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#application-in-css">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-exclude-inline-marker-ref.html">
+<style>
+body { margin-left: 5em; }
+ibi::first-letter, ibo::first-letter { color: green }
+li:first-child > * { list-style-type: lower-alpha; list-style-type: 'marker ' }
+li:last-child > ::marker { content: 'marker ' }
+ibi { display:inline flow-root list-item; list-style-position: inside; }
+ibo { display:inline flow-root list-item; list-style-position: outside; }
+</style>
+<ol>
+  <li><ibi>item</ibi>after</li>
+  <li><ibi>item</ibi>after</li>
+</ol>
+<ul>
+  <li><ibi>item</ibi>after</li>
+  <li><ibi>item</ibi>after</li>
+</ul>
+<ol>
+  <li><ibo>item</ibo>after</li>
+  <li><ibo>item</ibo>after</li>
+</ol>
+<ul>
+  <li><ibo>item</ibo>after</li>
+  <li><ibo>item</ibo>after</li>
+</ul>

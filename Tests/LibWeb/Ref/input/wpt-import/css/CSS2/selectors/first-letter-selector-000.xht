@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <title>CSS Test: :first-letter in XML</title>
+  <link rel="author" title="Ian Hickson" href="mailto:ian@hixie.ch"/>
+  <link rel="alternate" href="http://www.hixie.ch/tests/adhoc/css/selectors/first-letter/001.xml" type="application/xhtml+xml"/>
+  <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#first-letter" />
+  <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-selector-000-ref.html" />
+  <style type="text/css">
+   .test { float: left; font: 2em sans-serif; }
+   .test:first-letter { color: green; }
+  </style>
+ </head>
+ <body>
+  <p>This next line should be green:</p>
+  <div class="test">T</div>
+  <div class="test"><![CDATA[E]]></div>
+  <div class="test">&#x0053;</div>
+  <div class="test"><div>T</div></div> <!-- debatable, CSS2.1 should clarify this -->
+  <div class="test"> I </div>
+  <div class="test"><!-- FAIL -->N</div>
+  <div class="test">
+G</div>
+ </body>
+</html>

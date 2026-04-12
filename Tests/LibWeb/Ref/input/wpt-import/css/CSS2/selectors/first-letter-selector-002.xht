@@ -1,0 +1,21 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: First-letter pseudo-element with image missing alt text</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/selector.html#first-letter" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/selectors/first-letter-selector-002-ref.html" />
+        <meta name="flags" content="image" />
+        <meta name="assert" content="If there is preceding content (an image) or alt text the :first-letter pseudo-element does not match the first letter." />
+        <style type="text/css">
+            #div1:first-letter
+            {
+                color: red;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is no red visible on the page.</p>
+        <div id="div1"><img alt="15x15 blue box" src="support/blue15x15.png" />Filler Text</div>
+    </body>
+</html>

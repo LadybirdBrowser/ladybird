@@ -22,6 +22,7 @@ public:
     struct TextPosition {
         GC::Ref<DOM::Text> dom_node;
         size_t start_offset { 0 };
+        size_t dom_offset_within_node { 0 };
     };
     struct TextBlock {
         Utf16String text;

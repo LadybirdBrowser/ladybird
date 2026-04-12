@@ -45,6 +45,7 @@
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Layout/TextOffsetMapping.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/PaintableBox.h>
 #include <LibWeb/Selection/Selection.h>
@@ -331,13 +332,16 @@ static Vector<Variant<Utf16String, RequiredLineBreakCount>> rendered_text_collec
     //    element. Soft hyphens should be preserved. [CSSTEXT]
 
     if (auto const* layout_text_node = as_if<Layout::TextNode>(layout_node)) {
-        Layout::TextNode::ChunkIterator iterator { *layout_text_node, false, false };
-        while (true) {
-            auto chunk = iterator.next();
-            if (!chunk.has_value())
-                break;
-            items.append(Utf16String::from_utf16(chunk.release_value().view));
-        }
+        Layout::TextOffsetMapping mapping { layout_text_node->dom_node() };
+        mapping.for_each_fragment([&](Layout::TextNode const& slice) {
+            Layout::TextNode::ChunkIterator iterator { slice, false, false };
+            while (true) {
+                auto chunk = iterator.next();
+                if (!chunk.has_value())
+                    break;
+                items.append(Utf16String::from_utf16(chunk.release_value().view));
+            }
+        });
         return items;
     }
 

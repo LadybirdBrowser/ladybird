@@ -1811,7 +1811,8 @@ GC::Ptr<ComputedProperties> StyleComputer::compute_style_impl(DOM::AbstractEleme
     style_scope.build_rule_cache_if_needed();
 
     // Special path for elements that represent a pseudo-element in some element's internal shadow tree.
-    if (abstract_element.element().use_pseudo_element().has_value()) {
+    // FirstLetter is excluded so that ::first-letter rules can match against such elements normally.
+    if (abstract_element.element().use_pseudo_element().has_value() && abstract_element.pseudo_element() != CSS::PseudoElement::FirstLetter) {
         auto& element = abstract_element.element();
         auto& host_element = *element.root().parent_or_shadow_host_element();
 

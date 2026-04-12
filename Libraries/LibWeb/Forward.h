@@ -955,6 +955,7 @@ class ReplacedBox;
 class SVGSVGBox;
 class TableWrapper;
 class TextNode;
+class TextOffsetMapping;
 class TreeBuilder;
 class VideoBox;
 class Viewport;
