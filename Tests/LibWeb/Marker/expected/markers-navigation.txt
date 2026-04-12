@@ -1,1 +1,3 @@
-FAIL no navigation markers
+FAIL no Document::create
+FAIL no DOMLoading
+PASS DOMInteractive found

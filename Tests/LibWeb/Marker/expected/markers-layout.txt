@@ -1,1 +1,4 @@
-FAIL no Style or Layout markers
+PASS Style marker found
+PASS Layout marker found
+PASS Style is Interval
+PASS Layout is Interval

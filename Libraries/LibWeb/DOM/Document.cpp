@@ -21,6 +21,7 @@
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <AK/Utf8View.h>
+#include <LibCore/Markers.h>
 #include <LibCore/Timer.h>
 #include <LibGC/RootVector.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -491,6 +492,8 @@ GC::Ref<Document> Document::construct_impl(JS::Realm& realm)
 
 GC::Ref<Document> Document::create(JS::Realm& realm, URL::URL const& url)
 {
+    MARKER_INSTANT("Document::create"sv, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, url.to_string() } });
     return realm.create<Document>(realm, url);
 }
 
@@ -1498,6 +1501,12 @@ void Document::update_layout(UpdateLayoutReason reason)
     ScopeGuard guard = [&] { m_is_running_update_layout = false; };
     m_is_running_update_layout = true;
 
+    MARKER_SCOPE_FIELDS("Layout"sv, "Layout"sv, Core::MarkerCategory::Layout,
+        {
+            { "viewportWidth"sv, static_cast<double>(viewport_rect().width().to_double()) },
+            { "viewportHeight"sv, static_cast<double>(viewport_rect().height().to_double()) },
+        });
+
     update_style();
 
     if (layout_is_up_to_date())
@@ -1784,6 +1793,11 @@ void Document::update_style()
     // style change event. [CSS-Transitions-2]
     m_transition_generation++;
 
+    MARKER_SCOPE_FIELDS("Recalculate Style"sv, "Style"sv, Core::MarkerCategory::Style,
+        {
+            { "kind"sv, needs_full_style_update() ? "full"sv : "incremental"sv },
+        });
+
     if (m_needs_invalidation_of_elements_affected_by_has) {
         m_needs_invalidation_of_elements_affected_by_has = false;
         style_scope().invalidate_style_of_elements_affected_by_has();
@@ -1820,6 +1834,7 @@ void Document::update_style()
 
     if (invalidation.rebuild_stacking_context_tree)
         invalidate_stacking_context_tree();
+
     m_needs_full_style_update = false;
 }
 
@@ -3354,6 +3369,21 @@ void Document::update_readiness(HTML::DocumentReadyState readiness_value)
 
     // 2. Set document's current document readiness to readinessValue.
     m_readiness = readiness_value;
+
+    StringView readiness_marker_name;
+    switch (readiness_value) {
+    case HTML::DocumentReadyState::Loading:
+        readiness_marker_name = "Navigation::DOMLoading"sv;
+        break;
+    case HTML::DocumentReadyState::Interactive:
+        readiness_marker_name = "Navigation::DOMInteractive"sv;
+        break;
+    case HTML::DocumentReadyState::Complete:
+        readiness_marker_name = "Navigation::DOMComplete"sv;
+        break;
+    }
+    MARKER_INSTANT(readiness_marker_name, "Text"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, url().to_string() } });
 
     // 3. If document is associated with an HTML parser, then:
     if (m_parser) {
@@ -5263,7 +5293,11 @@ void Document::queue_intersection_observer_task()
 
             // 5. Invoke callback with queue as the first argument, observer as the second argument, and observer as the callback this value. If this throws an exception, report the exception.
             // NOTE: This does not follow the spec as written precisely, but this is the same thing we do elsewhere and there is a WPT test that relies on this.
+            MARKER_START_TIME(intersection_observer_marker_start);
             (void)WebIDL::invoke_callback(callback, observer.ptr(), WebIDL::ExceptionBehavior::Report, { { wrapped_queue, observer.ptr() } });
+            MARKER_INTERVAL("IntersectionObserver callback"sv, "Text"sv,
+                Core::MarkerCategory::DOM, intersection_observer_marker_start,
+                { { "name"sv, MUST(String::formatted("{} entries", queue.size())) } });
         }
     }));
 }
@@ -6601,7 +6635,11 @@ size_t Document::broadcast_active_resize_observations()
         }
 
         // 4. Invoke observer.[[callback]] with entries.
+        MARKER_START_TIME(resize_observer_marker_start);
         observer->invoke_callback(entries);
+        MARKER_INTERVAL("ResizeObserver callback"sv, "Text"sv,
+            Core::MarkerCategory::Layout, resize_observer_marker_start,
+            { { "name"sv, MUST(String::formatted("{} entries", entries.size())) } });
 
         // 5. Clear observer.[[activeTargets]].
         observer->active_targets().clear();
@@ -7445,6 +7483,12 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
 {
     if (m_cached_display_list && m_cached_display_list_paint_config == config)
         return m_cached_display_list;
+
+    MARKER_SCOPE_FIELDS("Paint"sv, "Paint"sv, Core::MarkerCategory::Paint,
+        {
+            { "viewportWidth"sv, static_cast<double>(viewport_rect().width().to_double()) },
+            { "viewportHeight"sv, static_cast<double>(viewport_rect().height().to_double()) },
+        });
 
     update_paint_and_hit_testing_properties_if_needed();
     VERIFY(paintable());
