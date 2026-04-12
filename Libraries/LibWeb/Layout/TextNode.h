@@ -17,7 +17,7 @@ namespace Web::Layout {
 
 class LineBoxFragment;
 
-class TextNode final : public Node {
+class TextNode : public Node {
     GC_CELL(TextNode, Node);
     GC_DECLARE_ALLOCATOR(TextNode);
 
@@ -84,6 +84,9 @@ public:
     Unicode::Segmenter& line_segmenter() const;
 
     virtual RefPtr<Painting::Paintable> create_paintable() const override;
+
+protected:
+    TextNode(DOM::Document&, DOM::Text&, AttachToDOMNode);
 
 private:
     virtual bool is_text_node() const final { return true; }
