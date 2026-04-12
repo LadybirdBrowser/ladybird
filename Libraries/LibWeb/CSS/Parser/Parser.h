@@ -21,7 +21,6 @@
 #include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 #include <LibWeb/CSS/Parser/ComponentValue.h>
-#include <LibWeb/CSS/Parser/Dimension.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/TokenStream.h>
 #include <LibWeb/CSS/Parser/Tokenizer.h>
@@ -339,7 +338,6 @@ private:
 
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
 
-    Optional<Dimension> parse_dimension(ComponentValue const&);
     Optional<AnglePercentage> parse_angle_percentage(TokenStream<ComponentValue>&);
     Optional<FrequencyPercentage> parse_frequency_percentage(TokenStream<ComponentValue>&);
     Optional<LengthPercentage> parse_length_percentage(TokenStream<ComponentValue>&);

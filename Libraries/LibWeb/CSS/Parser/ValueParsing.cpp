@@ -212,46 +212,6 @@ Optional<Vector<ComponentValue>> Parser::parse_declaration_value(TokenStream<Com
     return top_level_declaration_value;
 }
 
-Optional<Dimension> Parser::parse_dimension(ComponentValue const& component_value)
-{
-    if (component_value.is(Token::Type::Dimension)) {
-        auto numeric_value = component_value.token().dimension_value();
-        auto unit_string = component_value.token().dimension_unit();
-
-        if (auto length_type = string_to_length_unit(unit_string); length_type.has_value())
-            return Length { numeric_value, length_type.release_value() };
-
-        if (auto angle_type = string_to_angle_unit(unit_string); angle_type.has_value())
-            return Angle { numeric_value, angle_type.release_value() };
-
-        if (auto flex_type = string_to_flex_unit(unit_string); flex_type.has_value())
-            return Flex { numeric_value, flex_type.release_value() };
-
-        if (auto frequency_type = string_to_frequency_unit(unit_string); frequency_type.has_value())
-            return Frequency { numeric_value, frequency_type.release_value() };
-
-        if (auto resolution_type = string_to_resolution_unit(unit_string); resolution_type.has_value())
-            return Resolution { numeric_value, resolution_type.release_value() };
-
-        if (auto time_type = string_to_time_unit(unit_string); time_type.has_value())
-            return Time { numeric_value, time_type.release_value() };
-    }
-
-    if (component_value.is(Token::Type::Percentage))
-        return Percentage { component_value.token().percentage() };
-
-    if (component_value.is(Token::Type::Number)) {
-        auto numeric_value = component_value.token().number_value();
-        if (numeric_value == 0)
-            return Length::make_px(0);
-
-        if (context_allows_quirky_length())
-            return Length::make_px(CSSPixels::nearest_value_for(numeric_value));
-    }
-
-    return {};
-}
-
 Optional<AnglePercentage> Parser::parse_angle_percentage(TokenStream<ComponentValue>& tokens)
 {
     if (auto value = parse_angle_percentage_value(tokens)) {
