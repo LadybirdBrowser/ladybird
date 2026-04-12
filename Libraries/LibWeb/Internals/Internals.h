@@ -109,6 +109,9 @@ public:
     void clear_element(HTML::HTMLElement&);
     void set_environments_top_level_url(StringView url);
 
+    GC::RootVector<JS::Object*> collect_markers(Optional<String> const& type);
+    void clear_markers();
+
 private:
     explicit Internals(JS::Realm&);
 

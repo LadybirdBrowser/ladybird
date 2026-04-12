@@ -89,4 +89,7 @@ interface Internals {
 
     undefined clearElement(HTMLElement element);
 
+    sequence<object> collectMarkers(optional DOMString type);
+    undefined clearMarkers();
+
 };

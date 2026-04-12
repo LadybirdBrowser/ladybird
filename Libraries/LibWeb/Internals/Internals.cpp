@@ -6,6 +6,7 @@
  */
 
 #include <AK/JsonObject.h>
+#include <LibCore/MarkerCollector.h>
 #include <LibGfx/Cursor.h>
 #include <LibJS/Runtime/Date.h>
 #include <LibJS/Runtime/VM.h>
@@ -590,6 +591,76 @@ void Internals::set_environments_top_level_url(StringView url)
 {
     auto& realm = *vm().current_realm();
     HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
+}
+
+static StringView marker_phase_string(Core::MarkerPhase phase)
+{
+    switch (phase) {
+    case Core::MarkerPhase::Instant:
+        return "Instant"sv;
+    case Core::MarkerPhase::Interval:
+        return "Interval"sv;
+    case Core::MarkerPhase::IntervalStart:
+        return "IntervalStart"sv;
+    case Core::MarkerPhase::IntervalEnd:
+        return "IntervalEnd"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+GC::RootVector<JS::Object*> Internals::collect_markers(Optional<String> const& type_filter)
+{
+    auto& realm = this->realm();
+    GC::RootVector<JS::Object*> result(realm.heap());
+    auto* collector = Core::g_marker_collector;
+    if (!collector)
+        return result;
+
+    auto base_time = collector->creation_time();
+
+    auto markers_snapshot = collector->take_markers_snapshot();
+    for (auto const& marker : markers_snapshot) {
+        if (type_filter.has_value() && marker.type != type_filter->bytes_as_string_view())
+            continue;
+
+        auto obj = JS::Object::create(realm, nullptr);
+
+        auto name_sv = marker.name.visit(
+            [](StringView sv) { return sv; },
+            [](String const& s) { return s.bytes_as_string_view(); });
+        obj->define_direct_property("name"_utf16_fly_string, JS::PrimitiveString::create(vm(), name_sv), JS::default_attributes);
+        obj->define_direct_property("type"_utf16_fly_string, JS::PrimitiveString::create(vm(), marker.type), JS::default_attributes);
+        obj->define_direct_property("phase"_utf16_fly_string, JS::PrimitiveString::create(vm(), marker_phase_string(marker.phase)), JS::default_attributes);
+        obj->define_direct_property("category"_utf16_fly_string, JS::PrimitiveString::create(vm(), Core::marker_category_name(marker.category)), JS::default_attributes);
+
+        auto start_ms = static_cast<double>((marker.start - base_time).to_nanoseconds()) / 1'000'000.0;
+        auto end_ms = static_cast<double>((marker.end - base_time).to_nanoseconds()) / 1'000'000.0;
+        obj->define_direct_property("startTime"_utf16_fly_string, JS::Value(start_ms), JS::default_attributes);
+        obj->define_direct_property("endTime"_utf16_fly_string, JS::Value(end_ms), JS::default_attributes);
+
+        auto fields = JS::Object::create(realm, nullptr);
+        for (auto const& field : marker.fields) {
+            auto value = field.value.visit(
+                [&](StringView sv) -> JS::Value { return JS::PrimitiveString::create(vm(), sv); },
+                [&](String const& s) -> JS::Value { return JS::PrimitiveString::create(vm(), s); },
+                [&](double number) -> JS::Value { return JS::Value(number); },
+                [&](i64 integer) -> JS::Value { return JS::Value(static_cast<double>(integer)); },
+                [&](size_t count) -> JS::Value { return JS::Value(static_cast<double>(count)); },
+                [&](bool flag) -> JS::Value { return JS::Value(flag); });
+            fields->define_direct_property(Utf16FlyString::from_utf8(field.key), value, JS::default_attributes);
+        }
+        obj->define_direct_property("fields"_utf16_fly_string, fields, JS::default_attributes);
+
+        result.append(obj.ptr());
+    }
+
+    return result;
+}
+
+void Internals::clear_markers()
+{
+    if (auto* collector = Core::g_marker_collector)
+        collector->clear();
 }
 
 }
