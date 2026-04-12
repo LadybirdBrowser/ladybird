@@ -54,13 +54,4 @@ double Frequency::to_hertz() const
     return ratio_between_units(m_unit, FrequencyUnit::Hz) * m_value;
 }
 
-Frequency Frequency::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Frequency const& reference_value)
-{
-    CalculationResolutionContext context {
-        .percentage_basis = reference_value,
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-    };
-    return calculated->resolve_frequency(context).value();
-}
-
 }

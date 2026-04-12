@@ -45,8 +45,6 @@ public:
         return 0;
     }
 
-    static Frequency resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const&, Layout::Node const&, Frequency const& reference_value);
-
 private:
     FrequencyUnit m_unit;
     double m_value { 0 };

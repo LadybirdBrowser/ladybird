@@ -338,12 +338,6 @@ private:
 
     Optional<Descriptor> convert_to_descriptor(AtRuleID, Declaration const&);
 
-    Optional<AnglePercentage> parse_angle_percentage(TokenStream<ComponentValue>&);
-    Optional<FrequencyPercentage> parse_frequency_percentage(TokenStream<ComponentValue>&);
-    Optional<LengthPercentage> parse_length_percentage(TokenStream<ComponentValue>&);
-    Optional<NumberPercentage> parse_number_percentage(TokenStream<ComponentValue>&);
-    Optional<TimePercentage> parse_time_percentage(TokenStream<ComponentValue>&);
-
     RefPtr<StyleValue const> parse_source_size_value(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(TokenStream<ComponentValue>&);
     Optional<Gfx::UnicodeRange> parse_unicode_range(StringView);

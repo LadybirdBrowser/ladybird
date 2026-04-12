@@ -85,13 +85,4 @@ double Time::to_milliseconds() const
     return ratio_between_units(m_unit, TimeUnit::Ms) * m_value;
 }
 
-Time Time::resolve_calculated(NonnullRefPtr<CalculatedStyleValue const> const& calculated, Layout::Node const& layout_node, Time const& reference_value)
-{
-    CalculationResolutionContext context {
-        .percentage_basis = reference_value,
-        .length_resolution_context = Length::ResolutionContext::for_layout_node(layout_node),
-    };
-    return calculated->resolve_time(context).value();
-}
-
 }
