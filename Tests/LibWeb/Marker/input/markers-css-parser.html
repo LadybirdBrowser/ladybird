@@ -1,0 +1,20 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+
+    const style = document.createElement("style");
+    style.textContent = ".test { color: red; font-size: 16px; }";
+    document.head.appendChild(style);
+
+    document.body.offsetHeight;
+
+    const markers = internals.collectMarkers("ParseCSS");
+    if (markers.length === 0) {
+        println("FAIL no ParseCSS marker");
+        return;
+    }
+    println("PASS ParseCSS marker found");
+    println(markers[0].phase === "Interval" ? "PASS ParseCSS is Interval" : "FAIL ParseCSS phase: " + markers[0].phase);
+});
+</script>

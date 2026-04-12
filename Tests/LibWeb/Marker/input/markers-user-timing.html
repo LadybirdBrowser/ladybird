@@ -1,0 +1,21 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+
+    performance.mark("test-mark");
+    performance.measure("test-measure", "test-mark");
+
+    const markers = internals.collectMarkers("UserTiming");
+    const mark = markers.find(m => m.fields.name === "test-mark" && m.fields.entryType === "mark");
+    const measure = markers.find(m => m.fields.name === "test-measure" && m.fields.entryType === "measure");
+    if (!mark && !measure) {
+        println("FAIL no UserTiming markers");
+        return;
+    }
+    println(mark ? "PASS mark found" : "FAIL no mark");
+    println(mark?.phase === "Instant" ? "PASS mark is Instant" : "FAIL mark phase: " + mark?.phase);
+    println(measure ? "PASS measure found" : "FAIL no measure");
+    println(measure?.phase === "Instant" ? "PASS measure is Instant" : "FAIL measure phase: " + measure?.phase);
+});
+</script>

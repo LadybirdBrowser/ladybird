@@ -1,0 +1,2 @@
+PASS markers exist before clear
+PASS no markers after clear

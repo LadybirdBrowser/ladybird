@@ -1,0 +1,19 @@
+<button id="b">click</button>
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+    document.getElementById("b").click();
+
+    const markers = internals.collectMarkers("DOMEvent");
+    const click = markers.find(m => m.fields.eventType === "click");
+    if (!click) {
+        println("FAIL no DOMEvent click marker");
+        return;
+    }
+    println("PASS click event found");
+    println(click.fields.target === "BUTTON" ? "PASS target is BUTTON" : "FAIL wrong target: " + click.fields.target);
+    println(typeof click.fields.bubbles === "boolean" ? "PASS bubbles is boolean" : "FAIL bubbles type");
+    println(typeof click.fields.isTrusted === "boolean" ? "PASS isTrusted is boolean" : "FAIL isTrusted type");
+});
+</script>

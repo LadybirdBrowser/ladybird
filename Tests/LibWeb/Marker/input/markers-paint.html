@@ -1,0 +1,18 @@
+<div id="d" style="width:100px;height:100px;background:red"></div>
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+
+    document.getElementById("d").style.background = "blue";
+    document.getElementById("d").offsetHeight;
+
+    const markers = internals.collectMarkers("Paint");
+    if (markers.length === 0) {
+        println("FAIL no Paint marker");
+        return;
+    }
+    println("PASS Paint marker found");
+    println(markers[0].phase === "Interval" ? "PASS Paint is Interval" : "FAIL Paint phase: " + markers[0].phase);
+});
+</script>

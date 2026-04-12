@@ -1,0 +1,4 @@
+PASS has markers
+PASS filter narrows results
+PASS all filtered are Style
+PASS unknown type returns empty

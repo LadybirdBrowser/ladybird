@@ -1,0 +1,12 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+    internals.gc();
+
+    const markers = internals.collectMarkers("GC");
+    println(markers.length > 0 ? "PASS GC marker found" : "FAIL no GC marker");
+    println(markers[0]?.phase === "Interval" ? "PASS phase is Interval" : "FAIL wrong phase: " + markers[0]?.phase);
+    println(markers[0]?.fields.kind ? "PASS has kind field" : "FAIL missing kind");
+});
+</script>

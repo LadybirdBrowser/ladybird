@@ -541,6 +541,8 @@ static ByteString test_mode_to_string(TestMode mode)
         return "Screenshot"sv;
     case TestMode::Crash:
         return "Crash"sv;
+    case TestMode::Marker:
+        return "Marker"sv;
     }
     VERIFY_NOT_REACHED();
 }
@@ -822,7 +824,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
                 });
             });
         };
-    } else if (test.mode == TestMode::Text) {
+    } else if (test.mode == TestMode::Text || test.mode == TestMode::Marker) {
         // Set up variant detection callback.
         view.on_test_variant_metadata = [&view, &context, test_index, on_test_complete](JsonValue metadata) {
             // Verify this IPC response is for the current test on this view (use index to avoid dangling pointer issues)
@@ -1243,6 +1245,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         case TestMode::Crash:
         case TestMode::Text:
         case TestMode::Layout:
+        case TestMode::Marker:
             run_dump_test(view, context, test, *url);
             return;
         case TestMode::Ref:
@@ -1355,6 +1358,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
     TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Marker", app.test_root_path), "."sv, TestMode::Marker));
     TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
     TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
     TRY(collect_screenshot_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));

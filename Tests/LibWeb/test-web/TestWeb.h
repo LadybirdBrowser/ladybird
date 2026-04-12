@@ -26,6 +26,7 @@ enum class TestMode {
     Ref,
     Screenshot,
     Crash,
+    Marker,
 };
 
 enum class TestResult {

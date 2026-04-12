@@ -1,0 +1,20 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    const markers = internals.collectMarkers();
+    println(markers.length > 0 ? "PASS markers collected" : "FAIL no markers");
+
+    const m = markers[0];
+    println("name" in m ? "PASS has name" : "FAIL missing name");
+    println("type" in m ? "PASS has type" : "FAIL missing type");
+    println("phase" in m ? "PASS has phase" : "FAIL missing phase");
+    println("category" in m ? "PASS has category" : "FAIL missing category");
+    println("fields" in m ? "PASS has fields" : "FAIL missing fields");
+    println("startTime" in m ? "PASS has startTime" : "FAIL missing startTime");
+    println("endTime" in m ? "PASS has endTime" : "FAIL missing endTime");
+
+    const validPhases = new Set(["Instant", "Interval", "IntervalStart", "IntervalEnd"]);
+    const allValid = markers.every(m => validPhases.has(m.phase));
+    println(allValid ? "PASS all phases valid" : "FAIL invalid phase found");
+});
+</script>

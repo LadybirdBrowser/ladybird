@@ -1,0 +1,12 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    const before = internals.collectMarkers();
+    println(before.length > 0 ? "PASS markers exist before clear" : "FAIL no markers before clear");
+
+    internals.clearMarkers();
+
+    const after = internals.collectMarkers();
+    println(after.length === 0 ? "PASS no markers after clear" : "FAIL markers remain after clear");
+});
+</script>

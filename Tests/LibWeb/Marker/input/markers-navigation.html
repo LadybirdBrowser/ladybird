@@ -1,0 +1,21 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    const markers = internals.collectMarkers("Text");
+    const parseHTML = markers.find(m => {
+        const name = typeof m.name === "string" ? m.name : "";
+        return name === "Parse HTML";
+    });
+    const domInteractive = markers.find(m => {
+        const name = typeof m.name === "string" ? m.name : "";
+        return name === "Navigation::DOMInteractive";
+    });
+    if (!parseHTML && !domInteractive) {
+        println("FAIL no navigation markers");
+        return;
+    }
+    println(parseHTML ? "PASS Parse HTML found" : "FAIL no Parse HTML");
+    println(parseHTML?.phase === "Interval" ? "PASS Parse HTML is Interval" : "FAIL Parse HTML phase: " + parseHTML?.phase);
+    println(domInteractive ? "PASS DOMInteractive found" : "FAIL no DOMInteractive");
+});
+</script>

@@ -1,0 +1,19 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+
+    console.time("test-timer");
+    console.timeEnd("test-timer");
+
+    const markers = internals.collectMarkers("ConsoleTime");
+    const start = markers.find(m => m.fields.name === "test-timer" && m.phase === "IntervalStart");
+    const end = markers.find(m => m.fields.name === "test-timer" && m.phase === "IntervalEnd");
+    if (!start && !end) {
+        println("FAIL no ConsoleTime markers");
+        return;
+    }
+    println(start ? "PASS console.time start found" : "FAIL no start marker");
+    println(end ? "PASS console.timeEnd end found" : "FAIL no end marker");
+});
+</script>

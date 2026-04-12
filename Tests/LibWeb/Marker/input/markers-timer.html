@@ -1,0 +1,25 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+asyncTest(done => {
+    internals.clearMarkers();
+
+    setTimeout(() => {
+        setTimeout(() => {
+            const markers = internals.collectMarkers("Text");
+            const timer = markers.find(m => {
+                const name = typeof m.name === "string" ? m.name : "";
+                return name.startsWith("setTimeout");
+            });
+            if (!timer) {
+                println("FAIL no setTimeout marker");
+                done();
+                return;
+            }
+            println("PASS setTimeout marker found");
+            println(timer.phase === "Interval" ? "PASS timer is Interval" : "FAIL timer phase: " + timer.phase);
+            println(typeof timer.fields.delay === "number" ? "PASS has delay field" : "FAIL missing delay");
+            done();
+        }, 0);
+    }, 50);
+});
+</script>

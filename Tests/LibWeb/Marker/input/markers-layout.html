@@ -1,0 +1,21 @@
+<div id="d" style="width:100px;height:100px;background:red"></div>
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    internals.clearMarkers();
+
+    document.getElementById("d").style.width = "200px";
+    document.getElementById("d").offsetHeight;
+
+    const style = internals.collectMarkers("Style");
+    const layout = internals.collectMarkers("Layout");
+    if (style.length === 0 && layout.length === 0) {
+        println("FAIL no Style or Layout markers");
+        return;
+    }
+    println(style.length > 0 ? "PASS Style marker found" : "FAIL no Style marker");
+    println(layout.length > 0 ? "PASS Layout marker found" : "FAIL no Layout marker");
+    println(style[0]?.phase === "Interval" ? "PASS Style is Interval" : "FAIL Style phase: " + style[0]?.phase);
+    println(layout[0]?.phase === "Interval" ? "PASS Layout is Interval" : "FAIL Layout phase: " + layout[0]?.phase);
+});
+</script>

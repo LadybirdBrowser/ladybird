@@ -19,6 +19,7 @@
 #include <AK/TemporaryChange.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
+#include <LibCore/Markers.h>
 #include <LibCore/StandardPaths.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Heap.h>
@@ -296,6 +297,11 @@ AK::JsonObject Heap::dump_graph()
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
+
+    MARKER_SCOPE_FIELDS("GC"sv, "GC"sv, Core::MarkerCategory::GC,
+        {
+            { "kind"sv, collection_type == CollectionType::CollectEverything ? "full"sv : "incremental"sv },
+        });
 
     {
         TemporaryChange change(m_collecting_garbage, true);

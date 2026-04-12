@@ -162,6 +162,11 @@ enum class PaintViewportScrollbars {
     No,
 };
 
+enum class CollectMarkers {
+    No,
+    Yes,
+};
+
 enum class FileSchemeUrlsHaveTupleOrigins {
     No,
     Yes,
@@ -183,6 +188,7 @@ struct WebContentOptions {
     ForceFontconfig force_fontconfig { ForceFontconfig::No };
     EnableAutoplay enable_autoplay { EnableAutoplay::No };
     CollectGarbageOnEveryAllocation collect_garbage_on_every_allocation { CollectGarbageOnEveryAllocation::No };
+    CollectMarkers collect_markers { CollectMarkers::No };
     Optional<u16> echo_server_port {};
     PaintViewportScrollbars paint_viewport_scrollbars { PaintViewportScrollbars::Yes };
     FileSchemeUrlsHaveTupleOrigins file_scheme_urls_have_tuple_origins { FileSchemeUrlsHaveTupleOrigins::No };

@@ -1,0 +1,14 @@
+<script src="../../Text/input/include.js"></script>
+<script>
+test(() => {
+    const all = internals.collectMarkers();
+    const style = internals.collectMarkers("Style");
+
+    println(all.length > 0 ? "PASS has markers" : "FAIL no markers");
+    println(all.length >= style.length ? "PASS filter narrows results" : "FAIL filter did not narrow");
+    println(style.every(m => m.type === "Style") ? "PASS all filtered are Style" : "FAIL wrong type in results");
+
+    const nonexistent = internals.collectMarkers("NonExistentType");
+    println(nonexistent.length === 0 ? "PASS unknown type returns empty" : "FAIL unknown type returned results");
+});
+</script>

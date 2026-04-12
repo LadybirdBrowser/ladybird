@@ -1,0 +1,3 @@
+PASS GC marker found
+PASS phase is Interval
+PASS has kind field

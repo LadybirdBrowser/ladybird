@@ -1,0 +1,9 @@
+PASS markers collected
+PASS has name
+PASS has type
+PASS has phase
+PASS has category
+PASS has fields
+PASS has startTime
+PASS has endTime
+PASS all phases valid
