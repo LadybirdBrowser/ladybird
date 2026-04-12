@@ -7,6 +7,7 @@ set(TEST_SOURCES
     TestLibCorePromise.cpp
     TestLibCoreSharedSingleProducerCircularQueue.cpp
     TestLibCoreStream.cpp
+    TestMarkers.cpp
 )
 
 # FIXME: Change these tests to use a portable tempfile directory

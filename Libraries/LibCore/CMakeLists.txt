@@ -12,6 +12,7 @@ set(SOURCES
     EventReceiver.cpp
     File.cpp
     MappedFile.cpp
+    MarkerCollector.cpp
     MimeData.cpp
     Notifier.cpp
     ReportTime.cpp
