@@ -109,14 +109,13 @@ void HTMLIFrameElement::post_connection()
     if (!document.browsing_context() || !document.is_fully_active())
         return;
 
-    // The iframe HTML element post-connection steps, given insertedNode, are:
-    // 1. Create a new child navigable for insertedNode.
-    create_new_child_navigable();
-
-    // 2. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
+    // 1. If insertedNode has a sandbox attribute, then parse the sandboxing directive given the attribute's
     //    value and insertedNode's iframe sandboxing flag set.
     if (auto sandbox = attribute(AttributeNames::sandbox); sandbox.has_value())
         m_iframe_sandboxing_flag_set = parse_a_sandboxing_directive(sandbox.value());
+
+    // 2. Create a new child navigable for insertedNode.
+    create_new_child_navigable();
 
     // 3. Process the iframe attributes for insertedNode, with initialInsertion set to true.
     process_the_iframe_attributes(InitialInsertion::Yes);
