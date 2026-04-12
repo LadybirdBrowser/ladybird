@@ -1939,15 +1939,18 @@ fn emit_instruction(
         "branch_bits_set" | "branch_bits_clear" => {
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);
-                let mask = resolve_op(&insn.operands[1], handler, program);
                 let label = resolve_label(&insn.operands[2], handler);
-                let cc = match m.as_str() {
-                    "branch_bits_set" => "b.ne",
-                    "branch_bits_clear" => "b.eq",
-                    _ => unreachable!(),
-                };
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
                     let uval = val as u64;
+                    if uval != 0 && uval.is_power_of_two() {
+                        let cc = match m.as_str() {
+                            "branch_bits_set" => "tbnz",
+                            "branch_bits_clear" => "tbz",
+                            _ => unreachable!(),
+                        };
+                        w!(out, "    {cc} {a}, #{}, {label}", uval.trailing_zeros());
+                        return;
+                    }
                     if is_logical_immediate(uval) {
                         w!(out, "    tst {a}, #0x{uval:x}");
                     } else {
@@ -1955,8 +1958,14 @@ fn emit_instruction(
                         w!(out, "    tst {a}, x9");
                     }
                 } else {
+                    let mask = resolve_op(&insn.operands[1], handler, program);
                     w!(out, "    tst {a}, {mask}");
                 }
+                let cc = match m.as_str() {
+                    "branch_bits_set" => "b.ne",
+                    "branch_bits_clear" => "b.eq",
+                    _ => unreachable!(),
+                };
                 w!(out, "    {cc} {label}");
             }
         }
