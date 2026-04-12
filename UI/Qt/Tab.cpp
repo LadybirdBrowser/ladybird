@@ -146,7 +146,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
     m_toolbar->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Fixed);
     // This is a little awkward, but without this Qt shrinks the button to the size of the icon.
     // Note: toolButtonStyle="0" -> ToolButtonIconOnly.
-    m_toolbar->setStyleSheet("QToolButton[toolButtonStyle=\"0\"]{width:24px;height:24px}");
+    m_toolbar->setStyleSheet("QToolButton[toolButtonStyle=\"0\"]{padding:0px 4px 0px 4px;height:24px}");
 
     m_hamburger_button_action->setVisible(!Settings::the()->show_menubar());
 
