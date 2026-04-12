@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Markers.h>
 #include <LibWeb/Bindings/PerformancePrototype.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -85,6 +86,9 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMark>> Performance::mark(Stri
 
     // 1. Run the PerformanceMark constructor and let entry be the newly created object.
     auto entry = TRY(UserTiming::PerformanceMark::construct_impl(realm, mark_name, mark_options));
+
+    MARKER_INSTANT(mark_name, "UserTiming"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, mark_name }, { "entryType"sv, "mark"sv } });
 
     // 2. Queue entry.
     window_or_worker().queue_performance_entry(entry);
@@ -305,6 +309,9 @@ WebIDL::ExceptionOr<GC::Ref<UserTiming::PerformanceMeasure>> Performance::measur
 
     // 4. Create a new PerformanceMeasure object (entry) with this's relevant realm.
     auto entry = realm.create<UserTiming::PerformanceMeasure>(realm, measure_name, start_time, duration, detail);
+
+    MARKER_INSTANT(measure_name, "UserTiming"sv, Core::MarkerCategory::DOM,
+        { { "name"sv, measure_name }, { "entryType"sv, "measure"sv }, { "startTime"sv, start_time }, { "duration"sv, duration } });
 
     // 10. Queue entry.
     window_or_worker().queue_performance_entry(entry);

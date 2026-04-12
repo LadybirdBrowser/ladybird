@@ -1,1 +1,4 @@
-FAIL no UserTiming markers
+PASS mark found
+PASS mark is Instant
+PASS measure found
+PASS measure is Instant
