@@ -2350,27 +2350,31 @@ bool Element::is_actually_disabled() const
 }
 
 // https://html.spec.whatwg.org/multipage/dynamic-markup-insertion.html#fragment-parsing-algorithm-steps
-WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(StringView markup)
+WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> Element::parse_fragment(StringView markup, HTML::ParserScriptingMode scripting_mode)
 {
-    // 1. Let algorithm be the HTML fragment parsing algorithm.
-    auto algorithm = HTML::HTMLParser::parse_html_fragment;
+    // 1. Assert: scriptingMode is either Inert or Fragment.
+    VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
 
-    // 2. If context's node document is an XML document, then set algorithm to the XML fragment parsing algorithm.
+    // 2. Let newChildren be null.
+    Vector<GC::Root<Node>> new_children;
+
+    // 3. If context's node document is an XML document, then set newChildren to the result of invoking the XML fragment parsing algorithm given context and markup.
     if (document().is_xml_document()) {
-        algorithm = XMLFragmentParser::parse_xml_fragment;
+        new_children = TRY(XMLFragmentParser::parse_xml_fragment(*this, markup));
+    }
+    // 4. Otherwise, set newChildren to the result of invoking the HTML fragment parsing algorithm given context, markup, false, and scriptingMode.
+    else {
+        new_children = TRY(HTML::HTMLParser::parse_html_fragment(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No, scripting_mode));
     }
 
-    // 3. Let newChildren be the result of invoking algorithm given context and markup.
-    auto new_children = TRY(algorithm(*this, markup, HTML::HTMLParser::AllowDeclarativeShadowRoots::No));
-
-    // 4. Let fragment be a new DocumentFragment whose node document is context's node document.
+    // 5. Let fragment be a new DocumentFragment whose node document is context's node document.
     auto fragment = realm().create<DOM::DocumentFragment>(document());
 
-    // 5. For each node of newChildren, in tree order: append node to fragment.
+    // 6. For each node of newChildren, in tree order: append node to fragment.
     for (auto& child : new_children)
         TRY(fragment->append_child(*child));
 
-    // 6. Return fragment.
+    // 7. Return fragment.
     return fragment;
 }
 

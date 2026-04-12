@@ -308,7 +308,8 @@ void XMLHttpRequest::set_document_response()
             charset = "UTF-8"_string;
 
         // 5.4. Let document be a document that represents the result parsing xhr’s received bytes following the rules set forth in the HTML Standard for an HTML parser with scripting disabled and a known definite encoding charset.
-        auto parser = HTML::HTMLParser::create(*document, m_received_bytes, charset.value());
+        auto scripting_mode = document->is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
+        auto parser = HTML::HTMLParser::create(*document, m_received_bytes, scripting_mode, charset.value());
         parser->run(document->url());
 
         // 5.5. Flag document as an HTML document.

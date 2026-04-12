@@ -1658,7 +1658,8 @@ void Navigable::populate_session_history_entry_document(
                 auto error_url = result->redirected_url.value_or(url);
                 auto error_html = load_error_page(error_url, error_message).release_value_but_fixme_should_propagate_errors();
                 output->document = create_document_for_inline_content(this, navigation_id, user_involvement, [this, error_html](auto& document) {
-                    auto parser = HTML::HTMLParser::create(document, error_html, "utf-8"sv);
+                    auto scripting_mode = document.is_scripting_enabled() ? HTML::ParserScriptingMode::Normal : HTML::ParserScriptingMode::Disabled;
+                    auto parser = HTMLParser::create(document, error_html, scripting_mode, "utf-8"sv);
                     document.set_url(URL::about_error());
                     parser->run();
 

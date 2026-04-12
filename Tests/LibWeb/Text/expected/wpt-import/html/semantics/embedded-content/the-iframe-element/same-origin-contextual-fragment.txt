@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	
+      HTML5 Sandbox: an iframe with same-origin and no allow-scripts does not
+      run scripts from a contextual fragment.
+    

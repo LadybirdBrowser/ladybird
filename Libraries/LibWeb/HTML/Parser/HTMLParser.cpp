@@ -157,9 +157,9 @@ static bool is_html_integration_point(DOM::Element const& element)
     return false;
 }
 
-HTMLParser::HTMLParser(DOM::Document& document, StringView input, StringView encoding)
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode, StringView input, StringView encoding)
     : m_tokenizer(input, encoding)
-    , m_scripting_enabled(document.is_scripting_enabled())
+    , m_scripting_mode(scripting_mode)
     , m_document(document)
 {
     m_tokenizer.set_parser({}, *this);
@@ -172,8 +172,8 @@ HTMLParser::HTMLParser(DOM::Document& document, StringView input, StringView enc
     m_document->set_encoding(MUST(String::from_utf8(standardized_encoding.value())));
 }
 
-HTMLParser::HTMLParser(DOM::Document& document)
-    : m_scripting_enabled(document.is_scripting_enabled())
+HTMLParser::HTMLParser(DOM::Document& document, ParserScriptingMode scripting_mode)
+    : m_scripting_mode(scripting_mode)
     , m_document(document)
 {
     m_document->set_parser({}, *this);
@@ -1170,16 +1170,16 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         return;
     }
 
-    // -> A start tag whose tag name is "noscript", if the scripting flag is enabled
+    // -> A start tag whose tag name is "noscript", if scripting mode is not Disabled
     // -> A start tag whose tag name is one of: "noframes", "style"
-    if (token.is_start_tag() && ((token.tag_name() == HTML::TagNames::noscript && m_scripting_enabled) || token.tag_name() == HTML::TagNames::noframes || token.tag_name() == HTML::TagNames::style)) {
+    if (token.is_start_tag() && ((token.tag_name() == HTML::TagNames::noscript && m_scripting_mode != ParserScriptingMode::Disabled) || token.tag_name() == HTML::TagNames::noframes || token.tag_name() == HTML::TagNames::style)) {
         // Follow the generic raw text element parsing algorithm.
         parse_generic_raw_text_element(token);
         return;
     }
 
-    // -> A start tag whose tag name is "noscript", if the scripting flag is disabled
-    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::noscript && !m_scripting_enabled) {
+    // -> A start tag whose tag name is "noscript", if scripting mode is Disabled
+    if (token.is_start_tag() && token.tag_name() == HTML::TagNames::noscript && m_scripting_mode == ParserScriptingMode::Disabled) {
         // Insert an HTML element for the token.
         (void)insert_html_element(token);
 
@@ -1200,18 +1200,26 @@ void HTMLParser::handle_in_head(HTMLToken& token)
         auto element = create_element_for(token, Namespace::HTML, *adjusted_insertion_location.parent);
         auto& script_element = as<HTMLScriptElement>(*element);
 
-        // 3. Set the element's parser document to the Document, and set the element's force async to false.
-        script_element.set_parser_document(Badge<HTMLParser> {}, document());
+        // 3. If the scripting mode is not Fragment, then set the element's parser document to the Document.
+        // NOTE: The Fragment scripting mode treats parser-inserted scripts as if they were not parser-inserted,
+        //       allowing, for example, executing scripts when applying a fragment created by createContextualFragment().
+        if (m_scripting_mode != ParserScriptingMode::Fragment)
+            script_element.set_parser_document(Badge<HTMLParser> {}, document());
+
+        // 4. Set the element's force async to false.
+        // NOTE: This ensures that, if the script is external, any document.write() calls in the script will execute
+        //       in-line, instead of blowing the document away, as would happen in most other cases. It also prevents
+        //       the script from executing until the end tag is seen.
         script_element.set_force_async(Badge<HTMLParser> {}, false);
+
         script_element.set_source_line_number({}, token.start_position().line + 1); // FIXME: This +1 is incorrect for script tags whose script does not start on a new line
 
-        // 4. If the parser was created as part of the HTML fragment parsing algorithm, then set the script element's
-        //    already started to true. (fragment case)
-        if (m_parsing_fragment) {
+        // 5. If the parser's scripting mode is Inert, then set the script element's already started to true. (fragment case)
+        if (m_scripting_mode == ParserScriptingMode::Inert) {
             script_element.set_already_started(Badge<HTMLParser> {}, true);
         }
 
-        // 5. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set the
+        // 6. If the parser was invoked via the document.write() or document.writeln() methods, then optionally set the
         //    script element's already started to true. (For example, the user agent might use this clause to prevent
         //    execution of cross-origin scripts inserted via document.write() under slow network conditions, or when
         //    the page has already taken a long time to load.)
@@ -1219,19 +1227,19 @@ void HTMLParser::handle_in_head(HTMLToken& token)
             TODO();
         }
 
-        // 6. Insert the newly created element at the adjusted insertion location.
+        // 7. Insert the newly created element at the adjusted insertion location.
         adjusted_insertion_location.parent->insert_before(*element, adjusted_insertion_location.insert_before_sibling, false);
 
-        // 7. Push the element onto the stack of open elements so that it is the new current node.
+        // 8. Push the element onto the stack of open elements so that it is the new current node.
         m_stack_of_open_elements.push(element);
 
-        // 8. Switch the tokenizer to the script data state.
+        // 9. Switch the tokenizer to the script data state.
         m_tokenizer.switch_to({}, HTMLTokenizer::State::ScriptData);
 
-        // 9. Set the original insertion mode to the current insertion mode.
+        // 10. Set the original insertion mode to the current insertion mode.
         m_original_insertion_mode = m_insertion_mode;
 
-        // 10. Switch the insertion mode to "text".
+        // 11. Switch the insertion mode to "text".
         m_insertion_mode = InsertionMode::Text;
         return;
     }
@@ -3029,8 +3037,8 @@ void HTMLParser::handle_in_body(HTMLToken& token)
     }
 
     // -> A start tag whose tag name is "noembed"
-    // -> A start tag whose tag name is "noscript", if the scripting flag is enabled
-    if (token.is_start_tag() && ((token.tag_name() == HTML::TagNames::noembed) || (token.tag_name() == HTML::TagNames::noscript && m_scripting_enabled))) {
+    // -> A start tag whose tag name is "noscript", if scripting mode is not Disabled
+    if (token.is_start_tag() && ((token.tag_name() == HTML::TagNames::noembed) || (token.tag_name() == HTML::TagNames::noscript && m_scripting_mode != ParserScriptingMode::Disabled))) {
         // Follow the generic raw text element parsing algorithm.
         parse_generic_raw_text_element(token);
         return;
@@ -4944,9 +4952,12 @@ DOM::Document& HTMLParser::document()
 }
 
 // https://html.spec.whatwg.org/multipage/parsing.html#parsing-html-fragments
-WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
+WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots allow_declarative_shadow_roots, ParserScriptingMode scripting_mode)
 {
-    // 1. Let document be a Document node whose type is "html".
+    // 1. Assert: scriptingMode is either Inert or Fragment.
+    VERIFY(scripting_mode == HTML::ParserScriptingMode::Inert || scripting_mode == HTML::ParserScriptingMode::Fragment);
+
+    // 2. Let document be a Document node whose type is "html".
     auto temp_document = DOM::Document::create_for_fragment_parsing(context_element.realm());
     temp_document->set_document_type(DOM::Document::Type::HTML);
 
@@ -4955,24 +4966,32 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     //         Spec issue: https://github.com/whatwg/html/issues/12210
     temp_document->set_about_base_url(context_element.document().about_base_url());
 
-    // 2. If context's node document is in quirks mode, then set document's mode to "quirks".
-    if (context_element.document().in_quirks_mode())
+    // 3. Let contextDocument be context's node document.
+    auto& context_document = context_element.document();
+
+    // 4. If contextDocument is in quirks mode, then set document's mode to "quirks".
+    if (context_document.in_quirks_mode()) {
         temp_document->set_quirks_mode(DOM::QuirksMode::Yes);
-
-    // 3. Otherwise, if context's node document is in limited-quirks mode, then set document's mode to "limited-quirks".
-    else if (context_element.document().in_limited_quirks_mode())
+    }
+    // 5. Otherwise, if context's node document is in limited-quirks mode, then set document's mode to "limited-quirks".
+    else if (context_element.document().in_limited_quirks_mode()) {
         temp_document->set_quirks_mode(DOM::QuirksMode::Limited);
+    }
 
-    // 4. If allowDeclarativeShadowRoots is true, then set document's allow declarative shadow roots to true.
+    // 6. If allowDeclarativeShadowRoots is true, then set document's allow declarative shadow roots to true.
     if (allow_declarative_shadow_roots == AllowDeclarativeShadowRoots::Yes)
         temp_document->set_allow_declarative_shadow_roots(true);
 
-    // 5. Create a new HTML parser, and associate it with document.
-    auto parser = HTMLParser::create(*temp_document, markup, "utf-8"sv);
+    // 7. Create a new HTML parser, and associate it with document.
+    // 8. If contextDocument's scripting is disabled, then set scriptingMode to Disabled.
+    // 9. Set the parser's scripting mode to scriptingMode.
+    if (context_element.document().is_scripting_disabled())
+        scripting_mode = HTML::ParserScriptingMode::Disabled;
+    auto parser = HTMLParser::create(*temp_document, markup, scripting_mode, "utf-8"sv);
     parser->m_context_element = context_element;
     parser->m_parsing_fragment = true;
 
-    // 6. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
+    // 10. Set the state of the HTML parser's tokenization stage as follows, switching on the context element:
     // - title
     // - textarea
     if (context_element.local_name().is_one_of(HTML::TagNames::title, HTML::TagNames::textarea)) {
@@ -4995,8 +5014,8 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
     }
     // - noscript
     else if (context_element.local_name().is_one_of(HTML::TagNames::noscript)) {
-        // If the scripting flag is enabled, switch the tokenizer to the RAWTEXT state. Otherwise, leave the tokenizer in the data state.
-        if (context_element.document().is_scripting_enabled())
+        // If scripting mode is not Disabled, switch the tokenizer to the RAWTEXT state. Otherwise, leave the tokenizer in the data state.
+        if (scripting_mode != HTML::ParserScriptingMode::Disabled)
             parser->m_tokenizer.switch_to({}, HTMLTokenizer::State::RAWTEXT);
     }
     // - plaintext
@@ -5009,37 +5028,37 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
         // Leave the tokenizer in the data state.
     }
 
-    // 7. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
+    // 11. Let root be the result of creating an element given document, "html", the HTML namespace, null, null, false,
     //    and context's custom element registry.
     auto root = MUST(create_element(context_element.document(), HTML::TagNames::html, Namespace::HTML, {}, {}, false, context_element.custom_element_registry()));
 
-    // 8. Append root to document.
+    // 12. Append root to document.
     MUST(temp_document->append_child(root));
 
-    // 9. Set up the HTML parser's stack of open elements so that it contains just the single element root.
+    // 13. Set up the HTML parser's stack of open elements so that it contains just the single element root.
     parser->m_stack_of_open_elements.push(root);
 
-    // 10. If context is a template element, then push "in template" onto the stack of template insertion modes
+    // 14. If context is a template element, then push "in template" onto the stack of template insertion modes
     //     so that it is the new current template insertion mode.
     if (context_element.local_name() == HTML::TagNames::template_)
         parser->m_stack_of_template_insertion_modes.append(InsertionMode::InTemplate);
 
-    // FIXME: 11. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
+    // FIXME: 15. Create a start tag token whose name is the local name of context and whose attributes are the attributes of context.
     //            Let this start tag token be the start tag token of context; e.g. for the purposes of determining if it is an HTML integration point.
 
-    // 12. Reset the parser's insertion mode appropriately.
+    // 16. Reset the parser's insertion mode appropriately.
     parser->reset_the_insertion_mode_appropriately();
 
-    // 13. Set the HTML parser's form element pointer to the nearest node to context that is a form element
+    // 17. Set the HTML parser's form element pointer to the nearest node to context that is a form element
     //     (going straight up the ancestor chain, and including the element itself, if it is a form element), if any.
     //     (If there is no such form element, the form element pointer keeps its initial value, null.)
     parser->m_form_element = context_element.first_ancestor_of_type<HTMLFormElement>();
 
-    // 14. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
-    // 15. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
+    // 18. Place the input into the input stream for the HTML parser just created. The encoding confidence is irrelevant.
+    // 19. Start the HTML parser and let it run until it has consumed all the characters just inserted into the input stream.
     parser->run(context_element.document().url());
 
-    // 16. Return root's children, in tree order.
+    // 20. Return root's children, in tree order.
     Vector<GC::Root<DOM::Node>> children;
     while (GC::Ptr<DOM::Node> child = root->first_child()) {
         MUST(root->remove_child(*child));
@@ -5051,21 +5070,23 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> HTMLParser::parse_html_fragment
 
 GC::Ref<HTMLParser> HTMLParser::create_for_scripting(DOM::Document& document)
 {
-    return document.realm().create<HTMLParser>(document);
+    auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
+    return document.realm().create<HTMLParser>(document, scripting_mode);
 }
 
 GC::Ref<HTMLParser> HTMLParser::create_with_uncertain_encoding(DOM::Document& document, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type)
 {
+    auto scripting_mode = document.is_scripting_enabled() ? ParserScriptingMode::Normal : ParserScriptingMode::Disabled;
     if (document.has_encoding())
-        return document.realm().create<HTMLParser>(document, input, document.encoding().value().to_byte_string());
+        return document.realm().create<HTMLParser>(document, scripting_mode, input, document.encoding().value().to_byte_string());
     auto encoding = run_encoding_sniffing_algorithm(document, input, maybe_mime_type);
     dbgln_if(HTML_PARSER_DEBUG, "The encoding sniffing algorithm returned encoding '{}'", encoding);
-    return document.realm().create<HTMLParser>(document, input, encoding);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
-GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, StringView encoding)
+GC::Ref<HTMLParser> HTMLParser::create(DOM::Document& document, StringView input, ParserScriptingMode scripting_mode, StringView encoding)
 {
-    return document.realm().create<HTMLParser>(document, input, encoding);
+    return document.realm().create<HTMLParser>(document, scripting_mode, input, encoding);
 }
 
 enum class AttributeMode {

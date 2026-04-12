@@ -15,7 +15,7 @@
 namespace Web {
 
 // https://html.spec.whatwg.org/multipage/xhtml.html#parsing-xhtml-fragments
-WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fragment(DOM::Element& context, StringView input, HTML::HTMLParser::AllowDeclarativeShadowRoots allow_declarative_shadow_roots)
+WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fragment(DOM::Element& context, StringView input)
 {
     // 1. Create a new XML parser.
     // NB: The feed will be used to create the parser below
@@ -69,8 +69,6 @@ WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> XMLFragmentParser::parse_xml_fr
 
     GC::Ptr<DOM::Document> document = DOM::Document::create(context.realm());
     document->set_document_type(DOM::Document::Type::XML);
-    if (allow_declarative_shadow_roots == HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes)
-        document->set_allow_declarative_shadow_roots(true);
 
     XML::Parser parser(feed.string_view(), { .resolve_named_html_entity = resolve_named_html_entity });
     XMLDocumentBuilder builder { *document, XMLScriptingSupport::Disabled };

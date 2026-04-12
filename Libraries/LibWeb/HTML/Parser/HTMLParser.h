@@ -12,6 +12,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/Parser/ListOfActiveFormattingElements.h>
+#include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 #include <LibWeb/HTML/Parser/StackOfOpenElements.h>
 #include <LibWeb/MimeSniff/MimeType.h>
 #include <LibWeb/Platform/Timer.h>
@@ -52,7 +53,7 @@ public:
 
     static GC::Ref<HTMLParser> create_for_scripting(DOM::Document&);
     static GC::Ref<HTMLParser> create_with_uncertain_encoding(DOM::Document&, ByteBuffer const& input, Optional<MimeSniff::MimeType> maybe_mime_type = {});
-    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, StringView encoding);
+    static GC::Ref<HTMLParser> create(DOM::Document&, StringView input, ParserScriptingMode, StringView encoding);
 
     void run(HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
     void run(URL::URL const&, HTMLTokenizer::StopAtInsertionPoint = HTMLTokenizer::StopAtInsertionPoint::No);
@@ -64,7 +65,7 @@ public:
         No,
         Yes,
     };
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, StringView, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No);
+    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_html_fragment(DOM::Element& context_element, StringView markup, AllowDeclarativeShadowRoots = AllowDeclarativeShadowRoots::No, ParserScriptingMode = ParserScriptingMode::Inert);
 
     enum class SerializableShadowRoots {
         No,
@@ -93,8 +94,8 @@ public:
     size_t script_nesting_level() const { return m_script_nesting_level; }
 
 private:
-    HTMLParser(DOM::Document&, StringView input, StringView encoding);
-    HTMLParser(DOM::Document&);
+    HTMLParser(DOM::Document&, ParserScriptingMode, StringView input, StringView encoding);
+    HTMLParser(DOM::Document&, ParserScriptingMode);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void initialize(JS::Realm&) override;
@@ -195,9 +196,8 @@ private:
     bool m_frameset_ok { true };
     bool m_parsing_fragment { false };
 
-    // https://html.spec.whatwg.org/multipage/parsing.html#scripting-flag
-    // The scripting flag is set to "enabled" if scripting was enabled for the Document with which the parser is associated when the parser was created, and "disabled" otherwise.
-    bool m_scripting_enabled { true };
+    // https://html.spec.whatwg.org/multipage/parsing.html#scripting-mode
+    ParserScriptingMode m_scripting_mode {};
 
     bool m_invoked_via_document_write { false };
     bool m_aborted { false };

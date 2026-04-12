@@ -1281,20 +1281,8 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::create_contextual_fragment
         element = TRY(DOM::create_element(node->document(), HTML::TagNames::body, Namespace::HTML));
     }
 
-    // 7. Let fragment node be the result of invoking the fragment parsing algorithm steps with element and compliantString.
-    auto fragment_node = TRY(element->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16()));
-
-    // 8. For each script of fragment node's script element descendants:
-    fragment_node->for_each_in_subtree_of_type<HTML::HTMLScriptElement>([&](HTML::HTMLScriptElement& script_element) {
-        // 8.1 Set scripts already started to false.
-        script_element.unmark_as_already_started({});
-        // 8.2 Set scripts parser document to null.
-        script_element.unmark_as_parser_inserted({});
-        return TraversalDecision::Continue;
-    });
-
-    // 5. Return fragment node.
-    return fragment_node;
+    // 7. Return the result of invoking the fragment parsing algorithm steps with element, compliantString, and Fragment.
+    return element->parse_fragment(compliant_string.to_utf8_but_should_be_ported_to_utf16(), HTML::ParserScriptingMode::Fragment);
 }
 
 }

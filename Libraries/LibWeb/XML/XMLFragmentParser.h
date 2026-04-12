@@ -14,7 +14,7 @@ namespace Web {
 
 class XMLFragmentParser final {
 public:
-    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_xml_fragment(DOM::Element& context, StringView markup, HTML::HTMLParser::AllowDeclarativeShadowRoots = HTML::HTMLParser::AllowDeclarativeShadowRoots::No);
+    static WebIDL::ExceptionOr<Vector<GC::Root<DOM::Node>>> parse_xml_fragment(DOM::Element& context, StringView markup);
 };
 
 }

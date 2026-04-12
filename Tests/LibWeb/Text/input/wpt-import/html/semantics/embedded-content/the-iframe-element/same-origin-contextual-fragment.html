@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+  <head>
+    <title>
+      HTML5 Sandbox: an iframe with same-origin and no allow-scripts does not
+      run scripts from a contextual fragment.
+    </title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <link
+      rel="help"
+      href="http://dev.w3.org/html5/spec/Overview.html#attr-iframe-sandbox"
+    />
+    <meta
+      name="assert"
+      content="an iframe with same-origin and no allow-scripts does not run scripts from a contextual fragment."
+    />
+    <script src="../../../../resources/testharness.js"></script>
+    <script src="../../../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script type="text/javascript">
+      test((t) => {
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-same-origin";
+        document.body.appendChild(iframe);
+        const doc = iframe.contentDocument;
+        const html =
+          `<script>window.did_run_script = true</` +
+          `script><noscript><div id=nos></div>`;
+        iframe.contentWindow.did_run_script = false;
+        const fragment = doc.createRange().createContextualFragment(html);
+        doc.body.appendChild(fragment);
+        assert_false(iframe.contentWindow.did_run_script);
+        assert_not_equals(doc.getElementById("nos"), null);
+      });
+    </script>
+  </body>
+</html>
