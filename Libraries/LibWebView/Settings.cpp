@@ -10,6 +10,8 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <LibCore/StandardPaths.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibURL/Parser.h>
 #include <LibUnicode/Locale.h>
 #include <LibWebView/Application.h>
@@ -28,6 +30,9 @@ static constexpr double INITIAL_ZOOM_LEVEL_FACTOR = 1.0;
 
 static constexpr auto LANGUAGES_KEY = "languages"sv;
 static auto DEFAULT_LANGUAGE = "en"_string;
+
+static constexpr auto BROWSING_BEHAVIOR_KEY = "browsingBehavior"sv;
+static constexpr auto ENABLE_AUTOSCROLL_KEY = "enableAutoscroll"sv;
 
 static constexpr auto SEARCH_ENGINE_KEY = "searchEngine"sv;
 static constexpr auto SEARCH_ENGINE_CUSTOM_KEY = "custom"sv;
@@ -77,6 +82,9 @@ Settings Settings::create(Badge<Application>)
 
     if (auto languages = settings_json.value().get(LANGUAGES_KEY); languages.has_value())
         settings.m_languages = parse_json_languages(*languages);
+
+    if (auto browsing_behavior = settings_json.value().get(BROWSING_BEHAVIOR_KEY); browsing_behavior.has_value())
+        settings.m_browsing_behavior = parse_browsing_behavior(*browsing_behavior);
 
     if (auto search_engine = settings_json.value().get_object(SEARCH_ENGINE_KEY); search_engine.has_value()) {
         if (auto custom_engines = search_engine->get_array(SEARCH_ENGINE_CUSTOM_KEY); custom_engines.has_value()) {
@@ -155,6 +163,10 @@ JsonValue Settings::serialize_json() const
         languages.must_append(language);
 
     settings.set(LANGUAGES_KEY, move(languages));
+
+    JsonObject browsing_behavior;
+    browsing_behavior.set(ENABLE_AUTOSCROLL_KEY, m_browsing_behavior.enable_autoscroll);
+    settings.set(BROWSING_BEHAVIOR_KEY, move(browsing_behavior));
 
     JsonArray custom_search_engines;
     custom_search_engines.ensure_capacity(m_custom_search_engines.size());
@@ -288,6 +300,28 @@ void Settings::set_languages(Vector<String> languages)
 
     for (auto& observer : m_observers)
         observer.languages_changed();
+}
+
+BrowsingBehavior Settings::parse_browsing_behavior(JsonValue const& settings)
+{
+    if (!settings.is_object())
+        return {};
+
+    BrowsingBehavior browsing_behavior;
+
+    if (auto enable_autoscroll = settings.as_object().get_bool(ENABLE_AUTOSCROLL_KEY); enable_autoscroll.has_value())
+        browsing_behavior.enable_autoscroll = *enable_autoscroll;
+
+    return browsing_behavior;
+}
+
+void Settings::set_browsing_behavior(BrowsingBehavior browsing_behavior)
+{
+    m_browsing_behavior = browsing_behavior;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.browsing_behavior_changed();
 }
 
 void Settings::set_search_engine(Optional<StringView> search_engine_name)
@@ -521,6 +555,26 @@ SettingsObserver::~SettingsObserver()
 SiteSetting::SiteSetting()
 {
     site_filters.set("file://"_string);
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, WebView::BrowsingBehavior const& browsing_behavior)
+{
+    TRY(encoder.encode(browsing_behavior.enable_autoscroll));
+
+    return {};
+}
+
+template<>
+ErrorOr<WebView::BrowsingBehavior> decode(Decoder& decoder)
+{
+    auto enable_autoscroll = TRY(decoder.decode<bool>());
+
+    return WebView::BrowsingBehavior { enable_autoscroll };
 }
 
 }

@@ -307,6 +307,7 @@ protected:
 
     virtual void default_zoom_level_factor_changed() override;
     virtual void languages_changed() override;
+    virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;
     virtual void global_privacy_control_changed() override;
 

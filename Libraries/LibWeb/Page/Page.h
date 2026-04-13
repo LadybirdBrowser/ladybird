@@ -130,6 +130,9 @@ public:
     bool should_block_pop_ups() const { return m_should_block_pop_ups; }
     void set_should_block_pop_ups(bool b) { m_should_block_pop_ups = b; }
 
+    bool enable_autoscroll() const { return m_enable_autoscroll; }
+    void set_enable_autoscroll(bool b) { m_enable_autoscroll = b; }
+
     bool is_webdriver_active() const { return m_is_webdriver_active; }
     void set_is_webdriver_active(bool b) { m_is_webdriver_active = b; }
 
@@ -286,8 +289,8 @@ private:
     GC::Ptr<HTML::TraversableNavigable> m_top_level_traversable;
 
     bool m_is_scripting_enabled { true };
-
     bool m_should_block_pop_ups { true };
+    bool m_enable_autoscroll { true };
 
     // https://w3c.github.io/webdriver/#dfn-webdriver-active-flag
     // The webdriver-active flag is set to true when the user agent is under remote control. It is initially false.

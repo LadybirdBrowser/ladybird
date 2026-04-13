@@ -11,6 +11,7 @@
 #include <AK/JsonValue.h>
 #include <AK/Optional.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
+#include <LibIPC/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Forward.h>
@@ -18,6 +19,10 @@
 #include <LibWebView/SearchEngine.h>
 
 namespace WebView {
+
+struct BrowsingBehavior {
+    bool enable_autoscroll { true };
+};
 
 struct SiteSetting {
     SiteSetting();
@@ -44,6 +49,7 @@ public:
     virtual void show_bookmarks_bar_changed() { }
     virtual void default_zoom_level_factor_changed() { }
     virtual void languages_changed() { }
+    virtual void browsing_behavior_changed() { }
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
     virtual void autoplay_settings_changed() { }
@@ -70,6 +76,10 @@ public:
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
+
+    static BrowsingBehavior parse_browsing_behavior(JsonValue const&);
+    BrowsingBehavior const& browsing_behavior() const { return m_browsing_behavior; }
+    void set_browsing_behavior(BrowsingBehavior);
 
     Optional<SearchEngine> const& search_engine() const { return m_search_engine; }
     void set_search_engine(Optional<StringView> search_engine_name);
@@ -114,6 +124,7 @@ private:
     bool m_show_bookmarks_bar { true };
     double m_default_zoom_level_factor { 0 };
     Vector<String> m_languages;
+    BrowsingBehavior m_browsing_behavior;
     Optional<SearchEngine> m_search_engine;
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
@@ -125,5 +136,15 @@ private:
 
     Vector<SettingsObserver&> m_observers;
 };
+
+}
+
+namespace IPC {
+
+template<>
+WEBVIEW_API ErrorOr<void> encode(Encoder&, WebView::BrowsingBehavior const&);
+
+template<>
+WEBVIEW_API ErrorOr<WebView::BrowsingBehavior> decode(Decoder&);
 
 }

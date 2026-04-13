@@ -27,6 +27,9 @@ void SettingsUI::register_interfaces()
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
     });
+    register_interface("setBrowsingBehavior"sv, [this](auto const& data) {
+        set_browsing_behavior(data);
+    });
 
     register_interface("loadAvailableEngines"sv, [this](auto const&) {
         load_available_engines();
@@ -109,6 +112,14 @@ void SettingsUI::set_languages(JsonValue const& languages)
 {
     auto parsed_languages = Settings::parse_json_languages(languages);
     WebView::Application::settings().set_languages(move(parsed_languages));
+
+    load_current_settings();
+}
+
+void SettingsUI::set_browsing_behavior(JsonValue const& browsing_behavior)
+{
+    auto parsed_browsing_behavior = Settings::parse_browsing_behavior(browsing_behavior);
+    WebView::Application::settings().set_browsing_behavior(parsed_browsing_behavior);
 
     load_current_settings();
 }

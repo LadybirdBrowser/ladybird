@@ -1186,6 +1186,9 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
 void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
     if (button == UIEvents::MouseButton::Middle) {
+        if (!m_navigable->page().enable_autoscroll())
+            return;
+
         auto hit = paint_root()->hit_test(visual_viewport_position, Painting::HitTestType::Exact);
         if (!hit.has_value())
             return;

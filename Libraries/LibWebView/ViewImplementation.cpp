@@ -644,6 +644,7 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client)
 
     default_zoom_level_factor_changed();
     languages_changed();
+    browsing_behavior_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
 
@@ -720,6 +721,12 @@ void ViewImplementation::languages_changed()
 {
     auto const& languages = Application::settings().languages();
     client().async_set_preferred_languages(page_id(), languages);
+}
+
+void ViewImplementation::browsing_behavior_changed()
+{
+    auto const& browsing_behavior = Application::settings().browsing_behavior();
+    client().async_set_browsing_behavior(page_id(), browsing_behavior);
 }
 
 void ViewImplementation::autoplay_settings_changed()
