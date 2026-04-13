@@ -478,13 +478,46 @@ void PaintableWithLines::paint_cursor(DisplayListRecordingContext& context) cons
         caret_color = as<TextPaintable>(fragment->paintable()).computed_values().caret_color();
         cursor_rect = fragment->range_rect(SelectionState::StartAndEnd, cursor_position->offset(), cursor_position->offset());
     } else {
-        // Empty editable elements have no fragments, but should still draw a cursor.
-        if (cursor_position->node() != dom_node)
+        // No fragment was found at the cursor position. This happens when:
+        //   1. The editable element is empty (no text content at all).
+        //   2. The cursor is on an empty line within a text control (e.g. after
+        //      pressing Enter in a <textarea>): the newline was rendered on the
+        //      previous line's fragment but the second line has no fragments yet.
+        //
+        // In case (1) the cursor node is dom_node itself (or equal to it).
+        // In case (2) the cursor node is the text node that produced the
+        // fragments in this PaintableWithLines, so check whether any of our
+        // fragments share that same text node.
+        bool cursor_is_in_this_element = cursor_position->node() == dom_node;
+        if (!cursor_is_in_this_element) {
+            cursor_is_in_this_element = m_fragments.first_matching([&](auto const& f) {
+                auto const* text_paintable = as_if<TextPaintable>(f.paintable());
+                return text_paintable && cursor_position->node() == text_paintable->dom_node();
+            }).has_value();
+        }
+        if (!cursor_is_in_this_element)
             return;
 
         caret_color = computed_values().caret_color();
         auto content_box = absolute_padding_box_rect();
-        cursor_rect = { content_box.x(), content_box.y(), 1, computed_values().line_height() };
+
+        // Find the last fragment that belongs to the cursor node and ends
+        // before (or at) the cursor offset. The cursor on an otherwise empty
+        // line sits immediately below that fragment.
+        Optional<CSSPixelRect> last_fragment_rect;
+        for (auto const& frag : m_fragments) {
+            auto const* text_paintable = as_if<TextPaintable>(frag.paintable());
+            if (!text_paintable || cursor_position->node() != text_paintable->dom_node())
+                continue;
+            if (frag.start_offset() + frag.length_in_code_units() <= cursor_position->offset())
+                last_fragment_rect = frag.absolute_rect();
+        }
+
+        CSSPixels cursor_y = last_fragment_rect.has_value()
+            ? last_fragment_rect->y() + last_fragment_rect->height()
+            : content_box.y();
+
+        cursor_rect = { content_box.x(), cursor_y, 1, computed_values().line_height() };
     }
 
     if (caret_color.alpha() == 0)
