@@ -4927,10 +4927,10 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                     return CalculationContext { .percentages_resolve_as = ValueType::Length };
                 }
                 if (function.name.is_one_of_ignoring_ascii_case("brightness"sv, "contrast"sv, "saturate"sv)) {
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, NumericLimits<float>::max() } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, NumericLimits<float>::max() } } } };
                 }
                 if (function.name.equals_ignoring_ascii_case("blur"sv)) {
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 }
                 // FIXME: Add other functions that provide a context for resolving values
                 return {};
@@ -4939,7 +4939,7 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 switch (descriptor_context.descriptor) {
                 case DescriptorID::AdditiveSymbols:
                 case DescriptorID::Pad:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 0, NumericLimits<i32>::max() } } } };
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 0, NumericLimits<i32>::max() } } } };
                 default:
                     return CalculationContext {};
                 }
@@ -4952,31 +4952,31 @@ RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue
                 case SpecialContext::BorderRadius:
                     return CalculationContext {
                         .percentages_resolve_as = ValueType::Length,
-                        .accepted_type_ranges = {
+                        .accepted_ranges_by_type = {
                             { ValueType::Length, { 0, NumericLimits<float>::max() } },
                             { ValueType::Percentage, { 0, NumericLimits<float>::max() } } },
                     };
                 case SpecialContext::CubicBezierFunctionXCoordinate:
                     // Coordinates on the X axis must be between 0 and 1
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 1 } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, 1 } } } };
                 case SpecialContext::FontStyleAngle:
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Angle, { -90, 90 } } } };
                 case SpecialContext::GridTrackRepeatCount:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
                 case SpecialContext::RadialSizeLengthPercentage:
                     // Radial size length-percentages are nonnegative
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
+                    return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::RandomValueSharingFixedValue:
                     // Fixed values have to be less than one and numbers serialize with six digits of precision
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, 0.999999 } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, 0.999999 } } } };
                 case SpecialContext::RatioComponent:
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Number, { 0, NumericLimits<float>::max() } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::StepsIntervalsJumpNone:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 2, NumericLimits<i32>::max() } } } };
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 2, NumericLimits<i32>::max() } } } };
                 case SpecialContext::StepsIntervalsNormal:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_type_ranges = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
+                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
                 case SpecialContext::ShadowBlurRadius:
-                    return CalculationContext { .accepted_type_ranges = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
+                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
                 case SpecialContext::TranslateZArgument:
                     // Percentages are disallowed for the Z axis
                     return CalculationContext {};

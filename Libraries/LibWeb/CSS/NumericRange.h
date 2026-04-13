@@ -10,10 +10,10 @@
 
 namespace Web::CSS {
 
-struct AcceptedTypeRange {
+struct NumericRange {
     double min;
     double max;
 };
-using AcceptedTypeRangeMap = HashMap<ValueType, AcceptedTypeRange>;
+using NumericRangesByValueType = HashMap<ValueType, NumericRange>;
 
 }

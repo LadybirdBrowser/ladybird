@@ -50,21 +50,21 @@
 namespace Web::CSS {
 
 template<typename T>
-static T interpolate_raw(T from, T to, float delta, Optional<AcceptedTypeRange> accepted_type_range = {})
+static T interpolate_raw(T from, T to, float delta, Optional<NumericRange> accepted_range = {})
 {
     if constexpr (AK::Detail::IsSame<T, double>) {
-        if (accepted_type_range.has_value())
-            return clamp(from + (to - from) * static_cast<double>(delta), accepted_type_range->min, accepted_type_range->max);
+        if (accepted_range.has_value())
+            return clamp(from + (to - from) * static_cast<double>(delta), accepted_range->min, accepted_range->max);
         return from + (to - from) * static_cast<double>(delta);
     } else if constexpr (AK::Detail::IsIntegral<T>) {
         auto from_float = static_cast<float>(from);
         auto to_float = static_cast<float>(to);
-        auto min = accepted_type_range.has_value() ? accepted_type_range->min : NumericLimits<T>::min();
-        auto max = accepted_type_range.has_value() ? accepted_type_range->max : NumericLimits<T>::max();
+        auto min = accepted_range.has_value() ? accepted_range->min : NumericLimits<T>::min();
+        auto max = accepted_range.has_value() ? accepted_range->max : NumericLimits<T>::max();
         auto unclamped_result = roundf(from_float + (to_float - from_float) * delta);
         return static_cast<AK::Detail::RemoveCVReference<T>>(clamp(unclamped_result, min, max));
     }
-    VERIFY(!accepted_type_range.has_value());
+    VERIFY(!accepted_range.has_value());
     return static_cast<AK::Detail::RemoveCVReference<T>>(from + (to - from) * delta);
 }
 
@@ -154,7 +154,7 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
             auto const& to_value = to.get<FilterOperation::Blur>();
 
             CalculationContext blur_calculation_context = calculation_context;
-            blur_calculation_context.accepted_type_ranges.set(ValueType::Length, { 0, NumericLimits<float>::max() });
+            blur_calculation_context.accepted_ranges_by_type.set(ValueType::Length, { 0, NumericLimits<float>::max() });
             if (auto interpolated_style_value = interpolate_value(element, blur_calculation_context, from_value.radius, to_value.radius, delta, allow_discrete)) {
                 return FilterOperation::Blur {
                     .radius = interpolated_style_value.release_nonnull()
@@ -181,12 +181,12 @@ static Optional<FilterValue> interpolate_filter_function(DOM::Element& element, 
             case Gfx::ColorFilterType::Invert:
             case Gfx::ColorFilterType::Opacity:
             case Gfx::ColorFilterType::Sepia:
-                filter_function_calculation_context.accepted_type_ranges.set(ValueType::Number, { 0, 1 });
+                filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, 1 });
                 break;
             case Gfx::ColorFilterType::Brightness:
             case Gfx::ColorFilterType::Contrast:
             case Gfx::ColorFilterType::Saturate:
-                filter_function_calculation_context.accepted_type_ranges.set(ValueType::Number, { 0, NumericLimits<float>::max() });
+                filter_function_calculation_context.accepted_ranges_by_type.set(ValueType::Number, { 0, NumericLimits<float>::max() });
                 break;
             }
 
@@ -1522,7 +1522,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
 
     switch (from.type()) {
     case StyleValue::Type::Angle: {
-        auto interpolated_value = interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta, calculation_context.accepted_type_ranges.get(ValueType::Angle));
+        auto interpolated_value = interpolate_raw(from.as_angle().angle().to_degrees(), to.as_angle().angle().to_degrees(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Angle));
         return AngleStyleValue::create(Angle::make_degrees(interpolated_value));
     }
     case StyleValue::Type::BackgroundSize: {
@@ -1660,7 +1660,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::BorderRadiusRect: {
         CalculationContext border_radius_rect_computation_context = {
             .percentages_resolve_as = ValueType::Length,
-            .accepted_type_ranges = { { ValueType::Length, { 0, AK::NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, AK::NumericLimits<float>::max() } } },
+            .accepted_ranges_by_type = { { ValueType::Length, { 0, AK::NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, AK::NumericLimits<float>::max() } } },
         };
 
         auto const& from_top_left = from.as_border_radius_rect().top_left();
@@ -1712,7 +1712,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         if (!interpolated_font_style)
             return {};
         if (from_font_style.angle() && to_font_style.angle()) {
-            auto interpolated_angle = interpolate_value(element, { .accepted_type_ranges = { { ValueType::Angle, { -90, 90 } } } }, *from_font_style.angle(), *to_font_style.angle(), delta, allow_discrete);
+            auto interpolated_angle = interpolate_value(element, { .accepted_ranges_by_type = { { ValueType::Angle, { -90, 90 } } } }, *from_font_style.angle(), *to_font_style.angle(), delta, allow_discrete);
             if (!interpolated_angle)
                 return {};
             return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()), interpolated_angle);
@@ -1733,28 +1733,28 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return FitContentStyleValue::create(interpolated_length_percentage.release_nonnull());
     }
     case StyleValue::Type::Flex: {
-        auto interpolated_value = interpolate_raw(from.as_flex().flex().to_fr(), to.as_flex().flex().to_fr(), delta, calculation_context.accepted_type_ranges.get(ValueType::Flex));
+        auto interpolated_value = interpolate_raw(from.as_flex().flex().to_fr(), to.as_flex().flex().to_fr(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Flex));
         return FlexStyleValue::create(Flex::make_fr(interpolated_value));
     }
     case StyleValue::Type::Integer: {
         // https://drafts.csswg.org/css-values/#combine-integers
         // Interpolation of <integer> is defined as Vresult = round((1 - p) × VA + p × VB);
         // that is, interpolation happens in the real number space as for <number>s, and the result is converted to an <integer> by rounding to the nearest integer.
-        auto interpolated_value = interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta, calculation_context.accepted_type_ranges.get(ValueType::Integer));
+        auto interpolated_value = interpolate_raw(from.as_integer().integer(), to.as_integer().integer(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Integer));
         return IntegerStyleValue::create(interpolated_value);
     }
     case StyleValue::Type::Length: {
         auto const& from_length = from.as_length().length();
         auto const& to_length = to.as_length().length();
-        auto interpolated_value = interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length));
+        auto interpolated_value = interpolate_raw(from_length.raw_value(), to_length.raw_value(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Length));
         return LengthStyleValue::create(Length(interpolated_value, from_length.unit()));
     }
     case StyleValue::Type::Number: {
-        auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_type_ranges.get(ValueType::Number));
+        auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Number));
         return NumberStyleValue::create(interpolated_value);
     }
     case StyleValue::Type::OpacityValue: {
-        auto interpolated_value = interpolate_raw(from.as_opacity_value().resolved(), to.as_opacity_value().resolved(), delta, AcceptedTypeRange { .min = 0, .max = 1 });
+        auto interpolated_value = interpolate_raw(from.as_opacity_value().resolved(), to.as_opacity_value().resolved(), delta, NumericRange { .min = 0, .max = 1 });
         return OpacityValueStyleValue::create(NumberStyleValue::create(interpolated_value));
     }
     case StyleValue::Type::OpenTypeTagged: {
@@ -1768,7 +1768,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         return OpenTypeTaggedStyleValue::create(OpenTypeTaggedStyleValue::Mode::FontVariationSettings, from_open_type_tagged.tag(), interpolated_value.release_nonnull());
     }
     case StyleValue::Type::Percentage: {
-        auto interpolated_value = interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage));
+        auto interpolated_value = interpolate_raw(from.as_percentage().percentage().value(), to.as_percentage().percentage().value(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Percentage));
         return PercentageStyleValue::create(Percentage(interpolated_value));
     }
     case StyleValue::Type::Position: {
@@ -1797,7 +1797,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
 
         CalculationContext radial_size_calculation_context {
             .percentages_resolve_as = ValueType::Length,
-            .accepted_type_ranges = {
+            .accepted_ranges_by_type = {
                 { ValueType::Length, { 0, AK::NumericLimits<float>::max() } },
             }
         };
@@ -1844,7 +1844,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         // result as the first value and 1 as the second value.
         auto from_number = log(from_ratio.value());
         auto to_number = log(to_ratio.value());
-        auto interpolated_value = interpolate_raw(from_number, to_number, delta, calculation_context.accepted_type_ranges.get(ValueType::Ratio));
+        auto interpolated_value = interpolate_raw(from_number, to_number, delta, calculation_context.accepted_ranges_by_type.get(ValueType::Ratio));
         return RatioStyleValue::create(NumberStyleValue::create(pow(M_E, interpolated_value)), NumberStyleValue::create(1));
     }
     case StyleValue::Type::Rect: {
@@ -1953,7 +1953,7 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
         auto from_normalized_value = normalized_super_ellipse_half_corner(from.as_superellipse().parameter());
         auto to_normalized_value = normalized_super_ellipse_half_corner(to.as_superellipse().parameter());
 
-        auto interpolated_value = interpolate_raw(from_normalized_value, to_normalized_value, delta, AcceptedTypeRange { .min = 0, .max = 1 });
+        auto interpolated_value = interpolate_raw(from_normalized_value, to_normalized_value, delta, NumericRange { .min = 0, .max = 1 });
 
         return SuperellipseStyleValue::create(NumberStyleValue::create(interpolation_value_to_super_ellipse_parameter(interpolated_value)));
     }

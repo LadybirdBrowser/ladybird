@@ -10,12 +10,12 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibWeb/CSS/AcceptedTypeRange.h>
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/Flex.h>
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Number.h>
+#include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/NumericType.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/Resolution.h>
@@ -30,7 +30,8 @@ namespace Web::CSS {
 struct CalculationContext {
     Optional<ValueType> percentages_resolve_as {};
     bool resolve_numbers_as_integers = false;
-    AcceptedTypeRangeMap accepted_type_ranges {};
+    // FIXME: Once calc() parsing knows the target numeric type, pass a single NumericRange instead of the full accepted range set.
+    NumericRangesByValueType accepted_ranges_by_type {};
 
     static CalculationContext for_property(PropertyNameAndID const&);
 };

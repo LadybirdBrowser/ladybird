@@ -44,7 +44,7 @@ CalculationContext CalculationContext::for_property(PropertyNameAndID const& pro
     return {
         .percentages_resolve_as = property_resolves_percentages_relative_to(property.id()),
         .resolve_numbers_as_integers = property_accepts_type(property.id(), ValueType::Integer),
-        .accepted_type_ranges = property_accepted_type_ranges(property.id()),
+        .accepted_ranges_by_type = property_accepted_ranges_by_value_type(property.id()),
     };
 }
 
@@ -158,18 +158,18 @@ static CalculationNode::NumericValue clamp_and_censor_numeric_value(NumericCalcu
 {
     auto value = node.value();
 
-    Optional<AcceptedTypeRange> accepted_range = value.visit(
-        [&](Number const&) { return context.resolve_numbers_as_integers ? context.accepted_type_ranges.get(ValueType::Integer) : context.accepted_type_ranges.get(ValueType::Number); },
-        [&](Angle const&) { return context.accepted_type_ranges.get(ValueType::Angle); },
-        [&](Flex const&) { return context.accepted_type_ranges.get(ValueType::Flex); },
-        [&](Frequency const&) { return context.accepted_type_ranges.get(ValueType::Frequency); },
-        [&](Length const&) { return context.accepted_type_ranges.get(ValueType::Length); },
-        [&](Percentage const&) { return context.accepted_type_ranges.get(ValueType::Percentage); },
-        [&](Resolution const&) { return context.accepted_type_ranges.get(ValueType::Resolution); },
-        [&](Time const&) { return context.accepted_type_ranges.get(ValueType::Time); });
+    Optional<NumericRange> accepted_range = value.visit(
+        [&](Number const&) { return context.resolve_numbers_as_integers ? context.accepted_ranges_by_type.get(ValueType::Integer) : context.accepted_ranges_by_type.get(ValueType::Number); },
+        [&](Angle const&) { return context.accepted_ranges_by_type.get(ValueType::Angle); },
+        [&](Flex const&) { return context.accepted_ranges_by_type.get(ValueType::Flex); },
+        [&](Frequency const&) { return context.accepted_ranges_by_type.get(ValueType::Frequency); },
+        [&](Length const&) { return context.accepted_ranges_by_type.get(ValueType::Length); },
+        [&](Percentage const&) { return context.accepted_ranges_by_type.get(ValueType::Percentage); },
+        [&](Resolution const&) { return context.accepted_ranges_by_type.get(ValueType::Resolution); },
+        [&](Time const&) { return context.accepted_ranges_by_type.get(ValueType::Time); });
 
     if (!accepted_range.has_value()) {
-        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", node.numeric_type());
+        dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted range {}", node.numeric_type());
         // FIXME: Min and max values for Integer should be based on i32 rather than float
         accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
     }
@@ -3057,27 +3057,27 @@ Optional<CalculatedStyleValue::ResolvedValue> CalculatedStyleValue::resolve_valu
         // the value resulting from a top-level calculation must be clamped to the range allowed in the target context.
         // Clamping is performed on computed values to the extent possible, and also on used values if computation was
         // unable to sufficiently simplify the expression to allow range-checking.
-        Optional<AcceptedTypeRange> accepted_range;
+        Optional<NumericRange> accepted_range;
 
         if (value->type()->matches_number(m_context.percentages_resolve_as))
-            accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_type_ranges.get(ValueType::Integer) : m_context.accepted_type_ranges.get(ValueType::Number);
+            accepted_range = m_context.resolve_numbers_as_integers ? m_context.accepted_ranges_by_type.get(ValueType::Integer) : m_context.accepted_ranges_by_type.get(ValueType::Number);
         else if (value->type()->matches_angle(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Angle);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Angle);
         else if (value->type()->matches_flex(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Flex);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Flex);
         else if (value->type()->matches_frequency(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Frequency);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Frequency);
         else if (value->type()->matches_length(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Length);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Length);
         else if (value->type()->matches_percentage())
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Percentage);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Percentage);
         else if (value->type()->matches_resolution(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Resolution);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Resolution);
         else if (value->type()->matches_time(m_context.percentages_resolve_as))
-            accepted_range = m_context.accepted_type_ranges.get(ValueType::Time);
+            accepted_range = m_context.accepted_ranges_by_type.get(ValueType::Time);
 
         if (!accepted_range.has_value()) {
-            dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted type range {}", value->type());
+            dbgln_if(LIBWEB_CSS_DEBUG, "FIXME: Calculation context missing accepted range {}", value->type());
             // FIXME: Infinity for integers should be i32 max rather than float max
             accepted_range = { AK::NumericLimits<float>::lowest(), AK::NumericLimits<float>::max() };
         }

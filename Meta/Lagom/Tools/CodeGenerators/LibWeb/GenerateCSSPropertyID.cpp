@@ -164,7 +164,7 @@ ErrorOr<void> generate_header_file(JsonObject& properties, JsonObject& logical_p
 #include <AK/Traits.h>
 #include <AK/Variant.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/CSS/AcceptedTypeRange.h>
+#include <LibWeb/CSS/NumericRange.h>
 #include <LibWeb/CSS/ValueType.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -235,7 +235,7 @@ enum class PropertyID : @property_id_underlying_type@ {
     generator.set("first_inherited_property_id", title_casify(inherited_longhand_property_ids.first()));
     generator.set("last_inherited_property_id", title_casify(inherited_longhand_property_ids.last()));
 
-    // FIXME: property_accepts_{number,percentage}() and property_accepted_type_ranges provide the same data, we should consolidate them.
+    // FIXME: property_accepts_{number,percentage}() and property_accepted_ranges_by_value_type provide the same data, we should consolidate them.
     generator.append(R"~~~(
 };
 
@@ -266,7 +266,7 @@ bool property_is_single_valued(PropertyID);
 bool property_is_list_valued(PropertyID);
 
 bool property_accepts_type(PropertyID, ValueType);
-AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID);
+NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID);
 bool property_accepts_keyword(PropertyID, Keyword);
 Optional<Keyword> resolve_legacy_value_alias(PropertyID, Keyword);
 Optional<ValueType> property_resolves_percentages_relative_to(PropertyID);
@@ -978,7 +978,7 @@ bool property_accepts_type(PropertyID property_id, ValueType value_type)
     }
 }
 
-AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
+NumericRangesByValueType property_accepted_ranges_by_value_type(PropertyID property_id)
 {
     switch (property_id) {
 )~~~");
