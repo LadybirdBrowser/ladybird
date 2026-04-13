@@ -746,9 +746,8 @@ NonnullOwnPtr<JS::ExecutionContext> create_a_new_javascript_realm(JS::VM& vm, Fu
     auto realm_execution_context = MUST(JS::Realm::initialize_host_defined_realm(vm, move(create_global_object), move(create_global_this_value)));
 
     // 3. Remove realm execution context from the JavaScript execution context stack.
-    vm.execution_context_stack().remove_first_matching([&realm_execution_context](auto execution_context) {
-        return execution_context == realm_execution_context.ptr();
-    });
+    auto* popped_execution_context = vm.pop_execution_context();
+    VERIFY(popped_execution_context == realm_execution_context.ptr());
 
     // NO-OP: 4. Let realm be realm execution context's Realm component.
     // NO-OP: 5. Set realm's agent to agent.

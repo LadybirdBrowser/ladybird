@@ -604,6 +604,7 @@ void EventLoop::perform_a_microtask_checkpoint()
     // NOTE: This assertion is per requirement 9.5 of the ECMA-262 spec, see: https://tc39.es/ecma262/#sec-jobs
     // > At some future point in time, when there is no running context in the agent for which the job is scheduled and that agent's execution context stack is empty...
     VERIFY(vm().execution_context_stack().is_empty());
+    VERIFY(!vm().has_running_execution_context());
 
     // 2. Set the event loop's performing a microtask checkpoint to true.
     m_performing_a_microtask_checkpoint = true;

@@ -167,7 +167,7 @@ void clean_up_after_running_script(EnvironmentSettingsObject const& settings)
     vm.pop_execution_context();
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
-    if (vm.execution_context_stack().is_empty())
+    if (!vm.has_running_execution_context())
         main_thread_event_loop().perform_a_microtask_checkpoint();
 }
 
@@ -175,7 +175,7 @@ static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm
 {
     // Here, the topmost script-having execution context is the topmost entry of the JavaScript execution context stack that has a non-null ScriptOrModule component,
     // or null if there is no such entry in the JavaScript execution context stack.
-    auto execution_context = vm.execution_context_stack().last_matching([&](JS::ExecutionContext* context) {
+    auto execution_context = vm.last_execution_context_matching([&](JS::ExecutionContext* context) {
         return !context->script_or_module.has<Empty>();
     });
 
@@ -432,7 +432,7 @@ JS::Realm& entry_realm()
 
     // With this in hand, we define the entry execution context to be the most recently pushed item in the JavaScript execution context stack that is a realm execution context.
     // The entry realm is the entry execution context's Realm component.
-    auto entry_execution_context = vm.execution_context_stack().last_matching([](JS::ExecutionContext* context) {
+    auto entry_execution_context = vm.last_execution_context_matching([](JS::ExecutionContext* context) {
         if (!context->realm)
             return false;
         return &principal_realm_settings_object(*context->realm).realm_execution_context() == context;

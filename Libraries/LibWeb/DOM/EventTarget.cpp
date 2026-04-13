@@ -494,8 +494,8 @@ WebIDL::CallbackType* EventTarget::get_current_value_of_event_handler(FlyString 
             nullptr);
 
         // 10. Remove settings object's realm execution context from the JavaScript execution context stack.
-        VERIFY(vm.execution_context_stack().last() == &settings_object.realm_execution_context());
-        vm.pop_execution_context();
+        auto* popped_execution_context = vm.pop_execution_context();
+        VERIFY(popped_execution_context == &settings_object.realm_execution_context());
 
         // 11. Set function.[[ScriptOrModule]] to null.
         function->set_script_or_module({});

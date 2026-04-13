@@ -909,7 +909,7 @@ GC::Ref<DOM::Element> HTMLParser::create_element_for(HTMLToken const& token, Opt
 
         // 2. If the JavaScript execution context stack is empty, then perform a microtask checkpoint.
         auto& vm = main_thread_event_loop().vm();
-        if (vm.execution_context_stack().is_empty())
+        if (!vm.has_running_execution_context())
             perform_a_microtask_checkpoint();
 
         // 3. Push a new element queue onto document's relevant agent's custom element reactions stack.
@@ -3452,7 +3452,7 @@ void HTMLParser::handle_text(HTMLToken& token)
         // If the active speculative HTML parser is null and the JavaScript execution context stack is empty, then perform a microtask checkpoint.
         // FIXME: If the active speculative HTML parser is null
         auto& vm = main_thread_event_loop().vm();
-        if (vm.execution_context_stack().is_empty())
+        if (!vm.has_running_execution_context())
             perform_a_microtask_checkpoint();
 
         // Let script be the current node (which will be a script element).
