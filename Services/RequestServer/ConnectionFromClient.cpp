@@ -79,7 +79,7 @@ void ConnectionFromClient::request_complete(Badge<Request>, Request const& reque
 {
     Core::deferred_invoke([weak_self = make_weak_ptr<ConnectionFromClient>(), request_id = request.request_id(), type = request.type()] {
         if (auto self = weak_self.strong_ref()) {
-            if (type == Request::Type::BackgroundRevalidation)
+            if (type == RequestType::BackgroundRevalidation)
                 self->m_active_revalidation_requests.remove(request_id);
             else
                 self->m_active_requests.remove(request_id);

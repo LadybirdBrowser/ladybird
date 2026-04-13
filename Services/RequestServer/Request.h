@@ -23,6 +23,7 @@
 #include <RequestServer/CacheLevel.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestPipe.h>
+#include <RequestServer/RequestType.h>
 
 struct curl_slist;
 
@@ -69,14 +70,8 @@ public:
 
     virtual ~Request() override;
 
-    enum class Type : u8 {
-        Fetch,
-        Connect,
-        BackgroundRevalidation,
-    };
-
     u64 request_id() const { return m_request_id; }
-    Type type() const { return m_type; }
+    RequestType type() const { return m_type; }
     URL::URL const& url() const { return m_url; }
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
@@ -129,7 +124,7 @@ private:
 
     Request(
         u64 request_id,
-        Type type,
+        RequestType type,
         Optional<HTTP::DiskCache&> disk_cache,
         HTTP::CacheMode cache_mode,
         ConnectionFromClient& client,
@@ -180,7 +175,7 @@ private:
     Requests::RequestTimingInfo acquire_timing_info() const;
 
     u64 m_request_id { 0 };
-    Type m_type { Type::Fetch };
+    RequestType m_type { RequestType::Fetch };
     State m_state { State::Init };
 
     Optional<HTTP::DiskCache&> m_disk_cache;

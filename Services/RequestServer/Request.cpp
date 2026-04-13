@@ -40,7 +40,7 @@ NonnullOwnPtr<Request> Request::fetch(
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -82,7 +82,7 @@ NonnullOwnPtr<Request> Request::revalidate(
     ByteString alt_svc_cache_path,
     Core::ProxyData proxy_data)
 {
-    auto request = adopt_own(*new Request { request_id, Type::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
     request->process();
 
     return request;
@@ -90,7 +90,7 @@ NonnullOwnPtr<Request> Request::revalidate(
 
 Request::Request(
     u64 request_id,
-    Type type,
+    RequestType type,
     Optional<HTTP::DiskCache&> disk_cache,
     HTTP::CacheMode cache_mode,
     ConnectionFromClient& client,
@@ -128,7 +128,7 @@ Request::Request(
     Resolver& resolver,
     URL::URL url)
     : m_request_id(request_id)
-    , m_type(Type::Connect)
+    , m_type(RequestType::Connect)
     , m_client(client)
     , m_curl_multi_handle(curl_multi)
     , m_resolver(resolver)
@@ -182,11 +182,11 @@ void Request::notify_fetch_complete(Badge<ConnectionFromClient>, int result_code
 {
     if (is_revalidation_request()) {
         if (acquire_status_code() == 304) {
-            if (m_type == Type::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
+            if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
                 m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "fresh"sv });
 
             m_cache_entry_reader->revalidation_succeeded(m_response_headers);
-            transition_to_state(m_type == Type::Fetch ? State::ReadCache : State::Complete);
+            transition_to_state(m_type == RequestType::Fetch ? State::ReadCache : State::Complete);
             return;
         }
 
@@ -261,7 +261,7 @@ void Request::handle_initial_state()
     if (m_cache_mode == HTTP::CacheMode::NoStore) {
         m_cache_status = HTTP::CacheRequest::CacheStatus::NotCached;
     } else if (m_disk_cache.has_value()) {
-        auto open_mode = m_type == Type::BackgroundRevalidation
+        auto open_mode = m_type == RequestType::BackgroundRevalidation
             ? HTTP::DiskCache::OpenMode::Revalidate
             : HTTP::DiskCache::OpenMode::Read;
 
@@ -278,7 +278,7 @@ void Request::handle_initial_state()
                             transition_to_state(State::DNSLookup);
                         else
                             transition_to_state(State::ReadCache);
-                    } else if (m_type == Type::BackgroundRevalidation) {
+                    } else if (m_type == RequestType::BackgroundRevalidation) {
                         // If we were not able to open a cache entry reader for revalidation requests, there's no point
                         // in issuing a request over the network.
                         transition_to_state(State::Complete);
@@ -446,7 +446,7 @@ void Request::handle_dns_lookup_state()
                 dbgln("Request::handle_dns_lookup_state: DNS lookup failed for '{}'", host);
                 self.m_network_error = Requests::NetworkError::UnableToResolveHost;
                 self.transition_to_state(State::Error);
-            } else if (first_is_one_of(self.m_type, Type::Fetch, Type::BackgroundRevalidation)) {
+            } else if (first_is_one_of(self.m_type, RequestType::Fetch, RequestType::BackgroundRevalidation)) {
                 self.m_dns_result = move(dns_result);
                 self.transition_to_state(State::RetrieveCookie);
             } else {
@@ -617,7 +617,7 @@ void Request::handle_fetch_state()
 
 void Request::handle_complete_state()
 {
-    if (m_type == Type::Fetch) {
+    if (m_type == RequestType::Fetch) {
         VERIFY(m_curl_result_code.has_value());
 
         // HTTPS servers might terminate their connection without proper notice of shutdown - i.e. they do not send
@@ -650,7 +650,7 @@ void Request::handle_complete_state()
 
 void Request::handle_error_state()
 {
-    if (m_type == Type::Fetch) {
+    if (m_type == RequestType::Fetch) {
         // FIXME: Implement timing info for failed requests.
         m_client.async_request_finished(m_request_id, m_bytes_transferred_to_client, {}, m_network_error.value_or(Requests::NetworkError::Unknown));
     }
@@ -733,7 +733,7 @@ size_t Request::on_data_received(void* buffer, size_t size, size_t nmemb, void* 
 
 ErrorOr<void> Request::inform_client_request_started()
 {
-    if (m_type == Type::BackgroundRevalidation)
+    if (m_type == RequestType::BackgroundRevalidation)
         return {};
 
     auto request_pipe = RequestPipe::create();
@@ -767,7 +767,7 @@ void Request::transfer_headers_to_client_if_needed()
         }
     }
 
-    if (m_type == Type::BackgroundRevalidation)
+    if (m_type == RequestType::BackgroundRevalidation)
         return;
 
     if (m_disk_cache.has_value() && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing) {
@@ -805,7 +805,7 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
             m_cache_entry_writer.clear();
     };
 
-    if (m_type == Type::BackgroundRevalidation) {
+    if (m_type == RequestType::BackgroundRevalidation) {
         write_bytes_to_disk_cache(bytes_to_send.size());
         MUST(m_response_buffer.discard(bytes_to_send.size()));
 
@@ -849,11 +849,11 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
 bool Request::is_revalidation_request() const
 {
     switch (m_type) {
-    case Type::Fetch:
+    case RequestType::Fetch:
         return m_cache_entry_reader.has_value() && m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::MustRevalidate;
-    case Type::Connect:
+    case RequestType::Connect:
         return false;
-    case Type::BackgroundRevalidation:
+    case RequestType::BackgroundRevalidation:
         return m_cache_entry_reader.has_value();
     }
     VERIFY_NOT_REACHED();
@@ -861,7 +861,7 @@ bool Request::is_revalidation_request() const
 
 ErrorOr<void> Request::revalidation_failed()
 {
-    if (m_type == Type::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
+    if (m_type == RequestType::BackgroundRevalidation && m_disk_cache->mode() == HTTP::DiskCache::Mode::Testing)
         m_response_headers->set({ HTTP::TEST_CACHE_REVALIDATION_STATUS_HEADER, "expired"sv });
 
     m_cache_entry_reader->revalidation_failed();
