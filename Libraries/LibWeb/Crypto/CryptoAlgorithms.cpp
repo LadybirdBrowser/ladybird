@@ -4566,7 +4566,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
     }
 
     // 2. If format is "raw":
-    else if (key_format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
         // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
         if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
@@ -4876,7 +4878,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
     }
 
     // 3. If format is "raw":
-    else if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Public)
             return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
@@ -5521,7 +5525,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
     }
 
     // 2. If format is "raw":
-    else if (key_format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
         // 1. If the namedCurve member of normalizedAlgorithm is not a named curve, then throw a DataError.
         if (!normalized_algorithm.named_curve.is_one_of("P-256"sv, "P-384"sv, "P-521"sv))
             return WebIDL::DataError::create(m_realm, "Invalid algorithm"_utf16);
@@ -5822,7 +5828,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
     }
 
     // 3. If format is "raw":
-    else if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Public)
             return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
@@ -6157,7 +6165,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
     }
 
     // 2. If format is "raw":
-    else if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
         // 1. If usages contains a value which is not "verify" then throw a SyntaxError.
         for (auto const& usage : usages) {
             if (usage != Bindings::KeyUsage::Verify) {
@@ -6295,7 +6305,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
     }
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Public)
             return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
@@ -7401,7 +7413,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
     }
 
     // 2. If format is "raw":
-    else if (key_format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (key_format == Bindings::KeyFormat::Raw || key_format == Bindings::KeyFormat::RawPublic) {
         // 1. If usages is not empty then throw a SyntaxError.
         if (!usages.is_empty())
             return WebIDL::SyntaxError::create(m_realm, "Usages must be empty"_utf16);
@@ -7537,7 +7551,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
     }
 
     // 3. If format is "raw":
-    else if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing asymmetric algorithms in WebCrypto, "raw-public" acts as an alias of "raw".
+    else if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawPublic) {
         // 1. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
         if (key->type() != Bindings::KeyType::Public)
             return WebIDL::InvalidAccessError::create(m_realm, "Key is not a public key"_utf16);
