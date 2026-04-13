@@ -111,6 +111,13 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         if self.path.startswith("/echo"):
+            # Requests with "credentials=include" cannot have "Access-Control-Allow-Origin=*". If the test registered
+            # an OPTIONS echo, return the headers that it specified.
+            key = f"OPTIONS {self.path}"
+            if key in echo_store:
+                self.handle_echo()
+                return
+
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "*")

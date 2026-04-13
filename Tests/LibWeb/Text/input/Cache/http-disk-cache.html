@@ -47,12 +47,14 @@
         await server.createEcho("OPTIONS", path, {
             status: 200,
             headers: {
+                "Access-Control-Allow-Credentials": "true",
                 "Access-Control-Allow-Headers": ACCESS_CONTROL_ALLOW_HEADERS,
                 "Access-Control-Allow-Methods": options.method,
                 "Access-Control-Allow-Origin": location.origin,
             },
         });
 
+        options.headers["Access-Control-Allow-Credentials"] = "true";
         options.headers["Access-Control-Allow-Origin"] = location.origin;
         options.headers["Access-Control-Expose-Headers"] = ACCESS_CONTROL_EXPOSE_HEADERS;
 
@@ -76,6 +78,9 @@
         if (!options.cache) {
             options.cache = "default";
         }
+        if (!options.credentials) {
+            options.credentials = "same-origin";
+        }
 
         options.headers[TEST_CACHE_ENABLED_HEADER] = "1";
 
@@ -83,6 +88,7 @@
             method: options.method,
             headers: options.headers,
             cache: options.cache,
+            credentials: options.credentials,
             mode: "cors",
         });
 
@@ -854,6 +860,54 @@
             expectRevalidationStatus(url, response, "expired");
 
             response = await cacheFetch(url, {
+                headers: {
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: 60,
+                },
+            });
+            expectCacheStatus(url, response, "written-to-cache");
+        })();
+
+        // Expired responses are cached until their max-age and stale-while-revalidate directives are reached. The
+        // response is successfully revalidated in the background. The request includes credentials, thus cookie
+        // retrieval occurs asynchronously via IPC during the background revalidation.
+        await (async () => {
+            url = await createRequest("/cache-test/stale-while-revalidate-with-credentials", {
+                headers: {
+                    "Cache-Control": "max-age=10,stale-while-revalidate=10",
+                    "Last-Modified": new Date().toUTCString(),
+                },
+            });
+
+            response = await cacheFetch(url, { credentials: "include" });
+            expectCacheStatus(url, response, "written-to-cache");
+
+            response = await cacheFetch(url, { credentials: "include" });
+            expectCacheStatus(url, response, "read-from-cache");
+
+            response = await cacheFetch(url, {
+                credentials: "include",
+                headers: {
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: 12,
+                    [TEST_CACHE_RESPOND_WITH_NOT_MODIFIED]: "1",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+            expectRevalidationStatus(url, response, null);
+
+            // We must issue another request to inspect the status of the background revalidation request triggered by
+            // the previous request.
+            response = await cacheFetch(url, {
+                credentials: "include",
+                headers: {
+                    [TEST_CACHE_REQUEST_TIME_OFFSET]: 15,
+                    [TEST_CACHE_RESPOND_WITH_NOT_MODIFIED]: "1",
+                },
+            });
+            expectCacheStatus(url, response, "read-from-cache");
+            expectRevalidationStatus(url, response, "fresh");
+
+            response = await cacheFetch(url, {
+                credentials: "include",
                 headers: {
                     [TEST_CACHE_REQUEST_TIME_OFFSET]: 60,
                 },

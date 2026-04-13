@@ -328,10 +328,22 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
     m_active_requests.set(request_id, move(request));
 }
 
-void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, String cookie)
+void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, String cookie)
 {
     if (auto connection = m_connections.get(client_id); connection.has_value()) {
-        if (auto request = (*connection)->m_active_requests.get(request_id); request.has_value())
+        auto request = [&]() {
+            switch (request_type) {
+            case RequestType::Fetch:
+                return (*connection)->m_active_requests.get(request_id);
+            case RequestType::BackgroundRevalidation:
+                return (*connection)->m_active_revalidation_requests.get(request_id);
+            case RequestType::Connect:
+                break;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+
+        if (request.has_value())
             (*request)->notify_retrieved_http_cookie({}, cookie);
     }
 }

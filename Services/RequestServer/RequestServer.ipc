@@ -6,6 +6,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibURL/URL.h>
 #include <RequestServer/CacheLevel.h>
+#include <RequestServer/RequestType.h>
 
 endpoint RequestServer
 {
@@ -28,7 +29,7 @@ endpoint RequestServer
 
     ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) =|
 
-    retrieved_http_cookie(int client_id, u64 request_id, String cookie) =|
+    retrieved_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, String cookie) =|
 
     estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) =|
     remove_cache_entries_accessed_since(UnixDateTime since) =|

@@ -463,7 +463,7 @@ void Request::handle_retrieve_cookie_state()
     }
 
     if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
-        connection->async_retrieve_http_cookie(m_client.client_id(), m_request_id, m_url);
+        connection->async_retrieve_http_cookie(m_client.client_id(), m_request_id, m_type, m_url);
     } else {
         m_network_error = Requests::NetworkError::RequestServerDied;
         transition_to_state(State::Error);
