@@ -14,6 +14,49 @@
 
 namespace Crypto::Curves {
 
+static char const* curve_name_for_scalar_size(size_t scalar_size)
+{
+    switch (scalar_size) {
+    case 32:
+        return "P-256";
+    case 48:
+        return "P-384";
+    case 66:
+        return "P-521";
+    default:
+        return nullptr;
+    }
+}
+
+ErrorOr<SECPxxxr1Point> SECPxxxr1Point::from_compressed(ReadonlyBytes data)
+{
+    if (data.size() < 2 || (data[0] != 0x02 && data[0] != 0x03))
+        return Error::from_string_literal("Invalid compressed EC point");
+
+    auto scalar_size = data.size() - 1;
+    auto const* curve = curve_name_for_scalar_size(scalar_size);
+    if (!curve)
+        return Error::from_string_literal("Unsupported curve for compressed EC point");
+
+    auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(curve)));
+    ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
+
+    auto* point = OPENSSL_TRY_PTR(EC_POINT_new(group));
+    ScopeGuard const free_point = [&] { EC_POINT_free(point); };
+
+    OPENSSL_TRY(EC_POINT_oct2point(group, point, data.data(), data.size(), nullptr));
+
+    auto x = TRY(OpenSSL_BN::create());
+    auto y = TRY(OpenSSL_BN::create());
+    OPENSSL_TRY(EC_POINT_get_affine_coordinates(group, point, x.ptr(), y.ptr(), nullptr));
+
+    return SECPxxxr1Point {
+        TRY(openssl_bignum_to_unsigned_big_integer(x)),
+        TRY(openssl_bignum_to_unsigned_big_integer(y)),
+        scalar_size,
+    };
+}
+
 ErrorOr<UnsignedBigInteger> SECPxxxr1::generate_private_key()
 {
     auto key = TRY(OpenSSL_PKEY::wrap(EVP_PKEY_Q_keygen(nullptr, nullptr, "EC", m_curve_name)));

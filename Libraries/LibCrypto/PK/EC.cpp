@@ -45,39 +45,6 @@ ErrorOr<ByteBuffer> ECPrivateKey::export_as_der() const
     return encoder.finish();
 }
 
-static ErrorOr<ECPublicKey> decompress_ec_public_key(ReadonlyBytes compressed_bytes, Vector<StringView> current_scope)
-{
-    auto coordinate_size = compressed_bytes.size() - 1;
-    char const* curve_name = nullptr;
-    if (coordinate_size == 32)
-        curve_name = "P-256";
-    else if (coordinate_size == 48)
-        curve_name = "P-384";
-    else if (coordinate_size == 66)
-        curve_name = "P-521";
-    else
-        ERROR_WITH_SCOPE("Unsupported compressed point size");
-
-    auto* group = OPENSSL_TRY_PTR(EC_GROUP_new_by_curve_name(EC_curve_nist2nid(curve_name)));
-    ScopeGuard const free_group = [&] { EC_GROUP_free(group); };
-
-    auto* point = OPENSSL_TRY_PTR(EC_POINT_new(group));
-    ScopeGuard const free_point = [&] { EC_POINT_free(point); };
-
-    OPENSSL_TRY(EC_POINT_oct2point(group, point, compressed_bytes.data(), compressed_bytes.size(), nullptr));
-
-    auto x = TRY(OpenSSL_BN::create());
-    auto y = TRY(OpenSSL_BN::create());
-
-    OPENSSL_TRY(EC_POINT_get_affine_coordinates(group, point, x.ptr(), y.ptr(), nullptr));
-
-    return ::Crypto::PK::ECPublicKey {
-        TRY(openssl_bignum_to_unsigned_big_integer(x)),
-        TRY(openssl_bignum_to_unsigned_big_integer(y)),
-        coordinate_size,
-    };
-}
-
 static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<StringView> current_scope)
 {
     // NOTE: Public keys do not have an ASN1 structure
@@ -86,21 +53,14 @@ static ErrorOr<ECPublicKey> read_ec_public_key(ReadonlyBytes bytes, Vector<Strin
     }
 
     if (bytes[0] == 0x04) {
-        auto half_size = (bytes.size() - 1) / 2;
-        if (1 + half_size * 2 != bytes.size()) {
-            ERROR_WITH_SCOPE("Invalid public key length");
-        }
-
-        return ::Crypto::PK::ECPublicKey {
-            UnsignedBigInteger::import_data(bytes.slice(1, half_size)),
-            UnsignedBigInteger::import_data(bytes.slice(1 + half_size, half_size)),
-            half_size,
-        };
+        auto point = TRY(Curves::SECPxxxr1Point::from_uncompressed(bytes));
+        return ECPublicKey { move(point) };
     }
 
     // Compressed point format: 0x02 (y even) or 0x03 (y odd)
     if (bytes[0] == 0x02 || bytes[0] == 0x03) {
-        return decompress_ec_public_key(bytes, current_scope);
+        auto point = TRY(Curves::SECPxxxr1Point::from_compressed(bytes));
+        return ECPublicKey { move(point) };
     }
 
     if (bytes.size() % 2 == 0) {

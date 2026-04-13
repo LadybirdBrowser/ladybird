@@ -44,16 +44,21 @@ struct SECPxxxr1Point {
 
     static ErrorOr<SECPxxxr1Point> from_uncompressed(ReadonlyBytes data)
     {
-        if (data.size() < 1 || data[0] != 0x04)
+        if (data.size() < 3 || data[0] != 0x04)
             return Error::from_string_literal("Invalid length or not an uncompressed SECPxxxr1 point");
 
         auto half_size = (data.size() - 1) / 2;
+        if (1 + half_size * 2 != data.size())
+            return Error::from_string_literal("Invalid uncompressed SECPxxxr1 point length");
+
         return SECPxxxr1Point {
             UnsignedBigInteger::import_data(data.slice(1, half_size)),
             UnsignedBigInteger::import_data(data.slice(1 + half_size, half_size)),
             half_size,
         };
     }
+
+    static ErrorOr<SECPxxxr1Point> from_compressed(ReadonlyBytes data);
 
     ErrorOr<ByteBuffer> x_bytes() const
     {
