@@ -8,12 +8,12 @@
 
 #pragma once
 
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Export.h>
 #include <LibJS/Runtime/ClassFieldDefinition.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
@@ -111,7 +111,7 @@ public:
     bool allocates_function_environment() const { return shared_data().m_function_environment_needed; }
 
     friend class Bytecode::Generator;
-    friend class Bytecode::Interpreter;
+    friend class VM;
 
 private:
     ECMAScriptFunctionObject(

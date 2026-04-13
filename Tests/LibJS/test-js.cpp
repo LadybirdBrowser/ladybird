@@ -37,7 +37,7 @@ TESTJS_GLOBAL_FUNCTION(evaluate_source, evaluateSource)
     if (script.is_error())
         return vm.throw_completion<JS::SyntaxError>(script.error().first().to_string());
 
-    return vm.bytecode_interpreter().run(script.value());
+    return vm.run(script.value());
 }
 
 TESTJS_GLOBAL_FUNCTION(run_queued_promise_jobs, runQueuedPromiseJobs)

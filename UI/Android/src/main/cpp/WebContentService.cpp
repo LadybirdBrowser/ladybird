@@ -13,7 +13,6 @@
 #include <LibCore/System.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibImageDecoderClient/Client.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibMedia/Audio/Loader.h>
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>

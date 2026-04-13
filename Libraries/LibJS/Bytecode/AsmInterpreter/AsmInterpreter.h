@@ -8,14 +8,16 @@
 
 #include <AK/Types.h>
 
-namespace JS::Bytecode {
+namespace JS {
 
-class Interpreter;
+class VM;
+namespace Bytecode {
 
 class AsmInterpreter {
 public:
-    static void run(Interpreter&, size_t entry_point);
+    static void run(VM&, size_t entry_point);
     static bool is_available();
 };
 
+}
 }

@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/Utf16View.h>
-#include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Bytecode/Debug.h>
 #include <LibJS/ModuleLoading.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Accessor.h>
@@ -37,6 +37,7 @@
 #include <LibJS/Runtime/StringPrototype.h>
 #include <LibJS/Runtime/SuppressedError.h>
 #include <LibJS/Runtime/Temporal/AbstractOperations.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/SourceCode.h>
@@ -773,7 +774,7 @@ ThrowCompletionOr<Value> perform_eval(VM& vm, Value x, CallerMode strict_caller,
 
     Optional<Value> result;
 
-    result = TRY(vm.bytecode_interpreter().run_executable(*eval_context, *executable, {}));
+    result = TRY(vm.run_executable(*eval_context, *executable, {}));
 
     // 32. If result.[[Type]] is normal and result.[[Value]] is empty, then
     //     a. Set result to NormalCompletion(undefined).

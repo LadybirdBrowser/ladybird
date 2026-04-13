@@ -19,6 +19,10 @@
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
 #include <LibGC/RootVector.h>
+#include <LibJS/Bytecode/Executable.h>
+#include <LibJS/Bytecode/Label.h>
+#include <LibJS/Bytecode/Operand.h>
+#include <LibJS/Bytecode/Register.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Export.h>
 #include <LibJS/ModuleLoading.h>
@@ -63,7 +67,83 @@ public:
 
     GC::Heap& heap() const { return const_cast<GC::Heap&>(m_heap); }
 
-    Bytecode::Interpreter& bytecode_interpreter() { return *m_bytecode_interpreter; }
+    VM& vm() { return *this; }
+    VM const& vm() const { return *this; }
+
+    [[nodiscard]] Realm& realm() { return *m_running_execution_context->realm; }
+    [[nodiscard]] Object& global_object() { return realm().global_object(); }
+    [[nodiscard]] DeclarativeEnvironment& global_declarative_environment();
+
+    ThrowCompletionOr<Value> run(Script&, GC::Ptr<Environment> lexical_environment_override = nullptr);
+    ThrowCompletionOr<Value> run(SourceTextModule&);
+
+    ThrowCompletionOr<Value> run_executable(ExecutionContext&, Bytecode::Executable&, u32 entry_point = 0);
+    ThrowCompletionOr<Value> run_executable(ExecutionContext& context, Bytecode::Executable& executable, u32 entry_point, Value initial_accumulator_value)
+    {
+        context.registers_and_constants_and_locals_and_arguments_span()[0] = initial_accumulator_value;
+        return run_executable(context, executable, entry_point);
+    }
+
+    ALWAYS_INLINE Value& accumulator() { return reg(Bytecode::Register::accumulator()); }
+    Value& reg(Bytecode::Register const& r)
+    {
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
+    }
+    Value reg(Bytecode::Register const& r) const
+    {
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
+    }
+
+    ALWAYS_INLINE Value get(Bytecode::Operand op) const
+    {
+        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.raw()];
+    }
+    ALWAYS_INLINE void set(Bytecode::Operand op, Value value)
+    {
+        m_running_execution_context->registers_and_constants_and_locals_and_arguments_span().data()[op.raw()] = value;
+    }
+
+    Value do_yield(Value value, Optional<Bytecode::Label> continuation);
+    void do_return(Value value)
+    {
+        if (value.is_special_empty_value())
+            value = js_undefined();
+        reg(Bytecode::Register::return_value()) = value;
+        reg(Bytecode::Register::exception()) = js_special_empty_value();
+    }
+
+    void catch_exception(Bytecode::Operand dst);
+
+    Bytecode::Executable& current_executable() { return *m_running_execution_context->executable; }
+    Bytecode::Executable const& current_executable() const { return *m_running_execution_context->executable; }
+
+    [[nodiscard]] Utf16FlyString const& get_identifier(Bytecode::IdentifierTableIndex) const;
+    [[nodiscard]] Optional<Utf16FlyString const&> get_identifier(Optional<Bytecode::IdentifierTableIndex> index) const
+    {
+        if (!index.has_value())
+            return {};
+        return get_identifier(*index);
+    }
+
+    [[nodiscard]] PropertyKey const& get_property_key(Bytecode::PropertyKeyTableIndex) const;
+
+    enum class HandleExceptionResponse {
+        ExitFromExecutable,
+        ContinueInThisExecutable,
+    };
+    [[nodiscard]] COLD HandleExceptionResponse handle_exception(u32 program_counter, Value exception);
+
+    NEVER_INLINE void pop_inline_frame(Value return_value);
+
+    ExecutionContext* push_inline_frame(
+        ECMAScriptFunctionObject& callee_function,
+        Bytecode::Executable& callee_executable,
+        ReadonlySpan<Bytecode::Operand> arguments,
+        u32 return_pc,
+        u32 dst_raw,
+        Value this_value,
+        Object* new_target,
+        bool is_construct);
 
     void dump_backtrace() const;
 
@@ -128,17 +208,20 @@ public:
             return throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
         }
         m_execution_context_stack.append(&context);
+        m_running_execution_context = &context;
         return {};
     }
 
     void push_execution_context(ExecutionContext& context)
     {
         m_execution_context_stack.append(&context);
+        m_running_execution_context = &context;
     }
 
     void pop_execution_context()
     {
         m_execution_context_stack.take_last();
+        m_running_execution_context = m_execution_context_stack.is_empty() ? nullptr : m_execution_context_stack.last();
     }
 
     // https://tc39.es/ecma262/#running-execution-context
@@ -146,11 +229,13 @@ public:
     // This is known as the agent's running execution context.
     ExecutionContext& running_execution_context()
     {
-        return *m_execution_context_stack.last();
+        VERIFY(m_running_execution_context);
+        return *m_running_execution_context;
     }
     ExecutionContext const& running_execution_context() const
     {
-        return *m_execution_context_stack.last();
+        VERIFY(m_running_execution_context);
+        return *m_running_execution_context;
     }
 
     // https://tc39.es/ecma262/#execution-context-stack
@@ -271,9 +356,6 @@ public:
     void clear_execution_context_stack();
     void restore_execution_context_stack();
 
-    // Do not call this method unless you are sure this is the only and first module to be loaded in this vm.
-    ThrowCompletionOr<void> link_and_eval_module(Badge<Bytecode::Interpreter>, SourceTextModule& module);
-
     ScriptOrModule get_active_script_or_module() const;
 
     // 16.2.1.10 HostLoadImportedModule ( referrer, moduleRequest, hostDefined, payload ), https://tc39.es/ecma262/#sec-HostLoadImportedModule
@@ -316,10 +398,15 @@ private:
 
     void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
+    ThrowCompletionOr<void> link_and_eval_module(SourceTextModule&);
 
     void set_well_known_symbols(WellKnownSymbols well_known_symbols) { m_well_known_symbols = move(well_known_symbols); }
 
     void run_queued_promise_jobs_impl();
+    void run_bytecode(size_t entry_point);
+
+    [[nodiscard]] NEVER_INLINE bool try_inline_call(Bytecode::Instruction const&, u32 current_pc);
+    [[nodiscard]] NEVER_INLINE bool try_inline_call_construct(Bytecode::Instruction const&, u32 current_pc);
 
     static VM* s_the;
 
@@ -332,6 +419,7 @@ private:
     GC::Heap m_heap;
 
     Vector<ExecutionContext*> m_execution_context_stack;
+    ExecutionContext* m_running_execution_context { nullptr };
 
     Vector<Vector<ExecutionContext*>> m_saved_execution_context_stacks;
 
@@ -367,8 +455,6 @@ private:
     u32 m_execution_generation { 0 };
 
     OwnPtr<Agent> m_agent;
-
-    OwnPtr<Bytecode::Interpreter> m_bytecode_interpreter;
 
     bool m_dynamic_imports_allowed { false };
 };

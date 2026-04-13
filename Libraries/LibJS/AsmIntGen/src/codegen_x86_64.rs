@@ -145,8 +145,8 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
 }
 
 fn generate_entry_point(out: &mut String, program: &Program) {
-    // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, Interpreter* interp)
-    // System V AMD64: rdi=bytecode, esi=entry_point, rdx=values, rcx=interp
+    // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm)
+    // System V AMD64: rdi=bytecode, esi=entry_point, rdx=values, rcx=vm
 
     // Save callee-saved registers
     w!(out, "    push rbp");
@@ -168,19 +168,19 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     w!(out, "    sub rsp, 8");
 
     // Set up pinned registers
-    // rdi=bytecode (pb), esi=entry_point (pc), rdx=values, rcx=interp
+    // rdi=bytecode (pb), esi=entry_point (pc), rdx=values, rcx=vm
     w!(out, "    mov r14, rdi          # pb = bytecode base");
     w!(out, "    mov r13d, esi         # pc = entry_point");
     w!(out, "    mov r15, rdx          # values = values array");
-    // Store Interpreter* on the stack for C++ calls, pin exec_ctx instead
+    // Store VM* on the stack for C++ calls, pin exec_ctx instead
     let interp_ctx = program
         .constants
-        .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+        .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+        .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
     w!(
         out,
-        "    mov QWORD PTR [rbp - 48], rcx  # save Interpreter*"
+        "    mov QWORD PTR [rbp - 48], rcx  # save VM*"
     );
     w!(
         out,
@@ -199,11 +199,11 @@ fn generate_entry_point(out: &mut String, program: &Program) {
 
 fn generate_fallback_handler(out: &mut String, program: &Program) {
     // The fallback handler calls into C++ for any unhandled instruction.
-    // extern "C" i64 asm_fallback_handler(Interpreter* interp, u32 pc);
+    // extern "C" i64 asm_fallback_handler(VM* vm, u32 pc);
     // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
-    // Set up args: rdi=interp (from stack), esi=pc (r13d)
+    // Set up args: rdi=vm (from stack), esi=pc (r13d)
     w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
     w!(out, "    mov esi, r13d");
     w!(out, "    call CSYM(asm_fallback_handler)");
@@ -223,13 +223,13 @@ fn generate_fallback_handler(out: &mut String, program: &Program) {
 }
 
 /// Emit instructions to reload exec_ctx (rbx), pb (r14) and values (r15)
-/// from the Interpreter* saved on the stack. Uses rcx as scratch.
+/// from the VM* saved on the stack. Uses rcx as scratch.
 fn emit_state_reload(out: &mut String, program: &Program) {
     let interp_ctx = program
         .constants
-        .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+        .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+        .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
     let exec_executable = program
         .constants
         .get("EXECUTION_CONTEXT_EXECUTABLE")
@@ -401,13 +401,13 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
-        // reload_exec_ctx: reload the pinned exec_ctx register from Interpreter*
+        // reload_exec_ctx: reload the pinned exec_ctx register from VM*
         "reload_exec_ctx" => {
             let interp_ctx = program
                 .constants
-                .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+                .get("VM_RUNNING_EXECUTION_CONTEXT")
                 .copied()
-                .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+                .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
             w!(out, "    mov rcx, QWORD PTR [rbp - 48]");
             w!(out, "    mov rbx, QWORD PTR [rcx + {interp_ctx}]");
         }
@@ -429,14 +429,14 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         }
 
         // call_slow_path pseudo-instruction
-        // Calls a slow path C function: i64 func(Interpreter*, u32 pc)
+        // Calls a slow path C function: i64 func(VM*, u32 pc)
         // Returns >= 0: new pc to dispatch to. Returns < 0: exit.
         // This is TERMINAL: it dispatches after return, control doesn't come back.
         // After the call, pb and values are reloaded from the running execution
         // context, since exception handling may have unwound inline frames.
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                // Set up args: rdi=interp (from stack), esi=pc
+                // Set up args: rdi=vm (from stack), esi=pc
                 w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
                 w!(out, "    mov esi, r13d");
                 w!(out, "    call CSYM({func_name})");
@@ -465,7 +465,7 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         }
 
         // call_interp pseudo-instruction
-        // Calls a C++ helper: i64 func(Interpreter*, u32 pc)
+        // Calls a C++ helper: i64 func(VM*, u32 pc)
         // Same args as call_slow_path, but NON-TERMINAL: result in rax (t0),
         // handler continues after.
         "call_interp" => {

@@ -8,7 +8,6 @@
 // NOTE: This file is not named $262Object.cpp because dollar signs in file names cause issues with some build tools.
 
 #include <AK/TypeCasts.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Contrib/Test262/262Object.h>
 #include <LibJS/Contrib/Test262/AgentObject.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
@@ -17,6 +16,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
 
 namespace JS::Test262 {
@@ -106,7 +106,7 @@ JS_DEFINE_NATIVE_FUNCTION($262Object::eval_script)
     }
 
     // 5. Let status be ScriptEvaluation(s).
-    auto status = vm.bytecode_interpreter().run(script_or_error.value());
+    auto status = vm.run(script_or_error.value());
 
     // 6. Return Completion(status).
     return status;

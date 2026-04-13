@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Promise.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

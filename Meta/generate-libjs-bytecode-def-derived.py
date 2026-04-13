@@ -288,7 +288,7 @@ def generate_class(op: OpDef) -> str:
     lines.append("")
 
     ret_type = execute_return_type(op)
-    lines.append(f"    {ret_type} execute_impl(Bytecode::Interpreter&) const;")
+    lines.append(f"    {ret_type} execute_impl(VM&) const;")
     lines.append("    ByteString to_byte_string_impl(Bytecode::Executable const&) const;")
 
     visit_operands = generate_visit_operands(op)

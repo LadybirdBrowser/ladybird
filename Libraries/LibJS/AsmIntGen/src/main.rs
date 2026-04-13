@@ -19,7 +19,7 @@
 //! 3. Opcodes without an assembly handler are caught by a **fallback handler**
 //!    that calls into C++ (`asm_fallback_handler`).
 //!
-//! The entry point is `asm_interpreter_entry(bytecode, entry_point, values, interp)`.
+//! The entry point is `asm_interpreter_entry(bytecode, entry_point, values, vm)`.
 //! It saves callee-saved registers, sets up pinned registers, and dispatches.
 //!
 //! ## Pinned registers
@@ -61,7 +61,7 @@
 //!
 //! ### C++ interop
 //!
-//! - `call_slow_path func` -- **TERMINAL.** Calls `i64 func(Interpreter*, u32 pc)`.
+//! - `call_slow_path func` -- **TERMINAL.** Calls `i64 func(VM*, u32 pc)`.
 //!   If return >= 0, reloads pinned state (exec_ctx, pb, values -- they may
 //!   have changed due to exception unwinding), sets pc to the return value,
 //!   and dispatches. If return < 0, exits. Control does NOT return to the
@@ -69,9 +69,9 @@
 //! - `call_helper func` -- **Non-terminal.** Calls `u64 func(u64 value)`.
 //!   Passes `t1` as the argument. Result lands in `t0`. The handler continues
 //!   after the call. Does NOT reload pinned state.
-//! - `call_interp func` -- **Non-terminal.** Calls `i64 func(Interpreter*, u32 pc)`.
+//! - `call_interp func` -- **Non-terminal.** Calls `i64 func(VM*, u32 pc)`.
 //!   Result lands in `t0`. The handler continues. Does NOT reload pinned state.
-//! - `reload_exec_ctx` -- Reload the exec_ctx register from the Interpreter*.
+//! - `reload_exec_ctx` -- Reload the exec_ctx register from the VM*.
 //!   Used after non-terminal calls that may modify the running execution context.
 //!
 //! ### Bytecode operand access

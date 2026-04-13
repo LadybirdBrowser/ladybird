@@ -197,11 +197,11 @@ fn generate_exit_point(out: &mut String, fmt: ObjectFormat) {
 }
 
 fn generate_entry_point(out: &mut String, program: &Program) {
-    // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, Interpreter* interp)
-    // AAPCS64: x0=bytecode, w1=entry_point, x2=values, x3=interp
+    // void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm)
+    // AAPCS64: x0=bytecode, w1=entry_point, x2=values, x3=vm
 
     // Save callee-saved registers and link register.
-    // Pinned: x19(dispatch), x20(interp), x21(ip), x26(pb), x27(values), x28(exec_ctx)
+    // Pinned: x19(dispatch), x20(vm), x21(ip), x26(pb), x27(values), x28(exec_ctx)
     // x21 = ip (instruction pointer = pb + pc), the primary dispatch register.
     // x25 is only used when DSL code writes to pc directly (rare).
     // x22 = INT32_TAG, x23 = BOOLEAN_TAG, x24 = NAN_BASE_TAG (pinned constants).
@@ -231,12 +231,12 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     w!(out, "    .cfi_offset d8, -16");
 
     // Set up pinned registers
-    // x0=bytecode (pb), w1=entry_point (pc), x2=values, x3=interp
+    // x0=bytecode (pb), w1=entry_point (pc), x2=values, x3=vm
     let interp_ctx = program
         .constants
-        .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+        .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+        .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
     let canon_nan = program
         .constants
         .get("CANON_NAN_BITS")
@@ -244,8 +244,8 @@ fn generate_entry_point(out: &mut String, program: &Program) {
         .expect("CANON_NAN_BITS constant required");
     w!(out, "    mov x26, x0              // pb = bytecode base");
     w!(out, "    mov x27, x2              // values = values array");
-    // Store Interpreter* in x20 (callee-saved) for C++ calls, pin exec_ctx in x28
-    w!(out, "    mov x20, x3              // interp = Interpreter*");
+    // Store VM* in x20 (callee-saved) for C++ calls, pin exec_ctx in x28
+    w!(out, "    mov x20, x3              // vm = VM*");
     emit_ldr64(out, "x28", "x3", interp_ctx);
     w!(out, "    // x28 = exec_ctx");
     emit_symbol_addr(out, "x19", "asm_dispatch_table", program.object_format);
@@ -276,7 +276,7 @@ fn generate_entry_point(out: &mut String, program: &Program) {
 fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &PinnedConstants) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_fallback:");
-    // Set up args: x0=interp (x20), w1=pc (ip - pb)
+    // Set up args: x0=vm (x20), w1=pc (ip - pb)
     w!(out, "    mov x0, x20");
     w!(out, "    sub w1, w21, w26");
     w!(out, "    bl CSYM(asm_fallback_handler)");
@@ -294,13 +294,13 @@ fn generate_fallback_handler(out: &mut String, program: &Program, _pinned: &Pinn
 }
 
 /// Emit instructions to reload exec_ctx (x28), pb (x26), and values (x27)
-/// from the Interpreter* in x20. Uses x9 as scratch.
+/// from the VM* in x20. Uses x9 as scratch.
 fn emit_state_reload(out: &mut String, program: &Program) {
     let interp_ctx = program
         .constants
-        .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+        .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
-        .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+        .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
     let exec_executable = program
         .constants
         .get("EXECUTION_CONTEXT_EXECUTABLE")
@@ -921,13 +921,13 @@ fn emit_instruction(
             }
         }
 
-        // reload_exec_ctx: reload the pinned exec_ctx register from Interpreter* (x20)
+        // reload_exec_ctx: reload the pinned exec_ctx register from VM* (x20)
         "reload_exec_ctx" => {
             let interp_ctx = program
                 .constants
-                .get("INTERPRETER_RUNNING_EXECUTION_CONTEXT")
+                .get("VM_RUNNING_EXECUTION_CONTEXT")
                 .copied()
-                .expect("INTERPRETER_RUNNING_EXECUTION_CONTEXT constant required");
+                .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
             emit_ldr64(out, "x28", "x20", interp_ctx);
         }
 
@@ -951,7 +951,7 @@ fn emit_instruction(
         // call_slow_path: TERMINAL call to C++ slow path
         "call_slow_path" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
-                w!(out, "    mov x0, x20"); // interp
+                w!(out, "    mov x0, x20"); // vm
                 w!(out, "    sub w1, w21, w26"); // pc = ip - pb
                 w!(out, "    bl CSYM({func_name})");
                 w!(out, "    tbnz x0, #63, .Lexit");
@@ -973,7 +973,7 @@ fn emit_instruction(
             }
         }
 
-        // call_interp: NON-TERMINAL call with (Interpreter*, u32 pc)
+        // call_interp: NON-TERMINAL call with (VM*, u32 pc)
         "call_interp" => {
             if let Some(Operand::Register(func_name)) = insn.operands.first() {
                 w!(out, "    mov x0, x20");

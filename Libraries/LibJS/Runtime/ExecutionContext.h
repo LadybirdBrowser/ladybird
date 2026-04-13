@@ -123,7 +123,7 @@ public:
     u32 caller_dst_raw { 0 };
 
 private:
-    friend class Bytecode::Interpreter;
+    friend class VM;
 
     Value* registers_and_constants_and_locals_and_arguments()
     {

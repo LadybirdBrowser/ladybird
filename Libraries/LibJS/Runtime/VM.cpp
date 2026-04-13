@@ -15,7 +15,6 @@
 #include <AK/Time.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -78,7 +77,6 @@ VM::VM(ErrorMessages error_messages)
     , m_error_messages(move(error_messages))
 {
     s_the = this;
-    m_bytecode_interpreter = make<Bytecode::Interpreter>();
 
     m_heap.register_sweep_callback([] {
         Bytecode::StaticPropertyLookupCache::sweep_all();
@@ -532,16 +530,19 @@ void VM::dump_backtrace() const
 void VM::save_execution_context_stack()
 {
     m_saved_execution_context_stacks.append(move(m_execution_context_stack));
+    m_running_execution_context = nullptr;
 }
 
 void VM::clear_execution_context_stack()
 {
     m_execution_context_stack.clear_with_capacity();
+    m_running_execution_context = nullptr;
 }
 
 void VM::restore_execution_context_stack()
 {
     m_execution_context_stack = m_saved_execution_context_stacks.take_last();
+    m_running_execution_context = m_execution_context_stack.is_empty() ? nullptr : m_execution_context_stack.last();
 }
 
 // 9.4.1 GetActiveScriptOrModule ( ), https://tc39.es/ecma262/#sec-getactivescriptormodule
@@ -583,9 +584,9 @@ VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteStrin
     return &(*end_or_module);
 }
 
-ThrowCompletionOr<void> VM::link_and_eval_module(Badge<Bytecode::Interpreter>, SourceTextModule& module)
+ThrowCompletionOr<void> VM::link_and_eval_module(SourceTextModule& module)
 {
-    return link_and_eval_module(module);
+    return link_and_eval_module(static_cast<CyclicModule&>(module));
 }
 
 ThrowCompletionOr<void> VM::link_and_eval_module(CyclicModule& module)

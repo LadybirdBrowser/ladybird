@@ -5,13 +5,13 @@
  */
 
 #include <AK/TemporaryChange.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/CompletionCell.h>
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GeneratorPrototype.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibJS/Runtime/NativeJavaScriptBackedFunction.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 
@@ -104,15 +104,13 @@ ThrowCompletionOr<GeneratorObject::IterationResult> GeneratorObject::execute(VM&
 
     auto completion_cell = heap().allocate<CompletionCell>(completion);
 
-    auto& bytecode_interpreter = vm.bytecode_interpreter();
-
     // We should never enter `execute` again after the generator is complete.
     VERIFY(m_yield_continuation != ExecutionContext::no_yield_continuation);
 
     // Clear yield state so that a normal return (no yield) is detected as done.
     m_execution_context->yield_continuation = ExecutionContext::no_yield_continuation;
 
-    auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, completion_cell);
+    auto result_value = vm.run_executable(vm.running_execution_context(), *m_generating_executable, m_yield_continuation, completion_cell);
 
     vm.pop_execution_context();
 

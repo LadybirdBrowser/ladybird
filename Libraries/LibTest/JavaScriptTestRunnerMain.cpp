@@ -11,6 +11,7 @@
 #include <LibCore/Environment.h>
 #include <LibCore/System.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibJS/Bytecode/Debug.h>
 #include <LibTest/JavaScriptTestRunner.h>
 #include <signal.h>
 #include <stdio.h>

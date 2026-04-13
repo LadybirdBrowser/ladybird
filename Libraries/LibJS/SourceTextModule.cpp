@@ -8,13 +8,13 @@
 #include <AK/Debug.h>
 #include <AK/QuickSort.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AsyncFunctionDriverWrapper.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/SharedFunctionInstanceData.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/Script.h>
 #include <LibJS/SourceCode.h>
@@ -551,7 +551,7 @@ ThrowCompletionOr<void> SourceTextModule::execute_module(VM& vm, GC::Ptr<Promise
         // c. Let result be the result of evaluating module.[[ECMAScriptCode]].
         Completion result;
 
-        auto result_or_error = vm.bytecode_interpreter().run_executable(*module_context, *m_executable, {});
+        auto result_or_error = vm.run_executable(*module_context, *m_executable, {});
         if (result_or_error.is_error()) {
             result = result_or_error.release_error();
         } else {

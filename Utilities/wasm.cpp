@@ -16,7 +16,6 @@
 #include <LibCore/MappedFile.h>
 #include <LibCrypto/BigInt/SignedBigInteger.h>
 #include <LibFileSystem/FileSystem.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/BigInt.h>
 #include <LibJS/Runtime/VM.h>
@@ -419,8 +418,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             }
 
             auto js_script = script.release_value();
-            JS::Bytecode::Interpreter interp;
-            auto maybe_function = interp.run(*js_script);
+            auto maybe_function = vm->run(*js_script);
             if (maybe_function.is_error()) {
                 warnln("Failed to run JS export source '{}'", js_function);
                 return false;

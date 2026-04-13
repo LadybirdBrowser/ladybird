@@ -15,7 +15,6 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/System.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
@@ -235,7 +234,7 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
     if (!harness_builder.is_empty()) {
         ScriptOrModuleProgram harness_program { TRY(parse_harness_contents(*realm, harness_builder.string_view())) };
 
-        if (auto result = run_program(vm->bytecode_interpreter(), harness_program); result.is_error()) {
+        if (auto result = run_program(*vm, harness_program); result.is_error()) {
             return TestError {
                 NegativePhase::Harness,
                 result.error().type,
@@ -245,7 +244,7 @@ static ErrorOr<void, TestError> run_test(StringView source, StringView filepath,
         }
     }
 
-    return run_program(vm->bytecode_interpreter(), program);
+    return run_program(*vm, program);
 }
 
 static ErrorOr<TestMetadata, String> extract_metadata(StringView source)

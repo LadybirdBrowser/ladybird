@@ -7,7 +7,6 @@
 #include <LibJS/Bytecode/AsmInterpreter/AsmInterpreter.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Instruction.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/Op.h>
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/Array.h>
@@ -17,6 +16,7 @@
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <math.h>
@@ -92,7 +92,7 @@ namespace JS::Bytecode {
 
 #if HAS_ASM_INTERPRETER
 // Defined in generated assembly (asmint_x86_64.S or asmint_aarch64.S)
-extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, Interpreter* interp);
+extern "C" void asm_interpreter_entry(u8 const* bytecode, u32 entry_point, Value* values, VM* vm);
 #endif
 
 bool AsmInterpreter::is_available()
@@ -100,10 +100,10 @@ bool AsmInterpreter::is_available()
     return HAS_ASM_INTERPRETER;
 }
 
-void AsmInterpreter::run(Interpreter& interp, [[maybe_unused]] size_t entry_point)
+void AsmInterpreter::run(VM& vm, [[maybe_unused]] size_t entry_point)
 {
 #if !HAS_ASM_INTERPRETER
-    (void)interp;
+    (void)vm;
     VERIFY_NOT_REACHED();
 #else
 #    ifdef JS_ASMINT_SLOW_PATH_COUNTERS
@@ -113,11 +113,11 @@ void AsmInterpreter::run(Interpreter& interp, [[maybe_unused]] size_t entry_poin
     }
 #    endif
 
-    auto& context = interp.running_execution_context();
+    auto& context = vm.running_execution_context();
     auto* bytecode = context.executable->bytecode.data();
     auto* values = context.registers_and_constants_and_locals_and_arguments_span().data();
 
-    asm_interpreter_entry(bytecode, static_cast<u32>(entry_point), values, &interp);
+    asm_interpreter_entry(bytecode, static_cast<u32>(entry_point), values, &vm);
 #endif
 }
 
@@ -125,32 +125,32 @@ void AsmInterpreter::run(Interpreter& interp, [[maybe_unused]] size_t entry_poin
 
 // ===== Slow path functions callable from assembly =====
 // All slow path functions follow the same convention:
-//   i64 func(Interpreter* interp, u32 pc)
+//   i64 func(VM* vm, u32 pc)
 //   Returns >= 0: new program counter to dispatch to
 //   Returns < 0: should exit the asm interpreter
 
 using namespace JS;
 using namespace JS::Bytecode;
 
-static i64 handle_asm_exception(Interpreter& interp, u32 pc, Value exception)
+static i64 handle_asm_exception(VM& vm, u32 pc, Value exception)
 {
-    auto response = interp.handle_exception(pc, exception);
-    if (response == Interpreter::HandleExceptionResponse::ExitFromExecutable)
+    auto response = vm.handle_exception(pc, exception);
+    if (response == VM::HandleExceptionResponse::ExitFromExecutable)
         return -1;
     // ContinueInThisExecutable: new pc is in the execution context
-    return static_cast<i64>(interp.running_execution_context().program_counter);
+    return static_cast<i64>(vm.running_execution_context().program_counter);
 }
 
 // Helper: execute a throwing instruction and handle errors
 template<typename InsnType>
-static i64 execute_throwing(Interpreter& interp, u32 pc)
+static i64 execute_throwing(VM& vm, u32 pc)
 {
-    interp.running_execution_context().program_counter = pc;
-    auto* bytecode = interp.current_executable().bytecode.data();
+    vm.running_execution_context().program_counter = pc;
+    auto* bytecode = vm.current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<InsnType const*>(&bytecode[pc]);
-    auto result = insn.execute_impl(interp);
+    auto result = insn.execute_impl(vm);
     if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(interp, pc, result.error_value());
+        return handle_asm_exception(vm, pc, result.error_value());
     if constexpr (InsnType::IsVariableLength)
         return static_cast<i64>(pc + insn.length());
     else
@@ -159,12 +159,12 @@ static i64 execute_throwing(Interpreter& interp, u32 pc)
 
 // Helper: execute a non-throwing instruction
 template<typename InsnType>
-static i64 execute_nonthrowing(Interpreter& interp, u32 pc)
+static i64 execute_nonthrowing(VM& vm, u32 pc)
 {
-    interp.running_execution_context().program_counter = pc;
-    auto* bytecode = interp.current_executable().bytecode.data();
+    vm.running_execution_context().program_counter = pc;
+    auto* bytecode = vm.current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<InsnType const*>(&bytecode[pc]);
-    insn.execute_impl(interp);
+    insn.execute_impl(vm);
     if constexpr (InsnType::IsVariableLength)
         return static_cast<i64>(pc + insn.length());
     else
@@ -174,132 +174,132 @@ static i64 execute_nonthrowing(Interpreter& interp, u32 pc)
 // Slow path wrappers: optionally bump per-opcode counter, then delegate.
 #ifdef JS_ASMINT_SLOW_PATH_COUNTERS
 template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_throwing(Interpreter& interp, u32 pc)
+ALWAYS_INLINE static i64 slow_path_throwing(VM& vm, u32 pc)
 {
-    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { interp.current_executable().bytecode[pc] })];
-    return execute_throwing<InsnType>(interp, pc);
+    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
+    return execute_throwing<InsnType>(vm, pc);
 }
 
 template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_nonthrowing(Interpreter& interp, u32 pc)
+ALWAYS_INLINE static i64 slow_path_nonthrowing(VM& vm, u32 pc)
 {
-    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { interp.current_executable().bytecode[pc] })];
-    return execute_nonthrowing<InsnType>(interp, pc);
+    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
+    return execute_nonthrowing<InsnType>(vm, pc);
 }
 
-ALWAYS_INLINE static void bump_slow_path(Interpreter& interp, u32 pc)
+ALWAYS_INLINE static void bump_slow_path(VM& vm, u32 pc)
 {
-    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { interp.current_executable().bytecode[pc] })];
+    ++s_stats.slow_path_by_type[static_cast<u8>(Instruction::Type { vm.current_executable().bytecode[pc] })];
 }
 #else
 template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_throwing(Interpreter& interp, u32 pc)
+ALWAYS_INLINE static i64 slow_path_throwing(VM& vm, u32 pc)
 {
-    return execute_throwing<InsnType>(interp, pc);
+    return execute_throwing<InsnType>(vm, pc);
 }
 
 template<typename InsnType>
-ALWAYS_INLINE static i64 slow_path_nonthrowing(Interpreter& interp, u32 pc)
+ALWAYS_INLINE static i64 slow_path_nonthrowing(VM& vm, u32 pc)
 {
-    return execute_nonthrowing<InsnType>(interp, pc);
+    return execute_nonthrowing<InsnType>(vm, pc);
 }
 
-ALWAYS_INLINE static void bump_slow_path(Interpreter&, u32) { }
+ALWAYS_INLINE static void bump_slow_path(VM&, u32) { }
 #endif
 
 extern "C" {
 
 // Forward declarations for all functions called from assembly.
-i64 asm_fallback_handler(Interpreter*, u32 pc);
-i64 asm_slow_path_add(Interpreter*, u32 pc);
-i64 asm_slow_path_sub(Interpreter*, u32 pc);
-i64 asm_slow_path_mul(Interpreter*, u32 pc);
-i64 asm_slow_path_div(Interpreter*, u32 pc);
-i64 asm_slow_path_increment(Interpreter*, u32 pc);
-i64 asm_slow_path_decrement(Interpreter*, u32 pc);
-i64 asm_slow_path_less_than(Interpreter*, u32 pc);
-i64 asm_slow_path_less_than_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_greater_than(Interpreter*, u32 pc);
-i64 asm_slow_path_greater_than_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_less_than(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_greater_than(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_less_than_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_greater_than_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_loosely_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_loosely_inequals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_strictly_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_jump_strictly_inequals(Interpreter*, u32 pc);
-i64 asm_slow_path_set_lexical_environment(Interpreter*, u32 pc);
-i64 asm_slow_path_postfix_increment(Interpreter*, u32 pc);
-i64 asm_slow_path_get_by_id(Interpreter*, u32 pc);
-i64 asm_slow_path_put_by_id(Interpreter*, u32 pc);
-i64 asm_slow_path_get_by_value(Interpreter*, u32 pc);
-i64 asm_slow_path_get_length(Interpreter*, u32 pc);
-i64 asm_try_get_global_env_binding(Interpreter*, u32 pc);
-i64 asm_try_set_global_env_binding(Interpreter*, u32 pc);
-i64 asm_slow_path_get_global(Interpreter*, u32 pc);
-i64 asm_slow_path_set_global(Interpreter*, u32 pc);
-i64 asm_slow_path_call(Interpreter*, u32 pc);
+i64 asm_fallback_handler(VM*, u32 pc);
+i64 asm_slow_path_add(VM*, u32 pc);
+i64 asm_slow_path_sub(VM*, u32 pc);
+i64 asm_slow_path_mul(VM*, u32 pc);
+i64 asm_slow_path_div(VM*, u32 pc);
+i64 asm_slow_path_increment(VM*, u32 pc);
+i64 asm_slow_path_decrement(VM*, u32 pc);
+i64 asm_slow_path_less_than(VM*, u32 pc);
+i64 asm_slow_path_less_than_equals(VM*, u32 pc);
+i64 asm_slow_path_greater_than(VM*, u32 pc);
+i64 asm_slow_path_greater_than_equals(VM*, u32 pc);
+i64 asm_slow_path_jump_less_than(VM*, u32 pc);
+i64 asm_slow_path_jump_greater_than(VM*, u32 pc);
+i64 asm_slow_path_jump_less_than_equals(VM*, u32 pc);
+i64 asm_slow_path_jump_greater_than_equals(VM*, u32 pc);
+i64 asm_slow_path_jump_loosely_equals(VM*, u32 pc);
+i64 asm_slow_path_jump_loosely_inequals(VM*, u32 pc);
+i64 asm_slow_path_jump_strictly_equals(VM*, u32 pc);
+i64 asm_slow_path_jump_strictly_inequals(VM*, u32 pc);
+i64 asm_slow_path_set_lexical_environment(VM*, u32 pc);
+i64 asm_slow_path_postfix_increment(VM*, u32 pc);
+i64 asm_slow_path_get_by_id(VM*, u32 pc);
+i64 asm_slow_path_put_by_id(VM*, u32 pc);
+i64 asm_slow_path_get_by_value(VM*, u32 pc);
+i64 asm_slow_path_get_length(VM*, u32 pc);
+i64 asm_try_get_global_env_binding(VM*, u32 pc);
+i64 asm_try_set_global_env_binding(VM*, u32 pc);
+i64 asm_slow_path_get_global(VM*, u32 pc);
+i64 asm_slow_path_set_global(VM*, u32 pc);
+i64 asm_slow_path_call(VM*, u32 pc);
 #define DECLARE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...) \
-    i64 asm_slow_path_call_builtin_##snake_case_name(Interpreter*, u32 pc);
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM*, u32 pc);
 JS_ENUMERATE_BUILTINS(DECLARE_CALL_BUILTIN_SLOW_PATH)
 #undef DECLARE_CALL_BUILTIN_SLOW_PATH
-i64 asm_slow_path_get_object_property_iterator(Interpreter*, u32 pc);
-i64 asm_slow_path_object_property_iterator_next(Interpreter*, u32 pc);
-i64 asm_slow_path_call_construct(Interpreter*, u32 pc);
-i64 asm_slow_path_new_object(Interpreter*, u32 pc);
-i64 asm_slow_path_cache_object_shape(Interpreter*, u32 pc);
-i64 asm_slow_path_init_object_literal_property(Interpreter*, u32 pc);
-i64 asm_slow_path_new_array(Interpreter*, u32 pc);
-i64 asm_slow_path_bitwise_xor(Interpreter*, u32 pc);
-i64 asm_slow_path_bitwise_and(Interpreter*, u32 pc);
-i64 asm_slow_path_bitwise_or(Interpreter*, u32 pc);
-i64 asm_slow_path_left_shift(Interpreter*, u32 pc);
-i64 asm_slow_path_right_shift(Interpreter*, u32 pc);
-i64 asm_slow_path_unsigned_right_shift(Interpreter*, u32 pc);
-i64 asm_slow_path_mod(Interpreter*, u32 pc);
-i64 asm_slow_path_strictly_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_strictly_inequals(Interpreter*, u32 pc);
-i64 asm_slow_path_unary_minus(Interpreter*, u32 pc);
-i64 asm_slow_path_postfix_decrement(Interpreter*, u32 pc);
-i64 asm_slow_path_to_int32(Interpreter*, u32 pc);
-i64 asm_slow_path_put_by_value(Interpreter*, u32 pc);
-i64 asm_try_put_by_value_holey_array(Interpreter*, u32 pc);
+i64 asm_slow_path_get_object_property_iterator(VM*, u32 pc);
+i64 asm_slow_path_object_property_iterator_next(VM*, u32 pc);
+i64 asm_slow_path_call_construct(VM*, u32 pc);
+i64 asm_slow_path_new_object(VM*, u32 pc);
+i64 asm_slow_path_cache_object_shape(VM*, u32 pc);
+i64 asm_slow_path_init_object_literal_property(VM*, u32 pc);
+i64 asm_slow_path_new_array(VM*, u32 pc);
+i64 asm_slow_path_bitwise_xor(VM*, u32 pc);
+i64 asm_slow_path_bitwise_and(VM*, u32 pc);
+i64 asm_slow_path_bitwise_or(VM*, u32 pc);
+i64 asm_slow_path_left_shift(VM*, u32 pc);
+i64 asm_slow_path_right_shift(VM*, u32 pc);
+i64 asm_slow_path_unsigned_right_shift(VM*, u32 pc);
+i64 asm_slow_path_mod(VM*, u32 pc);
+i64 asm_slow_path_strictly_equals(VM*, u32 pc);
+i64 asm_slow_path_strictly_inequals(VM*, u32 pc);
+i64 asm_slow_path_unary_minus(VM*, u32 pc);
+i64 asm_slow_path_postfix_decrement(VM*, u32 pc);
+i64 asm_slow_path_to_int32(VM*, u32 pc);
+i64 asm_slow_path_put_by_value(VM*, u32 pc);
+i64 asm_try_put_by_value_holey_array(VM*, u32 pc);
 u64 asm_helper_to_boolean(u64 encoded_value);
 u64 asm_helper_math_exp(u64 encoded_value);
 u64 asm_helper_empty_string(u64);
 u64 asm_helper_single_ascii_character_string(u64 encoded_value);
 u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
-i64 asm_try_inline_call(Interpreter*, u32 pc);
-i64 asm_pop_inline_frame(Interpreter*, u32 pc);
-i64 asm_pop_inline_frame_end(Interpreter*, u32 pc);
-i64 asm_try_put_by_id_cache(Interpreter*, u32 pc);
-i64 asm_try_get_by_id_cache(Interpreter*, u32 pc);
-i64 asm_slow_path_initialize_lexical_binding(Interpreter*, u32 pc);
+i64 asm_try_inline_call(VM*, u32 pc);
+i64 asm_pop_inline_frame(VM*, u32 pc);
+i64 asm_pop_inline_frame_end(VM*, u32 pc);
+i64 asm_try_put_by_id_cache(VM*, u32 pc);
+i64 asm_try_get_by_id_cache(VM*, u32 pc);
+i64 asm_slow_path_initialize_lexical_binding(VM*, u32 pc);
 
-i64 asm_try_get_by_value_typed_array(Interpreter*, u32 pc);
-i64 asm_slow_path_get_initialized_binding(Interpreter*, u32 pc);
-i64 asm_slow_path_get_binding(Interpreter*, u32 pc);
-i64 asm_slow_path_set_lexical_binding(Interpreter*, u32 pc);
-i64 asm_slow_path_bitwise_not(Interpreter*, u32 pc);
-i64 asm_slow_path_unary_plus(Interpreter*, u32 pc);
-i64 asm_slow_path_throw_if_tdz(Interpreter*, u32 pc);
-i64 asm_slow_path_throw_if_not_object(Interpreter*, u32 pc);
-i64 asm_slow_path_throw_if_nullish(Interpreter*, u32 pc);
-i64 asm_slow_path_loosely_equals(Interpreter*, u32 pc);
-i64 asm_slow_path_loosely_inequals(Interpreter*, u32 pc);
-i64 asm_slow_path_get_callee_and_this(Interpreter*, u32 pc);
-i64 asm_try_put_by_value_typed_array(Interpreter*, u32 pc);
-i64 asm_slow_path_get_private_by_id(Interpreter*, u32 pc);
-i64 asm_slow_path_put_private_by_id(Interpreter*, u32 pc);
-i64 asm_slow_path_instance_of(Interpreter*, u32 pc);
-i64 asm_slow_path_resolve_this_binding(Interpreter*, u32 pc);
+i64 asm_try_get_by_value_typed_array(VM*, u32 pc);
+i64 asm_slow_path_get_initialized_binding(VM*, u32 pc);
+i64 asm_slow_path_get_binding(VM*, u32 pc);
+i64 asm_slow_path_set_lexical_binding(VM*, u32 pc);
+i64 asm_slow_path_bitwise_not(VM*, u32 pc);
+i64 asm_slow_path_unary_plus(VM*, u32 pc);
+i64 asm_slow_path_throw_if_tdz(VM*, u32 pc);
+i64 asm_slow_path_throw_if_not_object(VM*, u32 pc);
+i64 asm_slow_path_throw_if_nullish(VM*, u32 pc);
+i64 asm_slow_path_loosely_equals(VM*, u32 pc);
+i64 asm_slow_path_loosely_inequals(VM*, u32 pc);
+i64 asm_slow_path_get_callee_and_this(VM*, u32 pc);
+i64 asm_try_put_by_value_typed_array(VM*, u32 pc);
+i64 asm_slow_path_get_private_by_id(VM*, u32 pc);
+i64 asm_slow_path_put_private_by_id(VM*, u32 pc);
+i64 asm_slow_path_instance_of(VM*, u32 pc);
+i64 asm_slow_path_resolve_this_binding(VM*, u32 pc);
 
 // ===== Fallback handler for opcodes without DSL handlers =====
 // NB: Opcodes with DSL handlers are dispatched directly and never reach here.
-i64 asm_fallback_handler(Interpreter* interp, u32 pc)
+i64 asm_fallback_handler(VM* vm, u32 pc)
 {
-    auto& ctx = interp->running_execution_context();
+    auto& ctx = vm->running_execution_context();
     ctx.program_counter = pc;
     auto* bytecode = ctx.executable->bytecode.data();
     auto& insn = *reinterpret_cast<Instruction const*>(&bytecode[pc]);
@@ -311,161 +311,161 @@ i64 asm_fallback_handler(Interpreter* interp, u32 pc)
     // Terminators
     case Instruction::Type::Throw: {
         auto& typed = *reinterpret_cast<Op::Throw const*>(&bytecode[pc]);
-        auto result = typed.execute_impl(*interp);
-        return handle_asm_exception(*interp, pc, result.error_value());
+        auto result = typed.execute_impl(*vm);
+        return handle_asm_exception(*vm, pc, result.error_value());
     }
     case Instruction::Type::Await: {
         auto& typed = *reinterpret_cast<Op::Await const*>(&bytecode[pc]);
-        typed.execute_impl(*interp);
+        typed.execute_impl(*vm);
         return -1;
     }
     case Instruction::Type::Yield: {
         auto& typed = *reinterpret_cast<Op::Yield const*>(&bytecode[pc]);
-        typed.execute_impl(*interp);
+        typed.execute_impl(*vm);
         return -1;
     }
 
     // Non-throwing instructions
     case Instruction::Type::AddPrivateName:
-        return execute_nonthrowing<Op::AddPrivateName>(*interp, pc);
+        return execute_nonthrowing<Op::AddPrivateName>(*vm, pc);
     case Instruction::Type::Catch:
-        return execute_nonthrowing<Op::Catch>(*interp, pc);
+        return execute_nonthrowing<Op::Catch>(*vm, pc);
     case Instruction::Type::CreateAsyncFromSyncIterator:
-        return execute_nonthrowing<Op::CreateAsyncFromSyncIterator>(*interp, pc);
+        return execute_nonthrowing<Op::CreateAsyncFromSyncIterator>(*vm, pc);
     case Instruction::Type::CreateLexicalEnvironment:
-        return execute_nonthrowing<Op::CreateLexicalEnvironment>(*interp, pc);
+        return execute_nonthrowing<Op::CreateLexicalEnvironment>(*vm, pc);
     case Instruction::Type::CreateVariableEnvironment:
-        return execute_nonthrowing<Op::CreateVariableEnvironment>(*interp, pc);
+        return execute_nonthrowing<Op::CreateVariableEnvironment>(*vm, pc);
     case Instruction::Type::CreatePrivateEnvironment:
-        return execute_nonthrowing<Op::CreatePrivateEnvironment>(*interp, pc);
+        return execute_nonthrowing<Op::CreatePrivateEnvironment>(*vm, pc);
     case Instruction::Type::CreateRestParams:
-        return execute_nonthrowing<Op::CreateRestParams>(*interp, pc);
+        return execute_nonthrowing<Op::CreateRestParams>(*vm, pc);
     case Instruction::Type::CreateArguments:
-        return execute_nonthrowing<Op::CreateArguments>(*interp, pc);
+        return execute_nonthrowing<Op::CreateArguments>(*vm, pc);
     case Instruction::Type::GetCompletionFields:
-        return execute_nonthrowing<Op::GetCompletionFields>(*interp, pc);
+        return execute_nonthrowing<Op::GetCompletionFields>(*vm, pc);
     case Instruction::Type::GetImportMeta:
-        return execute_nonthrowing<Op::GetImportMeta>(*interp, pc);
+        return execute_nonthrowing<Op::GetImportMeta>(*vm, pc);
     case Instruction::Type::GetNewTarget:
-        return execute_nonthrowing<Op::GetNewTarget>(*interp, pc);
+        return execute_nonthrowing<Op::GetNewTarget>(*vm, pc);
     case Instruction::Type::GetTemplateObject:
-        return execute_nonthrowing<Op::GetTemplateObject>(*interp, pc);
+        return execute_nonthrowing<Op::GetTemplateObject>(*vm, pc);
     case Instruction::Type::IsCallable:
-        return execute_nonthrowing<Op::IsCallable>(*interp, pc);
+        return execute_nonthrowing<Op::IsCallable>(*vm, pc);
     case Instruction::Type::IsConstructor:
-        return execute_nonthrowing<Op::IsConstructor>(*interp, pc);
+        return execute_nonthrowing<Op::IsConstructor>(*vm, pc);
     case Instruction::Type::LeavePrivateEnvironment:
-        return execute_nonthrowing<Op::LeavePrivateEnvironment>(*interp, pc);
+        return execute_nonthrowing<Op::LeavePrivateEnvironment>(*vm, pc);
     case Instruction::Type::NewFunction:
-        return execute_nonthrowing<Op::NewFunction>(*interp, pc);
+        return execute_nonthrowing<Op::NewFunction>(*vm, pc);
     case Instruction::Type::NewObjectWithNoPrototype:
-        return execute_nonthrowing<Op::NewObjectWithNoPrototype>(*interp, pc);
+        return execute_nonthrowing<Op::NewObjectWithNoPrototype>(*vm, pc);
     case Instruction::Type::NewPrimitiveArray:
-        return execute_nonthrowing<Op::NewPrimitiveArray>(*interp, pc);
+        return execute_nonthrowing<Op::NewPrimitiveArray>(*vm, pc);
     case Instruction::Type::NewRegExp:
-        return execute_nonthrowing<Op::NewRegExp>(*interp, pc);
+        return execute_nonthrowing<Op::NewRegExp>(*vm, pc);
     case Instruction::Type::NewReferenceError:
-        return execute_nonthrowing<Op::NewReferenceError>(*interp, pc);
+        return execute_nonthrowing<Op::NewReferenceError>(*vm, pc);
     case Instruction::Type::NewTypeError:
-        return execute_nonthrowing<Op::NewTypeError>(*interp, pc);
+        return execute_nonthrowing<Op::NewTypeError>(*vm, pc);
     case Instruction::Type::SetCompletionType:
-        return execute_nonthrowing<Op::SetCompletionType>(*interp, pc);
+        return execute_nonthrowing<Op::SetCompletionType>(*vm, pc);
     case Instruction::Type::ToBoolean:
-        return execute_nonthrowing<Op::ToBoolean>(*interp, pc);
+        return execute_nonthrowing<Op::ToBoolean>(*vm, pc);
     case Instruction::Type::Typeof:
-        return execute_nonthrowing<Op::Typeof>(*interp, pc);
+        return execute_nonthrowing<Op::Typeof>(*vm, pc);
 
     // Throwing instructions
     case Instruction::Type::ArrayAppend:
-        return execute_throwing<Op::ArrayAppend>(*interp, pc);
+        return execute_throwing<Op::ArrayAppend>(*vm, pc);
     case Instruction::Type::ToString:
-        return execute_throwing<Op::ToString>(*interp, pc);
+        return execute_throwing<Op::ToString>(*vm, pc);
     case Instruction::Type::ToPrimitiveWithStringHint:
-        return execute_throwing<Op::ToPrimitiveWithStringHint>(*interp, pc);
+        return execute_throwing<Op::ToPrimitiveWithStringHint>(*vm, pc);
     case Instruction::Type::CallConstructWithArgumentArray:
-        return execute_throwing<Op::CallConstructWithArgumentArray>(*interp, pc);
+        return execute_throwing<Op::CallConstructWithArgumentArray>(*vm, pc);
     case Instruction::Type::CallDirectEval:
-        return execute_throwing<Op::CallDirectEval>(*interp, pc);
+        return execute_throwing<Op::CallDirectEval>(*vm, pc);
     case Instruction::Type::CallDirectEvalWithArgumentArray:
-        return execute_throwing<Op::CallDirectEvalWithArgumentArray>(*interp, pc);
+        return execute_throwing<Op::CallDirectEvalWithArgumentArray>(*vm, pc);
     case Instruction::Type::CallWithArgumentArray:
-        return execute_throwing<Op::CallWithArgumentArray>(*interp, pc);
+        return execute_throwing<Op::CallWithArgumentArray>(*vm, pc);
     case Instruction::Type::ConcatString:
-        return execute_throwing<Op::ConcatString>(*interp, pc);
+        return execute_throwing<Op::ConcatString>(*vm, pc);
     case Instruction::Type::CopyObjectExcludingProperties:
-        return execute_throwing<Op::CopyObjectExcludingProperties>(*interp, pc);
+        return execute_throwing<Op::CopyObjectExcludingProperties>(*vm, pc);
     case Instruction::Type::CreateDataPropertyOrThrow:
-        return execute_throwing<Op::CreateDataPropertyOrThrow>(*interp, pc);
+        return execute_throwing<Op::CreateDataPropertyOrThrow>(*vm, pc);
     case Instruction::Type::CreateImmutableBinding:
-        return execute_throwing<Op::CreateImmutableBinding>(*interp, pc);
+        return execute_throwing<Op::CreateImmutableBinding>(*vm, pc);
     case Instruction::Type::CreateMutableBinding:
-        return execute_throwing<Op::CreateMutableBinding>(*interp, pc);
+        return execute_throwing<Op::CreateMutableBinding>(*vm, pc);
     case Instruction::Type::CreateVariable:
-        return execute_throwing<Op::CreateVariable>(*interp, pc);
+        return execute_throwing<Op::CreateVariable>(*vm, pc);
     case Instruction::Type::DeleteById:
-        return execute_throwing<Op::DeleteById>(*interp, pc);
+        return execute_throwing<Op::DeleteById>(*vm, pc);
     case Instruction::Type::DeleteByValue:
-        return execute_throwing<Op::DeleteByValue>(*interp, pc);
+        return execute_throwing<Op::DeleteByValue>(*vm, pc);
     case Instruction::Type::DeleteVariable:
-        return execute_throwing<Op::DeleteVariable>(*interp, pc);
+        return execute_throwing<Op::DeleteVariable>(*vm, pc);
     case Instruction::Type::EnterObjectEnvironment:
-        return execute_throwing<Op::EnterObjectEnvironment>(*interp, pc);
+        return execute_throwing<Op::EnterObjectEnvironment>(*vm, pc);
     case Instruction::Type::Exp:
-        return execute_throwing<Op::Exp>(*interp, pc);
+        return execute_throwing<Op::Exp>(*vm, pc);
     case Instruction::Type::GetByIdWithThis:
-        return execute_throwing<Op::GetByIdWithThis>(*interp, pc);
+        return execute_throwing<Op::GetByIdWithThis>(*vm, pc);
     case Instruction::Type::GetByValueWithThis:
-        return execute_throwing<Op::GetByValueWithThis>(*interp, pc);
+        return execute_throwing<Op::GetByValueWithThis>(*vm, pc);
     case Instruction::Type::GetIterator:
-        return execute_throwing<Op::GetIterator>(*interp, pc);
+        return execute_throwing<Op::GetIterator>(*vm, pc);
     case Instruction::Type::GetLengthWithThis:
-        return execute_throwing<Op::GetLengthWithThis>(*interp, pc);
+        return execute_throwing<Op::GetLengthWithThis>(*vm, pc);
     case Instruction::Type::GetMethod:
-        return execute_throwing<Op::GetMethod>(*interp, pc);
+        return execute_throwing<Op::GetMethod>(*vm, pc);
     case Instruction::Type::GetObjectPropertyIterator:
-        return execute_throwing<Op::GetObjectPropertyIterator>(*interp, pc);
+        return execute_throwing<Op::GetObjectPropertyIterator>(*vm, pc);
     case Instruction::Type::ObjectPropertyIteratorNext:
-        return execute_throwing<Op::ObjectPropertyIteratorNext>(*interp, pc);
+        return execute_throwing<Op::ObjectPropertyIteratorNext>(*vm, pc);
     case Instruction::Type::HasPrivateId:
-        return execute_throwing<Op::HasPrivateId>(*interp, pc);
+        return execute_throwing<Op::HasPrivateId>(*vm, pc);
     case Instruction::Type::ImportCall:
-        return execute_throwing<Op::ImportCall>(*interp, pc);
+        return execute_throwing<Op::ImportCall>(*vm, pc);
     case Instruction::Type::In:
-        return execute_throwing<Op::In>(*interp, pc);
+        return execute_throwing<Op::In>(*vm, pc);
     case Instruction::Type::InitializeVariableBinding:
-        return execute_throwing<Op::InitializeVariableBinding>(*interp, pc);
+        return execute_throwing<Op::InitializeVariableBinding>(*vm, pc);
     case Instruction::Type::IteratorClose:
-        return execute_throwing<Op::IteratorClose>(*interp, pc);
+        return execute_throwing<Op::IteratorClose>(*vm, pc);
     case Instruction::Type::IteratorNext:
-        return execute_throwing<Op::IteratorNext>(*interp, pc);
+        return execute_throwing<Op::IteratorNext>(*vm, pc);
     case Instruction::Type::IteratorNextUnpack:
-        return execute_throwing<Op::IteratorNextUnpack>(*interp, pc);
+        return execute_throwing<Op::IteratorNextUnpack>(*vm, pc);
     case Instruction::Type::IteratorToArray:
-        return execute_throwing<Op::IteratorToArray>(*interp, pc);
+        return execute_throwing<Op::IteratorToArray>(*vm, pc);
     case Instruction::Type::NewArrayWithLength:
-        return execute_throwing<Op::NewArrayWithLength>(*interp, pc);
+        return execute_throwing<Op::NewArrayWithLength>(*vm, pc);
     case Instruction::Type::NewClass:
-        return execute_throwing<Op::NewClass>(*interp, pc);
+        return execute_throwing<Op::NewClass>(*vm, pc);
     case Instruction::Type::PutByIdWithThis:
-        return execute_throwing<Op::PutByIdWithThis>(*interp, pc);
+        return execute_throwing<Op::PutByIdWithThis>(*vm, pc);
     case Instruction::Type::PutBySpread:
-        return execute_throwing<Op::PutBySpread>(*interp, pc);
+        return execute_throwing<Op::PutBySpread>(*vm, pc);
     case Instruction::Type::PutByValueWithThis:
-        return execute_throwing<Op::PutByValueWithThis>(*interp, pc);
+        return execute_throwing<Op::PutByValueWithThis>(*vm, pc);
     case Instruction::Type::ResolveSuperBase:
-        return execute_throwing<Op::ResolveSuperBase>(*interp, pc);
+        return execute_throwing<Op::ResolveSuperBase>(*vm, pc);
     case Instruction::Type::SetVariableBinding:
-        return execute_throwing<Op::SetVariableBinding>(*interp, pc);
+        return execute_throwing<Op::SetVariableBinding>(*vm, pc);
     case Instruction::Type::SuperCallWithArgumentArray:
-        return execute_throwing<Op::SuperCallWithArgumentArray>(*interp, pc);
+        return execute_throwing<Op::SuperCallWithArgumentArray>(*vm, pc);
     case Instruction::Type::ThrowConstAssignment:
-        return execute_throwing<Op::ThrowConstAssignment>(*interp, pc);
+        return execute_throwing<Op::ThrowConstAssignment>(*vm, pc);
     case Instruction::Type::ToLength:
-        return execute_throwing<Op::ToLength>(*interp, pc);
+        return execute_throwing<Op::ToLength>(*vm, pc);
     case Instruction::Type::ToObject:
-        return execute_throwing<Op::ToObject>(*interp, pc);
+        return execute_throwing<Op::ToObject>(*vm, pc);
     case Instruction::Type::TypeofBinding:
-        return execute_throwing<Op::TypeofBinding>(*interp, pc);
+        return execute_throwing<Op::TypeofBinding>(*vm, pc);
 
     default:
         VERIFY_NOT_REACHED();
@@ -474,119 +474,119 @@ i64 asm_fallback_handler(Interpreter* interp, u32 pc)
 
 // ===== Specific slow paths for asm-optimized instructions =====
 // These are called from asm handlers when the fast path fails.
-// Convention: i64 func(Interpreter*, u32 pc)
+// Convention: i64 func(VM*, u32 pc)
 //   Returns >= 0: new pc
 //   Returns < 0: exit
 
-i64 asm_slow_path_add(Interpreter* interp, u32 pc)
+i64 asm_slow_path_add(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Add>(*interp, pc);
+    return slow_path_throwing<Op::Add>(*vm, pc);
 }
 
-i64 asm_slow_path_sub(Interpreter* interp, u32 pc)
+i64 asm_slow_path_sub(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Sub>(*interp, pc);
+    return slow_path_throwing<Op::Sub>(*vm, pc);
 }
 
-i64 asm_slow_path_mul(Interpreter* interp, u32 pc)
+i64 asm_slow_path_mul(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Mul>(*interp, pc);
+    return slow_path_throwing<Op::Mul>(*vm, pc);
 }
 
-i64 asm_slow_path_div(Interpreter* interp, u32 pc)
+i64 asm_slow_path_div(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Div>(*interp, pc);
+    return slow_path_throwing<Op::Div>(*vm, pc);
 }
 
-i64 asm_slow_path_less_than(Interpreter* interp, u32 pc)
+i64 asm_slow_path_less_than(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LessThan>(*interp, pc);
+    return slow_path_throwing<Op::LessThan>(*vm, pc);
 }
 
-i64 asm_slow_path_less_than_equals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_less_than_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LessThanEquals>(*interp, pc);
+    return slow_path_throwing<Op::LessThanEquals>(*vm, pc);
 }
 
-i64 asm_slow_path_greater_than(Interpreter* interp, u32 pc)
+i64 asm_slow_path_greater_than(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GreaterThan>(*interp, pc);
+    return slow_path_throwing<Op::GreaterThan>(*vm, pc);
 }
 
-i64 asm_slow_path_greater_than_equals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_greater_than_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GreaterThanEquals>(*interp, pc);
+    return slow_path_throwing<Op::GreaterThanEquals>(*vm, pc);
 }
 
-i64 asm_slow_path_increment(Interpreter* interp, u32 pc)
+i64 asm_slow_path_increment(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Increment>(*interp, pc);
+    return slow_path_throwing<Op::Increment>(*vm, pc);
 }
 
-i64 asm_slow_path_decrement(Interpreter* interp, u32 pc)
+i64 asm_slow_path_decrement(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Decrement>(*interp, pc);
+    return slow_path_throwing<Op::Decrement>(*vm, pc);
 }
 
 // Comparison jump slow paths - these are terminators (execute_impl returns void),
 // so they need custom handling instead of the generic slow_path_throwing template.
 #define DEFINE_JUMP_COMPARISON_SLOW_PATH(snake_name, op_name, compare_call)      \
-    i64 asm_slow_path_jump_##snake_name(Interpreter* interp, u32 pc)             \
+    i64 asm_slow_path_jump_##snake_name(VM* vm, u32 pc)                          \
     {                                                                            \
-        bump_slow_path(*interp, pc);                                             \
-        auto* bytecode = interp->current_executable().bytecode.data();           \
+        bump_slow_path(*vm, pc);                                                 \
+        auto* bytecode = vm->current_executable().bytecode.data();               \
         auto& insn = *reinterpret_cast<Op::Jump##op_name const*>(&bytecode[pc]); \
-        auto lhs = interp->get(insn.lhs());                                      \
-        auto rhs = interp->get(insn.rhs());                                      \
+        auto lhs = vm->get(insn.lhs());                                          \
+        auto rhs = vm->get(insn.rhs());                                          \
         auto result = compare_call;                                              \
         if (result.is_error()) [[unlikely]]                                      \
-            return handle_asm_exception(*interp, pc, result.error_value());      \
+            return handle_asm_exception(*vm, pc, result.error_value());          \
         if (result.value())                                                      \
             return static_cast<i64>(insn.true_target().address());               \
         return static_cast<i64>(insn.false_target().address());                  \
     }
 
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, LessThan, less_than(Interpreter::vm(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, GreaterThan, greater_than(Interpreter::vm(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, LessThanEquals, less_than_equals(Interpreter::vm(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, GreaterThanEquals, greater_than_equals(Interpreter::vm(), lhs, rhs))
-DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal(Interpreter::vm(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than, LessThan, less_than(VM::the(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than, GreaterThan, greater_than(VM::the(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(less_than_equals, LessThanEquals, less_than_equals(VM::the(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(greater_than_equals, GreaterThanEquals, greater_than_equals(VM::the(), lhs, rhs))
+DEFINE_JUMP_COMPARISON_SLOW_PATH(loosely_equals, LooselyEquals, is_loosely_equal(VM::the(), lhs, rhs))
 #undef DEFINE_JUMP_COMPARISON_SLOW_PATH
 
-i64 asm_slow_path_jump_loosely_inequals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_jump_loosely_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*interp, pc);
-    auto* bytecode = interp->current_executable().bytecode.data();
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpLooselyInequals const*>(&bytecode[pc]);
-    auto lhs = interp->get(insn.lhs());
-    auto rhs = interp->get(insn.rhs());
-    auto result = is_loosely_equal(Interpreter::vm(), lhs, rhs);
+    auto lhs = vm->get(insn.lhs());
+    auto rhs = vm->get(insn.rhs());
+    auto result = is_loosely_equal(VM::the(), lhs, rhs);
     if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*interp, pc, result.error_value());
+        return handle_asm_exception(*vm, pc, result.error_value());
     if (!result.value())
         return static_cast<i64>(insn.true_target().address());
     return static_cast<i64>(insn.false_target().address());
 }
 
-i64 asm_slow_path_jump_strictly_equals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_jump_strictly_equals(VM* vm, u32 pc)
 {
-    bump_slow_path(*interp, pc);
-    auto* bytecode = interp->current_executable().bytecode.data();
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpStrictlyEquals const*>(&bytecode[pc]);
-    auto lhs = interp->get(insn.lhs());
-    auto rhs = interp->get(insn.rhs());
+    auto lhs = vm->get(insn.lhs());
+    auto rhs = vm->get(insn.rhs());
     if (is_strictly_equal(lhs, rhs))
         return static_cast<i64>(insn.true_target().address());
     return static_cast<i64>(insn.false_target().address());
 }
 
-i64 asm_slow_path_jump_strictly_inequals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_jump_strictly_inequals(VM* vm, u32 pc)
 {
-    bump_slow_path(*interp, pc);
-    auto* bytecode = interp->current_executable().bytecode.data();
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::JumpStrictlyInequals const*>(&bytecode[pc]);
-    auto lhs = interp->get(insn.lhs());
-    auto rhs = interp->get(insn.rhs());
+    auto lhs = vm->get(insn.lhs());
+    auto rhs = vm->get(insn.rhs());
     if (!is_strictly_equal(lhs, rhs))
         return static_cast<i64>(insn.true_target().address());
     return static_cast<i64>(insn.false_target().address());
@@ -594,243 +594,243 @@ i64 asm_slow_path_jump_strictly_inequals(Interpreter* interp, u32 pc)
 
 // ===== Dedicated slow paths for hot instructions =====
 
-i64 asm_slow_path_set_lexical_environment(Interpreter* interp, u32 pc)
+i64 asm_slow_path_set_lexical_environment(VM* vm, u32 pc)
 {
-    return slow_path_nonthrowing<Op::SetLexicalEnvironment>(*interp, pc);
+    return slow_path_nonthrowing<Op::SetLexicalEnvironment>(*vm, pc);
 }
 
-i64 asm_slow_path_get_initialized_binding(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_initialized_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetInitializedBinding>(*interp, pc);
+    return slow_path_throwing<Op::GetInitializedBinding>(*vm, pc);
 }
 
-i64 asm_slow_path_loosely_equals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_loosely_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LooselyEquals>(*interp, pc);
+    return slow_path_throwing<Op::LooselyEquals>(*vm, pc);
 }
 
-i64 asm_slow_path_loosely_inequals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_loosely_inequals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LooselyInequals>(*interp, pc);
+    return slow_path_throwing<Op::LooselyInequals>(*vm, pc);
 }
 
-i64 asm_slow_path_get_callee_and_this(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetCalleeAndThisFromEnvironment>(*interp, pc);
+    return slow_path_throwing<Op::GetCalleeAndThisFromEnvironment>(*vm, pc);
 }
 
-i64 asm_slow_path_postfix_increment(Interpreter* interp, u32 pc)
+i64 asm_slow_path_postfix_increment(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PostfixIncrement>(*interp, pc);
+    return slow_path_throwing<Op::PostfixIncrement>(*vm, pc);
 }
 
-i64 asm_slow_path_get_by_id(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_by_id(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetById>(*interp, pc);
+    return slow_path_throwing<Op::GetById>(*vm, pc);
 }
 
-i64 asm_slow_path_put_by_id(Interpreter* interp, u32 pc)
+i64 asm_slow_path_put_by_id(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PutById>(*interp, pc);
+    return slow_path_throwing<Op::PutById>(*vm, pc);
 }
 
-i64 asm_slow_path_get_by_value(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_by_value(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetByValue>(*interp, pc);
+    return slow_path_throwing<Op::GetByValue>(*vm, pc);
 }
 
-i64 asm_slow_path_get_length(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_length(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetLength>(*interp, pc);
+    return slow_path_throwing<Op::GetLength>(*vm, pc);
 }
 
-i64 asm_try_get_global_env_binding(Interpreter* interp, u32 pc)
+i64 asm_try_get_global_env_binding(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetGlobal const*>(&bytecode[pc]);
     auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
 
-    auto& vm = Interpreter::vm();
+    auto& current_vm = *vm;
     ThrowCompletionOr<Value> result = js_undefined();
     if (cache.in_module_environment) {
-        auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+        auto module = current_vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
         if (!module) [[unlikely]]
             return 1;
-        result = (*module)->environment()->get_binding_value_direct(vm, cache.environment_binding_index);
+        result = (*module)->environment()->get_binding_value_direct(current_vm, cache.environment_binding_index);
     } else {
-        result = interp->global_declarative_environment().get_binding_value_direct(vm, cache.environment_binding_index);
+        result = vm->global_declarative_environment().get_binding_value_direct(current_vm, cache.environment_binding_index);
     }
     if (result.is_error()) [[unlikely]]
         return 1;
-    interp->set(insn.dst(), result.value());
+    vm->set(insn.dst(), result.value());
     return 0;
 }
 
-i64 asm_slow_path_get_global(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_global(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetGlobal>(*interp, pc);
+    return slow_path_throwing<Op::GetGlobal>(*vm, pc);
 }
 
-i64 asm_try_set_global_env_binding(Interpreter* interp, u32 pc)
+i64 asm_try_set_global_env_binding(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::SetGlobal const*>(&bytecode[pc]);
     auto& cache = *bit_cast<GlobalVariableCache*>(insn.cache());
 
     if (!cache.has_environment_binding_index) [[unlikely]]
         return 1;
 
-    auto& vm = Interpreter::vm();
-    auto src = interp->get(insn.src());
+    auto& current_vm = *vm;
+    auto src = vm->get(insn.src());
     ThrowCompletionOr<void> result;
     if (cache.in_module_environment) {
-        auto module = vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
+        auto module = current_vm.running_execution_context().script_or_module.get_pointer<GC::Ref<Module>>();
         if (!module) [[unlikely]]
             return 1;
-        result = (*module)->environment()->set_mutable_binding_direct(vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
+        result = (*module)->environment()->set_mutable_binding_direct(current_vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
     } else {
-        result = interp->global_declarative_environment().set_mutable_binding_direct(vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
+        result = vm->global_declarative_environment().set_mutable_binding_direct(current_vm, cache.environment_binding_index, src, insn.strict() == Strict::Yes);
     }
     if (result.is_error()) [[unlikely]]
         return 1;
     return 0;
 }
 
-i64 asm_slow_path_set_global(Interpreter* interp, u32 pc)
+i64 asm_slow_path_set_global(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::SetGlobal>(*interp, pc);
+    return slow_path_throwing<Op::SetGlobal>(*vm, pc);
 }
 
-i64 asm_slow_path_call(Interpreter* interp, u32 pc)
+i64 asm_slow_path_call(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Call>(*interp, pc);
+    return slow_path_throwing<Op::Call>(*vm, pc);
 }
 
-i64 asm_slow_path_get_object_property_iterator(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_object_property_iterator(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetObjectPropertyIterator>(*interp, pc);
+    return slow_path_throwing<Op::GetObjectPropertyIterator>(*vm, pc);
 }
 
-i64 asm_slow_path_object_property_iterator_next(Interpreter* interp, u32 pc)
+i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ObjectPropertyIteratorNext>(*interp, pc);
+    return slow_path_throwing<Op::ObjectPropertyIteratorNext>(*vm, pc);
 }
 
-#define DEFINE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...)                 \
-    i64 asm_slow_path_call_builtin_##snake_case_name(Interpreter* interp, u32 pc) \
-    {                                                                             \
-        return slow_path_throwing<Op::CallBuiltin##name>(*interp, pc);            \
+#define DEFINE_CALL_BUILTIN_SLOW_PATH(name, snake_case_name, ...)    \
+    i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc) \
+    {                                                                \
+        return slow_path_throwing<Op::CallBuiltin##name>(*vm, pc);   \
     }
 JS_ENUMERATE_BUILTINS(DEFINE_CALL_BUILTIN_SLOW_PATH)
 #undef DEFINE_CALL_BUILTIN_SLOW_PATH
 
-i64 asm_slow_path_call_construct(Interpreter* interp, u32 pc)
+i64 asm_slow_path_call_construct(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::CallConstruct>(*interp, pc);
+    return slow_path_throwing<Op::CallConstruct>(*vm, pc);
 }
 
-i64 asm_slow_path_new_object(Interpreter* interp, u32 pc)
+i64 asm_slow_path_new_object(VM* vm, u32 pc)
 {
-    return slow_path_nonthrowing<Op::NewObject>(*interp, pc);
+    return slow_path_nonthrowing<Op::NewObject>(*vm, pc);
 }
 
-i64 asm_slow_path_cache_object_shape(Interpreter* interp, u32 pc)
+i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc)
 {
-    return slow_path_nonthrowing<Op::CacheObjectShape>(*interp, pc);
+    return slow_path_nonthrowing<Op::CacheObjectShape>(*vm, pc);
 }
 
-i64 asm_slow_path_init_object_literal_property(Interpreter* interp, u32 pc)
+i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc)
 {
-    return slow_path_nonthrowing<Op::InitObjectLiteralProperty>(*interp, pc);
+    return slow_path_nonthrowing<Op::InitObjectLiteralProperty>(*vm, pc);
 }
 
-i64 asm_slow_path_new_array(Interpreter* interp, u32 pc)
+i64 asm_slow_path_new_array(VM* vm, u32 pc)
 {
-    bump_slow_path(*interp, pc);
-    auto* bytecode = interp->current_executable().bytecode.data();
+    bump_slow_path(*vm, pc);
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& typed = *reinterpret_cast<Op::NewArray const*>(&bytecode[pc]);
-    typed.execute_impl(*interp);
+    typed.execute_impl(*vm);
     return static_cast<i64>(pc + typed.length());
 }
 
-i64 asm_slow_path_bitwise_xor(Interpreter* interp, u32 pc)
+i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseXor>(*interp, pc);
+    return slow_path_throwing<Op::BitwiseXor>(*vm, pc);
 }
 
-i64 asm_slow_path_bitwise_and(Interpreter* interp, u32 pc)
+i64 asm_slow_path_bitwise_and(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseAnd>(*interp, pc);
+    return slow_path_throwing<Op::BitwiseAnd>(*vm, pc);
 }
 
-i64 asm_slow_path_bitwise_or(Interpreter* interp, u32 pc)
+i64 asm_slow_path_bitwise_or(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseOr>(*interp, pc);
+    return slow_path_throwing<Op::BitwiseOr>(*vm, pc);
 }
 
-i64 asm_slow_path_left_shift(Interpreter* interp, u32 pc)
+i64 asm_slow_path_left_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::LeftShift>(*interp, pc);
+    return slow_path_throwing<Op::LeftShift>(*vm, pc);
 }
 
-i64 asm_slow_path_right_shift(Interpreter* interp, u32 pc)
+i64 asm_slow_path_right_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::RightShift>(*interp, pc);
+    return slow_path_throwing<Op::RightShift>(*vm, pc);
 }
 
-i64 asm_slow_path_unsigned_right_shift(Interpreter* interp, u32 pc)
+i64 asm_slow_path_unsigned_right_shift(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnsignedRightShift>(*interp, pc);
+    return slow_path_throwing<Op::UnsignedRightShift>(*vm, pc);
 }
 
-i64 asm_slow_path_mod(Interpreter* interp, u32 pc)
+i64 asm_slow_path_mod(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::Mod>(*interp, pc);
+    return slow_path_throwing<Op::Mod>(*vm, pc);
 }
 
-i64 asm_slow_path_strictly_equals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_strictly_equals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::StrictlyEquals>(*interp, pc);
+    return slow_path_throwing<Op::StrictlyEquals>(*vm, pc);
 }
 
-i64 asm_slow_path_strictly_inequals(Interpreter* interp, u32 pc)
+i64 asm_slow_path_strictly_inequals(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::StrictlyInequals>(*interp, pc);
+    return slow_path_throwing<Op::StrictlyInequals>(*vm, pc);
 }
 
-i64 asm_slow_path_unary_minus(Interpreter* interp, u32 pc)
+i64 asm_slow_path_unary_minus(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnaryMinus>(*interp, pc);
+    return slow_path_throwing<Op::UnaryMinus>(*vm, pc);
 }
 
-i64 asm_slow_path_postfix_decrement(Interpreter* interp, u32 pc)
+i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PostfixDecrement>(*interp, pc);
+    return slow_path_throwing<Op::PostfixDecrement>(*vm, pc);
 }
 
-i64 asm_slow_path_to_int32(Interpreter* interp, u32 pc)
+i64 asm_slow_path_to_int32(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ToInt32>(*interp, pc);
+    return slow_path_throwing<Op::ToInt32>(*vm, pc);
 }
 
-i64 asm_slow_path_put_by_value(Interpreter* interp, u32 pc)
+i64 asm_slow_path_put_by_value(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::PutByValue>(*interp, pc);
+    return slow_path_throwing<Op::PutByValue>(*vm, pc);
 }
 
-i64 asm_try_put_by_value_holey_array(Interpreter* interp, u32 pc)
+i64 asm_try_put_by_value_holey_array(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutByValue const*>(&bytecode[pc]);
 
-    auto base = interp->get(insn.base());
+    auto base = vm->get(insn.base());
     if (!base.is_object()) [[unlikely]]
         return 1;
 
-    auto property = interp->get(insn.property());
+    auto property = vm->get(insn.property());
     if (!property.is_non_negative_int32()) [[unlikely]]
         return 1;
 
@@ -850,17 +850,17 @@ i64 asm_try_put_by_value_holey_array(Interpreter* interp, u32 pc)
     if (index >= array.indexed_array_like_size()) [[unlikely]]
         return 1;
 
-    array.indexed_put(index, interp->get(insn.src()));
+    array.indexed_put(index, vm->get(insn.src()));
     return 0;
 }
 
 // Try to inline a JS-to-JS call. Returns 0 on success (callee frame pushed),
 // 1 on failure (caller should fall through to slow path).
-i64 asm_try_inline_call(Interpreter* interp, u32 pc)
+i64 asm_try_inline_call(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Call const*>(&bytecode[pc]);
-    auto callee = interp->get(insn.callee());
+    auto callee = vm->get(insn.callee());
     if (!callee.is_object())
         return 1;
     auto& callee_object = callee.as_object();
@@ -874,55 +874,52 @@ i64 asm_try_inline_call(Interpreter* interp, u32 pc)
 
     u32 return_pc = pc + insn.length();
 
-    auto* callee_context = interp->push_inline_frame(
+    auto* callee_context = vm->push_inline_frame(
         callee_function, *callee_function.bytecode_executable(),
         insn.arguments(), return_pc, insn.dst().raw(),
-        interp->get(insn.this_value()), nullptr, false);
+        vm->get(insn.this_value()), nullptr, false);
 
     if (!callee_context) [[unlikely]]
         return 1;
 
-    // NB: push_inline_frame does NOT update m_running_execution_context.
-    //     The C++ interpreter's try_inline_call does it, so we do too.
-    interp->set_running_execution_context(callee_context);
     return 0;
 }
 
 // Pop an inline frame after Return. Returns 0 on success.
-i64 asm_pop_inline_frame(Interpreter* interp, u32 pc)
+i64 asm_pop_inline_frame(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Return const*>(&bytecode[pc]);
-    auto value = interp->get(insn.value());
+    auto value = vm->get(insn.value());
     if (value.is_special_empty_value())
         value = js_undefined();
-    interp->pop_inline_frame(value);
+    vm->pop_inline_frame(value);
     return 0;
 }
 
 // Pop an inline frame after End. Returns 0 on success.
-i64 asm_pop_inline_frame_end(Interpreter* interp, u32 pc)
+i64 asm_pop_inline_frame_end(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::End const*>(&bytecode[pc]);
-    auto value = interp->get(insn.value());
+    auto value = vm->get(insn.value());
     if (value.is_special_empty_value())
         value = js_undefined();
-    interp->pop_inline_frame(value);
+    vm->pop_inline_frame(value);
     return 0;
 }
 
 // Fast cache-only PutById. Tries all cache entries for ChangeOwnProperty and
 // AddOwnProperty. Returns 0 on cache hit, 1 on miss (caller should use full slow path).
-i64 asm_try_put_by_id_cache(Interpreter* interp, u32 pc)
+i64 asm_try_put_by_id_cache(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutById const*>(&bytecode[pc]);
-    auto base = interp->get(insn.base());
+    auto base = vm->get(insn.base());
     if (!base.is_object()) [[unlikely]]
         return 1;
     auto& object = base.as_object();
-    auto value = interp->get(insn.src());
+    auto value = vm->get(insn.src());
     auto& cache = *bit_cast<PropertyLookupCache*>(insn.cache());
 
     for (size_t i = 0; i < cache.entries.size(); ++i) {
@@ -969,11 +966,11 @@ i64 asm_try_put_by_id_cache(Interpreter* interp, u32 pc)
 // Fast cache-only GetById. Tries all cache entries for own-property and prototype
 // chain lookups. On cache hit, writes the result to the dst operand and returns 0.
 // On miss, returns 1 (caller should use full slow path).
-i64 asm_try_get_by_id_cache(Interpreter* interp, u32 pc)
+i64 asm_try_get_by_id_cache(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetById const*>(&bytecode[pc]);
-    auto base = interp->get(insn.base());
+    auto base = vm->get(insn.base());
     if (!base.is_object()) [[unlikely]]
         return 1;
     auto& object = base.as_object();
@@ -994,7 +991,7 @@ i64 asm_try_get_by_id_cache(Interpreter* interp, u32 pc)
             auto value = cached_prototype->get_direct(entry.property_offset);
             if (value.is_accessor()) [[unlikely]]
                 return 1;
-            interp->set(insn.dst(), value);
+            vm->set(insn.dst(), value);
             return 0;
         } else if (&shape == entry.shape) {
             if (shape.is_dictionary()
@@ -1003,65 +1000,65 @@ i64 asm_try_get_by_id_cache(Interpreter* interp, u32 pc)
             auto value = object.get_direct(entry.property_offset);
             if (value.is_accessor()) [[unlikely]]
                 return 1;
-            interp->set(insn.dst(), value);
+            vm->set(insn.dst(), value);
             return 0;
         }
     }
     return 1;
 }
 
-i64 asm_slow_path_get_binding(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::GetBinding>(*interp, pc);
+    return slow_path_throwing<Op::GetBinding>(*vm, pc);
 }
 
-i64 asm_slow_path_initialize_lexical_binding(Interpreter* interp, u32 pc)
+i64 asm_slow_path_initialize_lexical_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::InitializeLexicalBinding>(*interp, pc);
+    return slow_path_throwing<Op::InitializeLexicalBinding>(*vm, pc);
 }
 
-i64 asm_slow_path_set_lexical_binding(Interpreter* interp, u32 pc)
+i64 asm_slow_path_set_lexical_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::SetLexicalBinding>(*interp, pc);
+    return slow_path_throwing<Op::SetLexicalBinding>(*vm, pc);
 }
 
-i64 asm_slow_path_bitwise_not(Interpreter* interp, u32 pc)
+i64 asm_slow_path_bitwise_not(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::BitwiseNot>(*interp, pc);
+    return slow_path_throwing<Op::BitwiseNot>(*vm, pc);
 }
 
-i64 asm_slow_path_unary_plus(Interpreter* interp, u32 pc)
+i64 asm_slow_path_unary_plus(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::UnaryPlus>(*interp, pc);
+    return slow_path_throwing<Op::UnaryPlus>(*vm, pc);
 }
 
-i64 asm_slow_path_throw_if_tdz(Interpreter* interp, u32 pc)
+i64 asm_slow_path_throw_if_tdz(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ThrowIfTDZ>(*interp, pc);
+    return slow_path_throwing<Op::ThrowIfTDZ>(*vm, pc);
 }
 
-i64 asm_slow_path_throw_if_not_object(Interpreter* interp, u32 pc)
+i64 asm_slow_path_throw_if_not_object(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ThrowIfNotObject>(*interp, pc);
+    return slow_path_throwing<Op::ThrowIfNotObject>(*vm, pc);
 }
 
-i64 asm_slow_path_throw_if_nullish(Interpreter* interp, u32 pc)
+i64 asm_slow_path_throw_if_nullish(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ThrowIfNullish>(*interp, pc);
+    return slow_path_throwing<Op::ThrowIfNullish>(*vm, pc);
 }
 
 // Fast path for GetByValue on typed arrays.
 // Returns 0 on success (result stored in dst), 1 on miss (fall to slow path).
-i64 asm_try_get_by_value_typed_array(Interpreter* interp, u32 pc)
+i64 asm_try_get_by_value_typed_array(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetByValue const*>(&bytecode[pc]);
 
-    auto base = interp->get(insn.base());
+    auto base = vm->get(insn.base());
     if (!base.is_object()) [[unlikely]]
         return 1;
 
-    auto property = interp->get(insn.property());
+    auto property = vm->get(insn.property());
     if (!property.is_non_negative_int32()) [[unlikely]]
         return 1;
 
@@ -1079,12 +1076,12 @@ i64 asm_try_get_by_value_typed_array(Interpreter* interp, u32 pc)
 
     auto length = array_length.length();
     if (index >= length) [[unlikely]] {
-        interp->set(insn.dst(), js_undefined());
+        vm->set(insn.dst(), js_undefined());
         return 0;
     }
 
     if (!is_valid_integer_index(typed_array, CanonicalIndex { CanonicalIndex::Type::Index, index })) [[unlikely]] {
-        interp->set(insn.dst(), js_undefined());
+        vm->set(insn.dst(), js_undefined());
         return 0;
     }
 
@@ -1122,22 +1119,22 @@ i64 asm_try_get_by_value_typed_array(Interpreter* interp, u32 pc)
         return 1;
     }
 
-    interp->set(insn.dst(), result);
+    vm->set(insn.dst(), result);
     return 0;
 }
 
 // Fast path for PutByValue on typed arrays.
 // Returns 0 on success, 1 on miss (fall to slow path).
-i64 asm_try_put_by_value_typed_array(Interpreter* interp, u32 pc)
+i64 asm_try_put_by_value_typed_array(VM* vm, u32 pc)
 {
-    auto* bytecode = interp->current_executable().bytecode.data();
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutByValue const*>(&bytecode[pc]);
 
-    auto base = interp->get(insn.base());
+    auto base = vm->get(insn.base());
     if (!base.is_object()) [[unlikely]]
         return 1;
 
-    auto property = interp->get(insn.property());
+    auto property = vm->get(insn.property());
     if (!property.is_non_negative_int32()) [[unlikely]]
         return 1;
 
@@ -1160,7 +1157,7 @@ i64 asm_try_put_by_value_typed_array(Interpreter* interp, u32 pc)
 
     auto* buffer = typed_array.viewed_array_buffer();
     auto* data = buffer->buffer().data() + typed_array.byte_offset();
-    auto value = interp->get(insn.src());
+    auto value = vm->get(insn.src());
 
     if (value.is_int32()) {
         auto int_val = value.as_i32();
@@ -1206,80 +1203,80 @@ i64 asm_try_put_by_value_typed_array(Interpreter* interp, u32 pc)
     return 1;
 }
 
-i64 asm_slow_path_instance_of(Interpreter* interp, u32 pc)
+i64 asm_slow_path_instance_of(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::InstanceOf>(*interp, pc);
+    return slow_path_throwing<Op::InstanceOf>(*vm, pc);
 }
 
-i64 asm_slow_path_resolve_this_binding(Interpreter* interp, u32 pc)
+i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc)
 {
-    return slow_path_throwing<Op::ResolveThisBinding>(*interp, pc);
+    return slow_path_throwing<Op::ResolveThisBinding>(*vm, pc);
 }
 
 // Direct handler for GetPrivateById: bypasses Reference indirection.
-i64 asm_slow_path_get_private_by_id(Interpreter* interp, u32 pc)
+i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc)
 {
-    interp->running_execution_context().program_counter = pc;
-    auto* bytecode = interp->current_executable().bytecode.data();
+    vm->running_execution_context().program_counter = pc;
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::GetPrivateById const*>(&bytecode[pc]);
 
-    auto base_value = interp->get(insn.base());
-    auto& vm = interp->vm();
+    auto base_value = vm->get(insn.base());
+    auto& current_vm = *vm;
 
     if (!base_value.is_object()) [[unlikely]] {
-        auto object = base_value.to_object(vm);
+        auto object = base_value.to_object(current_vm);
         if (object.is_error())
-            return handle_asm_exception(*interp, pc, object.error_value());
-        auto const& name = interp->get_identifier(insn.property());
-        auto private_name = make_private_reference(vm, base_value, name);
-        auto result = private_name.get_value(vm);
+            return handle_asm_exception(*vm, pc, object.error_value());
+        auto const& name = current_vm.get_identifier(insn.property());
+        auto private_name = make_private_reference(current_vm, base_value, name);
+        auto result = private_name.get_value(current_vm);
         if (result.is_error()) [[unlikely]]
-            return handle_asm_exception(*interp, pc, result.error_value());
-        interp->set(insn.dst(), result.release_value());
+            return handle_asm_exception(*vm, pc, result.error_value());
+        vm->set(insn.dst(), result.release_value());
         return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
     }
 
-    auto const& name = interp->get_identifier(insn.property());
-    auto private_environment = vm.running_execution_context().private_environment;
+    auto const& name = current_vm.get_identifier(insn.property());
+    auto private_environment = current_vm.running_execution_context().private_environment;
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(name);
     auto result = base_value.as_object().private_get(private_name);
     if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*interp, pc, result.error_value());
-    interp->set(insn.dst(), result.release_value());
+        return handle_asm_exception(*vm, pc, result.error_value());
+    vm->set(insn.dst(), result.release_value());
     return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
 }
 
 // Direct handler for PutPrivateById: bypasses Reference indirection.
-i64 asm_slow_path_put_private_by_id(Interpreter* interp, u32 pc)
+i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc)
 {
-    interp->running_execution_context().program_counter = pc;
-    auto* bytecode = interp->current_executable().bytecode.data();
+    vm->running_execution_context().program_counter = pc;
+    auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::PutPrivateById const*>(&bytecode[pc]);
 
-    auto base_value = interp->get(insn.base());
-    auto& vm = interp->vm();
-    auto value = interp->get(insn.src());
+    auto base_value = vm->get(insn.base());
+    auto& current_vm = *vm;
+    auto value = vm->get(insn.src());
 
     if (!base_value.is_object()) [[unlikely]] {
-        auto object = base_value.to_object(vm);
+        auto object = base_value.to_object(current_vm);
         if (object.is_error())
-            return handle_asm_exception(*interp, pc, object.error_value());
-        auto const& name = interp->get_identifier(insn.property());
-        auto private_reference = make_private_reference(vm, object.release_value(), name);
-        auto result = private_reference.put_value(vm, value);
+            return handle_asm_exception(*vm, pc, object.error_value());
+        auto const& name = current_vm.get_identifier(insn.property());
+        auto private_reference = make_private_reference(current_vm, object.release_value(), name);
+        auto result = private_reference.put_value(current_vm, value);
         if (result.is_error()) [[unlikely]]
-            return handle_asm_exception(*interp, pc, result.error_value());
+            return handle_asm_exception(*vm, pc, result.error_value());
         return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
     }
 
-    auto const& name = interp->get_identifier(insn.property());
-    auto private_environment = vm.running_execution_context().private_environment;
+    auto const& name = current_vm.get_identifier(insn.property());
+    auto private_environment = current_vm.running_execution_context().private_environment;
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(name);
     auto result = base_value.as_object().private_set(private_name, value);
     if (result.is_error()) [[unlikely]]
-        return handle_asm_exception(*interp, pc, result.error_value());
+        return handle_asm_exception(*vm, pc, result.error_value());
     return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
 }
 
@@ -1299,18 +1296,18 @@ u64 asm_helper_math_exp(u64 encoded_value)
 
 u64 asm_helper_empty_string(u64)
 {
-    return bit_cast<u64>(Value(&Interpreter::vm().empty_string()));
+    return bit_cast<u64>(Value(&VM::the().empty_string()));
 }
 
 u64 asm_helper_single_ascii_character_string(u64 encoded_value)
 {
-    return bit_cast<u64>(Value(&Interpreter::vm().single_ascii_character_string(static_cast<u8>(encoded_value))));
+    return bit_cast<u64>(Value(&VM::the().single_ascii_character_string(static_cast<u8>(encoded_value))));
 }
 
 u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value)
 {
     char16_t code_unit = static_cast<char16_t>(encoded_value);
-    return bit_cast<u64>(Value(PrimitiveString::create(Interpreter::vm(), Utf16View(&code_unit, 1))));
+    return bit_cast<u64>(Value(PrimitiveString::create(VM::the(), Utf16View(&code_unit, 1))));
 }
 
 } // extern "C"

@@ -13,7 +13,7 @@
 #include <LibCore/ArgsParser.h>
 #include <LibCore/ConfigFile.h>
 #include <LibCore/StandardPaths.h>
-#include <LibJS/Bytecode/Interpreter.h>
+#include <LibJS/Bytecode/Debug.h>
 #include <LibJS/Console.h>
 #include <LibJS/Contrib/Test262/GlobalObject.h>
 #include <LibJS/Print.h>
@@ -23,6 +23,7 @@
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/StringPrototype.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/RustFFI.h>
 #include <LibJS/Script.h>
@@ -213,7 +214,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
             auto script = script_or_error.release_value();
 
             if (!parse_only)
-                result = vm.bytecode_interpreter().run(*script);
+                result = vm.run(*script);
         }
     } else {
         auto module_or_error = JS::SourceTextModule::parse(source, realm, source_name);
@@ -231,7 +232,7 @@ static ErrorOr<bool> parse_and_run(JS::Realm& realm, StringView source, StringVi
         } else {
             auto module = module_or_error.release_value();
             if (!parse_only)
-                result = vm.bytecode_interpreter().run(*module);
+                result = vm.run(*module);
         }
     }
 

@@ -17,7 +17,6 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibMain/Main.h>
 #include <LibRequests/RequestClient.h>
 #include <LibUnicode/TimeZone.h>

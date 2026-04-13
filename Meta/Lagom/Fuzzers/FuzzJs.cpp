@@ -6,8 +6,8 @@
  */
 
 #include <AK/StringView.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Script.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -24,7 +24,7 @@ extern "C" int LLVMFuzzerTestOneInput(uint8_t const* data, size_t size)
     auto& realm = *root_execution_context->realm;
     auto parse_result = JS::Script::parse(js, realm);
     if (!parse_result.is_error())
-        (void)vm->bytecode_interpreter().run(parse_result.value());
+        (void)vm->run(parse_result.value());
 
     return 0;
 }

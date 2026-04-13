@@ -8,9 +8,9 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Runtime/ExecutionContext.h>
 #include <LibJS/Runtime/Object.h>
+#include <LibJS/Runtime/VM.h>
 
 namespace JS {
 

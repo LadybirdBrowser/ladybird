@@ -19,13 +19,13 @@
 #include <AK/Tuple.h>
 #include <LibCore/DirIterator.h>
 #include <LibCore/File.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/ParserError.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/JSONObject.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibJS/Runtime/WeakMap.h>
 #include <LibJS/Runtime/WeakSet.h>
@@ -389,7 +389,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
     auto test_script = result.release_value();
 
     g_vm->push_execution_context(global_execution_context);
-    MUST(g_vm->bytecode_interpreter().run(*test_script));
+    MUST(g_vm->run(*test_script));
     g_vm->pop_execution_context();
 
     auto file_script = parse_script(test_path, *realm);
@@ -400,7 +400,7 @@ inline JSFileResult TestRunner::run_file_test(ByteString const& test_path)
         return { test_path, file_script.error() };
     }
     g_vm->push_execution_context(global_execution_context);
-    top_level_result = g_vm->bytecode_interpreter().run(file_script.value());
+    top_level_result = g_vm->run(file_script.value());
     g_vm->pop_execution_context();
 
     g_vm->push_execution_context(global_execution_context);

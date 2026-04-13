@@ -167,15 +167,13 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
     while (true) {
         auto completion_cell = heap().allocate<CompletionCell>(completion);
 
-        auto& bytecode_interpreter = vm.bytecode_interpreter();
-
         // We should never enter `execute` again after the generator is complete.
         VERIFY(m_yield_continuation != ExecutionContext::no_yield_continuation);
 
         // Clear yield state so that a normal return (no yield) is detected as done.
         m_async_generator_context->yield_continuation = ExecutionContext::no_yield_continuation;
 
-        auto result_value = bytecode_interpreter.run_executable(vm.running_execution_context(), m_generating_executable, m_yield_continuation, completion_cell);
+        auto result_value = vm.run_executable(vm.running_execution_context(), m_generating_executable, m_yield_continuation, completion_cell);
 
         if (result_value.is_throw_completion()) {
             m_yield_continuation = ExecutionContext::no_yield_continuation;

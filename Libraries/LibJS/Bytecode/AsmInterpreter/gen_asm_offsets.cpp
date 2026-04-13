@@ -12,7 +12,6 @@
 #include <AK/Utf16StringData.h>
 #include <LibJS/Bytecode/Builtins.h>
 #include <LibJS/Bytecode/Executable.h>
-#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Bytecode/PutKind.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -25,6 +24,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/VM.h>
 
 #define EMIT_OFFSET(name, type, member) \
     outln("const " #name " = {}", offsetof(type, member))
@@ -139,9 +139,9 @@ int main()
     EMIT_OFFSET(REALM_GLOBAL_OBJECT, Realm, m_global_object);
     EMIT_OFFSET(REALM_GLOBAL_DECLARATIVE_ENVIRONMENT, Realm, m_global_declarative_environment);
 
-    // Interpreter layout
-    outln("\n# Interpreter layout");
-    EMIT_OFFSET(INTERPRETER_RUNNING_EXECUTION_CONTEXT, Interpreter, m_running_execution_context);
+    // VM layout
+    outln("\n# VM layout");
+    EMIT_OFFSET(VM_RUNNING_EXECUTION_CONTEXT, VM, m_running_execution_context);
 
     // IndexedStorageKind enum values
     outln("\n# IndexedStorageKind enum values");
