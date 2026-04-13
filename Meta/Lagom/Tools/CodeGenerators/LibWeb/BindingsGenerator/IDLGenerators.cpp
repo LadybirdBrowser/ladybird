@@ -758,6 +758,19 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
     }
 }
 
+static void generate_promise_to_cpp(SourceGenerator& scoped_generator)
+{
+    // https://webidl.spec.whatwg.org/#js-promise
+    scoped_generator.append(R"~~~(
+    // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
+    auto promise_capability = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
+    // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
+    TRY(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), @js_name@@js_suffix@));
+    // 3. Return promiseCapability.
+    auto @cpp_name@ = GC::make_root(promise_capability);
+)~~~");
+}
+
 static void generate_object_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional)
 {
     // https://webidl.spec.whatwg.org/#js-object
@@ -926,15 +939,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
             }
         }
     } else if (parameter.type->name() == "Promise") {
-        // https://webidl.spec.whatwg.org/#js-promise
-        scoped_generator.append(R"~~~(
-    // 1. Let promiseCapability be ? NewPromiseCapability(%Promise%).
-    auto promise_capability = TRY(JS::new_promise_capability(vm, realm.intrinsics().promise_constructor()));
-    // 2. Perform ? Call(promiseCapability.[[Resolve]], undefined, « V »).
-    TRY(JS::call(vm, *promise_capability->resolve(), JS::js_undefined(), @js_name@@js_suffix@));
-    // 3. Return promiseCapability.
-    auto @cpp_name@ = GC::make_root(promise_capability);
-)~~~");
+        generate_promise_to_cpp(scoped_generator);
     } else if (parameter.type->name() == "object") {
         generate_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (is_javascript_builtin(parameter.type) || parameter.type->name() == "BufferSource"sv) {
