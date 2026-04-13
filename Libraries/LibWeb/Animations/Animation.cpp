@@ -46,7 +46,7 @@ GC::Ref<Animation> Animation::create(JS::Realm& realm, GC::Ptr<AnimationEffect> 
     return animation;
 }
 
-WebIDL::ExceptionOr<GC::Ref<Animation>> Animation::construct_impl(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
+GC::Ref<Animation> Animation::construct_impl(JS::Realm& realm, GC::Ptr<AnimationEffect> effect, Optional<GC::Ptr<AnimationTimeline>> timeline)
 {
     return create(realm, effect, timeline);
 }

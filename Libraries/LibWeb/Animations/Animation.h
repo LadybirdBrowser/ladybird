@@ -32,7 +32,7 @@ public:
     static constexpr bool OVERRIDES_FINALIZE = true;
 
     static GC::Ref<Animation> create(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
-    static WebIDL::ExceptionOr<GC::Ref<Animation>> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
+    static GC::Ref<Animation> construct_impl(JS::Realm&, GC::Ptr<AnimationEffect>, Optional<GC::Ptr<AnimationTimeline>>);
 
     FlyString const& id() const { return m_id; }
     void set_id(FlyString value) { m_id = move(value); }

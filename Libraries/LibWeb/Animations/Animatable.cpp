@@ -52,7 +52,7 @@ WebIDL::ExceptionOr<GC::Ref<Animation>> Animatable::animate(Optional<GC::Root<JS
 
     // 4. Construct a new Animation object, animation, in the relevant Realm of target by using the same procedure as
     //    the Animation() constructor, passing effect and timeline as arguments of the same name.
-    auto animation = TRY(Animation::construct_impl(realm, effect, move(timeline)));
+    auto animation = Animation::construct_impl(realm, effect, move(timeline));
 
     // 5. If options is a KeyframeAnimationOptions object, assign the value of the id member of options to animation’s
     //    id attribute.
