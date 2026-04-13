@@ -1,8 +1,19 @@
 <!DOCTYPE html>
+<!-- Run the assertions in an iframe so that the Navigation API object always
+     reflects a freshly-created navigable, independent of any history entries
+     accumulated by earlier tests in the same WebContent process. -->
+<iframe id="testIframe"></iframe>
 <script src="../include.js"></script>
 <script>
-    test(() => {
-        let n = window.navigation;
+    asyncTest(async done => {
+        const iframe = document.getElementById("testIframe");
+
+        await new Promise(resolve => {
+            iframe.addEventListener("load", resolve, { once: true });
+            iframe.src = "about:blank";
+        });
+
+        let n = iframe.contentWindow.navigation;
 
         let len = n.entries().length;
 
@@ -11,6 +22,8 @@
 
         println(`transition is null: ${n.transition == null}`);
         println(`canGoBack: ${n.canGoBack}`);
-        println(`canGoForward: ${n.canGoForward}`);       
+        println(`canGoForward: ${n.canGoForward}`);
+
+        done();
     });
 </script>
