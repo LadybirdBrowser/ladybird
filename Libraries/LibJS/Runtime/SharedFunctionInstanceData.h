@@ -63,6 +63,10 @@ public:
         Vector<Utf16FlyString> parameter_names_for_mapped_arguments,
         void* rust_function_ast);
 
+    void set_executable(GC::Ptr<Bytecode::Executable>);
+    void set_is_class_constructor();
+    [[nodiscard]] bool can_inline_call() const { return m_can_inline_call; }
+
     mutable GC::Ptr<Bytecode::Executable> m_executable;
 
     Utf16FlyString m_name;
@@ -141,6 +145,9 @@ public:
 
 private:
     virtual void visit_edges(Visitor&) override;
+    void update_can_inline_call();
+
+    bool m_can_inline_call { false };
 };
 
 }

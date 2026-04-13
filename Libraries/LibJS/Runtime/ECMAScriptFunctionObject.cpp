@@ -139,10 +139,11 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
 
 void ECMAScriptFunctionObject::get_stack_frame_info(size_t& registers_and_locals_count, ReadonlySpan<Value>& constants, size_t& argument_count)
 {
-    auto& executable = shared_data().m_executable;
+    auto executable = shared_data().m_executable;
     if (!executable) {
         auto rust_executable = RustIntegration::compile_function(vm(), *m_shared_data, false);
         VERIFY(rust_executable);
+        m_shared_data->set_executable(rust_executable);
         executable = rust_executable;
         executable->name = m_shared_data->m_name;
         if (Bytecode::g_dump_bytecode)

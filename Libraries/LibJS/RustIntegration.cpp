@@ -493,7 +493,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
         builder.result.tla_shared_data->m_is_module_wrapper = true;
         builder.result.tla_shared_data->m_uses_this = true;
         builder.result.tla_shared_data->m_function_environment_needed = true;
-        builder.result.tla_shared_data->m_executable = tla_exec;
+        builder.result.tla_shared_data->set_executable(tla_exec);
     } else {
         builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
     }

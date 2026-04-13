@@ -95,10 +95,11 @@ ThrowCompletionOr<Value> NativeJavaScriptBackedFunction::call()
 
 Bytecode::Executable& NativeJavaScriptBackedFunction::bytecode_executable()
 {
-    auto& executable = m_shared_function_instance_data->m_executable;
+    auto executable = m_shared_function_instance_data->m_executable;
     if (!executable) {
         auto rust_executable = RustIntegration::compile_function(vm(), *m_shared_function_instance_data, true);
         VERIFY(rust_executable);
+        m_shared_function_instance_data->set_executable(rust_executable);
         executable = rust_executable;
         executable->name = m_shared_function_instance_data->m_name;
         if (Bytecode::g_dump_bytecode)

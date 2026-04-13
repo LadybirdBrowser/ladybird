@@ -39,6 +39,8 @@ SharedFunctionInstanceData::SharedFunctionInstanceData(
         m_this_mode = ThisMode::Strict;
     else
         m_this_mode = ThisMode::Global;
+
+    update_can_inline_call();
 }
 
 void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
@@ -51,6 +53,18 @@ void SharedFunctionInstanceData::visit_edges(Visitor& visitor)
 }
 
 SharedFunctionInstanceData::~SharedFunctionInstanceData() = default;
+
+void SharedFunctionInstanceData::set_executable(GC::Ptr<Bytecode::Executable> executable)
+{
+    m_executable = executable;
+    update_can_inline_call();
+}
+
+void SharedFunctionInstanceData::set_is_class_constructor()
+{
+    m_is_class_constructor = true;
+    update_can_inline_call();
+}
 
 void SharedFunctionInstanceData::finalize()
 {
@@ -67,6 +81,11 @@ void SharedFunctionInstanceData::clear_compile_inputs()
     m_lexical_bindings.clear();
     RustIntegration::free_function_ast(m_rust_function_ast);
     m_rust_function_ast = nullptr;
+}
+
+void SharedFunctionInstanceData::update_can_inline_call()
+{
+    m_can_inline_call = m_executable && m_kind == FunctionKind::Normal && !m_is_class_constructor;
 }
 
 }

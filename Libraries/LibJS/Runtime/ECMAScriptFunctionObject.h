@@ -62,9 +62,15 @@ public:
     Utf16FlyString const& name() const { return shared_data().m_name; }
     void set_name(Utf16FlyString const& name);
 
-    void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).m_is_class_constructor = true; }
+    void set_is_class_constructor() { const_cast<SharedFunctionInstanceData&>(shared_data()).set_is_class_constructor(); }
 
     auto& bytecode_executable() const { return shared_data().m_executable; }
+    [[nodiscard]] bool can_inline_call() const { return shared_data().can_inline_call(); }
+    [[nodiscard]] Bytecode::Executable& inline_call_executable() const
+    {
+        VERIFY(can_inline_call());
+        return *shared_data().m_executable;
+    }
 
     Environment* environment() { return m_environment; }
     virtual Realm* realm() const override { return &shape().realm(); }

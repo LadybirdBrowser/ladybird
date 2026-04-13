@@ -323,15 +323,15 @@ NEVER_INLINE bool VM::try_inline_call(Instruction const& insn, u32 current_pc)
     if (!is<ECMAScriptFunctionObject>(callee_object))
         return false;
     auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
-    if (callee_function.kind() != FunctionKind::Normal
-        || callee_function.is_class_constructor()
-        || !callee_function.bytecode_executable())
+    if (!callee_function.can_inline_call())
         return false;
+
+    auto& callee_executable = callee_function.inline_call_executable();
 
     u32 return_pc = current_pc + instruction.length();
 
     auto* callee_context = push_inline_frame(
-        callee_function, *callee_function.bytecode_executable(),
+        callee_function, callee_executable,
         instruction.arguments(), return_pc, instruction.dst().raw(),
         get(instruction.this_value()), nullptr, false);
 

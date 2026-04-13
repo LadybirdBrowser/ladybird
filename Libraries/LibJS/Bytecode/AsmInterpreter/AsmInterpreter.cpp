@@ -867,15 +867,15 @@ i64 asm_try_inline_call(VM* vm, u32 pc)
     if (!is<ECMAScriptFunctionObject>(callee_object))
         return 1;
     auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
-    if (callee_function.kind() != FunctionKind::Normal
-        || callee_function.is_class_constructor()
-        || !callee_function.bytecode_executable())
+    if (!callee_function.can_inline_call())
         return 1;
+
+    auto& callee_executable = callee_function.inline_call_executable();
 
     u32 return_pc = pc + insn.length();
 
     auto* callee_context = vm->push_inline_frame(
-        callee_function, *callee_function.bytecode_executable(),
+        callee_function, callee_executable,
         insn.arguments(), return_pc, insn.dst().raw(),
         vm->get(insn.this_value()), nullptr, false);
 
