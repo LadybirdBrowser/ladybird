@@ -2779,8 +2779,13 @@ HANDLE_INSTRUCTION(table_init)
     TRAP_IN_LOOP_IF_NOT(!checked_source_offset.has_overflow() && checked_source_offset <= (u32)element->references().size());
     TRAP_IN_LOOP_IF_NOT(!checked_destination_offset.has_overflow() && checked_destination_offset <= (u32)table->elements().size());
 
-    for (u32 i = 0; i < count; ++i)
-        table->elements()[destination_offset + i] = element->references()[source_offset + i];
+    for (u32 i = 0; i < count; ++i) {
+        auto const& ref = element->references()[source_offset + i];
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = ref.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        table->set_element(destination_offset + i, ref, move(anchor));
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2809,13 +2814,15 @@ HANDLE_INSTRUCTION(table_copy)
 
     if (destination_offset <= source_offset) {
         for (u32 i = 0; i < count; ++i) {
-            auto value = source_instance->elements()[source_offset + i];
-            destination_instance->elements()[destination_offset + i] = value;
+            destination_instance->set_element(destination_offset + i,
+                source_instance->elements()[source_offset + i],
+                source_instance->module_anchor_at(source_offset + i));
         }
     } else {
         for (u32 i = count - 1; i != NumericLimits<u32>::max(); --i) {
-            auto value = source_instance->elements()[source_offset + i];
-            destination_instance->elements()[destination_offset + i] = value;
+            destination_instance->set_element(destination_offset + i,
+                source_instance->elements()[source_offset + i],
+                source_instance->module_anchor_at(source_offset + i));
         }
     }
 
@@ -2838,8 +2845,15 @@ HANDLE_INSTRUCTION(table_fill)
     checked_offset += count;
     TRAP_IN_LOOP_IF_NOT(!checked_offset.has_overflow() && checked_offset <= (u32)table->elements().size());
 
-    for (u32 i = 0; i < count; ++i)
-        table->elements()[start + i] = value.template to<Reference>();
+    // Don't leak the RefPtr to the sibling call.
+    {
+        auto ref = value.template to<Reference>();
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = ref.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        for (u32 i = 0; i < count; ++i)
+            table->set_element(start + i, ref, anchor);
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
@@ -2854,7 +2868,13 @@ HANDLE_INSTRUCTION(table_set)
     auto address = configuration.frame().module().tables()[table_index.value()];
     auto table = configuration.store().get(address);
     TRAP_IN_LOOP_IF_NOT(index < table->elements().size());
-    table->elements()[index] = ref.template to<Reference>();
+    {
+        auto reference = ref.template to<Reference>();
+        RefPtr<ModuleInstance const> anchor;
+        if (auto const* func = reference.ref().template get_pointer<Reference::Func>())
+            anchor = configuration.store().get_module_instance_for(func->address);
+        table->set_element(index, reference, move(anchor));
+    }
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 

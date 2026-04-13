@@ -408,7 +408,7 @@ i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32
     auto const& module = config.frame().module();
     auto table_address = module.tables()[table_idx];
     auto* table_instance = config.store().get(table_address);
-    if (element_index < 0 || static_cast<size_t>(element_index) >= table_instance->elements().size())
+    if (!table_instance || element_index < 0 || static_cast<size_t>(element_index) >= table_instance->elements().size())
         return interpreter.set_trap(Trap::from_string("Table index out of bounds"));
 
     auto& element = table_instance->elements()[element_index];
@@ -416,7 +416,10 @@ i32 wasm_cl_call_indirect(void* interp_ptr, void* config_ptr, i32 table_idx, i32
         return interpreter.set_trap(Trap::from_string("Table element is not a function reference"));
 
     auto address = element.ref().get<Reference::Func>().address;
-    auto const& type_actual = config.store().get(address)->visit([](auto& f) -> decltype(auto) { return f.type(); });
+    auto* function = config.store().get(address);
+    if (!function)
+        return interpreter.set_trap(Trap::from_string("Indirect call to freed function"));
+    auto const& type_actual = function->visit([](auto& f) -> decltype(auto) { return f.type(); });
     auto const& type_expected = module.types()[type_idx].unsafe_function();
     if (type_actual.parameters() != type_expected.parameters() || type_actual.results() != type_expected.results())
         return interpreter.set_trap(Trap::from_string("Indirect call type mismatch"));

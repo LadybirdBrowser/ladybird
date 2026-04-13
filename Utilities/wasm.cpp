@@ -619,7 +619,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
         Core::EventLoop main_loop;
         // First, resolve the linked modules
-        Vector<NonnullOwnPtr<Wasm::ModuleInstance>> linked_instances;
+        Vector<NonnullRefPtr<Wasm::ModuleInstance>> linked_instances;
         Vector<NonnullRefPtr<Wasm::Module>> linked_modules;
         for (auto& name : modules_to_link_in) {
             auto parse_result = parse(name);

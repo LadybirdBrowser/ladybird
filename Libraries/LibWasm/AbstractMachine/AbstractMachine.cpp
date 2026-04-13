@@ -248,7 +248,12 @@ FunctionInstance* Store::get(FunctionAddress address)
     auto value = address.value();
     if (m_functions.size() <= value)
         return nullptr;
-    return &m_functions[value];
+    auto& instance = m_functions[value];
+    if (auto const* wasm = instance.get_pointer<WasmFunction>()) {
+        if (!wasm->try_module())
+            return nullptr;
+    }
+    return &instance;
 }
 
 Module const* Store::get_module_for(Wasm::FunctionAddress address)
@@ -257,6 +262,14 @@ Module const* Store::get_module_for(Wasm::FunctionAddress address)
     if (!function || function->has<HostFunction>())
         return nullptr;
     return function->get<WasmFunction>().module_ref().ptr();
+}
+
+RefPtr<ModuleInstance const> Store::get_module_instance_for(FunctionAddress address)
+{
+    auto* function = get(address);
+    if (!function || function->has<HostFunction>())
+        return nullptr;
+    return function->get<WasmFunction>().try_module();
 }
 
 TableInstance* Store::get(TableAddress address)
@@ -337,7 +350,7 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
     if (auto result = validate(const_cast<Module&>(module)); result.is_error())
         return InstantiationError { ByteString::formatted("Validation failed: {}", result.error()) };
 
-    auto main_module_instance_pointer = make<ModuleInstance>();
+    auto main_module_instance_pointer = adopt_ref(*new ModuleInstance);
     main_module_instance_pointer->cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
     auto& main_module_instance = *main_module_instance_pointer;
 
@@ -345,7 +358,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
 
     Vector<Value> global_values;
     Vector<Vector<Reference>> elements;
-    ModuleInstance auxiliary_instance;
+    auto auxiliary_instance_ptr = adopt_ref(*new ModuleInstance);
+    auto& auxiliary_instance = *auxiliary_instance_ptr;
 
     auxiliary_instance.cached_minimum_call_record_allocation_size = module.minimum_call_record_allocation_size();
 
@@ -453,7 +467,8 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
         if (result.is_trap())
             return InstantiationError { "Global instantiation trapped", move(result.trap()) };
         global_values.append(result.values().first());
-        auxiliary_instance.globals().append(m_store.allocate(entry.type(), result.values().first()).release_value());
+        auto addr = m_store.allocate(entry.type(), result.values().first()).release_value();
+        auxiliary_instance.globals().append(addr);
     }
 
     if (auto result = allocate_all_initial_phase(module, main_module_instance, externs, global_values, module_functions); result.has_value())
@@ -520,8 +535,12 @@ InstantiationResult AbstractMachine::instantiate(Module const& module, Vector<Ex
             return InstantiationError { "Table instantiation out of bounds" };
 
         size_t i = 0;
-        for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it)
-            table_instance->elements()[i + d] = *it;
+        for (auto it = elem_instance->references().begin(); it < elem_instance->references().end(); ++i, ++it) {
+            RefPtr<ModuleInstance const> anchor;
+            if (auto const* func = it->ref().template get_pointer<Reference::Func>())
+                anchor = m_store.get_module_instance_for(func->address);
+            table_instance->set_element(i + d, *it, move(anchor));
+        }
         // Drop element
         *m_store.get(main_module_instance.elements()[current_index]) = ElementInstance(elem_instance->type(), {});
     }
@@ -611,14 +630,16 @@ Optional<InstantiationError> AbstractMachine::allocate_all_initial_phase(Module 
 
     for (auto& table : module.table_section().tables()) {
         auto table_address = m_store.allocate(table.type());
-        if (table_address.has_value())
+        if (table_address.has_value()) {
             module_instance.tables().append(*table_address);
+        }
     }
 
     for (auto& memory : module.memory_section().memories()) {
         auto memory_address = m_store.allocate(memory.type());
-        if (memory_address.has_value())
+        if (memory_address.has_value()) {
             module_instance.memories().append(*memory_address);
+        }
     }
 
     size_t index = 0;

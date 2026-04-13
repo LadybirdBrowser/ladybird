@@ -13,6 +13,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/UFixedBigInt.h>
+#include <AK/Weakable.h>
 #include <LibWasm/Export.h>
 #include <LibWasm/Types.h>
 
@@ -302,6 +303,8 @@ struct InstantiationError {
 
 using ExternValue = Variant<FunctionAddress, TableAddress, MemoryAddress, GlobalAddress, TagAddress>;
 
+class Store;
+
 class ExportInstance {
 public:
     explicit ExportInstance(ByteString name, ExternValue value)
@@ -318,7 +321,8 @@ private:
     ExternValue m_value;
 };
 
-class ModuleInstance {
+class WASM_API ModuleInstance : public RefCounted<ModuleInstance>
+    , public Weakable<ModuleInstance> {
 public:
     explicit ModuleInstance(
         Vector<TypeSection::Type> types, Vector<FunctionAddress> function_addresses, Vector<TableAddress> table_addresses, Vector<MemoryAddress> memory_addresses, Vector<GlobalAddress> global_addresses, Vector<DataAddress> data_addresses, Vector<TagAddress> tag_addresses, Vector<TagType> tag_types, Vector<ExportInstance> exports, size_t minimum_call_record_allocation_size)
@@ -379,21 +383,23 @@ public:
     explicit WasmFunction(FunctionType const& type, ModuleInstance const& instance, Module const& module, CodeSection::Code const& code)
         : m_type(type)
         , m_module(module.make_weak_ptr())
-        , m_module_instance(instance)
-        , m_code(code)
+        , m_module_instance(instance.make_weak_ptr<ModuleInstance const>())
+        , m_code(&code)
     {
     }
 
     auto& type() const { return m_type; }
-    auto& module() const { return m_module_instance; }
-    auto& code() const { return m_code; }
+    // Callers must have already verified the module is alive (e.g., via Store::get() returning non-null).
+    ModuleInstance const& module() const { return *m_module_instance.strong_ref(); }
+    RefPtr<ModuleInstance const> try_module() const { return m_module_instance.strong_ref(); }
+    auto& code() const { return *m_code; }
     RefPtr<Module const> module_ref() const { return m_module.strong_ref(); }
 
 private:
     FunctionType m_type;
     WeakPtr<Module const> m_module;
-    ModuleInstance const& m_module_instance;
-    CodeSection::Code const& m_code;
+    WeakPtr<ModuleInstance const> m_module_instance;
+    CodeSection::Code const* m_code;
 };
 
 class HostFunction {
@@ -423,13 +429,24 @@ public:
         : m_elements(move(elements))
         , m_type(type)
     {
+        m_module_anchors.resize(m_elements.size());
     }
 
     auto& elements() const { return m_elements; }
     auto& elements() { return m_elements; }
     auto& type() const { return m_type; }
 
-    bool grow(u32 size_to_grow, Reference const& fill_value)
+    // MUST use this if a function reference can be stored in the table
+    void set_element(size_t index, Reference ref, RefPtr<ModuleInstance const> module_anchor = {})
+    {
+        m_elements[index] = move(ref);
+        m_module_anchors[index] = move(module_anchor);
+    }
+
+    // Strong ref pinning the element's defining ModuleInstance (null for non-Func).
+    RefPtr<ModuleInstance const> module_anchor_at(size_t index) const { return m_module_anchors[index]; }
+
+    bool grow(u32 size_to_grow, Reference const& fill_value, RefPtr<ModuleInstance const> fill_module_anchor = {})
     {
         if (size_to_grow == 0)
             return true;
@@ -444,8 +461,12 @@ public:
         auto previous_size = m_elements.size();
         if (m_elements.try_resize(new_size).is_error())
             return false;
-        for (size_t i = previous_size; i < m_elements.size(); ++i)
+        if (m_module_anchors.try_resize(new_size).is_error())
+            return false;
+        for (size_t i = previous_size; i < m_elements.size(); ++i) {
             m_elements[i] = fill_value;
+            m_module_anchors[i] = fill_module_anchor;
+        }
 
         m_type = TableType { m_type.element_type(), Limits(m_type.limits().address_type(), m_type.limits().min() + size_to_grow, m_type.limits().max()) };
 
@@ -454,6 +475,7 @@ public:
 
 private:
     Vector<Reference> m_elements;
+    Vector<RefPtr<ModuleInstance const>> m_module_anchors;
     TableType m_type;
 };
 
@@ -637,6 +659,7 @@ public:
     Optional<ExceptionAddress> allocate(TagInstance const&, Vector<Value>);
 
     Module const* get_module_for(FunctionAddress);
+    RefPtr<ModuleInstance const> get_module_instance_for(FunctionAddress); // Obtains strong ref for module.
     FunctionInstance* get(FunctionAddress);
     TableInstance* get(TableAddress);
     MemoryInstance* get(MemoryAddress);
@@ -746,7 +769,7 @@ private:
     bool m_owns_locals { false };
 };
 
-using InstantiationResult = AK::ErrorOr<NonnullOwnPtr<ModuleInstance>, InstantiationError>;
+using InstantiationResult = AK::ErrorOr<NonnullRefPtr<ModuleInstance>, InstantiationError>;
 
 struct HostVisitOps {
     Function<void(ExternallyManagedTrap&)> visit_trap;

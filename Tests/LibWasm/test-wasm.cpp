@@ -151,7 +151,7 @@ private:
     static HashMap<Wasm::Linker::Name, Wasm::ExternValue> s_spec_test_namespace;
     static Wasm::AbstractMachine m_machine;
     RefPtr<Wasm::Module> m_module;
-    OwnPtr<Wasm::ModuleInstance> m_module_instance;
+    RefPtr<Wasm::ModuleInstance> m_module_instance;
 };
 
 GC_DEFINE_ALLOCATOR(WebAssemblyModule);
