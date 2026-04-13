@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/BlockFormattingContext.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/InlineFormattingContext.h>
+#include <LibWeb/Layout/ReplacedBox.h>
 #include <LibWeb/Layout/TableFormattingContext.h>
 
 namespace Web::Layout {
@@ -159,6 +160,27 @@ void TableFormattingContext::compute_cell_measures()
         auto max_content_width = calculate_max_content_width(cell.box);
         auto min_content_height = calculate_min_content_height(cell.box, max_content_width);
         auto max_content_height = calculate_max_content_height(cell.box, min_content_width);
+
+        // https://www.w3.org/TR/css-tables-3/#row-layout
+        // The minimum height of a row (without spanning-related height distribution) is defined as the
+        // height of an hypothetical linebox containing the cells originating in the row and where cells
+        // spanning multiple rows are considered having a height of 0px (but their correct baseline). In
+        // this hypothetical linebox, cell heights are considered auto, their width (including borders and
+        // paddings) is forced to the widths and inner spacings of the columns they span, but their other
+        // properties are conserved.
+        // For the purpose of calculating this height, descendants of table cells whose height depends on
+        // percentages of their parent cell' height (see section below) are considered to have an auto
+        // height if they have overflow set to visible, clip, or hidden or if they are replaced elements,
+        // and a 0px height if they have not.
+        // FIXME: For now we're only adjusting replaced elements, but we should probably actually compute
+        // the hypothetical line box here.
+        bool contains_replaced_element = false;
+        cell.box->for_each_in_subtree_of_type<Layout::ReplacedBox>([&](auto const&) {
+            contains_replaced_element = true;
+            return TraversalDecision::Break;
+        });
+        if (contains_replaced_element && computed_values.min_height().is_auto())
+            min_content_height = 0;
 
         // The outer min-content height of a table-cell is max(min-height, min-content height) adjusted by the cell intrinsic offsets.
         auto min_height = computed_values.min_height().to_px(cell.box, containing_block_height);
