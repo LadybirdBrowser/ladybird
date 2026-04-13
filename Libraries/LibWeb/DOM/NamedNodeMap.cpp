@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashTable.h>
 #include <LibWeb/Bindings/NamedNodeMapPrototype.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>
@@ -55,9 +56,14 @@ Vector<FlyString> NamedNodeMap::supported_property_names() const
     Vector<FlyString> names;
     names.ensure_capacity(m_attributes.size());
 
+    // Use a hash set to track names seen so far, avoiding the O(n²) cost of
+    // contains_slow() on the output vector for elements with many attributes.
+    HashTable<FlyString> seen;
+    seen.ensure_capacity(m_attributes.size());
+
     for (auto const& attribute : m_attributes) {
         auto const attribute_name = attribute->name();
-        if (!names.contains_slow(attribute_name))
+        if (seen.set(attribute_name) == HashSetResult::InsertedNewEntry)
             names.append(attribute_name.to_string());
     }
 
