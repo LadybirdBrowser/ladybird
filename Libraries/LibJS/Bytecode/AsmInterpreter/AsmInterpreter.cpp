@@ -852,35 +852,37 @@ i64 asm_try_put_by_value_holey_array(VM* vm, u32 pc)
     return 0;
 }
 
-// Try to inline a JS-to-JS call. Returns 0 on success (callee frame pushed),
-// 1 on failure (caller should fall through to slow path).
+// Try to inline a JS-to-JS call by building the callee frame through the
+// shared VM::push_inline_frame() helper. Returns 0 on success (callee frame
+// pushed) and 1 on failure (caller should keep handling the Call itself).
 i64 asm_try_inline_call(VM* vm, u32 pc)
 {
     auto* bytecode = vm->current_executable().bytecode.data();
     auto& insn = *reinterpret_cast<Op::Call const*>(&bytecode[pc]);
+
     auto callee = vm->get(insn.callee());
-    if (!callee.is_object())
+    if (!callee.is_object()) [[unlikely]]
         return 1;
+
     auto& callee_object = callee.as_object();
-    if (!is<ECMAScriptFunctionObject>(callee_object))
+    if (!is<ECMAScriptFunctionObject>(callee_object)) [[unlikely]]
         return 1;
+
     auto& callee_function = static_cast<ECMAScriptFunctionObject&>(callee_object);
-    if (!callee_function.can_inline_call())
+    if (!callee_function.can_inline_call()) [[unlikely]]
         return 1;
-
-    auto& callee_executable = callee_function.inline_call_executable();
-
-    u32 return_pc = pc + insn.length();
 
     auto* callee_context = vm->push_inline_frame(
-        callee_function, callee_executable,
-        insn.arguments(), return_pc, insn.dst().raw(),
-        vm->get(insn.this_value()), nullptr, false);
+        callee_function,
+        callee_function.inline_call_executable(),
+        insn.arguments(),
+        pc + insn.length(),
+        insn.dst().raw(),
+        vm->get(insn.this_value()),
+        nullptr,
+        false);
 
-    if (!callee_context) [[unlikely]]
-        return 1;
-
-    return 0;
+    return callee_context ? 0 : 1;
 }
 
 // Fast cache-only PutById. Tries all cache entries for ChangeOwnProperty and

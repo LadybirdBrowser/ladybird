@@ -12,7 +12,7 @@
 #   dispatch = dispatch table base pointer (256 entries, 8 bytes each)
 #
 # Temporary registers (caller-saved, clobbered by C++ calls):
-#   t0-t9    = general-purpose scratch
+#   t0-t8    = general-purpose scratch
 #   ft0-ft3  = floating-point scratch (scalar double)
 #
 # NaN-boxing encoding:
@@ -446,16 +446,6 @@ macro walk_env_chain(m_cache_field, fail_label)
 .walk_done:
     load8 t0, [t3, ENVIRONMENT_SCREWED_BY_EVAL]
     branch_nonzero t0, fail_label
-end
-
-# Reload pb and values from the current running execution context.
-# Used after inline call/return to switch to the new frame's bytecode.
-# Clobbers t0, t1.
-macro reload_state_from_exec_ctx()
-    reload_exec_ctx
-    load64 t1, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t1, EXECUTABLE_BYTECODE_DATA]
-    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
 end
 
 # Pop an inline frame and resume the caller without bouncing through C++.
@@ -2008,11 +1998,233 @@ handler SetGlobal
 end
 
 handler Call
-    # Try to inline the call
+    # Inline JS-to-JS Call in asm when the callee is an ECMAScriptFunctionObject
+    # with bytecode ready. Cases that need function-environment allocation or
+    # sloppy primitive this boxing bounce through a C++ helper that still
+    # prepares an inline frame instead of taking the full slow path.
+    #
+    # High-level flow:
+    #   1. Validate the callee and load its shared function metadata.
+    #   2. Bind `this` inline when we can do so without allocations.
+    #   3. Reserve an InterpreterStack frame and populate ExecutionContext.
+    #   4. Materialize [registers | locals | constants | arguments].
+    #   5. Swap VM state over to the callee frame and dispatch at pc = 0.
+    #
+    # Register usage within this handler:
+    #   t3 = callee ECMAScriptFunctionObject*
+    #   t2 = SharedFunctionInstanceData* / later callee ExecutionContext*
+    #   t8 = boxed `this` value carried into the callee
+    load_operand t0, m_callee
+    extract_tag t1, t0
+    branch_ne t1, OBJECT_TAG, .call_slow
+    unbox_object t0, t0
+    mov t3, t0
+
+    # Reject everything except ordinary ECMAScript function objects with
+    # already-prepared bytecode and cached inline-call eligibility.
+    load8 t1, [t3, OBJECT_FLAGS]
+    branch_bits_clear t1, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_slow
+
+    load64 t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
+    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL]
+    branch_zero t1, .call_slow
+    # NewFunctionEnvironment() allocates and has to stay out of the pure asm
+    # path, but we still preserve inline-call semantics via .call_interp_inline.
+    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED]
+    branch_nonzero t1, .call_interp_inline
+
+    # Bind this without allocations. Sloppy primitive this-values still need
+    # ToObject(), so they use the C++ inline-frame helper.
+    #
+    # t8 starts as "empty" to match the normal interpreter behavior for
+    # callees that never observe `this`.
+    mov t8, EMPTY_TAG_SHIFTED
+    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_USES_THIS]
+    branch_zero t1, .this_ready
+    load_operand t8, m_this_value
+    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_STRICT]
+    branch_nonzero t1, .this_ready
+
+    # Sloppy null/undefined binds the callee realm's global object.
+    # Sloppy primitive receivers need ToObject(), which may allocate wrappers,
+    # so they go through the helper instead of the full Call slow path.
+    extract_tag t1, t8
+    mov t0, t1
+    and t0, 0xFFFE
+    branch_eq t0, UNDEFINED_TAG, .sloppy_global_this
+    branch_eq t1, OBJECT_TAG, .this_ready
+    jmp .call_interp_inline
+
+.sloppy_global_this:
+    load64 t1, [t3, OBJECT_SHAPE]
+    load64 t1, [t1, SHAPE_REALM]
+    load64 t1, [t1, REALM_GLOBAL_ENVIRONMENT]
+    load64 t1, [t1, GLOBAL_ENVIRONMENT_GLOBAL_THIS_VALUE]
+    # Match Value(Object*): keep only the low 48 pointer bits before boxing.
+    shl t1, 16
+    shr t1, 16
+    mov t8, OBJECT_TAG_SHIFTED
+    or t8, t1
+
+.this_ready:
+    # The pure asm path only runs once bytecode is already compiled.
+    load64 t0, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
+    branch_zero t0, .call_slow
+
+    load32 t7, [pb, pc, m_argument_count]
+    load32 t4, [t2, SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT]
+    branch_ge_unsigned t4, t7, .arg_count_ready
+    mov t4, t7
+.arg_count_ready:
+    load32 t5, [t0, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT]
+    load64 t6, [t0, EXECUTABLE_CONSTANTS_SIZE]
+
+    # Inline InterpreterStack::allocate().
+    # t1 = total Value slots, t2 = new stack top, t6 = current frame base.
+    mov t1, t5
+    add t1, t6
+    add t1, t4
+    mov t2, t1
+    shl t2, 3
+    add t2, SIZEOF_EXECUTION_CONTEXT
+
+    load_vm t0
+    lea t0, [t0, VM_INTERPRETER_STACK]
+    load64 t6, [t0, INTERPRETER_STACK_TOP]
+    add t2, t6
+    load64 t0, [t0, INTERPRETER_STACK_LIMIT]
+    branch_ge_unsigned t0, t2, .stack_ok
+    jmp .call_slow
+
+.stack_ok:
+    load_vm t0
+    store64 [t0, VM_INTERPRETER_STACK_TOP], t2
+
+    # Set up the callee ExecutionContext header exactly the way
+    # VM::push_inline_frame() / run_executable() would see it.
+    store64 [t6, EXECUTION_CONTEXT_FUNCTION], t3
+    load64 t0, [t3, OBJECT_SHAPE]
+    load64 t0, [t0, SHAPE_REALM]
+    store64 [t6, EXECUTION_CONTEXT_REALM], t0
+
+    load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT]
+    store64 [t6, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], t0
+    store64 [t6, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0
+    load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
+    store64 [t6, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t0
+    load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
+    load64 t0, [t0, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
+    store64 [t6, EXECUTION_CONTEXT_EXECUTABLE], t0
+
+    # ScriptOrModule is a two-word Variant in ExecutionContext, so copy both
+    # machine words explicitly.
+    lea t0, [t6, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
+    lea t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
+    load64 t3, [t2, 0]
+    store64 [t0, 0], t3
+    load64 t3, [t2, 8]
+    store64 [t0, 8], t3
+
+    store32 [t6, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
+    store32 [t6, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
+    mov t0, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
+    store32 [t6, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
+    store8 [t6, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [t6, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
+    store64 [t6, EXECUTION_CONTEXT_THIS_VALUE], t8
+    store64 [t6, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
+    store32 [t6, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], t1
+    store32 [t6, EXECUTION_CONTEXT_ARGUMENT_COUNT], t4
+    store32 [t6, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t7
+    load32 t0, [pb, pc, m_length]
+    lea t2, [pb, pc]
+    sub t2, pb
+    add t0, t2
+    store32 [t6, EXECUTION_CONTEXT_CALLER_RETURN_PC], t0
+    load32 t0, [pb, pc, m_dst]
+    store32 [t6, EXECUTION_CONTEXT_CALLER_DST_RAW], t0
+
+    # values = [registers | locals | constants | arguments]
+    # Keep t2 at the ExecutionContext base while t6 walks the Value tail.
+    mov t2, t6
+    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
+    mov t0, EMPTY_TAG_SHIFTED
+    xor t3, t3
+.clear_registers_and_locals:
+    branch_ge_unsigned t3, t5, .copy_constants
+    store64 [t6, t3, 8], t0
+    add t3, 1
+    jmp .clear_registers_and_locals
+
+.copy_constants:
+    load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 t3, [t0, EXECUTABLE_CONSTANTS_SIZE]
+    load64 t0, [t0, EXECUTABLE_CONSTANTS_DATA]
+    mov t1, t5
+    xor t8, t8
+.copy_constants_loop:
+    branch_ge_unsigned t8, t3, .copy_arguments
+    load64 t7, [t0, t8, 8]
+    store64 [t6, t1, 8], t7
+    add t8, 1
+    add t1, 1
+    jmp .copy_constants_loop
+
+.copy_arguments:
+    load32 t7, [t2, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT]
+    mov t1, t5
+    add t1, t3
+    lea t0, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    lea t8, [pb, pc]
+    add t8, m_expression_string
+    add t8, 4
+    xor t3, t3
+.copy_arguments_loop:
+    # The operand array in the bytecode stores caller register indices.
+    branch_ge_unsigned t3, t7, .fill_missing_arguments
+    load32 t5, [t8, t3, 4]
+    load64 t5, [t0, t5, 8]
+    store64 [t6, t1, 8], t5
+    add t3, 1
+    add t1, 1
+    jmp .copy_arguments_loop
+
+.fill_missing_arguments:
+    mov t3, t1
+    add t3, t4
+    sub t3, t7
+    mov t0, UNDEFINED_SHIFTED
+.fill_missing_arguments_loop:
+    branch_ge_unsigned t1, t3, .enter_callee
+    store64 [t6, t1, 8], t0
+    add t1, 1
+    jmp .fill_missing_arguments_loop
+
+.enter_callee:
+    # Mirror the normal interpreter entry sequence: cache `this` in the
+    # dedicated register slot, then reload pb/values/exec_ctx for the callee.
+    load64 t0, [t2, EXECUTION_CONTEXT_THIS_VALUE]
+    store64 [t6, THIS_VALUE_REG_OFFSET], t0
+
+    load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
+    load_vm t0
+    store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
+    mov exec_ctx, t2
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    xor pc, pc
+    dispatch_current
+.call_interp_inline:
+    # Shared escape hatch for the cases that need C++ help to build the inline
+    # frame correctly but must not take the full Call slow path, since that
+    # would insert a run_executable() boundary and observable microtask drain.
     call_interp asm_try_inline_call
     branch_nonzero t0, .call_slow
-    # Success: reload pb/values from new execution context, pc=0
-    reload_state_from_exec_ctx
+    load_vm t0
+    load64 exec_ctx, [t0, VM_RUNNING_EXECUTION_CONTEXT]
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
     xor pc, pc
     dispatch_current
 .call_slow:

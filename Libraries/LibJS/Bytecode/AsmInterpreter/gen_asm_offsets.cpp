@@ -134,6 +134,7 @@ int main()
 
     // ExecutionContext layout
     outln("\n# ExecutionContext layout");
+    VERIFY(alignof(ExecutionContext) == sizeof(Value));
     EMIT_OFFSET(EXECUTION_CONTEXT_EXECUTABLE, ExecutionContext, executable);
     EMIT_OFFSET(EXECUTION_CONTEXT_FUNCTION, ExecutionContext, function);
     EMIT_OFFSET(EXECUTION_CONTEXT_REALM, ExecutionContext, realm);
@@ -141,6 +142,7 @@ int main()
     EMIT_OFFSET(EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, ExecutionContext, lexical_environment);
     EMIT_OFFSET(EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT, ExecutionContext, variable_environment);
     EMIT_OFFSET(EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT, ExecutionContext, private_environment);
+    EMIT_OFFSET(EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER, ExecutionContext, skip_when_determining_incumbent_counter);
     EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_CONTINUATION, ExecutionContext, yield_continuation);
     EMIT_OFFSET(EXECUTION_CONTEXT_YIELD_IS_AWAIT, ExecutionContext, yield_is_await);
     EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT, ExecutionContext, caller_is_construct);
