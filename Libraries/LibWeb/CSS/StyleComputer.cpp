@@ -2400,13 +2400,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_value_of_property(
         return compute_line_height(absolutized_value, computation_context.length_resolution_context.font_metrics.font_size);
     case PropertyID::MathDepth:
         return compute_math_depth(absolutized_value, inheritance_parent());
-    case PropertyID::FillOpacity:
-    case PropertyID::FloodOpacity:
-    case PropertyID::Opacity:
-    case PropertyID::StopOpacity:
-    case PropertyID::StrokeOpacity:
-    case PropertyID::ShapeImageThreshold:
-        return compute_opacity(absolutized_value);
     case PropertyID::PositionArea:
         return compute_position_area(absolutized_value);
     default:
@@ -2746,30 +2739,6 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_line_height(NonnullRefPtr
     // <percentage [0,∞]>
     if (absolutized_value->is_percentage())
         return LengthStyleValue::create(Length::make_px(computed_font_size * absolutized_value->as_percentage().percentage().as_fraction()));
-
-    VERIFY_NOT_REACHED();
-}
-
-NonnullRefPtr<StyleValue const> StyleComputer::compute_opacity(NonnullRefPtr<StyleValue const> const& absolutized_value)
-{
-    // https://drafts.csswg.org/css-color-4/#transparency
-    // specified number, clamped to the range [0,1]
-
-    // <number>
-    if (absolutized_value->is_number())
-        return NumberStyleValue::create(clamp(absolutized_value->as_number().number(), 0, 1));
-
-    // NOTE: We also support calc()'d numbers
-    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_number())
-        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_number({}).value());
-
-    // <percentage>
-    if (absolutized_value->is_percentage())
-        return NumberStyleValue::create(clamp(absolutized_value->as_percentage().percentage().as_fraction(), 0, 1));
-
-    // NOTE: We also support calc()'d percentages
-    if (absolutized_value->is_calculated() && absolutized_value->as_calculated().resolves_to_percentage())
-        return NumberStyleValue::create(absolutized_value->as_calculated().resolve_percentage({})->as_fraction());
 
     VERIFY_NOT_REACHED();
 }

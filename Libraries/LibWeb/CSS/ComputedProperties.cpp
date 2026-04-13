@@ -35,6 +35,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
@@ -417,12 +418,12 @@ Optional<int> ComputedProperties::z_index() const
 
 float ComputedProperties::opacity() const
 {
-    return property(PropertyID::Opacity).as_number().number();
+    return property(PropertyID::Opacity).as_opacity_value().resolved();
 }
 
 float ComputedProperties::fill_opacity() const
 {
-    return property(PropertyID::FillOpacity).as_number().number();
+    return property(PropertyID::FillOpacity).as_opacity_value().resolved();
 }
 
 Vector<Variant<LengthPercentage, float>> ComputedProperties::stroke_dasharray() const
@@ -480,12 +481,12 @@ double ComputedProperties::stroke_miterlimit() const
 
 float ComputedProperties::stroke_opacity() const
 {
-    return property(PropertyID::StrokeOpacity).as_number().number();
+    return property(PropertyID::StrokeOpacity).as_opacity_value().resolved();
 }
 
 float ComputedProperties::stop_opacity() const
 {
-    return property(PropertyID::StopOpacity).as_number().number();
+    return property(PropertyID::StopOpacity).as_opacity_value().resolved();
 }
 
 FillRule ComputedProperties::fill_rule() const
@@ -502,7 +503,7 @@ ClipRule ComputedProperties::clip_rule() const
 
 float ComputedProperties::flood_opacity() const
 {
-    return property(PropertyID::FloodOpacity).as_number().number();
+    return property(PropertyID::FloodOpacity).as_opacity_value().resolved();
 }
 
 FlexDirection ComputedProperties::flex_direction() const

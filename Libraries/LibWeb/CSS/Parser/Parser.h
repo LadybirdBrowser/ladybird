@@ -453,7 +453,7 @@ private:
     RefPtr<StyleValue const> parse_contain_value(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_container_type_value(TokenStream<ComponentValue>&);
     RefPtr<StringStyleValue const> parse_opentype_tag_value(TokenStream<ComponentValue>&);
-    RefPtr<StyleValue const> parse_opacity_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_opacity_value_value(TokenStream<ComponentValue>&);
     RefPtr<FontSourceStyleValue const> parse_font_source_value(TokenStream<ComponentValue>&);
 
     RefPtr<StyleValue const> parse_anchor(TokenStream<ComponentValue>&);

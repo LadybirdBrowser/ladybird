@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
 namespace Web::CSS {
@@ -21,7 +22,7 @@ static bool is_stacking_context_creating_value(CSS::PropertyID property_id, RefP
 
     switch (property_id) {
     case CSS::PropertyID::Opacity:
-        return !value->is_number() || value->as_number().number() != 1;
+        return value->as_opacity_value().resolved() < 1;
     case CSS::PropertyID::Transform:
         if (value->to_keyword() == CSS::Keyword::None)
             return false;

@@ -1858,7 +1858,7 @@
     "initial": "1",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "fill-rule": {
@@ -1983,7 +1983,7 @@
     "initial": "1",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "font": {
@@ -3188,7 +3188,7 @@
     "initial": "1",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "order": {
@@ -3894,7 +3894,7 @@
     "initial": "0",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "shape-margin": {
@@ -3942,7 +3942,7 @@
     "initial": "1",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "stroke": {
@@ -4013,7 +4013,7 @@
     "initial": "1",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "opacity"
+      "opacity-value"
     ]
   },
   "stroke-width": {

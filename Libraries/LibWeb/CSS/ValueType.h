@@ -41,7 +41,7 @@ enum class ValueType : u8 {
     Length,
     LengthPercentage,
     Number,
-    Opacity,
+    OpacityValue,
     OpentypeTag,
     Paint,
     Percentage,

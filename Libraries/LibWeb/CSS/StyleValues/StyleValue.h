@@ -75,6 +75,7 @@ namespace Web::CSS {
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(LinearGradient, linear_gradient, LinearGradientStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Number, number, NumberStyleValue)                                                                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpacityValue, opacity_value, OpacityValueStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(OpenTypeTagged, open_type_tagged, OpenTypeTaggedStyleValue)                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(PendingSubstitution, pending_substitution, PendingSubstitutionStyleValue)                                 \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Percentage, percentage, PercentageStyleValue)                                                             \

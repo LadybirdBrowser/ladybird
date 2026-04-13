@@ -60,6 +60,7 @@
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
@@ -5411,18 +5412,13 @@ OwnPtr<BooleanExpression> Parser::parse_if_condition(TokenStream<ComponentValue>
 }
 
 // https://drafts.csswg.org/css-color-4/#typedef-opacity-opacity-value
-RefPtr<StyleValue const> Parser::parse_opacity_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_opacity_value_value(TokenStream<ComponentValue>& tokens)
 {
-    auto value = parse_number_percentage_value(tokens);
+    // <opacity-value> = <number> | <percentage>
+    if (auto value = parse_number_percentage_value(tokens))
+        return OpacityValueStyleValue::create(value.release_nonnull());
 
-    if (!value)
-        return nullptr;
-
-    // Percentages map to the range [0,1] for opacity values
-    if (value->is_percentage())
-        return NumberStyleValue::create(value->as_percentage().percentage().as_fraction());
-
-    return value;
+    return nullptr;
 }
 
 // https://drafts.csswg.org/css-fonts/#typedef-opentype-tag
@@ -5860,8 +5856,8 @@ RefPtr<StyleValue const> Parser::parse_value(ValueType value_type, TokenStream<C
         return parse_length_percentage_value(tokens);
     case ValueType::Number:
         return parse_number_value(tokens);
-    case ValueType::Opacity:
-        return parse_opacity_value(tokens);
+    case ValueType::OpacityValue:
+        return parse_opacity_value_value(tokens);
     case ValueType::OpentypeTag:
         return parse_opentype_tag_value(tokens);
     case ValueType::Paint:

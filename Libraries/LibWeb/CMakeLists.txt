@@ -272,6 +272,7 @@ set(SOURCES
     CSS/StyleValues/LightDarkStyleValue.cpp
     CSS/StyleValues/LinearGradientStyleValue.cpp
     CSS/StyleValues/NumberStyleValue.cpp
+    CSS/StyleValues/OpacityValueStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
     CSS/StyleValues/PositionStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp

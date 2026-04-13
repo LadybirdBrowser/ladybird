@@ -235,7 +235,7 @@ enum class PropertyID : @property_id_underlying_type@ {
     generator.set("first_inherited_property_id", title_casify(inherited_longhand_property_ids.first()));
     generator.set("last_inherited_property_id", title_casify(inherited_longhand_property_ids.last()));
 
-    // FIXME: property_accepts_{number,percentage}() has a different range from accepted_type_ranges() despite the names sounding similar.
+    // FIXME: property_accepts_{number,percentage}() and property_accepted_type_ranges provide the same data, we should consolidate them.
     generator.append(R"~~~(
 };
 
@@ -998,13 +998,6 @@ AcceptedTypeRangeMap property_accepted_type_ranges(PropertyID property_id)
 
             for (auto& type : valid_types.values()) {
                 VERIFY(type.is_string());
-
-                // Opacity values should have their calculated and interpolated values clamped to [0,1] which is
-                // different from the range of allowed values [-∞,∞].
-                if (type.as_string() == "opacity"sv) {
-                    ranges_builder.append("{ ValueType::Number, { 0, 1 } }, { ValueType::Percentage, { 0, 100 } }"sv);
-                    continue;
-                }
 
                 Vector<String> type_parts = MUST(type.as_string().split(' '));
 

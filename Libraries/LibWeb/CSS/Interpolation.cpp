@@ -31,6 +31,7 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
+#include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
@@ -1751,6 +1752,10 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
     case StyleValue::Type::Number: {
         auto interpolated_value = interpolate_raw(from.as_number().number(), to.as_number().number(), delta, calculation_context.accepted_type_ranges.get(ValueType::Number));
         return NumberStyleValue::create(interpolated_value);
+    }
+    case StyleValue::Type::OpacityValue: {
+        auto interpolated_value = interpolate_raw(from.as_opacity_value().resolved(), to.as_opacity_value().resolved(), delta, AcceptedTypeRange { .min = 0, .max = 1 });
+        return OpacityValueStyleValue::create(NumberStyleValue::create(interpolated_value));
     }
     case StyleValue::Type::OpenTypeTagged: {
         auto& from_open_type_tagged = from.as_open_type_tagged();

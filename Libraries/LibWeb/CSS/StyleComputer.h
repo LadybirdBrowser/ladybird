@@ -140,7 +140,6 @@ public:
     static NonnullRefPtr<StyleValue const> compute_font_weight(NonnullRefPtr<StyleValue const> const& absolutized_value, Optional<DOM::AbstractElement> const& inheritance_parent);
     static NonnullRefPtr<StyleValue const> compute_font_width(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_line_height(NonnullRefPtr<StyleValue const> const& absolutized_value, CSSPixels computed_font_size);
-    static NonnullRefPtr<StyleValue const> compute_opacity(NonnullRefPtr<StyleValue const> const& absolutized_value);
     static NonnullRefPtr<StyleValue const> compute_position_area(NonnullRefPtr<StyleValue const> const& absolutized_value);
 
 private:
