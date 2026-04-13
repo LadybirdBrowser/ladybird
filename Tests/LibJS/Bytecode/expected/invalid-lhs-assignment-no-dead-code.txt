@@ -29,16 +29,15 @@ Exception handlers:
 
 
 f$36570247 invalid-lhs-assignment-no-dead-code.js:5:6
-  Registers: 7
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Mov dst:reg6, src:arg0
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, x
-  [  30] NewReferenceError dst:reg5, Invalid left-hand side in assignment
-  [  40] Throw src:reg5
+  [   0] Call dst:reg5, callee:arg0, this_value:Undefined, x
+  [  20] NewReferenceError dst:reg5, Invalid left-hand side in assignment
+  [  30] Throw src:reg5
 
 
 $811c9dc5

@@ -110,20 +110,19 @@ block4:
   [  b0] JumpIf condition:reg5, true_target:block6, false_target:block7
 
 block5:
-  [  c0] Mov dst:reg6, src:arg0
-  [  d0] Call dst:reg5, callee:reg6, this_value:Undefined, callback
-  [  f0] Jump target:block4
+  [  c0] Call dst:reg5, callee:arg0, this_value:Undefined, callback
+  [  e0] Jump target:block4
 
 block6:
-  [  f8] GetGlobal dst:reg7, `Error`
-  [ 110] CallConstruct dst:reg6, callee:reg7, Error, arguments:[String("Expected TypeError")]
-  [ 130] Throw src:reg6
+  [  e8] GetGlobal dst:reg7, `Error`
+  [ 100] CallConstruct dst:reg6, callee:reg7, Error, arguments:[String("Expected TypeError")]
+  [ 120] Throw src:reg6
 
 block7:
-  [ 138] End value:Undefined
+  [ 128] End value:Undefined
 
 Exception handlers:
-  [  c0 ..   f8] => handler block1
+  [  c0 ..   e8] => handler block1
 
 
 $58e01468 indexed-append-guards.js:18:5

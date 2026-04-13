@@ -12,7 +12,7 @@ block0:
 
 
 test$8f4c6018 block-scoped-function-no-tdz.js:3:5
-  Registers: 8
+  Registers: 7
   Blocks:    1
   Locals:    foo~0, result~1
   Constants:
@@ -23,11 +23,11 @@ block0:
   [   8] Mov dst:result~1, src:Undefined
   [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
   [  28] NewFunction dst:reg6, shared_function_data_index:0
-  [  40] Mov2 dst1:foo~0, src1:reg6, dst2:reg7, src2:foo~0
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, foo
-  [  78] Mov dst:result~1, src:reg6
-  [  88] SetLexicalEnvironment environment:reg4
-  [  90] Return value:result~1
+  [  40] Mov dst:foo~0, src:reg6
+  [  50] Call dst:reg6, callee:foo~0, this_value:Undefined, foo
+  [  70] Mov dst:result~1, src:reg6
+  [  80] SetLexicalEnvironment environment:reg4
+  [  88] Return value:result~1
 
 
 foo$48752efa block-scoped-function-no-tdz.js:5:26

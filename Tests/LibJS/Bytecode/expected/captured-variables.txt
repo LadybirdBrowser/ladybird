@@ -11,7 +11,7 @@ block0:
 
 
 outer$0300a3f9 captured-variables.js:5:5
-  Registers: 8
+  Registers: 7
   Blocks:    1
   Locals:    inner~0
   Constants:
@@ -25,9 +25,8 @@ block0:
   [  28] CreateVariable `captured`, is_immutable:false, is_global:false, is_strict:false
   [  38] NewFunction dst:inner~0, shared_function_data_index:0
   [  50] InitializeLexicalBinding `captured`, src:Int32(1)
-  [  68] Mov dst:reg7, src:inner~0
-  [  78] Call dst:reg6, callee:reg7, this_value:Undefined, inner
-  [  98] Return value:reg6
+  [  68] Call dst:reg6, callee:inner~0, this_value:Undefined, inner
+  [  88] Return value:reg6
 
 
 inner$f798183e captured-variables.js:7:9

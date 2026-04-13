@@ -3302,9 +3302,17 @@ fn generate_call_expression(
 
     // Copy callee/this into fresh registers so argument evaluation
     // cannot mutate them (e.g. `foo.bar(foo = null)`).
-    let this_value =
-        this_value.map(|tv| generator.copy_if_needed_to_preserve_evaluation_order(&tv));
-    let callee = generator.copy_if_needed_to_preserve_evaluation_order(&callee);
+    // Zero-argument calls do not evaluate anything after the callee/this.
+    let this_value = if data.arguments.is_empty() {
+        this_value
+    } else {
+        this_value.map(|tv| generator.copy_if_needed_to_preserve_evaluation_order(&tv))
+    };
+    let callee = if data.arguments.is_empty() {
+        callee
+    } else {
+        generator.copy_if_needed_to_preserve_evaluation_order(&callee)
+    };
 
     // Unwrap this_value at function scope so its register lifetime outlives argument temporaries.
     let this_value = this_value.unwrap_or_else(|| generator.add_constant_undefined());

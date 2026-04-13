@@ -60,9 +60,8 @@ block5:
 
 block6:
   [ 108] SetLexicalEnvironment environment:reg4
-  [ 110] Mov dst:reg6, src:result~0
-  [ 120] Call dst:reg5, callee:reg6, this_value:Undefined, result
-  [ 140] Return value:reg5
+  [ 110] Call dst:reg5, callee:result~0, this_value:Undefined, result
+  [ 130] Return value:reg5
 
 
 result$9ed940b6 switch-scoping.js:6:22

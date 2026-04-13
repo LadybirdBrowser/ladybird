@@ -64,15 +64,14 @@ block4:
 
 
 $a78bf47f for-loop-scoping.js:6:20
-  Registers: 7
+  Registers: 6
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Mov dst:reg6, src:arg0
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  30] Return value:reg5
+  [   0] Call dst:reg5, callee:arg0, this_value:Undefined, f
+  [  20] Return value:reg5
 
 
 $ceed13fe for-loop-scoping.js:4:18

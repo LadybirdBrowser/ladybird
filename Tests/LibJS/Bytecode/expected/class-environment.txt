@@ -27,12 +27,11 @@ block0:
   [  18] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:C~0, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
-  [  58] Mov dst:reg7, src:C~0
-  [  68] CallConstruct dst:reg6, callee:reg7, C
-  [  80] GetById dst:reg7, base:reg6, `method`
-  [  a0] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-  [  c0] StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
-  [  d0] Return value:reg6
+  [  58] CallConstruct dst:reg6, callee:C~0, C
+  [  70] GetById dst:reg7, base:reg6, `method`
+  [  90] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
+  [  b0] StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
+  [  c0] Return value:reg6
 
 
 Foo$811c9dc5
