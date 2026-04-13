@@ -94,7 +94,7 @@ GC::Ref<TraversableNavigable> TraversableNavigable::create_a_new_top_level_trave
     // document: document (now owned by Navigable::m_active_document, not DocumentState)
 
     // initiator origin: null if opener is null; otherwise, document's origin
-    document_state->set_initiator_origin(opener ? Optional<URL::Origin> {} : document->origin());
+    document_state->set_initiator_origin(opener ? document->origin() : Optional<URL::Origin> {});
 
     // origin: document's origin
     document_state->set_origin(document->origin());

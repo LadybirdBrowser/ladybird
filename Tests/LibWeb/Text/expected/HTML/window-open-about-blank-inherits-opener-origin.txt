@@ -1,0 +1,3 @@
+initial popup.location.href: about:blank
+initial popup.document.body.textContent: Hello Shannon!
+reloaded popup.document.body.textContent: 

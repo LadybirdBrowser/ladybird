@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const popup = window.open();
+        const initialDocument = popup.document;
+        const initialTextContent = "Hello Shannon!";
+
+        println(`initial popup.location.href: ${popup.location.href}`);
+
+        try {
+            popup.document.body.innerHTML = `<p>${initialTextContent}</p>`;
+            println(`initial popup.document.body.textContent: ${popup.document.body.textContent}`);
+        } catch (error) {
+            println(`initial popup document access threw: ${error.name}: ${error.message}`);
+        }
+
+        popup.location.reload();
+
+        for (let attempt = 0; attempt < 300; ++attempt) {
+            try {
+                const currentDocument = popup.document;
+                const currentTextContent = currentDocument.body ? currentDocument.body.textContent : "";
+
+                if (currentDocument !== initialDocument || currentTextContent !== initialTextContent)
+                    break;
+            } catch (error) {
+            }
+
+            await timeout(10);
+        }
+
+        try {
+            println(`reloaded popup.document.body.textContent: ${popup.document.body.textContent}`);
+        } catch (error) {
+            println(`reloaded popup document access threw: ${error.name}: ${error.message}`);
+        }
+
+        popup.close();
+        done();
+    });
+</script>
