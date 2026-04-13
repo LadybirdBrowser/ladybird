@@ -2738,7 +2738,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(Bindings::KeyFormat 
     GC::Ptr<JS::Object> result = nullptr;
 
     // 2. -> If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = handle.get<ByteBuffer>();
 
@@ -2939,7 +2941,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(Bindings::KeyFormat 
     GC::Ptr<JS::Object> result = nullptr;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
@@ -3259,7 +3263,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(Bindings::KeyFormat 
     GC::Ptr<JS::Object> result = nullptr;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
@@ -3607,7 +3613,9 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(Bindings::KeyFormat f
     GC::Ptr<JS::Object> result = nullptr;
 
     // 2. If format is "raw":
-    if (format == Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
         // 1. Let data be the raw octets of the key represented by [[handle]] internal slot of key.
         auto data = key->handle().get<ByteBuffer>();
 
@@ -3775,7 +3783,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HKDF::import_key(AlgorithmParams const&,
     //        (… see below …)
     //    Otherwise:
     //        throw a NotSupportedError.
-    if (format != Bindings::KeyFormat::Raw) {
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format != Bindings::KeyFormat::Raw && format != Bindings::KeyFormat::RawSecret) {
         return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_utf16);
     }
 
@@ -7003,7 +7013,9 @@ WebIDL::ExceptionOr<JS::Value> PBKDF2::get_key_length(AlgorithmParams const&)
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(AlgorithmParams const&, Bindings::KeyFormat format, CryptoKey::InternalKeyData key_data, bool extractable, Vector<Bindings::KeyUsage> const& key_usages)
 {
     // 1. If format is not "raw", throw a NotSupportedError
-    if (format != Bindings::KeyFormat::Raw)
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
+    if (format != Bindings::KeyFormat::Raw && format != Bindings::KeyFormat::RawSecret)
         return WebIDL::NotSupportedError::create(m_realm, "Only raw format is supported"_utf16);
 
     // 2. If usages contains a value that is not "deriveKey" or "deriveBits", then throw a SyntaxError.
@@ -8357,8 +8369,10 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
     auto data = key->handle().get<ByteBuffer>();
 
     // 4. If format is "raw":
+    // https://wicg.github.io/webcrypto-modern-algos/#subtlecrypto-interface-keyformat
+    // For all existing symmetric algorithms in WebCrypto, "raw-secret" acts as an alias of "raw".
     GC::Ptr<JS::Object> result;
-    if (format == Bindings::KeyFormat::Raw) {
+    if (format == Bindings::KeyFormat::Raw || format == Bindings::KeyFormat::RawSecret) {
         // Let result be the result of creating an ArrayBuffer containing data.
         result = JS::ArrayBuffer::create(m_realm, data);
     }
