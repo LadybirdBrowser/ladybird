@@ -48,6 +48,7 @@
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Layout/BreakNode.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
@@ -2977,8 +2978,21 @@ static String visible_text_in_range(DOM::Range const& range)
         builder.append(static_cast<DOM::Text const&>(*range.start_container()).data().substring_view(range.start_offset()));
 
     range.for_each_contained([&](GC::Ref<DOM::Node> node) {
-        if (is<DOM::Text>(*node) && node->layout_node())
+        if (is<DOM::Text>(*node) && node->layout_node()) {
             builder.append(static_cast<DOM::Text const&>(*node).data());
+        } else if (auto const* layout_node = node->layout_node()) {
+            // Block-level elements (div, p, h1–h6, etc.) and <br> elements
+            // each produce a newline in the plain-text clipboard representation.
+            // We only insert a newline if there is already some text in the
+            // buffer (to avoid a leading blank line) and if the last character
+            // is not already a newline (to avoid consecutive blank lines when
+            // block elements are nested).
+            if ((layout_node->is_block_container() || layout_node->is_break_node())
+                && !builder.is_empty()
+                && !builder.string_view().ends_with('\n')) {
+                builder.append('\n');
+            }
+        }
         return IterationDecision::Continue;
     });
 
