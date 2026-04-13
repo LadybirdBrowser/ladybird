@@ -1571,37 +1571,6 @@ static NonnullRefPtr<StyleValue const> length_percentage_or_auto_to_style_value(
     VERIFY_NOT_REACHED();
 }
 
-Optional<LengthPercentage> interpolate_length_percentage(CalculationContext const& calculation_context, LengthPercentage const& from, LengthPercentage const& to, float delta)
-{
-    if (from.is_length() && to.is_length())
-        return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
-    if (from.is_percentage() && to.is_percentage())
-        return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-    auto from_style_value = length_percentage_or_auto_to_style_value(from);
-    auto to_style_value = length_percentage_or_auto_to_style_value(to);
-    auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
-    if (!interpolated_style_value)
-        return {};
-    return LengthPercentage::from_style_value(*interpolated_style_value);
-}
-
-Optional<LengthPercentageOrAuto> interpolate_length_percentage_or_auto(CalculationContext const& calculation_context, LengthPercentageOrAuto const& from, LengthPercentageOrAuto const& to, float delta)
-{
-    if (from.is_auto() && to.is_auto())
-        return LengthPercentageOrAuto::make_auto();
-    if (from.is_length() && to.is_length())
-        return Length::make_px(interpolate_raw(from.length().raw_value(), to.length().raw_value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Length)));
-    if (from.is_percentage() && to.is_percentage())
-        return Percentage(interpolate_raw(from.percentage().value(), to.percentage().value(), delta, calculation_context.accepted_type_ranges.get(ValueType::Percentage)));
-
-    auto from_style_value = length_percentage_or_auto_to_style_value(from);
-    auto to_style_value = length_percentage_or_auto_to_style_value(to);
-    auto interpolated_style_value = interpolate_mixed_value(calculation_context, from_style_value, to_style_value, delta);
-    if (!interpolated_style_value)
-        return {};
-    return LengthPercentageOrAuto::from_style_value(*interpolated_style_value);
-}
-
 static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     if (from.type() != to.type() || from.is_calculated() || to.is_calculated()) {
