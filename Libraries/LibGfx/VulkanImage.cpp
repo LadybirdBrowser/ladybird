@@ -67,7 +67,7 @@ void VulkanImage::transition_layout(VkImageLayout old_layout, VkImageLayout new_
     vkQueueWaitIdle(context.graphics_queue);
 }
 
-int VulkanImage::get_dma_buf_fd()
+int VulkanImage::get_dma_buf_fd() const
 {
     VkMemoryGetFdInfoKHR get_fd_info = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_GET_FD_INFO_KHR,

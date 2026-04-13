@@ -31,7 +31,7 @@ struct VulkanImage : public RefCounted<VulkanImage> {
     } info;
     VulkanContext const& context;
 
-    int get_dma_buf_fd();
+    int get_dma_buf_fd() const;
     void transition_layout(VkImageLayout old_layout, VkImageLayout new_layout);
     VulkanImage(VulkanContext const& context)
         : context(context)
