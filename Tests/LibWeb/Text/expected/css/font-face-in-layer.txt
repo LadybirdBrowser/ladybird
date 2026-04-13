@@ -1,0 +1,5 @@
+layered font connected: true
+layered font loaded: true
+layered font check: true
+layered font disconnected: true
+layered font check after removal: true

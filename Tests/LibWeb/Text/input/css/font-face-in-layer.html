@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style id="font-style">
+    @layer {
+        @font-face {
+            font-family: LayeredHashSans;
+            src: url("../../../Assets/HashSans.woff");
+        }
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const fontFamily = "LayeredHashSans";
+        const fontSize = "32px";
+        const fontQuery = `${fontSize} ${fontFamily}`;
+        const hasLayeredFontFace = () =>
+            [...document.fonts].some(face => face.family === fontFamily);
+
+        await document.fonts.ready;
+
+        println(`layered font connected: ${hasLayeredFontFace()}`);
+
+        const loadedFaces = await document.fonts.load(fontQuery);
+        println(`layered font loaded: ${loadedFaces.length === 1}`);
+        println(`layered font check: ${document.fonts.check(fontQuery)}`);
+
+        document.getElementById("font-style").remove();
+        println(`layered font disconnected: ${!hasLayeredFontFace()}`);
+        const fontUnloaded = !document.fonts.check(fontQuery);
+        println(`layered font check after removal: ${fontUnloaded}`);
+
+        done();
+    });
+</script>

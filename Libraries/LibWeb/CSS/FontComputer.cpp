@@ -714,11 +714,16 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
 {
-    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
-    for (auto const& rule : sheet.rules()) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& const_rule) {
+        // for_each_effective_rule delivers const references; the underlying objects are
+        // non-const, so we cast here to call the mutating methods below.
+        auto& rule = const_cast<CSSRule&>(const_rule);
+
+        // FIXME: Revisit this for conditional group rules that become effective
+        // after the initial stylesheet traversal, such as @media on resize.
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
             if (!font_face_rule->is_valid())
-                continue;
+                return;
 
             auto font_face = FontFace::create_css_connected(document().realm(), *font_face_rule);
             document().fonts()->add_css_connected_font(font_face);
@@ -731,26 +736,29 @@ void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
             font_face->load();
         }
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
             font_feature_values_rule->clear_caches();
-    }
+    });
 }
 
 void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 {
-    // FIXME: Handle @font-face and @font-feature-values within grouping rules (@media, @supports, etc)
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
-    for (auto const& rule : sheet.rules()) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(*rule)) {
+    sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& const_rule) {
+        // for_each_effective_rule delivers const references; the underlying objects are
+        // non-const, so we cast here to call the mutating methods below.
+        auto& rule = const_cast<CSSRule&>(const_rule);
+
+        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
             if (auto font_face = font_face_rule->css_connected_font_face())
                 unregister_font_face(*font_face);
             font_face_rule->disconnect_font_face();
         }
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(*rule))
+        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
             font_feature_values_rule->clear_caches();
-    }
+    });
 }
 
 }
