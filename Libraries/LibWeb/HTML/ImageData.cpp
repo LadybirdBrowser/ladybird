@@ -19,9 +19,16 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(ImageData);
 
-[[nodiscard]] static auto create_bitmap_backed_by_uint8_clamped_array(u32 const width, u32 const height, JS::Uint8ClampedArray& data)
+[[nodiscard]] static ErrorOr<NonnullRefPtr<Gfx::Bitmap>> create_bitmap_backed_by_uint8_clamped_array(u32 const width, u32 const height, JS::Uint8ClampedArray& data)
 {
-    return Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), data.data().data());
+    // Gfx::Bitmap::create_wrapper rejects dimensions that would overflow its internal
+    // size calculations (e.g. width >= INT16_MAX). Map any such failure to ENOMEM so
+    // TRY_OR_THROW_OOM can propagate it as a JavaScript out-of-memory error without
+    // triggering an internal VERIFY abort.
+    auto result = Gfx::Bitmap::create_wrapper(Gfx::BitmapFormat::RGBA8888, Gfx::AlphaType::Unpremultiplied, Gfx::IntSize(width, height), width * sizeof(u32), data.data().data());
+    if (result.is_error())
+        return Error::from_errno(ENOMEM);
+    return result.release_value();
 }
 
 GC::Ref<ImageData> ImageData::create(JS::Realm& realm)

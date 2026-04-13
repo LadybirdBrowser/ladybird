@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!-- Regression test for https://github.com/LadybirdBrowser/ladybird/issues/8496 -->
+<!-- Calling getImageData() with a very large region must not crash with a VERIFY -->
+<!-- failure when Gfx::Bitmap rejects the dimensions. -->
+<script>
+var c = document.createElement("canvas");
+c.width = 100;
+c.height = 100;
+var ctx = c.getContext("2d");
+try {
+    ctx.getImageData(0, 0, 32767, 32767);
+} catch (e) {
+    // Any thrown exception (RangeError, InternalError, ...) is acceptable.
+}
+</script>
