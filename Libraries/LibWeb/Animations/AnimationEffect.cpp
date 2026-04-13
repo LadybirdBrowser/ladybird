@@ -809,12 +809,12 @@ static CSS::RequiredInvalidationAfterStyleChange compute_required_invalidation_f
 AnimationUpdateContext::~AnimationUpdateContext()
 {
     for (auto& it : elements) {
-        auto style = it.value->target_style;
+        auto style = it.value.target_style;
         if (!style)
             continue;
         auto& element = it.key;
         GC::Ref<DOM::Element> target = element.element();
-        auto invalidation = compute_required_invalidation_for_animated_properties(it.value->animated_properties_before_update, style->animated_property_values());
+        auto invalidation = compute_required_invalidation_for_animated_properties(it.value.animated_properties_before_update, style->animated_property_values());
 
         if (invalidation.is_none())
             continue;

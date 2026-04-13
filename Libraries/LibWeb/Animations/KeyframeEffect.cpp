@@ -954,7 +954,7 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
     context.elements.ensure(abstract_element, [computed_properties] {
         auto old_animated_properties = computed_properties->animated_property_values();
         computed_properties->reset_non_inherited_animated_properties({});
-        return make<AnimationUpdateContext::ElementData>(move(old_animated_properties), computed_properties);
+        return AnimationUpdateContext::ElementData { move(old_animated_properties), computed_properties };
     });
 
     target->document().style_computer().collect_animation_into(abstract_element, *this, *computed_properties);
