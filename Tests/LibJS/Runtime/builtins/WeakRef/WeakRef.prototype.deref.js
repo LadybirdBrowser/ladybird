@@ -35,3 +35,27 @@ test("symbol kept alive for current synchronous execution sequence", () => {
     // This is fine 🔥
     expect(weakRef.deref()).not.toBe(undefined);
 });
+
+test("returned WeakRef target is no longer kept alive after an inline return", () => {
+    function createWeakRef() {
+        return new WeakRef({});
+    }
+
+    var weakRef = createWeakRef();
+    gc();
+
+    expect(weakRef.deref()).toBe(undefined);
+});
+
+test("assigned WeakRef target is no longer kept alive after an inline end", () => {
+    var weakRef;
+
+    function createWeakRef() {
+        weakRef = new WeakRef({});
+    }
+
+    createWeakRef();
+    gc();
+
+    expect(weakRef.deref()).toBe(undefined);
+});

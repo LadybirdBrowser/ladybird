@@ -458,6 +458,45 @@ macro reload_state_from_exec_ctx()
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
 end
 
+# Pop an inline frame and resume the caller without bouncing through C++.
+# The asm-managed JS-to-JS call fast path currently only inlines Call, never
+# CallConstruct, so caller_is_construct is always false for asm-managed inline
+# frames.
+#
+# This mirrors VM::pop_inline_frame():
+#   1. Read the caller's destination register from the callee frame.
+#   2. Publish the caller's resume pc and returned value.
+#   3. Deallocate the callee by rewinding InterpreterStack::top to exec_ctx.
+#   4. Make the caller the running execution context again.
+#   5. Advance execution_generation so WeakRef and similar observers still see
+#      the same boundary they would have seen through the C++ helper.
+#
+# The macro expects exec_ctx/pb/values/pc to still describe the callee frame.
+# Input:
+#   caller_frame = ExecutionContext* of the caller
+#   return_pc = caller program counter to resume at
+#   value_reg = NaN-boxed return value
+# Clobbers:
+#   t2, t4
+macro pop_inline_frame_and_resume(caller_frame, return_pc, value_reg)
+    load32 t2, [exec_ctx, EXECUTION_CONTEXT_CALLER_DST_RAW]
+    store32 [caller_frame, EXECUTION_CONTEXT_PROGRAM_COUNTER], return_pc
+    lea t4, [caller_frame, SIZEOF_EXECUTION_CONTEXT]
+    store64 [t4, t2, 8], value_reg
+
+    load_vm t4
+    store64 [t4, VM_RUNNING_EXECUTION_CONTEXT], caller_frame
+    store64 [t4, VM_INTERPRETER_STACK_TOP], exec_ctx
+    inc32_mem [t4, VM_EXECUTION_GENERATION]
+
+    mov exec_ctx, caller_frame
+    load64 t4, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [t4, EXECUTABLE_BYTECODE_DATA]
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    mov pc, return_pc
+    dispatch_current
+end
+
 # ============================================================================
 # Simple data movement
 # ============================================================================
@@ -838,48 +877,46 @@ end
 # ============================================================================
 
 handler Return
-    # Check if this is an inline frame (caller_frame != nullptr)
+    # Empty is the internal "no explicit value" marker. Returning it from
+    # bytecode means "return undefined" at the JS level.
+    load_operand t0, m_value
+    mov t2, EMPTY_TAG_SHIFTED
+    branch_ne t0, t2, .value_ready
+    mov t0, UNDEFINED_SHIFTED
+.value_ready:
+    # Inline JS-to-JS calls resume the caller directly from asm. Top-level
+    # returns instead exit back to the outer interpreter entry point.
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
     branch_zero t1, .top_level
-    # Inline return: pop the frame via C++ helper, then reload state
-    call_interp asm_pop_inline_frame
-    reload_state_from_exec_ctx
-    # Load the restored caller's program_counter
-    load32 pc, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
-    dispatch_current
+    load32 t3, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC]
+    pop_inline_frame_and_resume t1, t3, t0
 .top_level:
-    # Top-level return: load value, empty->undefined, store to return_value
-    load_operand t0, m_value
-    mov t1, EMPTY_TAG_SHIFTED
-    branch_ne t0, t1, .store_return
-    mov t0, UNDEFINED_SHIFTED
-.store_return:
+    # Top-level return matches VM::run_executable(): write return_value,
+    # clear the exception slot, and leave the asm interpreter entirely.
     # values[3] = return_value, values[1] = empty (clear exception)
     store64 [values, 24], t0
-    mov t1, EMPTY_TAG_SHIFTED
-    store64 [values, 8], t1
+    store64 [values, 8], t2
     exit
 end
 
 # Like Return, but does not clear the exception register (values[1]).
 # Used at the end of a function body (after all user code).
 handler End
-    # Check if this is an inline frame (caller_frame != nullptr)
+    # End shares the same inline-frame unwind logic as Return. The only
+    # top-level difference is that End preserves the current exception slot.
+    load_operand t0, m_value
+    mov t2, EMPTY_TAG_SHIFTED
+    branch_ne t0, t2, .value_ready
+    mov t0, UNDEFINED_SHIFTED
+.value_ready:
+    # Inline frame: resume the caller immediately.
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
     branch_zero t1, .top_level
-    # Inline return: pop the frame via C++ helper, then reload state
-    call_interp asm_pop_inline_frame_end
-    reload_state_from_exec_ctx
-    # Load the restored caller's program_counter
-    load32 pc, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
-    dispatch_current
+    load32 t3, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC]
+    pop_inline_frame_and_resume t1, t3, t0
 .top_level:
-    # Top-level end: load value, empty->undefined, store to return_value
-    load_operand t0, m_value
-    mov t1, EMPTY_TAG_SHIFTED
-    branch_ne t0, t1, .store_end
-    mov t0, UNDEFINED_SHIFTED
-.store_end:
+    # Top-level end: publish the return value and exit without touching
+    # values[1], since End does not model a user-visible `return` opcode.
     store64 [values, 24], t0
     exit
 end

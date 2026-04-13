@@ -131,8 +131,14 @@ int main()
     EMIT_OFFSET(EXECUTION_CONTEXT_REALM, ExecutionContext, realm);
     EMIT_OFFSET(EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT, ExecutionContext, lexical_environment);
     EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame);
+    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_RETURN_PC, ExecutionContext, caller_return_pc);
+    EMIT_OFFSET(EXECUTION_CONTEXT_CALLER_DST_RAW, ExecutionContext, caller_dst_raw);
     EMIT_OFFSET(EXECUTION_CONTEXT_PROGRAM_COUNTER, ExecutionContext, program_counter);
     EMIT_SIZEOF(SIZEOF_EXECUTION_CONTEXT, ExecutionContext);
+
+    // InterpreterStack layout
+    outln("\n# InterpreterStack layout");
+    EMIT_OFFSET(INTERPRETER_STACK_TOP, InterpreterStack, m_top);
 
     // Realm layout
     outln("\n# Realm layout");
@@ -142,6 +148,9 @@ int main()
     // VM layout
     outln("\n# VM layout");
     EMIT_OFFSET(VM_RUNNING_EXECUTION_CONTEXT, VM, m_running_execution_context);
+    EMIT_OFFSET(VM_INTERPRETER_STACK, VM, m_interpreter_stack);
+    EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
+    outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
 
     // IndexedStorageKind enum values
     outln("\n# IndexedStorageKind enum values");

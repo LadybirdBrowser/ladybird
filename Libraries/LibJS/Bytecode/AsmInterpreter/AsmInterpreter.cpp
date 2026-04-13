@@ -271,8 +271,6 @@ u64 asm_helper_empty_string(u64);
 u64 asm_helper_single_ascii_character_string(u64 encoded_value);
 u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
 i64 asm_try_inline_call(VM*, u32 pc);
-i64 asm_pop_inline_frame(VM*, u32 pc);
-i64 asm_pop_inline_frame_end(VM*, u32 pc);
 i64 asm_try_put_by_id_cache(VM*, u32 pc);
 i64 asm_try_get_by_id_cache(VM*, u32 pc);
 i64 asm_slow_path_initialize_lexical_binding(VM*, u32 pc);
@@ -882,30 +880,6 @@ i64 asm_try_inline_call(VM* vm, u32 pc)
     if (!callee_context) [[unlikely]]
         return 1;
 
-    return 0;
-}
-
-// Pop an inline frame after Return. Returns 0 on success.
-i64 asm_pop_inline_frame(VM* vm, u32 pc)
-{
-    auto* bytecode = vm->current_executable().bytecode.data();
-    auto& insn = *reinterpret_cast<Op::Return const*>(&bytecode[pc]);
-    auto value = vm->get(insn.value());
-    if (value.is_special_empty_value())
-        value = js_undefined();
-    vm->pop_inline_frame(value);
-    return 0;
-}
-
-// Pop an inline frame after End. Returns 0 on success.
-i64 asm_pop_inline_frame_end(VM* vm, u32 pc)
-{
-    auto* bytecode = vm->current_executable().bytecode.data();
-    auto& insn = *reinterpret_cast<Op::End const*>(&bytecode[pc]);
-    auto value = vm->get(insn.value());
-    if (value.is_special_empty_value())
-        value = js_undefined();
-    vm->pop_inline_frame(value);
     return 0;
 }
 
