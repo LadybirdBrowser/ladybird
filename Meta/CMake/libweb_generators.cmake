@@ -234,53 +234,25 @@ function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
+    set(LIBWEB_ALL_BINDINGS_SOURCES)
+    set(LIBWEB_ALL_IDL_FILES)
     function(libweb_js_bindings class)
         get_filename_component(basename "${class}" NAME)
 
-        set(BINDINGS_SOURCES
-            "Bindings/${basename}.h"
-            "Bindings/${basename}.cpp"
-        )
-
-        list(TRANSFORM BINDINGS_SOURCES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
+        set(BINDINGS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/Bindings/${basename}.h")
+        set(BINDINGS_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/Bindings/${basename}.cpp")
+        set(BINDINGS_SOURCES ${BINDINGS_HEADER} ${BINDINGS_SOURCE})
         target_sources(${target} PRIVATE ${BINDINGS_SOURCES})
 
-        get_property(include_paths DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
-        list(TRANSFORM include_paths PREPEND -i)
-
-        # Ninja expects the target name in depfiles to be relative to CMAKE_BINARY_DIR, but ${bindings_src} is
-        # relative to CMAKE_CURRENT_BINARY_DIR. CMake >= 3.20 can do the rewriting transparently (CMP0116).
-        set(depfile_prefix_arg "")
-        if(CMAKE_GENERATOR MATCHES "^Ninja" AND NOT POLICY CMP0116)
-            file(RELATIVE_PATH depfile_target ${CMAKE_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-            set(depfile_prefix_arg "--depfile-prefix ${depfile_target}" )
-        endif()
-
-        add_custom_command(
-            OUTPUT ${BINDINGS_SOURCES}
-            COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/${basename}.d"
-                    ${depfile_prefix_arg} "${LIBWEB_INPUT_FOLDER}/${class}.idl" "${LIBWEB_INPUT_FOLDER}" "${CMAKE_CURRENT_BINARY_DIR}"
-            VERBATIM
-            COMMENT "Generating Bindings for ${class}"
-            DEPENDS Lagom::BindingsGenerator
-            MAIN_DEPENDENCY ${class}.idl
-            DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/Bindings/${basename}.d
-        )
-
-        add_custom_target(generate_${basename} DEPENDS ${BINDINGS_SOURCES})
-        add_dependencies(ladybird_codegen_accumulator generate_${basename})
-        add_dependencies(${target} generate_${basename})
-        add_dependencies(generate_${basename} ${generated_idl_targets})
-
-        set(BINDINGS_HEADERS ${BINDINGS_SOURCES})
-        list(FILTER BINDINGS_HEADERS INCLUDE REGEX "\.h$")
-
         if (ENABLE_INSTALL_HEADERS)
-            install(FILES ${BINDINGS_HEADERS} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
+            install(FILES ${BINDINGS_HEADER} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibWeb/Bindings")
         endif()
 
-        list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${BINDINGS_HEADERS})
+        list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${BINDINGS_HEADER})
         set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
+
+        list(APPEND LIBWEB_ALL_BINDINGS_SOURCES ${BINDINGS_SOURCES})
+        set(LIBWEB_ALL_BINDINGS_SOURCES ${LIBWEB_ALL_BINDINGS_SOURCES} PARENT_SCOPE)
 
         list(APPEND LIBWEB_ALL_IDL_FILES "${LIBWEB_INPUT_FOLDER}/${class}.idl")
         set(LIBWEB_ALL_IDL_FILES ${LIBWEB_ALL_IDL_FILES} PARENT_SCOPE)
@@ -293,13 +265,6 @@ function (generate_js_bindings target)
             SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
             WindowExposedInterfaces.cpp WindowExposedInterfaces.h)
         list(TRANSFORM exposed_interface_sources PREPEND "Bindings/")
-        set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
-        if (WIN32)
-            list(JOIN LIBWEB_ALL_IDL_FILES "\n" idl_file_list)
-            file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt" CONTENT "${idl_file_list}" NEWLINE_STYLE UNIX)
-            set(LIBWEB_ALL_IDL_FILES "${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt")
-            set(LIBWEB_ALL_IDL_FILES_ARGUMENT "@${LIBWEB_ALL_IDL_FILES}")
-        endif()
         add_custom_command(
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
@@ -335,6 +300,30 @@ function (generate_js_bindings target)
     endfunction()
 
     include("idl_files.cmake")
+
+    set(LIBWEB_ALL_IDL_FILES_ARGUMENT ${LIBWEB_ALL_IDL_FILES})
+    if (WIN32)
+        list(JOIN LIBWEB_ALL_IDL_FILES "\n" idl_file_list)
+        file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt" CONTENT "${idl_file_list}" NEWLINE_STYLE UNIX)
+        set(LIBWEB_ALL_IDL_FILES_ARGUMENT "@${CMAKE_CURRENT_BINARY_DIR}/all_idl_files.txt")
+    endif()
+
+    add_custom_command(
+        OUTPUT ${LIBWEB_ALL_BINDINGS_SOURCES}
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "Bindings"
+        COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/all_bindings.d"
+                -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}" ${LIBWEB_ALL_IDL_FILES_ARGUMENT}
+        VERBATIM
+        COMMENT "Generating LibWeb bindings"
+        DEPENDS Lagom::BindingsGenerator ${LIBWEB_ALL_IDL_FILES}
+        DEPFILE ${CMAKE_CURRENT_BINARY_DIR}/Bindings/all_bindings.d
+    )
+
+    add_custom_target(generate_bindings DEPENDS ${LIBWEB_ALL_BINDINGS_SOURCES})
+    add_dependencies(ladybird_codegen_accumulator generate_bindings)
+    add_dependencies(${target} generate_bindings)
+    add_dependencies(generate_bindings ${generated_idl_targets})
+
     generate_exposed_interface_files()
 
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)

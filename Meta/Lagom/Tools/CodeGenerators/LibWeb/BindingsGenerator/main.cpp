@@ -10,10 +10,13 @@
 
 #include "IDLGenerators.h"
 #include "Namespaces.h"
+#include <AK/Assertions.h>
 #include <AK/Debug.h>
+#include <AK/HashTable.h>
 #include <AK/LexicalPath.h>
 #include <LibCore/ArgsParser.h>
 #include <LibCore/File.h>
+#include <LibCore/MappedFile.h>
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 
@@ -64,11 +67,10 @@ static ErrorOr<void> generate_depfile(StringView depfile_path, ReadonlySpan<Byte
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
-    StringView path;
-    Vector<ByteString> import_base_paths;
+    Vector<ByteString> paths;
+    Vector<ByteString> base_paths;
     StringView output_path = "-"sv;
     StringView depfile_path;
-    StringView depfile_prefix;
 
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
@@ -81,54 +83,100 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
             return true;
         },
     });
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Path to root of IDL file tree(s)",
+        .long_name = "base-path",
+        .short_name = 'b',
+        .value_name = "base-path",
+        .accept_value = [&](StringView s) {
+            base_paths.append(s);
+            return true;
+        },
+    });
     args_parser.add_option(output_path, "Path to output generated files into", "output-path", 'o', "output-path");
     args_parser.add_option(depfile_path, "Path to write dependency file to", "depfile", 'd', "depfile-path");
-    args_parser.add_option(depfile_prefix, "Prefix to prepend to relative paths in dependency file", "depfile-prefix", 'p', "depfile-prefix");
-    args_parser.add_positional_argument(path, "IDL file", "idl-file");
-    args_parser.add_positional_argument(import_base_paths, "Import base path", "import-base-path", Core::ArgsParser::Required::No);
+    args_parser.add_positional_argument(paths, "IDL file(s)", "idl-files");
     args_parser.parse(arguments);
 
-    auto idl_file = TRY(Core::File::open(path, Core::File::OpenMode::Read));
+    if (paths.first().starts_with("@"sv)) {
+        auto file = TRY(Core::File::open(paths.first().substring_view(1), Core::File::OpenMode::Read));
+        paths.remove(0);
+        VERIFY(paths.is_empty());
 
-    LexicalPath lexical_path(path);
-    auto& namespace_ = lexical_path.parts_view().at(lexical_path.parts_view().size() - 2);
-
-    auto data = TRY(idl_file->read_until_eof());
-
-    if (import_base_paths.is_empty())
-        import_base_paths.append(lexical_path.dirname());
+        auto string = TRY(file->read_until_eof());
+        for (auto const& path : StringView(string).split_view('\n')) {
+            if (path.is_empty())
+                continue;
+            paths.append(path);
+        }
+    }
 
     IDL::Context context;
+    Vector<ByteString> dependency_paths;
+    HashTable<ByteString> seen_dependency_paths;
+    Vector<ByteString> output_files;
+    Vector<LexicalPath> lexical_paths;
+    Vector<IDL::Interface*> interfaces;
 
-    auto module = IDL::Parser::parse(path, data, move(import_base_paths), context);
-    VERIFY(module.interface.has_value());
-    auto& interface = module.interface.value();
+    auto append_dependency_path = [&](ByteString const& dependency_path) {
+        if (seen_dependency_paths.set(dependency_path) != AK::HashSetResult::InsertedNewEntry)
+            return;
+        dependency_paths.append(dependency_path);
+    };
 
-    // If the interface name is the same as its namespace, qualify the name in the generated code.
-    // e.g. Selection::Selection
-    if (IDL::libweb_interface_namespaces.span().contains_slow(namespace_)) {
-        StringBuilder builder;
-        builder.append(namespace_);
-        builder.append("::"sv);
-        builder.append(interface.implemented_name);
-        interface.fully_qualified_name = builder.to_byte_string();
-    } else {
-        interface.fully_qualified_name = interface.implemented_name;
+    for (auto const& path : paths) {
+        auto file = TRY(Core::MappedFile::map(path, Core::MappedFile::Mode::ReadOnly));
+        lexical_paths.empend(path);
+
+        auto& lexical_path = lexical_paths.last();
+        auto import_base_paths = base_paths;
+        if (import_base_paths.is_empty())
+            import_base_paths.append(lexical_path.dirname());
+
+        auto module = IDL::Parser::parse(path, file->bytes(), move(import_base_paths), context);
+        VERIFY(module.interface.has_value());
+        auto& interface = module.interface.value();
+        interfaces.append(&interface);
+
+        append_dependency_path(path);
+        for (auto const& imported_file : module.imported_files)
+            append_dependency_path(imported_file);
     }
 
-    if constexpr (BINDINGS_GENERATOR_DEBUG) {
-        interface.dump();
+    for (size_t i = 0; i < paths.size(); ++i) {
+        auto const& lexical_path = lexical_paths[i];
+        auto& namespace_ = lexical_path.parts_view().at(lexical_path.parts_view().size() - 2);
+        auto& interface = *interfaces[i];
+
+        // If the interface name is the same as its namespace, qualify the name in the generated code.
+        // e.g. Selection::Selection
+        if (IDL::libweb_interface_namespaces.span().contains_slow(namespace_)) {
+            StringBuilder builder;
+            builder.append(namespace_);
+            builder.append("::"sv);
+            builder.append(interface.implemented_name);
+            interface.fully_qualified_name = builder.to_byte_string();
+        } else {
+            interface.fully_qualified_name = interface.implemented_name;
+        }
+
+        if constexpr (BINDINGS_GENERATOR_DEBUG)
+            interface.dump();
+
+        auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
+        auto header_path = ByteString::formatted("{}.h", path_prefix);
+        auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
+
+        TRY(write_if_changed(&IDL::generate_header, interface, header_path));
+        TRY(write_if_changed(&IDL::generate_implementation, interface, implementation_path));
+
+        output_files.append(header_path);
+        output_files.append(implementation_path);
     }
-
-    auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
-    auto header_path = ByteString::formatted("{}.h", path_prefix);
-    auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
-
-    TRY(write_if_changed(&IDL::generate_header, interface, header_path));
-    TRY(write_if_changed(&IDL::generate_implementation, interface, implementation_path));
 
     if (!depfile_path.is_empty()) {
-        TRY(generate_depfile(depfile_path, module.imported_files, { { header_path, implementation_path } }));
+        TRY(generate_depfile(depfile_path, dependency_paths, output_files));
     }
     return 0;
 }
