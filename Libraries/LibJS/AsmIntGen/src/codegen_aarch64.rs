@@ -1235,10 +1235,19 @@ fn emit_instruction(
         "store8" => {
             if insn.operands.len() >= 2 {
                 let mem_str = resolve_op(&insn.operands[0], handler, program);
-                let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(mem) = parse_mem(&mem_str) {
-                    let wsrc = to_w_reg(&src);
-                    emit_mem_store(out, &wsrc, &mem, 1);
+                    if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                        if val == 0 {
+                            emit_mem_store(out, "wzr", &mem, 1);
+                        } else {
+                            emit_mov_imm32(out, "w9", val);
+                            emit_mem_store(out, "w9", &mem, 1);
+                        }
+                    } else {
+                        let src = resolve_op(&insn.operands[1], handler, program);
+                        let wsrc = to_w_reg(&src);
+                        emit_mem_store(out, &wsrc, &mem, 1);
+                    }
                 }
             }
         }
@@ -1247,10 +1256,19 @@ fn emit_instruction(
         "store16" => {
             if insn.operands.len() >= 2 {
                 let mem_str = resolve_op(&insn.operands[0], handler, program);
-                let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(mem) = parse_mem(&mem_str) {
-                    let wsrc = to_w_reg(&src);
-                    emit_mem_store(out, &wsrc, &mem, 2);
+                    if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                        if val == 0 {
+                            emit_mem_store(out, "wzr", &mem, 2);
+                        } else {
+                            emit_mov_imm32(out, "w9", val);
+                            emit_mem_store(out, "w9", &mem, 2);
+                        }
+                    } else {
+                        let src = resolve_op(&insn.operands[1], handler, program);
+                        let wsrc = to_w_reg(&src);
+                        emit_mem_store(out, &wsrc, &mem, 2);
+                    }
                 }
             }
         }
@@ -1259,10 +1277,19 @@ fn emit_instruction(
         "store32" => {
             if insn.operands.len() >= 2 {
                 let mem_str = resolve_op(&insn.operands[0], handler, program);
-                let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(mem) = parse_mem(&mem_str) {
-                    let wsrc = to_w_reg(&src);
-                    emit_mem_store(out, &wsrc, &mem, 4);
+                    if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                        if val == 0 {
+                            emit_mem_store(out, "wzr", &mem, 4);
+                        } else {
+                            emit_mov_imm32(out, "w9", val);
+                            emit_mem_store(out, "w9", &mem, 4);
+                        }
+                    } else {
+                        let src = resolve_op(&insn.operands[1], handler, program);
+                        let wsrc = to_w_reg(&src);
+                        emit_mem_store(out, &wsrc, &mem, 4);
+                    }
                 }
             }
         }
@@ -1271,9 +1298,18 @@ fn emit_instruction(
         "store64" => {
             if insn.operands.len() >= 2 {
                 let mem_str = resolve_op(&insn.operands[0], handler, program);
-                let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(mem) = parse_mem(&mem_str) {
-                    emit_mem_store(out, &src, &mem, 8);
+                    if let Some(val) = get_immediate_value(&insn.operands[1], program) {
+                        if val == 0 {
+                            emit_mem_store(out, "xzr", &mem, 8);
+                        } else {
+                            emit_mov_imm(out, "x9", val);
+                            emit_mem_store(out, "x9", &mem, 8);
+                        }
+                    } else {
+                        let src = resolve_op(&insn.operands[1], handler, program);
+                        emit_mem_store(out, &src, &mem, 8);
+                    }
                 }
             }
         }
