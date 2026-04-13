@@ -931,6 +931,24 @@ fn emit_instruction(
             emit_ldr64(out, "x28", "x20", interp_ctx);
         }
 
+        // load_vm dst: copy the hidden VM* from the pinned x20 register.
+        "load_vm" => {
+            if let Some(op) = insn.operands.first() {
+                let dst = resolve_op(op, handler, program);
+                w!(out, "    mov {dst}, x20");
+            }
+        }
+
+        // inc32_mem [base, offset]: increment a 32-bit memory slot by 1.
+        "inc32_mem" => {
+            if let Some(op) = insn.operands.first() {
+                let mem_str = resolve_op(op, handler, program);
+                if let Some(mem) = parse_mem(&mem_str) {
+                    emit_inc32_mem(out, &mem);
+                }
+            }
+        }
+
         // dispatch_variable: advance ip by value in register and dispatch
         "dispatch_variable" => {
             if let Some(op) = insn.operands.first() {
@@ -1317,7 +1335,7 @@ fn emit_instruction(
                 let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
                     emit_mov_imm(out, &dst, val);
-                } else {
+                } else if dst != src {
                     w!(out, "    mov {dst}, {src}");
                 }
             }
@@ -2206,6 +2224,135 @@ fn emit_mem_store(out: &mut String, src: &str, mem: &MemOp, size: u32) {
                     2 => emit_strh(out, src, "x9", *offset),
                     1 => emit_strb(out, src, "x9", *offset),
                     _ => {}
+                }
+            }
+        }
+    }
+}
+
+fn choose_scratch_register<'a>(forbidden: &[&str], candidates: &'a [&'a str]) -> &'a str {
+    candidates
+        .iter()
+        .copied()
+        .find(|reg| !forbidden.iter().any(|forbidden_reg| forbidden_reg == reg))
+        .expect("no scratch register available")
+}
+
+fn emit_inc32_mem(out: &mut String, mem: &MemOp) {
+    let candidates = ["x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"];
+    let mut forbidden = vec![mem.base.as_str()];
+    match &mem.index {
+        MemIndex::Reg(idx) | MemIndex::RegScale(idx, _) | MemIndex::RegImm(idx, _) => {
+            forbidden.push(idx.as_str());
+        }
+        MemIndex::None | MemIndex::Imm(_) => {}
+    }
+
+    let value_reg = choose_scratch_register(&forbidden, &candidates);
+    forbidden.push(value_reg);
+    let addr_reg = choose_scratch_register(&forbidden, &candidates);
+    let value_wreg = to_w_reg(value_reg);
+
+    match &mem.index {
+        MemIndex::None => {
+            w!(out, "    ldr {value_wreg}, [{}]", mem.base);
+            w!(out, "    add {value_wreg}, {value_wreg}, #1");
+            w!(out, "    str {value_wreg}, [{}]", mem.base);
+        }
+        MemIndex::Imm(offset) => {
+            if *offset == 0 {
+                w!(out, "    ldr {value_wreg}, [{}]", mem.base);
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(out, "    str {value_wreg}, [{}]", mem.base);
+            } else if (0..16380).contains(offset) && offset % 4 == 0 {
+                w!(out, "    ldr {value_wreg}, [{}, #{offset}]", mem.base);
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(out, "    str {value_wreg}, [{}, #{offset}]", mem.base);
+            } else if (-256..=255).contains(offset) {
+                w!(out, "    ldur {value_wreg}, [{}, #{offset}]", mem.base);
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(out, "    stur {value_wreg}, [{}, #{offset}]", mem.base);
+            } else {
+                emit_mov_imm(out, addr_reg, *offset);
+                w!(out, "    ldr {value_wreg}, [{}, {addr_reg}]", mem.base);
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(out, "    str {value_wreg}, [{}, {addr_reg}]", mem.base);
+            }
+        }
+        MemIndex::Reg(idx) => {
+            w!(out, "    ldr {value_wreg}, [{}, {idx}]", mem.base);
+            w!(out, "    add {value_wreg}, {value_wreg}, #1");
+            w!(out, "    str {value_wreg}, [{}, {idx}]", mem.base);
+        }
+        MemIndex::RegScale(idx, scale) => {
+            let shift = match scale {
+                1 => None,
+                2 => Some(1),
+                4 => Some(2),
+                8 => Some(3),
+                _ => None,
+            };
+            if let Some(shift_amt) = shift {
+                w!(
+                    out,
+                    "    ldr {value_wreg}, [{}, {idx}, lsl #{shift_amt}]",
+                    mem.base
+                );
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(
+                    out,
+                    "    str {value_wreg}, [{}, {idx}, lsl #{shift_amt}]",
+                    mem.base
+                );
+            } else {
+                emit_mov_imm(out, addr_reg, *scale);
+                w!(out, "    madd {addr_reg}, {idx}, {addr_reg}, {}", mem.base);
+                w!(out, "    ldr {value_wreg}, [{addr_reg}]");
+                w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                w!(out, "    str {value_wreg}, [{addr_reg}]");
+            }
+        }
+        MemIndex::RegImm(idx, offset) => {
+            if mem.base == "x26" && idx == "x25" {
+                if *offset == 0 {
+                    w!(out, "    ldr {value_wreg}, [x21]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [x21]");
+                } else if (0..16380).contains(offset) && offset % 4 == 0 {
+                    w!(out, "    ldr {value_wreg}, [x21, #{offset}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [x21, #{offset}]");
+                } else if (-256..=255).contains(offset) {
+                    w!(out, "    ldur {value_wreg}, [x21, #{offset}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    stur {value_wreg}, [x21, #{offset}]");
+                } else {
+                    emit_mov_imm(out, addr_reg, *offset);
+                    w!(out, "    add {addr_reg}, x21, {addr_reg}");
+                    w!(out, "    ldr {value_wreg}, [{addr_reg}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [{addr_reg}]");
+                }
+            } else {
+                w!(out, "    add {addr_reg}, {}, {idx}", mem.base);
+                if *offset == 0 {
+                    w!(out, "    ldr {value_wreg}, [{addr_reg}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [{addr_reg}]");
+                } else if (0..16380).contains(offset) && offset % 4 == 0 {
+                    w!(out, "    ldr {value_wreg}, [{addr_reg}, #{offset}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [{addr_reg}, #{offset}]");
+                } else if (-256..=255).contains(offset) {
+                    w!(out, "    ldur {value_wreg}, [{addr_reg}, #{offset}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    stur {value_wreg}, [{addr_reg}, #{offset}]");
+                } else {
+                    emit_mov_imm(out, value_reg, *offset);
+                    w!(out, "    add {addr_reg}, {addr_reg}, {value_reg}");
+                    w!(out, "    ldr {value_wreg}, [{addr_reg}]");
+                    w!(out, "    add {value_wreg}, {value_wreg}, #1");
+                    w!(out, "    str {value_wreg}, [{addr_reg}]");
                 }
             }
         }

@@ -30,6 +30,13 @@ pub fn substitute_macro(
     insn: &AsmInstruction,
     param_map: &HashMap<String, String>,
 ) -> AsmInstruction {
+    let substitute_name = |name: &String| {
+        param_map
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| name.clone())
+    };
+
     let operands = insn
         .operands
         .iter()
@@ -48,6 +55,11 @@ pub fn substitute_macro(
                     op.clone()
                 }
             }
+            Operand::Memory { base, index, scale } => Operand::Memory {
+                base: substitute_name(base),
+                index: index.as_ref().map(substitute_name),
+                scale: scale.as_ref().map(substitute_name),
+            },
             _ => op.clone(),
         })
         .collect();

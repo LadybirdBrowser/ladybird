@@ -73,6 +73,8 @@
 //!   Result lands in `t0`. The handler continues. Does NOT reload pinned state.
 //! - `reload_exec_ctx` -- Reload the exec_ctx register from the VM*.
 //!   Used after non-terminal calls that may modify the running execution context.
+//! - `load_vm dst` -- Load the hidden VM* into `dst`.
+//!   Used when a handler needs to update VM-owned bookkeeping directly.
 //!
 //! ### Bytecode operand access
 //!
@@ -100,6 +102,7 @@
 //! - `store32 [base, offset], src` -- Store low 32 bits.
 //! - `store16 [base, offset], src` -- Store low 16 bits.
 //! - `store8 [base, offset], src` -- Store low 8 bits.
+//! - `inc32_mem [base, offset]` -- Increment a 32-bit memory slot by 1.
 //!
 //! ### Integer ALU
 //!

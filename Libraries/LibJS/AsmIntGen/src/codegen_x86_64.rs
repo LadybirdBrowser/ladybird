@@ -412,6 +412,22 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             w!(out, "    mov rbx, QWORD PTR [rcx + {interp_ctx}]");
         }
 
+        // load_vm dst: load the hidden VM* from the stack frame.
+        "load_vm" => {
+            if let Some(op) = insn.operands.first() {
+                let dst = resolve_op(op, handler, program);
+                w!(out, "    mov {dst}, QWORD PTR [rbp - 48]");
+            }
+        }
+
+        // inc32_mem [base, offset]: increment a 32-bit memory slot by 1.
+        "inc32_mem" => {
+            if let Some(op) = insn.operands.first() {
+                let mem = resolve_op(op, handler, program);
+                w!(out, "    add DWORD PTR {mem}, 1");
+            }
+        }
+
         // dispatch_variable pseudo-instruction: advance pc by value in register and dispatch
         "dispatch_variable" => {
             if let Some(op) = insn.operands.first() {
@@ -889,6 +905,7 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         "mov" => {
             if insn.operands.len() == 2 {
                 let dst = resolve_op(&insn.operands[0], handler, program);
+                let src = resolve_op(&insn.operands[1], handler, program);
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
                     let uval = val as u64;
                     if uval <= 0x7FFFFFFF || val < 0 && val >= -0x80000000 {
@@ -901,8 +918,7 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
                     } else {
                         w!(out, "    movabs {dst}, {val}");
                     }
-                } else {
-                    let src = resolve_op(&insn.operands[1], handler, program);
+                } else if dst != src {
                     w!(out, "    mov {dst}, {src}");
                 }
             }
