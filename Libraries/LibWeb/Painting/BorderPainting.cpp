@@ -221,31 +221,46 @@ void paint_border(DisplayListRecorder& painter, BorderEdge edge, DevicePixelRect
     };
 
     if (gfx_line_style != Gfx::LineStyle::Solid) {
-        auto [p1, p2] = points_for_edge(edge, rect);
+        auto adjacent_differs = [&](BorderEdge adjacent_edge, DevicePixels adjacent_width) {
+            return adjacent_width > 0 && border_color(adjacent_edge, borders_data) != color;
+        };
+        bool needs_corner_sharing = false;
         switch (edge) {
         case BorderEdge::Top:
-            p1.translate_by(border_data.width / 2, border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, border_data.width / 2);
+        case BorderEdge::Bottom:
+            needs_corner_sharing = adjacent_differs(BorderEdge::Left, borders_data.left.width)
+                || adjacent_differs(BorderEdge::Right, borders_data.right.width);
             break;
         case BorderEdge::Right:
-            p1.translate_by(-border_data.width / 2, border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, -border_data.width / 2);
-            break;
-        case BorderEdge::Bottom:
-            p1.translate_by(border_data.width / 2, -border_data.width / 2);
-            p2.translate_by(-border_data.width / 2, -border_data.width / 2);
-            break;
         case BorderEdge::Left:
-            p1.translate_by(border_data.width / 2, border_data.width / 2);
-            p2.translate_by(border_data.width / 2, -border_data.width / 2);
+            needs_corner_sharing = adjacent_differs(BorderEdge::Top, borders_data.top.width)
+                || adjacent_differs(BorderEdge::Bottom, borders_data.bottom.width);
             break;
         }
-        if (border_style == CSS::LineStyle::Dotted) {
+
+        if (!needs_corner_sharing) {
+            auto [p1, p2] = points_for_edge(edge, rect);
+            switch (edge) {
+            case BorderEdge::Top:
+                p1.translate_by(border_data.width / 2, border_data.width / 2);
+                p2.translate_by(-border_data.width / 2, border_data.width / 2);
+                break;
+            case BorderEdge::Right:
+                p1.translate_by(-border_data.width / 2, border_data.width / 2);
+                p2.translate_by(-border_data.width / 2, -border_data.width / 2);
+                break;
+            case BorderEdge::Bottom:
+                p1.translate_by(border_data.width / 2, -border_data.width / 2);
+                p2.translate_by(-border_data.width / 2, -border_data.width / 2);
+                break;
+            case BorderEdge::Left:
+                p1.translate_by(border_data.width / 2, border_data.width / 2);
+                p2.translate_by(border_data.width / 2, -border_data.width / 2);
+                break;
+            }
             painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
             return;
         }
-        painter.draw_line(p1.to_type<int>(), p2.to_type<int>(), color, border_data.width.value(), gfx_line_style);
-        return;
     }
 
     auto draw_border = [&](Vector<Gfx::FloatPoint> const& points, bool joined_corner_has_inner_corner, bool opposite_joined_corner_has_inner_corner, Gfx::FloatSize joined_inner_corner_offset, Gfx::FloatSize opposite_joined_inner_corner_offset, bool ready_to_draw) {
