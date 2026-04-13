@@ -375,14 +375,9 @@ Now breakpoints, stepping and variable inspection will work.
 
 If all you want to do is use Instruments, then an Xcode project is not required.
 
-Simply run the `ladybird.py` script as normal, and then make sure to codesign the Ladybird binary with the proper entitlements to allow Instruments to attach to it.
-
-```
-./Meta/ladybird.py build
- ninja -C Build/release apply-debug-entitlements
- # or
- codesign -s - -v -f --entitlements Meta/debug.plist Build/release/bin/Ladybird.app
-```
+Simply run the `ladybird.py` script as normal with a debug-style build. The build automatically signs the app bundle
+with the entitlements from `Meta/DebugEntitlements.plist`, which includes `get-task-allow` for debugger and Instruments
+attachment.
 
 Now you can open the Instruments app and point it to the Ladybird app bundle.
 
