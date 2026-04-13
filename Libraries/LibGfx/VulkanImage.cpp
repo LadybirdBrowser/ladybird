@@ -84,7 +84,7 @@ int VulkanImage::get_dma_buf_fd() const
     return fd;
 }
 
-ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, uint32_t num_modifiers, uint64_t const* modifiers)
+ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext const& context, uint32_t width, uint32_t height, VkFormat format, ReadonlySpan<uint64_t> modifiers)
 {
     VkDrmFormatModifierPropertiesListEXT format_mod_props_list = {};
     format_mod_props_list.sType = VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT;
@@ -102,12 +102,8 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
     Vector<uint64_t> format_mods;
     for (VkDrmFormatModifierPropertiesEXT const& props : format_mod_props) {
         if ((props.drmFormatModifierTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT) && (props.drmFormatModifierPlaneCount == 1)) {
-            for (uint32_t i = 0; i < num_modifiers; ++i) {
-                if (modifiers[i] == props.drmFormatModifier) {
-                    format_mods.append(props.drmFormatModifier);
-                    break;
-                }
-            }
+            if (modifiers.contains_slow(props.drmFormatModifier))
+                format_mods.append(props.drmFormatModifier);
         }
     }
 
