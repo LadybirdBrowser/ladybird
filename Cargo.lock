@@ -369,7 +369,6 @@ dependencies = [
  "num-bigint",
  "num-integer",
  "num-traits",
- "unicode-ident",
 ]
 
 [[package]]

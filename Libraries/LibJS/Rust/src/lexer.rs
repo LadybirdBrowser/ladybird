@@ -38,6 +38,11 @@ use crate::ast::{SharedUtf16String, Utf16String};
 use crate::token::{Token, TokenType};
 use crate::u32_from_usize;
 
+unsafe extern "C" {
+    fn unicode_is_id_start(code_point: u32) -> i32;
+    fn unicode_is_id_continue(code_point: u32) -> i32;
+}
+
 /// State for tracking template literal nesting.
 #[derive(Clone)]
 struct TemplateState {
@@ -206,15 +211,11 @@ fn is_identifier_continue_cp(cp: u32) -> bool {
 }
 
 fn unicode_id_start(cp: u32) -> bool {
-    // NB: The ECMAScript spec requires ID_Start, not XID_Start.
-    //     U+309B and U+309C are Other_ID_Start (thus ID_Start) but not XID_Start.
-    cp == 0x309B || cp == 0x309C || char::from_u32(cp).is_some_and(unicode_ident::is_xid_start)
+    unsafe { unicode_is_id_start(cp) != 0 }
 }
 
 fn unicode_id_continue(cp: u32) -> bool {
-    // NB: The ECMAScript spec requires ID_Continue, not XID_Continue.
-    //     U+309B and U+309C are Other_ID_Start (thus ID_Continue) but not XID_Continue.
-    cp == 0x309B || cp == 0x309C || char::from_u32(cp).is_some_and(unicode_ident::is_xid_continue)
+    unsafe { unicode_is_id_continue(cp) != 0 }
 }
 
 // https://tc39.es/ecma262/#sec-keywords-and-reserved-words
