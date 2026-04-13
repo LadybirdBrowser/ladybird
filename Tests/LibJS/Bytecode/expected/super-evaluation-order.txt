@@ -35,13 +35,12 @@ A$3f156142 super-evaluation-order.js:1:1
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
-  [  18] CreateRestParams dst:arg0, rest_index:0
-  [  28] InitializeLexicalBinding `args`, src:arg0
-  [  40] GetBinding dst:reg5, `args`
-  [  58] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  68] Return value:reg6
+  [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
+  [  10] CreateRestParams dst:arg0, rest_index:0
+  [  20] InitializeLexicalBinding `args`, src:arg0
+  [  38] GetBinding dst:reg5, `args`
+  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  60] Return value:reg6
 
 
 read$2a1a7339 super-evaluation-order.js:3:9
@@ -51,11 +50,10 @@ read$2a1a7339 super-evaluation-order.js:3:9
     [0] = String("x")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [  38] Return value:reg6
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  30] Return value:reg6
 
 
 write$5b793bae super-evaluation-order.js:6:20
@@ -67,11 +65,10 @@ write$5b793bae super-evaluation-order.js:6:20
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
-  [  38] End value:Undefined
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
+  [  30] End value:Undefined
 
 
 update$8ce50e3d super-evaluation-order.js:9:16
@@ -81,10 +78,9 @@ update$8ce50e3d super-evaluation-order.js:9:16
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [  38] PostfixIncrement dst:reg7, src:reg6
-  [  48] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
-  [  68] End value:Undefined
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  30] PostfixIncrement dst:reg7, src:reg6
+  [  40] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
+  [  60] End value:Undefined

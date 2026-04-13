@@ -6,37 +6,33 @@ $2e768d79 logical-or-preferred-dst.js:11:1
     [1] = Bool(false)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `blocked`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `blocked`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [  40] End value:reg5
 
 
 blocked$3d17db43 logical-or-preferred-dst.js:6:9
   Registers: 6
-  Blocks:    7
+  Blocks:    6
   Constants:
     [0] = Int32(0)
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
+  [   0] Mov dst:reg5, src:arg0
+  [  10] JumpIf condition:arg0, true_target:block3, false_target:block2
 
 block1:
-  [   8] Mov dst:reg5, src:arg0
-  [  18] JumpIf condition:arg0, true_target:block4, false_target:block3
+  [  20] End value:Undefined
 
 block2:
-  [  28] End value:Undefined
+  [  28] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
 
 block3:
-  [  30] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+  [  38] JumpFalse condition:reg5, target:block5
 
 block4:
-  [  40] JumpFalse condition:reg5, target:block6
+  [  48] Jump target:block0
 
 block5:
   [  50] Jump target:block1
-
-block6:
-  [  58] Jump target:block2

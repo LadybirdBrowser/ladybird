@@ -32,10 +32,9 @@ Derived$1c41db7c super-computed-eval-order.js:4:14
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewArray dst:reg5
-  [  18] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  28] End value:Undefined
+  [   0] NewArray dst:reg5
+  [  10] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  20] End value:Undefined
 
 
 Base$811c9dc5
@@ -45,8 +44,7 @@ Base$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 test$fd5f6781 super-computed-eval-order.js:7:9
@@ -56,8 +54,7 @@ test$fd5f6781 super-computed-eval-order.js:7:9
     [0] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] GetByValueWithThis dst:reg6, base:reg5, property:Int32(0), this_value:this
-  [  30] Return value:reg6
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] GetByValueWithThis dst:reg6, base:reg5, property:Int32(0), this_value:this
+  [  28] Return value:reg6

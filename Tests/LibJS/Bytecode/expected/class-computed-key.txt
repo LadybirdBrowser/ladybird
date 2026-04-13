@@ -5,10 +5,9 @@ $69cce752 class-computed-key.js:10:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
 f$7455d328 class-computed-key.js:4:5

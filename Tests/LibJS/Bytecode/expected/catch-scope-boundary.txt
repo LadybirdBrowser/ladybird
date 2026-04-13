@@ -5,18 +5,17 @@ $b00b92b3 catch-scope-boundary.js:14:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  40] GetGlobal dst:reg9, `throwInCatch`
-  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg7, `console`
-  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `throwInCatchWithLocals`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
-  [ 110] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 138] End value:reg6
+  [   0] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  38] GetGlobal dst:reg9, `throwInCatch`
+  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, throwInCatch
+  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  98] GetGlobal dst:reg7, `console`
+  [  b0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d0] GetGlobal dst:reg10, `throwInCatchWithLocals`
+  [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, throwInCatchWithLocals
+  [ 108] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 130] End value:reg6
 
 
 throwInCatch$ff1cead7 catch-scope-boundary.js:2:5

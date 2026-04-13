@@ -6,13 +6,12 @@ $e9ab2da1 with-return.js:10:1
     [1] = Int32(42)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `with_return`
-  [  20] NewObject dst:reg7
-  [  30] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
-  [  48] CacheObjectShape object:reg7
-  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
-  [  80] End value:reg5
+  [   0] GetGlobal dst:reg6, `with_return`
+  [  18] NewObject dst:reg7
+  [  28] InitObjectLiteralProperty object:reg7, `x`, src:Int32(42), shape_cache_index:0, property_slot:0
+  [  40] CacheObjectShape object:reg7
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, with_return, arguments:[reg7]
+  [  78] End value:reg5
 
 
 with_return$a3013274 with-return.js:5:5

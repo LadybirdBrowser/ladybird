@@ -5,12 +5,11 @@ $2bdd3a63 try-catch-scoping.js:11:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `tryCatchWithBlocks`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
-  [  40] GetGlobal dst:reg7, `tryCatchFinallyWithBlocks`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
-  [  78] End value:reg6
+  [   0] GetGlobal dst:reg6, `tryCatchWithBlocks`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
+  [  38] GetGlobal dst:reg7, `tryCatchFinallyWithBlocks`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
+  [  70] End value:reg6
 
 
 tryCatchWithBlocks$5efa7757 try-catch-scoping.js:2:5

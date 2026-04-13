@@ -30,14 +30,13 @@ $ab928610 bigint-constant-folding.js:1:1
     [25] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:BigInt(3n)
-  [  20] SetGlobal `b`, src:BigInt(7n)
-  [  38] SetGlobal `c`, src:BigInt(6n)
-  [  50] SetGlobal `d`, src:BigInt(3n)
-  [  68] SetGlobal `e`, src:BigInt(1n)
-  [  80] SetGlobal `f`, src:BigInt(8n)
-  [  98] SetGlobal `g`, src:Bool(true)
-  [  b0] SetGlobal `h`, src:Bool(true)
-  [  c8] SetGlobal `i`, src:BigInt(-2n)
-  [  e0] End value:Undefined
+  [   0] SetGlobal `a`, src:BigInt(3n)
+  [  18] SetGlobal `b`, src:BigInt(7n)
+  [  30] SetGlobal `c`, src:BigInt(6n)
+  [  48] SetGlobal `d`, src:BigInt(3n)
+  [  60] SetGlobal `e`, src:BigInt(1n)
+  [  78] SetGlobal `f`, src:BigInt(8n)
+  [  90] SetGlobal `g`, src:Bool(true)
+  [  a8] SetGlobal `h`, src:Bool(true)
+  [  c0] SetGlobal `i`, src:BigInt(-2n)
+  [  d8] End value:Undefined

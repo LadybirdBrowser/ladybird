@@ -5,27 +5,26 @@ $fa0f7b9b invalid-lhs-forin-no-dead-code.js:1:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewArray dst:reg5
-  [  18] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [   0] NewArray dst:reg5
+  [  10] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  28] End value:reg5
+  [  20] End value:reg5
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
-  [  40] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  28] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
+  [  38] JumpIf condition:reg8, true_target:block1, false_target:block5
 
 block3:
-  [  50] End value:reg5
+  [  48] End value:reg5
 
 block4:
-  [  58] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  70] Mov dst:reg5, src:Undefined
-  [  80] Jump target:block2
+  [  50] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
+  [  68] Mov dst:reg5, src:Undefined
+  [  78] Jump target:block2
 
 block5:
-  [  88] GetGlobal dst:reg10, `f`
-  [  a0] Call dst:reg9, callee:reg10, this_value:Undefined, f
-  [  c0] NewReferenceError dst:reg9, Invalid left-hand side in assignment
-  [  d0] Throw src:reg9
+  [  80] GetGlobal dst:reg10, `f`
+  [  98] Call dst:reg9, callee:reg10, this_value:Undefined, f
+  [  b8] NewReferenceError dst:reg9, Invalid left-hand side in assignment
+  [  c8] Throw src:reg9

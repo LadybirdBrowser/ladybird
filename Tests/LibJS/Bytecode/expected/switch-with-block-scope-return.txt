@@ -6,10 +6,9 @@ $bfb1383b switch-with-block-scope-return.js:12:1
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  40] End value:reg5
 
 
 f$bb4b08d4 switch-with-block-scope-return.js:2:5

@@ -5,10 +5,9 @@ $058cd786 nested-try-finally-continue.js:14:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `nestedTryFinallyContinue`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, nestedTryFinallyContinue
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `nestedTryFinallyContinue`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, nestedTryFinallyContinue
+  [  38] End value:reg5
 
 
 nestedTryFinallyContinue$f4bfe0d3 nested-try-finally-continue.js:2:5

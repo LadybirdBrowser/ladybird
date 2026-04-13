@@ -6,14 +6,13 @@ $2d41d92c computed-string-object-literal.js:15:1
     [1] = String("x")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `simple_computed`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
-  [  40] GetGlobal dst:reg7, `mixed`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, mixed
-  [  78] GetGlobal dst:reg7, `dynamic`
-  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
-  [  b8] End value:reg5
+  [   0] GetGlobal dst:reg6, `simple_computed`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, simple_computed
+  [  38] GetGlobal dst:reg7, `mixed`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, mixed
+  [  70] GetGlobal dst:reg7, `dynamic`
+  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, dynamic, arguments:[String("x")]
+  [  b0] End value:reg5
 
 
 simple_computed$4b41b515 computed-string-object-literal.js:6:5
@@ -23,11 +22,10 @@ simple_computed$4b41b515 computed-string-object-literal.js:6:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewObject dst:reg5
-  [  18] InitObjectLiteralProperty object:reg5, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  30] CacheObjectShape object:reg5
-  [  40] Return value:reg5
+  [   0] NewObject dst:reg5
+  [  10] InitObjectLiteralProperty object:reg5, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  28] CacheObjectShape object:reg5
+  [  38] Return value:reg5
 
 
 mixed$5c18a76a computed-string-object-literal.js:9:5
@@ -38,12 +36,11 @@ mixed$5c18a76a computed-string-object-literal.js:9:5
     [1] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewObject dst:reg5
-  [  18] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  30] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  48] CacheObjectShape object:reg5
-  [  58] Return value:reg5
+  [   0] NewObject dst:reg5
+  [  10] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  28] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  40] CacheObjectShape object:reg5
+  [  50] Return value:reg5
 
 
 dynamic$ae7fe9ae computed-string-object-literal.js:12:5
@@ -53,9 +50,8 @@ dynamic$ae7fe9ae computed-string-object-literal.js:12:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewObject dst:reg5
-  [  18] Mov dst:reg6, src:arg0
-  [  28] ToPrimitiveWithStringHint dst:reg6, value:reg6
-  [  38] PutByValue base:reg5, property:reg6, src:Int32(1), kind:Own
-  [  50] Return value:reg5
+  [   0] NewObject dst:reg5
+  [  10] Mov dst:reg6, src:arg0
+  [  20] ToPrimitiveWithStringHint dst:reg6, value:reg6
+  [  30] PutByValue base:reg5, property:reg6, src:Int32(1), kind:Own
+  [  48] Return value:reg5

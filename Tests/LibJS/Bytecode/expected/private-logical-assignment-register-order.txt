@@ -29,8 +29,7 @@ C$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 f$cce54051 private-logical-assignment-register-order.js:3:19
@@ -41,17 +40,16 @@ f$cce54051 private-logical-assignment-register-order.js:3:19
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetPrivateById dst:reg5, base:this, `#x`
-  [  18] JumpFalse condition:reg5, target:block2
+  [   0] GetPrivateById dst:reg5, base:this, `#x`
+  [  10] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  28] Mov dst:reg6, src:Int32(1)
-  [  38] PutPrivateById base:this, `#x`, src:reg6
-  [  48] Jump target:block3
+  [  20] Mov dst:reg6, src:Int32(1)
+  [  30] PutPrivateById base:this, `#x`, src:reg6
+  [  40] Jump target:block3
 
 block2:
-  [  50] Mov dst:reg6, src:reg5
+  [  48] Mov dst:reg6, src:reg5
 
 block3:
-  [  60] End value:Undefined
+  [  58] End value:Undefined

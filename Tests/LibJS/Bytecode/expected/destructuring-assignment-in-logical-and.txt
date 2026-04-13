@@ -7,10 +7,9 @@ $490efcb5 destructuring-assignment-in-logical-and.js:5:1
     [2] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Int32(0)]
+  [  40] End value:reg5
 
 
 f$c5d7e0b7 destructuring-assignment-in-logical-and.js:2:5
@@ -22,45 +21,44 @@ f$c5d7e0b7 destructuring-assignment-in-logical-and.js:2:5
     [1] = Bool(false)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
-  [  28] JumpFalse condition:arg0, target:block2
+  [   0] Mov3 dst1:a~0, src1:Undefined, dst2:b~1, src2:Undefined, dst3:reg5, src3:arg0
+  [  20] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  38] Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
-  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
-  [  78] Mov dst:reg7, src:Bool(false)
-  [  88] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
-  [  a0] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [  b8] JumpIf condition:reg7, true_target:block3, false_target:block4
+  [  30] Mov2 dst1:reg7, src1:arg0, dst2:reg8, src2:arg1
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, t, arguments:[reg8]
+  [  70] Mov dst:reg7, src:Bool(false)
+  [  80] GetIterator dst_iterator_object:reg8, dst_iterator_next:reg9, dst_iterator_done:reg10, iterable:reg6
+  [  98] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [  b0] JumpIf condition:reg7, true_target:block3, false_target:block4
 
 block2:
-  [  c8] End value:Undefined
+  [  c0] End value:Undefined
 
 block3:
-  [  d0] Mov dst:reg11, src:Undefined
-  [  e0] Jump target:block4
+  [  c8] Mov dst:reg11, src:Undefined
+  [  d8] Jump target:block4
 
 block4:
-  [  e8] Mov dst:a~0, src:reg11
-  [  f8] JumpFalse condition:reg7, target:block6
+  [  e0] Mov dst:a~0, src:reg11
+  [  f0] JumpFalse condition:reg7, target:block6
 
 block5:
-  [ 108] Mov dst:reg11, src:Undefined
-  [ 118] Jump target:block7
+  [ 100] Mov dst:reg11, src:Undefined
+  [ 110] Jump target:block7
 
 block6:
-  [ 120] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
-  [ 138] JumpTrue condition:reg7, target:block5
+  [ 118] IteratorNextUnpack dst_value:reg11, dst_done:reg7, iterator_object:reg8, iterator_next:reg9, iterator_done:reg10
+  [ 130] JumpTrue condition:reg7, target:block5
 
 block7:
-  [ 148] Mov dst:b~1, src:reg11
-  [ 158] JumpFalse condition:reg7, target:block9
+  [ 140] Mov dst:b~1, src:reg11
+  [ 150] JumpFalse condition:reg7, target:block9
 
 block8:
-  [ 168] Mov dst:reg5, src:reg6
-  [ 178] Jump target:block2
+  [ 160] Mov dst:reg5, src:reg6
+  [ 170] Jump target:block2
 
 block9:
-  [ 180] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
-  [ 198] Jump target:block8
+  [ 178] IteratorClose iterator_object:reg8, iterator_next:reg9, iterator_done:reg10, completion_value:Undefined
+  [ 190] Jump target:block8

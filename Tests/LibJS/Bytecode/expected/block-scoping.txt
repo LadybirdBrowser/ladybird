@@ -5,18 +5,17 @@ $975f41e0 block-scoping.js:13:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  40] GetGlobal dst:reg9, `closureOverBlockScope`
-  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg7, `console`
-  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  d8] GetGlobal dst:reg10, `breakThroughBlockScopes`
-  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
-  [ 110] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 138] End value:reg6
+  [   0] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  38] GetGlobal dst:reg9, `closureOverBlockScope`
+  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
+  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  98] GetGlobal dst:reg7, `console`
+  [  b0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d0] GetGlobal dst:reg10, `breakThroughBlockScopes`
+  [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
+  [ 108] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 130] End value:reg6
 
 
 closureOverBlockScope$4f0633f8 block-scoping.js:2:15
@@ -62,9 +61,8 @@ $551734f7 block-scoping.js:5:18
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `x`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `x`
+  [  18] Return value:reg5
 
 
 $2f14ba8e block-scoping.js:9:18
@@ -72,9 +70,8 @@ $2f14ba8e block-scoping.js:9:18
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `y`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `y`
+  [  18] Return value:reg5
 
 
 breakThroughBlockScopes$c915ba4a block-scoping.js:16:5
@@ -126,9 +123,8 @@ f$551734f7 block-scoping.js:20:21
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `x`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `x`
+  [  18] Return value:reg5
 
 
 3

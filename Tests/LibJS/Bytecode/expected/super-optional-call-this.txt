@@ -30,13 +30,12 @@ Foo$4b66ae80 super-optional-call-this.js:4:1
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
-  [  18] CreateRestParams dst:arg0, rest_index:0
-  [  28] InitializeLexicalBinding `args`, src:arg0
-  [  40] GetBinding dst:reg5, `args`
-  [  58] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
-  [  68] Return value:reg6
+  [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
+  [  10] CreateRestParams dst:arg0, rest_index:0
+  [  20] InitializeLexicalBinding `args`, src:arg0
+  [  38] GetBinding dst:reg5, `args`
+  [  50] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:true
+  [  60] Return value:reg6
 
 
 Base$811c9dc5
@@ -46,8 +45,7 @@ Base$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 method$e17748b6 super-optional-call-this.js:6:9
@@ -57,25 +55,24 @@ method$e17748b6 super-optional-call-this.js:6:9
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg5, src:Undefined
-  [  18] ResolveThisBinding
-  [  20] ResolveSuperBase dst:reg7
-  [  28] GetByIdWithThis dst:reg8, base:reg7, `method`, this_value:this
-  [  48] Mov2 dst1:reg5, src1:this, dst2:reg6, src2:reg8
-  [  60] JumpNullish condition:reg6, true_target:block1, false_target:block3
+  [   0] Mov dst:reg5, src:Undefined
+  [  10] ResolveThisBinding
+  [  18] ResolveSuperBase dst:reg7
+  [  20] GetByIdWithThis dst:reg8, base:reg7, `method`, this_value:this
+  [  40] Mov2 dst1:reg5, src1:this, dst2:reg6, src2:reg8
+  [  58] JumpNullish condition:reg6, true_target:block1, false_target:block3
 
 block1:
-  [  70] Mov dst:reg6, src:Undefined
+  [  68] Mov dst:reg6, src:Undefined
 
 block2:
-  [  80] Return value:reg6
+  [  78] Return value:reg6
 
 block3:
-  [  88] NewArray dst:reg7
-  [  98] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
-  [  b0] Mov dst:reg5, src:Undefined
-  [  c0] Return value:reg6
+  [  80] NewArray dst:reg7
+  [  90] CallWithArgumentArray dst:reg6, callee:reg6, this_value:reg5, arguments:reg7
+  [  a8] Mov dst:reg5, src:Undefined
+  [  b8] Return value:reg6
 
 
 method$811c9dc5
@@ -85,5 +82,4 @@ method$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined

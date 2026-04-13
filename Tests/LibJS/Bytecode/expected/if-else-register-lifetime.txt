@@ -5,11 +5,10 @@ $93c13d35 if-else-register-lifetime.js:11:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `test`
-  [  20] NewPrimitiveArray dst:reg7, elements:[1]
-  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
-  [  60] End value:reg5
+  [   0] GetGlobal dst:reg6, `test`
+  [  18] NewPrimitiveArray dst:reg7, elements:[1]
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  58] End value:reg5
 
 
 test$c1ed08de if-else-register-lifetime.js:2:5
@@ -25,54 +24,53 @@ test$c1ed08de if-else-register-lifetime.js:2:5
     [5] = Int32(3)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov3 dst1:a~0, src1:Undefined, dst2:i~1, src2:Undefined, dst3:j~2, src3:Undefined
-  [  28] Mov2 dst1:a~0, src1:Int32(1), dst2:i~1, src2:Int32(0)
-  [  40] Jump target:block3
+  [   0] Mov3 dst1:a~0, src1:Undefined, dst2:i~1, src2:Undefined, dst3:j~2, src3:Undefined
+  [  20] Mov2 dst1:a~0, src1:Int32(1), dst2:i~1, src2:Int32(0)
+  [  38] Jump target:block3
 
 block1:
-  [  48] Mov dst:j~2, src:Int32(0)
-  [  58] Jump target:block7
+  [  40] Mov dst:j~2, src:Int32(0)
+  [  50] Jump target:block7
 
 block2:
-  [  60] PostfixIncrement dst:reg5, src:i~1
+  [  58] PostfixIncrement dst:reg5, src:i~1
 
 block3:
-  [  70] JumpLessThan lhs:i~1, rhs:Int32(10), true_target:block1, false_target:block4
+  [  68] JumpLessThan lhs:i~1, rhs:Int32(10), true_target:block1, false_target:block4
 
 block4:
-  [  88] GetGlobal dst:reg6, `parseInt`
-  [  a0] Mov dst:reg7, src:a~0
-  [  b0] Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg7]
-  [  d8] Return value:reg5
+  [  80] GetGlobal dst:reg6, `parseInt`
+  [  98] Mov dst:reg7, src:a~0
+  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg7]
+  [  d0] Return value:reg5
 
 block5:
-  [  e0] JumpLessThan lhs:j~2, rhs:Int32(5), true_target:block9, false_target:block10
+  [  d8] JumpLessThan lhs:j~2, rhs:Int32(5), true_target:block9, false_target:block10
 
 block6:
-  [  f8] PostfixIncrement dst:reg5, src:j~2
+  [  f0] PostfixIncrement dst:reg5, src:j~2
 
 block7:
-  [ 108] JumpLessThan lhs:j~2, rhs:Int32(10), true_target:block5, false_target:block8
+  [ 100] JumpLessThan lhs:j~2, rhs:Int32(10), true_target:block5, false_target:block8
 
 block8:
-  [ 120] Jump target:block2
+  [ 118] Jump target:block2
 
 block9:
-  [ 128] Mov3 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2, dst3:reg8, src3:arg0
-  [ 148] Add dst:reg9, lhs:i~1, rhs:j~2
-  [ 158] GetByValue dst:reg10, base:reg8, property:reg9 (x[reg9])
-  [ 170] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
-  [ 188] Jump target:block11
+  [ 120] Mov3 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2, dst3:reg8, src3:arg0
+  [ 140] Add dst:reg9, lhs:i~1, rhs:j~2
+  [ 150] GetByValue dst:reg10, base:reg8, property:reg9 (x[reg9])
+  [ 168] PutByValue base:reg6, property:reg7, src:reg10, kind:Normal (x[reg7])
+  [ 180] Jump target:block11
 
 block10:
-  [ 190] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
-  [ 1a8] GetGlobal dst:reg9, `parseInt`
-  [ 1c0] Mov dst:reg10, src:arg0
-  [ 1d0] Sub dst:reg11, lhs:j~2, rhs:Int32(3)
-  [ 1e0] GetByValue dst:reg12, base:reg10, property:reg11 (x[reg11])
-  [ 1f8] Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
-  [ 220] PutByValue base:reg6, property:reg7, src:reg8, kind:Normal (x[reg7])
+  [ 188] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
+  [ 1a0] GetGlobal dst:reg9, `parseInt`
+  [ 1b8] Mov dst:reg10, src:arg0
+  [ 1c8] Sub dst:reg11, lhs:j~2, rhs:Int32(3)
+  [ 1d8] GetByValue dst:reg12, base:reg10, property:reg11 (x[reg11])
+  [ 1f0] Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
+  [ 218] PutByValue base:reg6, property:reg7, src:reg8, kind:Normal (x[reg7])
 
 block11:
-  [ 238] Jump target:block6
+  [ 230] Jump target:block6

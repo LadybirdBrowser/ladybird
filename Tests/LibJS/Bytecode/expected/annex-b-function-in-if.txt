@@ -7,18 +7,17 @@ $64717e3f annex-b-function-in-if.js:13:1
     [2] = Bool(false)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  40] GetGlobal dst:reg9, `annexBFunctionInIf`
-  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a8] GetGlobal dst:reg7, `console`
-  [  c0] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  e0] GetGlobal dst:reg10, `annexBFunctionInIf`
-  [  f8] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-  [ 120] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 148] End value:reg6
+  [   0] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  38] GetGlobal dst:reg9, `annexBFunctionInIf`
+  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] GetGlobal dst:reg7, `console`
+  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d8] GetGlobal dst:reg10, `annexBFunctionInIf`
+  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+  [ 118] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 140] End value:reg6
 
 
 annexBFunctionInIf$cf6b2161 annex-b-function-in-if.js:2:5
@@ -65,8 +64,7 @@ inner$b8316a64 annex-b-function-in-if.js:4:13
     [0] = String("true branch")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:String("true branch")
+  [   0] Return value:String("true branch")
 
 
 inner$1f25fd67 annex-b-function-in-if.js:8:13
@@ -76,8 +74,7 @@ inner$1f25fd67 annex-b-function-in-if.js:8:13
     [0] = String("false branch")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:String("false branch")
+  [   0] Return value:String("false branch")
 
 
 "true branch"

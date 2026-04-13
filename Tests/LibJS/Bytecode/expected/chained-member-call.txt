@@ -49,13 +49,12 @@ chained_computed_call$df45ff7f chained-member-call.js:5:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg6, src:arg0
-  [  18] GetByValue dst:reg7, base:reg6, property:arg1 (a[arg1])
-  [  30] GetByValue dst:reg6, base:reg7, property:arg2 (a[j][arg2])
-  [  48] GetById dst:reg7, base:reg6, `foo` (a[j][k].foo)
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, a[j][k].foo
-  [  88] Return value:reg5
+  [   0] Mov dst:reg6, src:arg0
+  [  10] GetByValue dst:reg7, base:reg6, property:arg1 (a[arg1])
+  [  28] GetByValue dst:reg6, base:reg7, property:arg2 (a[j][arg2])
+  [  40] GetById dst:reg7, base:reg6, `foo` (a[j][k].foo)
+  [  60] Call dst:reg5, callee:reg7, this_value:reg6, a[j][k].foo
+  [  80] Return value:reg5
 
 
 chained_dot_call$9501e458 chained-member-call.js:9:5
@@ -63,10 +62,9 @@ chained_dot_call$9501e458 chained-member-call.js:9:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg6, src:arg0
-  [  18] GetById dst:reg7, base:reg6, `b` (a.b)
-  [  38] GetById dst:reg6, base:reg7, `c` (a.b.c)
-  [  58] GetById dst:reg7, base:reg6, `bar` (a.b.c.bar)
-  [  78] Call dst:reg5, callee:reg7, this_value:reg6, a.b.c.bar
-  [  98] Return value:reg5
+  [   0] Mov dst:reg6, src:arg0
+  [  10] GetById dst:reg7, base:reg6, `b` (a.b)
+  [  30] GetById dst:reg6, base:reg7, `c` (a.b.c)
+  [  50] GetById dst:reg7, base:reg6, `bar` (a.b.c.bar)
+  [  70] Call dst:reg5, callee:reg7, this_value:reg6, a.b.c.bar
+  [  90] Return value:reg5

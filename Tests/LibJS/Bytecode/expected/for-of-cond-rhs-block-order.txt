@@ -6,10 +6,9 @@ $9cd3e64e for-of-cond-rhs-block-order.js:6:1
     [1] = Null
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Null]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Null, Null]
+  [  40] End value:reg5
 
 
 f$0adf9089 for-of-cond-rhs-block-order.js:2:21

@@ -36,9 +36,8 @@ get_from_this$4bb390c8 this-base-identifier.js:5:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg5, base:this, `foo` (this.foo)
-  [  28] Return value:reg5
+  [   0] GetById dst:reg5, base:this, `foo` (this.foo)
+  [  20] Return value:reg5
 
 
 set_on_this$453a2d11 this-base-identifier.js:9:14
@@ -49,9 +48,8 @@ set_on_this$453a2d11 this-base-identifier.js:9:14
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] PutById base:this, `bar`, src:Int32(1), kind:Normal (this.bar)
-  [  30] End value:Undefined
+  [   0] PutById base:this, `bar`, src:Int32(1), kind:Normal (this.bar)
+  [  28] End value:Undefined
 
 
 chained_this_access$48ebed63 this-base-identifier.js:13:5
@@ -59,7 +57,6 @@ chained_this_access$48ebed63 this-base-identifier.js:13:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg5, base:this, `a` (this.a)
-  [  28] GetById dst:reg6, base:reg5, `b` (this.a.b)
-  [  48] Return value:reg6
+  [   0] GetById dst:reg5, base:this, `a` (this.a)
+  [  20] GetById dst:reg6, base:reg5, `b` (this.a.b)
+  [  40] Return value:reg6

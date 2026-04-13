@@ -5,10 +5,9 @@ $d60f48d7 with-statement.js:7:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `withBlock`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, withBlock
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `withBlock`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, withBlock
+  [  38] End value:reg5
 
 
 withBlock$86b35e99 with-statement.js:2:15

@@ -5,11 +5,10 @@ $1faa0c14 for-in-block-order.js:5:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `foo`
-  [  20] NewObject dst:reg7
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-  [  58] End value:reg5
+  [   0] GetGlobal dst:reg6, `foo`
+  [  18] NewObject dst:reg7
+  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  50] End value:reg5
 
 
 foo$ad9db83a for-in-block-order.js:2:16
@@ -20,24 +19,23 @@ foo$ad9db83a for-in-block-order.js:2:16
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:k~0, src:Undefined
-  [  18] JumpNullish condition:arg0, true_target:block3, false_target:block4
+  [   0] Mov dst:k~0, src:Undefined
+  [  10] JumpNullish condition:arg0, true_target:block3, false_target:block4
 
 block1:
-  [  28] End value:Undefined
+  [  20] End value:Undefined
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg7, iterator_object:reg5
-  [  40] JumpIf condition:reg7, true_target:block1, false_target:block5
+  [  28] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg7, iterator_object:reg5
+  [  38] JumpIf condition:reg7, true_target:block1, false_target:block5
 
 block3:
-  [  50] Jump target:block1
+  [  48] Jump target:block1
 
 block4:
-  [  58] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
-  [  70] Jump target:block2
+  [  50] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
+  [  68] Jump target:block2
 
 block5:
-  [  78] Mov dst:k~0, src:reg6
-  [  88] Jump target:block2
+  [  70] Mov dst:k~0, src:reg6
+  [  80] Jump target:block2

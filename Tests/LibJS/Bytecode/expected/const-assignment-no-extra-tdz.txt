@@ -38,7 +38,6 @@ f$22fe0a32 const-assignment-no-extra-tdz.js:2:5
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:x~0, src:Int32(1)
-  [  18] ThrowConstAssignment
-  [  20] End value:Undefined
+  [   0] Mov dst:x~0, src:Int32(1)
+  [  10] ThrowConstAssignment
+  [  18] End value:Undefined

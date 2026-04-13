@@ -10,12 +10,11 @@ $66fad71b logical-constant-folding.js:1:1
     [5] = Bool(true)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:Int32(42)
-  [  20] SetGlobal `b`, src:Int32(42)
-  [  38] SetGlobal `c`, src:Int32(0)
-  [  50] SetGlobal `d`, src:Int32(42)
-  [  68] SetGlobal `e`, src:Bool(true)
-  [  80] SetGlobal `f`, src:Int32(42)
-  [  98] SetGlobal `g`, src:Bool(false)
-  [  b0] End value:Undefined
+  [   0] SetGlobal `a`, src:Int32(42)
+  [  18] SetGlobal `b`, src:Int32(42)
+  [  30] SetGlobal `c`, src:Int32(0)
+  [  48] SetGlobal `d`, src:Int32(42)
+  [  60] SetGlobal `e`, src:Bool(true)
+  [  78] SetGlobal `f`, src:Int32(42)
+  [  90] SetGlobal `g`, src:Bool(false)
+  [  a8] End value:Undefined

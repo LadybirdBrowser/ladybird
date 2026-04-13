@@ -5,10 +5,9 @@ $b05eae7c assign-to-parameter.js:8:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `isect`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, isect
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `isect`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  38] End value:reg5
 
 
 isect$96caa89c assign-to-parameter.js:5:9
@@ -18,6 +17,5 @@ isect$96caa89c assign-to-parameter.js:5:9
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:arg0, src:arg1
-  [  18] End value:Undefined
+  [   0] Mov dst:arg0, src:arg1
+  [  10] End value:Undefined

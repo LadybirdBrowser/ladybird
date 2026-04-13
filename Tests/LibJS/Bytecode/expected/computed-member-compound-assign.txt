@@ -7,16 +7,15 @@ $b23ddabf computed-member-compound-assign.js:15:1
     [2] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `compound_computed`
-  [  20] NewObject dst:reg7
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
-  [  58] GetGlobal dst:reg7, `compound_then_assign`
-  [  70] NewObject dst:reg8
-  [  80] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  98] CacheObjectShape object:reg8
-  [  a8] Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
-  [  d0] End value:reg6
+  [   0] GetGlobal dst:reg6, `compound_computed`
+  [  18] NewObject dst:reg7
+  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, compound_computed, arguments:[reg7, String("x")]
+  [  50] GetGlobal dst:reg7, `compound_then_assign`
+  [  68] NewObject dst:reg8
+  [  78] InitObjectLiteralProperty object:reg8, `x`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  90] CacheObjectShape object:reg8
+  [  a0] Call dst:reg6, callee:reg7, this_value:Undefined, compound_then_assign, arguments:[reg8, String("x")]
+  [  c8] End value:reg6
 
 
 compound_computed$3d35f992 computed-member-compound-assign.js:7:14
@@ -27,12 +26,11 @@ compound_computed$3d35f992 computed-member-compound-assign.js:7:14
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (obj[arg1])
-  [  20] Mov dst:reg6, src:arg1
-  [  30] Add dst:reg7, lhs:reg5, rhs:Int32(1)
-  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  58] End value:Undefined
+  [   0] GetByValue dst:reg5, base:arg0, property:arg1 (obj[arg1])
+  [  18] Mov dst:reg6, src:arg1
+  [  28] Add dst:reg7, lhs:reg5, rhs:Int32(1)
+  [  38] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  50] End value:Undefined
 
 
 compound_then_assign$fda157e3 computed-member-compound-assign.js:11:13
@@ -43,11 +41,10 @@ compound_then_assign$fda157e3 computed-member-compound-assign.js:11:13
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:arg1 (imag[arg1])
-  [  20] Mov dst:reg6, src:arg1
-  [  30] Add dst:reg7, lhs:reg5, rhs:Int32(0)
-  [  40] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  58] Mov2 dst1:reg5, src1:arg0, dst2:reg6, src2:arg1
-  [  70] PutByValue base:reg5, property:reg6, src:arg1, kind:Normal (imag[reg6])
-  [  88] End value:Undefined
+  [   0] GetByValue dst:reg5, base:arg0, property:arg1 (imag[arg1])
+  [  18] Mov dst:reg6, src:arg1
+  [  28] Add dst:reg7, lhs:reg5, rhs:Int32(0)
+  [  38] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  50] Mov2 dst1:reg5, src1:arg0, dst2:reg6, src2:arg1
+  [  68] PutByValue base:reg5, property:reg6, src:arg1, kind:Normal (imag[reg6])
+  [  80] End value:Undefined

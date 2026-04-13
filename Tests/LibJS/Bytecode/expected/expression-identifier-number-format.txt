@@ -6,13 +6,12 @@ $169c53c3 expression-identifier-number-format.js:1:1
     [1] = Int32(42)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewObject dst:reg5
-  [  18] SetGlobal `x`, src:reg5
-  [  30] GetGlobal dst:reg5, `x`
-  [  48] NewObject dst:reg6
-  [  58] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
-  [  70] GetGlobal dst:reg5, `x`
-  [  88] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
-  [  a0] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
-  [  c8] End value:Int32(42)
+  [   0] NewObject dst:reg5
+  [  10] SetGlobal `x`, src:reg5
+  [  28] GetGlobal dst:reg5, `x`
+  [  40] NewObject dst:reg6
+  [  50] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
+  [  68] GetGlobal dst:reg5, `x`
+  [  80] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
+  [  98] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
+  [  c0] End value:Int32(42)

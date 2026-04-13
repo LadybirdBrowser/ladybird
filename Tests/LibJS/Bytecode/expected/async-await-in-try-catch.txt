@@ -5,11 +5,10 @@ $0b8784bc async-await-in-try-catch.js:9:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] NewObject dst:reg7
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-  [  58] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] NewObject dst:reg7
+  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  50] End value:reg5
 
 
 f$9cd82caf async-await-in-try-catch.js:2:5

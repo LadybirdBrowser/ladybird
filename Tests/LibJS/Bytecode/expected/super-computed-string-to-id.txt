@@ -26,10 +26,9 @@ C$851d2148 super-computed-string-to-id.js:3:14
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewArray dst:reg5
-  [  18] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  28] ResolveThisBinding
-  [  30] ResolveSuperBase dst:reg5
-  [  38] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
-  [  58] End value:Undefined
+  [   0] NewArray dst:reg5
+  [  10] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  20] ResolveThisBinding
+  [  28] ResolveSuperBase dst:reg5
+  [  30] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  50] End value:Undefined

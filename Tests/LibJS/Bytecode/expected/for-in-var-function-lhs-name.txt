@@ -5,10 +5,9 @@ $a37f24d4 for-in-var-function-lhs-name.js:7:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `fn`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, fn
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `fn`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, fn
+  [  38] End value:reg5
 
 
 fn$a115675f for-in-var-function-lhs-name.js:4:19
@@ -19,27 +18,26 @@ fn$a115675f for-in-var-function-lhs-name.js:4:19
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:f~0, src:Undefined
-  [  18] NewFunction dst:reg5, shared_function_data_index:0 (f)
-  [  30] Mov dst:f~0, src:reg5
-  [  40] NewObject dst:reg5
-  [  50] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [   0] Mov dst:f~0, src:Undefined
+  [  10] NewFunction dst:reg5, shared_function_data_index:0 (f)
+  [  28] Mov dst:f~0, src:reg5
+  [  38] NewObject dst:reg5
+  [  48] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  60] End value:Undefined
+  [  58] End value:Undefined
 
 block2:
-  [  68] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg7, iterator_object:reg6
-  [  78] JumpIf condition:reg7, true_target:block1, false_target:block5
+  [  60] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg7, iterator_object:reg6
+  [  70] JumpIf condition:reg7, true_target:block1, false_target:block5
 
 block3:
-  [  88] Jump target:block1
+  [  80] Jump target:block1
 
 block4:
-  [  90] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  a8] Jump target:block2
+  [  88] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
+  [  a0] Jump target:block2
 
 block5:
-  [  b0] Mov dst:f~0, src:reg5
-  [  c0] Jump target:block2
+  [  a8] Mov dst:f~0, src:reg5
+  [  b8] Jump target:block2

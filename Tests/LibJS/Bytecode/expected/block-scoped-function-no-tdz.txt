@@ -6,10 +6,9 @@ $d99dc022 block-scoped-function-no-tdz.js:10:1
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `test`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `test`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  38] End value:reg5
 
 
 test$8f4c6018 block-scoped-function-no-tdz.js:3:5
@@ -38,5 +37,4 @@ foo$48752efa block-scoped-function-no-tdz.js:5:26
     [0] = Int32(42)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(42)
+  [   0] Return value:Int32(42)

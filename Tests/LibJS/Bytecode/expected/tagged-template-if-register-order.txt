@@ -8,24 +8,23 @@ $400d186a tagged-template-if-register-order.js:1:1
     [3] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg5, `String`
-  [  20] GetById dst:reg6, base:reg5, `raw` (String.raw)
-  [  40] GetTemplateObject dst:reg7, strings:[String("hello"), String("hello")]
-  [  60] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
-  [  88] InitializeLexicalBinding `x`, src:reg8
-  [  a0] InitializeLexicalBinding `y`, src:Null
-  [  b8] GetGlobal dst:reg5, `x`
-  [  d0] StrictlyEquals dst:reg6, lhs:reg5, rhs:String("hello")
-  [  e0] Mov dst:reg5, src:Undefined
-  [  f0] JumpFalse condition:reg6, target:block2
+  [   0] GetGlobal dst:reg5, `String`
+  [  18] GetById dst:reg6, base:reg5, `raw` (String.raw)
+  [  38] GetTemplateObject dst:reg7, strings:[String("hello"), String("hello")]
+  [  58] Call dst:reg8, callee:reg6, this_value:reg5, arguments:[reg7]
+  [  80] InitializeLexicalBinding `x`, src:reg8
+  [  98] InitializeLexicalBinding `y`, src:Null
+  [  b0] GetGlobal dst:reg5, `x`
+  [  c8] StrictlyEquals dst:reg6, lhs:reg5, rhs:String("hello")
+  [  d8] Mov dst:reg5, src:Undefined
+  [  e8] JumpFalse condition:reg6, target:block2
 
 block1:
-  [ 100] GetGlobal dst:reg8, `x`
-  [ 118] GetById dst:reg9, base:reg8, `toUpperCase` (x.toUpperCase)
-  [ 138] Call dst:reg7, callee:reg9, this_value:reg8, x.toUpperCase
-  [ 158] SetGlobal `y`, src:reg7
-  [ 170] Mov dst:reg5, src:reg7
+  [  f8] GetGlobal dst:reg8, `x`
+  [ 110] GetById dst:reg9, base:reg8, `toUpperCase` (x.toUpperCase)
+  [ 130] Call dst:reg7, callee:reg9, this_value:reg8, x.toUpperCase
+  [ 150] SetGlobal `y`, src:reg7
+  [ 168] Mov dst:reg5, src:reg7
 
 block2:
-  [ 180] End value:reg5
+  [ 178] End value:reg5

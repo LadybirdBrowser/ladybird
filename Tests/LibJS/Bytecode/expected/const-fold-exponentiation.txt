@@ -13,9 +13,8 @@ $68a257fc const-fold-exponentiation.js:1:1
     [8] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] InitializeLexicalBinding `a`, src:Double(nan)
-  [  20] InitializeLexicalBinding `b`, src:Double(nan)
-  [  38] InitializeLexicalBinding `c`, src:Double(nan)
-  [  50] InitializeLexicalBinding `d`, src:Int32(1024)
-  [  68] End value:Undefined
+  [   0] InitializeLexicalBinding `a`, src:Double(nan)
+  [  18] InitializeLexicalBinding `b`, src:Double(nan)
+  [  30] InitializeLexicalBinding `c`, src:Double(nan)
+  [  48] InitializeLexicalBinding `d`, src:Int32(1024)
+  [  60] End value:Undefined

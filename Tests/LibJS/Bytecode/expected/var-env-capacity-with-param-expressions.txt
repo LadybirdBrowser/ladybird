@@ -5,10 +5,9 @@ $69cce752 var-env-capacity-with-param-expressions.js:5:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
 f$c585851c var-env-capacity-with-param-expressions.js:3:9
@@ -54,5 +53,4 @@ eval$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined

@@ -5,12 +5,11 @@ $59a926ae destructuring-let-compound-assign.js:5:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] NewObject dst:reg7
-  [  30] NewObject dst:reg8
-  [  40] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
-  [  68] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] NewObject dst:reg7
+  [  28] NewObject dst:reg8
+  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7, reg8]
+  [  60] End value:reg5
 
 
 f$0c16b60f destructuring-let-compound-assign.js:2:5
@@ -22,14 +21,13 @@ f$0c16b60f destructuring-let-compound-assign.js:2:5
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ThrowIfNullish src:arg0
-  [  10] GetById dst:reg5, base:arg0, `patchFlag`
-  [  30] Mov dst:a~0, src:reg5
-  [  40] ThrowIfTDZ src:a~0
-  [  48] Mov2 dst1:reg5, src1:a~0, dst2:reg6, src2:arg1
-  [  60] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
-  [  80] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
-  [  90] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
-  [  a0] Mov dst:a~0, src:reg7
-  [  b0] End value:Undefined
+  [   0] ThrowIfNullish src:arg0
+  [   8] GetById dst:reg5, base:arg0, `patchFlag`
+  [  28] Mov dst:a~0, src:reg5
+  [  38] ThrowIfTDZ src:a~0
+  [  40] Mov2 dst1:reg5, src1:a~0, dst2:reg6, src2:arg1
+  [  58] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
+  [  78] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
+  [  88] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
+  [  98] Mov dst:a~0, src:reg7
+  [  a8] End value:Undefined

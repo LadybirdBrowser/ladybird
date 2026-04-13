@@ -8,16 +8,15 @@ $28c626df object-rest-computed-key.js:1:1
     [3] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:String("foo")
-  [  20] NewObject dst:reg5
-  [  30] InitObjectLiteralProperty object:reg5, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  48] InitObjectLiteralProperty object:reg5, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  60] CacheObjectShape object:reg5
-  [  70] ThrowIfNullish src:reg5
-  [  78] GetGlobal dst:reg7, `a`
-  [  90] GetByValue dst:reg6, base:reg5, property:reg7
-  [  a8] SetGlobal `b`, src:reg6
-  [  c0] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
-  [  e0] SetGlobal `rest`, src:reg6
-  [  f8] End value:Undefined
+  [   0] SetGlobal `a`, src:String("foo")
+  [  18] NewObject dst:reg5
+  [  28] InitObjectLiteralProperty object:reg5, `foo`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  40] InitObjectLiteralProperty object:reg5, `bar`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  58] CacheObjectShape object:reg5
+  [  68] ThrowIfNullish src:reg5
+  [  70] GetGlobal dst:reg7, `a`
+  [  88] GetByValue dst:reg6, base:reg5, property:reg7
+  [  a0] SetGlobal `b`, src:reg6
+  [  b8] CopyObjectExcludingProperties dst:reg6, from_object:reg5, excluded_names:[reg7]
+  [  d8] SetGlobal `rest`, src:reg6
+  [  f0] End value:Undefined

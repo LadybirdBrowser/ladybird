@@ -8,10 +8,9 @@ $6ef6ff9a parameter-createvariable-order.js:7:1
     [3] = Int32(3)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
-  [  50] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1), Int32(2), Int32(3)]
+  [  48] End value:reg5
 
 
 f$40c96172 parameter-createvariable-order.js:2:5
@@ -22,18 +21,17 @@ f$40c96172 parameter-createvariable-order.js:2:5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
-  [  18] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
-  [  28] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
-  [  38] InitializeLexicalBinding `a`, src:arg0
-  [  50] InitializeLexicalBinding `b`, src:arg1
-  [  68] InitializeLexicalBinding `c`, src:arg2
-  [  80] Mov dst:inner~0, src:Undefined
-  [  90] NewFunction dst:reg5, shared_function_data_index:0 (inner)
-  [  a8] Mov2 dst1:inner~0, src1:reg5, dst2:reg6, src2:inner~0
-  [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, inner
-  [  e0] Return value:reg5
+  [   0] CreateVariable `a`, is_immutable:false, is_global:false, is_strict:false
+  [  10] CreateVariable `b`, is_immutable:false, is_global:false, is_strict:false
+  [  20] CreateVariable `c`, is_immutable:false, is_global:false, is_strict:false
+  [  30] InitializeLexicalBinding `a`, src:arg0
+  [  48] InitializeLexicalBinding `b`, src:arg1
+  [  60] InitializeLexicalBinding `c`, src:arg2
+  [  78] Mov dst:inner~0, src:Undefined
+  [  88] NewFunction dst:reg5, shared_function_data_index:0 (inner)
+  [  a0] Mov2 dst1:inner~0, src1:reg5, dst2:reg6, src2:inner~0
+  [  b8] Call dst:reg5, callee:reg6, this_value:Undefined, inner
+  [  d8] Return value:reg5
 
 
 inner$350d7dbe parameter-createvariable-order.js:3:9
@@ -41,10 +39,9 @@ inner$350d7dbe parameter-createvariable-order.js:3:9
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `a`
-  [  20] GetBinding dst:reg6, `b`
-  [  38] Add dst:reg7, lhs:reg5, rhs:reg6
-  [  48] GetBinding dst:reg5, `c`
-  [  60] Add dst:reg6, lhs:reg7, rhs:reg5
-  [  70] Return value:reg6
+  [   0] GetBinding dst:reg5, `a`
+  [  18] GetBinding dst:reg6, `b`
+  [  30] Add dst:reg7, lhs:reg5, rhs:reg6
+  [  40] GetBinding dst:reg5, `c`
+  [  58] Add dst:reg6, lhs:reg7, rhs:reg5
+  [  68] Return value:reg6

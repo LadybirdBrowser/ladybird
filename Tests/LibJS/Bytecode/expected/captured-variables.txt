@@ -5,10 +5,9 @@ $6cc1cfb5 captured-variables.js:12:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `outer`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, outer
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `outer`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, outer
+  [  38] End value:reg5
 
 
 outer$0300a3f9 captured-variables.js:5:5
@@ -36,6 +35,5 @@ inner$f798183e captured-variables.js:7:9
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `captured`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `captured`
+  [  18] Return value:reg5

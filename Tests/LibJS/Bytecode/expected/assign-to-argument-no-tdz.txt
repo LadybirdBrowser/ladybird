@@ -6,10 +6,9 @@ $a49ec34a assign-to-argument-no-tdz.js:11:1
     [1] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
+  [  40] End value:reg5
 
 
 f$71204352 assign-to-argument-no-tdz.js:6:5
@@ -20,6 +19,5 @@ f$71204352 assign-to-argument-no-tdz.js:6:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
-  [  20] Return value:arg0
+  [   0] Mov2 dst1:y~0, src1:Int32(1), dst2:arg0, src2:y~0
+  [  18] Return value:arg0

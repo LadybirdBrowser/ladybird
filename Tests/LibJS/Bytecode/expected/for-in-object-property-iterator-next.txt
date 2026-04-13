@@ -10,16 +10,15 @@ $5af00ff4 for-in-object-property-iterator-next.js:8:1
     [5] = String("seven")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `collect`
-  [  20] NewObject dst:reg7
-  [  30] ToPrimitiveWithStringHint dst:Int32(2), value:Int32(2)
-  [  40] PutByValue base:reg7, property:Int32(2), src:String("two"), kind:Own
-  [  58] PutById base:reg7, `foo`, src:String("foo"), kind:Own
-  [  80] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
-  [  90] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
-  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
-  [  d0] End value:reg5
+  [   0] GetGlobal dst:reg6, `collect`
+  [  18] NewObject dst:reg7
+  [  28] ToPrimitiveWithStringHint dst:Int32(2), value:Int32(2)
+  [  38] PutByValue base:reg7, property:Int32(2), src:String("two"), kind:Own
+  [  50] PutById base:reg7, `foo`, src:String("foo"), kind:Own
+  [  78] ToPrimitiveWithStringHint dst:Int32(7), value:Int32(7)
+  [  88] PutByValue base:reg7, property:Int32(7), src:String("seven"), kind:Own
+  [  a0] Call dst:reg5, callee:reg6, this_value:Undefined, collect, arguments:[reg7]
+  [  c8] End value:reg5
 
 
 collect$4195dbe6 for-in-object-property-iterator-next.js:2:18
@@ -28,29 +27,28 @@ collect$4195dbe6 for-in-object-property-iterator-next.js:2:18
   Locals:    key~0, keys~1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewArray dst:keys~1
-  [  18] JumpNullish condition:arg0, true_target:block3, false_target:block4
+  [   0] NewArray dst:keys~1
+  [  10] JumpNullish condition:arg0, true_target:block3, false_target:block4
 
 block1:
-  [  28] Return value:keys~1
+  [  20] Return value:keys~1
 
 block2:
-  [  30] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg7, iterator_object:reg5
-  [  40] JumpIf condition:reg7, true_target:block1, false_target:block5
+  [  28] ObjectPropertyIteratorNext dst_value:reg6, dst_done:reg7, iterator_object:reg5
+  [  38] JumpIf condition:reg7, true_target:block1, false_target:block5
 
 block3:
-  [  50] Return value:keys~1
+  [  48] Return value:keys~1
 
 block4:
-  [  58] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
-  [  70] Jump target:block2
+  [  50] GetObjectPropertyIterator dst_iterator:reg5, object:arg0
+  [  68] Jump target:block2
 
 block5:
-  [  78] Mov dst:key~0, src:reg6
-  [  88] GetById dst:reg9, base:keys~1, `push` (keys.push)
-  [  a8] Mov dst:reg10, src:keys~1
-  [  b8] ThrowIfTDZ src:key~0
-  [  c0] Mov dst:reg11, src:key~0
-  [  d0] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
-  [  f8] Jump target:block2
+  [  70] Mov dst:key~0, src:reg6
+  [  80] GetById dst:reg9, base:keys~1, `push` (keys.push)
+  [  a0] Mov dst:reg10, src:keys~1
+  [  b0] ThrowIfTDZ src:key~0
+  [  b8] Mov dst:reg11, src:key~0
+  [  c8] Call dst:reg8, callee:reg9, this_value:reg10, keys.push, arguments:[reg11]
+  [  f0] Jump target:block2

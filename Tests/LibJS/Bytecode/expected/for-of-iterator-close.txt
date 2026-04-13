@@ -5,15 +5,14 @@ $d21ee499 for-of-iterator-close.js:6:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `forOfBreak`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, forOfBreak
-  [  40] GetGlobal dst:reg7, `forOfReturn`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, forOfReturn
-  [  78] GetGlobal dst:reg7, `forAwaitOfBreak`
-  [  90] NewPrimitiveArray dst:reg8, elements:[1, 2, 3]
-  [  b8] Call dst:reg5, callee:reg7, this_value:Undefined, forAwaitOfBreak, arguments:[reg8]
-  [  e0] End value:reg5
+  [   0] GetGlobal dst:reg6, `forOfBreak`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, forOfBreak
+  [  38] GetGlobal dst:reg7, `forOfReturn`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, forOfReturn
+  [  70] GetGlobal dst:reg7, `forAwaitOfBreak`
+  [  88] NewPrimitiveArray dst:reg8, elements:[1, 2, 3]
+  [  b0] Call dst:reg5, callee:reg7, this_value:Undefined, forAwaitOfBreak, arguments:[reg8]
+  [  d8] End value:reg5
 
 
 forOfBreak$0cb6b2e2 for-of-iterator-close.js:2:18

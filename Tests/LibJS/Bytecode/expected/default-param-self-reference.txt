@@ -6,10 +6,9 @@ $bfb1383b default-param-self-reference.js:2:1
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  40] End value:reg5
 
 
 f$e162c485 default-param-self-reference.js:1:16
@@ -20,13 +19,12 @@ f$e162c485 default-param-self-reference.js:1:16
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] Mov dst:arg0, src:<Empty>
-  [  28] ThrowIfTDZ src:arg0
-  [  30] Mov dst:arg0, src:arg0
+  [  10] Mov dst:arg0, src:<Empty>
+  [  20] ThrowIfTDZ src:arg0
+  [  28] Mov dst:arg0, src:arg0
 
 block2:
-  [  40] End value:Undefined
+  [  38] End value:Undefined

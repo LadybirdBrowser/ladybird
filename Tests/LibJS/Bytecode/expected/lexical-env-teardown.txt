@@ -80,9 +80,8 @@ blockTeardown$7cd4b5cf lexical-env-teardown.js:17:5
     [1] = Int32(3)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov2 dst1:outer~1, src1:Int32(2), dst2:inner~0, src2:Int32(3)
-  [  20] Return value:outer~1
+  [   0] Mov2 dst1:outer~1, src1:Int32(2), dst2:inner~0, src2:Int32(3)
+  [  18] Return value:outer~1
 
 
 forInTeardown$e8d7ea8e lexical-env-teardown.js:28:5
@@ -95,32 +94,31 @@ forInTeardown$e8d7ea8e lexical-env-teardown.js:28:5
     [2] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:outer~1, src:Int32(4)
-  [  18] NewObject dst:reg5
-  [  28] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  40] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  58] CacheObjectShape object:reg5
-  [  68] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [   0] Mov dst:outer~1, src:Int32(4)
+  [  10] NewObject dst:reg5
+  [  20] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  38] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  50] CacheObjectShape object:reg5
+  [  60] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  78] Return value:outer~1
+  [  70] Return value:outer~1
 
 block2:
-  [  80] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg7, iterator_object:reg6
-  [  90] JumpIf condition:reg7, true_target:block1, false_target:block5
+  [  78] ObjectPropertyIteratorNext dst_value:reg5, dst_done:reg7, iterator_object:reg6
+  [  88] JumpIf condition:reg7, true_target:block1, false_target:block5
 
 block3:
-  [  a0] Return value:outer~1
+  [  98] Return value:outer~1
 
 block4:
-  [  a8] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [  c0] Jump target:block2
+  [  a0] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
+  [  b8] Jump target:block2
 
 block5:
-  [  c8] Mov dst:k~0, src:reg5
-  [  d8] ThrowIfTDZ src:k~0
-  [  e0] Jump target:block2
+  [  c0] Mov dst:k~0, src:reg5
+  [  d0] ThrowIfTDZ src:k~0
+  [  d8] Jump target:block2
 
 
 forOfTeardown$b603f5d2 lexical-env-teardown.js:38:5
@@ -214,9 +212,8 @@ myName$bf13a37c lexical-env-teardown.js:60:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] TypeofBinding dst:reg5, `myName`
-  [  20] Return value:reg5
+  [   0] TypeofBinding dst:reg5, `myName`
+  [  18] Return value:reg5
 
 
 1

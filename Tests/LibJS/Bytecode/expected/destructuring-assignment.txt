@@ -5,14 +5,13 @@ $6b0803e2 destructuring-assignment.js:28:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `array_destructuring_with_class_default`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
-  [  40] GetGlobal dst:reg7, `object_destructuring_with_function_default`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
-  [  78] GetGlobal dst:reg7, `setter_parameter_resolution`
-  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
-  [  b0] End value:reg5
+  [   0] GetGlobal dst:reg6, `array_destructuring_with_class_default`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, array_destructuring_with_class_default
+  [  38] GetGlobal dst:reg7, `object_destructuring_with_function_default`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, object_destructuring_with_function_default
+  [  70] GetGlobal dst:reg7, `setter_parameter_resolution`
+  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, setter_parameter_resolution
+  [  a8] End value:reg5
 
 
 array_destructuring_with_class_default$c0397068 destructuring-assignment.js:6:10
@@ -66,20 +65,19 @@ object_destructuring_with_function_default$544c1fbd destructuring-assignment.js:
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:x~0, src:Undefined
-  [  18] NewObject dst:reg5
-  [  28] ThrowIfNullish src:reg5
-  [  30] GetById dst:reg6, base:reg5, `x`
-  [  50] JumpUndefined condition:reg6, true_target:block1, false_target:block2
+  [   0] Mov dst:x~0, src:Undefined
+  [  10] NewObject dst:reg5
+  [  20] ThrowIfNullish src:reg5
+  [  28] GetById dst:reg6, base:reg5, `x`
+  [  48] JumpUndefined condition:reg6, true_target:block1, false_target:block2
 
 block1:
-  [  60] NewFunction dst:reg7, shared_function_data_index:0 (x)
-  [  78] Mov dst:reg6, src:reg7
+  [  58] NewFunction dst:reg7, shared_function_data_index:0 (x)
+  [  70] Mov dst:reg6, src:reg7
 
 block2:
-  [  88] Mov dst:x~0, src:reg6
-  [  98] Return value:x~0
+  [  80] Mov dst:x~0, src:reg6
+  [  90] Return value:x~0
 
 
 setter_parameter_resolution$75109441 destructuring-assignment.js:19:9
@@ -90,33 +88,32 @@ setter_parameter_resolution$75109441 destructuring-assignment.js:19:9
     [1] = Bool(false)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeVariableBinding `setValue`, src:Undefined
-  [  30] NewPrimitiveArray dst:reg5, elements:[23]
-  [  48] Mov dst:reg6, src:Bool(false)
-  [  58] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
-  [  70] NewObject dst:reg10
-  [  80] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
-  [  98] PutById base:reg10, `y`, src:reg11, kind:Setter
-  [  c0] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
-  [  d8] JumpFalse condition:reg6, target:block2
+  [   0] CreateVariable `setValue`, is_immutable:false, is_global:false, is_strict:false
+  [  10] InitializeVariableBinding `setValue`, src:Undefined
+  [  28] NewPrimitiveArray dst:reg5, elements:[23]
+  [  40] Mov dst:reg6, src:Bool(false)
+  [  50] GetIterator dst_iterator_object:reg7, dst_iterator_next:reg8, dst_iterator_done:reg9, iterable:reg5
+  [  68] NewObject dst:reg10
+  [  78] NewFunction dst:reg11, shared_function_data_index:0 (set y), home_object:reg10
+  [  90] PutById base:reg10, `y`, src:reg11, kind:Setter
+  [  b8] IteratorNextUnpack dst_value:reg11, dst_done:reg6, iterator_object:reg7, iterator_next:reg8, iterator_done:reg9
+  [  d0] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  e8] Mov dst:reg11, src:Undefined
-  [  f8] Jump target:block2
+  [  e0] Mov dst:reg11, src:Undefined
+  [  f0] Jump target:block2
 
 block2:
-  [ 100] PutById base:reg10, `y`, src:reg11, kind:Normal
-  [ 128] JumpFalse condition:reg6, target:block4
+  [  f8] PutById base:reg10, `y`, src:reg11, kind:Normal
+  [ 120] JumpFalse condition:reg6, target:block4
 
 block3:
-  [ 138] GetInitializedBinding dst:reg5, `setValue`
-  [ 150] Return value:reg5
+  [ 130] GetInitializedBinding dst:reg5, `setValue`
+  [ 148] Return value:reg5
 
 block4:
-  [ 158] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
-  [ 170] Jump target:block3
+  [ 150] IteratorClose iterator_object:reg7, iterator_next:reg8, iterator_done:reg9, completion_value:Undefined
+  [ 168] Jump target:block3
 
 
 set y$f36f0033 destructuring-assignment.js:21:26
@@ -126,6 +123,5 @@ set y$f36f0033 destructuring-assignment.js:21:26
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetLexicalBinding `setValue`, src:arg0
-  [  20] End value:Undefined
+  [   0] SetLexicalBinding `setValue`, src:arg0
+  [  18] End value:Undefined

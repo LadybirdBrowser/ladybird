@@ -5,14 +5,13 @@ $3522b97e try-finally.js:8:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `basicTryFinally`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, basicTryFinally
-  [  40] GetGlobal dst:reg7, `breakThroughFinally`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, breakThroughFinally
-  [  78] GetGlobal dst:reg7, `nestedTryFinallyWithBreak`
-  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, nestedTryFinallyWithBreak
-  [  b0] End value:reg5
+  [   0] GetGlobal dst:reg6, `basicTryFinally`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, basicTryFinally
+  [  38] GetGlobal dst:reg7, `breakThroughFinally`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, breakThroughFinally
+  [  70] GetGlobal dst:reg7, `nestedTryFinallyWithBreak`
+  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, nestedTryFinallyWithBreak
+  [  a8] End value:reg5
 
 
 basicTryFinally$06bcb6b7 try-finally.js:2:5

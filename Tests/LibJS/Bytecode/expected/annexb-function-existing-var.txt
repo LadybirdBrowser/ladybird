@@ -5,10 +5,9 @@ $d99dc022 annexb-function-existing-var.js:10:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `test`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `test`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  38] End value:reg5
 
 
 test$de75bc07 annexb-function-existing-var.js:2:5

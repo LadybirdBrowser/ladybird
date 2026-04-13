@@ -7,9 +7,8 @@ $a11ba3a7 string-prototype-char-at-builtin.js:4:13
     [2] = String("charAt")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg6, base:String("abc"), `charAt` ('abc'.charAt)
-  [  28] CallBuiltinStringPrototypeCharAt dst:reg5, callee:reg6, this_value:String("abc"), argument:Int32(1), 'abc'.charAt
-  [  40] GetById dst:reg7, base:String("abc"), `charAt`
-  [  60] Call dst:reg6, callee:reg7, this_value:String("abc"), 'abc'['charAt'], arguments:[Int32(1)]
-  [  88] End value:reg6
+  [   0] GetById dst:reg6, base:String("abc"), `charAt` ('abc'.charAt)
+  [  20] CallBuiltinStringPrototypeCharAt dst:reg5, callee:reg6, this_value:String("abc"), argument:Int32(1), 'abc'.charAt
+  [  38] GetById dst:reg7, base:String("abc"), `charAt`
+  [  58] Call dst:reg6, callee:reg7, this_value:String("abc"), 'abc'['charAt'], arguments:[Int32(1)]
+  [  80] End value:reg6

@@ -62,8 +62,7 @@ A$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 foo$7dff3f72 delete-super-property.js:3:9
@@ -73,14 +72,13 @@ foo$7dff3f72 delete-super-property.js:3:9
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] NewReferenceError dst:reg6, Can't delete a property on 'super'
-  [  28] Throw src:reg6
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] NewReferenceError dst:reg6, Can't delete a property on 'super'
+  [  20] Throw src:reg6
 
 block1:
-  [  30] End value:Undefined
+  [  28] End value:Undefined
 
 
 baz$cb4e52e2 delete-super-property.js:6:9
@@ -91,11 +89,10 @@ baz$cb4e52e2 delete-super-property.js:6:9
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ResolveThisBinding
-  [  10] ResolveSuperBase dst:reg5
-  [  18] NewReferenceError dst:reg6, Can't delete a property on 'super'
-  [  28] Throw src:reg6
+  [   0] ResolveThisBinding
+  [   8] ResolveSuperBase dst:reg5
+  [  10] NewReferenceError dst:reg6, Can't delete a property on 'super'
+  [  20] Throw src:reg6
 
 block1:
-  [  30] End value:Undefined
+  [  28] End value:Undefined

@@ -5,14 +5,13 @@ $0c699965 update-member-expression.js:13:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `postfix_increment`
-  [  20] NewObject dst:reg7
-  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
-  [  58] GetGlobal dst:reg7, `prefix_decrement`
-  [  70] NewObject dst:reg8
-  [  80] Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
-  [  a8] End value:reg6
+  [   0] GetGlobal dst:reg6, `postfix_increment`
+  [  18] NewObject dst:reg7
+  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, postfix_increment, arguments:[reg7]
+  [  50] GetGlobal dst:reg7, `prefix_decrement`
+  [  68] NewObject dst:reg8
+  [  78] Call dst:reg6, callee:reg7, this_value:Undefined, prefix_decrement, arguments:[reg8]
+  [  a0] End value:reg6
 
 
 postfix_increment$8ce50e3d update-member-expression.js:6:14
@@ -22,11 +21,10 @@ postfix_increment$8ce50e3d update-member-expression.js:6:14
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
-  [  28] PostfixIncrement dst:reg6, src:reg5
-  [  38] PutById base:arg0, `count`, src:reg5, kind:Normal
-  [  60] End value:Undefined
+  [   0] GetById dst:reg5, base:arg0, `count` (obj.count)
+  [  20] PostfixIncrement dst:reg6, src:reg5
+  [  30] PutById base:arg0, `count`, src:reg5, kind:Normal
+  [  58] End value:Undefined
 
 
 prefix_decrement$41bc97a7 update-member-expression.js:10:5
@@ -36,8 +34,7 @@ prefix_decrement$41bc97a7 update-member-expression.js:10:5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetById dst:reg5, base:arg0, `count` (obj.count)
-  [  28] Decrement dst:reg5
-  [  30] PutById base:arg0, `count`, src:reg5, kind:Normal
-  [  58] End value:Undefined
+  [   0] GetById dst:reg5, base:arg0, `count` (obj.count)
+  [  20] Decrement dst:reg5
+  [  28] PutById base:arg0, `count`, src:reg5, kind:Normal
+  [  50] End value:Undefined

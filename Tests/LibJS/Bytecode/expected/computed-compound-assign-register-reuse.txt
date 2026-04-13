@@ -5,12 +5,11 @@ $17c08991 computed-compound-assign-register-reuse.js:9:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `subVector`
-  [  20] NewPrimitiveArray dst:reg7, elements:[1, 2]
-  [  40] NewPrimitiveArray dst:reg8, elements:[3, 4]
-  [  60] Call dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
-  [  88] End value:reg5
+  [   0] GetGlobal dst:reg6, `subVector`
+  [  18] NewPrimitiveArray dst:reg7, elements:[1, 2]
+  [  38] NewPrimitiveArray dst:reg8, elements:[3, 4]
+  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, subVector, arguments:[reg7, reg8]
+  [  80] End value:reg5
 
 
 subVector$1525553e computed-compound-assign-register-reuse.js:5:13
@@ -22,15 +21,14 @@ subVector$1525553e computed-compound-assign-register-reuse.js:5:13
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:Int32(0) (self[Int32(0)])
-  [  20] Mov2 dst1:reg6, src1:Int32(0), dst2:reg7, src2:arg1
-  [  38] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
-  [  50] Sub dst:reg7, lhs:reg5, rhs:reg8
-  [  60] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  78] GetByValue dst:reg5, base:arg0, property:Int32(1) (self[Int32(1)])
-  [  90] Mov2 dst1:reg6, src1:Int32(1), dst2:reg7, src2:arg1
-  [  a8] GetByValue dst:reg8, base:reg7, property:Int32(1) (v[Int32(1)])
-  [  c0] Sub dst:reg7, lhs:reg5, rhs:reg8
-  [  d0] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  e8] End value:Undefined
+  [   0] GetByValue dst:reg5, base:arg0, property:Int32(0) (self[Int32(0)])
+  [  18] Mov2 dst1:reg6, src1:Int32(0), dst2:reg7, src2:arg1
+  [  30] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
+  [  48] Sub dst:reg7, lhs:reg5, rhs:reg8
+  [  58] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  70] GetByValue dst:reg5, base:arg0, property:Int32(1) (self[Int32(1)])
+  [  88] Mov2 dst1:reg6, src1:Int32(1), dst2:reg7, src2:arg1
+  [  a0] GetByValue dst:reg8, base:reg7, property:Int32(1) (v[Int32(1)])
+  [  b8] Sub dst:reg7, lhs:reg5, rhs:reg8
+  [  c8] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  e0] End value:Undefined

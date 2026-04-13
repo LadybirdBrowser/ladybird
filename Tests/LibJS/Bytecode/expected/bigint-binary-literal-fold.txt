@@ -7,5 +7,4 @@ $811c9dc5
     [2] = BigInt(1n)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:BigInt(1n)
+  [   0] End value:BigInt(1n)

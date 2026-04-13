@@ -6,13 +6,12 @@ $b1c0097f var-shadow-in-default-param.js:7:1
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `shadow`, src:String("outer")
-  [  20] GetGlobal dst:reg6, `shadow_in_default`
-  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
-  [  58] GetGlobal dst:reg7, `no_conflict`
-  [  70] Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
-  [  90] End value:reg6
+  [   0] SetGlobal `shadow`, src:String("outer")
+  [  18] GetGlobal dst:reg6, `shadow_in_default`
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, shadow_in_default
+  [  50] GetGlobal dst:reg7, `no_conflict`
+  [  68] Call dst:reg6, callee:reg7, this_value:Undefined, no_conflict
+  [  88] End value:reg6
 
 
 shadow_in_default$8b450421 var-shadow-in-default-param.js:8:32
@@ -23,21 +22,20 @@ shadow_in_default$8b450421 var-shadow-in-default-param.js:8:32
     [1] = String("inner")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] GetInitializedBinding dst:reg5, `shadow`
-  [  30] Mov dst:arg0, src:reg5
+  [  10] GetInitializedBinding dst:reg5, `shadow`
+  [  28] Mov dst:arg0, src:reg5
 
 block2:
-  [  40] CreateVariableEnvironment capacity:1
-  [  48] GetLexicalEnvironment dst:reg5
-  [  50] Mov dst:reg6, src:Undefined
-  [  60] CreateVariable `shadow`, is_immutable:false, is_global:false, is_strict:false
-  [  70] InitializeVariableBinding `shadow`, src:reg6
-  [  88] SetLexicalBinding `shadow`, src:String("inner")
-  [  a0] Return value:arg0
+  [  38] CreateVariableEnvironment capacity:1
+  [  40] GetLexicalEnvironment dst:reg5
+  [  48] Mov dst:reg6, src:Undefined
+  [  58] CreateVariable `shadow`, is_immutable:false, is_global:false, is_strict:false
+  [  68] InitializeVariableBinding `shadow`, src:reg6
+  [  80] SetLexicalBinding `shadow`, src:String("inner")
+  [  98] Return value:arg0
 
 
 no_conflict$0d2d606f var-shadow-in-default-param.js:17:5
@@ -50,12 +48,11 @@ no_conflict$0d2d606f var-shadow-in-default-param.js:17:5
     [2] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] Mov dst:arg0, src:Int32(1)
+  [  10] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  28] Mov3 dst1:reg5, src1:Undefined, dst2:y~0, src2:reg5, dst3:y~0, src3:Int32(2)
-  [  48] Return value:y~0
+  [  20] Mov3 dst1:reg5, src1:Undefined, dst2:y~0, src2:reg5, dst3:y~0, src3:Int32(2)
+  [  40] Return value:y~0

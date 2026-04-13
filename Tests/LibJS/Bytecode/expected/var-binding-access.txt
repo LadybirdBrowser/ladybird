@@ -5,12 +5,11 @@ $12ff989c var-binding-access.js:22:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `var_access`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, var_access
-  [  40] GetGlobal dst:reg7, `let_access`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, let_access
-  [  78] End value:reg6
+  [   0] GetGlobal dst:reg6, `var_access`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, var_access
+  [  38] GetGlobal dst:reg7, `let_access`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, let_access
+  [  70] End value:reg6
 
 
 var_access$84869239 var-binding-access.js:5:5
@@ -21,13 +20,12 @@ var_access$84869239 var-binding-access.js:5:5
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeVariableBinding `x`, src:Undefined
-  [  30] SetLexicalBinding `x`, src:Int32(1)
-  [  48] NewFunction dst:reg5, shared_function_data_index:0
-  [  60] GetInitializedBinding dst:reg5, `x`
-  [  78] Return value:reg5
+  [   0] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  10] InitializeVariableBinding `x`, src:Undefined
+  [  28] SetLexicalBinding `x`, src:Int32(1)
+  [  40] NewFunction dst:reg5, shared_function_data_index:0
+  [  58] GetInitializedBinding dst:reg5, `x`
+  [  70] Return value:reg5
 
 
 let_access$a0a01ad1 var-binding-access.js:14:5

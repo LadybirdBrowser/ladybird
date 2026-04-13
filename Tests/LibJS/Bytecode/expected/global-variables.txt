@@ -5,13 +5,12 @@ $df0fe8a9 global-variables.js:4:1
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `x`, src:Int32(1)
-  [  20] GetGlobal dst:reg6, `console`
-  [  38] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  58] GetGlobal dst:reg8, `x`
-  [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] End value:reg5
+  [   0] SetGlobal `x`, src:Int32(1)
+  [  18] GetGlobal dst:reg6, `console`
+  [  30] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  50] GetGlobal dst:reg8, `x`
+  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] End value:reg5
 
 
 1

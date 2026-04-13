@@ -7,18 +7,17 @@ $fc23251f switch-scoping.js:15:1
     [2] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  40] GetGlobal dst:reg9, `switchWithBlockDecl`
-  [  58] Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
-  [  80] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a8] GetGlobal dst:reg7, `console`
-  [  c0] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  e0] GetGlobal dst:reg10, `switchWithBlockDecl`
-  [  f8] Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
-  [ 120] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 148] End value:reg6
+  [   0] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  38] GetGlobal dst:reg9, `switchWithBlockDecl`
+  [  50] Call dst:reg8, callee:reg9, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(1)]
+  [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  a0] GetGlobal dst:reg7, `console`
+  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  d8] GetGlobal dst:reg10, `switchWithBlockDecl`
+  [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, switchWithBlockDecl, arguments:[Int32(2)]
+  [ 118] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 140] End value:reg6
 
 
 switchWithBlockDecl$2b5ecfcd switch-scoping.js:2:5
@@ -71,9 +70,8 @@ result$9ed940b6 switch-scoping.js:6:22
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `a`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `a`
+  [  18] Return value:reg5
 
 
 result$78d6c64d switch-scoping.js:10:22
@@ -81,9 +79,8 @@ result$78d6c64d switch-scoping.js:10:22
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetBinding dst:reg5, `b`
-  [  20] Return value:reg5
+  [   0] GetBinding dst:reg5, `b`
+  [  18] Return value:reg5
 
 
 "one"

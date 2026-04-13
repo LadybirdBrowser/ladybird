@@ -5,10 +5,9 @@ $69cce752 var-init-in-param-body-scope.js:4:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
 f$811c9dc5
@@ -21,12 +20,11 @@ f$811c9dc5
     [2] = String("inside")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  18] Mov dst:arg0, src:Int32(1)
+  [  10] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  28] Mov3 dst1:reg5, src1:Undefined, dst2:x~0, src2:reg5, dst3:x~0, src3:String("inside")
-  [  48] End value:Undefined
+  [  20] Mov3 dst1:reg5, src1:Undefined, dst2:x~0, src2:reg5, dst3:x~0, src3:String("inside")
+  [  40] End value:Undefined

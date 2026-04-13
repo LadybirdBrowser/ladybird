@@ -26,8 +26,7 @@ C$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 field$a798f2fd numeric-class-field-name.js:2:10

@@ -5,10 +5,9 @@ $e6445d4a conditional-register-order.js:4:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `foo`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, foo
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `foo`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  38] End value:reg5
 
 
 foo$3dbe5650 conditional-register-order.js:2:5
@@ -19,15 +18,14 @@ foo$3dbe5650 conditional-register-order.js:2:5
     [1] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] JumpFalse condition:arg0, target:block2
+  [   0] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  18] Mov dst:reg5, src:Int32(1)
-  [  28] Return value:reg5
+  [  10] Mov dst:reg5, src:Int32(1)
+  [  20] Return value:reg5
 
 block2:
-  [  30] Mov dst:reg5, src:Int32(2)
+  [  28] Mov dst:reg5, src:Int32(2)
 
 block3:
-  [  40] Return value:reg5
+  [  38] Return value:reg5

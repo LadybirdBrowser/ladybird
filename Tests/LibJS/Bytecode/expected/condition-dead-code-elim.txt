@@ -6,30 +6,29 @@ $4a68760f condition-dead-code-elim.js:141:1
     [1] = Bool(true)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `ternary_true`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, ternary_true
-  [  40] GetGlobal dst:reg7, `ternary_truthy`
-  [  58] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_truthy
-  [  78] GetGlobal dst:reg7, `ternary_false`
-  [  90] Call dst:reg5, callee:reg7, this_value:Undefined, ternary_false
-  [  b0] GetGlobal dst:reg7, `ternary_falsey`
-  [  c8] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_falsey
-  [  e8] GetGlobal dst:reg7, `while_falsey`
-  [ 100] Call dst:reg5, callee:reg7, this_value:Undefined, while_falsey
-  [ 120] GetGlobal dst:reg7, `do_while_falsey`
-  [ 138] Call dst:reg6, callee:reg7, this_value:Undefined, do_while_falsey
-  [ 158] GetGlobal dst:reg7, `if_falsely`
-  [ 170] Call dst:reg5, callee:reg7, this_value:Undefined, if_falsely
-  [ 190] GetGlobal dst:reg7, `if_truthy`
-  [ 1a8] Call dst:reg6, callee:reg7, this_value:Undefined, if_truthy
-  [ 1c8] GetGlobal dst:reg7, `if_exhausted`
-  [ 1e0] Call dst:reg5, callee:reg7, this_value:Undefined, if_exhausted
-  [ 200] GetGlobal dst:reg7, `for_false`
-  [ 218] Call dst:reg6, callee:reg7, this_value:Undefined, for_false
-  [ 238] GetGlobal dst:reg7, `for_true`
-  [ 250] Call dst:reg5, callee:reg7, this_value:Undefined, for_true, arguments:[Bool(true)]
-  [ 278] End value:reg5
+  [   0] GetGlobal dst:reg6, `ternary_true`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, ternary_true
+  [  38] GetGlobal dst:reg7, `ternary_truthy`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_truthy
+  [  70] GetGlobal dst:reg7, `ternary_false`
+  [  88] Call dst:reg5, callee:reg7, this_value:Undefined, ternary_false
+  [  a8] GetGlobal dst:reg7, `ternary_falsey`
+  [  c0] Call dst:reg6, callee:reg7, this_value:Undefined, ternary_falsey
+  [  e0] GetGlobal dst:reg7, `while_falsey`
+  [  f8] Call dst:reg5, callee:reg7, this_value:Undefined, while_falsey
+  [ 118] GetGlobal dst:reg7, `do_while_falsey`
+  [ 130] Call dst:reg6, callee:reg7, this_value:Undefined, do_while_falsey
+  [ 150] GetGlobal dst:reg7, `if_falsely`
+  [ 168] Call dst:reg5, callee:reg7, this_value:Undefined, if_falsely
+  [ 188] GetGlobal dst:reg7, `if_truthy`
+  [ 1a0] Call dst:reg6, callee:reg7, this_value:Undefined, if_truthy
+  [ 1c0] GetGlobal dst:reg7, `if_exhausted`
+  [ 1d8] Call dst:reg5, callee:reg7, this_value:Undefined, if_exhausted
+  [ 1f8] GetGlobal dst:reg7, `for_false`
+  [ 210] Call dst:reg6, callee:reg7, this_value:Undefined, for_false
+  [ 230] GetGlobal dst:reg7, `for_true`
+  [ 248] Call dst:reg5, callee:reg7, this_value:Undefined, for_true, arguments:[Bool(true)]
+  [ 270] End value:reg5
 
 
 ternary_true$adbcc261 condition-dead-code-elim.js:9:5
@@ -40,8 +39,7 @@ ternary_true$adbcc261 condition-dead-code-elim.js:9:5
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(1)
+  [   0] Return value:Int32(1)
 
 
 ternary_truthy$8671fdc6 condition-dead-code-elim.js:12:5
@@ -51,8 +49,7 @@ ternary_truthy$8671fdc6 condition-dead-code-elim.js:12:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(1)
+  [   0] Return value:Int32(1)
 
 
 ternary_false$1fde34b2 condition-dead-code-elim.js:15:5
@@ -63,8 +60,7 @@ ternary_false$1fde34b2 condition-dead-code-elim.js:15:5
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(1)
+  [   0] Return value:Int32(1)
 
 
 ternary_falsey$1c25e5ad condition-dead-code-elim.js:18:5
@@ -75,25 +71,21 @@ ternary_falsey$1c25e5ad condition-dead-code-elim.js:18:5
     [1] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(1)
+  [   0] Return value:Int32(1)
 
 
 while_falsey$5d6360eb condition-dead-code-elim.js:33:5
   Registers: 7
-  Blocks:    2
+  Blocks:    1
   Constants:
     [0] = Bool(false)
     [1] = Null
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-
-block1:
-  [   8] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  40] End value:Undefined
+  [   0] GetGlobal dst:reg6, `alive`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] End value:Undefined
 
 
 alive$57b46309 condition-dead-code-elim.js:2:5
@@ -103,37 +95,33 @@ alive$57b46309 condition-dead-code-elim.js:2:5
     [0] = String("alive")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:String("alive")
+  [   0] Return value:String("alive")
 
 
 do_while_falsey$799dde23 condition-dead-code-elim.js:37:9
   Registers: 7
-  Blocks:    5
+  Blocks:    4
   Constants:
     [0] = Bool(false)
     [1] = Undefined
     [2] = Null
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
+  [   0] GetGlobal dst:reg6, `alive`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
 
 block1:
-  [   8] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal dst:reg6, `alive`
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, alive
 
 block2:
-  [  40] GetGlobal dst:reg6, `alive`
-  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  70] GetGlobal dst:reg6, `alive`
+  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
 
 block3:
-  [  78] GetGlobal dst:reg6, `alive`
-  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-
-block4:
-  [  b0] GetGlobal dst:reg6, `alive`
-  [  c8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  e8] End value:Undefined
+  [  a8] GetGlobal dst:reg6, `alive`
+  [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  e0] End value:Undefined
 
 
 if_falsely$5d6360eb condition-dead-code-elim.js:62:5
@@ -145,10 +133,9 @@ if_falsely$5d6360eb condition-dead-code-elim.js:62:5
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  40] End value:Undefined
+  [   0] GetGlobal dst:reg6, `alive`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] End value:Undefined
 
 
 if_truthy$ac929a95 condition-dead-code-elim.js:66:9
@@ -161,16 +148,15 @@ if_truthy$ac929a95 condition-dead-code-elim.js:66:9
     [3] = Int32(123)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  40] GetGlobal dst:reg6, `alive`
-  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  78] GetGlobal dst:reg6, `alive`
-  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  b0] GetGlobal dst:reg6, `alive`
-  [  c8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  e8] End value:Undefined
+  [   0] GetGlobal dst:reg6, `alive`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal dst:reg6, `alive`
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  70] GetGlobal dst:reg6, `alive`
+  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  a8] GetGlobal dst:reg6, `alive`
+  [  c0] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  e0] End value:Undefined
 
 
 if_exhausted$80f20e23 condition-dead-code-elim.js:90:9
@@ -182,14 +168,13 @@ if_exhausted$80f20e23 condition-dead-code-elim.js:90:9
     [2] = Bool(true)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `alive`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  40] GetGlobal dst:reg6, `alive`
-  [  58] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  78] GetGlobal dst:reg6, `alive`
-  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  b0] End value:Undefined
+  [   0] GetGlobal dst:reg6, `alive`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  38] GetGlobal dst:reg6, `alive`
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  70] GetGlobal dst:reg6, `alive`
+  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  a8] End value:Undefined
 
 
 for_false$2883f85d condition-dead-code-elim.js:109:5
@@ -202,36 +187,35 @@ for_false$2883f85d condition-dead-code-elim.js:109:5
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block2
+  [   0] Jump target:block2
 
 block1:
-  [  10] End value:Undefined
+  [   8] End value:Undefined
 
 block2:
-  [  18] Jump target:block4
+  [  10] Jump target:block4
 
 block3:
-  [  20] End value:Undefined
+  [  18] End value:Undefined
 
 block4:
-  [  28] Jump target:block6
+  [  20] Jump target:block6
 
 block5:
-  [  30] End value:Undefined
+  [  28] End value:Undefined
 
 block6:
-  [  38] GetGlobal dst:reg5, `call_this`
-  [  50] Call dst:x~0, callee:reg5, this_value:Undefined, call_this
-  [  70] Jump target:block8
+  [  30] GetGlobal dst:reg5, `call_this`
+  [  48] Call dst:x~0, callee:reg5, this_value:Undefined, call_this
+  [  68] Jump target:block8
 
 block7:
-  [  78] End value:Undefined
+  [  70] End value:Undefined
 
 block8:
-  [  80] GetGlobal dst:reg6, `alive`
-  [  98] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  b8] End value:Undefined
+  [  78] GetGlobal dst:reg6, `alive`
+  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  b0] End value:Undefined
 
 
 call_this$77eb3a07 condition-dead-code-elim.js:105:5
@@ -241,8 +225,7 @@ call_this$77eb3a07 condition-dead-code-elim.js:105:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(1)
+  [   0] Return value:Int32(1)
 
 
 for_true$81dd51ad condition-dead-code-elim.js:128:5
@@ -254,41 +237,40 @@ for_true$81dd51ad condition-dead-code-elim.js:128:5
     [2] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block2
+  [   0] Jump target:block2
 
 block1:
-  [  10] GetGlobal dst:reg6, `alive`
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  48] JumpIf condition:arg0, true_target:block4, false_target:block5
+  [   8] GetGlobal dst:reg6, `alive`
+  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  40] JumpIf condition:arg0, true_target:block4, false_target:block5
 
 block2:
-  [  58] Jump target:block1
+  [  50] Jump target:block1
 
 block3:
-  [  60] Jump target:block7
+  [  58] Jump target:block7
 
 block4:
-  [  68] Jump target:block3
+  [  60] Jump target:block3
 
 block5:
-  [  70] Jump target:block2
+  [  68] Jump target:block2
 
 block6:
-  [  78] GetGlobal dst:reg6, `alive`
-  [  90] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [  b0] JumpIf condition:arg0, true_target:block9, false_target:block10
+  [  70] GetGlobal dst:reg6, `alive`
+  [  88] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  a8] JumpIf condition:arg0, true_target:block9, false_target:block10
 
 block7:
-  [  c0] Jump target:block6
+  [  b8] Jump target:block6
 
 block8:
-  [  c8] GetGlobal dst:reg6, `alive`
-  [  e0] Call dst:reg5, callee:reg6, this_value:Undefined, alive
-  [ 100] End value:Undefined
+  [  c0] GetGlobal dst:reg6, `alive`
+  [  d8] Call dst:reg5, callee:reg6, this_value:Undefined, alive
+  [  f8] End value:Undefined
 
 block9:
-  [ 108] Jump target:block8
+  [ 100] Jump target:block8
 
 block10:
-  [ 110] Jump target:block7
+  [ 108] Jump target:block7

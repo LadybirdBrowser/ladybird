@@ -12,35 +12,34 @@ $dc4cd9dd const-fold-template-literals.js:1:1
     [7] = Int32(3)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] InitializeLexicalBinding `a`, src:String("abcxyz")
-  [  20] InitializeLexicalBinding `b`, src:String("abcxyz")
-  [  38] InitializeLexicalBinding `c`, src:String("abcxyz")
-  [  50] InitializeLexicalBinding `d`, src:String("abcxyz")
-  [  68] InitializeLexicalBinding `e`, src:String("abcxyz")
-  [  80] InitializeLexicalBinding `f`, src:String("abcxyz")
-  [  98] Mov dst:reg5, src:String("abc")
-  [  a8] ConcatString dst:reg5, src:String("xyz")
-  [  b8] InitializeLexicalBinding `g`, src:reg5
-  [  d0] GetGlobal dst:reg6, `prefix`
-  [  e8] Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
-  [ 110] InitializeLexicalBinding `_prefix`, src:reg5
-  [ 128] GetGlobal dst:reg6, `suffix`
-  [ 140] Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
-  [ 168] InitializeLexicalBinding `_suffix`, src:reg5
-  [ 180] GetGlobal dst:reg6, `tostring`
-  [ 198] Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
-  [ 1c0] InitializeLexicalBinding `_tostring`, src:reg5
-  [ 1d8] GetGlobal dst:reg6, `multi`
-  [ 1f0] Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
-  [ 220] InitializeLexicalBinding `_multi`, src:reg5
-  [ 238] GetGlobal dst:reg6, `literal`
-  [ 250] Call dst:reg5, callee:reg6, this_value:Undefined, literal
-  [ 270] InitializeLexicalBinding `_literal`, src:reg5
-  [ 288] GetGlobal dst:reg6, `empty`
-  [ 2a0] Call dst:reg5, callee:reg6, this_value:Undefined, empty
-  [ 2c0] InitializeLexicalBinding `_empty`, src:reg5
-  [ 2d8] End value:Undefined
+  [   0] InitializeLexicalBinding `a`, src:String("abcxyz")
+  [  18] InitializeLexicalBinding `b`, src:String("abcxyz")
+  [  30] InitializeLexicalBinding `c`, src:String("abcxyz")
+  [  48] InitializeLexicalBinding `d`, src:String("abcxyz")
+  [  60] InitializeLexicalBinding `e`, src:String("abcxyz")
+  [  78] InitializeLexicalBinding `f`, src:String("abcxyz")
+  [  90] Mov dst:reg5, src:String("abc")
+  [  a0] ConcatString dst:reg5, src:String("xyz")
+  [  b0] InitializeLexicalBinding `g`, src:reg5
+  [  c8] GetGlobal dst:reg6, `prefix`
+  [  e0] Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
+  [ 108] InitializeLexicalBinding `_prefix`, src:reg5
+  [ 120] GetGlobal dst:reg6, `suffix`
+  [ 138] Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
+  [ 160] InitializeLexicalBinding `_suffix`, src:reg5
+  [ 178] GetGlobal dst:reg6, `tostring`
+  [ 190] Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
+  [ 1b8] InitializeLexicalBinding `_tostring`, src:reg5
+  [ 1d0] GetGlobal dst:reg6, `multi`
+  [ 1e8] Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
+  [ 218] InitializeLexicalBinding `_multi`, src:reg5
+  [ 230] GetGlobal dst:reg6, `literal`
+  [ 248] Call dst:reg5, callee:reg6, this_value:Undefined, literal
+  [ 268] InitializeLexicalBinding `_literal`, src:reg5
+  [ 280] GetGlobal dst:reg6, `empty`
+  [ 298] Call dst:reg5, callee:reg6, this_value:Undefined, empty
+  [ 2b8] InitializeLexicalBinding `_empty`, src:reg5
+  [ 2d0] End value:Undefined
 
 
 prefix$f72ec249 const-fold-template-literals.js:2:5
@@ -50,10 +49,9 @@ prefix$f72ec249 const-fold-template-literals.js:2:5
     [0] = String("prefix-")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg5, src:String("prefix-")
-  [  18] ConcatString dst:reg5, src:arg0
-  [  28] Return value:reg5
+  [   0] Mov dst:reg5, src:String("prefix-")
+  [  10] ConcatString dst:reg5, src:arg0
+  [  20] Return value:reg5
 
 
 suffix$5b9fba3e const-fold-template-literals.js:5:5
@@ -63,10 +61,9 @@ suffix$5b9fba3e const-fold-template-literals.js:5:5
     [0] = String("-suffix")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ToString dst:reg5, value:arg0
-  [  18] ConcatString dst:reg5, src:String("-suffix")
-  [  28] Return value:reg5
+  [   0] ToString dst:reg5, value:arg0
+  [  10] ConcatString dst:reg5, src:String("-suffix")
+  [  20] Return value:reg5
 
 
 tostring$1567fc7c const-fold-template-literals.js:8:5
@@ -74,9 +71,8 @@ tostring$1567fc7c const-fold-template-literals.js:8:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ToString dst:reg5, value:arg0
-  [  18] Return value:reg5
+  [   0] ToString dst:reg5, value:arg0
+  [  10] Return value:reg5
 
 
 multi$f3ef7824 const-fold-template-literals.js:11:5
@@ -84,11 +80,10 @@ multi$f3ef7824 const-fold-template-literals.js:11:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] ToString dst:reg5, value:arg0
-  [  18] ConcatString dst:reg5, src:arg1
-  [  28] ConcatString dst:reg5, src:arg2
-  [  38] Return value:reg5
+  [   0] ToString dst:reg5, value:arg0
+  [  10] ConcatString dst:reg5, src:arg1
+  [  20] ConcatString dst:reg5, src:arg2
+  [  30] Return value:reg5
 
 
 literal$c7e85f9e const-fold-template-literals.js:14:5
@@ -98,8 +93,7 @@ literal$c7e85f9e const-fold-template-literals.js:14:5
     [0] = String("hello world")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:String("hello world")
+  [   0] Return value:String("hello world")
 
 
 empty$93602216 const-fold-template-literals.js:17:5
@@ -109,5 +103,4 @@ empty$93602216 const-fold-template-literals.js:17:5
     [0] = String("")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:String("")
+  [   0] Return value:String("")

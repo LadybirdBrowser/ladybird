@@ -5,10 +5,9 @@ $b05eae7c var-hoisting-tdz.js:9:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `isect`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, isect
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `isect`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  38] End value:reg5
 
 
 isect$3b32d4d0 var-hoisting-tdz.js:5:5
@@ -21,25 +20,24 @@ isect$3b32d4d0 var-hoisting-tdz.js:5:5
     [2] = Int32(3)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
-  [  20] Jump target:block2
+  [   0] Mov2 dst1:i~0, src1:Undefined, dst2:i~0, src2:Int32(0)
+  [  18] Jump target:block2
 
 block1:
-  [  28] PostfixIncrement dst:reg5, src:i~0
+  [  20] PostfixIncrement dst:reg5, src:i~0
 
 block2:
-  [  38] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block1, false_target:block3
+  [  30] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block1, false_target:block3
 
 block3:
-  [  50] Mov dst:i~0, src:Int32(0)
-  [  60] Jump target:block5
+  [  48] Mov dst:i~0, src:Int32(0)
+  [  58] Jump target:block5
 
 block4:
-  [  68] PostfixIncrement dst:reg5, src:i~0
+  [  60] PostfixIncrement dst:reg5, src:i~0
 
 block5:
-  [  78] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block4, false_target:block6
+  [  70] JumpLessThan lhs:i~0, rhs:Int32(3), true_target:block4, false_target:block6
 
 block6:
-  [  90] End value:Undefined
+  [  88] End value:Undefined

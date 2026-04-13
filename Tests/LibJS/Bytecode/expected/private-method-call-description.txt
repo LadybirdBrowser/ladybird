@@ -29,8 +29,7 @@ C$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 call$f617ed01 private-method-call-description.js:6:9
@@ -38,10 +37,9 @@ call$f617ed01 private-method-call-description.js:6:9
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetPrivateById dst:reg6, base:this, `#m`
-  [  18] Call dst:reg5, callee:reg6, this_value:this, this.#m
-  [  38] Return value:reg5
+  [   0] GetPrivateById dst:reg6, base:this, `#m`
+  [  10] Call dst:reg5, callee:reg6, this_value:this, this.#m
+  [  30] Return value:reg5
 
 
 #m$52a40bc0 private-method-call-description.js:3:9
@@ -51,5 +49,4 @@ block0:
     [0] = Int32(42)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:Int32(42)
+  [   0] Return value:Int32(42)

@@ -24,9 +24,8 @@ C$0ec9c92d super-call-spread-register-order.js:3:14
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateRestParams dst:arg0, rest_index:0
-  [  18] NewArray dst:reg5
-  [  28] ArrayAppend dst:reg5, src:arg0, is_spread:true
-  [  38] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  48] End value:Undefined
+  [   0] CreateRestParams dst:arg0, rest_index:0
+  [  10] NewArray dst:reg5
+  [  20] ArrayAppend dst:reg5, src:arg0, is_spread:true
+  [  30] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  40] End value:Undefined

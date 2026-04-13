@@ -13,9 +13,8 @@ $199ac30a constant-fold-string-to-number.js:1:1
     [8] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:Int32(12345)
-  [  20] SetGlobal `b`, src:Int32(123450)
-  [  38] SetGlobal `c`, src:Int32(-42)
-  [  50] SetGlobal `d`, src:Int32(-6)
-  [  68] End value:Undefined
+  [   0] SetGlobal `a`, src:Int32(12345)
+  [  18] SetGlobal `b`, src:Int32(123450)
+  [  30] SetGlobal `c`, src:Int32(-42)
+  [  48] SetGlobal `d`, src:Int32(-6)
+  [  60] End value:Undefined

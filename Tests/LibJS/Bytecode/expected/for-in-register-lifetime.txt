@@ -9,41 +9,40 @@ $0d42cfa1 for-in-register-lifetime.js:1:1
     [4] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `result`, src:String("")
-  [  20] NewObject dst:reg5
-  [  30] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
-  [  48] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
-  [  60] InitObjectLiteralProperty object:reg5, `c`, src:Int32(3), shape_cache_index:0, property_slot:2
-  [  78] CacheObjectShape object:reg5
-  [  88] SetGlobal `obj`, src:reg5
-  [  a0] GetGlobal dst:reg5, `obj`
-  [  b8] JumpNullish condition:reg5, true_target:block3, false_target:block4
+  [   0] SetGlobal `result`, src:String("")
+  [  18] NewObject dst:reg5
+  [  28] InitObjectLiteralProperty object:reg5, `a`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  40] InitObjectLiteralProperty object:reg5, `b`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  58] InitObjectLiteralProperty object:reg5, `c`, src:Int32(3), shape_cache_index:0, property_slot:2
+  [  70] CacheObjectShape object:reg5
+  [  80] SetGlobal `obj`, src:reg5
+  [  98] GetGlobal dst:reg5, `obj`
+  [  b0] JumpNullish condition:reg5, true_target:block3, false_target:block4
 
 block1:
-  [  c8] End value:reg5
+  [  c0] End value:reg5
 
 block2:
-  [  d0] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
-  [  e0] JumpIf condition:reg8, true_target:block1, false_target:block5
+  [  c8] ObjectPropertyIteratorNext dst_value:reg7, dst_done:reg8, iterator_object:reg6
+  [  d8] JumpIf condition:reg8, true_target:block1, false_target:block5
 
 block3:
-  [  f0] End value:reg5
+  [  e8] End value:reg5
 
 block4:
-  [  f8] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
-  [ 110] Mov dst:reg5, src:Undefined
-  [ 120] Jump target:block2
+  [  f0] GetObjectPropertyIterator dst_iterator:reg6, object:reg5
+  [ 108] Mov dst:reg5, src:Undefined
+  [ 118] Jump target:block2
 
 block5:
-  [ 128] SetGlobal `k`, src:reg7
-  [ 140] GetGlobal dst:reg9, `result`
-  [ 158] GetGlobal dst:reg10, `k`
-  [ 170] GetGlobal dst:reg11, `obj`
-  [ 188] GetGlobal dst:reg12, `k`
-  [ 1a0] GetByValue dst:reg13, base:reg11, property:reg12 (obj[reg12])
-  [ 1b8] Add dst:reg11, lhs:reg10, rhs:reg13
-  [ 1c8] Add dst:reg10, lhs:reg9, rhs:reg11
-  [ 1d8] SetGlobal `result`, src:reg10
-  [ 1f0] Mov dst:reg5, src:reg10
-  [ 200] Jump target:block2
+  [ 120] SetGlobal `k`, src:reg7
+  [ 138] GetGlobal dst:reg9, `result`
+  [ 150] GetGlobal dst:reg10, `k`
+  [ 168] GetGlobal dst:reg11, `obj`
+  [ 180] GetGlobal dst:reg12, `k`
+  [ 198] GetByValue dst:reg13, base:reg11, property:reg12 (obj[reg12])
+  [ 1b0] Add dst:reg11, lhs:reg10, rhs:reg13
+  [ 1c0] Add dst:reg10, lhs:reg9, rhs:reg11
+  [ 1d0] SetGlobal `result`, src:reg10
+  [ 1e8] Mov dst:reg5, src:reg10
+  [ 1f8] Jump target:block2

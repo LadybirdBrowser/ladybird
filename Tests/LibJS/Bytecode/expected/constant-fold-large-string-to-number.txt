@@ -10,9 +10,8 @@ $8ea0b7a6 constant-fold-large-string-to-number.js:1:1
     [5] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:Double(18446744073709552000)
-  [  20] SetGlobal `b`, src:Double(18446744073709552000)
-  [  38] SetGlobal `c`, src:Double(18446744073709552000)
-  [  50] SetGlobal `d`, src:Double(18446744073709552000)
-  [  68] End value:Undefined
+  [   0] SetGlobal `a`, src:Double(18446744073709552000)
+  [  18] SetGlobal `b`, src:Double(18446744073709552000)
+  [  30] SetGlobal `c`, src:Double(18446744073709552000)
+  [  48] SetGlobal `d`, src:Double(18446744073709552000)
+  [  60] End value:Undefined

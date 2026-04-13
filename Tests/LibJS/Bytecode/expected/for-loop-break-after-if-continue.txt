@@ -6,29 +6,25 @@ $1eaa9a1f for-loop-break-after-if-continue.js:11:1
     [1] = Bool(false)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `bok`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `bok`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, bok, arguments:[Bool(false)]
+  [  40] End value:reg5
 
 
 bok$e37018c9 for-loop-break-after-if-continue.js:6:9
   Registers: 5
-  Blocks:    5
+  Blocks:    4
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
+  [   0] JumpIf condition:arg0, true_target:block2, false_target:block3
 
 block1:
-  [   8] JumpIf condition:arg0, true_target:block3, false_target:block4
+  [  10] End value:Undefined
 
 block2:
-  [  18] End value:Undefined
+  [  18] Jump target:block0
 
 block3:
   [  20] Jump target:block1
-
-block4:
-  [  28] Jump target:block2

@@ -833,6 +833,14 @@ impl Generator {
             })
     }
 
+    pub fn capture_saved_lexical_environment(&mut self) {
+        let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
+        self.emit(Instruction::GetLexicalEnvironment {
+            dst: env_reg.operand(),
+        });
+        self.lexical_environment_register_stack.push(env_reg);
+    }
+
     pub fn end_variable_scope(&mut self) {
         self.end_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
         self.lexical_environment_register_stack.pop();
@@ -1300,6 +1308,47 @@ impl Generator {
     /// 3. Patch labels in typed instructions (block index → byte offset)
     /// 4. Encode to bytes and build source map + exception handlers
     pub fn assemble(&mut self) -> AssembledBytecode {
+        let saved_environment = Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT);
+        let synthetic_load_block = self.basic_blocks.iter().position(|block| {
+            matches!(
+                block.instructions.first(),
+                Some((
+                    Instruction::GetLexicalEnvironment {
+                        dst,
+                    },
+                    _
+                )) if *dst == saved_environment
+            )
+        });
+
+        if let Some(load_block_index) = synthetic_load_block {
+            let saved_environment_is_used =
+                self.basic_blocks
+                    .iter()
+                    .enumerate()
+                    .any(|(block_index, block)| {
+                        block.instructions.iter().enumerate().any(
+                            |(instruction_index, (instruction, _))| {
+                                if block_index == load_block_index && instruction_index == 0 {
+                                    return false;
+                                }
+                                let mut instruction = instruction.clone();
+                                let mut mentions_saved_environment = false;
+                                instruction.visit_operands(&mut |operand: &mut Operand| {
+                                    if *operand == saved_environment {
+                                        mentions_saved_environment = true;
+                                    }
+                                });
+                                mentions_saved_environment
+                            },
+                        )
+                    });
+
+            if !saved_environment_is_used {
+                self.basic_blocks[load_block_index].instructions.remove(0);
+            }
+        }
+
         // If any block is unterminated, ensure the undefined constant exists
         // for the assembly-time End(undefined) fallthrough. This must happen
         // before computing number_of_constants so operand rewriting accounts

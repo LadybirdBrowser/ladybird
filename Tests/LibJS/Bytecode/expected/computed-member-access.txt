@@ -6,14 +6,13 @@ $d6bbce15 computed-member-access.js:12:1
     [1] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `computed_read`
-  [  20] NewPrimitiveArray dst:reg7, elements:[1]
-  [  38] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-  [  60] GetGlobal dst:reg7, `computed_read_expression`
-  [  78] NewPrimitiveArray dst:reg8, elements:[1]
-  [  90] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
-  [  b8] End value:reg6
+  [   0] GetGlobal dst:reg6, `computed_read`
+  [  18] NewPrimitiveArray dst:reg7, elements:[1]
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
+  [  58] GetGlobal dst:reg7, `computed_read_expression`
+  [  70] NewPrimitiveArray dst:reg8, elements:[1]
+  [  88] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
+  [  b0] End value:reg6
 
 
 computed_read$a6f67e31 computed-member-access.js:5:5
@@ -23,10 +22,9 @@ computed_read$a6f67e31 computed-member-access.js:5:5
     [0] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
-  [  30] Return value:reg6
+  [   0] Mov dst:reg5, src:arg0
+  [  10] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
+  [  28] Return value:reg6
 
 
 computed_read_expression$adb2a228 computed-member-access.js:9:5
@@ -34,7 +32,6 @@ computed_read_expression$adb2a228 computed-member-access.js:9:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg5, src:arg0
-  [  18] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
-  [  30] Return value:reg6
+  [   0] Mov dst:reg5, src:arg0
+  [  10] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
+  [  28] Return value:reg6

@@ -25,8 +25,7 @@ C$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 field$d817cc70 class-computed-field-lhs-name.js:2:15
@@ -34,6 +33,5 @@ field$d817cc70 class-computed-field-lhs-name.js:2:15
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewFunction dst:reg5, shared_function_data_index:0
-  [  20] Return value:reg5
+  [   0] NewFunction dst:reg5, shared_function_data_index:0
+  [  18] Return value:reg5

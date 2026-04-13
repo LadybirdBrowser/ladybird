@@ -30,11 +30,10 @@ Derived$3808ea25 super-constructor-call.js:4:14
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:reg6, src:arg0
-  [  18] NewArray dst:reg5, elements:[reg6]
-  [  30] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
-  [  40] End value:Undefined
+  [   0] Mov dst:reg6, src:arg0
+  [  10] NewArray dst:reg5, elements:[reg6]
+  [  28] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
+  [  38] End value:Undefined
 
 
 Base$811c9dc5
@@ -44,5 +43,4 @@ Base$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined

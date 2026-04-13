@@ -5,10 +5,9 @@ $69cce752 async-await.js:9:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
 f$c9505126 async-await.js:7:5
@@ -23,31 +22,30 @@ block0:
   [   0] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  10] GetLexicalEnvironment dst:reg4
-  [  18] GetGlobal dst:reg6, `Promise`
-  [  30] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
-  [  50] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-  [  78] Mov dst:reg6, src:reg0
-  [  88] Await continuation_label:block2, argument:reg5
+  [  10] GetGlobal dst:reg6, `Promise`
+  [  28] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
+  [  48] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
+  [  70] Mov dst:reg6, src:reg0
+  [  80] Await continuation_label:block2, argument:reg5
 
 block2:
-  [  98] Mov dst:reg6, src:reg0
-  [  a8] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  b8] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block3, false_target:block4
+  [  90] Mov dst:reg6, src:reg0
+  [  a0] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
+  [  b0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
-  [  d0] Await continuation_label:block5, argument:reg8
+  [  c8] Await continuation_label:block5, argument:reg8
 
 block4:
-  [  e0] Throw src:reg8
+  [  d8] Throw src:reg8
 
 block5:
-  [  e8] Mov dst:reg5, src:reg0
-  [  f8] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 108] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block6, false_target:block7
+  [  e0] Mov dst:reg5, src:reg0
+  [  f0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 100] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block6, false_target:block7
 
 block6:
-  [ 120] Yield value:reg7
+  [ 118] Yield value:reg7
 
 block7:
-  [ 130] Throw src:reg7
+  [ 128] Throw src:reg7

@@ -14,8 +14,7 @@ $66877791 bigint-large-constant-folding.js:1:1
     [9] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `a`, src:BigInt(337264356397531028994973048178108678400n)
-  [  20] SetGlobal `b`, src:BigInt(340282366920938463463374607431768211456n)
-  [  38] SetGlobal `c`, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
-  [  50] End value:Undefined
+  [   0] SetGlobal `a`, src:BigInt(337264356397531028994973048178108678400n)
+  [  18] SetGlobal `b`, src:BigInt(340282366920938463463374607431768211456n)
+  [  30] SetGlobal `c`, src:BigInt(6193778470904512180693671865081363252814433915244866048000n)
+  [  48] End value:Undefined

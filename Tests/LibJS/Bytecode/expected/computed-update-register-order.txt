@@ -5,11 +5,10 @@ $b70081a4 computed-update-register-order.js:8:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `test`
-  [  20] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
-  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
-  [  78] End value:reg5
+  [   0] GetGlobal dst:reg6, `test`
+  [  18] NewPrimitiveArray dst:reg7, elements:[1, 2, 3, 4]
+  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, test, arguments:[reg7]
+  [  70] End value:reg5
 
 
 test$c6be6338 computed-update-register-order.js:5:9
@@ -20,14 +19,13 @@ test$c6be6338 computed-update-register-order.js:5:9
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
-  [  20] PostfixIncrement dst:reg6, src:reg5
-  [  30] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
-  [  48] GetGlobal dst:reg6, `foo`
-  [  60] Mov dst:reg7, src:arg0
-  [  70] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
-  [  98] End value:Undefined
+  [   0] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
+  [  18] PostfixIncrement dst:reg6, src:reg5
+  [  28] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
+  [  40] GetGlobal dst:reg6, `foo`
+  [  58] Mov dst:reg7, src:arg0
+  [  68] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  90] End value:Undefined
 
 
 foo$7176ad76 computed-update-register-order.js:2:5
@@ -35,5 +33,4 @@ foo$7176ad76 computed-update-register-order.js:2:5
   Blocks:    1
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Return value:arg0
+  [   0] Return value:arg0

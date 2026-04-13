@@ -6,10 +6,9 @@ $e8ebe331 postfix-update-in-logical-and.js:4:1
     [1] = Int32(5)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `postfixInLogicalAnd`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, postfixInLogicalAnd, arguments:[Int32(5)]
-  [  48] End value:reg5
+  [   0] GetGlobal dst:reg6, `postfixInLogicalAnd`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, postfixInLogicalAnd, arguments:[Int32(5)]
+  [  40] End value:reg5
 
 
 postfixInLogicalAnd$34f13720 postfix-update-in-logical-and.js:2:5
@@ -19,14 +18,13 @@ postfixInLogicalAnd$34f13720 postfix-update-in-logical-and.js:2:5
     [0] = Int32(0)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
-  [  18] Mov dst:reg6, src:reg5
-  [  28] JumpFalse condition:reg5, target:block2
+  [   0] GreaterThan dst:reg5, lhs:arg0, rhs:Int32(0)
+  [  10] Mov dst:reg6, src:reg5
+  [  20] JumpFalse condition:reg5, target:block2
 
 block1:
-  [  38] PostfixDecrement dst:reg7, src:arg0
-  [  48] Mov2 dst1:arg0, src1:arg0, dst2:reg6, src2:reg7
+  [  30] PostfixDecrement dst:reg7, src:arg0
+  [  40] Mov2 dst1:arg0, src1:arg0, dst2:reg6, src2:reg7
 
 block2:
-  [  60] Return value:reg6
+  [  58] Return value:reg6

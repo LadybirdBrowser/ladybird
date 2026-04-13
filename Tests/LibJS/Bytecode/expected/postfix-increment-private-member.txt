@@ -29,8 +29,7 @@ C$811c9dc5
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] End value:Undefined
+  [   0] End value:Undefined
 
 
 nextId$b6db6eed postfix-increment-private-member.js:4:9
@@ -40,9 +39,8 @@ nextId$b6db6eed postfix-increment-private-member.js:4:9
     [0] = String("id-")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetPrivateById dst:reg5, base:this, `#c`
-  [  18] PostfixIncrement dst:reg6, src:reg5
-  [  28] PutPrivateById base:this, `#c`, src:reg5
-  [  38] Add dst:reg5, lhs:String("id-"), rhs:reg6
-  [  48] Return value:reg5
+  [   0] GetPrivateById dst:reg5, base:this, `#c`
+  [  10] PostfixIncrement dst:reg6, src:reg5
+  [  20] PutPrivateById base:this, `#c`, src:reg5
+  [  30] Add dst:reg5, lhs:String("id-"), rhs:reg6
+  [  40] Return value:reg5

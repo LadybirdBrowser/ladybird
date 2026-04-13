@@ -5,10 +5,9 @@ $69cce752 async-return-bare.js:4:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] GetGlobal dst:reg6, `f`
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  40] End value:reg5
+  [   0] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
 f$e646074e async-return-bare.js:2:5
@@ -21,5 +20,4 @@ block0:
   [   0] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  10] GetLexicalEnvironment dst:reg4
-  [  18] Yield value:Undefined
+  [  10] Yield value:Undefined

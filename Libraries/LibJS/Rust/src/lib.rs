@@ -280,16 +280,7 @@ unsafe fn compile_program_body(
 
         let entry_block = generator.make_block();
         generator.switch_to_basic_block(entry_block);
-
-        {
-            use bytecode::operand::{Operand, Register};
-            let env_reg =
-                generator.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-            generator.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
-                dst: env_reg.operand(),
-            });
-            generator.lexical_environment_register_stack.push(env_reg);
-        }
+        generator.capture_saved_lexical_environment();
 
         let result = bytecode::codegen::generate_statement(program, generator, None);
 
@@ -1642,7 +1633,6 @@ unsafe fn compile_module_as_async(
     unsafe {
         use bytecode::generator::Generator;
         use bytecode::instruction::Instruction;
-        use bytecode::operand::{Operand, Register};
 
         let scope = scope_ref.borrow();
         let mut generator = Generator::new();
@@ -1669,14 +1659,7 @@ unsafe fn compile_module_as_async(
             value: undef.operand(),
         });
         generator.switch_to_basic_block(start_block);
-
-        // Get lexical environment.
-        let env_reg =
-            generator.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-        generator.emit(Instruction::GetLexicalEnvironment {
-            dst: env_reg.operand(),
-        });
-        generator.lexical_environment_register_stack.push(env_reg);
+        generator.capture_saved_lexical_environment();
 
         // Generate module body statements.
         let _result = bytecode::codegen::generate_statement(program, &mut generator, None);
@@ -2110,15 +2093,7 @@ pub unsafe extern "C" fn rust_compile_function(
                 generator.switch_to_basic_block(start_block);
             }
 
-            {
-                use bytecode::operand::{Operand, Register};
-                let env_reg = generator
-                    .scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-                generator.emit(bytecode::instruction::Instruction::GetLexicalEnvironment {
-                    dst: env_reg.operand(),
-                });
-                generator.lexical_environment_register_stack.push(env_reg);
-            }
+            generator.capture_saved_lexical_environment();
 
             if let Some(scope) = body_scope {
                 bytecode::codegen::emit_function_declaration_instantiation(
