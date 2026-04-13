@@ -758,6 +758,38 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
     }
 }
 
+static void generate_object_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional)
+{
+    // https://webidl.spec.whatwg.org/#js-object
+    // 1. If V is not an Object, then throw a TypeError.
+    // 2. Return the IDL object value that is a reference to the same object as V.
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    Optional<GC::Root<JS::Object>> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
+        @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
+    }
+)~~~");
+    } else if (optional) {
+        scoped_generator.append(R"~~~(
+    Optional<GC::Root<JS::Object>> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_object())
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
+        @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
+    }
+)~~~");
+    } else {
+        scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
+    auto @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
+)~~~");
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -904,34 +936,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     auto @cpp_name@ = GC::make_root(promise_capability);
 )~~~");
     } else if (parameter.type->name() == "object") {
-        // https://webidl.spec.whatwg.org/#js-object
-        // 1. If V is not an Object, then throw a TypeError.
-        // 2. Return the IDL object value that is a reference to the same object as V.
-        if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-    Optional<GC::Root<JS::Object>> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined()) {
-        if (!@js_name@@js_suffix@.is_object())
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
-        @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
-    }
-)~~~");
-        } else if (optional) {
-            scoped_generator.append(R"~~~(
-    Optional<GC::Root<JS::Object>> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_undefined()) {
-        if (!@js_name@@js_suffix@.is_object())
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
-        @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
-    }
-)~~~");
-        } else {
-            scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
-    auto @cpp_name@ = GC::make_root(@js_name@@js_suffix@.as_object());
-)~~~");
-        }
+        generate_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (is_javascript_builtin(parameter.type) || parameter.type->name() == "BufferSource"sv) {
         size_t buffer_source_nesting_level = optional ? 2 : 1;
         auto buffer_source_indent = ByteString::repeated(' ', buffer_source_nesting_level * 4);
