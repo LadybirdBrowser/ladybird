@@ -207,21 +207,37 @@ public:
         if (did_reach_stack_space_limit()) [[unlikely]] {
             return throw_completion<InternalError>(ErrorType::CallStackSizeExceeded);
         }
+        context.caller_frame = nullptr;
+        context.caller_return_pc = 0;
+        context.caller_dst_raw = 0;
+        context.caller_is_construct = false;
         m_execution_context_stack.append(&context);
+        m_execution_context_stack_previous_running_contexts.append(m_running_execution_context);
         m_running_execution_context = &context;
         return {};
     }
 
     void push_execution_context(ExecutionContext& context)
     {
+        context.caller_frame = nullptr;
+        context.caller_return_pc = 0;
+        context.caller_dst_raw = 0;
+        context.caller_is_construct = false;
         m_execution_context_stack.append(&context);
+        m_execution_context_stack_previous_running_contexts.append(m_running_execution_context);
         m_running_execution_context = &context;
     }
 
-    void pop_execution_context()
+    ExecutionContext* pop_execution_context()
     {
-        m_execution_context_stack.take_last();
-        m_running_execution_context = m_execution_context_stack.is_empty() ? nullptr : m_execution_context_stack.last();
+        VERIFY(!m_execution_context_stack.is_empty());
+        auto* context = m_execution_context_stack.take_last();
+        context->caller_frame = nullptr;
+        context->caller_return_pc = 0;
+        context->caller_dst_raw = 0;
+        context->caller_is_construct = false;
+        m_running_execution_context = m_execution_context_stack_previous_running_contexts.take_last();
+        return context;
     }
 
     // https://tc39.es/ecma262/#running-execution-context
@@ -238,10 +254,53 @@ public:
         return *m_running_execution_context;
     }
 
+    bool has_running_execution_context() const { return m_running_execution_context != nullptr; }
+
     // https://tc39.es/ecma262/#execution-context-stack
-    // The execution context stack is used to track execution contexts.
+    // The execution context stack tracks base execution contexts. Inline JS-to-JS
+    // frames are threaded through ExecutionContext::caller_frame starting at the
+    // running execution context.
     Vector<ExecutionContext*> const& execution_context_stack() const { return m_execution_context_stack; }
-    Vector<ExecutionContext*>& execution_context_stack() { return m_execution_context_stack; }
+
+    template<typename Callback>
+    void for_each_execution_context_top_to_bottom(Callback callback)
+    {
+        for_each_execution_context_top_to_bottom(m_execution_context_stack, m_execution_context_stack_previous_running_contexts, m_running_execution_context, callback);
+    }
+
+    template<typename Callback>
+    void for_each_execution_context_top_to_bottom(Callback callback) const
+    {
+        for_each_execution_context_top_to_bottom(m_execution_context_stack, m_execution_context_stack_previous_running_contexts, m_running_execution_context, callback);
+    }
+
+    template<typename Callback>
+    Optional<ExecutionContext*> last_execution_context_matching(Callback callback)
+    {
+        Optional<ExecutionContext*> matching_execution_context;
+        for_each_execution_context_top_to_bottom([&](ExecutionContext& execution_context) {
+            if (!callback(&execution_context))
+                return true;
+            matching_execution_context = &execution_context;
+            return false;
+        });
+        return matching_execution_context;
+    }
+
+    template<typename Callback>
+    Optional<ExecutionContext const*> last_execution_context_matching(Callback callback) const
+    {
+        Optional<ExecutionContext const*> matching_execution_context;
+        for_each_execution_context_top_to_bottom([&](ExecutionContext const& execution_context) {
+            if (!callback(&execution_context))
+                return true;
+            matching_execution_context = &execution_context;
+            return false;
+        });
+        return matching_execution_context;
+    }
+
+    ExecutionContext* previous_execution_context() const;
 
     Environment const* lexical_environment() const { return running_execution_context().lexical_environment; }
     Environment* lexical_environment() { return running_execution_context().lexical_environment; }
@@ -396,6 +455,50 @@ private:
 
     explicit VM(ErrorMessages);
 
+    template<typename Callback>
+    static void for_each_execution_context_top_to_bottom(Vector<ExecutionContext*> const& execution_context_stack, Vector<ExecutionContext*> const& execution_context_stack_previous_running_contexts, ExecutionContext* running_execution_context, Callback callback)
+    {
+        VERIFY(execution_context_stack.size() == execution_context_stack_previous_running_contexts.size());
+
+        if (!running_execution_context) {
+            for (size_t i = execution_context_stack.size(); i-- > 0;) {
+                if (!callback(*execution_context_stack[i]))
+                    return;
+            }
+            return;
+        }
+
+        if (execution_context_stack.is_empty()) {
+            for (auto* execution_context = running_execution_context; execution_context; execution_context = execution_context->caller_frame) {
+                if (!callback(*execution_context))
+                    return;
+            }
+            return;
+        }
+
+        auto stack_index = execution_context_stack.size();
+        auto* execution_context = running_execution_context;
+        while (execution_context) {
+            if (!callback(*execution_context))
+                return;
+            if (stack_index > 0 && execution_context == execution_context_stack[stack_index - 1]) {
+                execution_context = execution_context_stack_previous_running_contexts[stack_index - 1];
+                --stack_index;
+                continue;
+            }
+
+            execution_context = execution_context->caller_frame;
+        }
+
+        VERIFY(stack_index == 0);
+    }
+
+    struct SavedExecutionContextStack {
+        Vector<ExecutionContext*> stack;
+        Vector<ExecutionContext*> previous_running_contexts;
+        ExecutionContext* running_execution_context { nullptr };
+    };
+
     void load_imported_module(ImportedModuleReferrer, ModuleRequest const&, GC::Ptr<GraphLoadingState::HostDefined>, ImportedModulePayload);
     ThrowCompletionOr<void> link_and_eval_module(CyclicModule&);
     ThrowCompletionOr<void> link_and_eval_module(SourceTextModule&);
@@ -419,9 +522,14 @@ private:
     GC::Heap m_heap;
 
     Vector<ExecutionContext*> m_execution_context_stack;
+    // Base pushes may happen while an inline JS-to-JS frame is running, and
+    // TemporaryExecutionContext can push the same context multiple times. Keep
+    // the previous running context for each base push so we can restore and
+    // walk the full active stack without relying on caller_frame there.
+    Vector<ExecutionContext*> m_execution_context_stack_previous_running_contexts;
     ExecutionContext* m_running_execution_context { nullptr };
 
-    Vector<Vector<ExecutionContext*>> m_saved_execution_context_stacks;
+    Vector<SavedExecutionContextStack> m_saved_execution_context_stacks;
 
     StackInfo m_stack_info;
 

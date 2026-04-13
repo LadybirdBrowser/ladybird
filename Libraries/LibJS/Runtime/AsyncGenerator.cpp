@@ -218,11 +218,10 @@ void AsyncGenerator::execute(VM& vm, Completion completion)
             auto yield_completion = normal_completion(value);
 
             // 6. Assert: The execution context stack has at least two elements.
-            VERIFY(vm.execution_context_stack().size() >= 2);
+            auto* previous_context = vm.previous_execution_context();
+            VERIFY(previous_context);
 
             // 7. Let previousContext be the second to top element of the execution context stack.
-            auto& previous_context = vm.execution_context_stack().at(vm.execution_context_stack().size() - 2);
-
             // 8. Let previousRealm be previousContext's Realm.
             auto previous_realm = previous_context->realm;
 

@@ -73,7 +73,7 @@ TESTJS_GLOBAL_FUNCTION(mark_as_garbage, markAsGarbage)
     auto& variable_name = argument.as_string();
 
     // In native functions we don't have a lexical environment so get the outer via the execution stack.
-    auto outer_environment = vm.execution_context_stack().last_matching([&](auto& execution_context) {
+    auto outer_environment = vm.last_execution_context_matching([&](auto* execution_context) {
         return execution_context->lexical_environment != nullptr;
     });
     if (!outer_environment.has_value())

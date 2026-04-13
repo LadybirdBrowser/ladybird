@@ -304,17 +304,18 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
     for (auto finalization_registry : m_finalization_registry_cleanup_jobs)
         roots.set(finalization_registry, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
 
-    auto gather_roots_from_execution_context_stack = [&roots](Vector<ExecutionContext*> const& stack) {
-        for (auto const& execution_context : stack) {
+    auto gather_roots_from_execution_context_stack = [&roots](Vector<ExecutionContext*> const& stack, Vector<ExecutionContext*> const& previous_running_contexts, ExecutionContext* running_execution_context) {
+        for_each_execution_context_top_to_bottom(stack, previous_running_contexts, running_execution_context, [&](ExecutionContext& execution_context) {
             ExecutionContextRootsCollector visitor;
-            execution_context->visit_edges(visitor);
+            execution_context.visit_edges(visitor);
             for (auto cell : visitor.roots)
                 roots.set(cell, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
-        }
+            return true;
+        });
     };
-    gather_roots_from_execution_context_stack(m_execution_context_stack);
-    for (auto& saved_stack : m_saved_execution_context_stacks)
-        gather_roots_from_execution_context_stack(saved_stack);
+    gather_roots_from_execution_context_stack(m_execution_context_stack, m_execution_context_stack_previous_running_contexts, m_running_execution_context);
+    for (auto const& saved_stack : m_saved_execution_context_stacks)
+        gather_roots_from_execution_context_stack(saved_stack.stack, saved_stack.previous_running_contexts, saved_stack.running_execution_context);
 
     for (auto& job : m_promise_jobs)
         roots.set(job, GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
@@ -515,53 +516,75 @@ void VM::promise_rejection_tracker(Promise& promise, Promise::RejectionOperation
 
 void VM::dump_backtrace() const
 {
-    for (ssize_t i = m_execution_context_stack.size() - 1; i >= 0; --i) {
-        auto& frame = m_execution_context_stack[i];
-
-        if (frame->executable) {
-            auto source_range = frame->executable->source_range_at(frame->program_counter).realize();
-            dbgln("-> {} @ {}:{},{}", frame->function ? frame->function->name_for_call_stack() : ""_utf16, source_range.filename(), source_range.start.line, source_range.start.column);
+    for_each_execution_context_top_to_bottom([&](ExecutionContext const& frame) {
+        if (frame.executable) {
+            auto source_range = frame.executable->source_range_at(frame.program_counter).realize();
+            dbgln("-> {} @ {}:{},{}", frame.function ? frame.function->name_for_call_stack() : ""_utf16, source_range.filename(), source_range.start.line, source_range.start.column);
         } else {
-            dbgln("-> {}", frame->function ? frame->function->name_for_call_stack() : ""_utf16);
+            dbgln("-> {}", frame.function ? frame.function->name_for_call_stack() : ""_utf16);
         }
-    }
+        return true;
+    });
 }
 
 void VM::save_execution_context_stack()
 {
-    m_saved_execution_context_stacks.append(move(m_execution_context_stack));
+    m_saved_execution_context_stacks.append({
+        .stack = move(m_execution_context_stack),
+        .previous_running_contexts = move(m_execution_context_stack_previous_running_contexts),
+        .running_execution_context = m_running_execution_context,
+    });
     m_running_execution_context = nullptr;
 }
 
 void VM::clear_execution_context_stack()
 {
     m_execution_context_stack.clear_with_capacity();
+    m_execution_context_stack_previous_running_contexts.clear_with_capacity();
     m_running_execution_context = nullptr;
 }
 
 void VM::restore_execution_context_stack()
 {
-    m_execution_context_stack = m_saved_execution_context_stacks.take_last();
-    m_running_execution_context = m_execution_context_stack.is_empty() ? nullptr : m_execution_context_stack.last();
+    auto saved_stack = m_saved_execution_context_stacks.take_last();
+    m_execution_context_stack = move(saved_stack.stack);
+    m_execution_context_stack_previous_running_contexts = move(saved_stack.previous_running_contexts);
+    m_running_execution_context = saved_stack.running_execution_context;
+}
+
+ExecutionContext* VM::previous_execution_context() const
+{
+    ExecutionContext* previous_execution_context = nullptr;
+    bool found_running_execution_context = false;
+    for_each_execution_context_top_to_bottom([&](ExecutionContext const& execution_context) {
+        if (!found_running_execution_context) {
+            found_running_execution_context = true;
+            return true;
+        }
+        previous_execution_context = const_cast<ExecutionContext*>(&execution_context);
+        return false;
+    });
+    return previous_execution_context;
 }
 
 // 9.4.1 GetActiveScriptOrModule ( ), https://tc39.es/ecma262/#sec-getactivescriptormodule
 ScriptOrModule VM::get_active_script_or_module() const
 {
     // 1. If the execution context stack is empty, return null.
-    if (m_execution_context_stack.is_empty())
+    if (!m_running_execution_context)
         return Empty {};
 
     // 2. Let ec be the topmost execution context on the execution context stack whose ScriptOrModule component is not null.
-    for (auto i = m_execution_context_stack.size() - 1; i > 0; i--) {
-        if (!m_execution_context_stack[i]->script_or_module.has<Empty>())
-            return m_execution_context_stack[i]->script_or_module;
-    }
+    ScriptOrModule script_or_module = Empty {};
+    for_each_execution_context_top_to_bottom([&](ExecutionContext const& execution_context) {
+        if (execution_context.script_or_module.has<Empty>())
+            return true;
+        script_or_module = execution_context.script_or_module;
+        return false;
+    });
 
     // 3. If no such execution context exists, return null. Otherwise, return ec's ScriptOrModule.
-    // Note: Since it is not empty we have 0 and since we got here all the
-    //       above contexts don't have a non-null ScriptOrModule
-    return m_execution_context_stack[0]->script_or_module;
+    return script_or_module;
 }
 
 VM::StoredModule* VM::get_stored_module(ImportedModuleReferrer const&, ByteString const& filename, Utf16String const&)
@@ -793,16 +816,16 @@ void VM::load_imported_module(ImportedModuleReferrer referrer, ModuleRequest con
 Vector<StackTraceElement> VM::stack_trace() const
 {
     Vector<StackTraceElement> stack_trace;
-    stack_trace.ensure_capacity(m_execution_context_stack.size());
-    for (auto* context : m_execution_context_stack.in_reverse()) {
+    for_each_execution_context_top_to_bottom([&](ExecutionContext const& context) {
         Optional<SourceRange> source_range;
-        if (context->executable)
-            source_range = context->executable->get_source_range(context->program_counter);
+        if (context.executable)
+            source_range = context.executable->get_source_range(context.program_counter);
         stack_trace.append({
-            .execution_context = context,
+            .execution_context = const_cast<ExecutionContext*>(&context),
             .source_range = move(source_range),
         });
-    }
+        return true;
+    });
 
     return stack_trace;
 }

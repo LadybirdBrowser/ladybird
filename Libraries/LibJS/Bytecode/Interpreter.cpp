@@ -225,7 +225,6 @@ VM::HandleExceptionResponse VM::handle_exception(u32 program_counter, Value exce
             auto* caller_frame = callee_frame->caller_frame;
             auto caller_pc = callee_frame->caller_return_pc;
 
-            vm().pop_execution_context();
             vm().interpreter_stack().deallocate(callee_frame);
 
             m_running_execution_context = caller_frame;
@@ -293,12 +292,8 @@ ExecutionContext* VM::push_inline_frame(
     }
     callee_context->private_environment = callee_function.m_private_environment;
 
-    // Fast-path push onto execution context stack (avoids Vector::append growth check preventing inlining).
-    auto& ec_stack = vm().execution_context_stack();
-    if (ec_stack.size() < ec_stack.capacity()) [[likely]]
-        ec_stack.unchecked_append(callee_context);
-    else
-        ec_stack.append(callee_context);
+    // Inline JS-to-JS frames stay out of the VM execution context stack and
+    // are tracked through caller_frame instead.
     m_running_execution_context = callee_context;
 
     // Bind this if the function uses it.
@@ -384,7 +379,7 @@ NEVER_INLINE bool VM::try_inline_call_construct(Instruction const& insn, u32 cur
     // InitializeInstanceElements (can throw).
     auto init_result = this_argument->initialize_instance_elements(callee_function);
     if (init_result.is_throw_completion()) [[unlikely]] {
-        vm().pop_execution_context();
+        m_running_execution_context = callee_context->caller_frame;
         vm().interpreter_stack().deallocate(callee_context);
         return false;
     }
@@ -403,7 +398,6 @@ NEVER_INLINE void VM::pop_inline_frame(Value return_value)
     if (callee_frame->caller_is_construct && !return_value.is_object())
         return_value = callee_frame->this_value.value();
 
-    vm().pop_execution_context();
     vm().interpreter_stack().deallocate(callee_frame);
 
     m_running_execution_context = caller_frame;
