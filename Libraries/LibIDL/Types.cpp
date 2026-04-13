@@ -301,6 +301,47 @@ void EffectiveOverloadSet::remove_all_other_entries()
     m_items = move(new_items);
 }
 
+void Interface::dump()
+{
+    dbgln("Attributes:");
+    for (auto& attribute : attributes) {
+        dbgln("  {}{}{}{} {}",
+            attribute.inherit ? "inherit " : "",
+            attribute.readonly ? "readonly " : "",
+            attribute.type->name(),
+            attribute.type->is_nullable() ? "?" : "",
+            attribute.name);
+    }
+
+    dbgln("Functions:");
+    for (auto& function : functions) {
+        dbgln("  {}{} {}",
+            function.return_type->name(),
+            function.return_type->is_nullable() ? "?" : "",
+            function.name);
+        for (auto& parameter : function.parameters) {
+            dbgln("    {}{} {}",
+                parameter.type->name(),
+                parameter.type->is_nullable() ? "?" : "",
+                parameter.name);
+        }
+    }
+
+    dbgln("Static Functions:");
+    for (auto& function : static_functions) {
+        dbgln("  static {}{} {}",
+            function.return_type->name(),
+            function.return_type->is_nullable() ? "?" : "",
+            function.name);
+        for (auto& parameter : function.parameters) {
+            dbgln("    {}{} {}",
+                parameter.type->name(),
+                parameter.type->is_nullable() ? "?" : "",
+                parameter.name);
+        }
+    }
+}
+
 void Interface::extend_with_partial_interface(Interface const& partial)
 {
     for (auto const& attribute : partial.attributes) {

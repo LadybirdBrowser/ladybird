@@ -263,6 +263,8 @@ class Interface {
 public:
     explicit Interface() = default;
 
+    void dump();
+
     ByteString name;
     ByteString parent_name;
     ByteString namespaced_name;
