@@ -46,7 +46,7 @@ static GC::Ref<WebIDL::Promise> compile_potential_webassembly_response(JS::VM&, 
 
 namespace Detail {
 
-HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
+GC::WeakHashMap<JS::Object, WebAssemblyCache> s_caches;
 
 WebAssemblyCache& get_cache(JS::Realm& realm)
 {
@@ -59,7 +59,7 @@ void visit_edges(JS::Object& object, JS::Cell::Visitor& visitor)
 {
     auto& global_object = HTML::relevant_global_object(object);
     if (auto maybe_cache = Detail::s_caches.get(global_object); maybe_cache.has_value()) {
-        auto& cache = maybe_cache.release_value();
+        auto& cache = maybe_cache.value();
         visitor.visit(cache.function_instances());
         visitor.visit(cache.imported_objects());
         visitor.visit(cache.extern_values());

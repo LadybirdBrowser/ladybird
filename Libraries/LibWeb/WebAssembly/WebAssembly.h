@@ -9,6 +9,7 @@
 
 #include <AK/Optional.h>
 #include <LibGC/Root.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -118,7 +119,7 @@ JS::ThrowCompletionOr<void> host_ensure_can_compile_wasm_bytes(JS::VM&);
 JS::ThrowCompletionOr<JS::HandledByHost> host_resize_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 JS::ThrowCompletionOr<JS::HandledByHost> host_grow_shared_array_buffer(JS::VM&, JS::ArrayBuffer&, size_t);
 
-extern HashMap<GC::Ptr<JS::Object>, WebAssemblyCache> s_caches;
+extern GC::WeakHashMap<JS::Object, WebAssemblyCache> s_caches;
 
 }
 
