@@ -66,8 +66,8 @@ runs:
         LLVM_TOOLCHAIN="llvm-toolchain-${UBUNTU_RELEASE}-${{ inputs.llvm_version }}"
 
         if [ ! -f "${LLVM_LIST}" ] || ! grep -q "${LLVM_TOOLCHAIN}" "${LLVM_LIST}" ; then
-          curl -f -o /usr/share/keyrings/llvm-snapshot.gpg.key https://apt.llvm.org/llvm-snapshot.gpg.key
-          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg.key] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-snapshot.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm-snapshot.gpg] http://apt.llvm.org/${UBUNTU_RELEASE}/ ${LLVM_TOOLCHAIN} main" | sudo tee "${LLVM_LIST}"
         fi
 
         sudo apt-get update -y
