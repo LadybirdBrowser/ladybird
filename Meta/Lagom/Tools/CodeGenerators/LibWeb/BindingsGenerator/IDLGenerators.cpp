@@ -4493,14 +4493,6 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 )~~~");
         }
 
-        if (attribute.extended_attributes.contains("CEReactions")) {
-            // 1. Push a new element queue onto this object's relevant agent's custom element reactions stack.
-            attribute_generator.append(R"~~~(
-    auto& reactions_stack = HTML::relevant_similar_origin_window_agent(*impl).custom_element_reactions_stack;
-    reactions_stack.element_queue_stack.append({});
-)~~~");
-        }
-
         // https://html.spec.whatwg.org/multipage/common-dom-interfaces.html#reflecting-content-attributes-in-idl-attributes
         if (attribute.extended_attributes.contains("Reflect")) {
             if (attribute.type->name() == "DOMString") {
@@ -4771,18 +4763,6 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 )~~~");
             }
 
-            if (attribute.extended_attributes.contains("CEReactions")) {
-                // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
-                // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
-                // 4. Invoke custom element reactions in queue.
-                // 5. If an exception exception was thrown by the original steps, rethrow exception.
-                // 6. If a value value was returned from the original steps, return value.
-                attribute_generator.append(R"~~~(
-    auto queue = reactions_stack.element_queue_stack.take_last();
-    Bindings::invoke_custom_element_reactions(queue);
-)~~~");
-            }
-
             if (generated_reflected_element_array) {
                 // 2. If the contents of elements is equal to the contents of this's cached attr-associated elements,
                 //    then return this's cached attr-associated elements object.
@@ -4796,28 +4776,9 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
             }
 
         } else {
-            if (!attribute.extended_attributes.contains("CEReactions")) {
-                attribute_generator.append(R"~~~(
+            attribute_generator.append(R"~~~(
     auto retval = TRY(throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); }));
 )~~~");
-            } else {
-                // 2. Run the originally-specified steps for this construct, catching any exceptions. If the steps return a value, let value be the returned value. If they throw an exception, let exception be the thrown exception.
-                // 3. Let queue be the result of popping from this object's relevant agent's custom element reactions stack.
-                // 4. Invoke custom element reactions in queue.
-                // 5. If an exception exception was thrown by the original steps, rethrow exception.
-                // 6. If a value value was returned from the original steps, return value.
-                attribute_generator.append(R"~~~(
-    auto retval_or_exception = throw_dom_exception_if_needed(vm, [&] { return impl->@attribute.cpp_name@(); });
-
-    auto queue = reactions_stack.element_queue_stack.take_last();
-    Bindings::invoke_custom_element_reactions(queue);
-
-    if (retval_or_exception.is_error())
-        return retval_or_exception.release_error();
-
-    auto retval = retval_or_exception.release_value();
-)~~~");
-            }
         }
 
         if (attribute.type->name() == "Promise"sv) {
