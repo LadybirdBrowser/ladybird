@@ -22,19 +22,13 @@ function run() {
       window.testNode = eval(window.testNodeInput);
     }
 
-    var rangeEndpoints;
     if (typeof window.testRangeInput == "undefined") {
-      // Use the hash (old way of doing things, bad because it requires
-      // navigation)
-      if (location.hash == "") {
-        return;
-      }
-      rangeEndpoints = eval(location.hash.substr(1));
-    } else {
-      // Get the variable directly off the window, faster and can be done
-      // synchronously
-      rangeEndpoints = eval(window.testRangeInput);
+      return;
     }
+
+    // Get the variable directly off the window, faster and can be done
+    // synchronously
+    var rangeEndpoints = eval(window.testRangeInput);
 
     var range;
     if (rangeEndpoints == "detached") {
