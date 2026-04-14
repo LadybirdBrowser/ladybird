@@ -94,6 +94,7 @@ runs:
             libpulse-dev \
             libssl-dev \
             libstdc++-${{ inputs.gcc_version }}-dev \
+            libtool \
             lld-${{ inputs.llvm_version }} \
             llvm-${{ inputs.llvm_version }} \
             nasm \
