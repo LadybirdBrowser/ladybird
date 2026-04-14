@@ -7,10 +7,9 @@
 
 #include "ColorMixStyleValue.h"
 #include <AK/TypeCasts.h>
+#include <LibWeb/CSS/ColorInterpolation.h>
 #include <LibWeb/CSS/Interpolation.h>
-#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
-#include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::CSS {
@@ -196,14 +195,6 @@ ColorMixStyleValue::PercentageNormalizationResult ColorMixStyleValue::normalize_
 // https://drafts.csswg.org/css-color-5/#color-mix-result
 Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolution_context) const
 {
-    // FIXME: Take the color space and hue interpolation method into account.
-    // The current implementation only uses oklab interpolation.
-    auto from_color = m_properties.first_component.color->to_color(color_resolution_context);
-    auto to_color = m_properties.second_component.color->to_color(color_resolution_context);
-
-    if (!from_color.has_value() || !to_color.has_value())
-        return {};
-
     auto p1 = m_properties.first_component.percentage
         ? Optional<Percentage>(Percentage::from_style_value(*m_properties.first_component.percentage))
         : Optional<Percentage> {};
@@ -212,9 +203,20 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
         : Optional<Percentage> {};
     auto normalized = normalize_percentage_pair(p1, p2);
 
-    auto result = interpolate_color(from_color.value(), to_color.value(), normalized.second_percentage.as_fraction(), ColorSyntax::Modern);
+    auto color_interpolation_method = m_properties.color_interpolation_method
+        ? Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>(m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method())
+        : Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod> {};
+
+    auto interpolated = interpolate_color(*m_properties.first_component.color, *m_properties.second_component.color, normalized.second_percentage.as_fraction(), color_interpolation_method, color_resolution_context);
+    if (!interpolated)
+        return {};
+
+    auto result = interpolated->to_color(color_resolution_context);
+    if (!result.has_value())
+        return {};
+
     if (normalized.alpha_multiplier < 1.0)
-        result.set_alpha(static_cast<u8>(result.alpha() * normalized.alpha_multiplier));
+        result->set_alpha(static_cast<u8>(result->alpha() * normalized.alpha_multiplier));
     return result;
 }
 
@@ -234,20 +236,14 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
     auto absolutized_first_color = m_properties.first_component.color->absolutized(context);
     auto absolutized_second_color = m_properties.second_component.color->absolutized(context);
 
-    auto from_color = absolutized_first_color->to_color(color_resolution_context);
-    auto to_color = absolutized_second_color->to_color(color_resolution_context);
     auto delta = Percentage::from_style_value(normalized_percentages.p2).as_fraction();
 
-    if (from_color.has_value() && to_color.has_value()) {
-        // FIXME: Interpolation should produce a StyleValue of some kind instead of a Gfx::Color, and use the interpolation color space.
-        auto interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, ColorSyntax::Modern);
-        return ColorFunctionStyleValue::create(
-            "srgb"sv,
-            NumberStyleValue::create(interpolated_color.red() / 255.0f),
-            NumberStyleValue::create(interpolated_color.green() / 255.0f),
-            NumberStyleValue::create(interpolated_color.blue() / 255.0f),
-            NumberStyleValue::create(interpolated_color.alpha() / 255.0f));
-    }
+    auto color_interpolation_method = absolutized_color_interpolation_method
+        ? Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>(absolutized_color_interpolation_method->as_color_interpolation_method().color_interpolation_method())
+        : Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod> {};
+
+    if (auto interpolated = interpolate_color(*absolutized_first_color, *absolutized_second_color, delta, color_interpolation_method, color_resolution_context))
+        return interpolated.release_nonnull();
 
     // Fall back to returning a color-mix() with absolutized values if we can't compute completely.
     // Currently, this is only the case if one of our colors relies on `currentcolor`, as that does not compute to a color value.

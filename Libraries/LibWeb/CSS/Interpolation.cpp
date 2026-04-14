@@ -1333,54 +1333,6 @@ RefPtr<StyleValue const> interpolate_transform(DOM::Element& element, Calculatio
     return StyleValueList::create(move(result), StyleValueList::Separator::Space);
 }
 
-Color interpolate_color(Color from, Color to, float delta, ColorSyntax syntax)
-{
-    // https://drafts.csswg.org/css-color/#interpolation
-    // FIXME: Handle all interpolation methods.
-    // FIXME: Handle "analogous", "missing", and "powerless" components, somehow.
-    // FIXME: Remove duplicated code with Color::mixed_with(Color other, float weight)
-
-    // https://drafts.csswg.org/css-color/#interpolation-space
-    // If the host syntax does not define what color space interpolation should take place in, it defaults to Oklab.
-    // However, user agents must handle interpolation between legacy sRGB color formats (hex colors, named colors,
-    // rgb(), hsl() or hwb() and the equivalent alpha-including forms) in gamma-encoded sRGB space.  This provides
-    // Web compatibility; legacy sRGB content interpolates in the sRGB space by default.
-
-    auto from_alpha = from.alpha() / 255.0f;
-    auto to_alpha = to.alpha() / 255.0f;
-    auto interpolated_alpha = interpolate_raw(from_alpha, to_alpha, delta);
-
-    auto clamped_alpha = clamp(interpolated_alpha, 0.0f, 1.0f);
-    if (clamped_alpha == 0)
-        return Color::Transparent;
-
-    // 5. changing the color components to premultiplied form
-    // 6. linearly interpolating each component of the computed value of the color separately
-    // 7. undoing premultiplication
-    if (syntax == ColorSyntax::Modern) {
-        auto from_oklab = from.to_premultiplied_oklab();
-        auto to_oklab = to.to_premultiplied_oklab();
-        return Color::from_oklab(
-            interpolate_raw(from_oklab.L, to_oklab.L, delta) / clamped_alpha,
-            interpolate_raw(from_oklab.a, to_oklab.a, delta) / clamped_alpha,
-            interpolate_raw(from_oklab.b, to_oklab.b, delta) / clamped_alpha,
-            clamped_alpha);
-    }
-
-    auto premultiply_interpolate_unpremultiply = [&](u8 from_channel, u8 to_channel) -> u8 {
-        auto pre_from = from_channel * from_alpha;
-        auto pre_to = to_channel * to_alpha;
-        auto interpolated = interpolate_raw(pre_from, pre_to, delta);
-        return clamp(lroundf(interpolated / clamped_alpha), 0L, 255L);
-    };
-    return Color {
-        premultiply_interpolate_unpremultiply(from.red(), to.red()),
-        premultiply_interpolate_unpremultiply(from.green(), to.green()),
-        premultiply_interpolate_unpremultiply(from.blue(), to.blue()),
-        static_cast<u8>(lroundf(clamped_alpha * 255.0f)),
-    };
-}
-
 RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, CalculationContext const& calculation_context, StyleValue const& from, StyleValue const& to, float delta, AllowDiscrete allow_discrete)
 {
     // https://drafts.csswg.org/css-backgrounds/#box-shadow
@@ -1435,25 +1387,13 @@ RefPtr<StyleValue const> interpolate_box_shadow(DOM::Element& element, Calculati
         if (!interpolated_offset_x || !interpolated_offset_y || !interpolated_blur_radius || !interpolated_spread_distance)
             return {};
 
-        auto color_syntax = ColorSyntax::Legacy;
-        if ((!from_shadow.color()->is_keyword() && from_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)
-            || (!to_shadow.color()->is_keyword() && to_shadow.color()->as_color().color_syntax() == ColorSyntax::Modern)) {
-            color_syntax = ColorSyntax::Modern;
-        }
-
-        // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
-        //        by creating something similar to a ColorMixStyleValue).
-        auto from_color = from_shadow.color()->to_color(color_resolution_context);
-        auto to_color = to_shadow.color()->to_color(color_resolution_context);
-
-        Color interpolated_color = Color::Black;
-
-        if (from_color.has_value() && to_color.has_value())
-            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
+        auto interpolated_color_value = interpolate_color(*from_shadow.color(), *to_shadow.color(), delta, {}, color_resolution_context);
+        if (!interpolated_color_value)
+            interpolated_color_value = ColorStyleValue::create_from_color(Color::Black, ColorSyntax::Modern);
 
         auto result_shadow = ShadowStyleValue::create(
             from_shadow.shadow_type(),
-            ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern),
+            interpolated_color_value.release_nonnull(),
             *interpolated_offset_x,
             *interpolated_offset_y,
             *interpolated_blur_radius,
@@ -1751,23 +1691,9 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
             color_resolution_context = ColorResolutionContext::for_layout_node_with_style(*element.unsafe_layout_node());
         }
 
-        auto color_syntax = ColorSyntax::Legacy;
-        if ((!from.is_keyword() && from.as_color().color_syntax() == ColorSyntax::Modern)
-            || (!to.is_keyword() && to.as_color().color_syntax() == ColorSyntax::Modern)) {
-            color_syntax = ColorSyntax::Modern;
-        }
-
-        // FIXME: If we aren't able to resolve the colors here, we should postpone interpolation until we can (perhaps
-        //        by creating something similar to a ColorMixStyleValue).
-        auto from_color = from.to_color(color_resolution_context);
-        auto to_color = to.to_color(color_resolution_context);
-
-        Color interpolated_color = Color::Black;
-
-        if (from_color.has_value() && to_color.has_value())
-            interpolated_color = interpolate_color(from_color.value(), to_color.value(), delta, color_syntax);
-
-        return ColorStyleValue::create_from_color(interpolated_color, ColorSyntax::Modern);
+        if (auto interpolated = interpolate_color(from, to, delta, {}, color_resolution_context))
+            return interpolated;
+        return ColorStyleValue::create_from_color(Color::Black, ColorSyntax::Modern);
     }
     case StyleValue::Type::Edge: {
         auto const& from_offset = from.as_edge().offset();

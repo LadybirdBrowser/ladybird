@@ -32,6 +32,9 @@ public:
 
     virtual bool is_color_function() const override { return true; }
 
+    StyleValue const& channel(size_t index) const { return *m_properties.channels[index]; }
+    StyleValue const& alpha() const { return *m_properties.alpha; }
+
     static constexpr Array s_supported_color_space = { "a98-rgb"sv, "display-p3"sv, "display-p3-linear"sv, "srgb"sv, "srgb-linear"sv, "prophoto-rgb"sv, "rec2020"sv, "xyz"sv, "xyz-d50"sv, "xyz-d65"sv };
 
 private:

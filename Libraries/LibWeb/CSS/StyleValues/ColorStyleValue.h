@@ -50,6 +50,10 @@ public:
     ColorType color_type() const { return m_color_type; }
     ColorSyntax color_syntax() const { return m_color_syntax; }
 
+    static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
+    static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
+    static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
+
 protected:
     explicit ColorStyleValue(ColorType color_type, ColorSyntax color_syntax)
         : StyleValue(Type::Color)
@@ -57,10 +61,6 @@ protected:
         , m_color_syntax(color_syntax)
     {
     }
-
-    static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
-    static Optional<double> resolve_with_reference_value(StyleValue const&, float one_hundred_percent_value, CalculationResolutionContext const&);
-    static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
 
     void serialize_color_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component, float one_hundred_percent_value, Optional<double> clamp_min = {}, Optional<double> clamp_max = {}) const;
     void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
