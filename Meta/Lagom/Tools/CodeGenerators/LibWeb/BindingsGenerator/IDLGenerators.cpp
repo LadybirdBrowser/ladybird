@@ -900,6 +900,59 @@ static void generate_object_to_cpp(SourceGenerator& scoped_generator, IDL::Type 
     }
 }
 
+static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional)
+{
+    size_t buffer_source_nesting_level = optional ? 2 : 1;
+    auto buffer_source_indent = ByteString::repeated(' ', buffer_source_nesting_level * 4);
+    scoped_generator.set("buffer_source.indent", buffer_source_indent);
+
+    if (optional || type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    Optional<GC::Root<WebIDL::BufferSource>> @cpp_name@;
+)~~~");
+    } else {
+        scoped_generator.append(R"~~~(
+    GC::Root<WebIDL::BufferSource> @cpp_name@;
+)~~~");
+    }
+
+    if (optional) {
+        scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined()) {
+)~~~");
+    } else if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    if (@js_name@@js_suffix@.is_undefined())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+)~~~");
+    }
+
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+@buffer_source.indent@if (!@js_name@@js_suffix@.is_null()) {
+)~~~");
+    }
+
+    scoped_generator.append(R"~~~(
+@buffer_source.indent@    if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
+@buffer_source.indent@        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+@buffer_source.indent@    @cpp_name@ = GC::make_root(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
+)~~~");
+
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+@buffer_source.indent@}
+)~~~");
+    }
+
+    if (optional) {
+        scoped_generator.append(R"~~~(
+    }
+)~~~");
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -957,56 +1010,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "object") {
         generate_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (is_javascript_builtin_buffer_source_type(parameter.type) || parameter.type->name() == "BufferSource"sv) {
-        size_t buffer_source_nesting_level = optional ? 2 : 1;
-        auto buffer_source_indent = ByteString::repeated(' ', buffer_source_nesting_level * 4);
-        scoped_generator.set("buffer_source.indent", buffer_source_indent);
-
-        if (optional || parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-    Optional<GC::Root<WebIDL::BufferSource>> @cpp_name@;
-)~~~");
-        } else {
-            scoped_generator.append(R"~~~(
-    GC::Root<WebIDL::BufferSource> @cpp_name@;
-)~~~");
-        }
-
-        if (optional) {
-            scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_undefined()) {
-)~~~");
-        } else if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-    if (@js_name@@js_suffix@.is_undefined())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-)~~~");
-        }
-
-        if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-@buffer_source.indent@if (!@js_name@@js_suffix@.is_null()) {
-)~~~");
-        }
-
-        scoped_generator.append(R"~~~(
-@buffer_source.indent@    if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::ArrayBuffer>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
-@buffer_source.indent@        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-@buffer_source.indent@    @cpp_name@ = GC::make_root(realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@.as_object()));
-)~~~");
-
-        if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-@buffer_source.indent@}
-)~~~");
-        }
-
-        if (optional) {
-            scoped_generator.append(R"~~~(
-    }
-)~~~");
-        }
-
+        generate_buffer_source_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->name() == "ArrayBufferView") {
         scoped_generator.append(R"~~~(
     GC::Root<WebIDL::ArrayBufferView> @cpp_name@;
