@@ -795,6 +795,62 @@ static void generate_platform_object_to_cpp(SourceGenerator& scoped_generator, I
     }
 }
 
+static void generate_floating_point_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional, Optional<ByteString> const& optional_default_value)
+{
+    if (type.name() == "unrestricted float") {
+        scoped_generator.set("parameter.type.name", "float");
+    } else if (type.name() == "unrestricted double") {
+        scoped_generator.set("parameter.type.name", "double");
+    }
+
+    bool is_wrapped_in_optional_type = false;
+    if (!optional) {
+        scoped_generator.append(R"~~~(
+    @parameter.type.name@ @cpp_name@ = TRY(@js_name@@js_suffix@.to_double(vm));
+)~~~");
+    } else {
+        if (optional_default_value.has_value() && optional_default_value != "null"sv) {
+            scoped_generator.append(R"~~~(
+    @parameter.type.name@ @cpp_name@;
+)~~~");
+        } else {
+            is_wrapped_in_optional_type = true;
+            scoped_generator.append(R"~~~(
+    Optional<@parameter.type.name@> @cpp_name@;
+)~~~");
+        }
+        scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined())
+        @cpp_name@ = TRY(@js_name@@js_suffix@.to_double(vm));
+)~~~");
+        if (optional_default_value.has_value() && optional_default_value.value() != "null"sv) {
+            scoped_generator.append(R"~~~(
+    else
+        @cpp_name@ = @parameter.optional_default_value@;
+)~~~");
+        } else {
+            scoped_generator.append(R"~~~(
+)~~~");
+        }
+    }
+
+    if (type.is_restricted_floating_point()) {
+        if (is_wrapped_in_optional_type) {
+            scoped_generator.append(R"~~~(
+    if (@cpp_name@.has_value() && (isinf(*@cpp_name@) || isnan(*@cpp_name@))) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidRestrictedFloatingPointParameter, "@parameter.name@");
+    }
+    )~~~");
+        } else {
+            scoped_generator.append(R"~~~(
+    if (isinf(@cpp_name@) || isnan(@cpp_name@)) {
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidRestrictedFloatingPointParameter, "@parameter.name@");
+    }
+    )~~~");
+        }
+    }
+}
+
 static void generate_promise_to_cpp(SourceGenerator& scoped_generator)
 {
     // https://webidl.spec.whatwg.org/#js-promise
@@ -891,58 +947,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (IDL::is_platform_object(*parameter.type)) {
         generate_platform_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->is_floating_point()) {
-        if (parameter.type->name() == "unrestricted float") {
-            scoped_generator.set("parameter.type.name", "float");
-        } else if (parameter.type->name() == "unrestricted double") {
-            scoped_generator.set("parameter.type.name", "double");
-        }
-
-        bool is_wrapped_in_optional_type = false;
-        if (!optional) {
-            scoped_generator.append(R"~~~(
-    @parameter.type.name@ @cpp_name@ = TRY(@js_name@@js_suffix@.to_double(vm));
-)~~~");
-        } else {
-            if (optional_default_value.has_value() && optional_default_value != "null"sv) {
-                scoped_generator.append(R"~~~(
-    @parameter.type.name@ @cpp_name@;
-)~~~");
-            } else {
-                is_wrapped_in_optional_type = true;
-                scoped_generator.append(R"~~~(
-    Optional<@parameter.type.name@> @cpp_name@;
-)~~~");
-            }
-            scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_undefined())
-        @cpp_name@ = TRY(@js_name@@js_suffix@.to_double(vm));
-)~~~");
-            if (optional_default_value.has_value() && optional_default_value.value() != "null"sv) {
-                scoped_generator.append(R"~~~(
-    else
-        @cpp_name@ = @parameter.optional_default_value@;
-)~~~");
-            } else {
-                scoped_generator.append(R"~~~(
-)~~~");
-            }
-        }
-
-        if (parameter.type->is_restricted_floating_point()) {
-            if (is_wrapped_in_optional_type) {
-                scoped_generator.append(R"~~~(
-    if (@cpp_name@.has_value() && (isinf(*@cpp_name@) || isnan(*@cpp_name@))) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidRestrictedFloatingPointParameter, "@parameter.name@");
-    }
-    )~~~");
-            } else {
-                scoped_generator.append(R"~~~(
-    if (isinf(@cpp_name@) || isnan(@cpp_name@)) {
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidRestrictedFloatingPointParameter, "@parameter.name@");
-    }
-    )~~~");
-            }
-        }
+        generate_floating_point_to_cpp(scoped_generator, *parameter.type, optional, optional_default_value);
     } else if (parameter.type->name() == "Promise") {
         generate_promise_to_cpp(scoped_generator);
     } else if (parameter.type->name() == "object") {
