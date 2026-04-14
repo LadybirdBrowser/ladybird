@@ -94,6 +94,13 @@
 //!
 //! - `load64 dst, [base, offset]` -- Load 64-bit value.
 //! - `load32 dst, [base, offset]` -- Load 32-bit value, zero-extended to 64.
+//! - `load_pair64 dst1, dst2, mem1, mem2` -- Load two adjacent 64-bit values.
+//!   The DSL must name both memory operands explicitly; AsmIntGen verifies that
+//!   `mem2` is immediately after `mem1`, then lowers to a paired load where the
+//!   target supports it.
+//! - `load_pair32 dst1, dst2, mem1, mem2` -- Load two adjacent 32-bit values.
+//!   Like `load_pair64`, both operands must be named and adjacent or codegen
+//!   rejects the handler.
 //! - `load16 dst, [base, offset]` -- Load 16-bit value, zero-extended to 64.
 //! - `load8 dst, [base, offset]` -- Load 8-bit value, zero-extended to 64.
 //! - `load16s dst, [base, offset]` -- Load 16-bit value, sign-extended.

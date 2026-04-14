@@ -5,8 +5,11 @@
  */
 
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
-use crate::registers::{resolve_register, Arch};
-use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w, HandlerState};
+use crate::registers::{Arch, resolve_register};
+use crate::shared::{
+    AdjacentLoadPair, HandlerState, get_immediate_value, resolve_adjacent_load_pair,
+    resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w,
+};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -255,9 +258,21 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     emit_mov_imm(out, "x9", canon_nan);
     w!(out, "    fmov d8, x9              // d8 = CANON_NAN_BITS");
     // Pin frequently-compared tag constants in callee-saved registers.
-    let int32_tag = program.constants.get("INT32_TAG").copied().expect("INT32_TAG constant required");
-    let boolean_tag = program.constants.get("BOOLEAN_TAG").copied().expect("BOOLEAN_TAG constant required");
-    let nan_base_tag = program.constants.get("NAN_BASE_TAG").copied().expect("NAN_BASE_TAG constant required");
+    let int32_tag = program
+        .constants
+        .get("INT32_TAG")
+        .copied()
+        .expect("INT32_TAG constant required");
+    let boolean_tag = program
+        .constants
+        .get("BOOLEAN_TAG")
+        .copied()
+        .expect("BOOLEAN_TAG constant required");
+    let nan_base_tag = program
+        .constants
+        .get("NAN_BASE_TAG")
+        .copied()
+        .expect("NAN_BASE_TAG constant required");
     emit_mov_imm(out, "x22", int32_tag);
     w!(out, "    // x22 = INT32_TAG");
     emit_mov_imm(out, "x23", boolean_tag);
@@ -266,7 +281,10 @@ fn generate_entry_point(out: &mut String, program: &Program) {
     w!(out, "    // x24 = NAN_BASE_TAG");
 
     // Dispatch to first instruction (x21 = pb + entry_point)
-    w!(out, "    add x21, x26, w1, uxtw   // x21 = pb + entry_point");
+    w!(
+        out,
+        "    add x21, x26, w1, uxtw   // x21 = pb + entry_point"
+    );
     w!(out, "    ldrb w9, [x21]           // w9 = opcode byte");
     w!(out, "    ldr x10, [x19, x9, lsl #3]");
     w!(out, "    br x10");
@@ -368,7 +386,12 @@ fn handler_size(handler: &Handler, program: &Program) -> u32 {
     }) as u32
 }
 
-fn generate_handler(out: &mut String, handler: &Handler, program: &Program, pinned: &PinnedConstants) {
+fn generate_handler(
+    out: &mut String,
+    handler: &Handler,
+    program: &Program,
+    pinned: &PinnedConstants,
+) {
     w!(out, ".p2align 4");
     w!(out, "asm_handler_{}:", handler.name);
     // x21 = pb + pc is set by the dispatch sequence that branches here.
@@ -537,6 +560,60 @@ fn emit_ldr32(out: &mut String, dst: &str, base: &str, offset: i64) {
     } else {
         emit_mov_imm(out, "x9", offset);
         w!(out, "    ldr {dst}, [{base}, x9]");
+    }
+}
+
+fn can_encode_ldp_offset(offset: i64, element_size: i64) -> bool {
+    match element_size {
+        4 => (-256..=252).contains(&offset) && offset % 4 == 0,
+        8 => (-512..=504).contains(&offset) && offset % 8 == 0,
+        _ => false,
+    }
+}
+
+fn emit_load_pair(
+    out: &mut String,
+    dst1: &str,
+    dst2: &str,
+    pair: &AdjacentLoadPair,
+    element_size: i64,
+) {
+    let base = if let Some(index) = &pair.index {
+        if pair.base == "x26" && index == "x25" {
+            "x21"
+        } else {
+            w!(out, "    add x10, {}, {index}", pair.base);
+            "x10"
+        }
+    } else {
+        pair.base.as_str()
+    };
+
+    let first_offset = pair.first_offset;
+    if can_encode_ldp_offset(first_offset, element_size) {
+        match element_size {
+            4 => w!(
+                out,
+                "    ldp {}, {}, [{base}, #{first_offset}]",
+                to_w_reg(dst1),
+                to_w_reg(dst2)
+            ),
+            8 => w!(out, "    ldp {dst1}, {dst2}, [{base}, #{first_offset}]"),
+            _ => unreachable!("unsupported paired load size"),
+        }
+        return;
+    }
+
+    match element_size {
+        4 => {
+            emit_ldr32(out, &to_w_reg(dst1), base, first_offset);
+            emit_ldr32(out, &to_w_reg(dst2), base, first_offset + 4);
+        }
+        8 => {
+            emit_ldr64(out, dst1, base, first_offset);
+            emit_ldr64(out, dst2, base, first_offset + 8);
+        }
+        _ => unreachable!("unsupported paired load size"),
     }
 }
 
@@ -1179,6 +1256,44 @@ fn emit_instruction(
             }
         }
 
+        "load_pair64" => {
+            if insn.operands.len() >= 4 {
+                let pair = resolve_adjacent_load_pair(
+                    &insn.operands[2],
+                    &insn.operands[3],
+                    handler,
+                    program,
+                    Arch::Aarch64,
+                    8,
+                )
+                .unwrap_or_else(|error| {
+                    panic!("invalid load_pair64 in handler '{}': {error}", handler.name)
+                });
+                let dst1 = resolve_op(&insn.operands[0], handler, program);
+                let dst2 = resolve_op(&insn.operands[1], handler, program);
+                emit_load_pair(out, &dst1, &dst2, &pair, 8);
+            }
+        }
+
+        "load_pair32" => {
+            if insn.operands.len() >= 4 {
+                let pair = resolve_adjacent_load_pair(
+                    &insn.operands[2],
+                    &insn.operands[3],
+                    handler,
+                    program,
+                    Arch::Aarch64,
+                    4,
+                )
+                .unwrap_or_else(|error| {
+                    panic!("invalid load_pair32 in handler '{}': {error}", handler.name)
+                });
+                let dst1 = resolve_op(&insn.operands[0], handler, program);
+                let dst2 = resolve_op(&insn.operands[1], handler, program);
+                emit_load_pair(out, &dst1, &dst2, &pair, 4);
+            }
+        }
+
         // load8 dst_reg, [base, offset]
         "load8" => {
             if insn.operands.len() >= 2 {
@@ -1580,7 +1695,11 @@ fn emit_instruction(
                 let dst = resolve_op(&insn.operands[0], handler, program);
                 let wdst = to_w_reg(&dst);
                 let label = resolve_label(&insn.operands[2], handler);
-                let op = if m == "add32_overflow" { "adds" } else { "subs" };
+                let op = if m == "add32_overflow" {
+                    "adds"
+                } else {
+                    "subs"
+                };
                 if let Some(val) = get_immediate_value(&insn.operands[1], program) {
                     if val > 0 && val <= 4095 {
                         w!(out, "    {op} {wdst}, {wdst}, #{val}");
@@ -1912,9 +2031,8 @@ fn emit_instruction(
         }
 
         // Architecture-neutral branch operations.
-        "branch_eq" | "branch_ne" | "branch_ge_unsigned"
-        | "branch_lt_signed" | "branch_le_signed"
-        | "branch_gt_signed" | "branch_ge_signed" => {
+        "branch_eq" | "branch_ne" | "branch_ge_unsigned" | "branch_lt_signed"
+        | "branch_le_signed" | "branch_gt_signed" | "branch_ge_signed" => {
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);
                 let b = resolve_op(&insn.operands[1], handler, program);
@@ -2032,8 +2150,11 @@ fn emit_instruction(
         // Floating-point compare-and-branch operations.
         // Consecutive branch_fp_* with the same operands share one fcmp,
         // since fcmp sets all the flags these branches test.
-        "branch_fp_unordered" | "branch_fp_equal" | "branch_fp_less"
-        | "branch_fp_less_or_equal" | "branch_fp_greater"
+        "branch_fp_unordered"
+        | "branch_fp_equal"
+        | "branch_fp_less"
+        | "branch_fp_less_or_equal"
+        | "branch_fp_greater"
         | "branch_fp_greater_or_equal" => {
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);

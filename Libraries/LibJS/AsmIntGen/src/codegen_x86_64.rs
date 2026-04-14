@@ -5,8 +5,11 @@
  */
 
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
-use crate::registers::{resolve_register, Arch};
-use crate::shared::{get_immediate_value, resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w, HandlerState};
+use crate::registers::{Arch, resolve_register};
+use crate::shared::{
+    HandlerState, get_immediate_value, resolve_adjacent_load_pair, resolve_field_ref,
+    resolve_label, substitute_macro, uniquify_macro_labels, w,
+};
 use std::collections::HashMap;
 use std::fmt::Write;
 
@@ -178,10 +181,7 @@ fn generate_entry_point(out: &mut String, program: &Program) {
         .get("VM_RUNNING_EXECUTION_CONTEXT")
         .copied()
         .expect("VM_RUNNING_EXECUTION_CONTEXT constant required");
-    w!(
-        out,
-        "    mov QWORD PTR [rbp - 48], rcx  # save VM*"
-    );
+    w!(out, "    mov QWORD PTR [rbp - 48], rcx  # save VM*");
     w!(
         out,
         "    mov rbx, QWORD PTR [rcx + {interp_ctx}]  # exec_ctx"
@@ -364,7 +364,13 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
     }
 }
 
-fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, program: &Program, state: &mut HandlerState) {
+fn emit_instruction(
+    out: &mut String,
+    insn: &AsmInstruction,
+    handler: &Handler,
+    program: &Program,
+    state: &mut HandlerState,
+) {
     let m = &insn.mnemonic;
 
     match m.as_str() {
@@ -760,6 +766,52 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
             }
         }
 
+        "load_pair64" => {
+            if insn.operands.len() >= 4 {
+                resolve_adjacent_load_pair(
+                    &insn.operands[2],
+                    &insn.operands[3],
+                    handler,
+                    program,
+                    Arch::X86_64,
+                    8,
+                )
+                .unwrap_or_else(|error| {
+                    panic!("invalid load_pair64 in handler '{}': {error}", handler.name)
+                });
+
+                let dst1 = resolve_op(&insn.operands[0], handler, program);
+                let dst2 = resolve_op(&insn.operands[1], handler, program);
+                let mem1 = resolve_op(&insn.operands[2], handler, program);
+                let mem2 = resolve_op(&insn.operands[3], handler, program);
+                w!(out, "    mov {dst1}, QWORD PTR {mem1}");
+                w!(out, "    mov {dst2}, QWORD PTR {mem2}");
+            }
+        }
+
+        "load_pair32" => {
+            if insn.operands.len() >= 4 {
+                resolve_adjacent_load_pair(
+                    &insn.operands[2],
+                    &insn.operands[3],
+                    handler,
+                    program,
+                    Arch::X86_64,
+                    4,
+                )
+                .unwrap_or_else(|error| {
+                    panic!("invalid load_pair32 in handler '{}': {error}", handler.name)
+                });
+
+                let dst1 = resolve_op(&insn.operands[0], handler, program);
+                let dst2 = resolve_op(&insn.operands[1], handler, program);
+                let mem1 = resolve_op(&insn.operands[2], handler, program);
+                let mem2 = resolve_op(&insn.operands[3], handler, program);
+                w!(out, "    mov {}, DWORD PTR {mem1}", to_32bit_reg(&dst1));
+                w!(out, "    mov {}, DWORD PTR {mem2}", to_32bit_reg(&dst2));
+            }
+        }
+
         // load8 dst_reg, [base, offset] - Load 8-bit value (zero-extended to 64-bit)
         "load8" => {
             if insn.operands.len() >= 2 {
@@ -1080,9 +1132,8 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         // Architecture-neutral branch operations.
         // These encode the comparison and branch as a single DSL operation,
         // freeing backends from x86 flag-register semantics.
-        "branch_eq" | "branch_ne" | "branch_ge_unsigned"
-        | "branch_lt_signed" | "branch_le_signed"
-        | "branch_gt_signed" | "branch_ge_signed" => {
+        "branch_eq" | "branch_ne" | "branch_ge_unsigned" | "branch_lt_signed"
+        | "branch_le_signed" | "branch_gt_signed" | "branch_ge_signed" => {
             // branch_XX a, b, label  =>  cmp a, b; jXX label
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);
@@ -1181,8 +1232,11 @@ fn emit_instruction(out: &mut String, insn: &AsmInstruction, handler: &Handler, 
         // Floating-point compare-and-branch operations.
         // Consecutive branch_fp_* with the same operands share one ucomisd,
         // since ucomisd sets all the flags these branches test.
-        "branch_fp_unordered" | "branch_fp_equal" | "branch_fp_less"
-        | "branch_fp_less_or_equal" | "branch_fp_greater"
+        "branch_fp_unordered"
+        | "branch_fp_equal"
+        | "branch_fp_less"
+        | "branch_fp_less_or_equal"
+        | "branch_fp_greater"
         | "branch_fp_greater_or_equal" => {
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);

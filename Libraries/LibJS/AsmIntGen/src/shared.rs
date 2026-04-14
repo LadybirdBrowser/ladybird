@@ -5,6 +5,7 @@
  */
 
 use crate::parser::{AsmInstruction, Handler, Operand, Program};
+use crate::registers::{Arch, resolve_register};
 use std::collections::HashMap;
 
 /// Like `writeln!`, but without the `.unwrap()` -- writing to a `String` is infallible.
@@ -30,12 +31,8 @@ pub fn substitute_macro(
     insn: &AsmInstruction,
     param_map: &HashMap<String, String>,
 ) -> AsmInstruction {
-    let substitute_name = |name: &String| {
-        param_map
-            .get(name)
-            .cloned()
-            .unwrap_or_else(|| name.clone())
-    };
+    let substitute_name =
+        |name: &String| param_map.get(name).cloned().unwrap_or_else(|| name.clone());
 
     let operands = insn
         .operands
@@ -178,6 +175,28 @@ impl HandlerState {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ResolvedMemoryIndex {
+    None,
+    Imm(i64),
+    Reg(String),
+    RegScale(String, i64),
+    RegImm(String, i64),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ResolvedMemoryOperand {
+    pub base: String,
+    pub index: ResolvedMemoryIndex,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AdjacentLoadPair {
+    pub base: String,
+    pub index: Option<String>,
+    pub first_offset: i64,
+}
+
 /// Resolve a field reference (m_*) to its byte offset within the handler's opcode.
 pub fn resolve_field_ref(s: &str, handler: &Handler, program: &Program) -> Option<usize> {
     if !s.starts_with("m_") {
@@ -185,4 +204,219 @@ pub fn resolve_field_ref(s: &str, handler: &Handler, program: &Program) -> Optio
     }
     let layout = program.op_layouts.get(&handler.name)?;
     layout.field_offsets.get(s).copied()
+}
+
+fn resolve_memory_immediate(s: &str, handler: &Handler, program: &Program) -> Option<i64> {
+    resolve_field_ref(s, handler, program)
+        .map(|offset| offset as i64)
+        .or_else(|| program.constants.get(s).copied())
+        .or_else(|| s.parse::<i64>().ok())
+}
+
+pub fn resolve_memory_operand(
+    op: &Operand,
+    handler: &Handler,
+    program: &Program,
+    arch: Arch,
+) -> Result<ResolvedMemoryOperand, String> {
+    let Operand::Memory { base, index, scale } = op else {
+        return Err(format!("expected memory operand, got {op:?}"));
+    };
+
+    let base = resolve_register(base, arch).unwrap_or_else(|| base.clone());
+    let index = match (index, scale) {
+        (Some(index), Some(scale)) => {
+            let index = resolve_register(index, arch).unwrap_or_else(|| index.clone());
+            if let Some(offset) = resolve_memory_immediate(scale, handler, program) {
+                ResolvedMemoryIndex::RegImm(index, offset)
+            } else {
+                let scale = program
+                    .constants
+                    .get(scale.as_str())
+                    .copied()
+                    .or_else(|| scale.parse::<i64>().ok())
+                    .ok_or_else(|| format!("invalid memory scale '{scale}'"))?;
+                ResolvedMemoryIndex::RegScale(index, scale)
+            }
+        }
+        (Some(index), None) => {
+            if let Some(offset) = resolve_memory_immediate(index, handler, program) {
+                ResolvedMemoryIndex::Imm(offset)
+            } else {
+                let index = resolve_register(index, arch).unwrap_or_else(|| index.clone());
+                ResolvedMemoryIndex::Reg(index)
+            }
+        }
+        (None, _) => ResolvedMemoryIndex::None,
+    };
+
+    Ok(ResolvedMemoryOperand { base, index })
+}
+
+fn pairable_memory_address(
+    mem: &ResolvedMemoryOperand,
+) -> Result<(String, Option<String>, i64), String> {
+    match &mem.index {
+        ResolvedMemoryIndex::None => Ok((mem.base.clone(), None, 0)),
+        ResolvedMemoryIndex::Imm(offset) => Ok((mem.base.clone(), None, *offset)),
+        ResolvedMemoryIndex::RegImm(index, offset) => {
+            Ok((mem.base.clone(), Some(index.clone()), *offset))
+        }
+        ResolvedMemoryIndex::Reg(index) => Err(format!(
+            "paired loads require explicit offsets, got indexed address with base '{}' and index '{}'",
+            mem.base, index
+        )),
+        ResolvedMemoryIndex::RegScale(index, scale) => Err(format!(
+            "paired loads require explicit offsets, got scaled address with base '{}', index '{}', and scale {}",
+            mem.base, index, scale
+        )),
+    }
+}
+
+pub fn resolve_adjacent_load_pair(
+    first: &Operand,
+    second: &Operand,
+    handler: &Handler,
+    program: &Program,
+    arch: Arch,
+    element_size: i64,
+) -> Result<AdjacentLoadPair, String> {
+    let first = resolve_memory_operand(first, handler, program, arch)?;
+    let second = resolve_memory_operand(second, handler, program, arch)?;
+
+    let (first_base, first_index, first_offset) = pairable_memory_address(&first)?;
+    let (second_base, second_index, second_offset) = pairable_memory_address(&second)?;
+
+    if first_base != second_base || first_index != second_index {
+        return Err(format!(
+            "paired loads must use the same base and index, got {first:?} and {second:?}"
+        ));
+    }
+
+    if second_offset != first_offset + element_size {
+        return Err(format!(
+            "paired loads must name adjacent {element_size}-byte fields in order, got offsets {first_offset} and {second_offset}"
+        ));
+    }
+
+    Ok(AdjacentLoadPair {
+        base: first_base,
+        index: first_index,
+        first_offset,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::{Handler, ObjectFormat, Program};
+    use bytecode_def::OpLayout;
+
+    fn test_program() -> Program {
+        let mut op_layouts = HashMap::new();
+        op_layouts.insert(
+            "Call".into(),
+            OpLayout {
+                field_offsets: HashMap::from([
+                    ("m_length".into(), 4),
+                    ("m_dst".into(), 8),
+                    ("m_callee".into(), 12),
+                    ("m_this_value".into(), 16),
+                    ("m_argument_count".into(), 20),
+                ]),
+                size: None,
+            },
+        );
+
+        Program {
+            constants: HashMap::new(),
+            macros: HashMap::new(),
+            handlers: Vec::new(),
+            op_layouts,
+            opcode_list: Vec::new(),
+            object_format: ObjectFormat::MachO,
+            has_jscvt: false,
+        }
+    }
+
+    fn call_handler() -> Handler {
+        Handler {
+            name: "Call".into(),
+            size: None,
+            instructions: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn resolves_adjacent_bytecode_field_pair() {
+        let program = test_program();
+        let handler = call_handler();
+        let first = Operand::Memory {
+            base: "pb".into(),
+            index: Some("pc".into()),
+            scale: Some("m_length".into()),
+        };
+        let second = Operand::Memory {
+            base: "pb".into(),
+            index: Some("pc".into()),
+            scale: Some("m_dst".into()),
+        };
+
+        let pair =
+            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
+                .expect("adjacent bytecode fields should validate");
+
+        assert_eq!(
+            pair,
+            AdjacentLoadPair {
+                base: "x26".into(),
+                index: Some("x25".into()),
+                first_offset: 4,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_reversed_field_order() {
+        let program = test_program();
+        let handler = call_handler();
+        let first = Operand::Memory {
+            base: "pb".into(),
+            index: Some("pc".into()),
+            scale: Some("m_dst".into()),
+        };
+        let second = Operand::Memory {
+            base: "pb".into(),
+            index: Some("pc".into()),
+            scale: Some("m_length".into()),
+        };
+
+        let error =
+            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
+                .expect_err("reversed field order should be rejected");
+
+        assert!(error.contains("adjacent 4-byte fields"));
+    }
+
+    #[test]
+    fn rejects_non_adjacent_offsets() {
+        let program = test_program();
+        let handler = call_handler();
+        let first = Operand::Memory {
+            base: "t0".into(),
+            index: Some("0".into()),
+            scale: None,
+        };
+        let second = Operand::Memory {
+            base: "t0".into(),
+            index: Some("16".into()),
+            scale: None,
+        };
+
+        let error =
+            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::X86_64, 8)
+                .expect_err("non-adjacent offsets should be rejected");
+
+        assert!(error.contains("adjacent 8-byte fields"));
+    }
 }
