@@ -2090,9 +2090,8 @@ handler Call
 
     load_vm t0
     lea t0, [t0, VM_INTERPRETER_STACK]
-    load64 t6, [t0, INTERPRETER_STACK_TOP]
+    load_pair64 t6, t0, [t0, INTERPRETER_STACK_TOP], [t0, INTERPRETER_STACK_LIMIT]
     add t2, t6
-    load64 t0, [t0, INTERPRETER_STACK_LIMIT]
     branch_ge_unsigned t0, t2, .stack_ok
     jmp .call_slow
 
