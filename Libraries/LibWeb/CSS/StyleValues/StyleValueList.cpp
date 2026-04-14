@@ -113,7 +113,7 @@ static ErrorOr<GC::Ref<CSSStyleValue>> reify_a_transform_list(JS::Realm& realm, 
         // NB: Not all transform functions are reifiable, in which case we give up reifying as a transform list.
         transform_components.append(TRY(transform->as_transformation().reify_a_transform_function(realm)));
     }
-    return CSSTransformValue::create(realm, static_cast<Vector<GC::Ref<CSSTransformComponent>>>(move(transform_components)));
+    return CSSTransformValue::create(realm, move(transform_components));
 }
 
 GC::Ref<CSSStyleValue> StyleValueList::reify(JS::Realm& realm, FlyString const& associated_property) const

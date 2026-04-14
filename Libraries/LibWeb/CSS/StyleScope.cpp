@@ -323,7 +323,7 @@ void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void
 
 void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, StyleCache& style_cache)
 {
-    Vector<MatchingRule> matching_rules;
+    GC::ConservativeVector<MatchingRule> matching_rules { m_node->heap() };
     size_t style_sheet_index = 0;
     for_each_stylesheet(cascade_origin, [&](auto& sheet) {
         auto& rule_caches = [&] -> RuleCaches& {

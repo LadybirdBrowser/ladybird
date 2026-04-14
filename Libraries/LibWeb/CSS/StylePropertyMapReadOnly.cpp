@@ -72,7 +72,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CSSStyleValue>, Empty>> StylePropertyMapRead
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-getall
-WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
+WebIDL::ExceptionOr<GC::RootVector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::get_all(String property_name)
 {
     // The getAll(property) method, when called on a StylePropertyMap this, must perform the following steps:
 
@@ -85,17 +85,18 @@ WebIDL::ExceptionOr<Vector<GC::Ref<CSSStyleValue>>> StylePropertyMapReadOnly::ge
     // 3. Let props be the value of this’s [[declarations]] internal slot.
     auto& props = m_declarations;
 
+    GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
+
     // 4. If props[property] exists, subdivide into iterations props[property], then reify each item of the result, and return the list.
     if (auto property_value = get_style_value(props, property.value())) {
         auto iterations = property_value->subdivide_into_iterations(property.value());
-        GC::RootVector<GC::Ref<CSSStyleValue>> results { heap() };
         for (auto const& style_value : iterations)
             results.append(style_value->reify(realm(), property->name()));
         return results;
     }
 
     // 5. Otherwise, return an empty list.
-    return Vector<GC::Ref<CSSStyleValue>> {};
+    return results;
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#dom-stylepropertymapreadonly-has

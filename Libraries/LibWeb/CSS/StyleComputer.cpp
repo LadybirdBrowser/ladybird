@@ -1971,7 +1971,7 @@ RefPtr<StyleValue const> StyleComputer::recascade_font_size_if_needed(DOM::Abstr
 
     // Reconstruct the line of ancestor elements we need to inherit style from, and then do the cascade again
     // but only for the font-size property.
-    Vector<DOM::AbstractElement> ancestors;
+    GC::ConservativeVector<DOM::AbstractElement> ancestors { heap() };
     for (auto ancestor = abstract_element.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from())
         ancestors.append(*ancestor);
 
