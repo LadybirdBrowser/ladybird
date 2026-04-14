@@ -431,10 +431,9 @@ end
 macro walk_env_chain(m_cache_field, fail_label)
     lea t0, [pb, pc]
     add t0, m_cache_field
-    load32 t1, [t0, ENVIRONMENT_COORDINATE_HOPS]
+    load_pair32 t1, t2, [t0, ENVIRONMENT_COORDINATE_HOPS], [t0, ENVIRONMENT_COORDINATE_INDEX]
     mov t4, ENVIRONMENT_COORDINATE_INVALID
     branch_eq t1, t4, fail_label
-    load32 t2, [t0, ENVIRONMENT_COORDINATE_INDEX]
     load64 t3, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT]
     branch_zero t1, .walk_done
 .walk_loop:
