@@ -464,26 +464,25 @@ end
 # The macro expects exec_ctx/pb/values/pc to still describe the callee frame.
 # Input:
 #   caller_frame = ExecutionContext* of the caller
-#   return_pc = caller program counter to resume at
 #   value_reg = NaN-boxed return value
 # Clobbers:
-#   t2, t4
-macro pop_inline_frame_and_resume(caller_frame, return_pc, value_reg)
-    load32 t2, [exec_ctx, EXECUTION_CONTEXT_CALLER_DST_RAW]
-    store32 [caller_frame, EXECUTION_CONTEXT_PROGRAM_COUNTER], return_pc
-    lea t4, [caller_frame, SIZEOF_EXECUTION_CONTEXT]
-    store64 [t4, t2, 8], value_reg
+#   t2, t3, t4
+macro pop_inline_frame_and_resume(caller_frame, value_reg)
+    load_pair32 t2, t4, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC], [exec_ctx, EXECUTION_CONTEXT_CALLER_DST_RAW]
+    store32 [caller_frame, EXECUTION_CONTEXT_PROGRAM_COUNTER], t2
+    lea t3, [caller_frame, SIZEOF_EXECUTION_CONTEXT]
+    store64 [t3, t4, 8], value_reg
 
-    load_vm t4
-    store64 [t4, VM_RUNNING_EXECUTION_CONTEXT], caller_frame
-    store64 [t4, VM_INTERPRETER_STACK_TOP], exec_ctx
-    inc32_mem [t4, VM_EXECUTION_GENERATION]
+    load_vm t3
+    store64 [t3, VM_RUNNING_EXECUTION_CONTEXT], caller_frame
+    store64 [t3, VM_INTERPRETER_STACK_TOP], exec_ctx
+    inc32_mem [t3, VM_EXECUTION_GENERATION]
 
     mov exec_ctx, caller_frame
-    load64 t4, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t4, EXECUTABLE_BYTECODE_DATA]
+    load64 t3, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [t3, EXECUTABLE_BYTECODE_DATA]
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
-    mov pc, return_pc
+    mov pc, t2
     dispatch_current
 end
 
@@ -878,8 +877,7 @@ handler Return
     # returns instead exit back to the outer interpreter entry point.
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
     branch_zero t1, .top_level
-    load32 t3, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC]
-    pop_inline_frame_and_resume t1, t3, t0
+    pop_inline_frame_and_resume t1, t0
 .top_level:
     # Top-level return matches VM::run_executable(): write return_value,
     # clear the exception slot, and leave the asm interpreter entirely.
@@ -902,8 +900,7 @@ handler End
     # Inline frame: resume the caller immediately.
     load64 t1, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
     branch_zero t1, .top_level
-    load32 t3, [exec_ctx, EXECUTION_CONTEXT_CALLER_RETURN_PC]
-    pop_inline_frame_and_resume t1, t3, t0
+    pop_inline_frame_and_resume t1, t0
 .top_level:
     # Top-level end: publish the return value and exit without touching
     # values[1], since End does not model a user-visible `return` opcode.
