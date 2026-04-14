@@ -1586,13 +1586,12 @@ handler GetById
     branch_ne t1, t4, .try_cache
     branch_nonzero t0, .proto
     # Check dictionary generation matches
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
     branch_ne t0, t2, .try_cache
     # IC hit! Load property value via get_direct (own property)
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
     load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t0, 8]
+    load64 t0, [t5, t1, 8]
     # Check value is not an accessor
     extract_tag t2, t0
     branch_eq t2, ACCESSOR_TAG, .try_cache
@@ -1606,16 +1605,15 @@ handler GetById
     load8 t2, [t1, PROTOTYPE_CHAIN_VALIDITY_VALID]
     branch_zero t2, .try_cache
     # Check dictionary generation matches
-    load32 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
-    load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
-    branch_ne t1, t2, .try_cache
+    load_pair32 t2, t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load32 t4, [t4, SHAPE_DICTIONARY_GENERATION]
+    branch_ne t1, t4, .try_cache
     # IC hit! Load property value via get_direct (from prototype)
-    load32 t1, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
-    load64 t2, [t0, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t2, t1, 8]
+    load64 t1, [t0, OBJECT_NAMED_PROPERTIES]
+    load64 t0, [t1, t2, 8]
     # Check value is not an accessor
-    extract_tag t2, t0
-    branch_eq t2, ACCESSOR_TAG, .try_cache
+    extract_tag t1, t0
+    branch_eq t1, ACCESSOR_TAG, .try_cache
     store_operand m_dst, t0
     dispatch_next
 .try_cache:
@@ -1645,18 +1643,17 @@ handler PutById
     branch_ne t1, t4, .try_cache
     branch_nonzero t0, .try_cache
     # Check dictionary generation matches
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
     branch_ne t0, t2, .try_cache
     # Check current value at property_offset is not an accessor
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
     load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t2, [t5, t0, 8]
+    load64 t2, [t5, t1, 8]
     extract_tag t4, t2
     branch_eq t4, ACCESSOR_TAG, .try_cache
     # IC hit! Store new value via put_direct
     # Save property offset in t4 before load_operand clobbers t0 (rax)
-    mov t4, t0
+    mov t4, t1
     load_operand t1, m_src
     store64 [t5, t4, 8], t1
     dispatch_next
@@ -1837,13 +1834,12 @@ handler GetLength
     branch_ne t1, t4, .slow
     branch_nonzero t0, .slow
     # Check dictionary generation
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
+    load_pair32 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     load32 t2, [t4, SHAPE_DICTIONARY_GENERATION]
     branch_ne t0, t2, .slow
     # IC hit
-    load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
     load64 t5, [t3, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t0, 8]
+    load64 t0, [t5, t1, 8]
     extract_tag t2, t0
     branch_eq t2, ACCESSOR_TAG, .slow
     store_operand m_dst, t0
@@ -1886,13 +1882,12 @@ handler GetGlobal
     load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_env_binding
     # Check dictionary generation
-    load32 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     load32 t5, [t4, SHAPE_DICTIONARY_GENERATION]
+    load_pair32 t4, t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     branch_ne t0, t5, .try_env_binding
     # IC hit! Load property value via get_direct
-    load32 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
     load64 t5, [t2, OBJECT_NAMED_PROPERTIES]
-    load64 t0, [t5, t0, 8]
+    load64 t0, [t5, t4, 8]
     # Check not accessor
     extract_tag t5, t0
     branch_eq t5, ACCESSOR_TAG, .slow
@@ -1944,19 +1939,18 @@ handler SetGlobal
     load64 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
     branch_ne t0, t4, .try_env_binding
     # Check dictionary generation
-    load32 t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     load32 t5, [t4, SHAPE_DICTIONARY_GENERATION]
+    load_pair32 t4, t0, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET], [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
     branch_ne t0, t5, .try_env_binding
     # IC hit! Load current value to check it's not an accessor
-    load32 t1, [t3, PROPERTY_LOOKUP_CACHE_ENTRY0_PROPERTY_OFFSET]
     load64 t5, [t2, OBJECT_NAMED_PROPERTIES]
-    load64 t4, [t5, t1, 8]
-    extract_tag t4, t4
-    branch_eq t4, ACCESSOR_TAG, .slow
+    load64 t0, [t5, t4, 8]
+    extract_tag t0, t0
+    branch_eq t0, ACCESSOR_TAG, .slow
     # Store new value via put_direct
-    # NB: load_operand clobbers t0, so property offset must be in t1.
-    load_operand t4, m_src
-    store64 [t5, t1, 8], t4
+    # NB: load_operand clobbers t0, so property offset stays in t4.
+    load_operand t0, m_src
+    store64 [t5, t4, 8], t0
     dispatch_next
 .try_env_binding:
     # Check if cache has an environment binding index (global let/const)
