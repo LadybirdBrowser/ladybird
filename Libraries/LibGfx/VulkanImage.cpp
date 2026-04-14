@@ -119,6 +119,11 @@ ErrorOr<NonnullRefPtr<VulkanImage>> create_shared_vulkan_image(VulkanContext con
         }
     }
 
+    // If the caller requested specific DRM modifiers and none are supported for a renderable image,
+    // fail here so higher-level code can fall back to a different backing-store type.
+    if (!modifiers.is_empty() && format_mods.is_empty())
+        return Error::from_string_literal("no supported DRM format modifiers for shared image");
+
     NonnullRefPtr<VulkanImage> image = make_ref_counted<VulkanImage>(context);
     VkImageDrmFormatModifierListCreateInfoEXT image_drm_format_modifier_list_info = {
         .sType = VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT,
