@@ -13,6 +13,7 @@
 #include <AK/Forward.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
+#include <LibGfx/ColorConversion.h>
 #include <LibIPC/Forward.h>
 
 namespace Gfx {
@@ -153,61 +154,28 @@ public:
     static constexpr Color from_yuv(YUV const& yuv) { return from_yuv(yuv.y, yuv.u, yuv.v); }
     static constexpr Color from_yuv(float y, float u, float v)
     {
-        // https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4, Items 8 and 9 arithmetically inverted
-        float r = y + v / 0.877f;
-        float b = y + u / 0.493f;
-        float g = (y - 0.299f * r - 0.114f * b) / 0.587f;
-        r = clamp(r, 0.0f, 1.0f);
-        g = clamp(g, 0.0f, 1.0f);
-        b = clamp(b, 0.0f, 1.0f);
-
-        return { static_cast<u8>(floorf(r * 255.0f)), static_cast<u8>(floorf(g * 255.0f)), static_cast<u8>(floorf(b * 255.0f)) };
+        auto srgb = yuv_to_srgb({ y, u, v });
+        return {
+            static_cast<u8>(floorf(srgb[0] * 255.0f)),
+            static_cast<u8>(floorf(srgb[1] * 255.0f)),
+            static_cast<u8>(floorf(srgb[2] * 255.0f)),
+        };
     }
 
-    // https://www.itu.int/rec/R-REC-BT.1700-0-200502-I/en Table 4
     constexpr YUV to_yuv() const
     {
-        float r = red() / 255.0f;
-        float g = green() / 255.0f;
-        float b = blue() / 255.0f;
-        // Item 8
-        float y = 0.299f * r + 0.587f * g + 0.114f * b;
-        // Item 9
-        float u = 0.493f * (b - y);
-        float v = 0.877f * (r - y);
-        y = clamp(y, 0.0f, 1.0f);
-        u = clamp(u, -1.0f, 1.0f);
-        v = clamp(v, -1.0f, 1.0f);
-        return { y, u, v };
+        auto yuv = srgb_to_yuv({ red() / 255.0f, green() / 255.0f, blue() / 255.0f });
+        return { yuv[0], yuv[1], yuv[2] };
     }
 
     static constexpr Color from_hsl(float h_degrees, float s, float l) { return from_hsla(h_degrees, s, l, 1.0); }
     static constexpr Color from_hsla(float h_degrees, float s, float l, float a)
     {
-        // Algorithm from https://www.w3.org/TR/css-color-3/#hsl-color
-
-        float h = fmodf(h_degrees, 360.0f);
-        if (h < 0.0)
-            h += 360.0f;
-
-        s = clamp(s, 0.0f, 1.0f);
-        l = clamp(l, 0.0f, 1.0f);
-        a = clamp(a, 0.0f, 1.0f);
-
-        auto to_rgb = [](float h, float s, float l, float offset) {
-            float k = fmodf(offset + h / 30.0f, 12.0f);
-            float a = s * min(l, 1.0f - l);
-            return l - a * max(-1.0f, min(min(k - 3.0f, 9.0f - k), 1.0f));
-        };
-
-        float r = to_rgb(h, s, l, 0.0f);
-        float g = to_rgb(h, s, l, 8.0f);
-        float b = to_rgb(h, s, l, 4.0f);
-
-        u8 r_u8 = clamp(lroundf(r * 255.0f), 0, 255);
-        u8 g_u8 = clamp(lroundf(g * 255.0f), 0, 255);
-        u8 b_u8 = clamp(lroundf(b * 255.0f), 0, 255);
-        u8 a_u8 = clamp(lroundf(a * 255.0f), 0, 255);
+        auto srgb = hsl_to_srgb({ h_degrees, s, l, a });
+        u8 r_u8 = clamp(lroundf(srgb[0] * 255.0f), 0, 255);
+        u8 g_u8 = clamp(lroundf(srgb[1] * 255.0f), 0, 255);
+        u8 b_u8 = clamp(lroundf(srgb[2] * 255.0f), 0, 255);
+        u8 a_u8 = clamp(lroundf(srgb.alpha() * 255.0f), 0, 255);
         return Color(r_u8, g_u8, b_u8, a_u8);
     }
 
@@ -224,19 +192,8 @@ public:
     // https://bottosson.github.io/posts/oklab/
     static constexpr Color from_oklab(float L, float a, float b, float alpha = 1.0f)
     {
-        float l = L + 0.3963377774f * a + 0.2158037573f * b;
-        float m = L - 0.1055613458f * a - 0.0638541728f * b;
-        float s = L - 0.0894841775f * a - 1.2914855480f * b;
-
-        l = l * l * l;
-        m = m * m * m;
-        s = s * s * s;
-
-        float red = 4.0767416621f * l - 3.3077115913f * m + 0.2309699292f * s;
-        float green = -1.2684380046f * l + 2.6097574011f * m - 0.3413193965f * s;
-        float blue = -0.0041960863f * l - 0.7034186147f * m + 1.7076147010f * s;
-
-        return from_linear_srgb(red, green, blue, alpha);
+        auto linear = oklab_to_linear_srgb({ L, a, b, alpha });
+        return from_linear_srgb(linear[0], linear[1], linear[2], linear.alpha());
     }
 
     constexpr Oklab to_premultiplied_oklab()
@@ -252,23 +209,9 @@ public:
     // https://bottosson.github.io/posts/oklab/
     constexpr Oklab to_oklab()
     {
-        auto srgb_to_linear = [](float c) {
-            return c >= 0.04045f ? pow((c + 0.055f) / 1.055f, 2.4f) : c / 12.92f;
-        };
-
-        float r = srgb_to_linear(red() / 255.f);
-        float g = srgb_to_linear(green() / 255.f);
-        float b = srgb_to_linear(blue() / 255.f);
-
-        float l = cbrtf(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-        float m = cbrtf(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-        float s = cbrtf(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
-
-        return {
-            0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,
-            1.9779984951f * l - 2.4285922050f * m + 0.4505937099f * s,
-            0.0259040371f * l + 0.7827717662f * m - 0.8086757660f * s,
-        };
+        auto linear = srgb_to_linear_srgb({ red() / 255.0f, green() / 255.0f, blue() / 255.0f });
+        auto oklab = linear_srgb_to_oklab(linear);
+        return { oklab[0], oklab[1], oklab[2] };
     }
 
     constexpr u8 red() const { return (m_value >> 16) & 0xff; }
@@ -493,38 +436,13 @@ public:
 
     constexpr HSV to_hsv() const
     {
-        HSV hsv;
-        double r = static_cast<double>(red()) / 255.0;
-        double g = static_cast<double>(green()) / 255.0;
-        double b = static_cast<double>(blue()) / 255.0;
-        double max = AK::max(AK::max(r, g), b);
-        double min = AK::min(AK::min(r, g), b);
-        double chroma = max - min;
+        auto hsv = srgb_to_hsv({ red() / 255.0f, green() / 255.0f, blue() / 255.0f });
 
-        if (!chroma)
-            hsv.hue = 0.0;
-        else if (max == r)
-            hsv.hue = (60.0 * ((g - b) / chroma)) + 360.0;
-        else if (max == g)
-            hsv.hue = (60.0 * ((b - r) / chroma)) + 120.0;
-        else
-            hsv.hue = (60.0 * ((r - g) / chroma)) + 240.0;
+        VERIFY(hsv[0] >= 0.0f && hsv[0] < 360.0f);
+        VERIFY(hsv[1] >= 0.0f && hsv[1] <= 1.0f);
+        VERIFY(hsv[2] >= 0.0f && hsv[2] <= 1.0f);
 
-        if (hsv.hue >= 360.0)
-            hsv.hue -= 360.0;
-
-        if (!max)
-            hsv.saturation = 0;
-        else
-            hsv.saturation = chroma / max;
-
-        hsv.value = max;
-
-        VERIFY(hsv.hue >= 0.0 && hsv.hue < 360.0);
-        VERIFY(hsv.saturation >= 0.0 && hsv.saturation <= 1.0);
-        VERIFY(hsv.value >= 0.0 && hsv.value <= 1.0);
-
-        return hsv;
+        return { hsv[0], hsv[1], hsv[2] };
     }
 
     static constexpr Color from_hsv(double hue, double saturation, double value)
@@ -538,56 +456,10 @@ public:
         VERIFY(hsv.saturation >= 0.0 && hsv.saturation <= 1.0);
         VERIFY(hsv.value >= 0.0 && hsv.value <= 1.0);
 
-        double hue = hsv.hue;
-        double saturation = hsv.saturation;
-        double value = hsv.value;
-
-        int high = static_cast<int>(hue / 60.0) % 6;
-        double f = (hue / 60.0) - high;
-        double c1 = value * (1.0 - saturation);
-        double c2 = value * (1.0 - saturation * f);
-        double c3 = value * (1.0 - saturation * (1.0 - f));
-
-        double r = 0;
-        double g = 0;
-        double b = 0;
-
-        switch (high) {
-        case 0:
-            r = value;
-            g = c3;
-            b = c1;
-            break;
-        case 1:
-            r = c2;
-            g = value;
-            b = c1;
-            break;
-        case 2:
-            r = c1;
-            g = value;
-            b = c3;
-            break;
-        case 3:
-            r = c1;
-            g = c2;
-            b = value;
-            break;
-        case 4:
-            r = c3;
-            g = c1;
-            b = value;
-            break;
-        case 5:
-            r = value;
-            g = c1;
-            b = c2;
-            break;
-        }
-
-        auto out_r = static_cast<u8>(round(r * 255));
-        auto out_g = static_cast<u8>(round(g * 255));
-        auto out_b = static_cast<u8>(round(b * 255));
+        auto srgb = hsv_to_srgb({ static_cast<float>(hsv.hue), static_cast<float>(hsv.saturation), static_cast<float>(hsv.value) });
+        auto out_r = static_cast<u8>(round(srgb[0] * 255));
+        auto out_g = static_cast<u8>(round(srgb[1] * 255));
+        auto out_b = static_cast<u8>(round(srgb[2] * 255));
         return Color(out_r, out_g, out_b);
     }
 

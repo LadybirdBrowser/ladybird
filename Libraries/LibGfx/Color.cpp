@@ -14,6 +14,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
+#include <LibGfx/ColorConversion.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <ctype.h>
@@ -453,163 +454,71 @@ Vector<Color> Color::tints(u32 steps, float max) const
     return tints;
 }
 
+static Color color_from_linear_srgb(ColorComponents const& linear)
+{
+    auto srgb = linear_srgb_to_srgb(linear);
+    return Color(
+        clamp(lroundf(srgb[0] * 255.0f), 0, 255),
+        clamp(lroundf(srgb[1] * 255.0f), 0, 255),
+        clamp(lroundf(srgb[2] * 255.0f), 0, 255),
+        clamp(lroundf(srgb.alpha() * 255.0f), 0, 255));
+}
+
 Color Color::from_linear_srgb(float red, float green, float blue, float alpha)
 {
-    auto linear_to_srgb = [](float c) {
-        if (c <= 0.04045 / 12.92)
-            return c * 12.92;
-        return pow(c, 10. / 24) * 1.055 - 0.055;
-    };
-
-    red = linear_to_srgb(red) * 255.f;
-    green = linear_to_srgb(green) * 255.f;
-    blue = linear_to_srgb(blue) * 255.f;
-
-    return Color(
-        clamp(lroundf(red), 0, 255),
-        clamp(lroundf(green), 0, 255),
-        clamp(lroundf(blue), 0, 255),
-        clamp(lroundf(alpha * 255.f), 0, 255));
+    return color_from_linear_srgb({ red, green, blue, alpha });
 }
 
 Color Color::from_linear_display_p3(float r, float g, float b, float alpha)
 {
-    float x = 0.48657095 * r + 0.26566769 * g + 0.19821729 * b;
-    float y = 0.22897456 * r + 0.69173852 * g + 0.07928691 * b;
-    float z = 0.00000000 * r + 0.04511338 * g + 1.04394437 * b;
-
-    return from_xyz65(x, y, z, alpha);
+    auto xyz = linear_display_p3_to_xyz65({ r, g, b, alpha });
+    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
 }
 
 // https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
 Color Color::from_a98rgb(float r, float g, float b, float alpha)
 {
-    auto to_linear = [](float c) {
-        return pow(c, 563. / 256);
-    };
-
-    auto linear_r = to_linear(r);
-    auto linear_g = to_linear(g);
-    auto linear_b = to_linear(b);
-
-    float x = 0.57666904 * linear_r + 0.18555824 * linear_g + 0.18822865 * linear_b;
-    float y = 0.29734498 * linear_r + 0.62736357 * linear_g + 0.07529146 * linear_b;
-    float z = 0.02703136 * linear_r + 0.07068885 * linear_g + 0.99133754 * linear_b;
-
-    return from_xyz65(x, y, z, alpha);
+    auto xyz = a98rgb_to_xyz65({ r, g, b, alpha });
+    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
 }
 
 // https://www.w3.org/TR/css-color-4/#predefined-a98-rgb
 Color Color::from_display_p3(float r, float g, float b, float alpha)
 {
-    auto to_linear = [](float c) {
-        if (c < 0.04045)
-            return c / 12.92;
-        return pow((c + 0.055) / (1.055), 2.4);
-    };
-
-    auto linear_r = to_linear(r);
-    auto linear_g = to_linear(g);
-    auto linear_b = to_linear(b);
-
-    return from_linear_display_p3(linear_r, linear_g, linear_b, alpha);
+    auto linear = display_p3_to_linear_display_p3({ r, g, b, alpha });
+    return from_linear_display_p3(linear[0], linear[1], linear[2], linear.alpha());
 }
 
 // https://www.w3.org/TR/css-color-4/#predefined-prophoto-rgb
 Color Color::from_pro_photo_rgb(float r, float g, float b, float alpha)
 {
-    auto to_linear = [](float c) -> float {
-        u8 sign = c < 0 ? -1 : 1;
-        float absolute = abs(c);
-
-        if (absolute <= 16. / 252)
-            return c / 16;
-        return sign * pow(c, 1.8);
-    };
-
-    auto linear_r = to_linear(r);
-    auto linear_g = to_linear(g);
-    auto linear_b = to_linear(b);
-
-    float x = 0.79776664 * linear_r + 0.13518130 * linear_g + 0.03134773 * linear_b;
-    float y = 0.28807483 * linear_r + 0.71183523 * linear_g + 0.00008994 * linear_b;
-    float z = 0.00000000 * linear_r + 0.00000000 * linear_g + 0.82510460 * linear_b;
-
-    return from_xyz50(x, y, z, alpha);
+    auto xyz = pro_photo_rgb_to_xyz50({ r, g, b, alpha });
+    return from_xyz50(xyz[0], xyz[1], xyz[2], xyz.alpha());
 }
 
 // https://www.w3.org/TR/css-color-4/#predefined-rec2020
 Color Color::from_rec2020(float r, float g, float b, float alpha)
 {
-    auto to_linear = [](float c) -> float {
-        auto constexpr alpha = 1.09929682680944;
-        auto constexpr beta = 0.018053968510807;
-
-        u8 sign = c < 0 ? -1 : 1;
-        auto absolute = abs(c);
-
-        if (absolute < beta * 4.5)
-            return c / 4.5;
-
-        return sign * (pow((absolute + alpha - 1) / alpha, 1 / 0.45));
-    };
-
-    auto linear_r = to_linear(r);
-    auto linear_g = to_linear(g);
-    auto linear_b = to_linear(b);
-
-    float x = 0.63695805 * linear_r + 0.14461690 * linear_g + 0.16888098 * linear_b;
-    float y = 0.26270021 * linear_r + 0.67799807 * linear_g + 0.05930172 * linear_b;
-    float z = 0.00000000 * linear_r + 0.02807269 * linear_g + 1.06098506 * linear_b;
-
-    return from_xyz65(x, y, z, alpha);
+    auto xyz = rec2020_to_xyz65({ r, g, b, alpha });
+    return from_xyz65(xyz[0], xyz[1], xyz[2], xyz.alpha());
 }
 
 Color Color::from_xyz50(float x, float y, float z, float alpha)
 {
-    // See commit description for these values.
-    float r = +3.134136 * x - 1.617386 * y - 0.490662 * z;
-    float g = -0.978795 * x + 1.916254 * y + 0.033443 * z;
-    float b = +0.071955 * x - 0.228977 * y + 1.405386 * z;
-
-    return from_linear_srgb(r, g, b, alpha);
+    auto linear = xyz50_to_linear_srgb({ x, y, z, alpha });
+    return color_from_linear_srgb(linear);
 }
 
 Color Color::from_xyz65(float x, float y, float z, float alpha)
 {
-    // See commit description for these values.
-    float r = +3.240970 * x - 1.537383 * y - 0.498611 * z;
-    float g = -0.969244 * x + 1.875968 * y + 0.041555 * z;
-    float b = +0.055630 * x - 0.203977 * y + 1.056972 * z;
-
-    return from_linear_srgb(r, g, b, alpha);
+    auto linear = xyz65_to_linear_srgb({ x, y, z, alpha });
+    return color_from_linear_srgb(linear);
 }
 
 Color Color::from_lab(float L, float a, float b, float alpha)
 {
-    // Third edition of "Colorimetry" by the CIE
-    // 8.2.1 CIE 1976 (L*a*b*) colour space; CIELAB colour space
-    float y = (L + 16) / 116;
-    float x = y + a / 500;
-    float z = y - b / 200;
-
-    auto f_inv = [](float t) -> float {
-        constexpr auto delta = 24. / 116;
-        if (t > delta)
-            return t * t * t;
-        return (108. / 841) * (t - 116. / 16);
-    };
-
-    // D50
-    constexpr float x_n = 0.96422;
-    constexpr float y_n = 1;
-    constexpr float z_n = 0.82521;
-
-    x = x_n * f_inv(x);
-    y = y_n * f_inv(y);
-    z = z_n * f_inv(z);
-
-    return from_xyz50(x, y, z, alpha);
+    auto xyz = lab_to_xyz50({ L, a, b, alpha });
+    return from_xyz50(xyz[0], xyz[1], xyz[2], xyz.alpha());
 }
 
 }

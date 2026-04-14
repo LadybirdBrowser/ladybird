@@ -7,6 +7,7 @@ set(SOURCES
     BitmapSequence.cpp
     CMYKBitmap.cpp
     Color.cpp
+    ColorConversion.cpp
     ColorSpace.cpp
     Cursor.cpp
     Filter.cpp
