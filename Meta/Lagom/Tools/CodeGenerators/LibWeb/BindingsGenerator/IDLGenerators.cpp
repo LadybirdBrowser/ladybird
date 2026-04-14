@@ -979,6 +979,36 @@ static void generate_buffer_source_to_cpp(SourceGenerator& scoped_generator, IDL
     }
 }
 
+static void generate_array_buffer_view_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional)
+{
+    scoped_generator.append(R"~~~(
+    GC::Root<WebIDL::ArrayBufferView> @cpp_name@;
+)~~~");
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined()) {
+)~~~");
+    }
+
+    scoped_generator.append(R"~~~(
+        if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+        @cpp_name@ = GC::make_root(realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object()));
+)~~~");
+
+    if (type.is_nullable()) {
+        scoped_generator.append(R"~~~(
+    }
+)~~~");
+    }
+    if (optional) {
+        scoped_generator.append(R"~~~(
+        }
+)~~~");
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -1017,32 +1047,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (is_javascript_builtin_buffer_source_type(parameter.type) || parameter.type->name() == "BufferSource"sv) {
         generate_buffer_source_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->name() == "ArrayBufferView") {
-        scoped_generator.append(R"~~~(
-    GC::Root<WebIDL::ArrayBufferView> @cpp_name@;
-)~~~");
-        if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_null() && !@js_name@@js_suffix@.is_undefined()) {
-)~~~");
-        }
-
-        scoped_generator.append(R"~~~(
-        if (!@js_name@@js_suffix@.is_object() || !(is<JS::TypedArrayBase>(@js_name@@js_suffix@.as_object()) || is<JS::DataView>(@js_name@@js_suffix@.as_object())))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-        @cpp_name@ = GC::make_root(realm.create<WebIDL::ArrayBufferView>(@js_name@@js_suffix@.as_object()));
-)~~~");
-
-        if (parameter.type->is_nullable()) {
-            scoped_generator.append(R"~~~(
-    }
-)~~~");
-        }
-        if (optional) {
-            scoped_generator.append(R"~~~(
-        }
-)~~~");
-        }
+        generate_array_buffer_view_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->name() == "any") {
         if (variadic) {
             scoped_generator.append(R"~~~(
