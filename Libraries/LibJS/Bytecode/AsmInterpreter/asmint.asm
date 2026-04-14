@@ -1581,11 +1581,9 @@ handler GetById
     load64 t4, [t3, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
     load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape matches Object's shape (direct pointer compare)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    branch_ne t0, t4, .try_cache
-    # Check entry[0].prototype (null = own property, non-null = prototype chain)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    # Check entry[0].shape and entry[0].prototype.
+    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne t1, t4, .try_cache
     branch_nonzero t0, .proto
     # Check dictionary generation matches
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1642,11 +1640,9 @@ handler PutById
     load64 t4, [t3, OBJECT_SHAPE]
     # Get PropertyLookupCache* (direct pointer from instruction stream)
     load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape matches Object's shape (direct pointer compare)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    branch_ne t0, t4, .try_cache
-    # Check entry[0].prototype is null (own-property store only)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    # Check entry[0].shape and entry[0].prototype.
+    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne t1, t4, .try_cache
     branch_nonzero t0, .try_cache
     # Check dictionary generation matches
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
@@ -1836,11 +1832,9 @@ handler GetLength
     # Non-magical length: IC fast path (same as GetById)
     load64 t4, [t3, OBJECT_SHAPE]
     load64 t5, [pb, pc, m_cache]
-    # Check entry[0].shape matches (direct pointer compare)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE]
-    branch_ne t0, t4, .slow
-    # Check entry[0].prototype is null (own-property only)
-    load64 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    # Check entry[0].shape and entry[0].prototype.
+    load_pair64 t1, t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_SHAPE], [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_PROTOTYPE]
+    branch_ne t1, t4, .slow
     branch_nonzero t0, .slow
     # Check dictionary generation
     load32 t0, [t5, PROPERTY_LOOKUP_CACHE_ENTRY0_DICTIONARY_GENERATION]
