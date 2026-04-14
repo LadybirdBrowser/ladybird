@@ -144,7 +144,7 @@ jobs:
               "os": "${{ matrix.os_name }}",
               "arch": "${{ matrix.arch }}",
               "artifact": "web-benchmarks-results-${{ matrix.os_name }}-${{ matrix.arch }}",
-              "artifact_run_id": "${{ github.run_id }}",
+              "artifact_run_id": "${{ github.run_id }}"
           }' > request.json
           curl \
               --fail \
