@@ -15,6 +15,8 @@ class WEB_API BackingStoreManager : public JS::Cell {
     GC_DECLARE_ALLOCATOR(BackingStoreManager);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     enum class WindowResizingInProgress {
         No,
         Yes
@@ -24,6 +26,7 @@ public:
     void restart_resize_timer();
 
     virtual void visit_edges(Cell::Visitor& visitor) override;
+    virtual void finalize() override;
 
     BackingStoreManager(HTML::Navigable&);
 
@@ -38,6 +41,14 @@ private:
     Gfx::IntSize m_allocated_size;
 
     RefPtr<Core::Timer> m_backing_store_shrink_timer;
+
+    // Flipped to false by finalize(). The timer callback captures a
+    // ref-counted copy and checks it before dereferencing `this`, so a
+    // callback already queued in the event loop cannot touch swept memory.
+    struct LivenessToken : public RefCounted<LivenessToken> {
+        bool alive { true };
+    };
+    NonnullRefPtr<LivenessToken> m_liveness_token;
 };
 
 }

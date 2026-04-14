@@ -17,6 +17,7 @@
 #include <AK/StackInfo.h>
 #include <AK/StackUnwinder.h>
 #include <AK/TemporaryChange.h>
+#include <LibCore/ConfigFile.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -26,6 +27,7 @@
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
+#include <LibGC/WriteBarrier.h>
 #include <setjmp.h>
 
 #ifdef HAS_ADDRESS_SANITIZER
@@ -39,6 +41,34 @@
 namespace GC {
 
 static Heap* s_the;
+
+bool s_incremental_marking_active = false;
+
+void shade_gray_slow(Cell* old_target)
+{
+    if (old_target->gc_color() == GC::Color::White) {
+        old_target->set_gc_color(GC::Color::Gray);
+        Heap::the().enqueue_barrier_gray(*old_target);
+    }
+}
+
+void value_write_barrier(NanBoxedValue const& old_value)
+{
+    if (!s_incremental_marking_active) [[likely]]
+        return;
+    if (old_value.is_cell())
+        shade_gray_slow(const_cast<Cell*>(&old_value.as_cell()));
+}
+
+void value_write_barrier(NanBoxedValue const& old_value, NanBoxedValue const& new_value)
+{
+    if (!s_incremental_marking_active) [[likely]]
+        return;
+    if (old_value.is_cell())
+        shade_gray_slow(const_cast<Cell*>(&old_value.as_cell()));
+    if (new_value.is_cell())
+        shade_gray_slow(const_cast<Cell*>(&new_value.as_cell()));
+}
 
 Heap& Heap::the()
 {
@@ -57,6 +87,15 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
     m_size_based_cell_allocators.append(make<CellAllocator>(512));
     m_size_based_cell_allocators.append(make<CellAllocator>(1024));
     m_size_based_cell_allocators.append(make<CellAllocator>(3072));
+
+    // Tunable via ~/.config/lib/GC.ini under the [Incremental] group:
+    //   MarkBudget  - cells traced per incremental mark step
+    //   SweepBudget - blocks swept per incremental sweep step
+    if (auto config_or_error = Core::ConfigFile::open_for_lib("GC"); !config_or_error.is_error()) {
+        auto config = config_or_error.release_value();
+        m_incremental_marking_budget = config->read_num_entry<size_t>("Incremental", "MarkBudget", m_incremental_marking_budget);
+        m_incremental_sweep_budget = config->read_num_entry<size_t>("Incremental", "SweepBudget", m_incremental_sweep_budget);
+    }
 }
 
 Heap::~Heap()
@@ -66,15 +105,108 @@ Heap::~Heap()
 
 void Heap::will_allocate(size_t size)
 {
+    if (m_gc_deferrals || m_collecting_garbage)
+        goto count;
+
+    if (m_incremental_sweep_in_progress) {
+        TemporaryChange change(m_collecting_garbage, true);
+        if (continue_incremental_sweep(m_incremental_sweep_budget)) {
+            finalize_incremental_sweep();
+            m_allocated_bytes_since_last_gc = 0;
+            run_post_gc_tasks();
+        }
+        goto count;
+    }
+
+    if (m_incremental_marking_in_progress) {
+        TemporaryChange change(m_collecting_garbage, true);
+        // Continue in-progress marking increment.
+        if (continue_incremental_marking(m_incremental_marking_budget)) {
+            // Marking complete — run finalize, then begin incremental sweep.
+            finish_incremental_marking();
+            finalize_unmarked_cells();
+            sweep_weak_blocks();
+            // Weak containers and sweep callbacks must run before sweep
+            // begins so interleaved JS execution never observes dangling
+            // pointers into freed cells.
+            for (auto& weak_container : m_weak_containers)
+                weak_container.remove_dead_cells({});
+            for (auto& callback : m_sweep_callbacks)
+                callback();
+            begin_incremental_sweep();
+            if (continue_incremental_sweep(m_incremental_sweep_budget)) {
+                finalize_incremental_sweep();
+                m_allocated_bytes_since_last_gc = 0;
+                run_post_gc_tasks();
+            }
+        }
+        goto count;
+    }
+
     if (should_collect_on_every_allocation()) {
+        // Stress-test mode: full stop-the-world collection every allocation.
         m_allocated_bytes_since_last_gc = 0;
         collect_garbage();
     } else if (m_allocated_bytes_since_last_gc + size > m_gc_bytes_threshold) {
-        m_allocated_bytes_since_last_gc = 0;
-        collect_garbage();
+        TemporaryChange change(m_collecting_garbage, true);
+        // Start a new incremental marking cycle.
+        start_incremental_marking();
+        // Run an initial budget immediately.
+        if (continue_incremental_marking(m_incremental_marking_budget)) {
+            // Small heap — marking completed in one step; begin sweep.
+            finish_incremental_marking();
+            finalize_unmarked_cells();
+            sweep_weak_blocks();
+            for (auto& weak_container : m_weak_containers)
+                weak_container.remove_dead_cells({});
+            for (auto& callback : m_sweep_callbacks)
+                callback();
+            begin_incremental_sweep();
+            if (continue_incremental_sweep(m_incremental_sweep_budget)) {
+                finalize_incremental_sweep();
+                m_allocated_bytes_since_last_gc = 0;
+                run_post_gc_tasks();
+            }
+        }
     }
 
+count:
     m_allocated_bytes_since_last_gc += size;
+}
+
+void Heap::incremental_idle_step()
+{
+    if (m_gc_deferrals || m_collecting_garbage)
+        return;
+
+    if (m_incremental_sweep_in_progress) {
+        TemporaryChange change(m_collecting_garbage, true);
+        if (continue_incremental_sweep(m_incremental_sweep_budget)) {
+            finalize_incremental_sweep();
+            m_allocated_bytes_since_last_gc = 0;
+            run_post_gc_tasks();
+        }
+        return;
+    }
+
+    if (m_incremental_marking_in_progress) {
+        TemporaryChange change(m_collecting_garbage, true);
+        if (continue_incremental_marking(m_incremental_marking_budget)) {
+            finish_incremental_marking();
+            finalize_unmarked_cells();
+            sweep_weak_blocks();
+            for (auto& weak_container : m_weak_containers)
+                weak_container.remove_dead_cells({});
+            for (auto& callback : m_sweep_callbacks)
+                callback();
+            begin_incremental_sweep();
+            if (continue_incremental_sweep(m_incremental_sweep_budget)) {
+                finalize_incremental_sweep();
+                m_allocated_bytes_since_last_gc = 0;
+                run_post_gc_tasks();
+            }
+        }
+    }
 }
 
 static void add_possible_value(HashMap<FlatPtr, HeapRoot>& possible_pointers, FlatPtr data, HeapRoot origin, FlatPtr min_block_address, FlatPtr max_block_address)
@@ -304,11 +436,38 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
         if (print_report)
             collection_measurement_timer.start();
 
+        // If an incremental sweep is in progress, finish it synchronously
+        // before starting a new collection cycle.
+        if (m_incremental_sweep_in_progress)
+            force_sweep_to_completion();
+
+        // If incremental marking is in progress, clean it up.
+        if (m_incremental_marking_in_progress) {
+            m_marking_visitor.clear();
+            m_marking_heap_blocks.clear();
+            m_incremental_marking_in_progress = false;
+            s_incremental_marking_active = false;
+
+            // Reset all cell colors to white so that a fresh mark or
+            // CollectEverything sweep sees a clean slate.
+            for_each_block([&](auto& block) {
+                block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
+                    cell->set_gc_color(GC::Color::White);
+                });
+                return IterationDecision::Continue;
+            });
+
+            for (auto& inverse_root : m_uprooted_cells)
+                inverse_root->set_gc_color(GC::Color::White);
+            m_uprooted_cells.clear();
+        }
+
         if (collection_type == CollectionType::CollectGarbage) {
             if (m_gc_deferrals) {
                 m_should_gc_when_deferral_ends = true;
                 return;
             }
+            // Full stop-the-world mark.
             HashMap<Cell*, HeapRoot> roots;
             HashTable<HeapBlock*> all_live_heap_blocks;
             gather_roots(roots, all_live_heap_blocks);
@@ -322,6 +481,7 @@ void Heap::collect_garbage(CollectionType collection_type, bool print_report)
             dump_allocators();
     }
 
+    m_allocated_bytes_since_last_gc = 0;
     run_post_gc_tasks();
 }
 
@@ -615,11 +775,11 @@ public:
 
     virtual void visit_impl(Cell& cell) override
     {
-        if (cell.is_marked())
+        if (cell.gc_color() != GC::Color::White)
             return;
         dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
-        cell.set_marked(true);
+        cell.set_gc_color(GC::Color::Gray);
         m_work_queue.append(cell);
     }
 
@@ -631,11 +791,11 @@ public:
             if (!value.is_cell())
                 continue;
             auto& cell = value.as_cell();
-            if (cell.is_marked())
+            if (cell.gc_color() != GC::Color::White)
                 continue;
             dbgln_if(HEAP_DEBUG, "  ! {}", &cell);
 
-            cell.set_marked(true);
+            cell.set_gc_color(GC::Color::Gray);
             m_work_queue.unchecked_append(cell);
         }
     }
@@ -649,11 +809,11 @@ public:
             add_possible_value(possible_pointers, raw_pointer_sized_values[i], HeapRoot { .type = HeapRoot::Type::HeapFunctionCapturedPointer }, m_min_block_address, m_max_block_address);
 
         for_each_cell_among_possible_pointers(m_all_live_heap_blocks, possible_pointers, [&](Cell* cell, FlatPtr) {
-            if (cell->is_marked())
+            if (cell->gc_color() != GC::Color::White)
                 return;
             if (cell->state() != Cell::State::Live)
                 return;
-            cell->set_marked(true);
+            cell->set_gc_color(GC::Color::Gray);
             m_work_queue.append(*cell);
         });
     }
@@ -661,8 +821,26 @@ public:
     void mark_all_live_cells()
     {
         while (!m_work_queue.is_empty()) {
-            m_work_queue.take_last()->visit_edges(*this);
+            auto& cell = *m_work_queue.take_last();
+            cell.visit_edges(*this);
+            cell.set_gc_color(GC::Color::Black);
         }
+    }
+
+    // Process up to `budget` cells from the worklist.
+    bool mark_live_cells_budgeted(size_t budget)
+    {
+        for (size_t i = 0; i < budget && !m_work_queue.is_empty(); ++i) {
+            auto& cell = *m_work_queue.take_last();
+            cell.visit_edges(*this);
+            cell.set_gc_color(GC::Color::Black);
+        }
+        return m_work_queue.is_empty();
+    }
+
+    void enqueue_barrier_gray(Cell& cell)
+    {
+        m_work_queue.append(cell);
     }
 
 private:
@@ -681,9 +859,76 @@ void Heap::mark_live_cells(HashMap<Cell*, HeapRoot> const& roots, HashTable<Heap
     visitor.mark_all_live_cells();
 
     for (auto& inverse_root : m_uprooted_cells)
-        inverse_root->set_marked(false);
+        inverse_root->set_gc_color(GC::Color::White);
 
     m_uprooted_cells.clear();
+}
+
+void Heap::start_incremental_marking()
+{
+    VERIFY(!m_incremental_marking_in_progress);
+
+    m_incremental_marking_in_progress = true;
+
+    // Gather roots and create the marking visitor with initial gray set.
+    // Root scanning is stop-the-world: the stack is a snapshot at this point.
+    HashMap<Cell*, HeapRoot> roots;
+    m_marking_heap_blocks.clear();
+    gather_roots(roots, m_marking_heap_blocks);
+
+    m_marking_visitor = make<MarkingVisitor>(*this, roots, m_marking_heap_blocks);
+
+    // Enable write barriers only once the visitor exists, so that
+    // enqueue_barrier_gray has a valid target.
+    s_incremental_marking_active = true;
+}
+
+bool Heap::continue_incremental_marking(size_t cell_budget)
+{
+    VERIFY(m_incremental_marking_in_progress);
+    VERIFY(m_marking_visitor);
+
+    return m_marking_visitor->mark_live_cells_budgeted(cell_budget);
+}
+
+void Heap::enqueue_barrier_gray(Cell& cell)
+{
+    if (m_marking_visitor)
+        m_marking_visitor->enqueue_barrier_gray(cell);
+}
+
+void Heap::finish_incremental_marking()
+{
+    VERIFY(m_incremental_marking_in_progress);
+
+    if (m_marking_visitor) {
+        // First process any remaining worklist items to completion.
+        // This includes cells added by allocate-gray during mutator execution.
+        m_marking_visitor->mark_all_live_cells();
+
+        // Re-mark phase: re-scan roots to catch any new references the
+        // mutator created on the stack or in root containers since
+        // start_incremental_marking. Heap writes are covered by the
+        // hybrid SATB + Dijkstra write barriers, so a full black-cell
+        // re-visit is not needed.
+        HashMap<Cell*, HeapRoot> roots;
+        m_marking_heap_blocks.clear();
+        gather_roots(roots, m_marking_heap_blocks);
+        for (auto* root : roots.keys())
+            m_marking_visitor->visit(root);
+
+        // Drain newly discovered cells.
+        m_marking_visitor->mark_all_live_cells();
+    }
+
+    for (auto& inverse_root : m_uprooted_cells)
+        inverse_root->set_gc_color(GC::Color::White);
+    m_uprooted_cells.clear();
+
+    m_marking_visitor.clear();
+    m_marking_heap_blocks.clear();
+    m_incremental_marking_in_progress = false;
+    s_incremental_marking_active = false;
 }
 
 void Heap::finalize_unmarked_cells()
@@ -692,7 +937,7 @@ void Heap::finalize_unmarked_cells()
         if (!block.overrides_finalize())
             return IterationDecision::Continue;
         block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
-            if (!cell->is_marked())
+            if (cell->gc_color() == GC::Color::White)
                 cell->finalize();
         });
         return IterationDecision::Continue;
@@ -715,55 +960,68 @@ void Heap::sweep_weak_blocks()
     }
 }
 
-void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measurement_timer)
+void Heap::sweep_one_block(HeapBlock& block)
 {
-    dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
-    Vector<HeapBlock*, 32> empty_blocks;
-    Vector<HeapBlock*, 32> full_blocks_that_became_usable;
+    bool block_has_live_cells = false;
+    bool block_was_full = block.is_full();
+    block.for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
+        if (cell->gc_color() == GC::Color::White) {
+            dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
+            block.deallocate(cell);
+            ++m_sweep_collected_cells;
+            m_sweep_collected_cell_bytes += block.cell_size();
+        } else {
+            cell->set_gc_color(GC::Color::White);
+            block_has_live_cells = true;
+            ++m_sweep_live_cells;
+            m_sweep_live_cell_bytes += block.cell_size();
+        }
+    });
+    if (!block_has_live_cells) {
+        dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", &block, block.cell_size());
+        ++m_sweep_empty_block_count;
+        block.cell_allocator().block_did_become_empty({}, block);
+    } else if (block_was_full != block.is_full()) {
+        dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", &block, block.cell_size());
+        block.cell_allocator().block_did_become_usable({}, block);
+    }
+}
 
-    size_t collected_cells = 0;
-    size_t live_cells = 0;
-    size_t collected_cell_bytes = 0;
-    size_t live_cell_bytes = 0;
+void Heap::begin_incremental_sweep()
+{
+    VERIFY(!m_incremental_sweep_in_progress);
+    m_incremental_sweep_in_progress = true;
 
+    m_sweep_collected_cells = 0;
+    m_sweep_live_cells = 0;
+    m_sweep_collected_cell_bytes = 0;
+    m_sweep_live_cell_bytes = 0;
+    m_sweep_empty_block_count = 0;
+
+    m_sweep_blocks_remaining.clear();
     for_each_block([&](auto& block) {
-        bool block_has_live_cells = false;
-        bool block_was_full = block.is_full();
-        block.template for_each_cell_in_state<Cell::State::Live>([&](Cell* cell) {
-            if (!cell->is_marked()) {
-                dbgln_if(HEAP_DEBUG, "  ~ {}", cell);
-                block.deallocate(cell);
-                ++collected_cells;
-                collected_cell_bytes += block.cell_size();
-            } else {
-                cell->set_marked(false);
-                block_has_live_cells = true;
-                ++live_cells;
-                live_cell_bytes += block.cell_size();
-            }
-        });
-        if (!block_has_live_cells)
-            empty_blocks.append(&block);
-        else if (block_was_full != block.is_full())
-            full_blocks_that_became_usable.append(&block);
+        m_sweep_blocks_remaining.append(&block);
         return IterationDecision::Continue;
     });
+}
 
-    for (auto& weak_container : m_weak_containers)
-        weak_container.remove_dead_cells({});
-
-    for (auto& callback : m_sweep_callbacks)
-        callback();
-
-    for (auto* block : empty_blocks) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock empty @ {}: cell_size={}", block, block->cell_size());
-        block->cell_allocator().block_did_become_empty({}, *block);
+bool Heap::continue_incremental_sweep(size_t block_budget)
+{
+    VERIFY(m_incremental_sweep_in_progress);
+    for (size_t i = 0; i < block_budget && !m_sweep_blocks_remaining.is_empty(); ++i) {
+        auto* block = m_sweep_blocks_remaining.take_last();
+        sweep_one_block(*block);
     }
+    return m_sweep_blocks_remaining.is_empty();
+}
 
-    for (auto* block : full_blocks_that_became_usable) {
-        dbgln_if(HEAP_DEBUG, " - HeapBlock usable again @ {}: cell_size={}", block, block->cell_size());
-        block->cell_allocator().block_did_become_usable({}, *block);
-    }
+void Heap::finalize_incremental_sweep()
+{
+    VERIFY(m_incremental_sweep_in_progress);
+    VERIFY(m_sweep_blocks_remaining.is_empty());
+
+    // NOTE: m_sweep_callbacks were already invoked before begin_incremental_sweep,
+    //       so doomed cells they referenced have already been cleared.
 
     if constexpr (HEAP_DEBUG) {
         for_each_block([&](auto& block) {
@@ -772,7 +1030,40 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         });
     }
 
-    m_gc_bytes_threshold = live_cell_bytes > GC_MIN_BYTES_THRESHOLD ? live_cell_bytes : GC_MIN_BYTES_THRESHOLD;
+    // Cells allocated into already-swept blocks (or into new blocks
+    // created during sweep) were colored black by the allocator so the
+    // sweep would not reclaim them.  Reset any remaining non-white
+    // cells back to white so the next mark cycle starts from a clean
+    // slate.  sweep_one_block already handles this for blocks it
+    // visited, so this loop only catches cells sweep did not touch.
+    for_each_block([&](auto& block) {
+        block.template for_each_cell_in_state<Cell::State::Live>([](Cell* cell) {
+            if (cell->gc_color() != GC::Color::White)
+                cell->set_gc_color(GC::Color::White);
+        });
+        return IterationDecision::Continue;
+    });
+
+    m_gc_bytes_threshold = m_sweep_live_cell_bytes > GC_MIN_BYTES_THRESHOLD ? m_sweep_live_cell_bytes : GC_MIN_BYTES_THRESHOLD;
+    m_incremental_sweep_in_progress = false;
+}
+
+void Heap::force_sweep_to_completion()
+{
+    while (!continue_incremental_sweep(SIZE_MAX)) { }
+    finalize_incremental_sweep();
+}
+
+void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measurement_timer)
+{
+    dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
+    for (auto& weak_container : m_weak_containers)
+        weak_container.remove_dead_cells({});
+    for (auto& callback : m_sweep_callbacks)
+        callback();
+
+    begin_incremental_sweep();
+    force_sweep_to_completion();
 
     if (print_report) {
         AK::Duration const time_spent = measurement_timer.elapsed_time();
@@ -785,10 +1076,10 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
         dbgln("Garbage collection report");
         dbgln("=============================================");
         dbgln("     Time spent: {} ms", time_spent.to_milliseconds());
-        dbgln("     Live cells: {} ({} bytes)", live_cells, live_cell_bytes);
-        dbgln("Collected cells: {} ({} bytes)", collected_cells, collected_cell_bytes);
+        dbgln("     Live cells: {} ({} bytes)", m_sweep_live_cells, m_sweep_live_cell_bytes);
+        dbgln("Collected cells: {} ({} bytes)", m_sweep_collected_cells, m_sweep_collected_cell_bytes);
         dbgln("    Live blocks: {} ({} bytes)", live_block_count, live_block_count * HeapBlock::BLOCK_SIZE);
-        dbgln("   Freed blocks: {} ({} bytes)", empty_blocks.size(), empty_blocks.size() * HeapBlock::BLOCK_SIZE);
+        dbgln("   Freed blocks: {} ({} bytes)", m_sweep_empty_block_count, m_sweep_empty_block_count * HeapBlock::BLOCK_SIZE);
         dbgln("=============================================");
     }
 }

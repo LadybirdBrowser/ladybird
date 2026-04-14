@@ -10,6 +10,7 @@
 #include <AK/Function.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/StackInfo.h>
 #include <AK/String.h>
 #include <AK/Types.h>
@@ -33,6 +34,8 @@ struct StackFrameInfo {
     size_t size_bytes { 0 };
 };
 
+class MarkingVisitor;
+
 class GC_API Heap {
     AK_MAKE_NONCOPYABLE(Heap);
     AK_MAKE_NONMOVABLE(Heap);
@@ -49,6 +52,17 @@ public:
         auto* memory = allocate_cell<T>();
         defer_gc();
         new (memory) T(forward<Args>(args)...);
+        // Allocate-gray: cells created during incremental marking are
+        // added to the marking worklist so their edges get traced.
+        if (m_incremental_marking_in_progress) {
+            memory->set_gc_color(GC::Color::Gray);
+            enqueue_barrier_gray(*memory);
+        } else if (m_incremental_sweep_in_progress) {
+            // Allocate-black: cells created during incremental sweep
+            // must not be swept.  finalize_incremental_sweep resets
+            // their color to white before the next cycle starts.
+            memory->set_gc_color(GC::Color::Black);
+        }
         undefer_gc();
         return *static_cast<T*>(memory);
     }
@@ -84,8 +98,14 @@ public:
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);
 
     void uproot_cell(Cell* cell);
+    void enqueue_barrier_gray(Cell& cell);
 
     bool is_gc_deferred() const { return m_gc_deferrals > 0; }
+
+    // Advance any in-progress incremental mark or sweep by one budget step.
+    // Intended to be called from an event-loop idle hook so cycles continue
+    // to make progress even when the mutator stops allocating.
+    void incremental_idle_step();
 
     void enqueue_post_gc_task(AK::Function<void()>);
 
@@ -130,9 +150,17 @@ private:
     void gather_conservative_roots(HashMap<Cell*, HeapRoot>&, HashTable<HeapBlock*> const& all_live_heap_blocks, Vector<StackFrameInfo>* out_stack_frames = nullptr);
     void gather_asan_fake_stack_roots(HashMap<FlatPtr, HeapRoot>&, FlatPtr, FlatPtr min_block_address, FlatPtr max_block_address);
     void mark_live_cells(HashMap<Cell*, HeapRoot> const& live_cells, HashTable<HeapBlock*> const& all_live_heap_blocks);
+    void start_incremental_marking();
+    bool continue_incremental_marking(size_t cell_budget);
+    void finish_incremental_marking();
     void finalize_unmarked_cells();
     void sweep_dead_cells(bool print_report, Core::ElapsedTimer const&);
     void sweep_weak_blocks();
+    void begin_incremental_sweep();
+    bool continue_incremental_sweep(size_t block_budget);
+    void finalize_incremental_sweep();
+    void force_sweep_to_completion();
+    void sweep_one_block(HeapBlock& block);
     void run_post_gc_tasks();
 
     ALWAYS_INLINE CellAllocator& allocator_for_size(size_t cell_size)
@@ -159,6 +187,9 @@ private:
     size_t m_gc_bytes_threshold { GC_MIN_BYTES_THRESHOLD };
     size_t m_allocated_bytes_since_last_gc { 0 };
 
+    size_t m_incremental_marking_budget { 1000 };
+    size_t m_incremental_sweep_budget { 4 };
+
     bool m_should_collect_on_every_allocation { false };
 
     Vector<NonnullOwnPtr<CellAllocator>> m_size_based_cell_allocators;
@@ -176,6 +207,20 @@ private:
     bool m_should_gc_when_deferral_ends { false };
 
     bool m_collecting_garbage { false };
+
+    // Incremental marking state.
+    bool m_incremental_marking_in_progress { false };
+    OwnPtr<MarkingVisitor> m_marking_visitor;
+    HashTable<HeapBlock*> m_marking_heap_blocks;
+
+    // Incremental sweep state.
+    bool m_incremental_sweep_in_progress { false };
+    Vector<HeapBlock*> m_sweep_blocks_remaining;
+    size_t m_sweep_collected_cells { 0 };
+    size_t m_sweep_live_cells { 0 };
+    size_t m_sweep_collected_cell_bytes { 0 };
+    size_t m_sweep_live_cell_bytes { 0 };
+    size_t m_sweep_empty_block_count { 0 };
     StackInfo m_stack_info;
     AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> m_gather_embedder_roots;
 

@@ -24,7 +24,7 @@ WeakSet::WeakSet(Object& prototype)
 void WeakSet::remove_dead_cells(Badge<GC::Heap>)
 {
     m_values.remove_all_matching([](Cell* cell) {
-        return cell->state() != Cell::State::Live;
+        return cell->gc_color() == GC::Color::White;
     });
 }
 

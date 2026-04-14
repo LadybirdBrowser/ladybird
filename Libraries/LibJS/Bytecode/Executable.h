@@ -12,6 +12,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/ValueVector.h>
 #include <LibGC/WeakContainer.h>
 #include <LibJS/Bytecode/ClassBlueprint.h>
 #include <LibJS/Bytecode/IdentifierTable.h>
@@ -159,7 +160,7 @@ public:
         NonnullOwnPtr<PropertyKeyTable>,
         NonnullOwnPtr<StringTable>,
         NonnullOwnPtr<RegexTable>,
-        Vector<Value> constants,
+        GC::ValueVector<Value> constants,
         NonnullRefPtr<SourceCode const>,
         size_t number_of_property_lookup_caches,
         size_t number_of_global_variable_caches,
@@ -182,7 +183,7 @@ public:
     NonnullOwnPtr<IdentifierTable> identifier_table;
     NonnullOwnPtr<PropertyKeyTable> property_key_table;
     NonnullOwnPtr<RegexTable> regex_table;
-    Vector<Value> constants;
+    GC::ValueVector<Value> constants;
 
     Vector<GC::Ptr<SharedFunctionInstanceData>> shared_function_data;
     Vector<ClassBlueprint> class_blueprints;

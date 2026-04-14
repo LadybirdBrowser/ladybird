@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/StringView.h>
+#include <LibGC/ValueVector.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 
@@ -32,15 +33,15 @@ class PromiseValueList final : public Cell {
     GC_DECLARE_ALLOCATOR(PromiseValueList);
 
 public:
-    Vector<Value>& values() { return m_values; }
-    Vector<Value> const& values() const { return m_values; }
+    GC::ValueVector<Value>& values() { return m_values; }
+    GC::ValueVector<Value> const& values() const { return m_values; }
 
 private:
     PromiseValueList() = default;
 
     virtual void visit_edges(Visitor&) override;
 
-    Vector<Value> m_values;
+    GC::ValueVector<Value> m_values;
 };
 
 class PromiseResolvingElementFunction : public NativeFunction {

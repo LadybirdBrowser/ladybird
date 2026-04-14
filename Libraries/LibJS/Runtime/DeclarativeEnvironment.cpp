@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/WriteBarrier.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/Error.h>
@@ -119,6 +120,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::initialize_binding_direct(VM& vm
         TRY(add_disposable_resource(vm, m_dispose_capability, value, hint));
 
     // 3. Set the bound value for N in envRec to V.
+    GC::value_write_barrier(binding.value, value);
     binding.value = value;
 
     // 4. Record that the binding for N in envRec has been initialized.
@@ -169,6 +171,7 @@ ThrowCompletionOr<void> DeclarativeEnvironment::set_mutable_binding_direct(VM& v
         return vm.throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, binding.name);
 
     if (binding.mutable_) {
+        GC::value_write_barrier(binding.value, value);
         binding.value = value;
     } else {
         if (strict)

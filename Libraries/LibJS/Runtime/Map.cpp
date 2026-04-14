@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGC/WriteBarrier.h>
 #include <LibJS/Runtime/Map.h>
 
 namespace JS {
@@ -66,8 +67,11 @@ void Map::map_set(Value const& key, Value value)
 {
     auto it = m_entries.find(key);
     if (it != m_entries.end()) {
+        GC::value_write_barrier(it->value, value);
         it->value = value;
     } else {
+        GC::value_write_barrier(JS::js_undefined(), key);
+        GC::value_write_barrier(JS::js_undefined(), value);
         auto index = m_next_insertion_id++;
         m_keys.insert(index, key);
         m_entries.set(key, value);

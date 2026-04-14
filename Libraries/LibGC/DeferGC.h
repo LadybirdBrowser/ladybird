@@ -10,6 +10,8 @@
 
 namespace GC {
 
+// note: write barriers remain active during deferral to ensure the tri-color
+// invariant is preserved.
 class GC_API DeferGC {
 public:
     explicit DeferGC(Heap& heap)

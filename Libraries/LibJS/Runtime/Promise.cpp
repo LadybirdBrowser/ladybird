@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <LibGC/WriteBarrier.h>
 #include <AK/Function.h>
 #include <AK/Optional.h>
 #include <AK/TypeCasts.h>
@@ -209,6 +210,7 @@ void Promise::fulfill(Value value)
     // NOTE: This is a noop, we do these steps in a slightly different order.
 
     // 3. Set promise.[[PromiseResult]] to value.
+    GC::value_write_barrier(m_result, value);
     m_result = value;
 
     // 4. Set promise.[[PromiseFulfillReactions]] to undefined.
@@ -239,6 +241,7 @@ void Promise::reject(Value reason)
     // NOTE: This is a noop, we do these steps in a slightly different order.
 
     // 3. Set promise.[[PromiseResult]] to reason.
+    GC::value_write_barrier(m_result, reason);
     m_result = reason;
 
     // 4. Set promise.[[PromiseFulfillReactions]] to undefined.

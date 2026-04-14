@@ -5,6 +5,7 @@
  */
 
 #include <AK/Enumerate.h>
+#include <LibGC/ValueVector.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Intrinsics.h>
@@ -449,7 +450,7 @@ private:
 
     Vector<PropertyKey> m_keys;
 
-    Vector<Value> m_padding;
+    GC::ValueVector<Value> m_padding;
 
     GC::Ptr<FinishResults> m_finish_results;
 };

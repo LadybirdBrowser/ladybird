@@ -58,7 +58,7 @@ Executable::Executable(
     NonnullOwnPtr<PropertyKeyTable> property_key_table,
     NonnullOwnPtr<StringTable> string_table,
     NonnullOwnPtr<RegexTable> regex_table,
-    Vector<Value> constants,
+    GC::ValueVector<Value> constants,
     NonnullRefPtr<SourceCode const> source_code,
     size_t number_of_property_lookup_caches,
     size_t number_of_global_variable_caches,
@@ -304,13 +304,14 @@ StaticPropertyLookupCache::StaticPropertyLookupCache()
 
 static void clear_cache_entry_if_dead(PropertyLookupCache::Entry& entry)
 {
-    if (entry.from_shape && entry.from_shape->state() != Cell::State::Live)
+    // NOTE: Called between mark and sweep — doomed cells are still Live but White.
+    if (entry.from_shape && entry.from_shape->gc_color() == GC::Color::White)
         entry.from_shape = nullptr;
-    if (entry.shape && entry.shape->state() != Cell::State::Live)
+    if (entry.shape && entry.shape->gc_color() == GC::Color::White)
         entry.shape = nullptr;
-    if (entry.prototype && entry.prototype->state() != Cell::State::Live)
+    if (entry.prototype && entry.prototype->gc_color() == GC::Color::White)
         entry.prototype = nullptr;
-    if (entry.prototype_chain_validity && entry.prototype_chain_validity->state() != Cell::State::Live)
+    if (entry.prototype_chain_validity && entry.prototype_chain_validity->gc_color() == GC::Color::White)
         entry.prototype_chain_validity = nullptr;
 }
 
@@ -333,8 +334,14 @@ void Executable::remove_dead_cells(Badge<GC::Heap>)
             clear_cache_entry_if_dead(entry);
     }
     for (auto& cache : object_shape_caches) {
-        if (cache.shape && cache.shape->state() != Cell::State::Live)
+        if (cache.shape && cache.shape->gc_color() == GC::Color::White)
             cache.shape = nullptr;
+    }
+    for (auto& cache : object_property_iterator_caches) {
+        if (cache.data && cache.data->gc_color() == GC::Color::White)
+            cache.data = nullptr;
+        if (cache.reusable_property_name_iterator && cache.reusable_property_name_iterator->gc_color() == GC::Color::White)
+            cache.reusable_property_name_iterator = nullptr;
     }
 }
 

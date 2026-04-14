@@ -28,6 +28,12 @@ template<typename T>
 class HeapHashTable;
 
 template<class T>
+class RawPtr;
+
+template<class T>
+class RawRef;
+
+template<class T>
 class Root;
 
 template<class T, size_t inline_capacity = 0>
@@ -35,6 +41,9 @@ class ConservativeVector;
 
 template<class T>
 class HeapVector;
+
+template<class T>
+class ValueVector;
 
 template<class T, size_t inline_capacity = 0>
 class RootVector;

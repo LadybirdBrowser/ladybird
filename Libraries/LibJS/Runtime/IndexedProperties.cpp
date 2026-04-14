@@ -5,6 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <LibGC/WriteBarrier.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/IndexedProperties.h>
 
@@ -26,12 +27,18 @@ void GenericIndexedPropertyStorage::put(u32 index, Value value, PropertyAttribut
 {
     if (index >= m_array_size)
         m_array_size = index + 1;
+    if (auto it = m_sparse_elements.find(index); it != m_sparse_elements.end())
+        GC::value_write_barrier(it->value.value, value);
+    else
+        GC::value_write_barrier(Value(), value);
     m_sparse_elements.set(index, { value, attributes });
 }
 
 void GenericIndexedPropertyStorage::remove(u32 index)
 {
     VERIFY(index < m_array_size);
+    if (auto it = m_sparse_elements.find(index); it != m_sparse_elements.end())
+        GC::value_write_barrier(it->value.value);
     m_sparse_elements.remove(index);
 }
 
@@ -77,10 +84,12 @@ bool GenericIndexedPropertyStorage::set_array_like_size(size_t new_size)
     HashMap<u32, ValueAndAttributes> new_sparse_elements;
     for (auto& entry : m_sparse_elements) {
         if (entry.key >= new_size) {
-            if (entry.value.attributes.is_configurable())
+            if (entry.value.attributes.is_configurable()) {
+                GC::value_write_barrier(entry.value.value);
                 continue;
-            else
+            } else {
                 any_failed = true;
+            }
         }
         new_sparse_elements.set(entry.key, entry.value);
         highest_index = max(highest_index, entry.key);

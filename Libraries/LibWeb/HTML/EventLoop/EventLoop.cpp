@@ -176,6 +176,10 @@ void EventLoop::process()
 
     // 5. If this is a window event loop that has no runnable task in this event loop's task queues, then:
     if (m_type == Type::Window && !m_task_queue->has_runnable_tasks()) {
+        // Advance any in-progress incremental GC cycle during idle time so
+        // mark/sweep can complete even if the mutator stops allocating.
+        vm().heap().incremental_idle_step();
+
         // 1. Set this event loop's last idle period start time to the unsafe shared current time.
         m_last_idle_period_start_time = HighResolutionTime::unsafe_shared_current_time();
 

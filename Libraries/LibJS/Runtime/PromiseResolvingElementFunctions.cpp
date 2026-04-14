@@ -76,7 +76,7 @@ ThrowCompletionOr<Value> PromiseAllResolveElementFunction::resolve_element()
     auto& realm = *vm.current_realm();
 
     // 8. Set values[index] to x.
-    m_values->values()[m_index] = vm.argument(0);
+    m_values->values().set(m_index, vm.argument(0));
 
     // 9. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
     // 10. If remainingElementsCount.[[Value]] is 0, then
@@ -117,7 +117,7 @@ ThrowCompletionOr<Value> PromiseAllSettledResolveElementFunction::resolve_elemen
     MUST(object->create_data_property_or_throw(vm.names.value, vm.argument(0)));
 
     // 12. Set values[index] to obj.
-    m_values->values()[m_index] = object;
+    m_values->values().set(m_index, object);
 
     // 13. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
     // 14. If remainingElementsCount.[[Value]] is 0, then
@@ -158,7 +158,7 @@ ThrowCompletionOr<Value> PromiseAllSettledRejectElementFunction::resolve_element
     MUST(object->create_data_property_or_throw(vm.names.reason, vm.argument(0)));
 
     // 12. Set values[index] to obj.
-    m_values->values()[m_index] = object;
+    m_values->values().set(m_index, object);
 
     // 13. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
     // 14. If remainingElementsCount.[[Value]] is 0, then
@@ -190,7 +190,7 @@ ThrowCompletionOr<Value> PromiseAnyRejectElementFunction::resolve_element()
     auto& realm = *vm.current_realm();
 
     // 8. Set errors[index] to x.
-    m_values->values()[m_index] = vm.argument(0);
+    m_values->values().set(m_index, vm.argument(0));
 
     // 9. Set remainingElementsCount.[[Value]] to remainingElementsCount.[[Value]] - 1.
     // 10. If remainingElementsCount.[[Value]] is 0, then

@@ -1306,8 +1306,11 @@ Optional<ValueAndAttributes> Object::storage_get(PropertyKey const& property_key
             return {};
 
         if (has_intrinsic_accessors()) {
-            if (auto accessor = find_intrinsic_accessor(this, property_key); accessor.has_value())
-                const_cast<Object&>(*this).m_named_properties[metadata->offset] = (*accessor)(shape().realm());
+            if (auto accessor = find_intrinsic_accessor(this, property_key); accessor.has_value()) {
+                auto new_value = (*accessor)(shape().realm());
+                GC::value_write_barrier(m_named_properties[metadata->offset], new_value);
+                const_cast<Object&>(*this).m_named_properties[metadata->offset] = new_value;
+            }
         }
 
         value = m_named_properties[metadata->offset];
@@ -1356,6 +1359,7 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
             set_shape(*m_shape->create_put_transition(property_key, attributes));
         u32 new_offset = shape().property_count() - 1;
         ensure_named_storage_capacity(shape().property_count());
+        GC::value_write_barrier(m_named_properties[new_offset], value);
         m_named_properties[new_offset] = value;
         return new_offset;
     }
@@ -1367,6 +1371,7 @@ Optional<u32> Object::storage_set(PropertyKey const& property_key, ValueAndAttri
             set_shape(*m_shape->create_configure_transition(property_key, attributes));
     }
 
+    GC::value_write_barrier(m_named_properties[metadata->offset], value);
     m_named_properties[metadata->offset] = value;
     return metadata->offset;
 }
@@ -1391,6 +1396,8 @@ void Object::storage_delete(PropertyKey const& property_key)
     } else {
         m_shape = m_shape->create_delete_transition(property_key);
     }
+    // Barrier the deleted property's value before shifting.
+    GC::value_write_barrier(m_named_properties[metadata->offset]);
     // Shift remaining properties down to fill the gap.
     u32 remaining = shape().property_count() - metadata->offset;
     if (remaining > 0)
@@ -1862,6 +1869,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
         m_indexed_storage_kind = storing_hole || index > 0 ? IndexedStorageKind::Holey : IndexedStorageKind::Packed;
         u32 needed = index + 1;
         ensure_indexed_elements(needed);
+        GC::value_write_barrier(Value(), value);
         m_indexed_elements[index] = value;
         m_indexed_array_like_size = max(m_indexed_array_like_size, index + 1);
         return;
@@ -1887,6 +1895,7 @@ void Object::indexed_put(u32 index, Value value, PropertyAttributes attributes)
     if (m_indexed_storage_kind == IndexedStorageKind::Packed && storing_hole)
         m_indexed_storage_kind = IndexedStorageKind::Holey;
 
+    GC::value_write_barrier(m_indexed_elements[index], value);
     m_indexed_elements[index] = value;
 
     // Promote Holey -> Packed when filling the last hole.
@@ -1928,6 +1937,7 @@ void Object::indexed_delete(u32 index)
         return;
     case IndexedStorageKind::Packed:
         VERIFY(index < m_indexed_array_like_size);
+        GC::value_write_barrier(m_indexed_elements[index]);
         m_indexed_elements[index] = js_special_empty_value();
         m_indexed_storage_kind = IndexedStorageKind::Holey;
         break;
@@ -1935,6 +1945,7 @@ void Object::indexed_delete(u32 index)
         VERIFY(index < m_indexed_array_like_size);
         if (index >= indexed_elements_capacity())
             return;
+        GC::value_write_barrier(m_indexed_elements[index]);
         m_indexed_elements[index] = js_special_empty_value();
         break;
     case IndexedStorageKind::Dictionary:
@@ -1977,8 +1988,10 @@ bool Object::set_indexed_array_like_size(size_t new_size)
     // Shrinking
     if (new_size_u32 < old_size) {
         u32 capacity = indexed_elements_capacity();
-        for (u32 i = new_size_u32; i < min(old_size, capacity); ++i)
+        for (u32 i = new_size_u32; i < min(old_size, capacity); ++i) {
+            GC::value_write_barrier(m_indexed_elements[i]);
             m_indexed_elements[i] = js_special_empty_value();
+        }
         m_indexed_array_like_size = new_size_u32;
     }
 
@@ -2007,9 +2020,11 @@ ValueAndAttributes Object::indexed_take_first()
     auto available_elements = min(m_indexed_array_like_size, indexed_elements_capacity());
     auto first = available_elements > 0 ? m_indexed_elements[0] : js_special_empty_value();
 
-    // Shift all elements left
-    for (u32 i = 0; i + 1 < available_elements; ++i)
+    // Shift all elements left with write barriers for each overwrite.
+    for (u32 i = 0; i + 1 < available_elements; ++i) {
+        GC::value_write_barrier(m_indexed_elements[i], m_indexed_elements[i + 1]);
         m_indexed_elements[i] = m_indexed_elements[i + 1];
+    }
 
     m_indexed_array_like_size--;
     if (available_elements > 0)
@@ -2034,6 +2049,7 @@ ValueAndAttributes Object::indexed_take_last()
         return {};
 
     auto last = m_indexed_elements[m_indexed_array_like_size];
+    GC::value_write_barrier(last);
     m_indexed_elements[m_indexed_array_like_size] = js_special_empty_value();
 
     if (last.is_special_empty_value())
@@ -2095,6 +2111,15 @@ Vector<u32> Object::indexed_indices() const
 
 void Object::set_indexed_property_elements(Vector<Value>&& values)
 {
+    // Barrier old indexed values before freeing the storage.
+    if (m_indexed_storage_kind == IndexedStorageKind::Packed || m_indexed_storage_kind == IndexedStorageKind::Holey) {
+        u32 available = min(m_indexed_array_like_size, indexed_elements_capacity());
+        for (u32 i = 0; i < available; ++i)
+            GC::value_write_barrier(m_indexed_elements[i]);
+    } else if (m_indexed_storage_kind == IndexedStorageKind::Dictionary) {
+        for (auto& entry : indexed_dictionary()->sparse_elements())
+            GC::value_write_barrier(entry.value.value);
+    }
     free_indexed_elements();
 
     if (values.is_empty())
@@ -2104,8 +2129,10 @@ void Object::set_indexed_property_elements(Vector<Value>&& values)
     m_indexed_storage_kind = IndexedStorageKind::Packed;
     m_indexed_array_like_size = size;
     m_indexed_elements = allocate_indexed_elements(size);
-    for (u32 i = 0; i < size; ++i)
+    for (u32 i = 0; i < size; ++i) {
+        GC::value_write_barrier(Value(), values[i]);
         m_indexed_elements[i] = values[i];
+    }
 }
 
 ReadonlySpan<Value> Object::indexed_packed_elements_span() const

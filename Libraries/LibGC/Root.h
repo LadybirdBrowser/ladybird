@@ -73,6 +73,16 @@ public:
     {
     }
 
+    Root(RawRef<T> cell, SourceLocation location = SourceLocation::current())
+        : Root(*cell, location)
+    {
+    }
+
+    Root(RawPtr<T> cell, SourceLocation location = SourceLocation::current())
+        : Root(cell.ptr(), location)
+    {
+    }
+
     T* cell() const
     {
         if (!m_impl)

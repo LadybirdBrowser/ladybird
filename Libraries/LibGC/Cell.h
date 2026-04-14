@@ -38,6 +38,12 @@ public:                                            \
     }                                              \
     friend class GC::Heap;
 
+enum class Color : u8 {
+    White, // Not yet reached — will be reclaimed if still white at sweep time.
+    Gray,  // Reached but outgoing edges not yet traced (on marking worklist).
+    Black, // Reached and fully traced.
+};
+
 class GC_API Cell {
     AK_MAKE_NONCOPYABLE(Cell);
     AK_MAKE_NONMOVABLE(Cell);
@@ -48,8 +54,11 @@ public:
 
     virtual ~Cell() = default;
 
-    bool is_marked() const { return m_mark; }
-    void set_marked(bool b) { m_mark = b; }
+    bool is_marked() const { return m_color != Color::White; }
+    void set_marked(bool b) { m_color = b ? Color::Black : Color::White; }
+
+    Color gc_color() const { return m_color; }
+    void set_gc_color(Color color) { m_color = color; }
 
     enum class State : bool {
         Live,
@@ -140,6 +149,13 @@ public:
         }
 
         template<typename T>
+        void visit(ValueVector<T> const& vector)
+        requires(IsBaseOf<NanBoxedValue, T>)
+        {
+            visit_impl(ReadonlySpan<NanBoxedValue>(vector.span().data(), vector.size()));
+        }
+
+        template<typename T>
         void visit(HashTable<T> const& table)
         {
             for (auto& value : table)
@@ -215,7 +231,7 @@ protected:
     Cell() = default;
 
 private:
-    bool m_mark { false };
+    Color m_color { Color::White };
     State m_state { State::Live };
 };
 

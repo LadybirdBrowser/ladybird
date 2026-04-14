@@ -41,7 +41,7 @@ void HeapBlock::deallocate(Cell* cell)
     VERIFY(is_valid_cell_pointer(cell));
     VERIFY(!m_freelist || is_valid_cell_pointer(m_freelist));
     VERIFY(cell->state() == Cell::State::Live);
-    VERIFY(!cell->is_marked());
+    VERIFY(cell->gc_color() == GC::Color::White);
 
     cell->~Cell();
     auto* freelist_entry = new (cell) FreelistEntry();

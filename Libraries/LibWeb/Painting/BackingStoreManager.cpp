@@ -23,8 +23,11 @@ GC_DEFINE_ALLOCATOR(BackingStoreManager);
 
 BackingStoreManager::BackingStoreManager(HTML::Navigable& navigable)
     : m_navigable(navigable)
+    , m_liveness_token(make_ref_counted<LivenessToken>())
 {
-    m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this] {
+    m_backing_store_shrink_timer = Core::Timer::create_single_shot(3000, [this, liveness = m_liveness_token] {
+        if (!liveness->alive)
+            return;
         resize_backing_stores_if_needed(WindowResizingInProgress::No);
     });
 }
@@ -33,6 +36,16 @@ void BackingStoreManager::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigable);
+}
+
+void BackingStoreManager::finalize()
+{
+    Base::finalize();
+    // Mark this cell dead so any already-queued timer callback skips
+    // dereferencing swept memory when the event loop drains it.
+    m_liveness_token->alive = false;
+    if (m_backing_store_shrink_timer)
+        m_backing_store_shrink_timer->stop();
 }
 
 void BackingStoreManager::restart_resize_timer()

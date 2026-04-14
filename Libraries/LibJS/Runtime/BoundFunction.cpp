@@ -14,7 +14,7 @@ namespace JS {
 GC_DEFINE_ALLOCATOR(BoundFunction);
 
 // 10.4.1.3 BoundFunctionCreate ( targetFunction, boundThis, boundArgs ), https://tc39.es/ecma262/#sec-boundfunctioncreate
-ThrowCompletionOr<GC::Ref<BoundFunction>> BoundFunction::create(Realm& realm, FunctionObject& target_function, Value bound_this, Vector<Value> bound_arguments)
+ThrowCompletionOr<GC::Ref<BoundFunction>> BoundFunction::create(Realm& realm, FunctionObject& target_function, Value bound_this, GC::ValueVector<Value> bound_arguments)
 {
     // 1. Let proto be ? targetFunction.[[GetPrototypeOf]]().
     auto* prototype = TRY(target_function.internal_get_prototype_of());
@@ -34,7 +34,7 @@ ThrowCompletionOr<GC::Ref<BoundFunction>> BoundFunction::create(Realm& realm, Fu
     return object;
 }
 
-BoundFunction::BoundFunction(Realm& realm, FunctionObject& bound_target_function, Value bound_this, Vector<Value> bound_arguments, Object* prototype)
+BoundFunction::BoundFunction(Realm& realm, FunctionObject& bound_target_function, Value bound_this, GC::ValueVector<Value> bound_arguments, Object* prototype)
     : FunctionObject(realm, prototype)
     , m_bound_target_function(&bound_target_function)
     , m_bound_this(bound_this)

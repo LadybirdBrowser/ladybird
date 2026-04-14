@@ -294,7 +294,11 @@ public:
     virtual void visit_edges(Cell::Visitor&) override;
 
     Value get_direct(size_t index) const { return m_named_properties[index]; }
-    void put_direct(size_t index, Value value) { m_named_properties[index] = value; }
+    void put_direct(size_t index, Value value)
+    {
+        GC::value_write_barrier(m_named_properties[index], value);
+        m_named_properties[index] = value;
+    }
 
     // Indexed property storage
     Optional<ValueAndAttributes> indexed_get(u32 index) const;

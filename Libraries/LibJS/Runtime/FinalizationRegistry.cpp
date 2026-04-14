@@ -52,19 +52,21 @@ bool FinalizationRegistry::remove_by_token(Cell& unregister_token)
 
 void FinalizationRegistry::remove_dead_cells(Badge<GC::Heap>)
 {
-    auto any_cells_were_removed = false;
-    for (auto& record : m_records) {
-        if (!record.target || record.target->state() == Cell::State::Live)
-            continue;
-        record.target = nullptr;
-        any_cells_were_removed = true;
-        break;
-    }
+    // If the registry itself will be swept this cycle, so will its records.
+    if (gc_color() == GC::Color::White)
+        return;
+
+    auto removed = [](FinalizationRecord const& rec) -> bool {
+        return rec.target || rec.target->gc_color() == GC::Color::White;
+    };
+
+    auto any_cells_were_removed = m_records.find_if(removed) != m_records.end();
+
     if (any_cells_were_removed) {
-        // NOTE: We make a GC::Root here to ensure that the FinalizationRegistry stays alive
-        //       even if a subsequent GC is triggered before the callback has a chance to run.
-        heap().enqueue_post_gc_task([that = GC::make_root(this)]() {
-            that->vm().host_enqueue_finalization_registry_cleanup_job(*that);
+        // This registry will survive until the next cycle (checked above),
+        // so `this` pointer is guaranteed to be valid post collection.
+        heap().enqueue_post_gc_task([this]() {
+            vm().host_enqueue_finalization_registry_cleanup_job(*this);
         });
     }
 }

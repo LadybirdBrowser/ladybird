@@ -24,7 +24,7 @@ WeakMap::WeakMap(Object& prototype)
 void WeakMap::remove_dead_cells(Badge<GC::Heap>)
 {
     m_values.remove_all_matching([](Cell* key, Value) {
-        return key->state() != Cell::State::Live;
+        return key->gc_color() == GC::Color::White;
     });
 }
 

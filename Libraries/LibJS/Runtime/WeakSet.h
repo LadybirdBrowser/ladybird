@@ -25,8 +25,8 @@ public:
 
     virtual ~WeakSet() override = default;
 
-    HashTable<GC::Ptr<Cell>> const& values() const { return m_values; }
-    HashTable<GC::Ptr<Cell>>& values() { return m_values; }
+    HashTable<GC::RawPtr<Cell>> const& values() const { return m_values; }
+    HashTable<GC::RawPtr<Cell>>& values() { return m_values; }
 
     virtual void remove_dead_cells(Badge<GC::Heap>) override;
 
