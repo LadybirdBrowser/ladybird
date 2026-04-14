@@ -407,6 +407,17 @@ NEVER_INLINE void VM::pop_inline_frame(Value return_value)
     vm().finish_execution_generation();
 }
 
+NEVER_INLINE void VM::unwind_inline_frame_for_exception()
+{
+    auto* callee_frame = m_running_execution_context;
+    VERIFY(callee_frame);
+    VERIFY(callee_frame->caller_frame);
+
+    auto* caller_frame = callee_frame->caller_frame;
+    vm().interpreter_stack().deallocate(callee_frame);
+    m_running_execution_context = caller_frame;
+}
+
 void VM::run_bytecode(size_t entry_point)
 {
     if (vm().interpreter_stack().is_exhausted() || vm().did_reach_stack_space_limit()) [[unlikely]] {

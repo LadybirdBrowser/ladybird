@@ -84,8 +84,6 @@ private:
     RawNativeFunction(NativeFunctionPointer, Object* prototype, Realm& realm, Optional<Bytecode::Builtin> builtin);
     RawNativeFunction(Utf16FlyString name, NativeFunctionPointer, Object& prototype);
 
-    virtual bool is_raw_native_function() const final { return true; }
-
     NativeFunctionPointer m_native_function { nullptr };
 };
 

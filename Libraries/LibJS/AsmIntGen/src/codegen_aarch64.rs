@@ -1139,6 +1139,18 @@ fn emit_instruction(
             }
         }
 
+        // call_raw_native: NON-TERMINAL indirect call to
+        // ThrowCompletionOr<Value> (*)(VM&). Passes VM* in x0 and keeps the
+        // aggregate return in x0/x1 (= t0/t1).
+        "call_raw_native" => {
+            if let Some(op) = insn.operands.first() {
+                let func = resolve_op(op, handler, program);
+                w!(out, "    mov x9, {func}");
+                w!(out, "    mov x0, x20");
+                w!(out, "    blr x9");
+            }
+        }
+
         // double_to_int32 dst, src_fpr, fail_label
         // Truncate double to int32 with strict round-trip check.
         // Fails (branches to fail_label) if the value is fractional,

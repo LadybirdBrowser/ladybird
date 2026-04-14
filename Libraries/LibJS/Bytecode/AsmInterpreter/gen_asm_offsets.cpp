@@ -21,6 +21,7 @@
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/IndexedProperties.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/Realm.h>
@@ -65,6 +66,7 @@ int main()
     outln("const OBJECT_FLAG_IS_TYPED_ARRAY = {}", Object::Flag::IsTypedArray);
     outln("const OBJECT_FLAG_IS_FUNCTION = {}", Object::Flag::IsFunction);
     outln("const OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT = {}", Object::Flag::IsECMAScriptFunctionObject);
+    outln("const OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION = {}", Object::Flag::IsRawNativeFunction);
 
     // Shape layout
     outln("\n# Shape layout");
@@ -177,8 +179,18 @@ int main()
     outln("\n# VM layout");
     EMIT_OFFSET(VM_RUNNING_EXECUTION_CONTEXT, VM, m_running_execution_context);
     EMIT_OFFSET(VM_INTERPRETER_STACK, VM, m_interpreter_stack);
+    EMIT_OFFSET(VM_STACK_INFO, VM, m_stack_info);
     EMIT_OFFSET(VM_EXECUTION_GENERATION, VM, m_execution_generation);
     outln("const VM_INTERPRETER_STACK_TOP = {}", offsetof(VM, m_interpreter_stack) + offsetof(InterpreterStack, m_top));
+#if defined(HAS_ADDRESS_SANITIZER)
+    outln("const VM_STACK_SPACE_LIMIT = {}", 96 * KiB);
+#else
+    outln("const VM_STACK_SPACE_LIMIT = {}", 32 * KiB);
+#endif
+
+    // StackInfo layout
+    outln("\n# StackInfo layout");
+    EMIT_OFFSET(STACK_INFO_BASE, StackInfo, m_base);
 
     // IndexedStorageKind enum values
     outln("\n# IndexedStorageKind enum values");
@@ -258,6 +270,10 @@ int main()
         outln("const FUNCTION_OBJECT_BUILTIN_VALUE = {}", base);
         outln("const FUNCTION_OBJECT_BUILTIN_HAS_VALUE = {}", base + 1);
     }
+
+    // RawNativeFunction layout
+    outln("\n# RawNativeFunction layout");
+    EMIT_OFFSET(RAW_NATIVE_FUNCTION_NATIVE_FUNCTION, RawNativeFunction, m_native_function);
 
     // ECMAScriptFunctionObject layout
     outln("\n# ECMAScriptFunctionObject layout");

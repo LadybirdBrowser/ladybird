@@ -270,6 +270,7 @@ u64 asm_helper_math_exp(u64 encoded_value);
 u64 asm_helper_empty_string(u64);
 u64 asm_helper_single_ascii_character_string(u64 encoded_value);
 u64 asm_helper_single_utf16_code_unit_string(u64 encoded_value);
+i64 asm_helper_handle_raw_native_exception(u64 encoded_exception);
 i64 asm_try_inline_call(VM*, u32 pc);
 i64 asm_try_put_by_id_cache(VM*, u32 pc);
 i64 asm_try_get_by_id_cache(VM*, u32 pc);
@@ -1273,6 +1274,21 @@ u64 asm_helper_math_exp(u64 encoded_value)
 u64 asm_helper_empty_string(u64)
 {
     return bit_cast<u64>(Value(&VM::the().empty_string()));
+}
+
+i64 asm_helper_handle_raw_native_exception(u64 encoded_exception)
+{
+    auto& vm = VM::the();
+    auto& callee_frame = vm.running_execution_context();
+    VERIFY(callee_frame.caller_frame);
+
+    // Raw-native asm calls keep their callee frame off the VM execution
+    // context stack, so we have to unwind it manually before exception
+    // dispatch. Match VM::handle_exception()'s inline-frame semantics by
+    // probing the caller with a PC inside the Call instruction.
+    auto caller_pc = callee_frame.caller_return_pc;
+    vm.unwind_inline_frame_for_exception();
+    return handle_asm_exception(vm, caller_pc - 1, bit_cast<Value>(encoded_exception));
 }
 
 u64 asm_helper_single_ascii_character_string(u64 encoded_value)

@@ -43,7 +43,8 @@
 //! | `ft0`-`ft3` | Floating-point scratch (caller-saved)            |
 //!
 //! Temporaries are **not preserved across C++ calls** (`call_slow_path`,
-//! `call_helper`, `call_interp`). The DSL also provides `sp` and `fp`.
+//! `call_helper`, `call_interp`, `call_raw_native`). The DSL also provides
+//! `sp` and `fp`.
 //!
 //! ## DSL instruction reference
 //!
@@ -71,6 +72,10 @@
 //!   after the call. Does NOT reload pinned state.
 //! - `call_interp func` -- **Non-terminal.** Calls `i64 func(VM*, u32 pc)`.
 //!   Result lands in `t0`. The handler continues. Does NOT reload pinned state.
+//! - `call_raw_native reg` -- **Non-terminal.** Indirectly calls a
+//!   `ThrowCompletionOr<Value> (*)(VM&)` function pointer stored in `reg`.
+//!   Passes the hidden VM* as the sole argument. On return, `t0` holds the
+//!   payload and `t1` holds the variant index on both supported architectures.
 //! - `reload_exec_ctx` -- Reload the exec_ctx register from the VM*.
 //!   Used after non-terminal calls that may modify the running execution context.
 //! - `load_vm dst` -- Load the hidden VM* into `dst`.

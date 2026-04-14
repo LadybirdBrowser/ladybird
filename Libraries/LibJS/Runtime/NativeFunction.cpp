@@ -163,12 +163,14 @@ RawNativeFunction::RawNativeFunction(NativeFunctionPointer native_function, Obje
     : NativeFunction(prototype, realm, builtin)
     , m_native_function(native_function)
 {
+    set_is_raw_native_function();
 }
 
 RawNativeFunction::RawNativeFunction(Utf16FlyString name, NativeFunctionPointer native_function, Object& prototype)
     : NativeFunction(move(name), prototype)
     , m_native_function(native_function)
 {
+    set_is_raw_native_function();
 }
 
 // NOTE: Do not attempt to DRY these, it's not worth it. The difference in return types (Value vs Object*),

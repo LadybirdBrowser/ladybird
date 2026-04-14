@@ -1980,12 +1980,28 @@ handler SetGlobal
 end
 
 handler Call
-    # Inline JS-to-JS Call in asm when the callee is an ECMAScriptFunctionObject
-    # with bytecode ready. Cases that need function-environment allocation or
-    # sloppy primitive this boxing bounce through a C++ helper that still
-    # prepares an inline frame instead of taking the full slow path.
+    # Inline Call in asm for the two callee kinds that can stay in the
+    # dispatch loop without taking the full Call slow path:
     #
-    # High-level flow:
+    #  - ECMAScriptFunctionObject with inline-ready bytecode: build the
+    #    callee frame here and dispatch at pc = 0 of the callee bytecode.
+    #    Cases that need function-environment allocation or sloppy primitive
+    #    this-boxing can't stay in pure asm but also don't want the full
+    #    slow path (which would insert a run_executable() boundary and an
+    #    observable microtask drain), so they detour through the
+    #    asm_try_inline_call helper at .call_interp_inline.
+    #
+    #  - RawNativeFunction: build a callee ExecutionContext here, call the
+    #    stored C++ function pointer directly via call_raw_native, and then
+    #    tear the frame down on return. Exceptions go through a dedicated
+    #    helper that unwinds the callee frame before dispatching to a JS
+    #    handler (see .call_raw_native_exception).
+    #
+    # Everything else — non-functions, NativeJavaScriptBackedFunction,
+    # ECMAScript functions that can't inline, Proxies, ... — falls through
+    # to .call_slow, i.e. asm_slow_path_call.
+    #
+    # High-level flow of the ECMAScript fast path:
     #   1. Validate the callee and load its shared function metadata.
     #   2. Bind `this` inline when we can do so without allocations.
     #   3. Reserve an InterpreterStack frame and populate ExecutionContext.
@@ -2003,10 +2019,12 @@ handler Call
     unbox_object t0, t0
     mov t3, t0
 
-    # Reject everything except ordinary ECMAScript function objects with
-    # already-prepared bytecode and cached inline-call eligibility.
+    # Non-functions still go through the normal Call slow path for proper error
+    # reporting. Non-ECMAScript function objects get a RawNativeFunction fast
+    # path attempt before we fully give up.
     load8 t1, [t3, OBJECT_FLAGS]
-    branch_bits_clear t1, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_slow
+    branch_bits_clear t1, OBJECT_FLAG_IS_FUNCTION, .call_slow
+    branch_bits_clear t1, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_try_native
 
     load64 t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
     load_pair64 t7, t2, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
@@ -2186,7 +2204,7 @@ handler Call
     mov exec_ctx, t2
     lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
     xor pc, pc
-    dispatch_current
+    goto_handler pc
 .call_interp_inline:
     # Shared escape hatch for the cases that need C++ help to build the inline
     # frame correctly but must not take the full Call slow path, since that
@@ -2199,7 +2217,189 @@ handler Call
     load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
     load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
     xor pc, pc
-    dispatch_current
+    goto_handler pc
+.call_try_native:
+    # Fast path for RawNativeFunction: the callee is a plain C++ function
+    # pointer with no JS-visible prologue, so we can build the callee frame
+    # ourselves and jump straight at the entry point. NativeFunction objects
+    # that still carry a callback (NativeJavaScriptBackedFunction) do not have
+    # this flag set and fall through to .call_slow.
+    load8 t0, [t3, OBJECT_FLAGS]
+    branch_bits_clear t0, OBJECT_FLAG_IS_RAW_NATIVE_FUNCTION, .call_slow
+
+    # Unlike the ECMAScript path we don't pad to the formal parameter count:
+    # native functions read their arguments via the passed-count API, so we
+    # only need space for the call-site arguments plus the ExecutionContext
+    # header. t4 = argument count, t5 = total bytes needed for this frame.
+    load32 t4, [pb, pc, m_argument_count]
+    mov t5, t4
+    shl t5, 3
+    add t5, SIZEOF_EXECUTION_CONTEXT
+
+    # Inline InterpreterStack::allocate(): bail to C++ if the interpreter
+    # stack doesn't have room for the new frame. t6 = new frame base (old
+    # top), t5 becomes the new top after the add below.
+    load_vm t0
+    lea t0, [t0, VM_INTERPRETER_STACK]
+    load_pair64 t6, t7, [t0, INTERPRETER_STACK_TOP], [t0, INTERPRETER_STACK_LIMIT]
+    add t5, t6
+    branch_ge_unsigned t7, t5, .native_interpreter_stack_ok
+    jmp .call_slow
+
+.native_interpreter_stack_ok:
+    # RawNativeFunctions run real C++ code on the host stack, so we also have
+    # to check that we're not about to blow past the VM's reserved stack
+    # limit. The ECMAScript path can skip this because it never leaves asm.
+    load_vm t0
+    lea t0, [t0, VM_STACK_INFO]
+    load64 t7, [t0, STACK_INFO_BASE]
+    add t7, VM_STACK_SPACE_LIMIT
+    branch_ge_unsigned fp, t7, .native_stack_space_ok
+    jmp .call_slow
+
+.native_stack_space_ok:
+    # Commit the new interpreter stack top. From here on we own [t6, t5).
+    load_vm t0
+    store64 [t0, VM_INTERPRETER_STACK_TOP], t5
+
+    # Populate the callee ExecutionContext to match what VM::push_execution_context
+    # plus NativeFunction::internal_call would produce. t2 tracks the EC
+    # header, t6 advances to the argument Value array that follows it.
+    mov t2, t6
+    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
+    # For natives, argument_count and "registers+..." total are both just the
+    # call-site argument count: there are no registers, locals, or constants.
+    store_pair32 [t2, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [t2, EXECUTION_CONTEXT_ARGUMENT_COUNT], t4, t4
+    store32 [t2, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t4
+
+    # Shape stores a Realm pointer; use it as the callee EC realm.
+    load64 t0, [t3, OBJECT_SHAPE]
+    load64 t0, [t0, SHAPE_REALM]
+    store_pair64 [t2, EXECUTION_CONTEXT_FUNCTION], [t2, EXECUTION_CONTEXT_REALM], t3, t0
+
+    # Mirror NativeFunction::internal_call: a raw native has no environment of
+    # its own, so lexical/variable/private environments are copied straight
+    # from the caller frame.
+    load_pair64 t0, t7, [exec_ctx, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [exec_ctx, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT]
+    store_pair64 [t2, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [t2, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0, t7
+    load64 t0, [exec_ctx, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT]
+    store64 [t2, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t0
+    # |this| is forwarded unchanged. Native builtins do their own type checks
+    # on the receiver where they need to.
+    load_operand t0, m_this_value
+    store64 [t2, EXECUTION_CONTEXT_THIS_VALUE], t0
+
+    # Zero out the ScriptOrModule variant (two words) and Executable pointer.
+    # Native frames don't belong to any script/module and have no bytecode.
+    xor t0, t0
+    lea t7, [t2, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
+    store_pair64 [t7, 0], [t7, 8], t0, t0
+    store64 [t2, EXECUTION_CONTEXT_EXECUTABLE], t0
+    store32 [t2, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
+    store32 [t2, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
+    mov t0, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
+    store32 [t2, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
+    store8 [t2, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [t2, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
+
+    # While asm runs, the authoritative program counter lives in the `pc`
+    # register and the caller EC's stored program_counter is stale. Before we
+    # leave asm to run native C++ that may throw, sync `pc` into the caller
+    # EC as a bytecode offset (pc - pb). asm_helper_handle_raw_native_exception
+    # and VM::handle_exception both read from the caller EC after unwind.
+    lea t7, [pb, pc]
+    sub t7, pb
+    store32 [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER], t7
+    store64 [t2, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
+    # CALLER_RETURN_PC is the bytecode offset of the instruction after the
+    # Call (Call offset + Call length). CALLER_DST_RAW records where the
+    # return value should be written in the caller's value array.
+    load32 t0, [pb, pc, m_length]
+    add t0, t7
+    store32 [t2, EXECUTION_CONTEXT_CALLER_RETURN_PC], t0
+    load32 t0, [pb, pc, m_dst]
+    store32 [t2, EXECUTION_CONTEXT_CALLER_DST_RAW], t0
+
+    # Copy the call-site arguments from the caller's value array into the
+    # callee frame's argument tail. t0 points at the caller's value array,
+    # t8 at the Operand[] that trails the fixed Call instruction fields.
+    # The Call layout ends with `m_expression_string: Optional<StringTableIndex>`
+    # (4 bytes via the sentinel specialization) followed by `m_arguments`, so
+    # base + offsetof(m_expression_string) + 4 is the operand array.
+    lea t0, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    lea t8, [pb, pc]
+    add t8, m_expression_string
+    add t8, 4
+    xor t7, t7
+.copy_native_arguments_loop:
+    branch_ge_unsigned t7, t4, .enter_raw_native
+    load32 t5, [t8, t7, 4]
+    load64 t5, [t0, t5, 8]
+    store64 [t6, t7, 8], t5
+    add t7, 1
+    jmp .copy_native_arguments_loop
+
+.enter_raw_native:
+    # Swap the running ExecutionContext over to the callee and point the
+    # asm `values` register at its argument array. After this, we look like
+    # a normal inline frame from the VM's perspective.
+    load_vm t0
+    store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
+    mov exec_ctx, t2
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+
+    # Invoke the raw C++ function pointer. call_raw_native lowers to a native
+    # call through the platform ABI and surfaces the returned
+    # ThrowCompletionOr<Value> via (t0, t1): t0 is the Value payload and t1
+    # holds the Variant discriminator in its low byte (0 = Value, 1 =
+    # ErrorValue). Anything non-zero in that byte means the native threw and
+    # t0 is the thrown Value, not a return value.
+    load64 t3, [t3, RAW_NATIVE_FUNCTION_NATIVE_FUNCTION]
+    call_raw_native t3
+    and t1, 0xFF
+    branch_nonzero t1, .call_raw_native_exception
+
+    # Normal return path: tear the callee frame off the interpreter stack,
+    # restore the caller as the running ExecutionContext, write the return
+    # value into the caller's m_dst operand, and dispatch the next insn.
+    load64 t2, [exec_ctx, EXECUTION_CONTEXT_CALLER_FRAME]
+    load_vm t3
+    store64 [t3, VM_RUNNING_EXECUTION_CONTEXT], t2
+    store64 [t3, VM_INTERPRETER_STACK_TOP], exec_ctx
+    mov exec_ctx, t2
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    store_operand m_dst, t0
+    load32 t0, [pb, pc, m_length]
+    dispatch_variable t0
+
+.call_raw_native_exception:
+    # The native threw. Hand the thrown Value off to a C++ helper, which
+    # unwinds the callee frame off the interpreter stack and calls through
+    # to VM::handle_exception. Return value (t0) follows the standard asm
+    # slow-path convention (see AsmInterpreter.cpp:127):
+    #   >= 0 : an enclosing handler was found; t0 is the new program counter
+    #          to resume at inside the (post-unwind) running execution context.
+    #    < 0 : no handler; bail out of the asm dispatch loop entirely.
+    mov t1, t0
+    call_helper asm_helper_handle_raw_native_exception
+    branch_negative t0, .call_exit_asm
+    jmp .call_exception_handled
+.call_exception_handled:
+    # Reload exec_ctx/values/pb/pc from the caller frame the helper left us
+    # on, and resume dispatching at its program_counter (which the helper
+    # already updated to the handler entry).
+    load_vm t0
+    load64 exec_ctx, [t0, VM_RUNNING_EXECUTION_CONTEXT]
+    lea values, [exec_ctx, SIZEOF_EXECUTION_CONTEXT]
+    load64 t0, [exec_ctx, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
+    load32 t2, [exec_ctx, EXECUTION_CONTEXT_PROGRAM_COUNTER]
+    mov pc, t2
+    goto_handler pc
+.call_exit_asm:
+    # No JS handler caught the native exception; bail out of the asm
+    # dispatch loop and let the C++ caller of run_asm() see the throw.
+    exit
 .call_slow:
     call_slow_path asm_slow_path_call
 end

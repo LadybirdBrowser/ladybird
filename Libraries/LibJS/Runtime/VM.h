@@ -134,6 +134,7 @@ public:
     [[nodiscard]] COLD HandleExceptionResponse handle_exception(u32 program_counter, Value exception);
 
     NEVER_INLINE void pop_inline_frame(Value return_value);
+    NEVER_INLINE void unwind_inline_frame_for_exception();
 
     ExecutionContext* push_inline_frame(
         ECMAScriptFunctionObject& callee_function,

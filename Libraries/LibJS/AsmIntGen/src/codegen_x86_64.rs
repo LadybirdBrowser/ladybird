@@ -518,6 +518,20 @@ fn emit_instruction(
             }
         }
 
+        // call_raw_native pseudo-instruction
+        // Indirectly calls ThrowCompletionOr<Value> (*)(VM&) from a register.
+        // Passes the hidden VM* as the sole argument. Result payload lands in
+        // rax (t0) and the Variant index is normalized into rcx (t1).
+        "call_raw_native" => {
+            if let Some(op) = insn.operands.first() {
+                let func = resolve_op(op, handler, program);
+                w!(out, "    mov r11, {func}");
+                w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
+                w!(out, "    call r11");
+                w!(out, "    mov rcx, rdx");
+            }
+        }
+
         // double_to_int32 dst, src_fpr, fail_label
         // Truncate double to int32 with strict round-trip check.
         // Fails if fractional, out of i32 range, or NaN.
