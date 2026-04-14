@@ -2076,12 +2076,10 @@ handler Call
     mov t4, t7
 .arg_count_ready:
     load32 t5, [t0, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT]
-    load64 t6, [t0, EXECUTABLE_CONSTANTS_SIZE]
+    load32 t1, [t0, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
 
     # Inline InterpreterStack::allocate().
     # t1 = total Value slots, t2 = new stack top, t6 = current frame base.
-    mov t1, t5
-    add t1, t6
     add t1, t4
     mov t2, t1
     shl t2, 3

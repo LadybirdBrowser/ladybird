@@ -131,6 +131,7 @@ int main()
     EMIT_OFFSET(EXECUTABLE_CONSTANTS, Executable, constants);
     EMIT_OFFSET(EXECUTABLE_PROPERTY_LOOKUP_CACHES, Executable, property_lookup_caches);
     EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_COUNT, Executable, registers_and_locals_count);
+    EMIT_OFFSET(EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT, Executable, registers_and_locals_and_constants_count);
 
     // ExecutionContext layout
     outln("\n# ExecutionContext layout");
