@@ -2107,23 +2107,22 @@ handler Call
     load64 t0, [t0, SHAPE_REALM]
     store64 [t6, EXECUTION_CONTEXT_REALM], t0
 
-    load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT]
+    load_pair64 t0, t1, [t3, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT], [t3, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
     store64 [t6, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], t0
     store64 [t6, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0
-    load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
-    store64 [t6, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t0
+    store64 [t6, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t1
     load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
     load64 t0, [t0, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
     store64 [t6, EXECUTION_CONTEXT_EXECUTABLE], t0
+    store64 [t6, EXECUTION_CONTEXT_THIS_VALUE], t8
 
     # ScriptOrModule is a two-word Variant in ExecutionContext, so copy both
     # machine words explicitly.
     lea t0, [t6, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
     lea t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
-    load64 t3, [t2, 0]
+    load_pair64 t3, t8, [t2, 0], [t2, 8]
     store64 [t0, 0], t3
-    load64 t3, [t2, 8]
-    store64 [t0, 8], t3
+    store64 [t0, 8], t8
 
     store32 [t6, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
     store32 [t6, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
@@ -2131,18 +2130,16 @@ handler Call
     store32 [t6, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
     store8 [t6, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
     store8 [t6, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
-    store64 [t6, EXECUTION_CONTEXT_THIS_VALUE], t8
     store64 [t6, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
     store32 [t6, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], t1
     store32 [t6, EXECUTION_CONTEXT_ARGUMENT_COUNT], t4
     store32 [t6, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t7
-    load32 t0, [pb, pc, m_length]
+    load_pair32 t0, t1, [pb, pc, m_length], [pb, pc, m_dst]
     lea t2, [pb, pc]
     sub t2, pb
     add t0, t2
     store32 [t6, EXECUTION_CONTEXT_CALLER_RETURN_PC], t0
-    load32 t0, [pb, pc, m_dst]
-    store32 [t6, EXECUTION_CONTEXT_CALLER_DST_RAW], t0
+    store32 [t6, EXECUTION_CONTEXT_CALLER_DST_RAW], t1
 
     # values = [registers | locals | constants | arguments]
     # Keep t2 at the ExecutionContext base while t6 walks the Value tail.
@@ -2203,11 +2200,10 @@ handler Call
 .enter_callee:
     # Mirror the normal interpreter entry sequence: cache `this` in the
     # dedicated register slot, then reload pb/values/exec_ctx for the callee.
-    load64 t0, [t2, EXECUTION_CONTEXT_THIS_VALUE]
+    load_pair64 t0, t1, [t2, EXECUTION_CONTEXT_THIS_VALUE], [t2, EXECUTION_CONTEXT_EXECUTABLE]
     store64 [t6, THIS_VALUE_REG_OFFSET], t0
 
-    load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 pb, [t0, EXECUTABLE_BYTECODE_DATA]
+    load64 pb, [t1, EXECUTABLE_BYTECODE_DATA]
     load_vm t0
     store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
     mov exec_ctx, t2
