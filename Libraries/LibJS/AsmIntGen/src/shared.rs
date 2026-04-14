@@ -191,7 +191,7 @@ pub struct ResolvedMemoryOperand {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AdjacentLoadPair {
+pub struct AdjacentMemoryPair {
     pub base: String,
     pub index: Option<String>,
     pub first_offset: i64,
@@ -263,24 +263,24 @@ fn pairable_memory_address(
             Ok((mem.base.clone(), Some(index.clone()), *offset))
         }
         ResolvedMemoryIndex::Reg(index) => Err(format!(
-            "paired loads require explicit offsets, got indexed address with base '{}' and index '{}'",
+            "paired accesses require explicit offsets, got indexed address with base '{}' and index '{}'",
             mem.base, index
         )),
         ResolvedMemoryIndex::RegScale(index, scale) => Err(format!(
-            "paired loads require explicit offsets, got scaled address with base '{}', index '{}', and scale {}",
+            "paired accesses require explicit offsets, got scaled address with base '{}', index '{}', and scale {}",
             mem.base, index, scale
         )),
     }
 }
 
-pub fn resolve_adjacent_load_pair(
+pub fn resolve_adjacent_memory_pair(
     first: &Operand,
     second: &Operand,
     handler: &Handler,
     program: &Program,
     arch: Arch,
     element_size: i64,
-) -> Result<AdjacentLoadPair, String> {
+) -> Result<AdjacentMemoryPair, String> {
     let first = resolve_memory_operand(first, handler, program, arch)?;
     let second = resolve_memory_operand(second, handler, program, arch)?;
 
@@ -289,17 +289,17 @@ pub fn resolve_adjacent_load_pair(
 
     if first_base != second_base || first_index != second_index {
         return Err(format!(
-            "paired loads must use the same base and index, got {first:?} and {second:?}"
+            "paired accesses must use the same base and index, got {first:?} and {second:?}"
         ));
     }
 
     if second_offset != first_offset + element_size {
         return Err(format!(
-            "paired loads must name adjacent {element_size}-byte fields in order, got offsets {first_offset} and {second_offset}"
+            "paired accesses must name adjacent {element_size}-byte fields in order, got offsets {first_offset} and {second_offset}"
         ));
     }
 
-    Ok(AdjacentLoadPair {
+    Ok(AdjacentMemoryPair {
         base: first_base,
         index: first_index,
         first_offset,
@@ -363,12 +363,12 @@ mod tests {
         };
 
         let pair =
-            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
+            resolve_adjacent_memory_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
                 .expect("adjacent bytecode fields should validate");
 
         assert_eq!(
             pair,
-            AdjacentLoadPair {
+            AdjacentMemoryPair {
                 base: "x26".into(),
                 index: Some("x25".into()),
                 first_offset: 4,
@@ -392,7 +392,7 @@ mod tests {
         };
 
         let error =
-            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
+            resolve_adjacent_memory_pair(&first, &second, &handler, &program, Arch::Aarch64, 4)
                 .expect_err("reversed field order should be rejected");
 
         assert!(error.contains("adjacent 4-byte fields"));
@@ -414,7 +414,7 @@ mod tests {
         };
 
         let error =
-            resolve_adjacent_load_pair(&first, &second, &handler, &program, Arch::X86_64, 8)
+            resolve_adjacent_memory_pair(&first, &second, &handler, &program, Arch::X86_64, 8)
                 .expect_err("non-adjacent offsets should be rejected");
 
         assert!(error.contains("adjacent 8-byte fields"));

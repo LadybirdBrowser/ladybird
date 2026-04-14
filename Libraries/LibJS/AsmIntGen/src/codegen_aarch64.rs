@@ -7,7 +7,7 @@
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
-    AdjacentLoadPair, HandlerState, get_immediate_value, resolve_adjacent_load_pair,
+    AdjacentMemoryPair, HandlerState, get_immediate_value, resolve_adjacent_memory_pair,
     resolve_field_ref, resolve_label, substitute_macro, uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
@@ -563,7 +563,7 @@ fn emit_ldr32(out: &mut String, dst: &str, base: &str, offset: i64) {
     }
 }
 
-fn can_encode_ldp_offset(offset: i64, element_size: i64) -> bool {
+fn can_encode_pair_offset(offset: i64, element_size: i64) -> bool {
     match element_size {
         4 => (-256..=252).contains(&offset) && offset % 4 == 0,
         8 => (-512..=504).contains(&offset) && offset % 8 == 0,
@@ -575,7 +575,7 @@ fn emit_load_pair(
     out: &mut String,
     dst1: &str,
     dst2: &str,
-    pair: &AdjacentLoadPair,
+    pair: &AdjacentMemoryPair,
     element_size: i64,
 ) {
     let base = if let Some(index) = &pair.index {
@@ -590,7 +590,7 @@ fn emit_load_pair(
     };
 
     let first_offset = pair.first_offset;
-    if can_encode_ldp_offset(first_offset, element_size) {
+    if can_encode_pair_offset(first_offset, element_size) {
         match element_size {
             4 => w!(
                 out,
@@ -778,6 +778,60 @@ fn emit_mov_imm(out: &mut String, dst: &str, val: i64) {
                 w!(out, "    movk {dst}, #0x{hw:x}, lsl #{shift}");
             }
         }
+    }
+}
+
+fn pick_pair_store_scratch(excluded: &[&str]) -> &'static str {
+    ["x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"]
+        .into_iter()
+        .find(|candidate| !excluded.contains(candidate))
+        .expect("no AArch64 scratch register left for paired store")
+}
+
+fn emit_store_pair(
+    out: &mut String,
+    src1: &str,
+    src2: &str,
+    pair: &AdjacentMemoryPair,
+    element_size: i64,
+) {
+    let base = if let Some(index) = &pair.index {
+        if pair.base == "x26" && index == "x25" {
+            "x21"
+        } else {
+            let scratch = pick_pair_store_scratch(&[src1, src2]);
+            w!(out, "    add {scratch}, {}, {index}", pair.base);
+            scratch
+        }
+    } else {
+        pair.base.as_str()
+    };
+
+    let first_offset = pair.first_offset;
+    if can_encode_pair_offset(first_offset, element_size) {
+        match element_size {
+            4 => w!(
+                out,
+                "    stp {}, {}, [{base}, #{first_offset}]",
+                to_w_reg(src1),
+                to_w_reg(src2)
+            ),
+            8 => w!(out, "    stp {src1}, {src2}, [{base}, #{first_offset}]"),
+            _ => unreachable!("unsupported paired store size"),
+        }
+        return;
+    }
+
+    match element_size {
+        4 => {
+            emit_str32(out, &to_w_reg(src1), base, first_offset);
+            emit_str32(out, &to_w_reg(src2), base, first_offset + 4);
+        }
+        8 => {
+            emit_str64(out, src1, base, first_offset);
+            emit_str64(out, src2, base, first_offset + 8);
+        }
+        _ => unreachable!("unsupported paired store size"),
     }
 }
 
@@ -1258,7 +1312,7 @@ fn emit_instruction(
 
         "load_pair64" => {
             if insn.operands.len() >= 4 {
-                let pair = resolve_adjacent_load_pair(
+                let pair = resolve_adjacent_memory_pair(
                     &insn.operands[2],
                     &insn.operands[3],
                     handler,
@@ -1277,7 +1331,7 @@ fn emit_instruction(
 
         "load_pair32" => {
             if insn.operands.len() >= 4 {
-                let pair = resolve_adjacent_load_pair(
+                let pair = resolve_adjacent_memory_pair(
                     &insn.operands[2],
                     &insn.operands[3],
                     handler,
@@ -1433,6 +1487,50 @@ fn emit_instruction(
                         emit_mem_store(out, &src, &mem, 8);
                     }
                 }
+            }
+        }
+
+        "store_pair64" => {
+            if insn.operands.len() >= 4 {
+                let pair = resolve_adjacent_memory_pair(
+                    &insn.operands[0],
+                    &insn.operands[1],
+                    handler,
+                    program,
+                    Arch::Aarch64,
+                    8,
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "invalid store_pair64 in handler '{}': {error}",
+                        handler.name
+                    )
+                });
+                let src1 = resolve_op(&insn.operands[2], handler, program);
+                let src2 = resolve_op(&insn.operands[3], handler, program);
+                emit_store_pair(out, &src1, &src2, &pair, 8);
+            }
+        }
+
+        "store_pair32" => {
+            if insn.operands.len() >= 4 {
+                let pair = resolve_adjacent_memory_pair(
+                    &insn.operands[0],
+                    &insn.operands[1],
+                    handler,
+                    program,
+                    Arch::Aarch64,
+                    4,
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "invalid store_pair32 in handler '{}': {error}",
+                        handler.name
+                    )
+                });
+                let src1 = resolve_op(&insn.operands[2], handler, program);
+                let src2 = resolve_op(&insn.operands[3], handler, program);
+                emit_store_pair(out, &src1, &src2, &pair, 4);
             }
         }
 

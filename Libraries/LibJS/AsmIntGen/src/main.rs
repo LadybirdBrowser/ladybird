@@ -107,6 +107,13 @@
 //! - `load8s dst, [base, offset]` -- Load 8-bit value, sign-extended.
 //! - `store64 [base, offset], src` -- Store 64 bits.
 //! - `store32 [base, offset], src` -- Store low 32 bits.
+//! - `store_pair64 mem1, mem2, src1, src2` -- Store two adjacent 64-bit
+//!   values. Like `load_pair64`, the DSL must name both destinations
+//!   explicitly and AsmIntGen verifies that `mem2` is immediately after
+//!   `mem1`.
+//! - `store_pair32 mem1, mem2, src1, src2` -- Store two adjacent 32-bit
+//!   values. Like `store_pair64`, both memory operands must be named and
+//!   adjacent or codegen rejects the handler.
 //! - `store16 [base, offset], src` -- Store low 16 bits.
 //! - `store8 [base, offset], src` -- Store low 8 bits.
 //! - `inc32_mem [base, offset]` -- Increment a 32-bit memory slot by 1.

@@ -7,7 +7,7 @@
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
-    HandlerState, get_immediate_value, resolve_adjacent_load_pair, resolve_field_ref,
+    HandlerState, get_immediate_value, resolve_adjacent_memory_pair, resolve_field_ref,
     resolve_label, substitute_macro, uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
@@ -768,7 +768,7 @@ fn emit_instruction(
 
         "load_pair64" => {
             if insn.operands.len() >= 4 {
-                resolve_adjacent_load_pair(
+                resolve_adjacent_memory_pair(
                     &insn.operands[2],
                     &insn.operands[3],
                     handler,
@@ -791,7 +791,7 @@ fn emit_instruction(
 
         "load_pair32" => {
             if insn.operands.len() >= 4 {
-                resolve_adjacent_load_pair(
+                resolve_adjacent_memory_pair(
                     &insn.operands[2],
                     &insn.operands[3],
                     handler,
@@ -897,6 +897,58 @@ fn emit_instruction(
                 let mem = resolve_op(&insn.operands[0], handler, program);
                 let src = resolve_op(&insn.operands[1], handler, program);
                 w!(out, "    mov QWORD PTR {mem}, {src}");
+            }
+        }
+
+        "store_pair64" => {
+            if insn.operands.len() >= 4 {
+                resolve_adjacent_memory_pair(
+                    &insn.operands[0],
+                    &insn.operands[1],
+                    handler,
+                    program,
+                    Arch::X86_64,
+                    8,
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "invalid store_pair64 in handler '{}': {error}",
+                        handler.name
+                    )
+                });
+
+                let mem1 = resolve_op(&insn.operands[0], handler, program);
+                let mem2 = resolve_op(&insn.operands[1], handler, program);
+                let src1 = resolve_op(&insn.operands[2], handler, program);
+                let src2 = resolve_op(&insn.operands[3], handler, program);
+                w!(out, "    mov QWORD PTR {mem1}, {src1}");
+                w!(out, "    mov QWORD PTR {mem2}, {src2}");
+            }
+        }
+
+        "store_pair32" => {
+            if insn.operands.len() >= 4 {
+                resolve_adjacent_memory_pair(
+                    &insn.operands[0],
+                    &insn.operands[1],
+                    handler,
+                    program,
+                    Arch::X86_64,
+                    4,
+                )
+                .unwrap_or_else(|error| {
+                    panic!(
+                        "invalid store_pair32 in handler '{}': {error}",
+                        handler.name
+                    )
+                });
+
+                let mem1 = resolve_op(&insn.operands[0], handler, program);
+                let mem2 = resolve_op(&insn.operands[1], handler, program);
+                let src1 = resolve_op(&insn.operands[2], handler, program);
+                let src2 = resolve_op(&insn.operands[3], handler, program);
+                w!(out, "    mov DWORD PTR {mem1}, {}", to_32bit_reg(&src1));
+                w!(out, "    mov DWORD PTR {mem2}, {}", to_32bit_reg(&src2));
             }
         }
 
