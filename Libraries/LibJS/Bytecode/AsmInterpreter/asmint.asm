@@ -2497,8 +2497,7 @@ handler ObjectPropertyIteratorNext
 .next_key:
     # property_values is laid out as:
     #   [receiver packed index keys..., flattened named keys...]
-    load32 t0, [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
-    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
+    load_pair32 t2, t0, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT], [t3, PROPERTY_NAME_ITERATOR_NEXT_INDEXED_PROPERTY]
     branch_ge_unsigned t0, t2, .named
     load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA]
     load64 t8, [t8, t0, 8]
@@ -2512,7 +2511,6 @@ handler ObjectPropertyIteratorNext
 .named:
     load64 t0, [t3, PROPERTY_NAME_ITERATOR_NEXT_PROPERTY]
     load64 t8, [t5, OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE]
-    load32 t2, [t3, PROPERTY_NAME_ITERATOR_INDEXED_PROPERTY_COUNT]
     sub t8, t2
     branch_ge_unsigned t0, t8, .done
     mov t8, t0
