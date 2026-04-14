@@ -60,7 +60,7 @@ void LCHColorStyleValue::serialize(StringBuilder& builder, SerializationMode mod
     builder.append("lch("sv);
     serialize_color_component(builder, mode, m_properties.l, 100, 0, 100);
     builder.append(' ');
-    serialize_color_component(builder, mode, m_properties.c, 150, 0, 230);
+    serialize_color_component(builder, mode, m_properties.c, 150, 0);
     builder.append(' ');
     serialize_hue_component(builder, mode, m_properties.h);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)
@@ -106,7 +106,7 @@ void OKLCHColorStyleValue::serialize(StringBuilder& builder, SerializationMode m
     builder.append("oklch("sv);
     serialize_color_component(builder, mode, m_properties.l, 1.0f, 0, 1);
     builder.append(' ');
-    serialize_color_component(builder, mode, m_properties.c, 0.4f, 0, 2.3);
+    serialize_color_component(builder, mode, m_properties.c, 0.4f, 0);
     builder.append(' ');
     serialize_hue_component(builder, mode, m_properties.h);
     if ((!m_properties.alpha->is_number() || m_properties.alpha->as_number().number() < 1)

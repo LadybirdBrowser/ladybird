@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 894 tests
 
-884 Pass
-10 Fail
+888 Pass
+6 Fail
 Pass	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
 Pass	Property color value 'color-mix(in hsl, hsl(120deg 10% 20%) 25%, hsl(30deg 30% 40%))'
 Pass	Property color value 'color-mix(in hsl, 25% hsl(120deg 10% 20%), hsl(30deg 30% 40%))'
@@ -270,10 +270,10 @@ Pass	Property color value 'color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 25%, ok
 Pass	Property color value 'color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 30%, oklch(0.5 0.6 70deg / .8) 90%)'
 Pass	Property color value 'color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 12.5%, oklch(0.5 0.6 70deg / .8) 37.5%)'
 Pass	Property color value 'color-mix(in oklch, oklch(0.1 0.2 30deg / .4) 0%, oklch(0.5 0.6 70deg / .8))'
-Fail	Property color value 'color-mix(in oklch, transparent, oklch(0.3 40 30deg))'
-Fail	Property color value 'color-mix(in oklch, transparent 10%, oklch(0.3 40 30deg))'
-Fail	Property color value 'color-mix(in oklch, oklch(0.1 20 120deg / 0), oklch(0.3 40 30deg))'
-Fail	Property color value 'color-mix(in oklch, oklch(0.1 20 120deg / 0) 10%, oklch(0.3 40 30deg))'
+Pass	Property color value 'color-mix(in oklch, transparent, oklch(0.3 40 30deg))'
+Pass	Property color value 'color-mix(in oklch, transparent 10%, oklch(0.3 40 30deg))'
+Pass	Property color value 'color-mix(in oklch, oklch(0.1 20 120deg / 0), oklch(0.3 40 30deg))'
+Pass	Property color value 'color-mix(in oklch, oklch(0.1 20 120deg / 0) 10%, oklch(0.3 40 30deg))'
 Pass	Property color value 'color-mix(in oklch, white, blue)'
 Pass	Property color value 'color-mix(in oklch, white 10%, blue)'
 Pass	Property color value 'color-mix(in oklch, oklch(1 0 40deg), oklch(1 0 60deg))'

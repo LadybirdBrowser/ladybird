@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 642 tests
 
-630 Pass
-12 Fail
+631 Pass
+11 Fail
 Pass	e.style['color'] = "color-mix(in srgb, red, blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in srgb, 70% red, 50% blue)" should set the property value
 Pass	e.style['color'] = "color-mix(in hsl, red, blue)" should set the property value
@@ -272,7 +272,7 @@ Pass	e.style['color'] = "color-mix(in oklch, oklch(none 0.2 30deg), oklch(0.5 no
 Pass	e.style['color'] = "color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg))" should set the property value
 Pass	e.style['color'] = "color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg / 0.5))" should set the property value
 Pass	e.style['color'] = "color-mix(in oklch, oklch(0.1 0.2 30deg / none), oklch(0.5 0.6 70deg / none))" should set the property value
-Fail	e.style['color'] = "color-mix(oklch(0.1 20 30), oklch(0.5 60 70))" should set the property value
+Pass	e.style['color'] = "color-mix(oklch(0.1 20 30), oklch(0.5 60 70))" should set the property value
 Pass	e.style['color'] = "color-mix(in lab, lab(10 20 30), lab(50 60 70))" should set the property value
 Pass	e.style['color'] = "color-mix(in lab, lab(10 20 30) 25%, lab(50 60 70))" should set the property value
 Pass	e.style['color'] = "color-mix(in lab, 25% lab(10 20 30), lab(50 60 70))" should set the property value
