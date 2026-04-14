@@ -80,8 +80,8 @@ private:
 
     GC::Ptr<Intrinsics> m_intrinsics;                                 // [[Intrinsics]]
     GC::Ptr<Object> m_global_object;                                  // [[GlobalObject]]
-    GC::Ptr<GlobalEnvironment> m_global_environment;                  // [[GlobalEnv]]
     GC::Ptr<DeclarativeEnvironment> m_global_declarative_environment; // Cached from GlobalEnv
+    GC::Ptr<GlobalEnvironment> m_global_environment;                  // [[GlobalEnv]]
     OwnPtr<HostDefined> m_host_defined;                               // [[HostDefined]]
 
     HashTable<GC::RawPtr<Shape>> m_all_prototype_shapes;
