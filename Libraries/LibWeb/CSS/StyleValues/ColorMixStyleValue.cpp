@@ -204,8 +204,8 @@ Optional<Color> ColorMixStyleValue::to_color(ColorResolutionContext color_resolu
     auto normalized = normalize_percentage_pair(p1, p2);
 
     auto color_interpolation_method = m_properties.color_interpolation_method
-        ? Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>(m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method())
-        : Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod> {};
+        ? m_properties.color_interpolation_method->as_color_interpolation_method().color_interpolation_method()
+        : ColorInterpolationMethodStyleValue::ColorInterpolationMethod { RectangularColorSpace::Oklab };
 
     auto interpolated = interpolate_color(*m_properties.first_component.color, *m_properties.second_component.color, normalized.second_percentage.as_fraction(), color_interpolation_method, color_resolution_context);
     if (!interpolated)
@@ -239,8 +239,8 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorMixStyleValue::absolutized(Co
     auto delta = Percentage::from_style_value(normalized_percentages.p2).as_fraction();
 
     auto color_interpolation_method = absolutized_color_interpolation_method
-        ? Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod>(absolutized_color_interpolation_method->as_color_interpolation_method().color_interpolation_method())
-        : Optional<ColorInterpolationMethodStyleValue::ColorInterpolationMethod> {};
+        ? absolutized_color_interpolation_method->as_color_interpolation_method().color_interpolation_method()
+        : ColorInterpolationMethodStyleValue::ColorInterpolationMethod { RectangularColorSpace::Oklab };
 
     if (auto interpolated = interpolate_color(*absolutized_first_color, *absolutized_second_color, delta, color_interpolation_method, color_resolution_context))
         return interpolated.release_nonnull();
