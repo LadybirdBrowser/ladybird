@@ -94,10 +94,15 @@ public:
 
     Wasm::FunctionAddress exported_address() const { return m_exported_address; }
 
+    virtual JS::ThrowCompletionOr<JS::Value> call() override;
+
 protected:
     ExportedWasmFunction(Utf16FlyString name, AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)>, Wasm::FunctionAddress, Object& prototype);
 
 private:
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    AK::Function<JS::ThrowCompletionOr<JS::Value>(JS::VM&)> m_behavior;
     Wasm::FunctionAddress m_exported_address;
 };
 

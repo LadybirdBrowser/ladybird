@@ -1404,6 +1404,17 @@ void Object::set_prototype(Object* new_prototype)
     m_shape = shape().create_prototype_transition(new_prototype);
 }
 
+void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, NativeFunctionPointer getter, NativeFunctionPointer setter, PropertyAttributes attribute)
+{
+    FunctionObject* getter_function = nullptr;
+    if (getter)
+        getter_function = NativeFunction::create(realm, move(getter), 0, property_key, &realm, "get"sv);
+    FunctionObject* setter_function = nullptr;
+    if (setter)
+        setter_function = NativeFunction::create(realm, move(setter), 1, property_key, &realm, "set"sv);
+    define_direct_accessor(property_key, getter_function, setter_function, attribute);
+}
+
 void Object::define_native_accessor(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> getter, Function<ThrowCompletionOr<Value>(VM&)> setter, PropertyAttributes attribute)
 {
     FunctionObject* getter_function = nullptr;
@@ -1508,6 +1519,12 @@ Value Object::get_without_side_effects(PropertyKey const& property_key) const
         object = object->prototype();
     }
     return {};
+}
+
+void Object::define_native_function(Realm& realm, PropertyKey const& property_key, NativeFunctionPointer native_function, i32 length, PropertyAttributes attribute, Optional<Bytecode::Builtin> builtin)
+{
+    auto function = NativeFunction::create(realm, move(native_function), length, property_key, &realm, {}, builtin);
+    define_direct_property(property_key, function, attribute);
 }
 
 void Object::define_native_function(Realm& realm, PropertyKey const& property_key, Function<ThrowCompletionOr<Value>(VM&)> native_function, i32 length, PropertyAttributes attribute, Optional<Bytecode::Builtin> builtin)

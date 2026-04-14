@@ -195,6 +195,7 @@ class ModuleEnvironment;
 class Module;
 struct ModuleRequest;
 class NativeFunction;
+class RawNativeFunction;
 class NativeJavaScriptBackedFunction;
 class ObjectEnvironment;
 struct ParserError;
@@ -311,6 +312,7 @@ struct TimeZoneOffset;
 template<typename T>
 requires(!IsLvalueReference<T>)
 class ThrowCompletionOr;
+using NativeFunctionPointer = ThrowCompletionOr<Value> (*)(VM&);
 
 namespace Bytecode {
 

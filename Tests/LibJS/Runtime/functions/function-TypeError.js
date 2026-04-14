@@ -34,5 +34,5 @@ test("constructing object", () => {
 test("constructing native function", () => {
     expect(() => {
         new isNaN();
-    }).toThrowWithMessage(TypeError, "[object NativeFunction] is not a constructor (evaluated from 'isNaN')");
+    }).toThrowWithMessage(TypeError, "[object RawNativeFunction] is not a constructor (evaluated from 'isNaN')");
 });
