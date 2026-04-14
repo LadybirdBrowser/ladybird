@@ -288,6 +288,29 @@ static ErrorOr<ByteString> prepare_output_path(Test const& test)
     return base_path.string();
 }
 
+static ErrorOr<void> setup_results_directory()
+{
+    auto& app = Application::the();
+    TRY(Core::Directory::create(LexicalPath { app.results_directory }.dirname(), Core::Directory::CreateDirectories::Yes));
+    if (FileSystem::is_directory(app.results_directory)) {
+        auto index_stat = TRY(Core::System::stat(LexicalPath::join(app.results_directory, "index.html"sv).string()));
+        auto date_str =
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS) || defined(AK_OS_FREEBSD)
+            UnixDateTime::from_unix_timespec(index_stat.st_birthtimespec).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#elif defined(AK_OS_WINDOWS)
+            UnixDateTime::from_seconds_since_epoch(index_stat.st_ctime).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#else
+            UnixDateTime::from_unix_timespec(index_stat.st_ctim).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#endif
+        auto archived_results = ByteString::formatted("{}_on_{}", app.results_directory, date_str);
+        while (FileSystem::exists(archived_results))
+            archived_results = ByteString::formatted("{}_", archived_results);
+        TRY(Core::System::rename(app.results_directory, archived_results));
+    }
+    TRY(Core::Directory::create(app.results_directory, Core::Directory::CreateDirectories::Yes));
+    return {};
+}
+
 static ErrorOr<void> write_output_for_test(Test const& test, ViewOutputCapture& capture)
 {
     auto base_path = TRY(prepare_output_path(test));
@@ -1876,7 +1899,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
 
     app->results_directory = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->results_directory);
-    TRY(Core::Directory::create(app->results_directory, Core::Directory::CreateDirectories::Yes));
+    TRY(TestWeb::setup_results_directory());
 
     TRY(app->launch_test_fixtures());
 
