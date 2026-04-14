@@ -5,7 +5,10 @@
  */
 
 use calendrical_calculations::rata_die::RataDie;
-use icu_calendar::{AnyCalendar, AnyCalendarKind, Date, types::MonthCode};
+use icu_calendar::{
+    AnyCalendar, AnyCalendarKind, Date, Iso,
+    types::{DateFields, Month},
+};
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 #[repr(C)]
@@ -113,23 +116,27 @@ fn is_chinese_or_dangi(calendar_name: &str) -> bool {
     calendar_name == "chinese" || calendar_name == "dangi"
 }
 
-fn parse_month_code(month_code: &str) -> Option<MonthCode> {
-    if month_code.len() < 3 || !month_code.starts_with('M') {
-        return None;
-    }
+/// Construct a date from extended year, month, and day.
+///
+/// Uses `try_from_fields` instead of `try_new` to support the wider year range (+/- 1,040,000) needed by
+/// Chinese and Dangi calendars with extreme years.
+fn try_new_date(
+    extended_year: i32,
+    month: Month,
+    day: u8,
+    calendar: AnyCalendar,
+) -> Option<Date<AnyCalendar>> {
+    let mut fields = DateFields::default();
+    fields.extended_year = Some(extended_year);
+    fields.month = Some(month);
+    fields.day = Some(day);
 
-    let month_number: u8 = month_code[1..3].parse().ok()?;
-    let is_leap_month = month_code.len() == 4 && month_code.as_bytes()[3] == b'L';
-
-    if is_leap_month {
-        MonthCode::new_leap(month_number)
-    } else {
-        MonthCode::new_normal(month_number)
-    }
+    Date::try_from_fields(fields, Default::default(), calendar).ok()
 }
 
-fn encode_month_code(month_code: &MonthCode) -> ([u8; 5], u8) {
-    let serialized = month_code.0.as_str();
+fn encode_month_code(month: Month) -> ([u8; 5], u8) {
+    let code = month.code();
+    let serialized = code.0.as_str();
     let bytes = serialized.as_bytes();
 
     let mut buffer = [0u8; 5];
@@ -140,7 +147,7 @@ fn encode_month_code(month_code: &MonthCode) -> ([u8; 5], u8) {
 }
 
 struct ChineseMonthInfo {
-    month_code: MonthCode,
+    month: Month,
     days_in_month: u8,
 }
 
@@ -156,11 +163,11 @@ fn collect_year_months(
     let mut current_date = year_start.clone();
 
     for _ in 0..months_in_year {
-        let month_code = current_date.month().standard_code;
+        let month = current_date.month().to_input();
         let days_in_month = current_date.days_in_month();
 
         result.push(ChineseMonthInfo {
-            month_code,
+            month,
             days_in_month,
         });
 
@@ -179,11 +186,21 @@ fn collect_year_months(
     result
 }
 
+/// Construct an ISO date using RataDie to bypass the -9999..=9999 year range limit in Date::try_new_iso.
+fn make_iso_date(year: i32, month: u8, day: u8) -> Option<Date<Iso>> {
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+
+    let rd = calendrical_calculations::gregorian::fixed_from_gregorian(year, month, day);
+    Some(Date::from_rata_die(rd, Iso))
+}
+
 /// Look up the ICU4X extended year for a Chinese/Dangi arithmetic year.
 fn chinese_or_dangi_extended_year(calendar: &AnyCalendar, arithmetic_year: i32) -> Option<i32> {
     // Chinese new year falls in Jan/Feb. Use June 15 to land in the right calendar year.
-    let approximate_iso = Date::try_new_iso(arithmetic_year, 6, 15).ok()?;
-    let calendar_date = Date::new_from_iso(approximate_iso, calendar.clone());
+    let approximate_iso = make_iso_date(arithmetic_year, 6, 15)?;
+    let calendar_date = approximate_iso.to_calendar(calendar.clone());
 
     Some(calendar_date.year().extended_year())
 }
@@ -194,10 +211,8 @@ fn chinese_year_months(
     arithmetic_year: i32,
 ) -> Option<Vec<ChineseMonthInfo>> {
     let extended_year = chinese_or_dangi_extended_year(calendar, arithmetic_year)?;
-    let month_one_code = MonthCode::new_normal(1)?;
 
-    let year_start =
-        Date::try_new_from_codes(None, extended_year, month_one_code, 1, calendar.clone()).ok()?;
+    let year_start = try_new_date(extended_year, Month::new(1), 1, calendar.clone())?;
 
     Some(collect_year_months(calendar, &year_start, extended_year))
 }
@@ -218,33 +233,35 @@ fn make_calendar_date_from_ordinal(
             return None;
         }
 
-        let month_code = months[month_index].month_code;
+        let month = months[month_index].month;
         let extended_year = chinese_or_dangi_extended_year(calendar, arithmetic_year)?;
 
-        Date::try_new_from_codes(None, extended_year, month_code, day, calendar.clone()).ok()
+        try_new_date(extended_year, month, day, calendar.clone())
     } else if calendar_name == "hebrew" {
         // Determine if this is a leap year by trying to construct a date with M05L.
-        let adar_i_code = MonthCode::new_leap(5)?;
-        let is_leap_year =
-            Date::try_new_from_codes(None, arithmetic_year, adar_i_code, 1, calendar.clone())
-                .is_ok();
+        let adar_i = Month::leap(5);
+        let is_leap_year = try_new_date(arithmetic_year, adar_i, 1, calendar.clone()).is_some();
 
-        let month_code = if is_leap_year {
+        let month = if is_leap_year {
             if ordinal_month == 6 {
-                MonthCode::new_leap(5)?
+                Month::leap(5)
             } else if ordinal_month > 6 {
-                MonthCode::new_normal(ordinal_month - 1)?
+                Month::new(ordinal_month - 1)
             } else {
-                MonthCode::new_normal(ordinal_month)?
+                Month::new(ordinal_month)
             }
         } else {
-            MonthCode::new_normal(ordinal_month)?
+            Month::new(ordinal_month)
         };
 
-        Date::try_new_from_codes(None, arithmetic_year, month_code, day, calendar.clone()).ok()
+        try_new_date(arithmetic_year, month, day, calendar.clone())
     } else {
-        let month_code = MonthCode::new_normal(ordinal_month)?;
-        Date::try_new_from_codes(None, arithmetic_year, month_code, day, calendar.clone()).ok()
+        try_new_date(
+            arithmetic_year,
+            Month::new(ordinal_month),
+            day,
+            calendar.clone(),
+        )
     }
 }
 
@@ -256,35 +273,32 @@ fn iso_date_to_calendar_date_impl(
 ) -> Option<FfiCalendarDate> {
     let calendar = make_calendar(calendar_name)?;
 
-    let iso_date = Date::try_new_iso(iso_year, iso_month, iso_day).ok()?;
-    let calendar_date = Date::new_from_iso(iso_date, calendar.clone());
+    let iso_date = make_iso_date(iso_year, iso_month, iso_day)?;
+    let calendar_date = iso_date.to_calendar(calendar.clone());
 
     let (arithmetic_year, ordinal_month) = if is_chinese_or_dangi(calendar_name) {
         let extended_year = calendar_date.year().extended_year();
 
-        let month_one_code = MonthCode::new_normal(1)?;
-        let current_month_code = calendar_date.month().standard_code;
+        let current_month = calendar_date.month().to_input();
 
-        let year_start =
-            Date::try_new_from_codes(None, extended_year, month_one_code, 1, calendar.clone())
-                .ok()?;
+        let year_start = try_new_date(extended_year, Month::new(1), 1, calendar.clone())?;
 
         let ordinal = collect_year_months(&calendar, &year_start, extended_year)
             .iter()
-            .position(|m| m.month_code == current_month_code)
+            .position(|m| m.month == current_month)
             .map(|i| (i + 1) as u8)
             .unwrap_or(1);
 
-        (year_start.to_iso().extended_year(), ordinal)
+        (year_start.to_calendar(Iso).year().extended_year(), ordinal)
     } else {
         (
-            calendar_date.extended_year(),
+            calendar_date.year().extended_year(),
             calendar_date.month().ordinal as u8,
         )
     };
 
-    let month_code = calendar_date.month().standard_code;
-    let (month_code_buffer, month_code_length) = encode_month_code(&month_code);
+    let month = calendar_date.month().to_input();
+    let (month_code_buffer, month_code_length) = encode_month_code(month);
 
     Some(FfiCalendarDate {
         year: arithmetic_year,
@@ -292,7 +306,7 @@ fn iso_date_to_calendar_date_impl(
         month_code: month_code_buffer,
         month_code_length,
         day: calendar_date.day_of_month().0,
-        day_of_week: calendar_date.day_of_week() as u8,
+        day_of_week: calendar_date.weekday() as u8,
         day_of_year: calendar_date.day_of_year().0,
         days_in_week: 7,
         days_in_month: calendar_date.days_in_month(),
@@ -336,10 +350,10 @@ fn calendar_date_to_iso_date_impl(
         day,
     )?;
 
-    let iso_date = calendar_date.to_iso();
+    let iso_date = calendar_date.to_calendar(Iso);
 
     Some(FfiISODate {
-        year: iso_date.extended_year(),
+        year: iso_date.year().extended_year(),
         month: iso_date.month().ordinal as u8,
         day: iso_date.day_of_month().0,
     })
@@ -374,37 +388,35 @@ fn iso_year_and_month_code_to_iso_date_impl(
     day: u8,
 ) -> Option<FfiISODate> {
     let calendar = make_calendar(calendar_name)?;
-    let month_code = parse_month_code(month_code_string)?;
+    let month = Month::try_from_str(month_code_string).ok()?;
 
-    let iso_jan1 = Date::try_new_iso(iso_year, 1, 1).ok()?;
-    let iso_dec31 = Date::try_new_iso(iso_year, 12, 31).ok()?;
+    let iso_jan1 = make_iso_date(iso_year, 1, 1)?;
+    let iso_dec31 = make_iso_date(iso_year, 12, 31)?;
 
-    let calendar_jan1 = Date::new_from_iso(iso_jan1, calendar.clone());
-    let calendar_dec31 = Date::new_from_iso(iso_dec31, calendar.clone());
+    let calendar_jan1 = iso_jan1.to_calendar(calendar.clone());
+    let calendar_dec31 = iso_dec31.to_calendar(calendar.clone());
 
-    let start_extended_year = calendar_jan1.extended_year();
-    let end_extended_year = calendar_dec31.extended_year();
+    let start_extended_year = calendar_jan1.year().extended_year();
+    let end_extended_year = calendar_dec31.year().extended_year();
 
     let mut best_iso_date: Option<FfiISODate> = None;
 
     for extended_year in start_extended_year..=end_extended_year {
-        let Ok(candidate) =
-            Date::try_new_from_codes(None, extended_year, month_code, day, calendar.clone())
-        else {
+        let Some(candidate) = try_new_date(extended_year, month, day, calendar.clone()) else {
             continue;
         };
 
-        if candidate.month().standard_code != month_code || candidate.day_of_month().0 != day {
+        if candidate.month().to_input() != month || candidate.day_of_month().0 != day {
             continue;
         }
 
-        let iso_date = candidate.to_iso();
-        if iso_date.extended_year() != iso_year {
+        let iso_date = candidate.to_calendar(Iso);
+        if iso_date.year().extended_year() != iso_year {
             continue;
         }
 
         let candidate_date = FfiISODate {
-            year: iso_date.extended_year(),
+            year: iso_date.year().extended_year(),
             month: iso_date.month().ordinal,
             day: iso_date.day_of_month().0,
         };
@@ -450,7 +462,7 @@ fn calendar_year_and_month_code_to_iso_date_impl(
     day: u8,
 ) -> Option<FfiISODate> {
     let calendar = make_calendar(calendar_name)?;
-    let month_code = parse_month_code(month_code_string)?;
+    let month = Month::try_from_str(month_code_string).ok()?;
 
     let extended_year = if is_chinese_or_dangi(calendar_name) {
         chinese_or_dangi_extended_year(&calendar, arithmetic_year)?
@@ -458,15 +470,15 @@ fn calendar_year_and_month_code_to_iso_date_impl(
         arithmetic_year
     };
 
-    let date = Date::try_new_from_codes(None, extended_year, month_code, day, calendar).ok()?;
-    if date.month().standard_code != month_code || date.day_of_month().0 != day {
+    let date = try_new_date(extended_year, month, day, calendar)?;
+    if date.month().to_input() != month || date.day_of_month().0 != day {
         return None;
     }
 
-    let iso_date = date.to_iso();
+    let iso_date = date.to_calendar(Iso);
 
     Some(FfiISODate {
-        year: iso_date.extended_year(),
+        year: iso_date.year().extended_year(),
         month: iso_date.month().ordinal as u8,
         day: iso_date.day_of_month().0,
     })
@@ -505,9 +517,7 @@ fn calendar_months_in_year_impl(calendar_name: &str, arithmetic_year: i32) -> Op
         return Some(months.len() as u8);
     }
 
-    let month_one_code = MonthCode::new_normal(1)?;
-
-    let date = Date::try_new_from_codes(None, arithmetic_year, month_one_code, 1, calendar).ok()?;
+    let date = try_new_date(arithmetic_year, Month::new(1), 1, calendar)?;
     Some(date.months_in_year())
 }
 
@@ -572,20 +582,19 @@ fn calendar_max_days_in_month_code_impl(
     month_code_string: &str,
 ) -> Option<u8> {
     let calendar = make_calendar(calendar_name)?;
-    let month_code = parse_month_code(month_code_string)?;
+    let month = Month::try_from_str(month_code_string).ok()?;
 
-    let base_iso_date = Date::try_new_iso(1970, 7, 1).ok()?;
-    let base_calendar_date = Date::new_from_iso(base_iso_date, calendar.clone());
-    let base_extended_year = base_calendar_date.extended_year();
+    let base_iso_date = make_iso_date(1970, 7, 1)?;
+    let base_calendar_date = base_iso_date.to_calendar(calendar.clone());
+    let base_extended_year = base_calendar_date.year().extended_year();
 
     let mut max_days_in_month: u8 = 0;
 
     for offset in -2i32..=2 {
         let extended_year = base_extended_year + offset;
 
-        if let Ok(date) =
-            Date::try_new_from_codes(None, extended_year, month_code, 1, calendar.clone())
-            && date.month().standard_code == month_code
+        if let Some(date) = try_new_date(extended_year, month, 1, calendar.clone())
+            && date.month().to_input() == month
         {
             max_days_in_month = max_days_in_month.max(date.days_in_month());
         }
@@ -622,15 +631,15 @@ fn year_contains_month_code_impl(
     month_code_string: &str,
 ) -> Option<bool> {
     let calendar = make_calendar(calendar_name)?;
-    let month_code = parse_month_code(month_code_string)?;
+    let month = Month::try_from_str(month_code_string).ok()?;
 
     let contains_month_code = if is_chinese_or_dangi(calendar_name) {
         let months = chinese_year_months(&calendar, arithmetic_year)?;
-        months.iter().any(|m| m.month_code == month_code)
+        months.iter().any(|m| m.month == month)
     } else {
         matches!(
-            Date::try_new_from_codes(None, arithmetic_year, month_code, 1, calendar),
-            Ok(date) if date.month().standard_code == month_code
+            try_new_date(arithmetic_year, month, 1, calendar),
+            Some(date) if date.month().to_input() == month
         )
     };
 

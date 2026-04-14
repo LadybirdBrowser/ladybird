@@ -9,8 +9,8 @@ crate-type = ["staticlib"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
-calendrical_calculations = "0.2"
-icu_calendar = { version = "2.1.1", features = ["compiled_data"] }
+calendrical_calculations = "=0.2.4"
+icu_calendar = { version = "=2.2.0", features = ["compiled_data"] }
 
 [build-dependencies]
 cbindgen = "0.29"

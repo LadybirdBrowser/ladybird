@@ -1134,7 +1134,7 @@ ThrowCompletionOr<ISODate> non_iso_month_day_to_iso_reference_date(VM& vm, Strin
         //    would return an ISO Date Record isoDate for which ISODateWithinLimits(isoDate) is true, throw a RangeError exception.
         // c. NOTE: The above step exists so as not to require calculating whether the month and day described in fields
         //    exist in user-provided years arbitrarily far in the future or past.
-        if (auto iso_date = MUST(calendar_integers_to_iso(vm, calendar, *fields.year, 1, 1)); !iso_date_within_limits(iso_date))
+        if (auto iso_date = calendar_integers_to_iso(vm, calendar, *fields.year, 1, 1); iso_date.is_error() || !iso_date_within_limits(iso_date.value()))
             return vm.throw_completion<RangeError>(ErrorType::TemporalInvalidISODate);
 
         // d. Let monthsInYear be CalendarMonthsInYear(calendar, fields.[[Year]]).

@@ -207,4 +207,34 @@ describe("errors", () => {
             Temporal.PlainDate.from("2024-01-01[u-ca=invalid]");
         }).toThrowWithMessage(RangeError, "Invalid calendar identifier 'invalid'");
     });
+
+    test("out-of-range years", () => {
+        const data = [
+            ["buddhist", "M02", 29, "be"],
+            ["chinese", "M06L", 30],
+            ["coptic", "M13", 6, "am"],
+            ["dangi", "M06L", 30],
+            ["ethioaa", "M13", 6, "aa"],
+            ["ethiopic", "M13", 6, "aa"],
+            ["gregory", "M02", 29, "ce", "bce"],
+            ["hebrew", "M05L", 29, "am"],
+            ["indian", "M01", 31, "shaka"],
+            ["islamic-civil", "M12", 30, "ah", "bh"],
+            ["islamic-tbla", "M12", 30, "ah", "bh"],
+            ["islamic-umalqura", "M12", 30, "ah", "bh"],
+            ["japanese", "M02", 29, "reiwa", "bce"],
+            ["persian", "M12", 30, "ap"],
+            ["roc", "M02", 29, "roc", "broc"],
+        ];
+
+        for (const [calendar, monthCode, day, posEra = undefined, negEra = undefined] of data) {
+            expect(() => {
+                Temporal.PlainMonthDay.from({ year: -999999, monthCode, day, calendar });
+            }).toThrowWithMessage(RangeError, "Invalid ISO date");
+
+            expect(() => {
+                Temporal.PlainMonthDay.from({ year: 999999, monthCode, day, calendar });
+            }).toThrowWithMessage(RangeError, "Invalid ISO date");
+        }
+    });
 });
