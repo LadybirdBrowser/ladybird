@@ -2067,9 +2067,8 @@ handler Call
     or t8, t1
 
 .this_ready:
-    # The pure asm path only runs once bytecode is already compiled.
+    # can_inline_call already implies that shared_data has compiled bytecode.
     load64 t0, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
-    branch_zero t0, .call_slow
 
     load32 t7, [pb, pc, m_argument_count]
     load32 t4, [t2, SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT]
