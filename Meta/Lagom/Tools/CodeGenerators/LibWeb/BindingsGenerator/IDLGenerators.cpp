@@ -193,21 +193,25 @@ static bool is_platform_object(Type const& type)
     return false;
 }
 
-// FIXME: Generate this automatically somehow.
-static bool is_javascript_builtin(Type const& type)
+// https://webidl.spec.whatwg.org/#idl-buffer-source-types
+static bool is_javascript_builtin_buffer_source_type(Type const& type)
 {
-    // NOTE: This is a hand-curated subset of JavaScript built-in types that are actually relevant
-    // in places where this function is used. If you add IDL code and get compile errors, you
-    // might simply need to add another type here.
     static constexpr Array types = {
         "ArrayBuffer"sv,
+        "SharedArrayBuffer"sv,
+        "DataView"sv,
+        "Int8Array"sv,
+        "Int16Array"sv,
+        "Int32Array"sv,
+        "BigInt64Array"sv,
+        "Uint8Array"sv,
+        "Uint16Array"sv,
+        "Uint32Array"sv,
+        "BigUint64Array"sv,
+        "Uint8ClampedArray"sv,
         "Float16Array"sv,
         "Float32Array"sv,
         "Float64Array"sv,
-        "Int32Array"sv,
-        "Uint8Array"sv,
-        "Uint32Array"sv,
-        "Uint8ClampedArray"sv,
     };
 
     return types.span().contains_slow(type.name());
@@ -219,7 +223,7 @@ static ByteString cpp_type_name(Type const& type)
         // e.g. Document.getSelection which returns Selection, which is in the Selection namespace.
         return ByteString::formatted("{}::{}", type.name(), type.name());
     }
-    if (is_javascript_builtin(type))
+    if (is_javascript_builtin_buffer_source_type(type))
         return ByteString::formatted("JS::{}", type.name());
     return type.name();
 }
@@ -284,7 +288,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (is_platform_object(type))
         return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (is_javascript_builtin(type))
+    if (is_javascript_builtin_buffer_source_type(type))
         return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (auto const* callback_interface = callback_interface_for_type(interface, type))
@@ -952,7 +956,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_promise_to_cpp(scoped_generator);
     } else if (parameter.type->name() == "object") {
         generate_object_to_cpp(scoped_generator, *parameter.type, optional);
-    } else if (is_javascript_builtin(parameter.type) || parameter.type->name() == "BufferSource"sv) {
+    } else if (is_javascript_builtin_buffer_source_type(parameter.type) || parameter.type->name() == "BufferSource"sv) {
         size_t buffer_source_nesting_level = optional ? 2 : 1;
         auto buffer_source_indent = ByteString::repeated(' ', buffer_source_nesting_level * 4);
         scoped_generator.set("buffer_source.indent", buffer_source_indent);
