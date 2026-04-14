@@ -83,6 +83,8 @@ Executable::Executable(
     template_object_caches.resize(number_of_template_object_caches);
     object_shape_caches.resize(number_of_object_shape_caches);
     object_property_iterator_caches.resize(number_of_object_property_iterator_caches);
+    asm_constants_size = this->constants.size();
+    asm_constants_data = this->constants.data();
 }
 
 Executable::~Executable() = default;

@@ -2139,8 +2139,7 @@ handler Call
 
 .copy_constants:
     load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
-    load64 t3, [t0, EXECUTABLE_CONSTANTS_SIZE]
-    load64 t0, [t0, EXECUTABLE_CONSTANTS_DATA]
+    load_pair64 t3, t0, [t0, EXECUTABLE_ASM_CONSTANTS_SIZE], [t0, EXECUTABLE_ASM_CONSTANTS_DATA]
     mov t1, t5
     xor t8, t8
 .copy_constants_loop:

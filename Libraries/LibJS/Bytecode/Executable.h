@@ -193,6 +193,8 @@ public:
 
     u32 registers_and_locals_count { 0 };
     u32 registers_and_locals_and_constants_count { 0 };
+    size_t asm_constants_size { 0 };
+    Value const* asm_constants_data { nullptr };
 
     struct ExceptionHandlers {
         size_t start_offset;
