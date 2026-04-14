@@ -85,6 +85,15 @@ bool contains_guaranteed_invalid_value(Vector<ComponentValue> const& values)
     return false;
 }
 
+static Vector<ComponentValue> substitution_component_values_equivalent_to_computed_value(DOM::Document const& document, StyleValue const& value)
+{
+    if (value.is_unresolved())
+        return value.as_unresolved().values();
+
+    auto serialized = value.to_string(SerializationMode::ResolvedValue);
+    return Parser::create(ParsingParams { document }, serialized).parse_as_list_of_component_values();
+}
+
 // https://drafts.csswg.org/css-values-5/#replace-an-attr-function
 static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& element, GuardedSubstitutionContexts& guarded_contexts, ArbitrarySubstitutionFunctionArguments const& arguments)
 {
@@ -242,7 +251,7 @@ static Vector<ComponentValue> replace_an_attr_function(DOM::AbstractElement& ele
     auto parsed_value = parse_with_a_syntax(ParsingParams { element.document() }, substituted_values, *syntax.get<NonnullOwnPtr<SyntaxNode>>());
     if (parsed_value->is_guaranteed_invalid())
         return failure();
-    return parsed_value->tokenize();
+    return substitution_component_values_equivalent_to_computed_value(element.document(), *parsed_value);
 
     // 7. FAILURE:
     // NB: Step 7 is a lambda defined at the top of the function.
@@ -369,7 +378,7 @@ static Vector<ComponentValue> replace_an_inherit_function(DOM::AbstractElement& 
     if (name_token.is(Token::Type::Ident) && is_a_custom_property_name_string(name_token.token().ident()) && first_argument_tokens.is_empty()) {
         if (auto element_to_inherit_style_from = element.element_to_inherit_style_from(); element_to_inherit_style_from.has_value()) {
             if (auto const& inherited_value = element_to_inherit_style_from->get_custom_property(name_token.token().ident())) {
-                auto inherited_value_tokens = inherited_value->tokenize();
+                auto inherited_value_tokens = substitution_component_values_equivalent_to_computed_value(element.document(), *inherited_value);
                 if (!contains_guaranteed_invalid_value(inherited_value_tokens))
                     return inherited_value_tokens;
             }
@@ -414,11 +423,8 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
         auto custom_property_value = StyleComputer::compute_value_of_custom_property(element, custom_property_name, guarded_contexts);
         if (custom_property_value->is_guaranteed_invalid()) {
             result = { ComponentValue { GuaranteedInvalidValue {} } };
-        } else if (custom_property_value->is_unresolved()) {
-            result = custom_property_value->as_unresolved().values();
         } else {
-            dbgln_if(CSS_PARSER_DEBUG, "Custom property `{}` is an unsupported type: {}", custom_property_name, to_underlying(custom_property_value->type()));
-            result = { ComponentValue { GuaranteedInvalidValue {} } };
+            result = substitution_component_values_equivalent_to_computed_value(element.document(), *custom_property_value);
         }
     }
 
