@@ -758,6 +758,43 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
     }
 }
 
+static void generate_platform_object_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, bool optional)
+{
+    if (!type.is_nullable()) {
+        if (!optional) {
+            scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+    auto& @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
+)~~~");
+        } else {
+            scoped_generator.append(R"~~~(
+    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_undefined()) {
+        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+        @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
+    }
+)~~~");
+        }
+    } else {
+        scoped_generator.append(R"~~~(
+    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
+)~~~");
+
+        scoped_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_nullish()) {
+        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
+            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
+
+        @cpp_name@ = &static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
+    }
+)~~~");
+    }
+}
+
 static void generate_promise_to_cpp(SourceGenerator& scoped_generator)
 {
     // https://webidl.spec.whatwg.org/#js-promise
@@ -852,39 +889,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
     } else if (IDL::is_platform_object(*parameter.type)) {
-        if (!parameter.type->is_nullable()) {
-            if (!optional) {
-                scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-    auto& @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
-)~~~");
-            } else {
-                scoped_generator.append(R"~~~(
-    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_undefined()) {
-        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-        @cpp_name@ = static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
-    }
-)~~~");
-            }
-        } else {
-            scoped_generator.append(R"~~~(
-    GC::Ptr<@parameter.type.name.normalized@> @cpp_name@;
-)~~~");
-
-            scoped_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_nullish()) {
-        if (!@js_name@@js_suffix@.is_object() || !is<@parameter.type.name.normalized@>(@js_name@@js_suffix@.as_object()))
-            return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "@parameter.type.name@");
-
-        @cpp_name@ = &static_cast<@parameter.type.name.normalized@&>(@js_name@@js_suffix@.as_object());
-    }
-)~~~");
-        }
+        generate_platform_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->is_floating_point()) {
         if (parameter.type->name() == "unrestricted float") {
             scoped_generator.set("parameter.type.name", "float");
