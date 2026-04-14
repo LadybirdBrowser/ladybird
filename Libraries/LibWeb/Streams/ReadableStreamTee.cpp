@@ -174,7 +174,7 @@ void ReadableByteStreamTeeParams::visit_edges(Visitor& visitor)
     visitor.visit(branch2);
     visitor.visit(pull1_algorithm);
     visitor.visit(pull2_algorithm);
-    reader.visit([&](auto underlying_reader) { visitor.visit(underlying_reader); });
+    visitor.visit(reader);
 }
 
 // https://streams.spec.whatwg.org/#ref-for-read-request④

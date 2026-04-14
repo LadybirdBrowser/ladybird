@@ -34,9 +34,7 @@ void HTMLSlotElement::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     Slot::visit_edges(visitor);
-
-    for (auto const& node : m_manually_assigned_nodes)
-        node.visit([&](auto const& slottable) { visitor.visit(slottable); });
+    visitor.visit(m_manually_assigned_nodes);
 }
 
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assignednodes

@@ -317,9 +317,7 @@ WebIDL::Promise* ModuleScript::run(PreventErrorReporting prevent_error_reporting
 void ModuleScript::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_record.visit(
-        [&](Empty) {},
-        [&](auto record) { visitor.visit(record); });
+    visitor.visit(m_record);
 }
 
 }

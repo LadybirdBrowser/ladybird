@@ -297,14 +297,7 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
 
     if (m_class_data) {
         for (auto& field : m_class_data->fields) {
-            field.initializer.visit(
-                [&visitor](GC::Ref<ECMAScriptFunctionObject>& initializer) {
-                    visitor.visit(initializer);
-                },
-                [&visitor](Value initializer) {
-                    visitor.visit(initializer);
-                },
-                [](Empty) {});
+            visitor.visit(field.initializer);
             if (auto* property_key_ptr = field.name.get_pointer<PropertyKey>(); property_key_ptr && property_key_ptr->is_symbol())
                 visitor.visit(property_key_ptr->as_symbol());
         }
@@ -313,11 +306,7 @@ void ECMAScriptFunctionObject::visit_edges(Visitor& visitor)
             visitor.visit(private_element.value);
     }
 
-    m_script_or_module.visit(
-        [](Empty) {},
-        [&](auto& script_or_module) {
-            visitor.visit(script_or_module);
-        });
+    visitor.visit(m_script_or_module);
 }
 
 // 10.2.7 MakeMethod ( F, homeObject ), https://tc39.es/ecma262/#sec-makemethod

@@ -135,11 +135,7 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(this_value);
     visitor.visit(executable);
     visitor.visit(registers_and_constants_and_locals_and_arguments_span());
-    script_or_module.visit(
-        [](Empty) {},
-        [&](auto& script_or_module) {
-            visitor.visit(script_or_module);
-        });
+    visitor.visit(script_or_module);
 }
 
 }

@@ -74,10 +74,7 @@ public:
 
         void visit_edges(GC::Cell::Visitor& visitor)
         {
-            m_fill_or_stroke_style.visit([&](Gfx::Color) {},
-                [&](auto& handle) {
-                    visitor.visit(handle);
-                });
+            visitor.visit(m_fill_or_stroke_style);
         }
 
     private:

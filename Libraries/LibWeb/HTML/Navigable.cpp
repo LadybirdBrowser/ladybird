@@ -175,10 +175,7 @@ private:
     virtual void visit_edges(Cell::Visitor& visitor) override
     {
         Base::visit_edges(visitor);
-        navigation_params.visit(
-            [](auto const&) {},
-            [&](GC::Ref<NavigationParams> const& p) { visitor.visit(p); },
-            [&](GC::Ref<NonFetchSchemeNavigationParams> const& p) { visitor.visit(p); });
+        visitor.visit(navigation_params);
     }
 };
 
@@ -238,10 +235,7 @@ void PopulateSessionHistoryEntryDocumentOutput::visit_edges(Cell::Visitor& visit
 {
     Base::visit_edges(visitor);
     visitor.visit(document);
-    navigation_params.visit(
-        [](auto const&) {},
-        [&](GC::Ref<NavigationParams> const& p) { visitor.visit(p); },
-        [&](GC::Ref<NonFetchSchemeNavigationParams> const& p) { visitor.visit(p); });
+    visitor.visit(navigation_params);
 }
 
 HashTable<GC::RawRef<Navigable>>& all_navigables()

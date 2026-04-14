@@ -49,14 +49,8 @@ void AnimationPlaybackEvent::initialize(JS::Realm& realm)
 void AnimationPlaybackEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-
-    auto visit_numberish_internal = [&](auto& numberish_internal) {
-        numberish_internal.visit(
-            [&](GC::Ref<CSS::CSSNumericValue> const& numeric) { visitor.visit(numeric); },
-            [](auto const&) {});
-    };
-    visit_numberish_internal(m_current_time);
-    visit_numberish_internal(m_timeline_time);
+    visitor.visit(m_current_time);
+    visitor.visit(m_timeline_time);
 }
 
 NullableCSSNumberish AnimationPlaybackEvent::to_nullable_numberish(CSSNumberishInternal const& numberish)

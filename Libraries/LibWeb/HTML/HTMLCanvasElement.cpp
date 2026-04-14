@@ -61,18 +61,7 @@ void HTMLCanvasElement::finalize()
 void HTMLCanvasElement::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_context.visit(
-        [&](GC::Ref<CanvasRenderingContext2D>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [](Empty) {
-        });
+    visitor.visit(m_context);
 }
 
 bool HTMLCanvasElement::is_presentational_hint(FlyString const& name) const

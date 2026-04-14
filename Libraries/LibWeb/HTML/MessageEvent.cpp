@@ -62,9 +62,7 @@ void MessageEvent::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_data);
     visitor.visit(m_ports_array);
     visitor.visit(m_ports);
-    m_source.visit(
-        [](Empty) {},
-        [&](auto const& ref) { visitor.visit(ref); });
+    visitor.visit(m_source);
 }
 
 // https://html.spec.whatwg.org/multipage/comms.html#dom-messageevent-origin

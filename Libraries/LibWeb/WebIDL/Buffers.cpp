@@ -100,7 +100,7 @@ bool BufferableObjectBase::is_array_buffer() const
 void BufferableObjectBase::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_bufferable_object.visit([&](auto& obj) { visitor.visit(obj); });
+    visitor.visit(m_bufferable_object);
 }
 
 ArrayBufferView::~ArrayBufferView() = default;

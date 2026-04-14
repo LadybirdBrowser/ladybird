@@ -48,9 +48,7 @@ void TrackEvent::initialize(JS::Realm& realm)
 void TrackEvent::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_track.visit(
-        [](Empty) {},
-        [&](auto const& ref) { visitor.visit(ref); });
+    visitor.visit(m_track);
 }
 
 NullableTrackType TrackEvent::track() const

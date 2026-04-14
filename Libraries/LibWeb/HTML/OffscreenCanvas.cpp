@@ -378,18 +378,7 @@ void OffscreenCanvas::initialize(JS::Realm& realm)
 void OffscreenCanvas::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    m_context.visit(
-        [&](GC::Ref<OffscreenCanvasRenderingContext2D>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [&](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            visitor.visit(context);
-        },
-        [](Empty) {
-        });
+    visitor.visit(m_context);
 }
 
 JS::ThrowCompletionOr<OffscreenCanvas::HasOrCreatedContext> OffscreenCanvas::create_2d_context(JS::Value options)
