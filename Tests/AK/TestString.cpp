@@ -18,6 +18,14 @@
 #include <AK/Vector.h>
 #include <ctype.h>
 
+TEST_CASE(short_ascii_literal_is_constexpr)
+{
+    // The _string UDL folds short ASCII literals to a compile-time constant.
+    static constexpr String s = "foo"_string;
+    EXPECT_EQ(s, "foo"sv);
+    EXPECT_EQ(s.bytes().size(), 3u);
+}
+
 TEST_CASE(construct_empty)
 {
     String empty;

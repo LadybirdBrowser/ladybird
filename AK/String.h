@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <AK/CharacterTypes.h>
 #include <AK/Concepts.h>
 #include <AK/Format.h>
@@ -55,6 +56,15 @@ public:
 
     [[nodiscard]] static String from_utf8_without_validation(ReadonlyBytes);
     [[nodiscard]] static String from_ascii_without_validation(ReadonlyBytes);
+
+    [[nodiscard]] static constexpr String from_ascii_short_string_without_validation(char const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
+        return String { StringBase { short_string } };
+    }
 
     static ErrorOr<String> from_string_builder(Badge<StringBuilder>, StringBuilder&);
     [[nodiscard]] static String from_string_builder_without_validation(Badge<StringBuilder>, StringBuilder&);
@@ -266,8 +276,14 @@ struct ASCIICaseInsensitiveStringTraits : public Traits<String> {
 
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::String operator""_string(char const* cstring, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::String operator""_string(char const* cstring, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime validation or heap allocation.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(cstring, cstring + length, AK::is_ascii)) {
+        return AK::String::from_ascii_short_string_without_validation(cstring, length);
+    }
+
     ASSERT(Utf8View(AK::StringView(cstring, length)).validate());
     return AK::String::from_utf8_without_validation({ cstring, length });
 }

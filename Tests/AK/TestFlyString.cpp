@@ -20,6 +20,14 @@ TEST_CASE(empty_string)
     EXPECT_EQ(FlyString::number_of_fly_strings(), 0u);
 }
 
+TEST_CASE(short_ascii_literal_is_constexpr)
+{
+    // The _fly_string UDL folds short ASCII literals to a compile-time constant.
+    static constexpr FlyString fly = "foo"_fly_string;
+    EXPECT_EQ(fly, "foo"sv);
+    EXPECT_EQ(fly.bytes_as_string_view().length(), 3u);
+}
+
 TEST_CASE(short_string)
 {
     FlyString fly1 { "foo"_string };

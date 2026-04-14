@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <AK/Badge.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
@@ -78,6 +79,24 @@ public:
     {
         auto short_string = Detail::ShortString::create_with_byte_count(1);
         short_string.storage[0] = character;
+        return Utf16String { short_string };
+    }
+
+    [[nodiscard]] static constexpr Utf16String from_ascii_short_string_without_validation(char const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
+        return Utf16String { short_string };
+    }
+
+    [[nodiscard]] static constexpr Utf16String from_ascii_short_string_without_validation(char16_t const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
         return Utf16String { short_string };
     }
 
@@ -331,15 +350,26 @@ struct Traits<Utf16String> : public DefaultTraits<Utf16String> {
 
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::Utf16String operator""_utf16(char const* string, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::Utf16String operator""_utf16(char const* string, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime validation or heap allocation.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(string, string + length, AK::is_ascii)) {
+        return AK::Utf16String::from_ascii_short_string_without_validation(string, length);
+    }
+
     AK::StringView view { string, length };
 
     ASSERT(AK::Utf8View { view }.validate());
     return AK::Utf16String::from_utf8_without_validation(view);
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::Utf16String operator""_utf16(char16_t const* string, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::Utf16String operator""_utf16(char16_t const* string, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime work.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(string, string + length, AK::is_ascii))
+        return AK::Utf16String::from_ascii_short_string_without_validation(string, length);
+
     return AK::Utf16String::from_utf16({ string, length });
 }

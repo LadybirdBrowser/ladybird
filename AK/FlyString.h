@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AllOf.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Optional.h>
@@ -25,6 +26,16 @@ public:
 
     static ErrorOr<FlyString> from_utf8(StringView);
     static FlyString from_utf8_without_validation(ReadonlyBytes);
+
+    [[nodiscard]] static constexpr FlyString from_ascii_short_string_without_validation(char const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
+        return FlyString { Detail::StringBase { short_string } };
+    }
+
     template<typename T>
     requires(IsOneOf<RemoveCVReference<T>, ByteString, FlyString, String>)
     static ErrorOr<String> from_utf8(T&&) = delete;
@@ -131,8 +142,14 @@ struct ASCIICaseInsensitiveFlyStringTraits : public Traits<String> {
 
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::FlyString operator""_fly_string(char const* cstring, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::FlyString operator""_fly_string(char const* cstring, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime validation or table lookup.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(cstring, cstring + length, AK::is_ascii)) {
+        return AK::FlyString::from_ascii_short_string_without_validation(cstring, length);
+    }
+
     ASSERT(Utf8View(AK::StringView(cstring, length)).validate());
     return AK::FlyString::from_utf8_without_validation({ cstring, length });
 }

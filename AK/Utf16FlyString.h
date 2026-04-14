@@ -146,8 +146,26 @@ public:
     // This is primarily interesting to unit tests.
     [[nodiscard]] static size_t number_of_utf16_fly_strings();
 
+    [[nodiscard]] static constexpr Utf16FlyString from_ascii_short_string_without_validation(char const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
+        return Utf16FlyString { Detail::Utf16StringBase { short_string } };
+    }
+
+    [[nodiscard]] static constexpr Utf16FlyString from_ascii_short_string_without_validation(char16_t const* data, size_t length)
+    {
+        VERIFY(length <= Detail::MAX_SHORT_STRING_BYTE_COUNT);
+        auto short_string = Detail::ShortString::create_with_byte_count(length);
+        for (size_t i = 0; i < length; ++i)
+            short_string.storage[i] = static_cast<u8>(data[i]);
+        return Utf16FlyString { Detail::Utf16StringBase { short_string } };
+    }
+
 private:
-    ALWAYS_INLINE explicit Utf16FlyString(Detail::Utf16StringBase data)
+    ALWAYS_INLINE constexpr explicit Utf16FlyString(Detail::Utf16StringBase data)
         : m_data(move(data))
     {
     }
@@ -202,15 +220,26 @@ inline constexpr bool IsHashCompatible<Utf16FlyString, Utf16String> = true;
 
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::Utf16FlyString operator""_utf16_fly_string(char const* string, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::Utf16FlyString operator""_utf16_fly_string(char const* string, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime validation or table lookup.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(string, string + length, AK::is_ascii)) {
+        return AK::Utf16FlyString::from_ascii_short_string_without_validation(string, length);
+    }
+
     AK::StringView view { string, length };
 
     ASSERT(AK::Utf8View { view }.validate());
     return AK::Utf16FlyString::from_utf8_without_validation(view);
 }
 
-[[nodiscard]] ALWAYS_INLINE AK::Utf16FlyString operator""_utf16_fly_string(char16_t const* string, size_t length)
+[[nodiscard]] ALWAYS_INLINE constexpr AK::Utf16FlyString operator""_utf16_fly_string(char16_t const* string, size_t length)
 {
+    // OPTIMIZATION: Short ASCII strings become compile-time constants with no runtime work.
+    if (length <= AK::Detail::MAX_SHORT_STRING_BYTE_COUNT
+        && AK::all_of(string, string + length, AK::is_ascii))
+        return AK::Utf16FlyString::from_ascii_short_string_without_validation(string, length);
+
     return AK::Utf16FlyString::from_utf16({ string, length });
 }

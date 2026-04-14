@@ -14,6 +14,18 @@ static_assert(AK::Concepts::HashCompatible<Utf16FlyString, Utf16String>);
 static_assert(AK::Concepts::HashCompatible<Utf16View, Utf16FlyString>);
 static_assert(AK::Concepts::HashCompatible<Utf16FlyString, Utf16View>);
 
+TEST_CASE(short_ascii_literal_is_constexpr)
+{
+    // The _utf16_fly_string UDL folds short ASCII literals to compile-time
+    // constants, both for char and char16_t inputs.
+    static constexpr Utf16FlyString from_char = "foo"_utf16_fly_string;
+    static constexpr Utf16FlyString from_char16 = u"bar"_utf16_fly_string;
+    EXPECT_EQ(from_char, "foo"sv);
+    EXPECT_EQ(from_char16, "bar"sv);
+    EXPECT_EQ(from_char.length_in_code_units(), 3u);
+    EXPECT_EQ(from_char16.length_in_code_units(), 3u);
+}
+
 TEST_CASE(empty_string)
 {
     Utf16FlyString fly {};

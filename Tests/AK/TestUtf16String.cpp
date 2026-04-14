@@ -24,6 +24,18 @@ static Utf16String make_copy(Utf16String const& string)
         : Utf16String::from_utf16(string.utf16_view());
 }
 
+TEST_CASE(short_ascii_literal_is_constexpr)
+{
+    // The _utf16 UDL folds short ASCII literals to compile-time constants,
+    // both for char and char16_t inputs.
+    static constexpr Utf16String from_char = "foo"_utf16;
+    static constexpr Utf16String from_char16 = u"bar"_utf16;
+    EXPECT_EQ(from_char, "foo"sv);
+    EXPECT_EQ(from_char16, "bar"sv);
+    EXPECT_EQ(from_char.length_in_code_units(), 3u);
+    EXPECT_EQ(from_char16.length_in_code_units(), 3u);
+}
+
 TEST_CASE(empty_string)
 {
     Utf16String string {};
