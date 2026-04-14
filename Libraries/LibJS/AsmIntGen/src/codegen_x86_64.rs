@@ -7,8 +7,9 @@
 use crate::parser::{AsmInstruction, Handler, ObjectFormat, Operand, Program};
 use crate::registers::{Arch, resolve_register};
 use crate::shared::{
-    HandlerState, get_immediate_value, resolve_adjacent_memory_pair, resolve_field_ref,
-    resolve_label, substitute_macro, uniquify_macro_labels, w,
+    HandlerState, ResolvedMemoryIndex, get_immediate_value, resolve_adjacent_memory_pair,
+    resolve_field_ref, resolve_label, resolve_memory_operand, substitute_macro,
+    uniquify_macro_labels, w,
 };
 use std::collections::HashMap;
 use std::fmt::Write;
@@ -318,26 +319,24 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
             match (index, scale) {
                 (Some(idx), Some(sc)) => {
                     let idx_r = resolve_register(idx, Arch::X86_64).unwrap_or_else(|| idx.clone());
-                    // Check if 'sc' is a field reference (e.g. [pb, pc, m_cache]).
                     if let Some(field_offset) = resolve_field_ref(sc, handler, program) {
                         format!("[{base_r} + {idx_r} + {field_offset}]")
                     } else {
-                        let sc_val = program
+                        let scale = program
                             .constants
                             .get(sc.as_str())
                             .copied()
                             .unwrap_or_else(|| sc.parse().expect("invalid scale value"));
-                        format!("[{base_r} + {idx_r} * {sc_val}]")
+                        format!("[{base_r} + {idx_r} * {scale}]")
                     }
                 }
                 (Some(idx), None) => {
-                    // idx could be a field ref, immediate offset, constant, or register
-                    if let Some(val) = resolve_field_ref(idx, handler, program) {
-                        format!("[{base_r} + {val}]")
-                    } else if let Some(val) = program.constants.get(idx.as_str()) {
-                        format!("[{base_r} + {val}]")
-                    } else if let Ok(val) = idx.parse::<i64>() {
-                        format!("[{base_r} + {val}]")
+                    if let Some(offset) = resolve_field_ref(idx, handler, program) {
+                        format!("[{base_r} + {offset}]")
+                    } else if let Some(offset) = program.constants.get(idx.as_str()) {
+                        format!("[{base_r} + {offset}]")
+                    } else if let Ok(offset) = idx.parse::<i64>() {
+                        format!("[{base_r} + {offset}]")
                     } else {
                         let idx_r =
                             resolve_register(idx, Arch::X86_64).unwrap_or_else(|| idx.clone());
@@ -362,6 +361,27 @@ fn resolve_op(op: &Operand, handler: &Handler, program: &Program) -> String {
             format!("{offset}")
         }
     }
+}
+
+fn format_x86_memory_operand(mem: &crate::shared::ResolvedMemoryOperand) -> String {
+    match &mem.index {
+        ResolvedMemoryIndex::None => format!("[{}]", mem.base),
+        ResolvedMemoryIndex::Imm(offset) => format!("[{} + {}]", mem.base, offset),
+        ResolvedMemoryIndex::Reg(index) => format!("[{} + {}]", mem.base, index),
+        ResolvedMemoryIndex::RegScale(index, scale) => {
+            format!("[{} + {} * {}]", mem.base, index, scale)
+        }
+        ResolvedMemoryIndex::RegImm(index, 0) => format!("[{} + {}]", mem.base, index),
+        ResolvedMemoryIndex::RegImm(index, offset) => {
+            format!("[{} + {} + {}]", mem.base, index, offset)
+        }
+    }
+}
+
+fn resolve_pair_memory_op(op: &Operand, handler: &Handler, program: &Program) -> String {
+    let mem = resolve_memory_operand(op, handler, program, Arch::X86_64)
+        .expect("x86_64 pair memory operands should always resolve");
+    format_x86_memory_operand(&mem)
 }
 
 fn emit_instruction(
@@ -782,8 +802,8 @@ fn emit_instruction(
 
                 let dst1 = resolve_op(&insn.operands[0], handler, program);
                 let dst2 = resolve_op(&insn.operands[1], handler, program);
-                let mem1 = resolve_op(&insn.operands[2], handler, program);
-                let mem2 = resolve_op(&insn.operands[3], handler, program);
+                let mem1 = resolve_pair_memory_op(&insn.operands[2], handler, program);
+                let mem2 = resolve_pair_memory_op(&insn.operands[3], handler, program);
                 w!(out, "    mov {dst1}, QWORD PTR {mem1}");
                 w!(out, "    mov {dst2}, QWORD PTR {mem2}");
             }
@@ -805,8 +825,8 @@ fn emit_instruction(
 
                 let dst1 = resolve_op(&insn.operands[0], handler, program);
                 let dst2 = resolve_op(&insn.operands[1], handler, program);
-                let mem1 = resolve_op(&insn.operands[2], handler, program);
-                let mem2 = resolve_op(&insn.operands[3], handler, program);
+                let mem1 = resolve_pair_memory_op(&insn.operands[2], handler, program);
+                let mem2 = resolve_pair_memory_op(&insn.operands[3], handler, program);
                 w!(out, "    mov {}, DWORD PTR {mem1}", to_32bit_reg(&dst1));
                 w!(out, "    mov {}, DWORD PTR {mem2}", to_32bit_reg(&dst2));
             }
@@ -917,8 +937,8 @@ fn emit_instruction(
                     )
                 });
 
-                let mem1 = resolve_op(&insn.operands[0], handler, program);
-                let mem2 = resolve_op(&insn.operands[1], handler, program);
+                let mem1 = resolve_pair_memory_op(&insn.operands[0], handler, program);
+                let mem2 = resolve_pair_memory_op(&insn.operands[1], handler, program);
                 let src1 = resolve_op(&insn.operands[2], handler, program);
                 let src2 = resolve_op(&insn.operands[3], handler, program);
                 w!(out, "    mov QWORD PTR {mem1}, {src1}");
@@ -943,8 +963,8 @@ fn emit_instruction(
                     )
                 });
 
-                let mem1 = resolve_op(&insn.operands[0], handler, program);
-                let mem2 = resolve_op(&insn.operands[1], handler, program);
+                let mem1 = resolve_pair_memory_op(&insn.operands[0], handler, program);
+                let mem2 = resolve_pair_memory_op(&insn.operands[1], handler, program);
                 let src1 = resolve_op(&insn.operands[2], handler, program);
                 let src2 = resolve_op(&insn.operands[3], handler, program);
                 w!(out, "    mov DWORD PTR {mem1}, {}", to_32bit_reg(&src1));
@@ -1392,5 +1412,67 @@ fn to_32bit_reg(reg: &str) -> String {
         "r14" => "r14d".to_string(),
         "r15" => "r15d".to_string(),
         _ => reg.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::{Handler, ObjectFormat, Program};
+    use bytecode_def::OpLayout;
+
+    fn test_program() -> Program {
+        Program {
+            constants: HashMap::new(),
+            macros: HashMap::new(),
+            handlers: Vec::new(),
+            op_layouts: HashMap::from([(
+                "Call".into(),
+                OpLayout {
+                    field_offsets: HashMap::new(),
+                    size: None,
+                },
+            )]),
+            opcode_list: Vec::new(),
+            object_format: ObjectFormat::MachO,
+            has_jscvt: false,
+        }
+    }
+
+    fn call_handler() -> Handler {
+        Handler {
+            name: "Call".into(),
+            size: None,
+            instructions: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn preserves_scaled_index_memory_operands() {
+        let program = test_program();
+        let handler = call_handler();
+        let memory = Operand::Memory {
+            base: "t0".into(),
+            index: Some("t8".into()),
+            scale: Some("8".into()),
+        };
+
+        assert_eq!(resolve_op(&memory, &handler, &program), "[rax + r11 * 8]");
+    }
+
+    #[test]
+    fn formats_pair_memory_regimm_zero_without_invalid_scale() {
+        let program = test_program();
+        let handler = call_handler();
+        let memory = Operand::Memory {
+            base: "t6".into(),
+            index: Some("t3".into()),
+            scale: Some("0".into()),
+        };
+
+        assert_eq!(
+            resolve_pair_memory_op(&memory, &handler, &program),
+            "[r9 + rsi]"
+        );
     }
 }

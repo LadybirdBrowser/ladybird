@@ -2102,56 +2102,64 @@ handler Call
 
     # Set up the callee ExecutionContext header exactly the way
     # VM::push_inline_frame() / run_executable() would see it.
-    store64 [t6, EXECUTION_CONTEXT_FUNCTION], t3
+    mov t2, t6
+    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
+    store_pair32 [t2, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], [t2, EXECUTION_CONTEXT_ARGUMENT_COUNT], t1, t4
+    store32 [t2, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t7
+
     load64 t0, [t3, OBJECT_SHAPE]
     load64 t0, [t0, SHAPE_REALM]
-    store64 [t6, EXECUTION_CONTEXT_REALM], t0
+    store_pair64 [t2, EXECUTION_CONTEXT_FUNCTION], [t2, EXECUTION_CONTEXT_REALM], t3, t0
 
     load_pair64 t0, t1, [t3, ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT], [t3, ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT]
-    store64 [t6, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], t0
-    store64 [t6, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0
-    store64 [t6, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t1
+    store_pair64 [t2, EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT], [t2, EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT], t0, t0
+    store64 [t2, EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT], t1
     load64 t0, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
     load64 t0, [t0, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
-    store64 [t6, EXECUTION_CONTEXT_EXECUTABLE], t0
-    store64 [t6, EXECUTION_CONTEXT_THIS_VALUE], t8
+    store_pair64 [t2, EXECUTION_CONTEXT_THIS_VALUE], [t2, EXECUTION_CONTEXT_EXECUTABLE], t8, t0
+
+    mov t1, EMPTY_TAG_SHIFTED
+    store_pair64 [t6, ACCUMULATOR_REG_OFFSET], [t6, EXCEPTION_REG_OFFSET], t1, t1
+    store64 [t6, THIS_VALUE_REG_OFFSET], t8
+    store_pair64 [t6, RETURN_VALUE_REG_OFFSET], [t6, SAVED_LEXICAL_ENVIRONMENT_REG_OFFSET], t1, t1
 
     # ScriptOrModule is a two-word Variant in ExecutionContext, so copy both
     # machine words explicitly.
-    lea t0, [t6, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
-    lea t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
-    load_pair64 t3, t8, [t2, 0], [t2, 8]
+    lea t0, [t2, EXECUTION_CONTEXT_SCRIPT_OR_MODULE]
+    lea t7, [t3, ECMASCRIPT_FUNCTION_OBJECT_SCRIPT_OR_MODULE]
+    load_pair64 t3, t8, [t7, 0], [t7, 8]
     store64 [t0, 0], t3
     store64 [t0, 8], t8
 
-    store32 [t6, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
-    store32 [t6, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
+    store32 [t2, EXECUTION_CONTEXT_PROGRAM_COUNTER], 0
+    store32 [t2, EXECUTION_CONTEXT_SKIP_WHEN_DETERMINING_INCUMBENT_COUNTER], 0
     mov t0, EXECUTION_CONTEXT_NO_YIELD_CONTINUATION
-    store32 [t6, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
-    store8 [t6, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
-    store8 [t6, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
-    store64 [t6, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
-    store32 [t6, EXECUTION_CONTEXT_REGISTERS_AND_CONSTANTS_AND_LOCALS_AND_ARGUMENTS_COUNT], t1
-    store32 [t6, EXECUTION_CONTEXT_ARGUMENT_COUNT], t4
-    store32 [t6, EXECUTION_CONTEXT_PASSED_ARGUMENT_COUNT], t7
+    store32 [t2, EXECUTION_CONTEXT_YIELD_CONTINUATION], t0
+    store8 [t2, EXECUTION_CONTEXT_YIELD_IS_AWAIT], 0
+    store8 [t2, EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT], 0
+    store64 [t2, EXECUTION_CONTEXT_CALLER_FRAME], exec_ctx
     load_pair32 t0, t1, [pb, pc, m_length], [pb, pc, m_dst]
-    lea t2, [pb, pc]
-    sub t2, pb
-    add t0, t2
-    store32 [t6, EXECUTION_CONTEXT_CALLER_RETURN_PC], t0
-    store32 [t6, EXECUTION_CONTEXT_CALLER_DST_RAW], t1
+    lea t3, [pb, pc]
+    sub t3, pb
+    add t0, t3
+    store_pair32 [t2, EXECUTION_CONTEXT_CALLER_RETURN_PC], [t2, EXECUTION_CONTEXT_CALLER_DST_RAW], t0, t1
 
     # values = [registers | locals | constants | arguments]
     # Keep t2 at the ExecutionContext base while t6 walks the Value tail.
-    mov t2, t6
-    lea t6, [t6, SIZEOF_EXECUTION_CONTEXT]
-    mov t0, EMPTY_TAG_SHIFTED
-    xor t3, t3
+    mov t0, t5
+    shl t0, 3
+    mov t3, RESERVED_REGISTERS_SIZE
 .clear_registers_and_locals:
-    branch_ge_unsigned t3, t5, .copy_constants
-    store64 [t6, t3, 8], t0
-    add t3, 1
+    mov t8, t3
+    add t8, 8
+    branch_ge_unsigned t8, t0, .clear_registers_and_locals_tail
+    store_pair64 [t6, t3, 0], [t6, t3, 8], t1, t1
+    add t3, 16
     jmp .clear_registers_and_locals
+
+.clear_registers_and_locals_tail:
+    branch_ge_unsigned t3, t0, .copy_constants
+    store64 [t6, t3], t1
 
 .copy_constants:
     load64 t0, [t2, EXECUTION_CONTEXT_EXECUTABLE]
@@ -2198,12 +2206,8 @@ handler Call
     jmp .fill_missing_arguments_loop
 
 .enter_callee:
-    # Mirror the normal interpreter entry sequence: cache `this` in the
-    # dedicated register slot, then reload pb/values/exec_ctx for the callee.
-    load_pair64 t0, t1, [t2, EXECUTION_CONTEXT_THIS_VALUE], [t2, EXECUTION_CONTEXT_EXECUTABLE]
-    store64 [t6, THIS_VALUE_REG_OFFSET], t0
-
-    load64 pb, [t1, EXECUTABLE_BYTECODE_DATA]
+    load64 pb, [t2, EXECUTION_CONTEXT_EXECUTABLE]
+    load64 pb, [pb, EXECUTABLE_BYTECODE_DATA]
     load_vm t0
     store64 [t0, VM_RUNNING_EXECUTION_CONTEXT], t2
     mov exec_ctx, t2

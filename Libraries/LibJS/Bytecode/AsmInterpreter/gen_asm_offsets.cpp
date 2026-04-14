@@ -379,7 +379,12 @@ int main()
     outln("const NEGATIVE_ZERO = 0x{:X}", static_cast<u64>(NEGATIVE_ZERO_BITS));
     outln("const CELL_TAG_SHIFTED = 0x{:X}", static_cast<u64>(GC::SHIFTED_IS_CELL_PATTERN));
 
+    outln("const ACCUMULATOR_REG_OFFSET = {}", static_cast<size_t>(Register::accumulator().index()) * sizeof(Value));
+    outln("const EXCEPTION_REG_OFFSET = {}", static_cast<size_t>(Register::exception().index()) * sizeof(Value));
     outln("const THIS_VALUE_REG_OFFSET = {}", static_cast<size_t>(Register::this_value().index()) * sizeof(Value));
+    outln("const RETURN_VALUE_REG_OFFSET = {}", static_cast<size_t>(Register::return_value().index()) * sizeof(Value));
+    outln("const SAVED_LEXICAL_ENVIRONMENT_REG_OFFSET = {}", static_cast<size_t>(Register::saved_lexical_environment().index()) * sizeof(Value));
+    outln("const RESERVED_REGISTERS_SIZE = {}", static_cast<size_t>(Register::reserved_register_count) * sizeof(Value));
 
     return 0;
 }
