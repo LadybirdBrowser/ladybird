@@ -2467,9 +2467,8 @@ handler ObjectPropertyIteratorNext
     # These guards mirror PropertyNameIterator::fast_path_still_valid(). If the
     # receiver or prototype chain no longer matches the cached snapshot, we drop
     # to C++ and continue in deoptimized mode for the rest of the enumeration.
-    load64 t5, [t3, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE]
+    load_pair64 t5, t7, [t3, PROPERTY_NAME_ITERATOR_PROPERTY_CACHE], [t3, PROPERTY_NAME_ITERATOR_SHAPE]
     load64 t6, [t3, PROPERTY_NAME_ITERATOR_OBJECT]
-    load64 t7, [t3, PROPERTY_NAME_ITERATOR_SHAPE]
     load64 t8, [t6, OBJECT_SHAPE]
     branch_ne t8, t7, .slow
 
