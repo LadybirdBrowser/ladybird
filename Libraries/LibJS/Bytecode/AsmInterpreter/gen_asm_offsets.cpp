@@ -267,11 +267,16 @@ int main()
     // SharedFunctionInstanceData layout
     outln("\n# SharedFunctionInstanceData layout");
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE, SharedFunctionInstanceData, m_executable);
+    EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA, SharedFunctionInstanceData, m_asm_call_metadata);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT, SharedFunctionInstanceData, m_formal_parameter_count);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_STRICT, SharedFunctionInstanceData, m_strict);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED, SharedFunctionInstanceData, m_function_environment_needed);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_USES_THIS, SharedFunctionInstanceData, m_uses_this);
     EMIT_OFFSET(SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL, SharedFunctionInstanceData, m_can_inline_call);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL = {}", SharedFunctionInstanceData::asm_call_metadata_can_inline_call);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED = {}", SharedFunctionInstanceData::asm_call_metadata_function_environment_needed);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS = {}", SharedFunctionInstanceData::asm_call_metadata_uses_this);
+    outln("const SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT = {}", SharedFunctionInstanceData::asm_call_metadata_strict);
 
     // GlobalEnvironment layout
     outln("\n# GlobalEnvironment layout");

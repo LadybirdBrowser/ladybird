@@ -493,6 +493,7 @@ Optional<Result<ModuleResult, Vector<ParserError>>> compile_parsed_module(Parsed
         builder.result.tla_shared_data->m_is_module_wrapper = true;
         builder.result.tla_shared_data->m_uses_this = true;
         builder.result.tla_shared_data->m_function_environment_needed = true;
+        builder.result.tla_shared_data->update_asm_call_metadata();
         builder.result.tla_shared_data->set_executable(tla_exec);
     } else {
         builder.result.executable = static_cast<Bytecode::Executable*>(exec_ptr);
@@ -866,6 +867,7 @@ extern "C" void* rust_create_sfd(
     shared->m_uses_this = data->uses_this;
     if (data->uses_this_from_environment)
         shared->m_function_environment_needed = true;
+    shared->update_asm_call_metadata();
 
     // Set source text as a view into the original source code.
     shared->m_source_code = &source_code;
@@ -888,6 +890,7 @@ extern "C" void rust_sfd_set_metadata(
     auto& shared = *static_cast<JS::SharedFunctionInstanceData*>(sfd_ptr);
     shared.m_uses_this = uses_this;
     shared.m_function_environment_needed = function_environment_needed;
+    shared.update_asm_call_metadata();
     shared.m_function_environment_bindings_count = function_environment_bindings_count;
     shared.m_might_need_arguments_object = might_need_arguments_object;
     shared.m_contains_direct_call_to_eval = contains_direct_call_to_eval;

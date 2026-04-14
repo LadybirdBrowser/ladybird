@@ -1260,18 +1260,41 @@ fn emit_instruction(
         }
 
         "branch_bits_set" | "branch_bits_clear" => {
-            // branch_bits_set a, mask, label  =>  test a, mask; jnz label
+            // branch_bits_set a, mask, label
             if insn.operands.len() == 3 {
                 let a = resolve_op(&insn.operands[0], handler, program);
-                let mask = resolve_op(&insn.operands[1], handler, program);
                 let label = resolve_label(&insn.operands[2], handler);
-                let cc = match m.as_str() {
+                let test_cc = match m.as_str() {
                     "branch_bits_set" => "jnz",
                     "branch_bits_clear" => "jz",
                     _ => unreachable!(),
                 };
-                w!(out, "    test {a}, {mask}");
-                w!(out, "    {cc} {label}");
+                let bit_cc = match m.as_str() {
+                    "branch_bits_set" => "jc",
+                    "branch_bits_clear" => "jnc",
+                    _ => unreachable!(),
+                };
+
+                if let Some(mask) = get_immediate_value(&insn.operands[1], program) {
+                    let mask = mask as u64;
+                    if mask >> 32 == 0 {
+                        let a32 = to_32bit_reg(&a);
+                        w!(out, "    test {a32}, {mask}");
+                        w!(out, "    {test_cc} {label}");
+                    } else if mask.is_power_of_two() {
+                        w!(out, "    bt {a}, {}", mask.trailing_zeros());
+                        w!(out, "    {bit_cc} {label}");
+                    } else {
+                        panic!(
+                            "x86_64 branch_bits requires a low-32-bit mask or a single-bit 64-bit mask in handler '{}', got {mask:#x}",
+                            handler.name
+                        );
+                    }
+                } else {
+                    let mask = resolve_op(&insn.operands[1], handler, program);
+                    w!(out, "    test {a}, {mask}");
+                    w!(out, "    {test_cc} {label}");
+                }
             }
         }
 
@@ -1474,5 +1497,30 @@ mod tests {
             resolve_pair_memory_op(&memory, &handler, &program),
             "[r9 + rsi]"
         );
+    }
+
+    #[test]
+    fn lowers_high_single_bit_branch_mask_with_bt() {
+        let mut program = test_program();
+        program
+            .constants
+            .insert("HIGH_BIT".into(), 0x1_0000_0000);
+        let handler = call_handler();
+        let instruction = AsmInstruction {
+            mnemonic: "branch_bits_clear".into(),
+            operands: vec![
+                Operand::Register("t2".into()),
+                Operand::Constant("HIGH_BIT".into()),
+                Operand::Label(".slow".into()),
+            ],
+        };
+        let mut out = String::new();
+        let mut state = HandlerState::new();
+
+        emit_instruction(&mut out, &instruction, &handler, &program, &mut state);
+
+        assert!(out.contains("bt rdx, 32"));
+        assert!(out.contains("jnc .Lasm_Call.slow"));
+        assert!(!out.contains("test rdx, 4294967296"));
     }
 }

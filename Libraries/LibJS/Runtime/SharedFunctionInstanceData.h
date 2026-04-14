@@ -48,6 +48,11 @@ class JS_API SharedFunctionInstanceData final : public GC::Cell {
     static constexpr bool OVERRIDES_FINALIZE = true;
 
 public:
+    static constexpr u64 asm_call_metadata_can_inline_call = 1ull << 32;
+    static constexpr u64 asm_call_metadata_function_environment_needed = 1ull << 33;
+    static constexpr u64 asm_call_metadata_uses_this = 1ull << 34;
+    static constexpr u64 asm_call_metadata_strict = 1ull << 35;
+
     virtual ~SharedFunctionInstanceData() override;
     virtual void finalize() override;
 
@@ -65,9 +70,11 @@ public:
 
     void set_executable(GC::Ptr<Bytecode::Executable>);
     void set_is_class_constructor();
+    void update_asm_call_metadata();
     [[nodiscard]] bool can_inline_call() const { return m_can_inline_call; }
 
     mutable GC::Ptr<Bytecode::Executable> m_executable;
+    u64 m_asm_call_metadata { 0 };
 
     Utf16FlyString m_name;
 

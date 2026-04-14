@@ -2012,7 +2012,8 @@ handler Call
     #
     # Register usage within this handler:
     #   t3 = callee ECMAScriptFunctionObject*
-    #   t2 = SharedFunctionInstanceData* / later callee ExecutionContext*
+    #   t2 = asm-call metadata / later callee ExecutionContext*
+    #   t7 = callee Executable* carried across `this` binding
     #   t8 = boxed `this` value carried into the callee
     load_operand t0, m_callee
     extract_tag t1, t0
@@ -2026,12 +2027,11 @@ handler Call
     branch_bits_clear t1, OBJECT_FLAG_IS_ECMASCRIPT_FUNCTION_OBJECT, .call_slow
 
     load64 t2, [t3, ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA]
-    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL]
-    branch_zero t1, .call_slow
+    load_pair64 t7, t2, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE], [t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA]
+    branch_bits_clear t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL, .call_slow
     # NewFunctionEnvironment() allocates and has to stay out of the pure asm
     # path, but we still preserve inline-call semantics via .call_interp_inline.
-    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED]
-    branch_nonzero t1, .call_interp_inline
+    branch_bits_set t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_FUNCTION_ENVIRONMENT_NEEDED, .call_interp_inline
 
     # Bind this without allocations. Sloppy primitive this-values still need
     # ToObject(), so they use the C++ inline-frame helper.
@@ -2039,11 +2039,9 @@ handler Call
     # t8 starts as "empty" to match the normal interpreter behavior for
     # callees that never observe `this`.
     mov t8, EMPTY_TAG_SHIFTED
-    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_USES_THIS]
-    branch_zero t1, .this_ready
+    branch_bits_clear t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS, .this_ready
     load_operand t8, m_this_value
-    load8 t1, [t2, SHARED_FUNCTION_INSTANCE_DATA_STRICT]
-    branch_nonzero t1, .this_ready
+    branch_bits_set t2, SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT, .this_ready
 
     # Sloppy null/undefined binds the callee realm's global object.
     # Sloppy primitive receivers need ToObject(), which may allocate wrappers,
@@ -2067,16 +2065,15 @@ handler Call
     or t8, t1
 
 .this_ready:
-    # can_inline_call already implies that shared_data has compiled bytecode.
-    load64 t0, [t2, SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE]
+    # The low 32 bits of the packed metadata word hold the formal parameter count.
+    and t2, 0xFFFFFFFF
 
-    load32 t7, [pb, pc, m_argument_count]
-    load32 t4, [t2, SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT]
-    branch_ge_unsigned t4, t7, .arg_count_ready
-    mov t4, t7
+    load32 t6, [pb, pc, m_argument_count]
+    mov t4, t2
+    branch_ge_unsigned t4, t6, .arg_count_ready
+    mov t4, t6
 .arg_count_ready:
-    load32 t5, [t0, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT]
-    load32 t1, [t0, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
+    load_pair32 t5, t1, [t7, EXECUTABLE_REGISTERS_AND_LOCALS_COUNT], [t7, EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT]
 
     # Inline InterpreterStack::allocate().
     # t1 = total Value slots, t2 = new stack top, t6 = current frame base.
