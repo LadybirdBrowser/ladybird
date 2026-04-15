@@ -2190,7 +2190,7 @@
     "multiplicity": "list",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "number",
+      "number [-∞,∞]",
       "opentype-tag"
     ],
     "valid-identifiers": [
@@ -3016,7 +3016,7 @@
     "__comment": "FIXME: `add(<integer>)` is also valid but we can't represent that here yet.",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "integer"
+      "integer [-∞,∞]"
     ],
     "valid-identifiers": [
       "auto-add"
@@ -4378,7 +4378,7 @@
     "multiplicity": "coordinating-list",
     "requires-computation": "cascaded-value",
     "valid-types": [
-      "time"
+      "time [-∞,∞]"
     ]
   },
   "transition-duration": {
