@@ -412,14 +412,7 @@ static Vector<ComponentValue> replace_a_var_function(DOM::AbstractElement& eleme
         // Look up the value of the custom property
         auto& custom_property_name = name_token.token().ident();
         auto custom_property_value = StyleComputer::compute_value_of_custom_property(element, custom_property_name, guarded_contexts);
-        if (custom_property_value->is_guaranteed_invalid()) {
-            result = { ComponentValue { GuaranteedInvalidValue {} } };
-        } else if (custom_property_value->is_unresolved()) {
-            result = custom_property_value->as_unresolved().values();
-        } else {
-            dbgln_if(CSS_PARSER_DEBUG, "Custom property `{}` is an unsupported type: {}", custom_property_name, to_underlying(custom_property_value->type()));
-            result = { ComponentValue { GuaranteedInvalidValue {} } };
-        }
+        result = custom_property_value->tokenize();
     }
 
     // FIXME: 3. If the custom property named by the var()’s first argument is animation-tainted, and the var() is being used
