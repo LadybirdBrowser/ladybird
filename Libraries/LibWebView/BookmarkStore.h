@@ -64,6 +64,8 @@ public:
     Optional<BookmarkItem const&> find_bookmark_by_url(URL::URL const&) const;
     Optional<BookmarkItem const&> find_item_by_id(StringView id) const;
 
+    void import_items(JsonArray const& items_array);
+
     void add_bookmark(URL::URL url, Optional<String> title, Optional<String> favicon_base64, Optional<String const&> target_folder_id = {});
     void add_folder(Optional<String> title, Optional<String const&> target_folder_id = {});
 

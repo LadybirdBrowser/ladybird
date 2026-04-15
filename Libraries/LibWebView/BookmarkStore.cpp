@@ -298,6 +298,28 @@ void BookmarkStore::add_folder(Optional<String> title, Optional<String const&> t
     notify_observers();
 }
 
+void BookmarkStore::import_items(JsonArray const& items_array)
+{
+    auto imported_items = parse_bookmark_items(items_array);
+    if (imported_items.is_empty())
+        return;
+
+    auto now = UnixDateTime::now();
+
+    m_items.append({
+        .id = generate_random_uuid(),
+        .date_added = now,
+        .last_modified = now,
+        .data = BookmarkItem::Folder {
+            .title = "Imported Bookmarks"_string,
+            .children = move(imported_items),
+        },
+    });
+
+    persist_bookmarks();
+    notify_observers();
+}
+
 void BookmarkStore::edit_bookmark(StringView id, URL::URL url, Optional<String> title)
 {
     auto item = find_mutable_item_by_id(id);

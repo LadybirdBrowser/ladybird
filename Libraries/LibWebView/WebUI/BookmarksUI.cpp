@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/File.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/WebUI/BookmarksUI.h>
@@ -20,6 +21,12 @@ void BookmarksUI::register_interfaces()
     });
     register_interface("showContextMenu"sv, [this](auto const& data) {
         show_context_menu(data);
+    });
+    register_interface("importBookmarks"sv, [this](auto const& data) {
+        import_bookmarks(data);
+    });
+    register_interface("exportBookmarks"sv, [this](auto const& data) {
+        export_bookmarks(data);
     });
 }
 
@@ -46,6 +53,35 @@ void BookmarksUI::move_item(JsonValue const& data)
 
     auto target_folder_id = object.get_string("targetFolderId"sv);
     Application::bookmark_store().move_item(*id, target_folder_id, *index);
+}
+
+void BookmarksUI::import_bookmarks(JsonValue const& data)
+{
+    if (!data.is_array())
+        return;
+
+    Application::bookmark_store().import_items(data.as_array());
+}
+
+void BookmarksUI::export_bookmarks(JsonValue const& data)
+{
+    if (!data.is_string())
+        return;
+
+    auto destination = Application::the().path_for_downloaded_file("bookmarks.html"sv);
+    if (destination.is_error())
+        return;
+
+    auto file = Core::File::open(destination.value().string(), Core::File::OpenMode::Write);
+    if (file.is_error()) {
+        Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", file.error())));
+        return;
+    }
+
+    if (auto result = file.value()->write_until_depleted(data.as_string().bytes()); result.is_error()) {
+        Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", result.error())));
+        return;
+    }
 }
 
 void BookmarksUI::show_context_menu(JsonValue const& data)

@@ -77,7 +77,11 @@ Trustworthiness is_url_potentially_trustworthy(URL::URL const& url)
     if (url == URL::about_blank() || url == URL::about_srcdoc())
         return Trustworthiness::PotentiallyTrustworthy;
 
-    // 2. If url’s scheme is "data", return "Potentially Trustworthy".
+    // AD-HOC: Browser-internal about: pages (WebUI) are served directly by the user agent.
+    if (URL::is_webui_url(url))
+        return Trustworthiness::PotentiallyTrustworthy;
+
+    // 2. If url's scheme is "data", return "Potentially Trustworthy".
     if (url.scheme() == "data"sv)
         return Trustworthiness::PotentiallyTrustworthy;
 

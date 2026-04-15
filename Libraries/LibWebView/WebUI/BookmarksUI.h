@@ -22,6 +22,8 @@ private:
 
     void load_bookmarks();
     void move_item(JsonValue const&);
+    void import_bookmarks(JsonValue const&);
+    void export_bookmarks(JsonValue const&);
     void show_context_menu(JsonValue const&);
 };
 

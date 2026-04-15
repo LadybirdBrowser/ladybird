@@ -11,6 +11,9 @@
                     --tree-selected-color: #d8d8f8;
                     --empty-text-color: #888;
                     --url-text-color: #666;
+                    --menu-background-color: #fff;
+                    --menu-border-color: #d8d8d8;
+                    --menu-shadow-color: rgba(0, 0, 0, 0.12);
                 }
             }
 
@@ -20,7 +23,80 @@
                     --tree-selected-color: #35355a;
                     --empty-text-color: #777;
                     --url-text-color: #999;
+                    --menu-background-color: #2a2a2a;
+                    --menu-border-color: #4a4a4a;
+                    --menu-shadow-color: rgba(0, 0, 0, 0.4);
                 }
+            }
+
+            .header-menu {
+                position: relative;
+                margin-left: auto;
+            }
+
+            .menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                width: 32px;
+                height: 32px;
+
+                color: inherit;
+                background: none;
+                border: none;
+                border-radius: 4px;
+
+                cursor: pointer;
+            }
+
+            .menu-toggle:hover {
+                background-color: var(--tree-hover-color);
+            }
+
+            .menu-toggle svg {
+                width: 20px;
+                height: 20px;
+            }
+
+            .menu-dropdown {
+                position: absolute;
+                top: 100%;
+                right: 0;
+                z-index: 10;
+
+                display: flex;
+                flex-direction: column;
+
+                min-width: 200px;
+                padding: 4px;
+                margin-top: 4px;
+
+                background-color: var(--menu-background-color);
+                border: 1px solid var(--menu-border-color);
+                border-radius: 6px;
+                box-shadow: 0 4px 12px var(--menu-shadow-color);
+            }
+
+            .menu-dropdown.hidden {
+                display: none;
+            }
+
+            .menu-item {
+                color: inherit;
+                background: none;
+                border: none;
+                border-radius: 4px;
+
+                padding: 8px 12px;
+                font-size: 14px;
+                text-align: left;
+
+                cursor: pointer;
+            }
+
+            .menu-item:hover {
+                background-color: var(--tree-hover-color);
             }
 
             .tree-empty {
@@ -158,6 +234,20 @@
                 <img src="resource://icons/128x128/app-browser-dark.png" />
             </picture>
             <h1>Bookmarks</h1>
+                <div class="header-menu">
+                    <button class="menu-toggle" id="menu-toggle" aria-label="Bookmark options">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="12" cy="5" r="2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <circle cx="12" cy="19" r="2" />
+                        </svg>
+                    </button>
+                    <div class="menu-dropdown hidden" id="menu-dropdown">
+                        <button class="menu-item" id="import-button">Import from HTML...</button>
+                        <button class="menu-item" id="export-button">Export to HTML...</button>
+                    </div>
+                </div>
+                <input type="file" id="import-file" accept=".html,text/html" hidden />
         </header>
 
         <div class="card">
@@ -462,6 +552,175 @@
                     BOOKMARKS = event.detail.data;
                     renderTree();
                 }
+            });
+
+            const menuToggle = document.getElementById("menu-toggle");
+            const menuDropdown = document.getElementById("menu-dropdown");
+            const importButton = document.getElementById("import-button");
+            const exportButton = document.getElementById("export-button");
+            const importFileInput = document.getElementById("import-file");
+
+            function closeMenu() {
+                menuDropdown.classList.add("hidden");
+            }
+
+            menuToggle.addEventListener("click", event => {
+                event.stopPropagation();
+                menuDropdown.classList.toggle("hidden");
+            });
+
+            document.addEventListener("click", event => {
+                if (!menuDropdown.contains(event.target) && event.target !== menuToggle) {
+                    closeMenu();
+                }
+            });
+
+            // Import: parse Netscape Bookmark HTML format using DOMParser
+            function parseNetscapeBookmarks(html) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, "text/html");
+
+                function parseItems(dl) {
+                    const items = [];
+                    if (!dl) {
+                        return items;
+                    }
+
+                    for (const dt of dl.children) {
+                        if (dt.tagName !== "DT") continue;
+
+                        const anchor = dt.querySelector(":scope > A");
+                        if (anchor) {
+                            const item = {
+                                id: crypto.randomUUID(),
+                                type: "bookmark",
+                                url: anchor.getAttribute("href") || "",
+                                title: anchor.textContent.trim() || null,
+                            };
+
+                            const icon = anchor.getAttribute("icon");
+                            if (icon) {
+                                const match = icon.match(/^data:image\/png;base64,(.+)$/i);
+                                if (match) {
+                                    item.favicon = match[1];
+                                }
+                            }
+
+                            const addDate = anchor.getAttribute("add_date");
+                            if (addDate && addDate !== "0") {
+                                item.dateAdded = Number(addDate) * 1000;
+                            }
+
+                            const lastModified = anchor.getAttribute("last_modified");
+                            if (lastModified && lastModified !== "0") {
+                                item.lastModified = Number(lastModified) * 1000;
+                            }
+
+                            if (item.url) {
+                                items.push(item);
+                            }
+                            continue;
+                        }
+
+                        const heading = dt.querySelector(":scope > H3");
+                        if (heading) {
+                            const childDl = dt.querySelector(":scope > DL");
+                            const folder = {
+                                id: crypto.randomUUID(),
+                                type: "folder",
+                                title: heading.textContent.trim() || null,
+                                children: parseItems(childDl),
+                            };
+
+                            const addDate = heading.getAttribute("add_date");
+                            if (addDate && addDate !== "0") {
+                                folder.dateAdded = Number(addDate) * 1000;
+                            }
+
+                            const lastModified = heading.getAttribute("last_modified");
+                            if (lastModified && lastModified !== "0") {
+                                folder.lastModified = Number(lastModified) * 1000;
+                            }
+
+                            items.push(folder);
+                            continue;
+                        }
+                    }
+
+                    return items;
+                }
+
+                // The top-level <DL> is the root bookmark list
+                const topDl = doc.querySelector("DL");
+                return parseItems(topDl);
+            }
+
+            importButton.addEventListener("click", () => {
+                closeMenu();
+                importFileInput.value = "";
+                importFileInput.click();
+            });
+
+            importFileInput.addEventListener("change", () => {
+                const file = importFileInput.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const items = parseNetscapeBookmarks(reader.result);
+                    if (items.length > 0) {
+                        ladybird.sendMessage("importBookmarks", items);
+                    }
+                };
+                reader.readAsText(file);
+            });
+
+            // Export: generate Netscape Bookmark HTML format from current bookmarks
+            function escapeHtml(text) {
+                return text.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)}`);
+            }
+
+            function generateBookmarkHtml(items, indent) {
+                const pad = "    ".repeat(indent);
+                let html = `${pad}<DL><p>\n`;
+
+                for (const item of items) {
+                    if (item.type === "bookmark") {
+                        const title = item.title ? escapeHtml(item.title) : escapeHtml(item.url);
+                        const addDate = item.dateAdded ? Math.floor(item.dateAdded / 1000) : 0;
+                        let attrs = `HREF="${escapeHtml(item.url)}" ADD_DATE="${addDate}"`;
+
+                        if (item.favicon) {
+                            attrs += ` ICON="data:image/png;base64,${item.favicon}"`;
+                        }
+
+                        html += `${pad}    <DT><A ${attrs}>${title}</A>\n`;
+                    } else if (item.type === "folder") {
+                        const title = item.title ? escapeHtml(item.title) : "Untitled Folder";
+                        const addDate = item.dateAdded ? Math.floor(item.dateAdded / 1000) : 0;
+                        const lastModified = item.lastModified ? Math.floor(item.lastModified / 1000) : 0;
+
+                        html += `${pad}    <DT><H3 ADD_DATE="${addDate}" LAST_MODIFIED="${lastModified}">${title}</H3>\n`;
+                        html += generateBookmarkHtml(item.children || [], indent + 1);
+                    }
+                }
+
+                html += `${pad}</DL><p>\n`;
+                return html;
+            }
+
+            exportButton.addEventListener("click", () => {
+                closeMenu();
+
+                let html = "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n";
+                html += '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n';
+                html += "<TITLE>Bookmarks</TITLE>\n";
+                html += "<H1>Bookmarks</H1>\n";
+                html += generateBookmarkHtml(BOOKMARKS, 0);
+
+                // FIXME: Route bookmark export through a web platform save/download API
+                //        once one is implemented in Ladybird.
+                ladybird.sendMessage("exportBookmarks", html);
             });
         </script>
     </body>
