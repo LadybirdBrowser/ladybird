@@ -582,9 +582,9 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
     tokens.discard_whitespace();
 
     auto const& peek_token = tokens.next_token();
-    if (peek_token.is(Token::Type::Number) && peek_token.token().number().is_integer()) {
+    if (peek_token.is(Token::Type::Number) && peek_token.token().is_integer()) {
         tokens.discard_a_token(); // integer
-        return IntegerStyleValue::create(peek_token.token().number().integer_value());
+        return IntegerStyleValue::create(peek_token.token().to_integer());
     }
 
     if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
@@ -605,7 +605,7 @@ RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>&
     auto const& peek_token = tokens.next_token();
     if (peek_token.is(Token::Type::Number)) {
         tokens.discard_a_token(); // number
-        return NumberStyleValue::create(peek_token.token().number().value());
+        return NumberStyleValue::create(peek_token.token().number_value());
     }
 
     if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
@@ -2231,7 +2231,7 @@ RefPtr<StyleValue const> Parser::parse_color_value(TokenStream<ComponentValue>& 
             if (cv.is(Token::Type::Number) || cv.is(Token::Type::Dimension)) {
                 // 1. If cv’s type flag is not "integer", return an error.
                 //    This means that values that happen to use scientific notation, e.g., 5e5e5e, will fail to parse.
-                if (!cv.token().number().is_integer())
+                if (!cv.token().is_integer())
                     return {};
 
                 // 2. If cv’s value is less than zero, return an error.
@@ -5115,7 +5115,7 @@ RefPtr<CalculationNode const> Parser::convert_to_calculation_node(CalcParsing::N
             }
 
             if (component_value->is(Token::Type::Number))
-                return NumericCalculationNode::create(Number { Number::Type::Number, component_value->token().number().value() }, context);
+                return NumericCalculationNode::create(Number { Number::Type::Number, component_value->token().number_value() }, context);
 
             if (component_value->is(Token::Type::Dimension)) {
                 auto numeric_value = component_value->token().dimension_value();

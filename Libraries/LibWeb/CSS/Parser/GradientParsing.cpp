@@ -209,7 +209,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
     auto const& first_param = tokens.next_token();
     if (auto maybe_angle = parse_angle_value(tokens)) {
         gradient_direction = maybe_angle.release_nonnull();
-    } else if (first_param.is(Token::Type::Number) && first_param.token().number().value() == 0) {
+    } else if (first_param.is(Token::Type::Number) && first_param.token().number_value() == 0) {
         // <zero>
         tokens.discard_a_token(); // <zero>
         gradient_direction = { AngleStyleValue::create(Angle::make_degrees(0)) };
@@ -329,7 +329,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
                 return nullptr;
             if (auto maybe_angle = parse_angle_value(tokens)) {
                 from_angle = maybe_angle.release_nonnull();
-            } else if (auto peek_token = tokens.next_token(); peek_token.is(Token::Type::Number) && peek_token.token().number().value() == 0) {
+            } else if (auto peek_token = tokens.next_token(); peek_token.is(Token::Type::Number) && peek_token.token().number_value() == 0) {
                 tokens.discard_a_token(); // 0
                 from_angle = AngleStyleValue::create(Angle::make_degrees(0));
             } else {

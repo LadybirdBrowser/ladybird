@@ -5529,8 +5529,8 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
             if (tokens.next_token().is(Token::Type::Number)) {
                 // hue-rotate(0)
-                auto number = tokens.consume_a_token().token().number();
-                if (number.is_integer() && number.integer_value() == 0)
+                auto token = tokens.consume_a_token().token();
+                if (token.is_integer() && token.to_integer() == 0)
                     return if_no_more_tokens_return(FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) });
                 return {};
             }

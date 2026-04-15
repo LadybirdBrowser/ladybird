@@ -813,7 +813,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple
                 auto& maybe_integer = level_token_stream.consume_a_token();
                 level_token_stream.discard_whitespace();
 
-                if (!maybe_integer.is(Token::Type::Number) || !maybe_integer.token().number().is_integer()) {
+                if (!maybe_integer.is(Token::Type::Number) || !maybe_integer.token().is_integer()) {
                     ErrorReporter::the().report(InvalidPseudoClassOrElementError {
                         .name = MUST(String::formatted(":{}", pseudo_function.name)),
                         .value_string = pseudo_function.name.to_string(),
@@ -831,7 +831,7 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_pseudo_class_simple
                     return ParseError::SyntaxError;
                 }
 
-                levels.append(maybe_integer.token().number().integer_value());
+                levels.append(maybe_integer.token().to_integer());
             }
 
             return Selector::SimpleSelector {
@@ -1206,7 +1206,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // case-insensitive match for "n"
     auto is_n_dimension = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Dimension)
-            && value.token().number().is_integer()
+            && value.token().is_integer()
             && value.token().dimension_unit().equals_ignoring_ascii_case("n"sv);
     };
 
@@ -1214,7 +1214,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // case-insensitive match for "n-"
     auto is_ndash_dimension = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Dimension)
-            && value.token().number().is_integer()
+            && value.token().is_integer()
             && value.token().dimension_unit().equals_ignoring_ascii_case("n-"sv);
     };
 
@@ -1222,7 +1222,7 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // case-insensitive match for "n-*", where "*" is a series of one or more digits
     auto is_ndashdigit_dimension = [&](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Dimension)
-            && value.token().number().is_integer()
+            && value.token().is_integer()
             && value.token().dimension_unit().starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive)
             && is_series_of_1_or_more_digits(value.token().dimension_unit().bytes_as_string_view().substring_view(2));
     };
@@ -1245,19 +1245,19 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
     // <integer> is a <number-token> with its type flag set to "integer"
     auto is_integer = [](ComponentValue const& value) -> bool {
-        return value.is(Token::Type::Number) && value.token().number().is_integer();
+        return value.is(Token::Type::Number) && value.token().is_integer();
     };
 
     // <signed-integer> is a <number-token> with its type flag set to "integer", and a sign character
     auto is_signed_integer = [](ComponentValue const& value) -> bool {
-        return value.is(Token::Type::Number) && value.token().number().is_integer_with_explicit_sign();
+        return value.is(Token::Type::Number) && value.token().is_integer_with_explicit_sign();
     };
 
     // <signless-integer> is a <number-token> with its type flag set to "integer", and no sign character
     auto is_signless_integer = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Number)
-            && value.token().number().is_integer()
-            && !value.token().number().is_integer_with_explicit_sign();
+            && value.token().is_integer()
+            && !value.token().is_integer_with_explicit_sign();
     };
 
     values.discard_whitespace();

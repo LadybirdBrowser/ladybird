@@ -277,9 +277,8 @@ static Vector<ComponentValue> replace_an_env_function(DOM::AbstractElement& elem
         auto& maybe_integer = first_argument_tokens.consume_a_token();
         if (!maybe_integer.is(Token::Type::Number))
             return { ComponentValue { GuaranteedInvalidValue {} } };
-        auto& number = maybe_integer.token().number();
-        if (number.is_integer() && number.integer_value() >= 0)
-            indices.append(number.integer_value());
+        if (maybe_integer.token().is_integer() && maybe_integer.token().to_integer() >= 0)
+            indices.append(maybe_integer.token().to_integer());
         else
             return { ComponentValue { GuaranteedInvalidValue {} } };
         first_argument_tokens.discard_whitespace();

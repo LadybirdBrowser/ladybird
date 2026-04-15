@@ -1176,7 +1176,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
                     auto token = value_stream.consume_a_token();
 
                     // FIXME: Support calc()
-                    if (!token.is(Token::Type::Number) || !token.token().number().is_integer() || token.token().number().value() < 0) {
+                    if (!token.is(Token::Type::Number) || !token.token().is_integer() || token.token().to_integer() < 0) {
                         ErrorReporter::the().report(CSS::Parser::InvalidRuleError {
                             .rule_name = MUST(String::formatted("@{}", at_rule.name)),
                             .prelude = value_stream.dump_string(),
@@ -1186,7 +1186,7 @@ GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(At
                         return;
                     }
 
-                    values.append(token.token().number().integer_value());
+                    values.append(token.token().to_integer());
 
                     value_stream.discard_whitespace();
                 }

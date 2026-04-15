@@ -124,11 +124,18 @@ public:
         return m_value;
     }
 
-    Number const& number() const
+    bool is_integer() const
     {
         VERIFY(m_type == Type::Number || m_type == Type::Dimension || m_type == Type::Percentage);
-        return m_number_value;
+        return m_number_value.is_integer();
     }
+
+    bool is_integer_with_explicit_sign() const
+    {
+        VERIFY(m_type == Type::Number || m_type == Type::Dimension || m_type == Type::Percentage);
+        return m_number_value.is_integer_with_explicit_sign();
+    }
+
     double number_value() const
     {
         VERIFY(m_type == Type::Number);
