@@ -275,7 +275,8 @@ public:
 
     bool is_closed_shadow_hidden_from(Node const&) const;
 
-    bool is_connected() const;
+    bool is_connected() const { return m_is_connected; }
+    void set_is_connected(bool is_connected) { m_is_connected = is_connected; }
 
     [[nodiscard]] bool is_browsing_context_connected() const;
 
@@ -485,6 +486,7 @@ protected:
     bool m_child_needs_style_update { false };
     bool m_entire_subtree_needs_style_update { false };
     bool m_in_editable_subtree { false };
+    bool m_is_connected { false };
 
     UniqueNodeID m_unique_id;
 

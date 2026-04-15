@@ -38,14 +38,14 @@ void SVGStyleElement::children_changed(ChildrenChangedMetadata const& metadata)
 
 void SVGStyleElement::inserted()
 {
-    update_a_style_block();
     Base::inserted();
+    update_a_style_block();
 }
 
 void SVGStyleElement::removed_from(Node* old_parent, Node& old_root)
 {
-    update_a_style_block();
     Base::removed_from(old_parent, old_root);
+    update_a_style_block();
 }
 
 }

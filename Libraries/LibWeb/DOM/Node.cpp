@@ -104,6 +104,9 @@ Node::Node(JS::Realm& realm, Document& document, NodeType type)
     , m_type(type)
     , m_unique_id(allocate_unique_id(this))
 {
+    // A Document is its own shadow-including root, so it is always connected.
+    if (type == NodeType::DOCUMENT_NODE)
+        m_is_connected = true;
 }
 
 Node::Node(Document& document, NodeType type)
@@ -612,13 +615,6 @@ bool Node::is_closed_shadow_hidden_from(Node const& b) const
         return true;
 
     return false;
-}
-
-// https://dom.spec.whatwg.org/#connected
-bool Node::is_connected() const
-{
-    // An element is connected if its shadow-including root is a document.
-    return shadow_including_root().is_document();
 }
 
 // https://html.spec.whatwg.org/multipage/infrastructure.html#browsing-context-connected
@@ -1862,12 +1858,21 @@ void Node::post_connection()
 
 void Node::inserted()
 {
+    // NB: The DOM insertion steps visit shadow-including inclusive descendants in tree order,
+    //     so by the time we get here, our parent (or host, for shadow roots) has already had
+    //     its connected flag updated, and we can just inherit from it.
+    if (auto* shadow_root = as_if<ShadowRoot>(*this))
+        m_is_connected = shadow_root->host() && shadow_root->host()->is_connected();
+    else if (parent())
+        m_is_connected = parent()->is_connected();
+
     recompute_editable_subtree_flag();
     set_needs_style_update(true);
 }
 
 void Node::removed_from(Node*, Node&)
 {
+    m_is_connected = false;
     m_in_editable_subtree = false;
     m_layout_node = nullptr;
     m_paintable = nullptr;

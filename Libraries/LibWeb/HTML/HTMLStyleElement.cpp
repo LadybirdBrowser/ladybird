@@ -42,14 +42,14 @@ void HTMLStyleElement::children_changed(ChildrenChangedMetadata const& metadata)
 
 void HTMLStyleElement::inserted()
 {
-    update_a_style_block();
     Base::inserted();
+    update_a_style_block();
 }
 
 void HTMLStyleElement::removed_from(Node* old_parent, Node& old_root)
 {
-    update_a_style_block();
     Base::removed_from(old_parent, old_root);
+    update_a_style_block();
 }
 
 void HTMLStyleElement::attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_)
