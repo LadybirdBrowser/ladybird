@@ -187,6 +187,7 @@ public:
     Position const& start_position() const { return m_start_position; }
     Position const& end_position() const { return m_end_position; }
     void set_position_range(Badge<Tokenizer>, Position start, Position end);
+    void set_position_range(Badge<RustTokenizer>, Position start, Position end);
 
     bool operator==(Token const& other) const
     {

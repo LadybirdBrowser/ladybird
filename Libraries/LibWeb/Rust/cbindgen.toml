@@ -1,0 +1,26 @@
+language = "C++"
+header = """/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */"""
+pragma_once = true
+include_version = true
+namespaces = ["Web", "CSS", "Parser", "FFI"]
+line_length  = 120
+tab_width = 4
+no_includes = true
+sys_includes = ["stdint.h", "stddef.h"]
+usize_is_size_t = true
+
+[parse]
+parse_deps = false
+
+[parse.expand]
+all_features = false
+
+[export]
+include = ["CssHashType", "CssNumberType", "CssToken", "CssTokenType"]
+
+[export.mangle]
+rename_types = "PascalCase"

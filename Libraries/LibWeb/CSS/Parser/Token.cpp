@@ -424,4 +424,10 @@ void Token::set_position_range(Badge<Tokenizer>, Position start, Position end)
     m_end_position = end;
 }
 
+void Token::set_position_range(Badge<RustTokenizer>, Position start, Position end)
+{
+    m_start_position = start;
+    m_end_position = end;
+}
+
 }

@@ -1,0 +1,1460 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+use std::char;
+use std::ptr;
+
+const REPLACEMENT_CHARACTER: u32 = 0xFFFD;
+const TOKENIZER_EOF: u32 = u32::MAX;
+
+// NB: Keep this in sync with Web::CSS::Parser::Token::Type in Token.h.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum CssTokenType {
+    Invalid,
+    EndOfFile,
+    Ident,
+    Function,
+    AtKeyword,
+    Hash,
+    String,
+    BadString,
+    Url,
+    BadUrl,
+    Delim,
+    Number,
+    Percentage,
+    Dimension,
+    Whitespace,
+    CDO,
+    CDC,
+    Colon,
+    Semicolon,
+    Comma,
+    OpenSquare,
+    CloseSquare,
+    OpenParen,
+    CloseParen,
+    OpenCurly,
+    CloseCurly,
+}
+
+// NB: Keep this in sync with Web::CSS::Parser::Token::HashType in Token.h.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum CssHashType {
+    Id,
+    Unrestricted,
+}
+
+// NB: Keep this in sync with Web::CSS::Number::Type in Number.h.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub enum CssNumberType {
+    Number,
+    IntegerWithExplicitSign,
+    Integer,
+}
+
+#[repr(C)]
+pub struct CssToken {
+    pub token_type: CssTokenType,
+    pub hash_type: CssHashType,
+    pub number_type: CssNumberType,
+    pub number_value: f64,
+    pub delim: u32,
+    pub value_ptr: *const u8,
+    pub value_len: usize,
+    pub original_source_ptr: *const u8,
+    pub original_source_len: usize,
+    pub start_line: usize,
+    pub start_column: usize,
+    pub end_line: usize,
+    pub end_column: usize,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct Position {
+    line: usize,
+    column: usize,
+}
+
+#[derive(Clone, Copy)]
+struct U32Twin {
+    first: u32,
+    second: u32,
+}
+
+impl Default for U32Twin {
+    fn default() -> Self {
+        Self {
+            first: TOKENIZER_EOF,
+            second: TOKENIZER_EOF,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct U32Triplet {
+    first: u32,
+    second: u32,
+    third: u32,
+}
+
+impl Default for U32Triplet {
+    fn default() -> Self {
+        Self {
+            first: TOKENIZER_EOF,
+            second: TOKENIZER_EOF,
+            third: TOKENIZER_EOF,
+        }
+    }
+}
+
+impl U32Triplet {
+    fn to_twin_12(self) -> U32Twin {
+        U32Twin {
+            first: self.first,
+            second: self.second,
+        }
+    }
+
+    fn to_twin_23(self) -> U32Twin {
+        U32Twin {
+            first: self.second,
+            second: self.third,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct NumericValue {
+    number_type: CssNumberType,
+    value: f64,
+}
+
+pub(crate) struct Token {
+    token_type: CssTokenType,
+    value: String,
+    number_value: f64,
+    number_type: CssNumberType,
+    hash_type: CssHashType,
+    delim: u32,
+    original_source_start: usize,
+    original_source_end: usize,
+    start: Position,
+    end: Position,
+}
+
+impl Token {
+    fn create(token_type: CssTokenType, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type,
+            value: String::new(),
+            number_value: 0.0,
+            number_type: CssNumberType::Number,
+            hash_type: CssHashType::Unrestricted,
+            delim: 0,
+            original_source_start,
+            original_source_end,
+            start: Position::default(),
+            end: Position::default(),
+        }
+    }
+
+    fn create_ident(value: String, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Ident,
+            value,
+            ..Self::create(CssTokenType::Ident, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_function(value: String, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Function,
+            value,
+            ..Self::create(CssTokenType::Function, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_at_keyword(value: String, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::AtKeyword,
+            value,
+            ..Self::create(CssTokenType::AtKeyword, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_hash(
+        value: String,
+        hash_type: CssHashType,
+        original_source_start: usize,
+        original_source_end: usize,
+    ) -> Self {
+        Self {
+            token_type: CssTokenType::Hash,
+            value,
+            hash_type,
+            ..Self::create(CssTokenType::Hash, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_string(value: String, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::String,
+            value,
+            ..Self::create(CssTokenType::String, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_url(value: String, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Url,
+            value,
+            ..Self::create(CssTokenType::Url, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_delim(delim: u32, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Delim,
+            delim,
+            ..Self::create(CssTokenType::Delim, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_number(number: NumericValue, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Number,
+            number_value: number.value,
+            number_type: number.number_type,
+            ..Self::create(CssTokenType::Number, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_percentage(number: NumericValue, original_source_start: usize, original_source_end: usize) -> Self {
+        Self {
+            token_type: CssTokenType::Percentage,
+            number_value: number.value,
+            number_type: number.number_type,
+            ..Self::create(CssTokenType::Percentage, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_dimension(
+        number: NumericValue,
+        unit: String,
+        original_source_start: usize,
+        original_source_end: usize,
+    ) -> Self {
+        Self {
+            token_type: CssTokenType::Dimension,
+            value: unit,
+            number_value: number.value,
+            number_type: number.number_type,
+            ..Self::create(CssTokenType::Dimension, original_source_start, original_source_end)
+        }
+    }
+
+    fn create_whitespace(original_source_start: usize, original_source_end: usize) -> Self {
+        Self::create(CssTokenType::Whitespace, original_source_start, original_source_end)
+    }
+
+    pub(crate) fn as_ffi(&self, filtered_input: &str) -> CssToken {
+        let (value_ptr, value_len) = string_parts(&self.value);
+        let original_source = &filtered_input.as_bytes()[self.original_source_start..self.original_source_end];
+        let (original_source_ptr, original_source_len) = bytes_parts(original_source);
+
+        CssToken {
+            token_type: self.token_type,
+            hash_type: self.hash_type,
+            number_type: self.number_type,
+            number_value: self.number_value,
+            delim: self.delim,
+            value_ptr,
+            value_len,
+            original_source_ptr,
+            original_source_len,
+            start_line: self.start.line,
+            start_column: self.start.column,
+            end_line: self.end.line,
+            end_column: self.end.column,
+        }
+    }
+}
+
+pub(crate) struct TokenizationResult {
+    pub filtered_input: String,
+    pub tokens: Vec<Token>,
+}
+
+pub fn tokenize(filtered_input: &[u8]) -> TokenizationResult {
+    let filtered_input = std::str::from_utf8(filtered_input)
+        .expect("rust_css_tokenize received non-UTF-8 input after C++ decoding")
+        .to_owned();
+    Tokenizer::new(filtered_input).tokenize()
+}
+
+struct Tokenizer {
+    input: String,
+    code_points: Vec<(usize, u32)>,
+    index: usize,
+    prev_index: usize,
+    position: Position,
+    prev_position: Position,
+}
+
+impl Tokenizer {
+    fn new(input: String) -> Self {
+        let code_points = input
+            .char_indices()
+            .map(|(offset, code_point)| (offset, code_point as u32))
+            .collect();
+
+        Self {
+            input,
+            code_points,
+            index: 0,
+            prev_index: 0,
+            position: Position::default(),
+            prev_position: Position::default(),
+        }
+    }
+
+    fn tokenize(mut self) -> TokenizationResult {
+        let mut tokens = Vec::new();
+
+        loop {
+            let token_start = self.position;
+            let mut token = self.consume_a_token();
+            token.start = token_start;
+            token.end = self.position;
+            let is_eof = token.token_type == CssTokenType::EndOfFile;
+            tokens.push(token);
+
+            if is_eof {
+                return TokenizationResult {
+                    filtered_input: self.input,
+                    tokens,
+                };
+            }
+        }
+    }
+
+    fn current_byte_offset(&self) -> usize {
+        if let Some((offset, _)) = self.code_points.get(self.index) {
+            *offset
+        } else {
+            self.input.len()
+        }
+    }
+
+    fn next_code_point(&mut self) -> u32 {
+        if self.index >= self.code_points.len() {
+            return TOKENIZER_EOF;
+        }
+
+        self.prev_index = self.index;
+        self.prev_position = self.position;
+
+        let (_, code_point) = self.code_points[self.index];
+        self.index += 1;
+
+        if is_newline(code_point) {
+            self.position.line += 1;
+            self.position.column = 0;
+        } else {
+            self.position.column += 1;
+        }
+
+        code_point
+    }
+
+    fn peek_code_point(&self, offset: usize) -> u32 {
+        self.code_points
+            .get(self.index + offset)
+            .map(|(_, code_point)| *code_point)
+            .unwrap_or(TOKENIZER_EOF)
+    }
+
+    fn peek_twin(&self) -> U32Twin {
+        U32Twin {
+            first: self.peek_code_point(0),
+            second: self.peek_code_point(1),
+        }
+    }
+
+    fn peek_triplet(&self) -> U32Triplet {
+        U32Triplet {
+            first: self.peek_code_point(0),
+            second: self.peek_code_point(1),
+            third: self.peek_code_point(2),
+        }
+    }
+
+    fn start_of_input_stream_twin(&mut self) -> U32Twin {
+        // FIXME: Reconsuming just to read the current code point again is weird.
+        self.reconsume_current_input_code_point();
+        U32Twin {
+            first: self.next_code_point(),
+            second: self.peek_code_point(0),
+        }
+    }
+
+    fn start_of_input_stream_triplet(&mut self) -> U32Triplet {
+        // FIXME: Reconsuming just to read the current code point again is weird.
+        self.reconsume_current_input_code_point();
+        let first = self.next_code_point();
+        let next_two = self.peek_twin();
+        U32Triplet {
+            first,
+            second: next_two.first,
+            third: next_two.second,
+        }
+    }
+
+    fn reconsume_current_input_code_point(&mut self) {
+        self.index = self.prev_index;
+        self.position = self.prev_position;
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-comment
+    fn consume_comments(&mut self) {
+        // This section describes how to consume comments from a stream of code points.
+        // It returns nothing.
+
+        loop {
+            // If the next two input code point are U+002F SOLIDUS (/) followed by a U+002A ASTERISK (*),
+            // consume them and all following code points up to and including the first U+002A ASTERISK (*)
+            // followed by a U+002F SOLIDUS (/), or up to an EOF code point. Return to the start of this step.
+            //
+            // If the preceding paragraph ended by consuming an EOF code point, this is a parse error.
+            //
+            // Return nothing.
+            let twin = self.peek_twin();
+            if !(is_solidus(twin.first) && is_asterisk(twin.second)) {
+                return;
+            }
+
+            self.next_code_point();
+            self.next_code_point();
+
+            loop {
+                let twin = self.peek_twin();
+                if is_eof(twin.first) || is_eof(twin.second) {
+                    return;
+                }
+
+                if is_asterisk(twin.first) && is_solidus(twin.second) {
+                    self.next_code_point();
+                    self.next_code_point();
+                    break;
+                }
+
+                self.next_code_point();
+            }
+        }
+    }
+
+    fn consume_as_much_whitespace_as_possible(&mut self) {
+        while is_whitespace(self.peek_code_point(0)) {
+            self.next_code_point();
+        }
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-escaped-code-point
+    fn consume_escaped_code_point(&mut self) -> u32 {
+        // This section describes how to consume an escaped code point.
+        // It assumes that the U+005C REVERSE SOLIDUS (\) has already been consumed and that the next
+        // input code point has already been verified to be part of a valid escape.
+        // It will return a code point.
+
+        // Consume the next input code point.
+        let input = self.next_code_point();
+
+        // hex digit
+        if is_hex_digit(input) {
+            let mut repr = String::new();
+            append_code_point(&mut repr, input);
+
+            // Consume as many hex digits as possible, but no more than 5.
+            // Note that this means 1-6 hex digits have been consumed in total.
+            let mut counter = 0usize;
+            while is_hex_digit(self.peek_code_point(0)) && counter < 5 {
+                counter += 1;
+                append_code_point(&mut repr, self.next_code_point());
+            }
+
+            // If the next input code point is whitespace, consume it as well.
+            if is_whitespace(self.peek_code_point(0)) {
+                self.next_code_point();
+            }
+
+            // Interpret the hex digits as a hexadecimal number.
+            let unhexed = u32::from_str_radix(&repr, 16).unwrap_or(0);
+            // If this number is zero, or is for a surrogate, or is greater than the maximum allowed
+            // code point, return U+FFFD REPLACEMENT CHARACTER (�).
+            if unhexed == 0 || is_unicode_surrogate(unhexed) || is_greater_than_maximum_allowed_code_point(unhexed) {
+                return REPLACEMENT_CHARACTER;
+            }
+
+            // Otherwise, return the code point with that value.
+            return unhexed;
+        }
+
+        // EOF
+        if is_eof(input) {
+            // This is a parse error. Return U+FFFD REPLACEMENT CHARACTER (�).
+            return REPLACEMENT_CHARACTER;
+        }
+
+        // anything else
+        // Return the current input code point.
+        input
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-ident-like-token
+    fn consume_an_ident_like_token(&mut self) -> Token {
+        // This section describes how to consume an ident-like token from a stream of code points.
+        // It returns an <ident-token>, <function-token>, <url-token>, or <bad-url-token>.
+
+        // Consume an ident sequence, and let string be the result.
+        let start_byte_offset = self.current_byte_offset();
+        let string = self.consume_an_ident_sequence();
+
+        // If string’s value is an ASCII case-insensitive match for "url", and the next input code
+        // point is U+0028 LEFT PARENTHESIS ((), consume it.
+        if string.eq_ignore_ascii_case("url") && is_left_paren(self.peek_code_point(0)) {
+            self.next_code_point();
+
+            // While the next two input code points are whitespace, consume the next input code point.
+            loop {
+                let maybe_whitespace = self.peek_twin();
+                if !(is_whitespace(maybe_whitespace.first) && is_whitespace(maybe_whitespace.second)) {
+                    break;
+                }
+                self.next_code_point();
+            }
+
+            // If the next one or two input code points are U+0022 QUOTATION MARK ("), U+0027 APOSTROPHE ('),
+            // or whitespace followed by U+0022 QUOTATION MARK (") or U+0027 APOSTROPHE ('), then create a
+            // <function-token> with its value set to string and return it.
+            let next_two = self.peek_twin();
+            if is_quotation_mark(next_two.first)
+                || is_apostrophe(next_two.first)
+                || (is_whitespace(next_two.first)
+                    && (is_quotation_mark(next_two.second) || is_apostrophe(next_two.second)))
+            {
+                return Token::create_function(string, start_byte_offset, self.current_byte_offset());
+            }
+
+            // Otherwise, consume a url token, and return it.
+            return self.consume_a_url_token(start_byte_offset);
+        }
+
+        // Otherwise, if the next input code point is U+0028 LEFT PARENTHESIS ((), consume it.
+        if is_left_paren(self.peek_code_point(0)) {
+            self.next_code_point();
+
+            // Create a <function-token> with its value set to string and return it.
+            return Token::create_function(string, start_byte_offset, self.current_byte_offset());
+        }
+
+        // Otherwise, create an <ident-token> with its value set to string and return it.
+        Token::create_ident(string, start_byte_offset, self.current_byte_offset())
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-number
+    fn consume_a_number(&mut self) -> NumericValue {
+        // This section describes how to consume a number from a stream of code points.
+        // It returns a numeric value, and a type which is either "integer" or "number".
+        //
+        // Note: This algorithm does not do the verification of the first few code points
+        // that are necessary to ensure a number can be obtained from the stream. Ensure
+        // that the stream starts with a number before calling this algorithm.
+
+        // Execute the following steps in order:
+
+        // 1. Initially set type to "integer". Let repr be the empty string.
+        let mut repr = String::new();
+        let mut number_type = CssNumberType::Integer;
+
+        // 2. If the next input code point is U+002B PLUS SIGN (+) or U+002D HYPHEN-MINUS (-),
+        // consume it and append it to repr.
+        let mut has_explicit_sign = false;
+        let next_input = self.peek_code_point(0);
+        if is_plus_sign(next_input) || is_hyphen_minus(next_input) {
+            has_explicit_sign = true;
+            append_code_point(&mut repr, self.next_code_point());
+        }
+
+        // 3. While the next input code point is a digit, consume it and append it to repr.
+        while is_digit(self.peek_code_point(0)) {
+            append_code_point(&mut repr, self.next_code_point());
+        }
+
+        // 4. If the next 2 input code points are U+002E FULL STOP (.) followed by a digit, then:
+        let maybe_number = self.peek_twin();
+        if is_full_stop(maybe_number.first) && is_digit(maybe_number.second) {
+            // 1. Consume them.
+            // 2. Append them to repr.
+            append_code_point(&mut repr, self.next_code_point());
+            append_code_point(&mut repr, self.next_code_point());
+
+            // 3. Set type to "number".
+            number_type = CssNumberType::Number;
+
+            // 4. While the next input code point is a digit, consume it and append it to repr.
+            while is_digit(self.peek_code_point(0)) {
+                append_code_point(&mut repr, self.next_code_point());
+            }
+        }
+
+        // 5. If the next 2 or 3 input code points are U+0045 LATIN CAPITAL LETTER E (E) or
+        // U+0065 LATIN SMALL LETTER E (e), optionally followed by U+002D HYPHEN-MINUS (-)
+        // or U+002B PLUS SIGN (+), followed by a digit, then:
+        let maybe_exponent = self.peek_triplet();
+        if (is_e(maybe_exponent.first) || is_uppercase_e(maybe_exponent.first))
+            && (((is_plus_sign(maybe_exponent.second) || is_hyphen_minus(maybe_exponent.second))
+                && is_digit(maybe_exponent.third))
+                || is_digit(maybe_exponent.second))
+        {
+            // 1. Consume them.
+            // 2. Append them to repr.
+            if (is_plus_sign(maybe_exponent.second) || is_hyphen_minus(maybe_exponent.second))
+                && is_digit(maybe_exponent.third)
+            {
+                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.next_code_point());
+            } else if is_digit(maybe_exponent.second) {
+                append_code_point(&mut repr, self.next_code_point());
+                append_code_point(&mut repr, self.next_code_point());
+            }
+
+            // 3. Set type to "number".
+            number_type = CssNumberType::Number;
+
+            // 4. While the next input code point is a digit, consume it and append it to repr.
+            while is_digit(self.peek_code_point(0)) {
+                append_code_point(&mut repr, self.next_code_point());
+            }
+        }
+
+        // 6. Convert repr to a number, and set the value to the returned value.
+        let value = repr.parse::<f64>().unwrap();
+
+        // 7. Return value and type.
+        if number_type == CssNumberType::Integer && has_explicit_sign {
+            return NumericValue {
+                number_type: CssNumberType::IntegerWithExplicitSign,
+                value,
+            };
+        }
+
+        NumericValue { number_type, value }
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-name
+    fn consume_an_ident_sequence(&mut self) -> String {
+        // This section describes how to consume an ident sequence from a stream of code points.
+        // It returns a string containing the largest name that can be formed from adjacent
+        // code points in the stream, starting from the first.
+        //
+        // Note: This algorithm does not do the verification of the first few code points that
+        // are necessary to ensure the returned code points would constitute an <ident-token>.
+        // If that is the intended use, ensure that the stream starts with an ident sequence before
+        // calling this algorithm.
+
+        // Let result initially be an empty string.
+        let mut result = String::new();
+
+        // Repeatedly consume the next input code point from the stream:
+        loop {
+            let input = self.next_code_point();
+
+            if is_eof(input) {
+                break;
+            }
+
+            // name code point
+            if is_ident_code_point(input) {
+                // Append the code point to result.
+                append_code_point(&mut result, input);
+                continue;
+            }
+
+            // the stream starts with a valid escape
+            if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
+                // Consume an escaped code point. Append the returned code point to result.
+                append_code_point(&mut result, self.consume_escaped_code_point());
+                continue;
+            }
+
+            // anything else
+            // Reconsume the current input code point. Return result.
+            self.reconsume_current_input_code_point();
+            break;
+        }
+
+        result
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-url-token
+    fn consume_a_url_token(&mut self, start_byte_offset: usize) -> Token {
+        // This section describes how to consume a url token from a stream of code points.
+        // It returns either a <url-token> or a <bad-url-token>.
+        //
+        // Note: This algorithm assumes that the initial "url(" has already been consumed.
+        // This algorithm also assumes that it’s being called to consume an "unquoted" value,
+        // like url(foo). A quoted value, like url("foo"), is parsed as a <function-token>.
+        // Consume an ident-like token automatically handles this distinction; this algorithm
+        // shouldn’t be called directly otherwise.
+
+        // 1. Initially create a <url-token> with its value set to the empty string.
+        let mut value = String::new();
+
+        // 2. Consume as much whitespace as possible.
+        self.consume_as_much_whitespace_as_possible();
+
+        // 3. Repeatedly consume the next input code point from the stream:
+        loop {
+            let input = self.next_code_point();
+
+            // U+0029 RIGHT PARENTHESIS ())
+            if is_right_paren(input) {
+                // Return the <url-token>.
+                return Token::create_url(value, start_byte_offset, self.current_byte_offset());
+            }
+
+            // EOF
+            if is_eof(input) {
+                // This is a parse error. Return the <url-token>.
+                return Token::create_url(value, start_byte_offset, self.current_byte_offset());
+            }
+
+            // whitespace
+            if is_whitespace(input) {
+                // Consume as much whitespace as possible.
+                self.consume_as_much_whitespace_as_possible();
+                let next_input = self.peek_code_point(0);
+
+                // If the next input code point is U+0029 RIGHT PARENTHESIS ()) or EOF, consume it
+                // and return the <url-token> (if EOF was encountered, this is a parse error);
+                if is_right_paren(next_input) {
+                    self.next_code_point();
+                    return Token::create_url(value, start_byte_offset, self.current_byte_offset());
+                }
+
+                if is_eof(next_input) {
+                    self.next_code_point();
+                    return Token::create_url(value, start_byte_offset, self.current_byte_offset());
+                }
+
+                // otherwise, consume the remnants of a bad url, create a <bad-url-token>, and return it.
+                self.consume_the_remnants_of_a_bad_url();
+                return Token::create(CssTokenType::BadUrl, start_byte_offset, self.current_byte_offset());
+            }
+
+            // U+0022 QUOTATION MARK (")
+            // U+0027 APOSTROPHE (')
+            // U+0028 LEFT PARENTHESIS (()
+            // non-printable code point
+            if is_quotation_mark(input)
+                || is_apostrophe(input)
+                || is_left_paren(input)
+                || is_non_printable_code_point(input)
+            {
+                // This is a parse error. Consume the remnants of a bad url, create a <bad-url-token>, and return it.
+                self.consume_the_remnants_of_a_bad_url();
+                return Token::create(CssTokenType::BadUrl, start_byte_offset, self.current_byte_offset());
+            }
+
+            // U+005C REVERSE SOLIDUS (\)
+            if is_reverse_solidus(input) {
+                // If the stream starts with a valid escape,
+                if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
+                    // consume an escaped code point and append the returned code point to the <url-token>’s value.
+                    append_code_point(&mut value, self.consume_escaped_code_point());
+                    continue;
+                }
+
+                // Otherwise, this is a parse error.
+                // Consume the remnants of a bad url, create a <bad-url-token>, and return it.
+                self.consume_the_remnants_of_a_bad_url();
+                return Token::create(CssTokenType::BadUrl, start_byte_offset, self.current_byte_offset());
+            }
+
+            // anything else
+            // Append the current input code point to the <url-token>’s value.
+            append_code_point(&mut value, input);
+        }
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-remnants-of-bad-url
+    fn consume_the_remnants_of_a_bad_url(&mut self) {
+        // This section describes how to consume the remnants of a bad url from a stream of code points,
+        // "cleaning up" after the tokenizer realizes that it’s in the middle of a <bad-url-token> rather
+        // than a <url-token>. It returns nothing; its sole use is to consume enough of the input stream
+        // to reach a recovery point where normal tokenizing can resume.
+
+        // Repeatedly consume the next input code point from the stream:
+        loop {
+            let input = self.next_code_point();
+
+            // U+0029 RIGHT PARENTHESIS ())
+            // EOF
+            if is_eof(input) || is_right_paren(input) {
+                // Return.
+                return;
+            }
+
+            // the input stream starts with a valid escape
+            if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
+                // Consume an escaped code point.
+                // This allows an escaped right parenthesis ("\)") to be encountered without ending
+                // the <bad-url-token>. This is otherwise identical to the "anything else" clause.
+                self.consume_escaped_code_point();
+            }
+
+            // anything else
+            // Do nothing.
+        }
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-numeric-token
+    fn consume_a_numeric_token(&mut self) -> Token {
+        // This section describes how to consume a numeric token from a stream of code points.
+        // It returns either a <number-token>, <percentage-token>, or <dimension-token>.
+
+        let start_byte_offset = self.current_byte_offset();
+
+        // Consume a number and let number be the result.
+        let number = self.consume_a_number();
+
+        // If the next 3 input code points would start an ident sequence, then:
+        if would_start_an_ident_sequence(self.peek_triplet()) {
+            // 1. Create a <dimension-token> with the same value and type flag as number,
+            //    and a unit set initially to the empty string.
+
+            // 2. Consume an ident sequence. Set the <dimension-token>’s unit to the returned value.
+            let unit = self.consume_an_ident_sequence();
+
+            // 3. Return the <dimension-token>.
+            return Token::create_dimension(number, unit, start_byte_offset, self.current_byte_offset());
+        }
+
+        // Otherwise, if the next input code point is U+0025 PERCENTAGE SIGN (%), consume it.
+        if is_percent(self.peek_code_point(0)) {
+            self.next_code_point();
+
+            // Create a <percentage-token> with the same value as number, and return it.
+            return Token::create_percentage(number, start_byte_offset, self.current_byte_offset());
+        }
+
+        // Otherwise, create a <number-token> with the same value and type flag as number, and return it.
+        Token::create_number(number, start_byte_offset, self.current_byte_offset())
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-string-token
+    fn consume_string_token(&mut self, ending_code_point: u32) -> Token {
+        // This section describes how to consume a string token from a stream of code points.
+        // It returns either a <string-token> or <bad-string-token>.
+        //
+        // This algorithm may be called with an ending code point, which denotes the code point
+        // that ends the string. If an ending code point is not specified, the current input
+        // code point is used.
+
+        // Initially create a <string-token> with its value set to the empty string.
+        let start_byte_offset = self.current_byte_offset() - 1;
+        let mut value = String::new();
+
+        // Repeatedly consume the next input code point from the stream:
+        loop {
+            let input = self.next_code_point();
+
+            // ending code point
+            if input == ending_code_point {
+                // Return the <string-token>.
+                return Token::create_string(value, start_byte_offset, self.current_byte_offset());
+            }
+
+            // EOF
+            if is_eof(input) {
+                // This is a parse error. Return the <string-token>.
+                return Token::create_string(value, start_byte_offset, self.current_byte_offset());
+            }
+
+            // newline
+            if is_newline(input) {
+                // This is a parse error. Reconsume the current input code point, create a
+                // <bad-string-token>, and return it.
+                self.reconsume_current_input_code_point();
+                return Token::create(CssTokenType::BadString, start_byte_offset, self.current_byte_offset());
+            }
+
+            // U+005C REVERSE SOLIDUS (\)
+            if is_reverse_solidus(input) {
+                // If the next input code point is EOF, do nothing.
+                let next_input = self.peek_code_point(0);
+                if is_eof(next_input) {
+                    continue;
+                }
+
+                // Otherwise, if the next input code point is a newline, consume it.
+                if is_newline(next_input) {
+                    self.next_code_point();
+                    continue;
+                }
+
+                // Otherwise, (the stream starts with a valid escape) consume an escaped code
+                // point and append the returned code point to the <string-token>’s value.
+                append_code_point(&mut value, self.consume_escaped_code_point());
+                continue;
+            }
+
+            // anything else
+            // Append the current input code point to the <string-token>’s value.
+            append_code_point(&mut value, input);
+        }
+    }
+
+    // https://www.w3.org/TR/css-syntax-3/#consume-token
+    fn consume_a_token(&mut self) -> Token {
+        // This section describes how to consume a token from a stream of code points.
+        // It will return a single token of any type.
+
+        let start_byte_offset = self.current_byte_offset();
+
+        // Consume comments.
+        self.consume_comments();
+
+        // AD-HOC: Preserve comments as whitespace tokens, for serializing custom properties.
+        let after_comments_byte_offset = self.current_byte_offset();
+        if after_comments_byte_offset != start_byte_offset {
+            return Token::create_whitespace(start_byte_offset, self.current_byte_offset());
+        }
+
+        // Consume the next input code point.
+        let input = self.next_code_point();
+
+        // whitespace
+        if is_whitespace(input) {
+            // Consume as much whitespace as possible. Return a <whitespace-token>.
+            self.consume_as_much_whitespace_as_possible();
+            return Token::create_whitespace(start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+0022 QUOTATION MARK (")
+        if is_quotation_mark(input) {
+            // Consume a string token and return it.
+            return self.consume_string_token(input);
+        }
+
+        // U+0023 NUMBER SIGN (#)
+        if is_number_sign(input) {
+            // If the next input code point is an ident code point or the next two input code points
+            // are a valid escape, then:
+            let next_input = self.peek_code_point(0);
+            let maybe_escape = self.peek_twin();
+
+            if is_ident_code_point(next_input) || is_valid_escape_sequence(maybe_escape) {
+                // 1. Create a <hash-token>.
+                let mut hash_type = CssHashType::Unrestricted;
+
+                // 2. If the next 3 input code points would start an ident sequence, set the <hash-token>’s
+                //    type flag to "id".
+                if would_start_an_ident_sequence(self.peek_triplet()) {
+                    hash_type = CssHashType::Id;
+                }
+
+                // 3. Consume an ident sequence, and set the <hash-token>’s value to the returned string.
+                let value = self.consume_an_ident_sequence();
+
+                // 4. Return the <hash-token>.
+                return Token::create_hash(value, hash_type, start_byte_offset, self.current_byte_offset());
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+0027 APOSTROPHE (')
+        if is_apostrophe(input) {
+            // Consume a string token and return it.
+            return self.consume_string_token(input);
+        }
+
+        // U+0028 LEFT PARENTHESIS (()
+        if is_left_paren(input) {
+            // Return a <(-token>.
+            return Token::create(CssTokenType::OpenParen, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+0029 RIGHT PARENTHESIS ())
+        if is_right_paren(input) {
+            // Return a <)-token>.
+            return Token::create(CssTokenType::CloseParen, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+002B PLUS SIGN (+)
+        if is_plus_sign(input) {
+            // If the input stream starts with a number, reconsume the current input code point,
+            // consume a numeric token and return it.
+            if would_start_a_number(self.start_of_input_stream_triplet()) {
+                self.reconsume_current_input_code_point();
+                return self.consume_a_numeric_token();
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+002C COMMA (,)
+        if is_comma(input) {
+            // Return a <comma-token>.
+            return Token::create(CssTokenType::Comma, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+002D HYPHEN-MINUS (-)
+        if is_hyphen_minus(input) {
+            // If the input stream starts with a number, reconsume the current input code point,
+            // consume a numeric token, and return it.
+            if would_start_a_number(self.start_of_input_stream_triplet()) {
+                self.reconsume_current_input_code_point();
+                return self.consume_a_numeric_token();
+            }
+
+            // Otherwise, if the next 2 input code points are U+002D HYPHEN-MINUS U+003E
+            // GREATER-THAN SIGN (->), consume them and return a <CDC-token>.
+            let next_twin = self.peek_twin();
+            if is_hyphen_minus(next_twin.first) && is_greater_than_sign(next_twin.second) {
+                self.next_code_point();
+                self.next_code_point();
+                return Token::create(CssTokenType::CDC, start_byte_offset, self.current_byte_offset());
+            }
+
+            // Otherwise, if the input stream starts with an identifier, reconsume the current
+            // input code point, consume an ident-like token, and return it.
+            if would_start_an_ident_sequence(self.start_of_input_stream_triplet()) {
+                self.reconsume_current_input_code_point();
+                return self.consume_an_ident_like_token();
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+002E FULL STOP (.)
+        if is_full_stop(input) {
+            // If the input stream starts with a number, reconsume the current input code point,
+            // consume a numeric token, and return it.
+            if would_start_a_number(self.start_of_input_stream_triplet()) {
+                self.reconsume_current_input_code_point();
+                return self.consume_a_numeric_token();
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+003A COLON (:)
+        if is_colon(input) {
+            // Return a <colon-token>.
+            return Token::create(CssTokenType::Colon, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+003B SEMICOLON (;)
+        if is_semicolon(input) {
+            // Return a <semicolon-token>.
+            return Token::create(CssTokenType::Semicolon, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+003C LESS-THAN SIGN (<)
+        if is_less_than_sign(input) {
+            // If the next 3 input code points are U+0021 EXCLAMATION MARK U+002D HYPHEN-MINUS
+            // U+002D HYPHEN-MINUS (!--), consume them and return a <CDO-token>.
+            let maybe_cdo = self.peek_triplet();
+            if is_exclamation_mark(maybe_cdo.first)
+                && is_hyphen_minus(maybe_cdo.second)
+                && is_hyphen_minus(maybe_cdo.third)
+            {
+                self.next_code_point();
+                self.next_code_point();
+                self.next_code_point();
+                return Token::create(CssTokenType::CDO, start_byte_offset, self.current_byte_offset());
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+0040 COMMERCIAL AT (@)
+        if is_at(input) {
+            // If the next 3 input code points would start an ident sequence, consume an ident sequence, create
+            // an <at-keyword-token> with its value set to the returned value, and return it.
+            if would_start_an_ident_sequence(self.peek_triplet()) {
+                return Token::create_at_keyword(
+                    self.consume_an_ident_sequence(),
+                    start_byte_offset,
+                    self.current_byte_offset(),
+                );
+            }
+
+            // Otherwise, return a <delim-token> with its value set to the current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+005B LEFT SQUARE BRACKET ([)
+        if is_open_square_bracket(input) {
+            // Return a <[-token>.
+            return Token::create(CssTokenType::OpenSquare, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+005C REVERSE SOLIDUS (\)
+        if is_reverse_solidus(input) {
+            // If the input stream starts with a valid escape, reconsume the current input code point,
+            // consume an ident-like token, and return it.
+            if is_valid_escape_sequence(self.start_of_input_stream_twin()) {
+                self.reconsume_current_input_code_point();
+                return self.consume_an_ident_like_token();
+            }
+
+            // Otherwise, this is a parse error. Return a <delim-token> with its value set to the
+            // current input code point.
+            return Token::create_delim(input, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+005D RIGHT SQUARE BRACKET (])
+        if is_closed_square_bracket(input) {
+            // Return a <]-token>.
+            return Token::create(CssTokenType::CloseSquare, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+007B LEFT CURLY BRACKET ({)
+        if is_open_curly_bracket(input) {
+            // Return a <{-token>.
+            return Token::create(CssTokenType::OpenCurly, start_byte_offset, self.current_byte_offset());
+        }
+
+        // U+007D RIGHT CURLY BRACKET (})
+        if is_closed_curly_bracket(input) {
+            // Return a <}-token>.
+            return Token::create(CssTokenType::CloseCurly, start_byte_offset, self.current_byte_offset());
+        }
+
+        // digit
+        if is_digit(input) {
+            // Reconsume the current input code point, consume a numeric token, and return it.
+            self.reconsume_current_input_code_point();
+            return self.consume_a_numeric_token();
+        }
+
+        // name-start code point
+        if is_ident_start_code_point(input) {
+            // Reconsume the current input code point, consume an ident-like token, and return it.
+            self.reconsume_current_input_code_point();
+            return self.consume_an_ident_like_token();
+        }
+
+        // EOF
+        if is_eof(input) {
+            // Return an <EOF-token>.
+            return Token::create(CssTokenType::EndOfFile, start_byte_offset, self.current_byte_offset());
+        }
+
+        // anything else
+        // Return a <delim-token> with its value set to the current input code point.
+        Token::create_delim(input, start_byte_offset, self.current_byte_offset())
+    }
+}
+
+fn string_parts(string: &str) -> (*const u8, usize) {
+    bytes_parts(string.as_bytes())
+}
+
+fn bytes_parts(bytes: &[u8]) -> (*const u8, usize) {
+    if bytes.is_empty() {
+        (ptr::null(), 0)
+    } else {
+        (bytes.as_ptr(), bytes.len())
+    }
+}
+
+fn append_code_point(builder: &mut String, code_point: u32) {
+    builder.push(char::from_u32(code_point).unwrap_or(char::REPLACEMENT_CHARACTER));
+}
+
+fn is_eof(code_point: u32) -> bool {
+    code_point == TOKENIZER_EOF
+}
+
+fn is_ascii(code_point: u32) -> bool {
+    code_point <= 0x7F
+}
+
+fn is_ascii_alpha(code_point: u32) -> bool {
+    (0x41..=0x5A).contains(&code_point) || (0x61..=0x7A).contains(&code_point)
+}
+
+fn is_unicode(code_point: u32) -> bool {
+    code_point <= 0x10FFFF
+}
+
+fn is_unicode_surrogate(code_point: u32) -> bool {
+    (0xD800..=0xDFFF).contains(&code_point)
+}
+
+fn is_digit(code_point: u32) -> bool {
+    (0x30..=0x39).contains(&code_point)
+}
+
+fn is_hex_digit(code_point: u32) -> bool {
+    is_digit(code_point) || (0x41..=0x46).contains(&code_point) || (0x61..=0x66).contains(&code_point)
+}
+
+fn is_ident_start_code_point(code_point: u32) -> bool {
+    is_ascii_alpha(code_point) || (!is_ascii(code_point) && is_unicode(code_point)) || code_point == '_' as u32
+}
+
+fn is_ident_code_point(code_point: u32) -> bool {
+    is_ident_start_code_point(code_point) || is_digit(code_point) || code_point == '-' as u32
+}
+
+fn is_non_printable_code_point(code_point: u32) -> bool {
+    code_point <= 0x8 || code_point == 0xB || (0xE..=0x1F).contains(&code_point) || code_point == 0x7F
+}
+
+fn is_newline(code_point: u32) -> bool {
+    code_point == 0x0A
+}
+
+fn is_whitespace(code_point: u32) -> bool {
+    is_newline(code_point) || code_point == '\t' as u32 || code_point == ' ' as u32
+}
+
+fn is_greater_than_maximum_allowed_code_point(code_point: u32) -> bool {
+    code_point > 0x10FFFF
+}
+
+fn is_quotation_mark(code_point: u32) -> bool {
+    code_point == 0x22
+}
+
+fn is_hyphen_minus(code_point: u32) -> bool {
+    code_point == 0x2D
+}
+
+fn is_number_sign(code_point: u32) -> bool {
+    code_point == 0x23
+}
+
+fn is_reverse_solidus(code_point: u32) -> bool {
+    code_point == 0x5C
+}
+
+fn is_apostrophe(code_point: u32) -> bool {
+    code_point == 0x27
+}
+
+fn is_left_paren(code_point: u32) -> bool {
+    code_point == 0x28
+}
+
+fn is_right_paren(code_point: u32) -> bool {
+    code_point == 0x29
+}
+
+fn is_plus_sign(code_point: u32) -> bool {
+    code_point == 0x2B
+}
+
+fn is_comma(code_point: u32) -> bool {
+    code_point == 0x2C
+}
+
+fn is_full_stop(code_point: u32) -> bool {
+    code_point == 0x2E
+}
+
+fn is_asterisk(code_point: u32) -> bool {
+    code_point == 0x2A
+}
+
+fn is_solidus(code_point: u32) -> bool {
+    code_point == 0x2F
+}
+
+fn is_colon(code_point: u32) -> bool {
+    code_point == 0x3A
+}
+
+fn is_semicolon(code_point: u32) -> bool {
+    code_point == 0x3B
+}
+
+fn is_less_than_sign(code_point: u32) -> bool {
+    code_point == 0x3C
+}
+
+fn is_greater_than_sign(code_point: u32) -> bool {
+    code_point == 0x3E
+}
+
+fn is_at(code_point: u32) -> bool {
+    code_point == 0x40
+}
+
+fn is_open_square_bracket(code_point: u32) -> bool {
+    code_point == 0x5B
+}
+
+fn is_closed_square_bracket(code_point: u32) -> bool {
+    code_point == 0x5D
+}
+
+fn is_open_curly_bracket(code_point: u32) -> bool {
+    code_point == 0x7B
+}
+
+fn is_closed_curly_bracket(code_point: u32) -> bool {
+    code_point == 0x7D
+}
+
+fn is_percent(code_point: u32) -> bool {
+    code_point == 0x25
+}
+
+fn is_exclamation_mark(code_point: u32) -> bool {
+    code_point == 0x21
+}
+
+fn is_e(code_point: u32) -> bool {
+    code_point == 0x65
+}
+
+fn is_uppercase_e(code_point: u32) -> bool {
+    code_point == 0x45
+}
+
+// https://www.w3.org/TR/css-syntax-3/#starts-with-a-valid-escape
+fn is_valid_escape_sequence(values: U32Twin) -> bool {
+    // This section describes how to check if two code points are a valid escape.
+    // The algorithm described here can be called explicitly with two code points,
+    // or can be called with the input stream itself. In the latter case, the two
+    // code points in question are the current input code point and the next input
+    // code point, in that order.
+    //
+    // Note: This algorithm will not consume any additional code point.
+
+    // If the first code point is not U+005C REVERSE SOLIDUS (\), return false.
+    if !is_reverse_solidus(values.first) {
+        return false;
+    }
+
+    // Otherwise, if the second code point is a newline, return false.
+    if is_newline(values.second) {
+        return false;
+    }
+
+    // Otherwise, return true.
+    true
+}
+
+// https://www.w3.org/TR/css-syntax-3/#would-start-an-identifier
+fn would_start_an_ident_sequence(values: U32Triplet) -> bool {
+    // This section describes how to check if three code points would start an ident sequence.
+    // The algorithm described here can be called explicitly with three code points, or
+    // can be called with the input stream itself. In the latter case, the three code
+    // points in question are the current input code point and the next two input code
+    // points, in that order.
+    //
+    // Note: This algorithm will not consume any additional code points.
+
+    // Look at the first code point:
+
+    // U+002D HYPHEN-MINUS
+    if is_hyphen_minus(values.first) {
+        // If the second code point is a name-start code point or a U+002D HYPHEN-MINUS,
+        // or the second and third code points are a valid escape, return true.
+        if is_ident_start_code_point(values.second)
+            || is_hyphen_minus(values.second)
+            || is_valid_escape_sequence(values.to_twin_23())
+        {
+            return true;
+        }
+        // Otherwise, return false.
+        return false;
+    }
+
+    // name-start code point
+    if is_ident_start_code_point(values.first) {
+        // Return true.
+        return true;
+    }
+
+    // U+005C REVERSE SOLIDUS (\)
+    if is_reverse_solidus(values.first) {
+        // If the first and second code points are a valid escape, return true.
+        if is_valid_escape_sequence(values.to_twin_12()) {
+            return true;
+        }
+        // Otherwise, return false.
+        return false;
+    }
+
+    // anything else
+    // Return false.
+    false
+}
+
+// https://www.w3.org/TR/css-syntax-3/#starts-with-a-number
+fn would_start_a_number(values: U32Triplet) -> bool {
+    // This section describes how to check if three code points would start a number.
+    // The algorithm described here can be called explicitly with three code points,
+    // or can be called with the input stream itself. In the latter case, the three
+    // code points in question are the current input code point and the next two input
+    // code points, in that order.
+    //
+    // Note: This algorithm will not consume any additional code points.
+
+    // Look at the first code point:
+
+    // U+002B PLUS SIGN (+)
+    // U+002D HYPHEN-MINUS (-)
+    if is_plus_sign(values.first) || is_hyphen_minus(values.first) {
+        // If the second code point is a digit, return true.
+        if is_digit(values.second) {
+            return true;
+        }
+
+        // Otherwise, if the second code point is a U+002E FULL STOP (.) and the third
+        // code point is a digit, return true.
+        if is_full_stop(values.second) && is_digit(values.third) {
+            return true;
+        }
+
+        // Otherwise, return false.
+        return false;
+    }
+
+    // U+002E FULL STOP (.)
+    if is_full_stop(values.first) {
+        // If the second code point is a digit, return true. Otherwise, return false.
+        return is_digit(values.second);
+    }
+
+    // digit
+    if is_digit(values.first) {
+        // Return true.
+        return true;
+    }
+
+    // anything else
+    // Return false.
+    false
+}

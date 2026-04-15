@@ -231,7 +231,7 @@ Vector<Token> Tokenizer::tokenize()
     for (;;) {
         auto token_start = m_position;
         auto token = consume_a_token();
-        token.set_position_range({}, token_start, m_position);
+        token.set_position_range(Badge<Tokenizer> {}, token_start, m_position);
         tokens.append(token);
 
         if (token.is(Token::Type::EndOfFile)) {

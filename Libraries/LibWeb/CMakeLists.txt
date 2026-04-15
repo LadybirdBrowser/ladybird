@@ -195,6 +195,7 @@ set(SOURCES
     CSS/Parser/Helpers.cpp
     CSS/Parser/MediaParsing.cpp
     CSS/Parser/Parser.cpp
+    CSS/Parser/RustTokenizer.cpp
     CSS/Parser/PropertyParsing.cpp
     CSS/Parser/RuleContext.cpp
     CSS/Parser/RuleParsing.cpp
@@ -1232,6 +1233,24 @@ set(GENERATED_SOURCES
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
 target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust FFI_HEADER RustFFI.h)
+target_link_libraries(LibWeb PRIVATE libweb_rust)
+if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
+    target_link_options(LibWeb INTERFACE LINKER:--allow-multiple-definition)
+endif()
+
+if(NOT BUILD_SHARED_LIBS)
+    add_custom_command(TARGET LibWeb POST_BUILD
+        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libweb_rust>
+        COMMAND ${CMAKE_AR} -qS $<TARGET_FILE:LibWeb> *.o
+        COMMAND ${CMAKE_RANLIB} $<TARGET_FILE:LibWeb>
+        COMMAND ${CMAKE_COMMAND} -E remove -f *.o
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp
+        COMMENT "Merging Rust archive into LibWeb"
+    )
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
+endif()
 
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWeb PRIVATE Fontconfig::Fontconfig)
