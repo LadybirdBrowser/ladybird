@@ -80,6 +80,28 @@ static WebIDL::ExceptionOr<GC::Ref<DOM::Document>> load_html_document(HTML::Navi
         HTML::HTMLParser::the_end(document);
     }
 
+    // AD-HOC: For about:srcdoc, the body bytes are always immediately available in the response source (the srcdoc
+    //         string was inlined when the navigation params were created). Bypass the async body-reading pipeline
+    //         and set up a deferred parser directly. Combined with running the post-activation update synchronously
+    //         when a deferred parser is set, this guarantees the body element exists before the document becomes
+    //         observable to the parent — matching Chrome and Firefox behavior for srcdoc iframes.
+    //
+    // FIXME: This only fixes the transient `contentDocument.body === null` race for srcdoc. The same race exists in
+    //        Ladybird for any other same-origin async iframe load (notably blob: URLs and same-origin HTTP), where
+    //        Chrome and Firefox also keep `contentDocument` pointed at the initial about:blank until the new document
+    //        reaches readyState="interactive". A spec-aligned fix would split "what the parent sees via
+    //        contentDocument" from the navigable's active document, swapping the parent-visible pointer only at
+    //        parser readiness.
+    else if (auto const* data = navigation_params.response->body()->source().get_pointer<ByteBuffer>();
+        data && document->url() == URL::about_srcdoc()) {
+        auto mime_type = Fetch::Infrastructure::extract_mime_type(navigation_params.response->header_list());
+        auto url = navigation_params.response->url().value();
+        auto parser = HTML::HTMLParser::create_with_uncertain_encoding(document, *data, mime_type);
+        document->set_deferred_parser_start(GC::create_function(document->heap(), [parser, url] {
+            parser->run(url);
+        }));
+    }
+
     // 3. Otherwise, create an HTML parser and associate it with the document.
     //    Each task that the networking task source places on the task queue while fetching runs must then fill the
     //    parser's input byte stream with the fetched bytes and cause the HTML parser to perform the appropriate

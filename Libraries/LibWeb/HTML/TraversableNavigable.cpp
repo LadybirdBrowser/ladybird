@@ -942,6 +942,15 @@ void ApplyHistoryStepState::process_continuations()
             if (target_entry->document_state()->document_id() == displayed_document_id) {
                 update_document();
             }
+            // AD-HOC: When the document already has its parser pre-loaded with in-memory data (currently set up
+            //         only for about:srcdoc), perform updateDocument synchronously instead of queueing it.
+            //         updateDocument calls Document::set_ready_to_run_scripts(), which kicks off the deferred
+            //         parser. Running it in the same task as activation guarantees the body element exists before
+            //         script in the parent navigable can observe the new document — matching Chrome and Firefox
+            //         behavior for srcdoc iframes.
+            else if (resolved_document->has_deferred_parser_start()) {
+                update_document();
+            }
             // 5. Otherwise, queue a global task on the navigation and traversal task source given targetEntry's document's relevant global object to perform updateDocument
             else {
                 queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*resolved_document), GC::create_function(heap(), move(update_document)));
