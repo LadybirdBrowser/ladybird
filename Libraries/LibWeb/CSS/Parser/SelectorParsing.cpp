@@ -437,19 +437,25 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
     if (!attribute_tokens.has_next_token())
         return simple_selector;
 
-    auto const& delim_part = attribute_tokens.consume_a_token();
-    if (!delim_part.is(Token::Type::Delim)) {
-        ErrorReporter::the().report(InvalidSelectorError {
-            .value_string = first_value.to_string(),
-            .description = MUST(String::formatted("Expected delim for attribute comparison, got: '{}'.", delim_part.to_debug_string())),
-        });
-        return ParseError::SyntaxError;
-    }
+    auto parse_attribute_match_type = [&first_value](auto& tokens) -> ParseErrorOr<Selector::SimpleSelector::Attribute::MatchType> {
+        // This is one of: `=`, `~=`, `*=`, `|=`, `^=`, `$=`
+        auto transaction = tokens.begin_transaction();
 
-    if (delim_part.token().delim() == '=') {
-        simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch;
-    } else {
-        if (!attribute_tokens.has_next_token()) {
+        auto const& first_delim = tokens.consume_a_token();
+        if (!first_delim.is(Token::Type::Delim)) {
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = first_value.to_string(),
+                .description = MUST(String::formatted("Expected delim for attribute comparison, got: '{}'.", first_delim.to_debug_string())),
+            });
+            return ParseError::SyntaxError;
+        }
+
+        if (first_delim.token().delim() == '=') {
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::ExactValueMatch;
+        }
+
+        if (!tokens.has_next_token()) {
             ErrorReporter::the().report(InvalidSelectorError {
                 .value_string = first_value.to_string(),
                 .description = "Attribute selector ended part way through a match type."_string,
@@ -457,34 +463,40 @@ Parser::ParseErrorOr<Selector::SimpleSelector> Parser::parse_attribute_simple_se
             return ParseError::SyntaxError;
         }
 
-        auto const& delim_second_part = attribute_tokens.consume_a_token();
-        if (!delim_second_part.is_delim('=')) {
+        auto const& second_delim = tokens.consume_a_token();
+        if (!second_delim.is_delim('=')) {
             ErrorReporter::the().report(InvalidSelectorError {
                 .value_string = first_value.to_string(),
-                .description = MUST(String::formatted("Expected a double delim for attribute comparison, got: '{}{}'.", delim_part.to_debug_string(), delim_second_part.to_debug_string())),
+                .description = MUST(String::formatted("Expected a double delim for attribute comparison, got: '{}{}'.", first_delim.to_debug_string(), second_delim.to_debug_string())),
             });
             return ParseError::SyntaxError;
         }
-        switch (delim_part.token().delim()) {
+        switch (first_delim.token().delim()) {
         case '~':
-            simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::ContainsWord;
-            break;
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::ContainsWord;
         case '*':
-            simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::ContainsString;
-            break;
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::ContainsString;
         case '|':
-            simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment;
-            break;
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::StartsWithSegment;
         case '^':
-            simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::StartsWithString;
-            break;
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::StartsWithString;
         case '$':
-            simple_selector.attribute().match_type = Selector::SimpleSelector::Attribute::MatchType::EndsWithString;
-            break;
+            transaction.commit();
+            return Selector::SimpleSelector::Attribute::MatchType::EndsWithString;
         default:
-            attribute_tokens.reconsume_current_input_token();
+            ErrorReporter::the().report(InvalidSelectorError {
+                .value_string = first_value.to_string(),
+                .description = MUST(String::formatted("Invalid attribute selector match type `{:c}=`", first_delim.token().delim())),
+            });
+            return ParseError::SyntaxError;
         }
-    }
+    };
+
+    simple_selector.attribute().match_type = TRY(parse_attribute_match_type(attribute_tokens));
 
     attribute_tokens.discard_whitespace();
     if (!attribute_tokens.has_next_token()) {
