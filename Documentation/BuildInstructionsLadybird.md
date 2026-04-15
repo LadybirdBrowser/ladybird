@@ -354,15 +354,6 @@ open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app
 open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app --args https://ladybird.dev
 ```
 
-### Experimental GN build
-
-There is an experimental GN build for Ladybird. It is not officially supported, but it is kept up to date on a best-effort
-basis by interested contributors. See the [GN build instructions](../Meta/gn/README.md) for more information.
-
-In general, the GN build organizes ninja rules in a more compact way than the CMake build, and it may be faster on some systems.
-GN also allows building host and cross-targets in the same build directory, which is useful for managing dependencies on host tools when
-cross-compiling to other platforms.
-
 ### Debugging with CLion
 
 Ladybird should be built with debug symbols first. This can be done by adding `-DCMAKE_BUILD_TYPE=Debug` to the cmake command line,

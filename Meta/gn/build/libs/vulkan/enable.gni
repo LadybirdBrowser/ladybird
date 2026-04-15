@@ -1,4 +1,0 @@
-declare_args() {
-  # Select whether to build with Vulkan support
-  enable_vulkan = current_os == "linux"
-}

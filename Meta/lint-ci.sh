@@ -22,7 +22,6 @@ for cmd in \
         Meta/check-png-sizes.sh \
         Meta/check-style.py \
         Meta/lint-executable-resources.sh \
-        Meta/lint-gn.sh \
         Meta/lint-prettier.sh \
         Meta/lint-python.sh \
         Meta/lint-shell-scripts.sh; do
