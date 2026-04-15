@@ -61,19 +61,19 @@ constexpr ColorComponents hsl_to_srgb(ColorComponents const& hsl)
 
 constexpr ColorComponents hsv_to_srgb(ColorComponents const& hsv)
 {
-    float hue = hsv[0];
-    float saturation = hsv[1];
-    float value = hsv[2];
+    double hue = hsv[0];
+    double saturation = hsv[1];
+    double value = hsv[2];
 
-    int high = static_cast<int>(hue / 60.0f) % 6;
-    float f = (hue / 60.0f) - high;
-    float c1 = value * (1.0f - saturation);
-    float c2 = value * (1.0f - saturation * f);
-    float c3 = value * (1.0f - saturation * (1.0f - f));
+    int high = static_cast<int>(hue / 60.0) % 6;
+    double f = (hue / 60.0) - high;
+    double c1 = value * (1.0 - saturation);
+    double c2 = value * (1.0 - saturation * f);
+    double c3 = value * (1.0 - saturation * (1.0 - f));
 
-    float r = 0;
-    float g = 0;
-    float b = 0;
+    double r = 0;
+    double g = 0;
+    double b = 0;
 
     switch (high) {
     case 0:
@@ -108,7 +108,7 @@ constexpr ColorComponents hsv_to_srgb(ColorComponents const& hsv)
         break;
     }
 
-    return { r, g, b, hsv.alpha() };
+    return { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b), hsv.alpha() };
 }
 
 constexpr ColorComponents srgb_to_hsv(ColorComponents const& rgb)
