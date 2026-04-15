@@ -4070,7 +4070,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
             if (maybe_position.is_null())
                 return nullptr;
 
-            position = maybe_position->with_resolved_keywords();
+            position = maybe_position;
         }
 
         arguments_tokens.discard_whitespace();
@@ -4106,7 +4106,7 @@ RefPtr<StyleValue const> Parser::parse_basic_shape_value(TokenStream<ComponentVa
             if (maybe_position.is_null())
                 return nullptr;
 
-            position = maybe_position->with_resolved_keywords();
+            position = maybe_position;
         }
 
         arguments_tokens.discard_whitespace();

@@ -2,25 +2,24 @@ Harness status: OK
 
 Found 20 tests
 
-1 Pass
-19 Fail
-Fail	e.style['shape-outside'] = "circle(at 10%)" should set the property value
+20 Pass
+Pass	e.style['shape-outside'] = "circle(at 10%)" should set the property value
 Pass	e.style['shape-outside'] = "circle(at 20% 30px)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at 30px center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at 40px top)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at bottom 10% right 20%)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at bottom right)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at center 50px)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at center bottom)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at center center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at center left)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at left)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at left bottom)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at left center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at right 40%)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at right 30% top 60px)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at top)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at top center)" should set the property value
-Fail	e.style['shape-outside'] = "circle(at top 0% right calc(10% * sign(1em - 1px)))" should set the property value
-Fail	e.style['shape-outside'] = "circle(at top 0% right calc(10% * sibling-index()))" should set the property value
+Pass	e.style['shape-outside'] = "circle(at 30px center)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at 40px top)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at bottom 10% right 20%)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at bottom right)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at center)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at center 50px)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at center bottom)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at center center)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at center left)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at left)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at left bottom)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at left center)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at right 40%)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at right 30% top 60px)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at top)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at top center)" should set the property value
+Pass	e.style['shape-outside'] = "circle(at top 0% right calc(10% * sign(1em - 1px)))" should set the property value
+Pass	e.style['shape-outside'] = "circle(at top 0% right calc(10% * sibling-index()))" should set the property value

@@ -2,76 +2,75 @@ Harness status: OK
 
 Found 136 tests
 
-72 Pass
-64 Fail
-Fail	ellipse(at 50%) serializes as ellipse(at 50% center) - inline
-Fail	ellipse(at 50px) serializes as ellipse(at 50px center) - inline
+136 Pass
+Pass	ellipse(at 50%) serializes as ellipse(at 50% center) - inline
+Pass	ellipse(at 50px) serializes as ellipse(at 50px center) - inline
 Pass	ellipse(at 50% 50%) serializes as ellipse(at 50% 50%) - inline
 Pass	ellipse(at 50% 50px) serializes as ellipse(at 50% 50px) - inline
 Pass	ellipse(at 50px 50%) serializes as ellipse(at 50px 50%) - inline
 Pass	ellipse(at 50px 50px) serializes as ellipse(at 50px 50px) - inline
-Fail	ellipse(at left) serializes as ellipse(at left center) - inline
-Fail	ellipse(at top) serializes as ellipse(at center top) - inline
-Fail	ellipse(at right) serializes as ellipse(at right center) - inline
-Fail	ellipse(at bottom) serializes as ellipse(at center bottom) - inline
-Fail	ellipse(at center) serializes as ellipse(at center center) - inline
-Fail	ellipse(at left top) serializes as ellipse(at left top) - inline
-Fail	ellipse(at left bottom) serializes as ellipse(at left bottom) - inline
-Fail	ellipse(at left center) serializes as ellipse(at left center) - inline
-Fail	ellipse(at top left) serializes as ellipse(at left top) - inline
-Fail	ellipse(at top right) serializes as ellipse(at right top) - inline
-Fail	ellipse(at top center) serializes as ellipse(at center top) - inline
-Fail	ellipse(at right top) serializes as ellipse(at right top) - inline
-Fail	ellipse(at right bottom) serializes as ellipse(at right bottom) - inline
-Fail	ellipse(at right center) serializes as ellipse(at right center) - inline
-Fail	ellipse(at bottom left) serializes as ellipse(at left bottom) - inline
-Fail	ellipse(at bottom right) serializes as ellipse(at right bottom) - inline
-Fail	ellipse(at bottom center) serializes as ellipse(at center bottom) - inline
-Fail	ellipse(at center top) serializes as ellipse(at center top) - inline
-Fail	ellipse(at center left) serializes as ellipse(at left center) - inline
-Fail	ellipse(at center right) serializes as ellipse(at right center) - inline
-Fail	ellipse(at center bottom) serializes as ellipse(at center bottom) - inline
-Fail	ellipse(at center center) serializes as ellipse(at center center) - inline
-Fail	ellipse(at left 50%) serializes as ellipse(at left 50%) - inline
-Fail	ellipse(at left 50px) serializes as ellipse(at left 50px) - inline
-Fail	ellipse(at 50% top) serializes as ellipse(at 50% top) - inline
-Fail	ellipse(at 50px top) serializes as ellipse(at 50px top) - inline
-Fail	ellipse(at right 80%) serializes as ellipse(at right 80%) - inline
-Fail	ellipse(at right 80px) serializes as ellipse(at right 80px) - inline
-Fail	ellipse(at 70% bottom) serializes as ellipse(at 70% bottom) - inline
-Fail	ellipse(at 70px bottom) serializes as ellipse(at 70px bottom) - inline
-Fail	ellipse(at center 60%) serializes as ellipse(at center 60%) - inline
-Fail	ellipse(at center 60px) serializes as ellipse(at center 60px) - inline
-Fail	ellipse(at 60% center) serializes as ellipse(at 60% center) - inline
-Fail	ellipse(at 60px center) serializes as ellipse(at 60px center) - inline
-Fail	ellipse(at left 50% top 50%) serializes as ellipse(at left 50% top 50%) - inline
-Fail	ellipse(at left 50% top 50px) serializes as ellipse(at left 50% top 50px) - inline
-Fail	ellipse(at left 50% bottom 70%) serializes as ellipse(at left 50% bottom 70%) - inline
-Fail	ellipse(at left 50% bottom 70px) serializes as ellipse(at left 50% bottom 70px) - inline
-Fail	ellipse(at left 50px top 50%) serializes as ellipse(at left 50px top 50%) - inline
-Fail	ellipse(at left 50px top 50px) serializes as ellipse(at left 50px top 50px) - inline
-Fail	ellipse(at left 50px bottom 70%) serializes as ellipse(at left 50px bottom 70%) - inline
-Fail	ellipse(at top 50% left 50%) serializes as ellipse(at left 50% top 50%) - inline
-Fail	ellipse(at top 50% left 50px) serializes as ellipse(at left 50px top 50%) - inline
-Fail	ellipse(at top 50% right 80%) serializes as ellipse(at right 80% top 50%) - inline
-Fail	ellipse(at top 50% right 80px) serializes as ellipse(at right 80px top 50%) - inline
-Fail	ellipse(at top 50px left 50%) serializes as ellipse(at left 50% top 50px) - inline
-Fail	ellipse(at top 50px left 50px) serializes as ellipse(at left 50px top 50px) - inline
-Fail	ellipse(at top 50px right 80%) serializes as ellipse(at right 80% top 50px) - inline
-Fail	ellipse(at bottom 70% left 50%) serializes as ellipse(at left 50% bottom 70%) - inline
-Fail	ellipse(at bottom 70% left 50px) serializes as ellipse(at left 50px bottom 70%) - inline
-Fail	ellipse(at bottom 70% right 80%) serializes as ellipse(at right 80% bottom 70%) - inline
-Fail	ellipse(at bottom 70% right 80px) serializes as ellipse(at right 80px bottom 70%) - inline
-Fail	ellipse(at bottom 70px left 50%) serializes as ellipse(at left 50% bottom 70px) - inline
-Fail	ellipse(at bottom 70px right 50%) serializes as ellipse(at right 50% bottom 70px) - inline
-Fail	ellipse(at bottom 70px right 80px) serializes as ellipse(at right 80px bottom 70px) - inline
-Fail	ellipse(at right 80% top 50%) serializes as ellipse(at right 80% top 50%) - inline
-Fail	ellipse(at right 80% top 50px) serializes as ellipse(at right 80% top 50px) - inline
-Fail	ellipse(at right 80% bottom 70%) serializes as ellipse(at right 80% bottom 70%) - inline
-Fail	ellipse(at right 80% bottom 70px) serializes as ellipse(at right 80% bottom 70px) - inline
-Fail	ellipse(at right 80px top 50%) serializes as ellipse(at right 80px top 50%) - inline
-Fail	ellipse(at right 80px bottom 70%) serializes as ellipse(at right 80px bottom 70%) - inline
-Fail	ellipse(at right 80px bottom 70px) serializes as ellipse(at right 80px bottom 70px) - inline
+Pass	ellipse(at left) serializes as ellipse(at left center) - inline
+Pass	ellipse(at top) serializes as ellipse(at center top) - inline
+Pass	ellipse(at right) serializes as ellipse(at right center) - inline
+Pass	ellipse(at bottom) serializes as ellipse(at center bottom) - inline
+Pass	ellipse(at center) serializes as ellipse(at center center) - inline
+Pass	ellipse(at left top) serializes as ellipse(at left top) - inline
+Pass	ellipse(at left bottom) serializes as ellipse(at left bottom) - inline
+Pass	ellipse(at left center) serializes as ellipse(at left center) - inline
+Pass	ellipse(at top left) serializes as ellipse(at left top) - inline
+Pass	ellipse(at top right) serializes as ellipse(at right top) - inline
+Pass	ellipse(at top center) serializes as ellipse(at center top) - inline
+Pass	ellipse(at right top) serializes as ellipse(at right top) - inline
+Pass	ellipse(at right bottom) serializes as ellipse(at right bottom) - inline
+Pass	ellipse(at right center) serializes as ellipse(at right center) - inline
+Pass	ellipse(at bottom left) serializes as ellipse(at left bottom) - inline
+Pass	ellipse(at bottom right) serializes as ellipse(at right bottom) - inline
+Pass	ellipse(at bottom center) serializes as ellipse(at center bottom) - inline
+Pass	ellipse(at center top) serializes as ellipse(at center top) - inline
+Pass	ellipse(at center left) serializes as ellipse(at left center) - inline
+Pass	ellipse(at center right) serializes as ellipse(at right center) - inline
+Pass	ellipse(at center bottom) serializes as ellipse(at center bottom) - inline
+Pass	ellipse(at center center) serializes as ellipse(at center center) - inline
+Pass	ellipse(at left 50%) serializes as ellipse(at left 50%) - inline
+Pass	ellipse(at left 50px) serializes as ellipse(at left 50px) - inline
+Pass	ellipse(at 50% top) serializes as ellipse(at 50% top) - inline
+Pass	ellipse(at 50px top) serializes as ellipse(at 50px top) - inline
+Pass	ellipse(at right 80%) serializes as ellipse(at right 80%) - inline
+Pass	ellipse(at right 80px) serializes as ellipse(at right 80px) - inline
+Pass	ellipse(at 70% bottom) serializes as ellipse(at 70% bottom) - inline
+Pass	ellipse(at 70px bottom) serializes as ellipse(at 70px bottom) - inline
+Pass	ellipse(at center 60%) serializes as ellipse(at center 60%) - inline
+Pass	ellipse(at center 60px) serializes as ellipse(at center 60px) - inline
+Pass	ellipse(at 60% center) serializes as ellipse(at 60% center) - inline
+Pass	ellipse(at 60px center) serializes as ellipse(at 60px center) - inline
+Pass	ellipse(at left 50% top 50%) serializes as ellipse(at left 50% top 50%) - inline
+Pass	ellipse(at left 50% top 50px) serializes as ellipse(at left 50% top 50px) - inline
+Pass	ellipse(at left 50% bottom 70%) serializes as ellipse(at left 50% bottom 70%) - inline
+Pass	ellipse(at left 50% bottom 70px) serializes as ellipse(at left 50% bottom 70px) - inline
+Pass	ellipse(at left 50px top 50%) serializes as ellipse(at left 50px top 50%) - inline
+Pass	ellipse(at left 50px top 50px) serializes as ellipse(at left 50px top 50px) - inline
+Pass	ellipse(at left 50px bottom 70%) serializes as ellipse(at left 50px bottom 70%) - inline
+Pass	ellipse(at top 50% left 50%) serializes as ellipse(at left 50% top 50%) - inline
+Pass	ellipse(at top 50% left 50px) serializes as ellipse(at left 50px top 50%) - inline
+Pass	ellipse(at top 50% right 80%) serializes as ellipse(at right 80% top 50%) - inline
+Pass	ellipse(at top 50% right 80px) serializes as ellipse(at right 80px top 50%) - inline
+Pass	ellipse(at top 50px left 50%) serializes as ellipse(at left 50% top 50px) - inline
+Pass	ellipse(at top 50px left 50px) serializes as ellipse(at left 50px top 50px) - inline
+Pass	ellipse(at top 50px right 80%) serializes as ellipse(at right 80% top 50px) - inline
+Pass	ellipse(at bottom 70% left 50%) serializes as ellipse(at left 50% bottom 70%) - inline
+Pass	ellipse(at bottom 70% left 50px) serializes as ellipse(at left 50px bottom 70%) - inline
+Pass	ellipse(at bottom 70% right 80%) serializes as ellipse(at right 80% bottom 70%) - inline
+Pass	ellipse(at bottom 70% right 80px) serializes as ellipse(at right 80px bottom 70%) - inline
+Pass	ellipse(at bottom 70px left 50%) serializes as ellipse(at left 50% bottom 70px) - inline
+Pass	ellipse(at bottom 70px right 50%) serializes as ellipse(at right 50% bottom 70px) - inline
+Pass	ellipse(at bottom 70px right 80px) serializes as ellipse(at right 80px bottom 70px) - inline
+Pass	ellipse(at right 80% top 50%) serializes as ellipse(at right 80% top 50%) - inline
+Pass	ellipse(at right 80% top 50px) serializes as ellipse(at right 80% top 50px) - inline
+Pass	ellipse(at right 80% bottom 70%) serializes as ellipse(at right 80% bottom 70%) - inline
+Pass	ellipse(at right 80% bottom 70px) serializes as ellipse(at right 80% bottom 70px) - inline
+Pass	ellipse(at right 80px top 50%) serializes as ellipse(at right 80px top 50%) - inline
+Pass	ellipse(at right 80px bottom 70%) serializes as ellipse(at right 80px bottom 70%) - inline
+Pass	ellipse(at right 80px bottom 70px) serializes as ellipse(at right 80px bottom 70px) - inline
 Pass	ellipse(at 50%) serializes as ellipse(at 50% 50%) - computed
 Pass	ellipse(at 50px) serializes as ellipse(at 50px 50%) - computed
 Pass	ellipse(at 50% 50%) serializes as ellipse(at 50% 50%) - computed

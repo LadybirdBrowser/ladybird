@@ -27,7 +27,6 @@ public:
     bool is_center(SerializationMode) const;
     CSSPixelPoint resolved(Layout::Node const&, CSSPixelRect const&) const;
 
-    ValueComparingNonnullRefPtr<PositionStyleValue const> with_resolved_keywords() const;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const& computation_context) const override;
     virtual void serialize(StringBuilder&, SerializationMode) const override;
 
