@@ -21,7 +21,7 @@
             var circle_position_calc_tests = [];
             ParsingUtils.calcTestValues.forEach(function(value) {
                 testCase = ['circle(at '+ value[0] +')',
-                            'circle(at '+ value[1] +' 50%)'];
+                            'circle(at '+ value[1] +' center)'];
                 if(Object.prototype.toString.call( value[2] ) === '[object Array]' && value[2].length == 2) {
                     testCase.push([ 'circle(at '+ value[2][0] +' 50%)',
                                     'circle(at '+ value[2][1] +' 50%)'

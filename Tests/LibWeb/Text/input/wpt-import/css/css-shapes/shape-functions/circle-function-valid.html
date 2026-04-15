@@ -14,19 +14,19 @@
 <script>
 test_valid_value("shape-outside", "circle()");
 test_valid_value("shape-outside", "circle(1px)");
-test_valid_value("shape-outside", "circle(20px at center)", "circle(20px at 50% 50%)");
+test_valid_value("shape-outside", "circle(20px at center)", "circle(20px at center center)");
 test_valid_value("shape-outside", "circle(at 10% 20%)");
-test_valid_value("shape-outside", "circle(4% at top right)", "circle(4% at 100% 0%)");
+test_valid_value("shape-outside", "circle(4% at top right)", "circle(4% at right top)");
 test_valid_value("shape-outside", "circle(calc(100% - 20px) at calc(100% - 20px) calc(100% / 4))", "circle(calc(100% - 20px) at calc(100% - 20px) calc(25%))");
 
-test_valid_value("shape-outside", "circle(closest-corner at center)", "circle(closest-corner at 50% 50%)");
+test_valid_value("shape-outside", "circle(closest-corner at center)", "circle(closest-corner at center center)");
 test_valid_value("shape-outside", "circle(closest-corner at 20px 50px)", "circle(closest-corner at 20px 50px)");
-test_valid_value("shape-outside", "circle(closest-side at center)", "circle(at 50% 50%)");
+test_valid_value("shape-outside", "circle(closest-side at center)", "circle(at center center)");
 test_valid_value("shape-outside", "circle(closest-side at 20px 30%)", "circle(at 20px 30%)");
-test_valid_value("shape-outside", "circle(farthest-corner at center top)", "circle(farthest-corner at 50% 0%)");
-test_valid_value("shape-outside", "circle(farthest-corner at center)", "circle(farthest-corner at 50% 50%)");
-test_valid_value("shape-outside", "circle(farthest-side at center top)", "circle(farthest-side at 50% 0%)");
-test_valid_value("shape-outside", "circle(farthest-side at center)", "circle(farthest-side at 50% 50%)");
+test_valid_value("shape-outside", "circle(farthest-corner at center top)");
+test_valid_value("shape-outside", "circle(farthest-corner at center)", "circle(farthest-corner at center center)");
+test_valid_value("shape-outside", "circle(farthest-side at center top)");
+test_valid_value("shape-outside", "circle(farthest-side at center)", "circle(farthest-side at center center)");
 </script>
 </body>
 </html>
