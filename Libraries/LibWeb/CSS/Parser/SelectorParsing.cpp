@@ -1127,6 +1127,13 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
     if (tokens.next_token().is(Token::Type::Colon))
         return TRY(parse_pseudo_class_simple_selector(tokens));
 
+    if (tokens.next_token().is(Token::Type::Delim)
+        && first_is_one_of(static_cast<char>(tokens.next_token().token().delim()), '>', '+', '~', '|')) {
+        // Whitespace is not required between the compound-selector and a combinator.
+        // So, if we see a combinator, return that this compound-selector is done, instead of a syntax error.
+        return Optional<Selector::SimpleSelector> {};
+    }
+
     auto const& first_value = tokens.consume_a_token();
 
     if (first_value.is(Token::Type::Delim)) {
@@ -1156,14 +1163,6 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
                 .value = Selector::SimpleSelector::Name { class_name_value.token().ident() }
             };
         }
-        case '>':
-        case '+':
-        case '~':
-        case '|':
-            // Whitespace is not required between the compound-selector and a combinator.
-            // So, if we see a combinator, return that this compound-selector is done, instead of a syntax error.
-            tokens.reconsume_current_input_token();
-            return Optional<Selector::SimpleSelector> {};
         default:
             ErrorReporter::the().report(InvalidSelectorError {
                 .value_string = tokens.dump_string(),
