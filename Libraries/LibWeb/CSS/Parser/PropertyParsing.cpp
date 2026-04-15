@@ -93,9 +93,11 @@ RefPtr<StyleValue const> Parser::parse_all_as_single_keyword_value(TokenStream<C
 RefPtr<StyleValueList const> Parser::parse_simple_comma_separated_value_list(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
     return parse_comma_separated_value_list(tokens, [this, property_id](auto& tokens) -> RefPtr<StyleValue const> {
-        if (auto value = parse_css_value_for_property(property_id, tokens))
+        auto transaction = tokens.begin_transaction();
+        if (auto value = parse_css_value_for_property(property_id, tokens)) {
+            transaction.commit();
             return value;
-        tokens.reconsume_current_input_token();
+        }
         return nullptr;
     });
 }
