@@ -477,24 +477,24 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value(Pr
     auto context_guard = push_temporary_value_parsing_context(property_id);
 
     SubstitutionFunctionsPresence substitution_presence;
+    {
+        // NB: This transaction is intentionally never committed. This loop just examines the tokens and doesn't want
+        //     to permanently consume anything.
+        auto transaction = tokens.begin_transaction();
+        while (tokens.has_next_token()) {
+            auto const& token = tokens.consume_a_token();
 
-    tokens.mark();
-    while (tokens.has_next_token()) {
-        auto const& token = tokens.consume_a_token();
+            if (token.is(Token::Type::Semicolon))
+                return ParseError::SyntaxError;
 
-        if (token.is(Token::Type::Semicolon)) {
-            tokens.reconsume_current_input_token();
-            return ParseError::SyntaxError;
+            // https://drafts.csswg.org/css-values-5/#resolve-property
+            // If a property value contains one or more arbitrary substitution functions, and all of those functions are
+            // themselves syntactically valid according to their argument grammars, the entire value’s grammar must be
+            // assumed to be valid at parse time.
+            if (collect_arbitrary_substitution_function_presence(token, substitution_presence).is_error())
+                return ParseError::SyntaxError;
         }
-
-        // https://drafts.csswg.org/css-values-5/#resolve-property
-        // If a property value contains one or more arbitrary substitution functions, and all of those functions are
-        // themselves syntactically valid according to their argument grammars, the entire value’s grammar must be
-        // assumed to be valid at parse time.
-        if (collect_arbitrary_substitution_function_presence(token, substitution_presence).is_error())
-            return ParseError::SyntaxError;
     }
-    tokens.restore_a_mark();
 
     auto parse_all_as = [](auto& tokens, auto&& callback) -> ParseErrorOr<NonnullRefPtr<StyleValue const>> {
         tokens.discard_whitespace();
