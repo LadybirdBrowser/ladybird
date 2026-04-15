@@ -325,7 +325,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
         tab.focus_location_editor();
     });
     QObject::connect(m_new_window_action, &QAction::triggered, this, [] {
-        (void)Application::the().new_window({});
+        (void)Application::the().new_window({ WebView::Application::settings().new_tab_page_url() });
     });
     QObject::connect(open_file_action, &QAction::triggered, this, &BrowserWindow::open_file);
 
