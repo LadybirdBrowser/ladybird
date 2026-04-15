@@ -1,0 +1,18 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 80 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 80 0+0+0] children: inline
+      frag 0 from TextNode start: 0, length: 12, rect: [0,0 104.15625x80] baseline: 44.796875
+          "Get in touch"
+      frag 1 from BlockContainer start: 0, length: 0, rect: [104.15625,30 16x16] baseline: 16
+      TextNode <#text> (not painted)
+      BlockContainer <span.icon> at [104.15625,30] inline-block [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
+      TextNode <#text> (not painted)
+
+ViewportPaintable (Viewport<#document>) [0,0 800x600]
+  PaintableWithLines (BlockContainer<HTML>) [0,0 800x80]
+    PaintableWithLines (BlockContainer<BODY>) [0,0 800x80]
+      TextPaintable (TextNode<#text>)
+      PaintableWithLines (BlockContainer<SPAN>.icon) [104.15625,30 16x16]
+
+SC for Viewport<#document> [0,0 800x600] [children: 1] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x80] [children: 0] (z-index: auto)
