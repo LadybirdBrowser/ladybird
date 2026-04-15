@@ -43,8 +43,11 @@ constexpr ColorComponents hsl_to_srgb(ColorComponents const& hsl)
     if (h < 0.0f)
         h += 360.0f;
 
-    float s = clamp(hsl[1], 0.0f, 1.0f);
-    float l = clamp(hsl[2], 0.0f, 1.0f);
+    // NB: Saturation and lightness are intentionally left unclamped. Color interpolation in HSL can produce
+    //     out-of-range s/l when representing colors outside the sRGB gamut, and those values should be able to
+    //     round-trip back to sRGB correctly.
+    float s = hsl[1];
+    float l = hsl[2];
     float a = clamp(hsl.alpha(), 0.0f, 1.0f);
 
     // Algorithm from https://drafts.csswg.org/css-color-3/#hsl-color

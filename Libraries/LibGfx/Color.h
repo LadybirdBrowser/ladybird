@@ -171,7 +171,7 @@ public:
     static constexpr Color from_hsl(float h_degrees, float s, float l) { return from_hsla(h_degrees, s, l, 1.0); }
     static constexpr Color from_hsla(float h_degrees, float s, float l, float a)
     {
-        auto srgb = hsl_to_srgb({ h_degrees, s, l, a });
+        auto srgb = hsl_to_srgb({ h_degrees, clamp(s, 0.0f, 1.0f), clamp(l, 0.0f, 1.0f), a });
         u8 r_u8 = clamp(lroundf(srgb[0] * 255.0f), 0, 255);
         u8 g_u8 = clamp(lroundf(srgb[1] * 255.0f), 0, 255);
         u8 b_u8 = clamp(lroundf(srgb[2] * 255.0f), 0, 255);

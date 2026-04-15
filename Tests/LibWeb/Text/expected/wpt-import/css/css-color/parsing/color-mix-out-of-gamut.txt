@@ -1,0 +1,23 @@
+Harness status: OK
+
+Found 18 tests
+
+18 Pass
+Pass	Property color value 'color-mix(in hsl, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, lch(100 116 334) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, lch(0 116 334) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hsl, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, color(display-p3 0 1 0) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, lab(100 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, lab(0 104.3 -50.9) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, lch(100 116 334) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, lch(0 116 334) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, oklab(1 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, oklab(0 0.365 -0.16) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, oklch(1 0.399 336.3) 100%, rgb(0, 0, 0) 0%)'
+Pass	Property color value 'color-mix(in hwb, oklch(0 0.399 336.3) 100%, rgb(0, 0, 0) 0%)'
