@@ -293,7 +293,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto property = any_property_accepts_type(property_ids, ValueType::Angle); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
-        if (property_accepts_type(*property, ValueType::Percentage)) {
+        if (property_resolves_percentages_relative_to(*property) == ValueType::Angle) {
             if (auto value = parse_angle_percentage_value(tokens)) {
                 if (value->is_calculated()) {
                     transaction.commit();
@@ -339,7 +339,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto property = any_property_accepts_type(property_ids, ValueType::Frequency); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
-        if (property_accepts_type(*property, ValueType::Percentage)) {
+        if (property_resolves_percentages_relative_to(*property) == ValueType::Frequency) {
             if (auto value = parse_frequency_percentage_value(tokens)) {
                 if (value->is_calculated()) {
                     transaction.commit();
@@ -373,7 +373,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto property = any_property_accepts_type(property_ids, ValueType::Length); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
-        if (property_accepts_type(*property, ValueType::Percentage)) {
+        if (property_resolves_percentages_relative_to(*property) == ValueType::Length) {
             if (auto value = parse_length_percentage_value(tokens)) {
                 if (value->is_calculated() || value->is_anchor_size()) {
                     transaction.commit();
@@ -419,7 +419,7 @@ Optional<Parser::PropertyAndValue> Parser::parse_css_value_for_properties(Readon
     if (auto property = any_property_accepts_type(property_ids, ValueType::Time); property.has_value()) {
         auto context_guard = push_temporary_value_parsing_context(*property);
         auto transaction = tokens.begin_transaction();
-        if (property_accepts_type(*property, ValueType::Percentage)) {
+        if (property_resolves_percentages_relative_to(*property) == ValueType::Time) {
             if (auto value = parse_time_percentage_value(tokens)) {
                 if (value->is_calculated()) {
                     transaction.commit();
