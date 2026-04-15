@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Test: While an iframe is navigating, its descendants unload first, which
+     clears their navigable's active document. If the parent's pagehide handler
+     then removes a subtree containing one of those descendant iframes,
+     destroy_the_child_navigable ends up calling a method on a null active
+     document. -->
+<html class="test-wait">
+<body>
+<script>
+    const outer = document.createElement("iframe");
+    outer.srcdoc = "<div>outer</div>";
+    let navigated = false;
+    outer.addEventListener("load", () => {
+        if (navigated) {
+            document.documentElement.classList.remove("test-wait");
+            return;
+        }
+        navigated = true;
+
+        const outerDoc = outer.contentDocument;
+        const outerWin = outer.contentWindow;
+
+        // Place an inner iframe inside a wrapper so that the removal target
+        // is an ancestor of the iframe (the crash needs the shadow-including
+        // descendant walk in Node::remove to reach the iframe).
+        const wrapper = outerDoc.createElement("div");
+        const inner = outerDoc.createElement("iframe");
+        inner.srcdoc = "<div>inner</div>";
+        wrapper.appendChild(inner);
+        outerDoc.body.appendChild(wrapper);
+
+        inner.addEventListener("load", () => {
+            // When we navigate outer, its descendants unload first. That
+            // destroys inner's document and sets inner's navigable's active
+            // document to null. Then outer's pagehide fires here.
+            outerWin.addEventListener("pagehide", () => {
+                wrapper.remove();
+            });
+
+            outer.srcdoc = "<div>outer after</div>";
+        });
+    });
+    document.body.appendChild(outer);
+</script>
+</body>
+</html>

@@ -330,8 +330,7 @@ void NavigableContainer::destroy_the_child_navigable()
     // 4. Inform the navigation API about child navigable destruction given navigable.
     navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
-    // 5. Destroy a document and its descendants given navigable's active document.
-    navigable->active_document()->destroy_a_document_and_its_descendants(GC::create_function(heap(), [this, navigable] {
+    auto after_document_destruction = GC::create_function(heap(), [this, navigable] {
         // 3. Set container's content navigable to null.
         m_content_navigable = nullptr;
         document().schedule_html_parser_end_check();
@@ -357,7 +356,19 @@ void NavigableContainer::destroy_the_child_navigable()
                 signal->resolve({});
             }));
         }));
-    }));
+    });
+
+    // 5. Destroy a document and its descendants given navigable's active document.
+    // AD-HOC: The spec assumes the active document is non-null here, but during an ancestor
+    //         unload the child documents are unloaded (and destroyed) before the ancestor's
+    //         pagehide fires. If that pagehide handler then removes a subtree containing this
+    //         container, we reach step 5 with navigable's active document already null. We
+    //         treat the destroy step as a no-op in that case and proceed with the remaining
+    //         post-destruction cleanup.
+    if (auto active_document = navigable->active_document())
+        active_document->destroy_a_document_and_its_descendants(after_document_destruction);
+    else
+        after_document_destruction->function()();
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#potentially-delays-the-load-event
