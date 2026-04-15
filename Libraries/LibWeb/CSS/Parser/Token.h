@@ -14,6 +14,17 @@
 
 namespace Web::CSS::Parser {
 
+inline static double clamp_to_single_precision(double value)
+{
+    if (value > static_cast<double>(NumericLimits<float>::max()))
+        return static_cast<double>(NumericLimits<float>::max());
+
+    if (value < static_cast<double>(NumericLimits<float>::lowest()))
+        return static_cast<double>(NumericLimits<float>::lowest());
+
+    return value;
+}
+
 class WEB_API Token {
 public:
     enum class Type : u8 {
@@ -139,7 +150,7 @@ public:
     double number_value() const
     {
         VERIFY(m_type == Type::Number);
-        return m_number_value.value();
+        return clamp_to_single_precision(m_number_value.value());
     }
     i32 to_integer() const
     {
@@ -155,14 +166,14 @@ public:
     double dimension_value() const
     {
         VERIFY(m_type == Type::Dimension);
-        return m_number_value.value();
+        return clamp_to_single_precision(m_number_value.value());
     }
     i32 dimension_value_int() const { return m_number_value.integer_value(); }
 
     double percentage() const
     {
         VERIFY(m_type == Type::Percentage);
-        return m_number_value.value();
+        return clamp_to_single_precision(m_number_value.value());
     }
 
     Type mirror_variant() const;
