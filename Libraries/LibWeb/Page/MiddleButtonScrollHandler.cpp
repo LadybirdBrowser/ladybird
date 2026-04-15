@@ -15,7 +15,7 @@
 
 namespace Web {
 
-static constexpr CSSPixels DEAD_ZONE_RADIUS { 15 };
+static constexpr double DEAD_ZONE_RADIUS { 15 };
 static constexpr double SPEED_FACTOR = 5.0;
 static constexpr double MAX_SPEED_PER_SECOND = 5000.0;
 static constexpr double SCROLL_INTERVAL_MS = 16.0;
@@ -58,21 +58,16 @@ GC::Ptr<DOM::Element> MiddleButtonScrollHandler::find_scrollable_ancestor(DOM::D
     return {};
 }
 
-void MiddleButtonScrollHandler::update_mouse_position(CSSPixelPoint position)
-{
-    m_mouse_position = position;
-    m_mouse_has_moved = true;
-}
-
 void MiddleButtonScrollHandler::perform_tick()
 {
     auto distance_x = (m_mouse_position.x() - m_origin.x()).to_double();
     auto distance_y = (m_mouse_position.y() - m_origin.y()).to_double();
 
-    if (auto distance = AK::hypot(distance_x, distance_y); distance < DEAD_ZONE_RADIUS.to_double())
+    if (auto distance = AK::hypot(distance_x, distance_y); distance < DEAD_ZONE_RADIUS)
         return;
 
     m_container_element->document().update_layout(DOM::UpdateLayoutReason::AutoScrollSelection);
+    m_mouse_has_moved_beyond_dead_zone = true;
 
     auto paintable_box = AutoScrollHandler::auto_scroll_paintable(m_container_element);
     if (!paintable_box)

@@ -982,10 +982,14 @@ void EventHandler::stop_updating_selection()
 
 EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
+    auto middle_button_autoscrolled = m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved_beyond_dead_zone();
+
     ScopeGuard clear_mousedown_tracking_and_stop_selection([&] {
         clear_mousedown_tracking();
         stop_updating_selection();
-        m_middle_button_scroll_handler = nullptr;
+
+        if (middle_button_autoscrolled && button == UIEvents::MouseButton::Middle)
+            m_middle_button_scroll_handler = nullptr;
     });
 
     if (should_ignore_device_input_event()) {
@@ -1067,8 +1071,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
     // FIXME: Per spec, the click target should be the nearest common inclusive ancestor of the pointerdown
     //        and pointerup targets. Currently we require an exact match.
     // NB: If the middle button was used to scroll, suppress click and activation behavior.
-    auto middle_button_scrolled = m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved();
-    if (node.ptr() == m_mousedown_target && !middle_button_scrolled) {
+    if (node.ptr() == m_mousedown_target && !middle_button_autoscrolled) {
         if (fire_click_events(*node, coordinates, screen_position, button, buttons, modifiers, click_count)
             && !chrome_widget) {
             // NB: Event dispatches above may have run JS that invalidated layout.
@@ -1185,6 +1188,11 @@ bool EventHandler::initiate_paragraph_selection(DOM::Document& document, Paintin
 
 void EventHandler::run_mousedown_default_actions(DOM::Document& document, CSSPixelPoint visual_viewport_position, CSSPixelPoint viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
+    if (m_middle_button_scroll_handler) {
+        m_middle_button_scroll_handler = nullptr;
+        return;
+    }
+
     if (button == UIEvents::MouseButton::Middle) {
         if (!m_navigable->page().enable_autoscroll())
             return;
@@ -1794,6 +1802,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
     // FIXME: Close requests should queue a global task on the user interaction task source, given `document`'s relevant global object.
     if (key == UIEvents::KeyCode::Key_Escape) {
+        // NB: Exit autoscroll if active before handling other close requests.
+        if (m_middle_button_scroll_handler) {
+            m_middle_button_scroll_handler = nullptr;
+            return EventResult::Handled;
+        }
+
         // 1. If document's fullscreen element is not null, then:
         if (document->fullscreen()) {
             // 1. Fully exit fullscreen given document's node navigable's top-level traversable's active document.

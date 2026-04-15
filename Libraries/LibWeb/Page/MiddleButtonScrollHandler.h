@@ -22,18 +22,18 @@ public:
 
     static GC::Ptr<DOM::Element> find_scrollable_ancestor(DOM::Document&, Painting::Paintable&);
 
-    void update_mouse_position(CSSPixelPoint);
+    void update_mouse_position(CSSPixelPoint position) { m_mouse_position = position; }
     void perform_tick();
 
     CSSPixelPoint origin() const { return m_origin; }
-    bool mouse_has_moved() const { return m_mouse_has_moved; }
+    bool mouse_has_moved_beyond_dead_zone() const { return m_mouse_has_moved_beyond_dead_zone; }
 
 private:
     GC::Ref<DOM::Element> m_container_element;
     CSSPixelPoint m_origin;
     CSSPixelPoint m_mouse_position;
     CSSPixelPoint m_fractional_delta;
-    bool m_mouse_has_moved { false };
+    bool m_mouse_has_moved_beyond_dead_zone { false };
 };
 
 }
