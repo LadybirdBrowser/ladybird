@@ -65,6 +65,7 @@ private:
 
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
 
     void ask_for_a_reset();

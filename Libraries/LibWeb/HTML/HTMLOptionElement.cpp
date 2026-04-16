@@ -350,7 +350,15 @@ void HTMLOptionElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_an
     update_nearest_select_element();
 }
 
-// FIXME: Moving steps. https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:html-element-moving-steps
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:html-element-moving-steps
+void HTMLOptionElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+
+    // The option HTML element moving steps, given movedNode, isSubtreeRoot, and oldAncestor are to run update an
+    // option's nearest ancestor select given movedNode.
+    update_nearest_select_element();
+}
 
 void HTMLOptionElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
