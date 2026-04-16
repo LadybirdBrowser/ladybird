@@ -21,6 +21,7 @@
 #include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
+#include <AK/SaturatingMath.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Span.h>
 #include <LibCore/ConfigFile.h>
@@ -54,6 +55,7 @@ namespace TestWeb {
 
 // Terminal display state
 static size_t s_terminal_width = 80;
+static size_t s_terminal_rows = 24;
 static bool s_is_tty = false;
 
 static size_t s_current_run = 1;
@@ -64,8 +66,10 @@ static void update_terminal_size()
 {
 #ifndef AK_OS_WINDOWS
     struct winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0)
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
         s_terminal_width = ws.ws_col > 0 ? ws.ws_col : 80;
+        s_terminal_rows = ws.ws_row > 0 ? ws.ws_row : 24;
+    }
 #endif
 }
 
@@ -1377,7 +1381,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     // Set up display area for live display
     if (use_live_display) {
-        s_live_display_lines = concurrency + 4; // +1 empty, +1 status counts, +1 empty, +1 progress bar
+        s_live_display_lines = AK::clamp(AK::saturating_sub(s_terminal_rows, 4uz), 5uz, concurrency + 4); // +1 empty, +1 status counts, +1 empty, +1 progress bar
         for (size_t i = 0; i < s_live_display_lines; ++i)
             outln();
         (void)fflush(stdout);
