@@ -696,6 +696,7 @@ static NSImage* literal_url_suggestion_icon()
     auto const& suggestion = m_suggestions[row_model.suggestion_index];
     auto* suggestion_text = Ladybird::string_to_ns_string(suggestion.text);
     auto* title_text = suggestion.title.has_value() ? Ladybird::string_to_ns_string(*suggestion.title) : nil;
+    auto* secondary_text = suggestion.subtitle.has_value() ? Ladybird::string_to_ns_string(*suggestion.subtitle) : suggestion_text;
     auto* favicon = [self.suggestion_icons objectForKey:suggestion_text];
     auto* icon = suggestion.source == WebView::AutocompleteSuggestionSource::LiteralURL
         ? literal_url_suggestion_icon()
@@ -750,7 +751,7 @@ static NSImage* literal_url_suggestion_icon()
                                           primary_text_height)];
     }
 
-    [view.url_text_field setStringValue:suggestion_text];
+    [view.url_text_field setStringValue:(title_text != nil ? secondary_text : suggestion_text)];
     return view;
 }
 

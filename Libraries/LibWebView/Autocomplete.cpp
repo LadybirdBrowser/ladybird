@@ -94,11 +94,34 @@ static Vector<AutocompleteSuggestion> make_history_suggestions(Vector<HistoryEnt
             .section = AutocompleteSuggestionSection::History,
             .text = move(entry.url),
             .title = move(entry.title),
+            .subtitle = {},
             .favicon_base64_png = move(entry.favicon_base64_png),
         });
     }
 
     return suggestions;
+}
+
+static Optional<AutocompleteSuggestion> search_for_query_suggestion(StringView query)
+{
+    if (query.is_empty() || location_looks_like_url(query))
+        return {};
+
+    auto const& search_engine = Application::settings().search_engine();
+    if (!search_engine.has_value())
+        return {};
+
+    auto query_string = MUST(String::from_utf8(query));
+    auto subtitle = MUST(String::formatted("Search with {}", search_engine->name));
+
+    return AutocompleteSuggestion {
+        .source = AutocompleteSuggestionSource::Search,
+        .section = AutocompleteSuggestionSection::SearchSuggestions,
+        .text = query_string,
+        .title = query_string,
+        .subtitle = move(subtitle),
+        .favicon_base64_png = {},
+    };
 }
 
 static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
@@ -111,6 +134,7 @@ static Optional<AutocompleteSuggestion> literal_url_suggestion(StringView query)
         .section = AutocompleteSuggestionSection::None,
         .text = MUST(String::from_utf8(query)),
         .title = {},
+        .subtitle = {},
         .favicon_base64_png = {},
     };
 }
@@ -170,19 +194,32 @@ static void append_suggestion_if_unique(Vector<AutocompleteSuggestion>& suggesti
 }
 
 static Vector<AutocompleteSuggestion> merge_suggestions(
+    Optional<AutocompleteSuggestion> search_for_query_suggestion,
     Optional<AutocompleteSuggestion> literal_url_suggestion,
     Vector<AutocompleteSuggestion> history_suggestions,
     Vector<String> remote_suggestions,
     size_t max_suggestions)
 {
     Vector<AutocompleteSuggestion> suggestions;
-    suggestions.ensure_capacity(min(max_suggestions, history_suggestions.size() + remote_suggestions.size() + (literal_url_suggestion.has_value() ? 1 : 0)));
+    suggestions.ensure_capacity(min(max_suggestions, history_suggestions.size() + remote_suggestions.size() + (literal_url_suggestion.has_value() ? 1 : 0) + (search_for_query_suggestion.has_value() ? 1 : 0)));
+
+    // Reserve a slot for the synthesized "Search with <engine>" row so it
+    // is always visible, even when history results would otherwise fill the
+    // popup. Without this, a query with plenty of history hits leaves the
+    // user with no explicit search fallback.
+    auto reserved_for_search = search_for_query_suggestion.has_value() ? 1u : 0u;
+    auto history_and_url_cap = reserved_for_search < max_suggestions
+        ? max_suggestions - reserved_for_search
+        : max_suggestions;
 
     if (literal_url_suggestion.has_value())
-        append_suggestion_if_unique(suggestions, max_suggestions, literal_url_suggestion.release_value());
+        append_suggestion_if_unique(suggestions, history_and_url_cap, literal_url_suggestion.release_value());
 
     for (auto& suggestion : history_suggestions)
-        append_suggestion_if_unique(suggestions, max_suggestions, move(suggestion));
+        append_suggestion_if_unique(suggestions, history_and_url_cap, move(suggestion));
+
+    if (search_for_query_suggestion.has_value())
+        append_suggestion_if_unique(suggestions, max_suggestions, search_for_query_suggestion.release_value());
 
     for (auto& suggestion : remote_suggestions) {
         auto remote_suggestion = AutocompleteSuggestion {
@@ -190,6 +227,7 @@ static Vector<AutocompleteSuggestion> merge_suggestions(
             .section = AutocompleteSuggestionSection::SearchSuggestions,
             .text = move(suggestion),
             .title = {},
+            .subtitle = {},
             .favicon_base64_png = {},
         };
         append_suggestion_if_unique(suggestions, max_suggestions, move(remote_suggestion));
@@ -222,10 +260,11 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
     m_history_suggestions = make_history_suggestions(Application::history_store().autocomplete_entries(trimmed_query, m_max_suggestions));
     auto literal_suggestion = preferred_literal_url_suggestion(trimmed_query, m_history_suggestions);
+    auto search_suggestion = search_for_query_suggestion(trimmed_query);
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] History autocomplete suggestions for '{}': {}", trimmed_query, log_autocomplete_suggestions(m_history_suggestions));
 
-    auto immediate_suggestions = merge_suggestions(literal_suggestion, m_history_suggestions, {}, m_max_suggestions);
+    auto immediate_suggestions = merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions);
 
     if (trimmed_query.is_empty()) {
         invoke_autocomplete_query_complete(move(immediate_suggestions), AutocompleteResultKind::Final);
@@ -265,7 +304,7 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
     m_request = Application::request_server_client().start_request("GET"sv, *url);
 
     m_request->set_buffered_request_finished_callback(
-        [this, engine = engine.release_value(), query = m_query, literal_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
+        [this, engine = engine.release_value(), query = m_query, literal_suggestion, search_suggestion](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> const& network_error, HTTP::HeaderList const& response_headers, Optional<u32> response_code, Optional<String> const& reason_phrase, ReadonlyBytes payload) {
             Core::deferred_invoke([this]() { m_request.clear(); });
 
             if (m_query != query) {
@@ -275,12 +314,12 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
             if (network_error.has_value()) {
                 warnln("Unable to fetch autocomplete suggestions: {}", Requests::network_error_to_string(*network_error));
-                invoke_autocomplete_query_complete(merge_suggestions(literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
+                invoke_autocomplete_query_complete(merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
                 return;
             }
             if (response_code.has_value() && *response_code >= 400) {
                 warnln("Received error response code {} from autocomplete engine: {}", *response_code, reason_phrase);
-                invoke_autocomplete_query_complete(merge_suggestions(literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
+                invoke_autocomplete_query_complete(merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
                 return;
             }
 
@@ -288,13 +327,13 @@ void Autocomplete::query_autocomplete_engine(String query, size_t max_suggestion
 
             if (auto result = received_autocomplete_respsonse(engine, content_type, payload); result.is_error()) {
                 warnln("Unable to handle autocomplete response: {}", result.error());
-                invoke_autocomplete_query_complete(merge_suggestions(literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
+                invoke_autocomplete_query_complete(merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, {}, m_max_suggestions), AutocompleteResultKind::Final);
             } else {
                 auto remote_suggestions = result.release_value();
 
                 dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Remote autocomplete suggestions for '{}': {}", query, history_log_suggestions(remote_suggestions));
 
-                auto merged_suggestions = merge_suggestions(literal_suggestion, m_history_suggestions, move(remote_suggestions), m_max_suggestions);
+                auto merged_suggestions = merge_suggestions(search_suggestion, literal_suggestion, m_history_suggestions, move(remote_suggestions), m_max_suggestions);
 
                 dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Merged autocomplete suggestions for '{}': {}", query, log_autocomplete_suggestions(merged_suggestions));
 

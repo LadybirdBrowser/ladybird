@@ -48,6 +48,7 @@ struct WEBVIEW_API AutocompleteSuggestion {
     AutocompleteSuggestionSection section { AutocompleteSuggestionSection::None };
     String text;
     Optional<String> title;
+    Optional<String> subtitle;
     Optional<String> favicon_base64_png;
 };
 

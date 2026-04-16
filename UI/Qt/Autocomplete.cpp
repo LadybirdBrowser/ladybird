@@ -46,6 +46,7 @@ enum AutocompleteRole {
     RowKindRole = Qt::UserRole + 1,
     HeaderTextRole,
     TitleRole,
+    SubtitleRole,
     UrlRole,
     FaviconRole,
     SourceRole,
@@ -174,6 +175,10 @@ public:
             if (suggestion.title.has_value())
                 return qstring_from_ak_string(*suggestion.title);
             return {};
+        case SubtitleRole:
+            if (suggestion.subtitle.has_value())
+                return qstring_from_ak_string(*suggestion.subtitle);
+            return {};
         case FaviconRole:
             for (auto const& entry : m_favicon_cache) {
                 if (entry.suggestion_index == row.suggestion_index)
@@ -288,6 +293,8 @@ public:
 
         auto url_text = index.data(UrlRole).toString();
         auto title_text = index.data(TitleRole).toString();
+        auto subtitle_text = index.data(SubtitleRole).toString();
+        auto secondary_text = subtitle_text.isEmpty() ? url_text : subtitle_text;
 
         int icon_x = option.rect.left() + CELL_HORIZONTAL_PADDING;
         int icon_y = option.rect.top() + (option.rect.height() - CELL_ICON_SIZE) / 2;
@@ -321,11 +328,11 @@ public:
 
             painter->setFont(autocomplete_secondary_font());
             painter->setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
-            auto elided_url = secondary_fm.elidedText(url_text, Qt::ElideRight, text_width);
+            auto elided_secondary = secondary_fm.elidedText(secondary_text, Qt::ElideRight, text_width);
             painter->drawText(
                 QRect(text_x, block_y + primary_fm.height() + CELL_LABEL_VERTICAL_SPACING,
                     text_width, secondary_fm.height()),
-                Qt::AlignLeft | Qt::AlignVCenter, elided_url);
+                Qt::AlignLeft | Qt::AlignVCenter, elided_secondary);
         } else {
             painter->setFont(QApplication::font());
             painter->setPen(option.palette.color(QPalette::Text));
