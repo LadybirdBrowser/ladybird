@@ -215,6 +215,9 @@ struct LayoutState {
 
         Optional<LineBoxFragmentCoordinate> containing_line_box_fragment;
 
+        bool is_elided() const { return m_elided; }
+        void set_elided(bool elided) { m_elided = elided; }
+
         void add_floating_descendant(Box const& box) { m_floating_descendants.set(&box); }
         auto const& floating_descendants() const { return m_floating_descendants; }
 
@@ -279,6 +282,8 @@ struct LayoutState {
         RefPtr<CSS::GridTrackSizeListStyleValue const> m_grid_template_rows;
 
         Optional<StaticPositionRect> m_static_position_rect;
+
+        bool m_elided { false };
     };
 
     LayoutState() = default;

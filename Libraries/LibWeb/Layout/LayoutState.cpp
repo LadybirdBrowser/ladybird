@@ -445,6 +445,9 @@ void LayoutState::commit(Box& root)
         if (m_subtree_root && !m_subtree_root->is_inclusive_ancestor_of(node))
             return;
 
+        if (used_values.is_elided())
+            return;
+
         GC::Ptr<Painting::Paintable> paintable;
 
         // Try to reuse cached paintable for Box nodes
@@ -517,9 +520,12 @@ void LayoutState::commit(Box& root)
     // NOTE: This needs to occur before fragments are transferred into the corresponding inline paintables, because
     //       after this transfer, the containing_line_box_fragment will no longer be valid.
     m_used_values_store.for_each([&](UsedValues& used_values) {
-        auto& node = const_cast<NodeWithStyle&>(used_values.node());
+        auto& node = used_values.node();
 
         if (!node.is_box())
+            return;
+
+        if (used_values.is_elided())
             return;
 
         auto& paintable = as<Painting::PaintableBox>(*node.first_paintable());
@@ -527,7 +533,7 @@ void LayoutState::commit(Box& root)
 
         if (used_values.containing_line_box_fragment.has_value()) {
             // Atomic inline case:
-            // We know that `node` is an atomic inline because `containing_line_box_fragments` refers to the
+            // We know that `node` is an atomic inline because `containing_line_box_fragment` refers to the
             // line box fragment in the parent block container that contains it.
             auto const& containing_line_box_fragment = used_values.containing_line_box_fragment.value();
             auto const& containing_block = *node.containing_block();
@@ -619,7 +625,7 @@ void LayoutState::commit(Box& root)
     // Measure overflow in scroll containers.
     m_used_values_store.for_each([&](UsedValues& used_values) {
         auto const* box = as_if<Box>(used_values.node());
-        if (!box)
+        if (!box || !box->paintable_box())
             return;
         measure_scrollable_overflow(*box, contained_boxes_map);
 

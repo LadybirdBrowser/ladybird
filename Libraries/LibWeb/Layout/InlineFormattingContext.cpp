@@ -331,8 +331,22 @@ void InlineFormattingContext::apply_text_overflow_ellipsis(Vector<LineBox>& line
 
             fragment.set_inline_length(CSSPixels::nearest_value_for(last_kept_end + ellipsis_width));
 
-            if (i + 1 < fragments.size())
+            if (i + 1 < fragments.size()) {
+                for (size_t j = i + 1; j < fragments.size(); ++j) {
+                    if (auto& removed_fragment = fragments[j]; removed_fragment.is_atomic_inline()) {
+                        const auto& box = as<Box>(removed_fragment.layout_node());
+                        auto& box_state = m_state.get_mutable(box);
+                        box_state.containing_line_box_fragment.clear();
+                        box_state.set_elided(true);
+                        box.for_each_in_subtree_of_type<Box>([&](Box const& child_box) {
+                            if (auto* child_state = m_state.try_get_mutable(child_box))
+                                child_state->set_elided(true);
+                            return TraversalDecision::Continue;
+                        });
+                    }
+                }
                 fragments.remove(i + 1, fragments.size() - i - 1);
+            }
 
             line_box.m_inline_length = available_width;
             break;

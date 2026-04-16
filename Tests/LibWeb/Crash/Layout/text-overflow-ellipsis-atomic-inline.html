@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<!-- Regression test: text-overflow ellipsis removing atomic inline fragments caused
+     an out-of-bounds access in LayoutState::commit() via a stale containing_line_box_fragment. -->
+<style>
+div {
+    width: 50px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+</style>
+<div>long text <svg width="16" height="16"><rect width="16" height="16"/></svg></div>
