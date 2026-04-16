@@ -143,15 +143,6 @@ public:
         return !is_empty();
     }
 
-    // Deprecated, used in older versions of the spec.
-    T const& current_token()
-    {
-        if (m_index < 1 || (m_index - 1) >= m_tokens.size())
-            return m_eof;
-
-        return m_tokens.at(m_index - 1);
-    }
-
     // Deprecated
     T const& peek_token(size_t offset = 0)
     {
@@ -159,13 +150,6 @@ public:
             return m_eof;
 
         return m_tokens.at(m_index + offset);
-    }
-
-    // Deprecated, was used in older versions of the spec.
-    void reconsume_current_input_token()
-    {
-        if (m_index > 0)
-            --m_index;
     }
 
     StateTransaction begin_transaction() { return StateTransaction(*this); }
