@@ -12,6 +12,7 @@
 #include <AK/JsonObjectSerializer.h>
 #include <AK/StringBuilder.h>
 #include <LibGC/DeferGC.h>
+#include <LibGC/WeakHashMap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibJS/Runtime/FunctionObject.h>
 #include <LibWeb/Animations/Animation.h>
@@ -79,32 +80,36 @@
 namespace Web::DOM {
 
 static UniqueNodeID s_next_unique_id;
-static HashMap<UniqueNodeID, Node*> s_node_directory;
+static GC::WeakHashMap<UniqueNodeID, Node>& node_directory()
+{
+    static GC::WeakHashMap<UniqueNodeID, Node> directory;
+    return directory;
+}
 
-static UniqueNodeID allocate_unique_id(Node* node)
+static UniqueNodeID allocate_unique_id(Node& node)
 {
     auto id = s_next_unique_id;
     ++s_next_unique_id;
-    s_node_directory.set(id, node);
+    node_directory().set(id, node);
     return id;
 }
 
 static void deallocate_unique_id(UniqueNodeID node_id)
 {
-    if (!s_node_directory.remove(node_id))
+    if (!node_directory().remove(node_id))
         VERIFY_NOT_REACHED();
 }
 
 Node* Node::from_unique_id(UniqueNodeID unique_id)
 {
-    return s_node_directory.get(unique_id).value_or(nullptr);
+    return node_directory().get(unique_id);
 }
 
 Node::Node(JS::Realm& realm, Document& document, NodeType type)
     : EventTarget(realm)
     , m_document(&document)
     , m_type(type)
-    , m_unique_id(allocate_unique_id(this))
+    , m_unique_id(allocate_unique_id(*this))
 {
     // A Document is its own shadow-including root, so it is always connected.
     if (type == NodeType::DOCUMENT_NODE)
