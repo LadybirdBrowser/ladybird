@@ -33,6 +33,7 @@ public:
     static ErrorOr<NonnullOwnPtr<HistoryStore>> create(Database::Database&);
     static NonnullOwnPtr<HistoryStore> create();
     static NonnullOwnPtr<HistoryStore> create_disabled();
+    static Optional<String> normalize_url(URL::URL const&);
 
     ~HistoryStore();
 
@@ -41,7 +42,7 @@ public:
     void update_favicon(URL::URL const&, String const& favicon_base64_png);
 
     Optional<HistoryEntry> entry_for_url(URL::URL const&);
-    Vector<String> autocomplete_suggestions(StringView query, size_t limit = 8);
+    Vector<HistoryEntry> autocomplete_entries(StringView query, size_t limit = 8);
 
     void clear();
     void remove_entries_accessed_since(UnixDateTime since);
@@ -64,7 +65,7 @@ private:
         void update_favicon(String const& url, String favicon_base64_png);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);
+        Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit);
 
         void clear();
         void remove_entries_accessed_since(UnixDateTime since);
@@ -79,7 +80,7 @@ private:
         void update_favicon(String const& url, String const& favicon_base64_png);
 
         Optional<HistoryEntry> entry_for_url(String const& url);
-        Vector<String> autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit);
+        Vector<HistoryEntry> autocomplete_entries(StringView title_query, StringView url_query, size_t limit);
 
         void clear();
         void remove_entries_accessed_since(UnixDateTime since);
@@ -89,7 +90,6 @@ private:
     };
 
     explicit HistoryStore(Optional<PersistedStorage>, bool is_disabled = false);
-    static Optional<String> normalize_url(URL::URL const&);
 
     Optional<PersistedStorage> m_persisted_storage;
     TransientStorage m_transient_storage;

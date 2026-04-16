@@ -112,6 +112,15 @@ static void sort_matching_entries(Vector<HistoryEntry const*>& matches, StringVi
     });
 }
 
+[[maybe_unused]] static ByteString log_history_entries(Vector<HistoryEntry> const& entries)
+{
+    Vector<String> suggestions;
+    suggestions.ensure_capacity(entries.size());
+    for (auto const& entry : entries)
+        suggestions.unchecked_append(entry.url);
+    return history_log_suggestions(suggestions);
+}
+
 ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& database)
 {
     if (auto database_path = database.database_path(); database_path.has_value())
@@ -165,13 +174,14 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
         WHERE url = ?;
     )#"sv));
     statements.search_entries = TRY(database.prepare_statement(R"#(
-        SELECT url
+        SELECT url, title, visit_count, last_visited_time, COALESCE(favicon, '')
         FROM (
             SELECT
                 url,
                 title,
                 visit_count,
                 last_visited_time,
+                COALESCE(favicon, '') AS favicon,
                 CASE
                     WHEN LOWER(CASE
                         WHEN INSTR(url, '://') > 0 THEN SUBSTR(url, INSTR(url, '://') + 3)
@@ -188,20 +198,20 @@ ErrorOr<NonnullOwnPtr<HistoryStore>> HistoryStore::create(Database::Database& da
                 END AS searchable_url
             FROM History
         )
-        WHERE ((? != '' AND LOWER(searchable_url) LIKE LOWER(?) || '%')
-            OR (? != '' AND INSTR(LOWER(searchable_url), LOWER(?)) > 0)
-            OR (? != '' AND INSTR(LOWER(title), LOWER(?)) > 0))
+        WHERE ((?1 != '' AND LOWER(searchable_url) LIKE LOWER(?1) || '%')
+            OR (?2 != '' AND INSTR(LOWER(searchable_url), LOWER(?2)) > 0)
+            OR (?3 != '' AND INSTR(LOWER(title), LOWER(?3)) > 0))
         ORDER BY
             CASE
-                WHEN ? != '' AND LOWER(searchable_url) = LOWER(?) THEN 0
-                WHEN ? != '' AND LOWER(searchable_url) LIKE LOWER(?) || '%' THEN 1
-                WHEN ? != '' AND LOWER(title) LIKE LOWER(?) || '%' THEN 2
+                WHEN ?1 != '' AND LOWER(searchable_url) = LOWER(?1) THEN 0
+                WHEN ?1 != '' AND LOWER(searchable_url) LIKE LOWER(?1) || '%' THEN 1
+                WHEN ?3 != '' AND LOWER(title) LIKE LOWER(?3) || '%' THEN 2
                 ELSE 3
             END,
             visit_count DESC,
             last_visited_time DESC,
             url ASC
-        LIMIT ?;
+        LIMIT ?4;
     )#"sv));
     statements.clear_entries = TRY(database.prepare_statement("DELETE FROM History;"sv));
     statements.delete_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM History WHERE last_visited_time >= ?;"sv));
@@ -347,7 +357,7 @@ Optional<HistoryEntry> HistoryStore::entry_for_url(URL::URL const& url)
     return entry;
 }
 
-Vector<String> HistoryStore::autocomplete_suggestions(StringView query, size_t limit)
+Vector<HistoryEntry> HistoryStore::autocomplete_entries(StringView query, size_t limit)
 {
     if (m_is_disabled)
         return {};
@@ -361,9 +371,9 @@ Vector<String> HistoryStore::autocomplete_suggestions(StringView query, size_t l
     auto title_query = autocomplete_title_query(trimmed_query);
     auto url_query = autocomplete_url_query(trimmed_query);
 
-    auto suggestions = m_persisted_storage.has_value()
-        ? m_persisted_storage->autocomplete_suggestions(title_query, url_query, limit)
-        : m_transient_storage.autocomplete_suggestions(title_query, url_query, limit);
+    auto entries = m_persisted_storage.has_value()
+        ? m_persisted_storage->autocomplete_entries(title_query, url_query, limit)
+        : m_transient_storage.autocomplete_entries(title_query, url_query, limit);
 
     dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] {} history autocomplete suggestions for '{}' (title_query='{}', url_query='{}', limit={}): {}",
         m_persisted_storage.has_value() ? "SQL"sv : "Transient"sv,
@@ -371,9 +381,9 @@ Vector<String> HistoryStore::autocomplete_suggestions(StringView query, size_t l
         title_query,
         url_query,
         limit,
-        history_log_suggestions(suggestions));
+        log_history_entries(entries));
 
-    return suggestions;
+    return entries;
 }
 
 void HistoryStore::clear()
@@ -452,7 +462,7 @@ Optional<HistoryEntry> HistoryStore::TransientStorage::entry_for_url(String cons
     return *entry;
 }
 
-Vector<String> HistoryStore::TransientStorage::autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit)
+Vector<HistoryEntry> HistoryStore::TransientStorage::autocomplete_entries(StringView title_query, StringView url_query, size_t limit)
 {
     Vector<HistoryEntry const*> matches;
 
@@ -463,13 +473,13 @@ Vector<String> HistoryStore::TransientStorage::autocomplete_suggestions(StringVi
 
     sort_matching_entries(matches, title_query, url_query);
 
-    Vector<String> suggestions;
-    suggestions.ensure_capacity(min(limit, matches.size()));
+    Vector<HistoryEntry> entries;
+    entries.ensure_capacity(min(limit, matches.size()));
 
     for (size_t i = 0; i < matches.size() && i < limit; ++i)
-        suggestions.unchecked_append(matches[i]->url);
+        entries.unchecked_append(*matches[i]);
 
-    return suggestions;
+    return entries;
 }
 
 void HistoryStore::TransientStorage::clear()
@@ -535,10 +545,10 @@ Optional<HistoryEntry> HistoryStore::PersistedStorage::entry_for_url(String cons
     return entry;
 }
 
-Vector<String> HistoryStore::PersistedStorage::autocomplete_suggestions(StringView title_query, StringView url_query, size_t limit)
+Vector<HistoryEntry> HistoryStore::PersistedStorage::autocomplete_entries(StringView title_query, StringView url_query, size_t limit)
 {
-    Vector<String> suggestions;
-    suggestions.ensure_capacity(min(limit, DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT));
+    Vector<HistoryEntry> entries;
+    entries.ensure_capacity(min(limit, DEFAULT_AUTOCOMPLETE_SUGGESTION_LIMIT));
     auto url_query_string = MUST(String::from_utf8(url_query));
     auto title_query_string = MUST(String::from_utf8(title_query));
     auto url_contains_query_string = MUST(String::from_utf8(autocomplete_url_contains_query(url_query)));
@@ -546,23 +556,23 @@ Vector<String> HistoryStore::PersistedStorage::autocomplete_suggestions(StringVi
     database.execute_statement(
         statements.search_entries,
         [&](auto statement_id) {
-            suggestions.append(database.result_column<String>(statement_id, 0));
+            auto title = database.result_column<String>(statement_id, 1);
+            auto favicon = database.result_column<String>(statement_id, 4);
+
+            entries.append(HistoryEntry {
+                .url = database.result_column<String>(statement_id, 0),
+                .title = title.is_empty() ? Optional<String> {} : Optional<String> { move(title) },
+                .favicon_base64_png = favicon.is_empty() ? Optional<String> {} : Optional<String> { move(favicon) },
+                .visit_count = database.result_column<u64>(statement_id, 2),
+                .last_visited_time = database.result_column<UnixDateTime>(statement_id, 3),
+            });
         },
         url_query_string,
-        url_query_string,
         url_contains_query_string,
-        url_contains_query_string,
-        title_query_string,
-        title_query_string,
-        url_query_string,
-        url_query_string,
-        url_query_string,
-        url_query_string,
-        title_query_string,
         title_query_string,
         static_cast<i64>(limit));
 
-    return suggestions;
+    return entries;
 }
 
 void HistoryStore::PersistedStorage::clear()

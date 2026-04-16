@@ -32,41 +32,59 @@ static void expect_history_autocomplete_ignores_url_boilerplate(WebView::History
 {
     populate_history_for_url_autocomplete_tests(store);
 
-    EXPECT(store.autocomplete_suggestions("https://"sv, 8).is_empty());
-    EXPECT(store.autocomplete_suggestions("https://www."sv, 8).is_empty());
-    EXPECT(store.autocomplete_suggestions("www."sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("https://"sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("https://www."sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("www."sv, 8).is_empty());
 
-    auto git_suggestions = store.autocomplete_suggestions("git"sv, 8);
-    VERIFY(git_suggestions.size() == 1);
-    EXPECT_EQ(git_suggestions[0], "https://github.com/LadybirdBrowser/ladybird"_string);
+    auto git_entries = store.autocomplete_entries("git"sv, 8);
+    VERIFY(git_entries.size() == 1);
+    EXPECT_EQ(git_entries[0].url, "https://github.com/LadybirdBrowser/ladybird"_string);
 
-    auto https_goo_suggestions = store.autocomplete_suggestions("https://goo"sv, 8);
-    VERIFY(https_goo_suggestions.size() == 1);
-    EXPECT_EQ(https_goo_suggestions[0], "https://www.google.com/"_string);
+    auto https_goo_entries = store.autocomplete_entries("https://goo"sv, 8);
+    VERIFY(https_goo_entries.size() == 1);
+    EXPECT_EQ(https_goo_entries[0].url, "https://www.google.com/"_string);
 }
 
 static void expect_history_autocomplete_requires_three_characters_for_title_matches(WebView::HistoryStore& store)
 {
     store.record_visit(parse_url("https://example.com/"sv), "Foo bar baz wip wap wop"_string, UnixDateTime::from_seconds_since_epoch(10));
 
-    EXPECT(store.autocomplete_suggestions("w"sv, 8).is_empty());
-    EXPECT(store.autocomplete_suggestions("wi"sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("w"sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("wi"sv, 8).is_empty());
 
-    auto suggestions = store.autocomplete_suggestions("wip"sv, 8);
-    VERIFY(suggestions.size() == 1);
-    EXPECT_EQ(suggestions[0], "https://example.com/"_string);
+    auto entries = store.autocomplete_entries("wip"sv, 8);
+    VERIFY(entries.size() == 1);
+    EXPECT_EQ(entries[0].url, "https://example.com/"_string);
 }
 
 static void expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(WebView::HistoryStore& store)
 {
     store.record_visit(parse_url("https://example.com/wip-path"sv), "Example"_string, UnixDateTime::from_seconds_since_epoch(10));
 
-    EXPECT(store.autocomplete_suggestions("w"sv, 8).is_empty());
-    EXPECT(store.autocomplete_suggestions("wi"sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("w"sv, 8).is_empty());
+    EXPECT(store.autocomplete_entries("wi"sv, 8).is_empty());
 
-    auto suggestions = store.autocomplete_suggestions("wip"sv, 8);
-    VERIFY(suggestions.size() == 1);
-    EXPECT_EQ(suggestions[0], "https://example.com/wip-path"_string);
+    auto entries = store.autocomplete_entries("wip"sv, 8);
+    VERIFY(entries.size() == 1);
+    EXPECT_EQ(entries[0].url, "https://example.com/wip-path"_string);
+}
+
+static void expect_history_autocomplete_entries_include_metadata(WebView::HistoryStore& store)
+{
+    auto google_url = parse_url("https://www.google.com/"sv);
+    auto github_url = parse_url("https://github.com/LadybirdBrowser/ladybird"sv);
+
+    store.record_visit(google_url, "Google"_string, UnixDateTime::from_seconds_since_epoch(20));
+    store.update_favicon(google_url, "Zm9v"_string);
+    store.record_visit(github_url, "Ladybird repository"_string, UnixDateTime::from_seconds_since_epoch(10));
+
+    auto entries = store.autocomplete_entries("goo"sv, 8);
+    VERIFY(entries.size() == 1);
+    EXPECT_EQ(entries[0].url, "https://www.google.com/"_string);
+    EXPECT_EQ(entries[0].title, Optional<String> { "Google"_string });
+    EXPECT_EQ(entries[0].favicon_base64_png, Optional<String> { "Zm9v"_string });
+    EXPECT_EQ(entries[0].visit_count, 1u);
+    EXPECT_EQ(entries[0].last_visited_time, UnixDateTime::from_seconds_since_epoch(20));
 }
 
 TEST_CASE(record_and_lookup_history_entries)
@@ -94,12 +112,12 @@ TEST_CASE(history_autocomplete_prefers_url_prefix_then_recency)
     store->record_visit(parse_url("https://alpha.example.com/"sv), "Something else"_string, UnixDateTime::from_seconds_since_epoch(20));
     store->record_visit(parse_url("https://docs.example.com/"sv), "Alpha docs"_string, UnixDateTime::from_seconds_since_epoch(30));
 
-    auto suggestions = store->autocomplete_suggestions("alpha"sv, 8);
+    auto entries = store->autocomplete_entries("alpha"sv, 8);
 
-    VERIFY(suggestions.size() == 3);
-    EXPECT_EQ(suggestions[0], "https://alpha.example.com/"_string);
-    EXPECT_EQ(suggestions[1], "https://docs.example.com/"_string);
-    EXPECT_EQ(suggestions[2], "https://beta.example.com/"_string);
+    VERIFY(entries.size() == 3);
+    EXPECT_EQ(entries[0].url, "https://alpha.example.com/"_string);
+    EXPECT_EQ(entries[1].url, "https://docs.example.com/"_string);
+    EXPECT_EQ(entries[2].url, "https://beta.example.com/"_string);
 }
 
 TEST_CASE(history_autocomplete_trims_whitespace)
@@ -108,10 +126,10 @@ TEST_CASE(history_autocomplete_trims_whitespace)
 
     store->record_visit(parse_url("https://ladybird.dev/"sv), "Ladybird"_string, UnixDateTime::from_seconds_since_epoch(10));
 
-    auto suggestions = store->autocomplete_suggestions("  ladybird  "sv, 8);
+    auto entries = store->autocomplete_entries("  ladybird  "sv, 8);
 
-    VERIFY(suggestions.size() == 1);
-    EXPECT_EQ(suggestions[0], "https://ladybird.dev/"_string);
+    VERIFY(entries.size() == 1);
+    EXPECT_EQ(entries[0].url, "https://ladybird.dev/"_string);
 }
 
 TEST_CASE(history_autocomplete_ignores_www_prefix_for_host_matches)
@@ -121,11 +139,11 @@ TEST_CASE(history_autocomplete_ignores_www_prefix_for_host_matches)
     store->record_visit(parse_url("https://www.google.com/"sv), "Google"_string, UnixDateTime::from_seconds_since_epoch(20));
     store->record_visit(parse_url("https://www.goodreads.com/"sv), "Goodreads"_string, UnixDateTime::from_seconds_since_epoch(10));
 
-    auto suggestions = store->autocomplete_suggestions("goo"sv, 8);
+    auto entries = store->autocomplete_entries("goo"sv, 8);
 
-    VERIFY(suggestions.size() == 2);
-    EXPECT_EQ(suggestions[0], "https://www.google.com/"_string);
-    EXPECT_EQ(suggestions[1], "https://www.goodreads.com/"_string);
+    VERIFY(entries.size() == 2);
+    EXPECT_EQ(entries[0].url, "https://www.google.com/"_string);
+    EXPECT_EQ(entries[1].url, "https://www.goodreads.com/"_string);
 }
 
 TEST_CASE(history_autocomplete_ignores_scheme_and_www_boilerplate_prefixes)
@@ -158,6 +176,13 @@ TEST_CASE(history_favicon_updates_entry)
     VERIFY(entry.has_value());
     EXPECT_EQ(entry->favicon_base64_png, Optional<String> { "Zm9v"_string });
 }
+
+TEST_CASE(history_autocomplete_entries_include_metadata)
+{
+    auto store = WebView::HistoryStore::create();
+    expect_history_autocomplete_entries_include_metadata(*store);
+}
+
 TEST_CASE(non_browsable_urls_are_not_recorded)
 {
     auto store = WebView::HistoryStore::create();
@@ -268,4 +293,22 @@ TEST_CASE(persisted_history_autocomplete_requires_three_characters_for_non_prefi
     auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
 
     expect_history_autocomplete_requires_three_characters_for_non_prefix_url_matches(*store);
+}
+
+TEST_CASE(persisted_history_autocomplete_entries_include_metadata)
+{
+    auto database_directory = ByteString::formatted(
+        "{}/ladybird-history-store-entry-autocomplete-test-{}",
+        Core::StandardPaths::tempfile_directory(),
+        generate_random_uuid());
+    TRY_OR_FAIL(Core::Directory::create(database_directory, Core::Directory::CreateDirectories::Yes));
+
+    auto cleanup = ScopeGuard([&] {
+        MUST(FileSystem::remove(database_directory, FileSystem::RecursionMode::Allowed));
+    });
+
+    auto database = TRY_OR_FAIL(Database::Database::create(database_directory, "HistoryStore"sv));
+    auto store = TRY_OR_FAIL(WebView::HistoryStore::create(*database));
+
+    expect_history_autocomplete_entries_include_metadata(*store);
 }

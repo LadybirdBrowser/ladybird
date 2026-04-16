@@ -19,6 +19,7 @@ enum class AppendTLD {
     Yes,
 };
 WEBVIEW_API Optional<URL::URL> sanitize_url(StringView, Optional<SearchEngine> const& search_engine = {}, AppendTLD = AppendTLD::No);
+WEBVIEW_API bool location_looks_like_url(StringView, AppendTLD = AppendTLD::No);
 WEBVIEW_API Vector<URL::URL> sanitize_urls(ReadonlySpan<ByteString> raw_urls, URL::URL const& new_tab_page_url);
 
 struct URLParts {

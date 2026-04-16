@@ -6,6 +6,7 @@
  */
 
 #include <LibTest/TestCase.h>
+#include <LibWebView/Autocomplete.h>
 #include <LibWebView/SearchEngine.h>
 #include <LibWebView/URL.h>
 
@@ -47,6 +48,36 @@ static void expect_search_url_equals_sanitized_url(StringView url)
 
     EXPECT(sanitized_url.has_value());
     EXPECT_EQ(sanitized_url->to_string(), search_url);
+}
+
+static void expect_location_looks_like_url(StringView location, WebView::AppendTLD append_tld = WebView::AppendTLD::No)
+{
+    EXPECT(WebView::location_looks_like_url(location, append_tld));
+}
+
+static void expect_location_does_not_look_like_url(StringView location, WebView::AppendTLD append_tld = WebView::AppendTLD::No)
+{
+    EXPECT(!WebView::location_looks_like_url(location, append_tld));
+}
+
+static void expect_autocomplete_urls_match(StringView left, StringView right)
+{
+    EXPECT(WebView::autocomplete_urls_match(left, right));
+}
+
+static void expect_autocomplete_urls_do_not_match(StringView left, StringView right)
+{
+    EXPECT(!WebView::autocomplete_urls_match(left, right));
+}
+
+static void expect_autocomplete_url_can_complete(StringView query, StringView suggestion)
+{
+    EXPECT(WebView::autocomplete_url_can_complete(query, suggestion));
+}
+
+static void expect_autocomplete_url_cannot_complete(StringView query, StringView suggestion)
+{
+    EXPECT(!WebView::autocomplete_url_can_complete(query, suggestion));
 }
 
 TEST_CASE(invalid_url)
@@ -198,4 +229,42 @@ TEST_CASE(location_to_search_or_url)
     expect_search_url_equals_sanitized_url("mailto:hello@example.com"sv); // For now, unsupported scheme.
     // FIXME: Add support for opening mailto: scheme (below). Firefox opens mailto: locations
     // expect_url_equals_sanitized_url("mailto:hello@example.com"sv, "mailto:hello@example.com"sv);
+}
+
+TEST_CASE(location_looks_like_url)
+{
+    expect_location_looks_like_url("example.org"sv);
+    expect_location_looks_like_url("example.com"sv);
+    expect_location_looks_like_url("localhost"sv);
+    expect_location_looks_like_url("https://example.def"sv);
+
+    expect_location_does_not_look_like_url("hello"sv);
+    expect_location_does_not_look_like_url("hello world"sv);
+    expect_location_does_not_look_like_url("example.org hello"sv);
+    expect_location_does_not_look_like_url("example.def"sv);
+
+    expect_location_looks_like_url("example"sv, WebView::AppendTLD::Yes);
+}
+
+TEST_CASE(autocomplete_url_matching)
+{
+    expect_autocomplete_urls_match("google.com"sv, "https://www.google.com/"sv);
+    expect_autocomplete_urls_match("example.com/path?q=1"sv, "https://www.example.com/path?q=1"sv);
+    expect_autocomplete_urls_match("http://example.com"sv, "https://example.com/"sv);
+
+    expect_autocomplete_urls_do_not_match("https://example.com/path"sv, "https://example.com/other"sv);
+    expect_autocomplete_urls_do_not_match("https://example.com"sv, "https://example.com:8443"sv);
+    expect_autocomplete_urls_do_not_match("hello"sv, "https://hello.example/"sv);
+}
+
+TEST_CASE(autocomplete_url_completion)
+{
+    expect_autocomplete_url_can_complete("reddit.co"sv, "https://reddit.com/"sv);
+    expect_autocomplete_url_can_complete("https://reddit.co"sv, "https://www.reddit.com/"sv);
+    expect_autocomplete_url_can_complete("www.reddit.co"sv, "https://www.reddit.com/"sv);
+
+    expect_autocomplete_url_cannot_complete("reddit.com"sv, "https://reddit.com/"sv);
+    expect_autocomplete_url_cannot_complete("reddit.co"sv, "https://reddit.co/"sv);
+    expect_autocomplete_url_cannot_complete("reddit.co"sv, "https://reddit.net/"sv);
+    expect_autocomplete_url_cannot_complete("reddit.com/r"sv, "https://reddit.com/"sv);
 }
