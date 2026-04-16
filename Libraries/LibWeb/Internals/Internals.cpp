@@ -573,6 +573,9 @@ void Internals::perform_per_test_cleanup()
     for (auto gamepad : m_gamepads)
         gamepad->disconnect();
     m_gamepads.clear();
+
+    // Clear any mouse-down state
+    page().top_level_traversable()->event_handler().clear_mousedown_tracking();
 }
 
 void Internals::set_highlighted_node(GC::Ptr<DOM::Node> node)
