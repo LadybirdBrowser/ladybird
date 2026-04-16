@@ -9,3 +9,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "CI:"
+
+  - package-ecosystem: "rust-toolchain"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "CI:"
