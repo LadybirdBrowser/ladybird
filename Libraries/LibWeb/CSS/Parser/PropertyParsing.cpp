@@ -1333,11 +1333,18 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
             continue;
         }
 
-        auto value_and_property = parse_css_value_for_properties(remaining_layer_properties, tokens);
-        if (!value_and_property.has_value())
-            return nullptr;
-        auto& value = value_and_property->style_value;
-        auto property = value_and_property->property;
+        Optional<PropertyAndValue> property_and_value;
+        {
+            auto value_transaction = tokens.begin_transaction();
+            property_and_value = parse_css_value_for_properties(remaining_layer_properties, tokens);
+            if (!property_and_value.has_value())
+                return nullptr;
+            // FIXME: background-repeat can't be parsed fully with parse_css_value_for_properties(), so don't commit
+            //        the transaction, and then parse it manually below.
+            if (property_and_value->property != PropertyID::BackgroundRepeat)
+                value_transaction.commit();
+        }
+        auto& [property, value] = *property_and_value;
         remove_property(remaining_layer_properties, property);
 
         switch (property) {
@@ -1399,7 +1406,7 @@ RefPtr<StyleValue const> Parser::parse_background_value(TokenStream<ComponentVal
         }
         case PropertyID::BackgroundRepeat: {
             VERIFY(!background_repeat);
-            tokens.reconsume_current_input_token();
+            // NB: The tokens for this didn't get consumed, see above. So we parse it fully now.
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 background_repeat = maybe_repeat.release_nonnull();
                 tokens.discard_whitespace();
@@ -3255,11 +3262,18 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
             continue;
         }
 
-        auto value_and_property = parse_css_value_for_properties(remaining_layer_properties, tokens);
-        if (!value_and_property.has_value())
-            return nullptr;
-        auto& value = value_and_property->style_value;
-        auto property = value_and_property->property;
+        Optional<PropertyAndValue> property_and_value;
+        {
+            auto value_transaction = tokens.begin_transaction();
+            property_and_value = parse_css_value_for_properties(remaining_layer_properties, tokens);
+            if (!property_and_value.has_value())
+                return nullptr;
+            // FIXME: mask-repeat can't be parsed fully with parse_css_value_for_properties(), so don't commit
+            //        the transaction, and then parse it manually below.
+            if (property_and_value->property != PropertyID::MaskRepeat)
+                value_transaction.commit();
+        }
+        auto& [property, value] = *property_and_value;
         remove_property(remaining_layer_properties, property);
 
         switch (property) {
@@ -3293,7 +3307,7 @@ RefPtr<StyleValue const> Parser::parse_mask_value(TokenStream<ComponentValue>& t
         // <repeat-style>
         case PropertyID::MaskRepeat: {
             VERIFY(!mask_repeat);
-            tokens.reconsume_current_input_token();
+            // NB: The tokens for this didn't get consumed, see above. So we parse it fully now.
             if (auto maybe_repeat = parse_single_repeat_style_value(property, tokens)) {
                 mask_repeat = maybe_repeat.release_nonnull();
                 tokens.discard_whitespace();
@@ -4134,13 +4148,21 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_value(TokenStream<Compone
 
     auto transaction = tokens.begin_transaction();
     while (tokens.has_next_token()) {
-        auto property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
-        if (!property_and_value.has_value())
-            return nullptr;
-        auto& value = property_and_value->style_value;
-        remove_property(remaining_longhands, property_and_value->property);
+        Optional<PropertyAndValue> property_and_value;
+        {
+            auto value_transaction = tokens.begin_transaction();
+            property_and_value = parse_css_value_for_properties(remaining_longhands, tokens);
+            if (!property_and_value.has_value())
+                return nullptr;
+            // FIXME: text-decoration-line can't be parsed fully with parse_css_value_for_properties(), so don't commit
+            //        the transaction, and then parse it manually below.
+            if (property_and_value->property != PropertyID::TextDecorationLine)
+                value_transaction.commit();
+        }
+        auto& [property, value] = *property_and_value;
+        remove_property(remaining_longhands, property);
 
-        switch (property_and_value->property) {
+        switch (property) {
         case PropertyID::TextDecorationColor: {
             VERIFY(!decoration_color);
             decoration_color = value.release_nonnull();
@@ -4148,7 +4170,7 @@ RefPtr<StyleValue const> Parser::parse_text_decoration_value(TokenStream<Compone
         }
         case PropertyID::TextDecorationLine: {
             VERIFY(!decoration_line);
-            tokens.reconsume_current_input_token();
+            // NB: The tokens for this didn't get consumed, see above. So we parse it fully now.
             auto parsed_decoration_line = parse_text_decoration_line_value(tokens);
             if (!parsed_decoration_line)
                 return nullptr;
