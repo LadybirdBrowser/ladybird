@@ -2718,27 +2718,27 @@ fn emit_lexical_declarations_for_block<'a>(
 ) {
     for child in children {
         match &child.inner {
-            StatementKind::VariableDeclaration(vd) => {
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
-                    let is_constant = vd.kind == DeclarationKind::Const;
-                    for declaration in &vd.declarations {
-                        let mut names = Vec::new();
-                        collect_target_names(&declaration.target, &mut names);
-                        for (name, _) in &names {
-                            let id = generator.intern_identifier(name);
-                            if is_constant {
-                                generator.emit(Instruction::CreateImmutableBinding {
-                                    environment: environment.operand(),
-                                    identifier: id,
-                                    strict_binding: true,
-                                });
-                            } else {
-                                generator.emit(Instruction::CreateMutableBinding {
-                                    environment: environment.operand(),
-                                    identifier: id,
-                                    can_be_deleted: false,
-                                });
-                            }
+            StatementKind::VariableDeclaration(vd)
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+            {
+                let is_constant = vd.kind == DeclarationKind::Const;
+                for declaration in &vd.declarations {
+                    let mut names = Vec::new();
+                    collect_target_names(&declaration.target, &mut names);
+                    for (name, _) in &names {
+                        let id = generator.intern_identifier(name);
+                        if is_constant {
+                            generator.emit(Instruction::CreateImmutableBinding {
+                                environment: environment.operand(),
+                                identifier: id,
+                                strict_binding: true,
+                            });
+                        } else {
+                            generator.emit(Instruction::CreateMutableBinding {
+                                environment: environment.operand(),
+                                identifier: id,
+                                can_be_deleted: false,
+                            });
                         }
                     }
                 }
@@ -5248,17 +5248,16 @@ fn emit_switch_block_declaration_instantiation(
     // Only needed if there are non-local lexical declarations.
     let needs_env = all_children.iter().any(|child| match &child.inner {
         StatementKind::FunctionDeclaration(_) => true,
-        StatementKind::VariableDeclaration(vd) => {
-            if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
-                vd.declarations.iter().any(|declaration| {
-                    let mut names = Vec::new();
-                    collect_target_names(&declaration.target, &mut names);
-                    !names.is_empty()
-                })
-            } else {
-                false
-            }
+        StatementKind::VariableDeclaration(vd)
+            if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+        {
+            vd.declarations.iter().any(|declaration| {
+                let mut names = Vec::new();
+                collect_target_names(&declaration.target, &mut names);
+                !names.is_empty()
+            })
         }
+        StatementKind::VariableDeclaration(_) => false,
         StatementKind::ClassDeclaration(class_data) => {
             class_data.name.as_ref().is_some_and(|n| !n.is_local())
         }
@@ -8396,22 +8395,22 @@ pub fn emit_function_declaration_instantiation(
 
     for child in &body_scope.children {
         match &child.inner {
-            StatementKind::VariableDeclaration(vd) => {
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
-                    let is_constant = vd.kind == DeclarationKind::Const;
-                    for declaration in &vd.declarations {
-                        let mut names = Vec::new();
-                        collect_target_names(&declaration.target, &mut names);
-                        for (name, _) in names {
-                            let id = generator.intern_identifier(&name);
-                            generator.emit(Instruction::CreateVariable {
-                                identifier: id,
-                                mode: EnvironmentMode::Lexical as u32,
-                                is_immutable: is_constant,
-                                is_global: false,
-                                is_strict: is_constant,
-                            });
-                        }
+            StatementKind::VariableDeclaration(vd)
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+            {
+                let is_constant = vd.kind == DeclarationKind::Const;
+                for declaration in &vd.declarations {
+                    let mut names = Vec::new();
+                    collect_target_names(&declaration.target, &mut names);
+                    for (name, _) in names {
+                        let id = generator.intern_identifier(&name);
+                        generator.emit(Instruction::CreateVariable {
+                            identifier: id,
+                            mode: EnvironmentMode::Lexical as u32,
+                            is_immutable: is_constant,
+                            is_global: false,
+                            is_strict: is_constant,
+                        });
                     }
                 }
             }
@@ -8492,14 +8491,14 @@ fn needs_block_declaration_instantiation(scope: &ScopeData) -> bool {
             StatementKind::FunctionDeclaration(_) => {
                 return true;
             }
-            StatementKind::VariableDeclaration(vd) => {
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
-                    for declaration in &vd.declarations {
-                        let mut names = Vec::new();
-                        collect_target_names(&declaration.target, &mut names);
-                        if !names.is_empty() {
-                            return true;
-                        }
+            StatementKind::VariableDeclaration(vd)
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+            {
+                for declaration in &vd.declarations {
+                    let mut names = Vec::new();
+                    collect_target_names(&declaration.target, &mut names);
+                    if !names.is_empty() {
+                        return true;
                     }
                 }
             }
@@ -8530,19 +8529,19 @@ fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
     let mut count = 0u32;
     for child in &scope.children {
         match &child.inner {
-            StatementKind::VariableDeclaration(vd) => {
-                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const {
-                    for declaration in &vd.declarations {
-                        let mut names = Vec::new();
-                        collect_target_names(&declaration.target, &mut names);
-                        count += u32_from_usize(names.len());
-                    }
+            StatementKind::VariableDeclaration(vd)
+                if vd.kind == DeclarationKind::Let || vd.kind == DeclarationKind::Const =>
+            {
+                for declaration in &vd.declarations {
+                    let mut names = Vec::new();
+                    collect_target_names(&declaration.target, &mut names);
+                    count += u32_from_usize(names.len());
                 }
             }
-            StatementKind::ClassDeclaration(class_data) => {
-                if class_data.name.as_ref().is_some_and(|n| !n.is_local()) {
-                    count += 1;
-                }
+            StatementKind::ClassDeclaration(class_data)
+                if class_data.name.as_ref().is_some_and(|n| !n.is_local()) =>
+            {
+                count += 1;
             }
             _ => {}
         }

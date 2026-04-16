@@ -355,10 +355,8 @@ fn keyword_from_str(s: &[u16]) -> Option<TokenType> {
                 return Some(TokenType::Function);
             }
         }
-        10 => {
-            if s == utf16!("instanceof") {
-                return Some(TokenType::Instanceof);
-            }
+        10 if s == utf16!("instanceof") => {
+            return Some(TokenType::Instanceof);
         }
         _ => {}
     }
