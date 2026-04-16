@@ -43,7 +43,7 @@ static NonnullRefPtr<Bitmap> create_bitmap_from_linux_dmabuf(LinuxDmaBufHandle c
     VERIFY(dmabuf.drm_format == shared_image_buffer_drm_format);
     VERIFY(dmabuf.modifier == DRM_FORMAT_MOD_LINEAR);
     auto data_size = Bitmap::size_in_bytes(dmabuf.pitch, dmabuf.size.height());
-    auto* data = ::mmap(nullptr, data_size, PROT_READ | PROT_WRITE, MAP_SHARED, dmabuf.file.fd(), 0);
+    auto* data = ::mmap(nullptr, data_size, PROT_READ, MAP_SHARED, dmabuf.file.fd(), 0);
     VERIFY(data != MAP_FAILED);
     return MUST(Bitmap::create_wrapper(dmabuf.bitmap_format, dmabuf.alpha_type, dmabuf.size, dmabuf.pitch, data, [data, data_size] {
         VERIFY(::munmap(data, data_size) == 0);
