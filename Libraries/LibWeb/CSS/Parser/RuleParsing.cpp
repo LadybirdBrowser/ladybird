@@ -1306,7 +1306,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
 
         // [ : <default-value> ]?
         Optional<Vector<ComponentValue>> default_value;
-        if (parameter_tokens.peek_token().is(Token::Type::Colon)) {
+        if (parameter_tokens.next_token().is(Token::Type::Colon)) {
             parameter_tokens.discard_a_token(); // :
             parameter_tokens.discard_whitespace();
 
@@ -1348,7 +1348,7 @@ Optional<Parser::FunctionPrelude> Parser::parse_function_prelude(TokenStream<Com
     tokens.discard_whitespace();
 
     NonnullOwnPtr<SyntaxNode> return_type = UniversalSyntaxNode::create();
-    if (tokens.peek_token().is_ident("returns"sv)) {
+    if (tokens.next_token().is_ident("returns"sv)) {
         tokens.discard_a_token();
         tokens.discard_whitespace();
 

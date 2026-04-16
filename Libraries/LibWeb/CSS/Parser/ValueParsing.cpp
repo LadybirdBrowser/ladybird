@@ -2621,7 +2621,7 @@ RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& 
 
     tokens.discard_whitespace();
 
-    if (tokens.peek_token().is(Token::Type::Delim) && tokens.peek_token().token().delim() == '/') {
+    if (tokens.next_token().is(Token::Type::Delim) && tokens.next_token().token().delim() == '/') {
         tokens.discard_a_token();
         tokens.discard_whitespace();
 
@@ -4649,8 +4649,8 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
     if (!tokens.has_next_token())
         return {};
 
-    if (tokens.peek_token().is_function()) {
-        auto const& token = tokens.peek_token();
+    if (tokens.next_token().is_function()) {
+        auto const& token = tokens.next_token();
         auto const& function_token = token.function();
 
         if (function_token.name.equals_ignoring_ascii_case("minmax"sv)) {
@@ -4691,8 +4691,8 @@ Optional<ExplicitGridTrack> Parser::parse_grid_fixed_size(TokenStream<ComponentV
     if (!tokens.has_next_token())
         return {};
 
-    if (tokens.peek_token().is_function()) {
-        auto const& token = tokens.peek_token();
+    if (tokens.next_token().is_function()) {
+        auto const& token = tokens.next_token();
         auto const& function_token = token.function();
         if (function_token.name.equals_ignoring_ascii_case("minmax"sv)) {
             {

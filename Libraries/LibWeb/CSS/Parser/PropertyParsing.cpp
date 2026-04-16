@@ -2599,7 +2599,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
 
         // <font-variant-css2> = normal | small-caps
         // So, we handle that manually instead of trying to parse the font-variant property.
-        if (!font_variant && tokens.peek_token().is_ident("small-caps"sv)) {
+        if (!font_variant && tokens.next_token().is_ident("small-caps"sv)) {
             tokens.discard_a_token(); // small-caps
 
             font_variant = ShorthandStyleValue::create(PropertyID::FontVariant,
@@ -2625,7 +2625,7 @@ RefPtr<StyleValue const> Parser::parse_font_value(TokenStream<ComponentValue>& t
 
         // <font-width-css3> = normal | ultra-condensed | extra-condensed | condensed | semi-condensed | semi-expanded | expanded | extra-expanded | ultra-expanded
         // So again, we do this manually.
-        if (!font_width && tokens.peek_token().is(Token::Type::Ident)) {
+        if (!font_width && tokens.next_token().is(Token::Type::Ident)) {
             auto font_width_transaction = tokens.begin_transaction();
             if (auto keyword = parse_keyword_value(tokens)) {
                 if (keyword_to_font_width(keyword->to_keyword()).has_value()) {
