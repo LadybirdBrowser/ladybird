@@ -5364,7 +5364,8 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
         // 2. For each target in observer’s internal [[ObservationTargets]] slot, processed in the same order that
         //    observe() was called on each target:
-        for (auto& target : observer->observation_targets()) {
+        for (auto& observed_target : observer->observation_targets()) {
+            auto& target = observed_target.target;
             // 1. Let:
             // thresholdIndex be 0.
             size_t threshold_index = 0;
@@ -5432,7 +5433,10 @@ void Document::run_the_update_intersection_observations_steps(HighResolutionTime
 
             // 11. Let intersectionObserverRegistration be the IntersectionObserverRegistration record in target’s
             //     internal [[RegisteredIntersectionObservers]] slot whose observer property is equal to observer.
-            auto& intersection_observer_registration = target->get_intersection_observer_registration({}, observer);
+            // NB: This implementation deviates from the spec's storage model. intersectionObserverRegistration here
+            //     aliases the observer-side observation target state, since target's registered observers only keep
+            //     the observer reference. This avoids an extra lookup through target on every update.
+            auto& intersection_observer_registration = observed_target;
 
             // 12. Let previousThresholdIndex be the intersectionObserverRegistration’s previousThresholdIndex property.
             auto previous_threshold_index = intersection_observer_registration.previous_threshold_index;

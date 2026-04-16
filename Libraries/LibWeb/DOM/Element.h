@@ -29,7 +29,6 @@
 #include <LibWeb/HTML/TagNames.h>
 #include <LibWeb/HTML/TokenizedFeatures.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
-#include <LibWeb/IntersectionObserver/IntersectionObserverRegistration.h>
 #include <LibWeb/TrustedTypes/TrustedHTML.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
@@ -436,9 +435,8 @@ public:
 
     bool check_visibility(Optional<CheckVisibilityOptions>);
 
-    void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserverRegistration);
+    void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
-    IntersectionObserver::IntersectionObserverRegistration& get_intersection_observer_registration(Badge<DOM::Document>, IntersectionObserver::IntersectionObserver const&);
 
     CSSPixelPoint scroll_offset(Optional<CSS::PseudoElement> type) const;
     void set_scroll_offset(Optional<CSS::PseudoElement> type, CSSPixelPoint offset);
@@ -682,7 +680,7 @@ private:
 
     // https://www.w3.org/TR/intersection-observer/#dom-element-registeredintersectionobservers-slot
     // Element objects have an internal [[RegisteredIntersectionObservers]] slot, which is initialized to an empty list.
-    OwnPtr<Vector<IntersectionObserver::IntersectionObserverRegistration>> m_registered_intersection_observers;
+    OwnPtr<Vector<GC::Ref<IntersectionObserver::IntersectionObserver>>> m_registered_intersection_observers;
 
     // https://drafts.css-houdini.org/css-typed-om-1/#dom-element-computedstylemapcache-slot
     // Every Element has a [[computedStyleMapCache]] internal slot, initially set to null, which caches the result of

@@ -121,7 +121,8 @@ void IntersectionObserver::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_root);
     visitor.visit(m_callback);
     visitor.visit(m_queued_entries);
-    visitor.visit(m_observation_targets);
+    for (auto& observed_target : m_observation_targets)
+        visitor.visit(observed_target.target);
 }
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-observe
@@ -130,23 +131,30 @@ void IntersectionObserver::observe(DOM::Element& target)
     // Run the observe a target Element algorithm, providing this and target.
     // https://www.w3.org/TR/intersection-observer/#observe-a-target-element
     // 1. If target is in observer’s internal [[ObservationTargets]] slot, return.
-    if (m_observation_targets.contains_slow(GC::Ref { target }))
+    auto observed_target = m_observation_targets.find_if([&target](auto const& entry) {
+        return entry.target.ptr() == &target;
+    });
+    if (!observed_target.is_end())
         return;
 
     // 2. Let intersectionObserverRegistration be an IntersectionObserverRegistration record with an observer
     //    property set to observer, a previousThresholdIndex property set to -1, and a previousIsIntersecting
     //    property set to false.
-    auto intersection_observer_registration = IntersectionObserverRegistration {
-        .observer = *this,
-        .previous_threshold_index = OptionalNone {},
-        .previous_is_intersecting = false,
-    };
+    // NB: This implementation deviates from the spec's storage model. target's
+    //     [[RegisteredIntersectionObservers]] only keeps a strong reference to the observer for lifetime
+    //     management, while the mutable registration fields live in the observer-side observation target below.
+    target.register_intersection_observer({}, *this);
 
     // 3. Append intersectionObserverRegistration to target’s internal [[RegisteredIntersectionObservers]] slot.
-    target.register_intersection_observer({}, move(intersection_observer_registration));
-
+    // NB: Keeping previousThresholdIndex and previousIsIntersecting on the observer-side observation target lets
+    //     the update loop read and write them without a second lookup through target’s registered observers.
+    //
     // 4. Add target to observer’s internal [[ObservationTargets]] slot.
-    m_observation_targets.append(target);
+    m_observation_targets.append(ObservationTarget {
+        .target = target,
+        .previous_threshold_index = OptionalNone {},
+        .previous_is_intersecting = false,
+    });
 }
 
 // https://w3c.github.io/IntersectionObserver/#dom-intersectionobserver-unobserve
@@ -158,8 +166,8 @@ void IntersectionObserver::unobserve(DOM::Element& target)
     target.unregister_intersection_observer({}, *this);
 
     // 2. Remove target from this’s internal [[ObservationTargets]] slot, if present
-    m_observation_targets.remove_first_matching([&target](GC::Ref<DOM::Element> const& entry) {
-        return entry.ptr() == &target;
+    m_observation_targets.remove_first_matching([&target](ObservationTarget const& entry) {
+        return entry.target.ptr() == &target;
     });
 }
 
@@ -170,8 +178,8 @@ void IntersectionObserver::disconnect()
     // 1. Remove the IntersectionObserverRegistration record whose observer property is equal to this from target’s internal
     //    [[RegisteredIntersectionObservers]] slot.
     // 2. Remove target from this’s internal [[ObservationTargets]] slot.
-    for (auto& target : m_observation_targets) {
-        target->unregister_intersection_observer({}, *this);
+    for (auto& observed_target : m_observation_targets) {
+        observed_target.target->unregister_intersection_observer({}, *this);
     }
     m_observation_targets.clear();
 }

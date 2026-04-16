@@ -6,15 +6,21 @@
 
 #pragma once
 
+#include <AK/Optional.h>
 #include <LibGC/Root.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>
-#include <LibWeb/IntersectionObserver/IntersectionObserverRegistration.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::IntersectionObserver {
 
 using NullableIntersectionObserverRoot = Variant<GC::Root<DOM::Element>, GC::Root<DOM::Document>, Empty>;
+
+struct ObservationTarget {
+    GC::Ref<DOM::Element> target;
+    Optional<size_t> previous_threshold_index;
+    bool previous_is_intersecting { false };
+};
 
 struct IntersectionObserverInit {
     NullableIntersectionObserverRoot root { Empty {} };
@@ -42,7 +48,8 @@ public:
     void disconnect();
     Vector<GC::Root<IntersectionObserverEntry>> take_records();
 
-    Vector<GC::Ref<DOM::Element>> const& observation_targets() const { return m_observation_targets; }
+    Vector<ObservationTarget>& observation_targets() { return m_observation_targets; }
+    Vector<ObservationTarget> const& observation_targets() const { return m_observation_targets; }
 
     NullableIntersectionObserverRoot root() const;
     String root_margin() const;
@@ -95,7 +102,7 @@ private:
     Vector<GC::Ref<IntersectionObserverEntry>> m_queued_entries;
 
     // https://www.w3.org/TR/intersection-observer/#dom-intersectionobserver-observationtargets-slot
-    Vector<GC::Ref<DOM::Element>> m_observation_targets;
+    Vector<ObservationTarget> m_observation_targets;
 
     // AD-HOC: This is the document where we've registered the IntersectionObserver.
     GC::Weak<DOM::Document> m_document;

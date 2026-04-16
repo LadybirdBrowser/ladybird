@@ -164,8 +164,8 @@ void Element::visit_edges(Cell::Visitor& visitor)
         }
     }
     if (m_registered_intersection_observers) {
-        for (auto& registered_intersection_observers : *m_registered_intersection_observers)
-            visitor.visit(registered_intersection_observers.observer);
+        for (auto& observer : *m_registered_intersection_observers)
+            visitor.visit(observer);
     }
     if (m_counters_set)
         m_counters_set->visit_edges(visitor);
@@ -4043,30 +4043,20 @@ bool Element::id_reference_exists(String const& id_reference) const
     return document().get_element_by_id(id_reference);
 }
 
-void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, IntersectionObserver::IntersectionObserverRegistration registration)
+void Element::register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
 {
     if (!m_registered_intersection_observers)
-        m_registered_intersection_observers = make<Vector<IntersectionObserver::IntersectionObserverRegistration>>();
-    m_registered_intersection_observers->append(move(registration));
+        m_registered_intersection_observers = make<Vector<GC::Ref<IntersectionObserver::IntersectionObserver>>>();
+    m_registered_intersection_observers->append(observer);
 }
 
 void Element::unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver> observer)
 {
     if (!m_registered_intersection_observers)
         return;
-    m_registered_intersection_observers->remove_first_matching([&observer](IntersectionObserver::IntersectionObserverRegistration const& entry) {
-        return entry.observer == observer;
+    m_registered_intersection_observers->remove_first_matching([&observer](GC::Ref<IntersectionObserver::IntersectionObserver> const& entry) {
+        return entry == observer;
     });
-}
-
-IntersectionObserver::IntersectionObserverRegistration& Element::get_intersection_observer_registration(Badge<DOM::Document>, IntersectionObserver::IntersectionObserver const& observer)
-{
-    VERIFY(m_registered_intersection_observers);
-    auto registration_iterator = m_registered_intersection_observers->find_if([&observer](IntersectionObserver::IntersectionObserverRegistration const& entry) {
-        return entry.observer.ptr() == &observer;
-    });
-    VERIFY(!registration_iterator.is_end());
-    return *registration_iterator;
 }
 
 CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type) const
