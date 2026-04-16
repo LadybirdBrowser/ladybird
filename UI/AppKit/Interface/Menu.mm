@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
-
 #import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
@@ -186,25 +184,10 @@ private:
     __weak id m_control { nil };
 };
 
-static NSImage* image_from_base64_png(StringView favicon_base64_png)
+static void initialize_native_icon(WebView::Action& action, id control)
 {
     static constexpr CGFloat const MENU_ICON_SIZE = 16;
 
-    auto decoded = decode_base64(favicon_base64_png);
-    if (decoded.is_error())
-        return nil;
-
-    auto* data = [NSData dataWithBytes:decoded.value().data()
-                                length:decoded.value().size()];
-
-    auto* image = [[NSImage alloc] initWithData:data];
-    [image setSize:NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE)];
-
-    return image;
-}
-
-static void initialize_native_icon(WebView::Action& action, id control)
-{
     switch (action.id()) {
     case WebView::ActionID::NavigateBack:
         set_control_image(control, @"chevron.left");
@@ -248,7 +231,7 @@ static void initialize_native_icon(WebView::Action& action, id control)
         break;
     case WebView::ActionID::BookmarkItem:
         if (auto icon = action.base64_png_icon(); icon.has_value())
-            [control setImage:image_from_base64_png(*icon)];
+            [control setImage:Ladybird::image_from_base64_png(*icon, NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE))];
         else
             set_control_image(control, @"globe");
         break;

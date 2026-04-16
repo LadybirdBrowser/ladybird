@@ -30,6 +30,7 @@ ByteString ns_string_to_byte_string(NSString*);
 
 ByteString ns_data_to_string(NSData*);
 NSData* string_to_ns_data(StringView);
+NSImage* image_from_base64_png(StringView, NSSize size);
 
 NSDictionary* deserialize_json_to_dictionary(StringView);
 
