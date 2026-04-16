@@ -293,7 +293,7 @@ fn iso_date_to_calendar_date_impl(
     } else {
         (
             calendar_date.year().extended_year(),
-            calendar_date.month().ordinal as u8,
+            calendar_date.month().ordinal,
         )
     };
 
@@ -354,7 +354,7 @@ fn calendar_date_to_iso_date_impl(
 
     Some(FfiISODate {
         year: iso_date.year().extended_year(),
-        month: iso_date.month().ordinal as u8,
+        month: iso_date.month().ordinal,
         day: iso_date.day_of_month().0,
     })
 }
@@ -479,7 +479,7 @@ fn calendar_year_and_month_code_to_iso_date_impl(
 
     Some(FfiISODate {
         year: iso_date.year().extended_year(),
-        month: iso_date.month().ordinal as u8,
+        month: iso_date.month().ordinal,
         day: iso_date.day_of_month().0,
     })
 }
