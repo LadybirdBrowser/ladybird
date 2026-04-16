@@ -640,9 +640,6 @@ void WebSocket::send_frame(WebSocket::OpCode op_code, ReadonlyBytes payload, boo
         fill_with_random(masking_key);
         buf.overwrite(offset, masking_key, 4);
         offset += 4;
-        // don't try to send empty payload
-        if (payload.size() == 0)
-            return;
         // Mask the payload
         auto masked_payload = buf.span().slice(offset, payload.size());
         for (size_t i = 0; i < payload.size(); ++i) {
