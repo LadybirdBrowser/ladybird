@@ -47,7 +47,7 @@ protected:
     virtual WebIDL::ExceptionOr<void> cloned(DOM::Node&, bool) const override;
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
-    virtual void removed_from(Node* old_parent, Node& old_root) override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     MUST_UPCALL virtual void adjust_computed_style(CSS::ComputedProperties&) override;
 
     void update_use_elements_that_reference_this();

@@ -23,8 +23,8 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     virtual void inserted() override;
-    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
-    virtual void moved_from(GC::Ptr<Node> old_parent) override;
+    virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 };
 
 }

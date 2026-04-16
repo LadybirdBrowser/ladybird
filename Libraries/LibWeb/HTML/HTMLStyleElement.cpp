@@ -46,9 +46,9 @@ void HTMLStyleElement::inserted()
     update_a_style_block();
 }
 
-void HTMLStyleElement::removed_from(Node* old_parent, Node& old_root)
+void HTMLStyleElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    Base::removed_from(old_parent, old_root);
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
     update_a_style_block();
 }
 

@@ -41,9 +41,9 @@ void HTMLBaseElement::inserted()
         set_the_frozen_base_url();
 }
 
-void HTMLBaseElement::removed_from(Node* old_parent, Node& old_root)
+void HTMLBaseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    HTMLElement::removed_from(old_parent, old_root);
+    HTMLElement::removed_from(is_subtree_root, old_ancestor, old_root);
     auto old_first_base_element_with_href_in_tree_order = document().first_base_element_with_href_in_tree_order();
     document().update_base_element({});
 

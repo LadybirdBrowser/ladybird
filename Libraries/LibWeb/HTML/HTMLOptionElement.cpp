@@ -340,14 +340,17 @@ void HTMLOptionElement::inserted()
     update_nearest_select_element();
 }
 
-void HTMLOptionElement::removed_from(Node* old_parent, Node& old_root)
+// https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:html-element-removing-steps
+void HTMLOptionElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    Base::removed_from(old_parent, old_root);
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
-    // The option HTML element removing steps, given removedOption and oldParent,
-    // are to run update an option's nearest ancestor select given removedOption.
+    // The option HTML element removing steps, given removedNode, isSubtreeRoot, and oldAncestor are to run update an
+    // option's nearest ancestor select given removedNode.
     update_nearest_select_element();
 }
+
+// FIXME: Moving steps. https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element:html-element-moving-steps
 
 void HTMLOptionElement::children_changed(ChildrenChangedMetadata const& metadata)
 {

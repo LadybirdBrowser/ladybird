@@ -253,9 +253,9 @@ void SVGElement::update_use_elements_that_reference_this()
     });
 }
 
-void SVGElement::removed_from(Node* old_parent, Node& old_root)
+void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    Base::removed_from(old_parent, old_root);
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
     auto is_use_element_shadow_root = [](Node& node) {
         auto* shadow_root = as_if<DOM::ShadowRoot>(node);

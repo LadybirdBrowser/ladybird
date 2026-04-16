@@ -47,9 +47,9 @@ void HTMLDialogElement::visit_edges(JS::Cell::Visitor& visitor)
 }
 
 // https://html.spec.whatwg.org/multipage/interactive-elements.html#the-dialog-element:html-element-removing-steps
-void HTMLDialogElement::removed_from(Node* old_parent, Node& old_root)
+void HTMLDialogElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    HTMLElement::removed_from(old_parent, old_root);
+    HTMLElement::removed_from(is_subtree_root, old_ancestor, old_root);
 
     // 1. If removedNode has an open attribute, then run the dialog cleanup steps given removedNode.
     if (has_attribute(AttributeNames::open))

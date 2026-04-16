@@ -603,8 +603,8 @@ protected:
     virtual void initialize(JS::Realm&) override;
 
     virtual void inserted() override;
-    virtual void removed_from(Node* old_parent, Node& old_root) override;
-    virtual void moved_from(GC::Ptr<Node> old_parent) override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual i32 default_tab_index_value() const;

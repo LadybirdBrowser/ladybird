@@ -49,22 +49,23 @@ void HTMLSourceElement::inserted()
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-17
-void HTMLSourceElement::moved_from(GC::Ptr<DOM::Node> old_parent)
+void HTMLSourceElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::Node> old_ancestor)
 {
-    Base::moved_from(old_parent);
+    // The source HTML element moving steps, given movedNode, isSubtreeRoot, and oldAncestor are:
+    Base::moved_from(is_subtree_root, old_ancestor);
 
-    // FIXME: 1. If oldParent is a picture element, then for each child of oldParent's children, if child is an img
-    //        element, then count this as a relevant mutation for child.
+    // FIXME: 1. If isSubtreeRoot is true and oldAncestor is a picture element, then for each child of oldAncestor's
+    //        children: if child is an img element, then count this as a relevant mutation for child.
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content.html#the-source-element:the-source-element-18
-void HTMLSourceElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
+void HTMLSourceElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* old_ancestor, DOM::Node& old_root)
 {
-    // The source HTML element removing steps, given removedNode and oldParent, are:
-    Base::removed_from(old_parent, old_root);
+    // The source HTML element removing steps, given removedNode, isSubtreeRoot, and oldAncestor are:
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
-    // FIXME: 1. If oldParent is a picture element, then for each child of oldParent's children, if child is an img
-    //           element, then count this as a relevant mutation for child.
+    // FIXME: 1. If isSubtreeRoot is true and oldAncestor is a picture element, then for each child of oldAncestor's
+    //        children: if child is an img element, then count this as a relevant mutation for child.
 }
 
 }

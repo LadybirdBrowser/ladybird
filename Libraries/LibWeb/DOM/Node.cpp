@@ -1044,8 +1044,8 @@ void Node::remove(bool suppress_observers)
         assign_slottables_for_a_tree(*this);
     }
 
-    // 11. Run the removing steps with node and parent.
-    removed_from(parent, parent_root);
+    // 11. Run the removing steps with node, true, and parent.
+    removed_from(IsSubtreeRoot::Yes, parent, parent_root);
 
     // 12. Let isParentConnected be parent’s connected.
     bool is_parent_connected = parent->is_connected();
@@ -1063,8 +1063,8 @@ void Node::remove(bool suppress_observers)
 
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
     for_each_shadow_including_descendant([&](Node& descendant) {
-        // 1. Run the removing steps with descendant and null.
-        descendant.removed_from(nullptr, parent_root);
+        // 1. Run the removing steps with descendant, false, and parent.
+        descendant.removed_from(IsSubtreeRoot::No, parent, parent_root);
 
         // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction
         //    with descendant, callback name "disconnectedCallback", and « ».
@@ -1438,18 +1438,17 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     // 24. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
-        // 1. If inclusiveDescendant is node, then run the moving steps with inclusiveDescendant and oldParent. Otherwise, run the moving
-        //    steps with inclusiveDescendant and null.
-        if (&inclusive_descendant == this)
-            inclusive_descendant.moved_from(*old_parent);
-        else
-            inclusive_descendant.moved_from(nullptr);
+        // 1. Let isSubtreeRoot be true if inclusiveDescendant is node; otherwise false.
+        auto is_subtree_root = (&inclusive_descendant == this) ? IsSubtreeRoot::Yes : IsSubtreeRoot::No;
 
-        // NOTE: Because the move algorithm is a separate primitive from insert and remove, it does not invoke the traditional insertion steps or
-        //       removing steps for inclusiveDescendant.
+        // 2. Run the moving steps with inclusiveDescendant, isSubtreeRoot, and oldParent.
+        inclusive_descendant.moved_from(is_subtree_root, old_parent);
 
-        // 2. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback reaction with inclusiveDescendant,
-        //    callback name "connectedMoveCallback", and « ».
+        // NOTE: Because the move algorithm is a separate primitive from insert and remove, it does not invoke the
+        //       insertion steps or removing steps for inclusiveDescendant.
+
+        // 3. If inclusiveDescendant is custom and newParent is connected, then enqueue a custom element callback
+        //    reaction with inclusiveDescendant, callback name "connectedMoveCallback", and « ».
         if (auto* element = as_if<DOM::Element>(inclusive_descendant)) {
             if (element->is_custom() && new_parent.is_connected()) {
                 GC::RootVector<JS::Value> empty_arguments { vm().heap() };
@@ -1883,7 +1882,7 @@ void Node::inserted()
     set_needs_style_update(true);
 }
 
-void Node::removed_from(Node*, Node&)
+void Node::removed_from(IsSubtreeRoot, Node*, Node&)
 {
     m_is_connected = false;
     m_in_editable_subtree = false;
@@ -1892,7 +1891,7 @@ void Node::removed_from(Node*, Node&)
 }
 
 // https://dom.spec.whatwg.org/#concept-node-move-ext
-void Node::moved_from(GC::Ptr<Node>)
+void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 {
     recompute_editable_subtree_flag();
 }

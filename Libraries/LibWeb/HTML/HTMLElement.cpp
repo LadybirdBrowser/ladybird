@@ -2039,36 +2039,59 @@ void HTMLElement::did_lose_focus()
     document().editing_host_manager()->set_active_contenteditable_element(nullptr);
 }
 
-void HTMLElement::removed_from(Node* old_parent, Node& old_root)
+// https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
+void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    Element::removed_from(old_parent, old_root);
+    Element::removed_from(is_subtree_root, old_ancestor, old_root);
 
-    // https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-remove-ext
-    // If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given removedNode, false, false, false, true, and null.
+    // FIXME: 1. Let document be removedNode's node document.
+    // FIXME: 2. If document's focused area is removedNode, then set document's focused area to document's viewport,
+    //   and set document's relevant global object's navigation API's focus changed during ongoing navigation to false.
+
+    // 3. If removedNode is an element whose namespace is the HTML namespace, and this standard defines HTML element
+    //    removing steps for removedNode's local name, then run the corresponding HTML element removing steps given
+    //    removedNode, isSubtreeRoot, and oldAncestor.
+    // NB: This is done by overriding removed_from() in subclasses.
+
+    // 4. If removedNode is a form-associated element with a non-null form owner and removedNode and its form owner are
+    //    no longer in the same tree, then reset the form owner of removedNode.
+    // FIXME: Follow the spec here.
+    if (is_form_associated_element()) {
+        form_node_was_removed();
+        form_associated_element_was_removed(old_ancestor);
+    }
+
+    // 5. If removedNode's popover attribute is not in the No Popover state, then run the hide popover algorithm given
+    //    removedNode, false, false, false, true, and null.
     if (popover().has_value())
         MUST(hide_popover(FocusPreviousElement::No, FireEvents::No, ThrowExceptions::No, IgnoreDomState::Yes, nullptr));
 
-    if (old_parent) {
-        auto* parent_html_element = as_if<HTMLElement>(old_parent);
+    // AD-HOC: Update inertness
+    if (old_ancestor) {
+        auto* parent_html_element = as_if<HTMLElement>(old_ancestor);
         if (!parent_html_element)
-            parent_html_element = old_parent->first_ancestor_of_type<HTMLElement>();
+            parent_html_element = old_ancestor->first_ancestor_of_type<HTMLElement>();
         if (parent_html_element && parent_html_element->is_inert() && !has_attribute(HTML::AttributeNames::inert))
             set_subtree_inertness(false);
     }
-
-    if (is_form_associated_element()) {
-        form_node_was_removed();
-        form_associated_element_was_removed(old_parent);
-    }
 }
 
-void HTMLElement::moved_from(GC::Ptr<DOM::Node> old_parent)
+// https://html.spec.whatwg.org/multipage/infrastructure.html#dom-trees:concept-node-move-ext
+void HTMLElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<DOM::Node> old_ancestor)
 {
-    Element::moved_from(old_parent);
+    Element::moved_from(is_subtree_root, old_ancestor);
 
+    // 1. If movedNode is an element whose namespace is the HTML namespace, and this standard defines HTML element
+    //    moving steps for movedNode's local name, then run the corresponding HTML element moving steps given
+    //    movedNode, isSubtreeRoot, and oldAncestor.
+    // NB: This is done by overriding moved_from() in subclasses.
+
+    // 2. If movedNode is a form-associated element with a non-null form owner and movedNode and its form owner are no
+    //    longer in the same tree, then reset the form owner of movedNode.
+    // FIXME: Follow the spec here.
     if (is_form_associated_element()) {
         form_node_was_moved();
-        form_associated_element_was_moved(old_parent);
+        form_associated_element_was_moved(old_ancestor);
     }
 }
 

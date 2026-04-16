@@ -159,8 +159,8 @@ public:
     Optional<String> popover() const;
     Optional<String> opened_in_popover_mode() const { return m_opened_in_popover_mode; }
 
-    virtual void removed_from(Node* old_parent, Node& old_root) override;
-    virtual void moved_from(GC::Ptr<DOM::Node> old_parent) override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<DOM::Node> old_ancestor) override;
 
     enum class PopoverVisibilityState : u8 {
         Hidden,

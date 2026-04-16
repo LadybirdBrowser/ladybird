@@ -241,9 +241,9 @@ void HTMLMediaElement::set_assigned_media_provider_object(MediaProviderObject co
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource:media-element-83
-void HTMLMediaElement::removed_from(DOM::Node* old_parent, DOM::Node& old_root)
+void HTMLMediaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* old_ancestor, DOM::Node& old_root)
 {
-    Base::removed_from(old_parent, old_root);
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
     // When a media element is removed from a Document, the user agent must run the following steps:
 

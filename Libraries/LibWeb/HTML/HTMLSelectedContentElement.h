@@ -34,7 +34,7 @@ private:
     virtual void initialize(JS::Realm&) override;
 
     virtual void post_connection() override;
-    virtual void removed_from(DOM::Node* old_parent, DOM::Node& old_root) override;
+    virtual void removed_from(IsSubtreeRoot, DOM::Node* old_ancestor, DOM::Node& old_root) override;
 
     // https://html.spec.whatwg.org/multipage/form-elements.html#selectedcontent-disabled
     bool m_disabled { false };

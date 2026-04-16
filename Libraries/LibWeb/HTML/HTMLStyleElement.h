@@ -23,7 +23,7 @@ public:
 
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
-    virtual void removed_from(Node* old_parent, Node& old_root) override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void attribute_changed(FlyString const& name, Optional<String> const& old_value, Optional<String> const& value, Optional<FlyString> const& namespace_) override;
 
     bool disabled();

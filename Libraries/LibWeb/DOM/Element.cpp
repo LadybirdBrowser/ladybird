@@ -1657,9 +1657,9 @@ void Element::inserted()
     play_or_cancel_animations_after_display_property_change();
 }
 
-void Element::removed_from(Node* old_parent, Node& old_root)
+void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
-    Base::removed_from(old_parent, old_root);
+    Base::removed_from(is_subtree_root, old_ancestor, old_root);
 
     if (m_id.has_value() && is<ShadowRoot>(old_root))
         static_cast<ShadowRoot&>(old_root).element_by_id().remove(*m_id, *this);
@@ -1683,9 +1683,9 @@ void Element::removed_from(Node* old_parent, Node& old_root)
     exit_fullscreen_on_element_removal();
 }
 
-void Element::moved_from(GC::Ptr<Node> old_parent)
+void Element::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
 {
-    Base::moved_from(old_parent);
+    Base::moved_from(is_subtree_root, old_ancestor);
 }
 
 void Element::children_changed(ChildrenChangedMetadata const& metadata)

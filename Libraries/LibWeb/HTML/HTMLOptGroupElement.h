@@ -28,7 +28,7 @@ private:
     virtual bool is_html_optgroup_element() const final { return true; }
 
     virtual void initialize(JS::Realm&) override;
-    virtual void removed_from(Node* old_parent, Node& old_root) override;
+    virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void inserted() override;
 };
 

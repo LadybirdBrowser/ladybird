@@ -289,8 +289,12 @@ public:
 
     MUST_UPCALL virtual void inserted();
     virtual void post_connection();
-    MUST_UPCALL virtual void removed_from(Node* old_parent, Node& old_root);
-    MUST_UPCALL virtual void moved_from(GC::Ptr<Node> old_parent);
+    enum class IsSubtreeRoot : u8 {
+        No,
+        Yes,
+    };
+    MUST_UPCALL virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root);
+    MUST_UPCALL virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor);
 
     struct ChildrenChangedMetadata {
         enum class Type {
