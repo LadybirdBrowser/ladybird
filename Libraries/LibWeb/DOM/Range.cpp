@@ -603,45 +603,46 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
     if (collapsed())
         return fragment;
 
-    // 3. Let original start node, original start offset, original end node, and original end offset
-    //    be range’s start node, start offset, end node, and end offset, respectively.
+    // 3. Let originalStartNode, originalStartOffset, originalEndNode, and originalEndOffset be range’s start node,
+    //    start offset, end node, and end offset, respectively.
     GC::Ref<Node> original_start_node = m_start_container;
     auto original_start_offset = m_start_offset;
     GC::Ref<Node> original_end_node = m_end_container;
     auto original_end_offset = m_end_offset;
 
-    // 4. If original start node is original end node and it is a CharacterData node, then:
+    // 4. If originalStartNode is originalEndNode and it is a CharacterData node:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
-        // 1. Let clone be a clone of original start node.
+        // 1. Let clone be a clone of originalStartNode.
         auto clone = TRY(original_start_node->clone_node());
 
-        // 2. Set the data of clone to the result of substringing data with node original start node,
-        //    offset original start offset, and count original end offset minus original start offset.
+        // 2. Set clone’s data to the result of substringing data of originalStartNode with originalStartOffset and
+        //    originalEndOffset − originalStartOffset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_end_offset - original_start_offset));
         as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
-        // 4. Replace data with node original start node, offset original start offset, count original end offset minus original start offset, and data the empty string.
+        // 4. Replace data of originalStartNode with originalStartOffset, originalEndOffset − originalStartOffset, and
+        //    the empty string.
         TRY(static_cast<CharacterData&>(*original_start_node).replace_data(original_start_offset, original_end_offset - original_start_offset, {}));
 
         // 5. Return fragment.
         return fragment;
     }
 
-    // 5. Let common ancestor be original start node.
+    // 5. Let commonAncestor be originalStartNode.
     GC::Ref<Node> common_ancestor = original_start_node;
 
-    // 6. While common ancestor is not an inclusive ancestor of original end node, set common ancestor to its own parent.
+    // 6. While commonAncestor is not an inclusive ancestor of originalEndNode: set commonAncestor to its own parent.
     while (!common_ancestor->is_inclusive_ancestor_of(original_end_node))
         common_ancestor = *common_ancestor->parent_node();
 
-    // 7. Let first partially contained child be null.
+    // 7. Let firstPartiallyContainedChild be null.
     GC::Ptr<Node> first_partially_contained_child;
 
-    // 8. If original start node is not an inclusive ancestor of original end node,
-    //    set first partially contained child to the first child of common ancestor that is partially contained in range.
+    // 8. If originalStartNode is not an inclusive ancestor of originalEndNode, then set firstPartiallyContainedChild
+    //    to the first child of commonAncestor that is partially contained in range.
     if (!original_start_node->is_inclusive_ancestor_of(original_end_node)) {
         for (auto* child = common_ancestor->first_child(); child; child = child->next_sibling()) {
             if (partially_contains_node(*child)) {
@@ -651,11 +652,11 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         }
     }
 
-    // 9. Let last partially contained child be null.
+    // 9. Let lastPartiallyContainedChild be null.
     GC::Ptr<Node> last_partially_contained_child;
 
-    // 10. If original end node is not an inclusive ancestor of original start node,
-    //     set last partially contained child to the last child of common ancestor that is partially contained in range.
+    // 10. If originalEndNode is not an inclusive ancestor of originalStartNode, then set lastPartiallyContainedChild
+    //     to the last child of commonAncestor that is partially contained in range.
     if (!original_end_node->is_inclusive_ancestor_of(original_start_node)) {
         for (auto* child = common_ancestor->last_child(); child; child = child->previous_sibling()) {
             if (partially_contains_node(*child)) {
@@ -665,66 +666,75 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         }
     }
 
-    // 11. Let contained children be a list of all children of common ancestor that are contained in range, in tree order.
+    // 11. Let containedChildren be a list of all children of commonAncestor that are contained in range, in tree order.
     Vector<GC::Ref<Node>> contained_children;
     for (Node* node = common_ancestor->first_child(); node; node = node->next_sibling()) {
         if (contains_node(*node))
             contained_children.append(*node);
     }
 
-    // 12. If any member of contained children is a doctype, then throw a "HierarchyRequestError" DOMException.
+    // 12. If any member of containedChildren is a doctype, then throw a "HierarchyRequestError" DOMException.
     for (auto const& child : contained_children) {
         if (is<DocumentType>(*child))
             return WebIDL::HierarchyRequestError::create(realm(), "Contained child is a DocumentType"_utf16);
     }
 
+    // 13. Let newNode and newOffset be null.
     GC::Ptr<Node> new_node;
     size_t new_offset = 0;
 
-    // 13. If original start node is an inclusive ancestor of original end node, set new node to original start node and new offset to original start offset.
+    // 14. If originalStartNode is an inclusive ancestor of originalEndNode, then set newNode to originalStartNode and
+    //     newOffset to originalStartOffset.
     if (original_start_node->is_inclusive_ancestor_of(original_end_node)) {
         new_node = original_start_node;
         new_offset = original_start_offset;
     }
-    // 14. Otherwise:
+    // 15. Otherwise:
     else {
-        // 1. Let reference node equal original start node.
+        // 1. Let referenceNode be originalStartNode.
         GC::Ptr<Node> reference_node = original_start_node;
 
-        // 2. While reference node’s parent is not null and is not an inclusive ancestor of original end node, set reference node to its parent.
+        // 2. While referenceNode’s parent is non-null and is not an inclusive ancestor of originalEndNode:
+        //    set referenceNode to its parent.
         while (reference_node->parent_node() && !reference_node->parent_node()->is_inclusive_ancestor_of(original_end_node))
             reference_node = reference_node->parent_node();
 
-        // 3. Set new node to the parent of reference node, and new offset to one plus reference node’s index.
+        // 3. Set newNode to the parent of referenceNode, and newOffset to referenceNode’s index + 1.
         new_node = reference_node->parent_node();
-        new_offset = 1 + reference_node->index();
+        new_offset = reference_node->index() + 1;
     }
 
-    // 15. If first partially contained child is a CharacterData node, then:
+    // 16. Set range’s start and end to (newNode, newOffset).
+    TRY(set_start(*new_node, new_offset));
+    TRY(set_end(*new_node, new_offset));
+
+    // 17. If firstPartiallyContainedChild is a CharacterData node:
     if (first_partially_contained_child && is<CharacterData>(*first_partially_contained_child)) {
-        // 1. Let clone be a clone of original start node.
+        // 1. Let clone be a clone of originalStartNode.
         auto clone = TRY(original_start_node->clone_node());
 
-        // 2. Set the data of clone to the result of substringing data with node original start node, offset original start offset,
-        //    and count original start node’s length minus original start offset.
+        // 2. Set the data of clone to the result of substringing data of originalStartNode with originalStartOffset
+        //    and originalStartNode’s length − originalStartOffset.
         auto result = TRY(static_cast<CharacterData const&>(*original_start_node).substring_data(original_start_offset, original_start_node->length() - original_start_offset));
         as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
-        // 4. Replace data with node original start node, offset original start offset, count original start node’s length minus original start offset, and data the empty string.
+        // 4. Replace data of originalStartNode with originalStartOffset, originalStartNode’s length −
+        //    originalStartOffset, and the empty string.
         TRY(static_cast<CharacterData&>(*original_start_node).replace_data(original_start_offset, original_start_node->length() - original_start_offset, {}));
     }
-    // 16. Otherwise, if first partially contained child is not null:
+    // 18. Otherwise, if firstPartiallyContainedChild is non-null:
     else if (first_partially_contained_child) {
-        // 1. Let clone be a clone of first partially contained child.
+        // 1. Let clone be a clone of firstPartiallyContainedChild.
         auto clone = TRY(first_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
-        // 3. Let subrange be a new live range whose start is (original start node, original start offset) and whose end is (first partially contained child, first partially contained child’s length).
+        // 3. Let subrange be a new live range whose start is (originalStartNode, originalStartOffset) and whose end is
+        //    (firstPartiallyContainedChild, firstPartiallyContainedChild’s length).
         auto subrange = Range::create(original_start_node, original_start_offset, *first_partially_contained_child, first_partially_contained_child->length());
 
         // 4. Let subfragment be the result of extracting subrange.
@@ -734,35 +744,36 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         TRY(clone->append_child(subfragment));
     }
 
-    // 17. For each contained child in contained children, append contained child to fragment.
+    // 19. For each contained child of containedChildren: append contained child to fragment.
     for (auto& contained_child : contained_children) {
         TRY(fragment->append_child(contained_child));
     }
 
-    // 18. If last partially contained child is a CharacterData node, then:
+    // 20. If lastPartiallyContainedChild is a CharacterData node:
     if (last_partially_contained_child && is<CharacterData>(*last_partially_contained_child)) {
-        // 1. Let clone be a clone of original end node.
+        // 1. Let clone be a clone of originalEndNode.
         auto clone = TRY(original_end_node->clone_node());
 
-        // 2. Set the data of clone to the result of substringing data with node original end node, offset 0, and count original end offset.
+        // 2. Set clone’s data to the result of substringing data of originalEndNode with 0 and originalEndOffset.
         auto result = TRY(static_cast<CharacterData const&>(*original_end_node).substring_data(0, original_end_offset));
         as<CharacterData>(*clone).set_data(move(result));
 
         // 3. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
-        // 4. Replace data with node original end node, offset 0, count original end offset, and data the empty string.
+        // 4. Replace data of originalEndNode with 0, originalEndOffset, and the empty string.
         TRY(as<CharacterData>(*original_end_node).replace_data(0, original_end_offset, {}));
     }
-    // 19. Otherwise, if last partially contained child is not null:
+    // 21. Otherwise, if lastPartiallyContainedChild is non-null:
     else if (last_partially_contained_child) {
-        // 1. Let clone be a clone of last partially contained child.
+        // 1. Let clone be a clone of lastPartiallyContainedChild.
         auto clone = TRY(last_partially_contained_child->clone_node());
 
         // 2. Append clone to fragment.
         TRY(fragment->append_child(clone));
 
-        // 3. Let subrange be a new live range whose start is (last partially contained child, 0) and whose end is (original end node, original end offset).
+        // 3. Let subrange be a new live range whose start is (lastPartiallyContainedChild, 0) and whose end is
+        //    (originalEndNode, originalEndOffset).
         auto subrange = Range::create(*last_partially_contained_child, 0, original_end_node, original_end_offset);
 
         // 4. Let subfragment be the result of extracting subrange.
@@ -772,11 +783,7 @@ WebIDL::ExceptionOr<GC::Ref<DocumentFragment>> Range::extract()
         TRY(clone->append_child(subfragment));
     }
 
-    // 20. Set range’s start and end to (new node, new offset).
-    TRY(set_start(*new_node, new_offset));
-    TRY(set_end(*new_node, new_offset));
-
-    // 21. Return fragment.
+    // 22. Return fragment.
     return fragment;
 }
 
@@ -1082,63 +1089,73 @@ WebIDL::ExceptionOr<void> Range::delete_contents()
     if (collapsed())
         return {};
 
-    // 2. Let original start node, original start offset, original end node, and original end offset be this’s start node, start offset, end node, and end offset, respectively.
+    // 2. Let originalStartNode, originalStartOffset, originalEndNode, and originalEndOffset be this’s start node,
+    //    start offset, end node, and end offset, respectively.
     GC::Ref<Node> original_start_node = m_start_container;
     auto original_start_offset = m_start_offset;
     GC::Ref<Node> original_end_node = m_end_container;
     auto original_end_offset = m_end_offset;
 
-    // 3. If original start node is original end node and it is a CharacterData node, then replace data with node original start node, offset original start offset,
-    //    count original end offset minus original start offset, and data the empty string, and then return.
+    // 3. If originalStartNode is originalEndNode and it is a CharacterData node:
     if (original_start_node.ptr() == original_end_node.ptr() && is<CharacterData>(*original_start_node)) {
+        // 1. Replace data of originalStartNode with originalStartOffset, originalEndOffset − originalStartOffset, and
+        //    the empty string.
         TRY(static_cast<CharacterData&>(*original_start_node).replace_data(original_start_offset, original_end_offset - original_start_offset, {}));
+        // 2. Return.
         return {};
     }
 
-    // 4. Let nodes to remove be a list of all the nodes that are contained in this, in tree order, omitting any node whose parent is also contained in this.
+    // 4. Let nodesToRemove be a list of all the nodes that are contained in this, in tree order, omitting any node
+    //    whose parent is also contained in this.
     GC::RootVector<Node*> nodes_to_remove(heap());
     for (GC::Ptr<Node> node = start_container(); node != end_container()->next_sibling(); node = node->next_in_pre_order()) {
         if (contains_node(*node) && (!node->parent_node() || !contains_node(*node->parent_node())))
             nodes_to_remove.append(node);
     }
 
+    // 5. Let newNode and newOffset be null.
     GC::Ptr<Node> new_node;
     size_t new_offset = 0;
 
-    // 5. If original start node is an inclusive ancestor of original end node, set new node to original start node and new offset to original start offset.
+    // 6. If originalStartNode is an inclusive ancestor of originalEndNode, then set newNode to originalStartNode and
+    //    newOffset to originalStartOffset.
     if (original_start_node->is_inclusive_ancestor_of(original_end_node)) {
         new_node = original_start_node;
         new_offset = original_start_offset;
     }
-    // 6. Otherwise
+    // 7. Otherwise
     else {
-        // 1. Let reference node equal original start node.
+        // 1. Let referenceNode be originalStartNode.
         auto reference_node = original_start_node;
 
-        // 2. While reference node’s parent is not null and is not an inclusive ancestor of original end node, set reference node to its parent.
+        // 2. While referenceNode’s parent is non-null and is not an inclusive ancestor of originalEndNode:
+        //    set referenceNode to its parent.
         while (reference_node->parent_node() && !reference_node->parent_node()->is_inclusive_ancestor_of(original_end_node))
             reference_node = *reference_node->parent_node();
 
-        // 3. Set new node to the parent of reference node, and new offset to one plus the index of reference node.
+        // 3. Set newNode to referenceNode’s parent and newOffset to referenceNode’s index + 1.
         new_node = reference_node->parent_node();
-        new_offset = 1 + reference_node->index();
+        new_offset = reference_node->index() + 1;
     }
 
-    // 7. If original start node is a CharacterData node, then replace data with node original start node, offset original start offset, count original start node’s length minus original start offset, data the empty string.
+    // 8. Set this’s start and end to (newNode, newOffset).
+    TRY(set_start(*new_node, new_offset));
+    TRY(set_end(*new_node, new_offset));
+
+    // 9. If originalStartNode is a CharacterData node, then replace data of originalStartNode with
+    //    originalStartOffset, originalStartNode’s length − originalStartOffset, and the empty string.
     if (is<CharacterData>(*original_start_node))
         TRY(static_cast<CharacterData&>(*original_start_node).replace_data(original_start_offset, original_start_node->length() - original_start_offset, {}));
 
-    // 8. For each node in nodes to remove, in tree order, remove node.
+    // 10. For each node of nodesToRemove, in tree order: remove node.
     for (auto& node : nodes_to_remove)
         node->remove();
 
-    // 9. If original end node is a CharacterData node, then replace data with node original end node, offset 0, count original end offset and data the empty string.
+    // 11. If originalEndNode is a CharacterData node, then replace data of originalEndNode with 0, originalEndOffset,
+    //     and the empty string.
     if (is<CharacterData>(*original_end_node))
         TRY(static_cast<CharacterData&>(*original_end_node).replace_data(0, original_end_offset, {}));
 
-    // 10. Set start and end to (new node, new offset).
-    TRY(set_start(*new_node, new_offset));
-    TRY(set_end(*new_node, new_offset));
     return {};
 }
 
