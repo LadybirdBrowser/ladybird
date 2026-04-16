@@ -218,10 +218,10 @@ impl Parser {
         for alt in &disj.alternatives {
             for term in &alt.terms {
                 match &term.atom {
-                    Atom::Backreference(Backreference::Named(name)) => {
-                        if !group_names.contains(name.as_str()) {
-                            return Err(Error::InvalidNamedBackreference(name.clone()));
-                        }
+                    Atom::Backreference(Backreference::Named(name))
+                        if !group_names.contains(name.as_str()) =>
+                    {
+                        return Err(Error::InvalidNamedBackreference(name.clone()));
                     }
                     Atom::Group(g) => Self::validate_backrefs(&g.body, group_names)?,
                     Atom::NonCapturingGroup(g) => Self::validate_backrefs(&g.body, group_names)?,
