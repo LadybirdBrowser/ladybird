@@ -1050,6 +1050,76 @@ static void generate_any_to_cpp(SourceGenerator& scoped_generator, bool optional
     }
 }
 
+// https://webidl.spec.whatwg.org/#es-record
+static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& cpp_name, IDL::Interface const& interface, size_t recursion_depth)
+{
+    auto record_generator = scoped_generator.fork();
+    record_generator.set("recursion_depth", ByteString::number(recursion_depth));
+
+    // A record can only have two types: key type and value type.
+    VERIFY(type.parameters().size() == 2);
+
+    // A record only allows the key to be a string.
+    VERIFY(type.parameters()[0]->is_string());
+
+    // An ECMAScript value O is converted to an IDL record<K, V> value as follows:
+    // 1. If Type(O) is not Object, throw a TypeError.
+    // 2. Let result be a new empty instance of record<K, V>.
+    // 3. Let keys be ? O.[[OwnPropertyKeys]]().
+    // 4. For each key of keys:
+    //    1. Let desc be ? O.[[GetOwnProperty]](key).
+    //    2. If desc is not undefined and desc.[[Enumerable]] is true:
+    //       1. Let typedKey be key converted to an IDL value of type K.
+    //       2. Let value be ? Get(O, key).
+    //       3. Let typedValue be value converted to an IDL value of type V.
+    //       4. Set result[typedKey] to typedValue.
+    // 5. Return result.
+
+    auto record_cpp_type = IDL::idl_type_name_to_cpp_type(type, interface);
+    record_generator.set("record.type", record_cpp_type.name);
+
+    // If this is a recursive call to generate_to_cpp, assume that the caller has already handled converting the JS value to an object for us.
+    // This affects record types in unions for example.
+    if (recursion_depth == 0) {
+        record_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
+
+    auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
+)~~~");
+    }
+
+    record_generator.append(R"~~~(
+    @record.type@ @cpp_name@;
+
+    auto record_keys@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_own_property_keys());
+
+    for (auto& key@recursion_depth@ : record_keys@recursion_depth@) {
+        auto property_key@recursion_depth@ = MUST(JS::PropertyKey::from_value(vm, key@recursion_depth@));
+
+        auto descriptor@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_get_own_property(property_key@recursion_depth@));
+
+        if (!descriptor@recursion_depth@.has_value() || !descriptor@recursion_depth@->enumerable.has_value() || !descriptor@recursion_depth@->enumerable.value())
+            continue;
+)~~~");
+
+    IDL::Parameter key_parameter { .type = type.parameters()[0], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+    generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
+
+    record_generator.append(R"~~~(
+        auto value@recursion_depth@ = TRY(@js_name@@js_suffix@_object.get(property_key@recursion_depth@));
+)~~~");
+
+    // FIXME: Record value types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
+    IDL::Parameter value_parameter { .type = type.parameters()[1], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+    generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
+
+    record_generator.append(R"~~~(
+        @cpp_name@.set(typed_key@recursion_depth@, typed_value@recursion_depth@);
+    }
+)~~~");
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -1264,74 +1334,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
 )~~~");
         }
     } else if (parameter.type->name() == "record") {
-        // https://webidl.spec.whatwg.org/#es-record
-
-        auto record_generator = scoped_generator.fork();
-        auto& parameterized_type = as<IDL::ParameterizedType>(*parameter.type);
-        record_generator.set("recursion_depth", ByteString::number(recursion_depth));
-
-        // A record can only have two types: key type and value type.
-        VERIFY(parameterized_type.parameters().size() == 2);
-
-        // A record only allows the key to be a string.
-        VERIFY(parameterized_type.parameters()[0]->is_string());
-
-        // An ECMAScript value O is converted to an IDL record<K, V> value as follows:
-        // 1. If Type(O) is not Object, throw a TypeError.
-        // 2. Let result be a new empty instance of record<K, V>.
-        // 3. Let keys be ? O.[[OwnPropertyKeys]]().
-        // 4. For each key of keys:
-        //    1. Let desc be ? O.[[GetOwnProperty]](key).
-        //    2. If desc is not undefined and desc.[[Enumerable]] is true:
-        //       1. Let typedKey be key converted to an IDL value of type K.
-        //       2. Let value be ? Get(O, key).
-        //       3. Let typedValue be value converted to an IDL value of type V.
-        //       4. Set result[typedKey] to typedValue.
-        // 5. Return result.
-
-        auto record_cpp_type = IDL::idl_type_name_to_cpp_type(parameterized_type, interface);
-        record_generator.set("record.type", record_cpp_type.name);
-
-        // If this is a recursive call to generate_to_cpp, assume that the caller has already handled converting the JS value to an object for us.
-        // This affects record types in unions for example.
-        if (recursion_depth == 0) {
-            record_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
-
-    auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
-)~~~");
-        }
-
-        record_generator.append(R"~~~(
-    @record.type@ @cpp_name@;
-
-    auto record_keys@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_own_property_keys());
-
-    for (auto& key@recursion_depth@ : record_keys@recursion_depth@) {
-        auto property_key@recursion_depth@ = MUST(JS::PropertyKey::from_value(vm, key@recursion_depth@));
-
-        auto descriptor@recursion_depth@ = TRY(@js_name@@js_suffix@_object.internal_get_own_property(property_key@recursion_depth@));
-
-        if (!descriptor@recursion_depth@.has_value() || !descriptor@recursion_depth@->enumerable.has_value() || !descriptor@recursion_depth@->enumerable.value())
-            continue;
-)~~~");
-
-        IDL::Parameter key_parameter { .type = parameterized_type.parameters()[0], .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
-
-        record_generator.append(R"~~~(
-        auto value@recursion_depth@ = TRY(@js_name@@js_suffix@_object.get(property_key@recursion_depth@));
-)~~~");
-
-        // FIXME: Record value types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
-        IDL::Parameter value_parameter { .type = parameterized_type.parameters()[1], .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
-
-        record_generator.append(R"~~~(
-        @cpp_name@.set(typed_key@recursion_depth@, typed_value@recursion_depth@);
-    }
-)~~~");
+        generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, interface, recursion_depth);
     } else if (is<IDL::UnionType>(*parameter.type)) {
         // https://webidl.spec.whatwg.org/#es-union
 
