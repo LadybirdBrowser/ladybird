@@ -1009,6 +1009,47 @@ static void generate_array_buffer_view_to_cpp(SourceGenerator& scoped_generator,
     }
 }
 
+static void generate_any_to_cpp(SourceGenerator& scoped_generator, bool optional, Optional<ByteString> const& optional_default_value, bool variadic)
+{
+    if (variadic) {
+        scoped_generator.append(R"~~~(
+    GC::RootVector<JS::Value> @cpp_name@ { vm.heap() };
+
+    if (vm.argument_count() > @js_suffix@) {
+        @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
+
+        for (size_t i = @js_suffix@; i < vm.argument_count(); ++i)
+            @cpp_name@.unchecked_append(vm.argument(i));
+    }
+)~~~");
+    } else if (!optional) {
+        scoped_generator.append(R"~~~(
+    auto @cpp_name@ = @js_name@@js_suffix@;
+)~~~");
+    } else {
+        scoped_generator.append(R"~~~(
+    JS::Value @cpp_name@ = JS::js_undefined();
+    if (!@js_name@@js_suffix@.is_undefined())
+        @cpp_name@ = @js_name@@js_suffix@;
+)~~~");
+        if (optional_default_value.has_value()) {
+            if (optional_default_value == "null") {
+                scoped_generator.append(R"~~~(
+    else
+        @cpp_name@ = JS::js_null();
+)~~~");
+            } else if (optional_default_value->to_number<int>().has_value() || optional_default_value->to_number<unsigned>().has_value()) {
+                scoped_generator.append(R"~~~(
+    else
+        @cpp_name@ = JS::Value(@parameter.optional_default_value@);
+)~~~");
+            } else {
+                TODO();
+            }
+        }
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -1049,43 +1090,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "ArrayBufferView") {
         generate_array_buffer_view_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->name() == "any") {
-        if (variadic) {
-            scoped_generator.append(R"~~~(
-    GC::RootVector<JS::Value> @cpp_name@ { vm.heap() };
-
-    if (vm.argument_count() > @js_suffix@) {
-        @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
-
-        for (size_t i = @js_suffix@; i < vm.argument_count(); ++i)
-            @cpp_name@.unchecked_append(vm.argument(i));
-    }
-)~~~");
-        } else if (!optional) {
-            scoped_generator.append(R"~~~(
-    auto @cpp_name@ = @js_name@@js_suffix@;
-)~~~");
-        } else {
-            scoped_generator.append(R"~~~(
-    JS::Value @cpp_name@ = JS::js_undefined();
-    if (!@js_name@@js_suffix@.is_undefined())
-        @cpp_name@ = @js_name@@js_suffix@;
-)~~~");
-            if (optional_default_value.has_value()) {
-                if (optional_default_value == "null") {
-                    scoped_generator.append(R"~~~(
-    else
-        @cpp_name@ = JS::js_null();
-)~~~");
-                } else if (optional_default_value->to_number<int>().has_value() || optional_default_value->to_number<unsigned>().has_value()) {
-                    scoped_generator.append(R"~~~(
-    else
-        @cpp_name@ = JS::Value(@parameter.optional_default_value@);
-)~~~");
-                } else {
-                    TODO();
-                }
-            }
-        }
+        generate_any_to_cpp(scoped_generator, optional, optional_default_value, variadic);
     } else if (interface.enumerations.contains(parameter.type->name())) {
         auto enum_generator = scoped_generator.fork();
         auto& enumeration = interface.enumerations.find(parameter.type->name())->value;
