@@ -89,24 +89,6 @@ static size_t s_timeout_count = 0;
 static size_t s_crashed_count = 0;
 static size_t s_skipped_count = 0;
 
-// Deferred warning system - buffers warnings during live display mode
-static Vector<ByteString> s_deferred_warnings;
-
-void add_deferred_warning(ByteString message)
-{
-    if (s_live_display_lines > 0)
-        s_deferred_warnings.append(move(message));
-    else
-        warnln("{}", message);
-}
-
-void print_deferred_warnings()
-{
-    for (auto const& warning : s_deferred_warnings)
-        warnln("{}", warning);
-    s_deferred_warnings.clear();
-}
-
 static void render_live_display()
 {
     if (!s_is_tty || s_live_display_lines == 0)
@@ -657,7 +639,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         auto open_expectation_file = [&](auto mode) {
             auto expectation_file_or_error = Core::File::open(test.expectation_path, mode);
             if (expectation_file_or_error.is_error())
-                add_deferred_warning(ByteString::formatted("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error()));
+                warnln(ByteString::formatted("Failed opening '{}': {}", test.expectation_path, expectation_file_or_error.error()));
 
             return expectation_file_or_error;
         };
@@ -1553,7 +1535,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                         out("\r"sv);
                         (void)fflush(stdout);
                         s_live_display_lines = 0;
-                        print_deferred_warnings();
                     }
 
                     auto const pid = view->web_content_pid();
@@ -1618,10 +1599,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             out("\033[A\033[2K"sv); // Move up and clear each line
         out("\r"sv);
         (void)fflush(stdout);
-
-        // Print any warnings that were deferred during live display
         s_live_display_lines = 0;
-        print_deferred_warnings();
     }
 
     if (result_or_rejection.is_error())
