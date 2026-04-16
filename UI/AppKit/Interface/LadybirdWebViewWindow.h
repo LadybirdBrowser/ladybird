@@ -16,5 +16,6 @@
                      windowRect:(NSRect)window_rect;
 
 @property (nonatomic, strong) LadybirdWebView* web_view;
+@property (nonatomic, weak) NSResponder* preferred_first_responder;
 
 @end

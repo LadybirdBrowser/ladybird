@@ -329,9 +329,8 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
     [self setLocationFieldText:url.serialize()];
 
     // Don't steal focus from the location bar when loading the new tab page
-    if (url != WebView::Application::settings().new_tab_page_url()) {
-        [self.window makeFirstResponder:[self tab].web_view];
-    }
+    if (url != WebView::Application::settings().new_tab_page_url())
+        [self focusWebView];
 }
 
 - (void)onEnterFullscreenWindow
@@ -353,7 +352,19 @@ static NSInteger autocomplete_suggestion_index(NSString* suggestion_text, Vector
 
 - (void)focusLocationToolbarItem
 {
+    [self tab].preferred_first_responder = self.location_toolbar_item.view;
     [self.window makeFirstResponder:self.location_toolbar_item.view];
+}
+
+- (void)focusWebViewWhenActivated
+{
+    [self tab].preferred_first_responder = [self tab].web_view;
+}
+
+- (void)focusWebView
+{
+    [self tab].preferred_first_responder = [self tab].web_view;
+    [self.window makeFirstResponder:[self tab].web_view];
 }
 
 #pragma mark - Private methods

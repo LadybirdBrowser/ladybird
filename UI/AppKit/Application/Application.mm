@@ -51,6 +51,10 @@ Optional<WebView::ViewImplementation&> Application::open_blank_new_tab(Web::HTML
     ApplicationDelegate* delegate = [NSApp delegate];
 
     auto* controller = [delegate createNewTab:activate_tab fromTab:[delegate activeTab]];
+    if (activate_tab == Web::HTML::ActivateTab::Yes)
+        [controller focusWebView];
+    else
+        [controller focusWebViewWhenActivated];
     auto* tab = (Tab*)[controller window];
 
     return [[tab web_view] view];

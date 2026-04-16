@@ -28,6 +28,8 @@
 - (void)onEnterFullscreenWindow;
 - (void)onExitFullscreenWindow;
 
+- (void)focusWebViewWhenActivated;
+- (void)focusWebView;
 - (void)focusLocationToolbarItem;
 
 @end

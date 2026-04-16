@@ -52,4 +52,12 @@
     [super setIsMiniaturized:flag];
 }
 
+- (void)becomeKeyWindow
+{
+    [super becomeKeyWindow];
+
+    if (self.preferred_first_responder && [self firstResponder] != self.preferred_first_responder)
+        [self makeFirstResponder:self.preferred_first_responder];
+}
+
 @end

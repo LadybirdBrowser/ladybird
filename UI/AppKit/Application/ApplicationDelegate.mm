@@ -88,6 +88,9 @@
 
     if (url.has_value()) {
         [controller loadURL:*url];
+
+        if (*url != WebView::Application::settings().new_tab_page_url())
+            [controller focusWebView];
     }
 
     return controller;
@@ -103,6 +106,8 @@
     if (url.has_value()) {
         [controller loadURL:*url];
     }
+
+    [controller focusWebView];
 
     return controller;
 }
