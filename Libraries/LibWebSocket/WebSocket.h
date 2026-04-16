@@ -98,7 +98,6 @@ private:
     void notify_error(Error);
     void notify_message(Message);
 
-    void fatal_error(Error);
     void discard_connection();
 
     enum class InternalState {
