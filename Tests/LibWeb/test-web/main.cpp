@@ -10,6 +10,7 @@
 
 #include "Application.h"
 #include "Debug.h"
+#include "Display.h"
 #include "TestRunCapture.h"
 #include "TestWeb.h"
 #include "TestWebView.h"
@@ -21,7 +22,6 @@
 #include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
 #include <AK/Random.h>
-#include <AK/SaturatingMath.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Span.h>
 #include <LibCore/ConfigFile.h>
@@ -32,7 +32,6 @@
 #include <LibCore/MappedFile.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
-#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibDiff/Format.h>
 #include <LibDiff/Generator.h>
@@ -47,142 +46,12 @@
 #include <LibWebView/Process.h>
 #include <LibWebView/Utilities.h>
 
-#ifndef AK_OS_WINDOWS
-#    include <sys/ioctl.h>
-#endif
+#include <signal.h>
 
 namespace TestWeb {
 
-// Terminal display state
-static size_t s_terminal_width = 80;
-static size_t s_terminal_rows = 24;
-static bool s_is_tty = false;
-
-static size_t s_current_run = 1;
-
-static bool s_fail_fast_triggered = false;
-
-static void update_terminal_size()
-{
-#ifndef AK_OS_WINDOWS
-    struct winsize ws;
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0) {
-        s_terminal_width = ws.ws_col > 0 ? ws.ws_col : 80;
-        s_terminal_rows = ws.ws_row > 0 ? ws.ws_row : 24;
-    }
-#endif
-}
-
-struct ViewDisplayState {
-    pid_t pid { 0 };
-    ByteString test_name;
-    UnixDateTime start_time;
-    bool active { false };
-};
-
 static Vector<ViewDisplayState> s_view_display_states;
 static Vector<Function<void()>> s_view_run_next_test;
-static RefPtr<Core::Timer> s_display_timer;
-
-static size_t s_live_display_lines = 0;
-static size_t s_total_tests = 0;
-static size_t s_completed_tests = 0;
-static size_t s_pass_count = 0;
-static size_t s_fail_count = 0;
-static size_t s_timeout_count = 0;
-static size_t s_crashed_count = 0;
-static size_t s_skipped_count = 0;
-
-static void render_live_display()
-{
-    if (!s_is_tty || s_live_display_lines == 0)
-        return;
-
-    auto now = UnixDateTime::now();
-
-    // Build everything into one buffer
-    StringBuilder output;
-
-    // Move up N lines using individual commands (more compatible)
-    for (size_t i = 0; i < s_live_display_lines; ++i)
-        output.append("\033[A"sv);
-    output.append("\r"sv);
-
-    // Print test status lines (not counting empty lines, status counts, and progress bar)
-    size_t num_view_lines = s_live_display_lines - 4;
-    for (size_t i = 0; i < num_view_lines; ++i) {
-        output.append("\033[2K"sv); // Clear line
-
-        if (i < s_view_display_states.size()) {
-            auto const& state = s_view_display_states[i];
-            if (state.active && state.pid > 0) {
-                auto duration = (now - state.start_time).to_truncated_seconds();
-                // Format: ⏺ pid (Xs): name
-                auto prefix = ByteString::formatted("\033[33m⏺\033[0m {} ({}s): ", state.pid, duration);
-                // Note: prefix contains ANSI codes, so visible length is different
-                size_t prefix_visible_len = ByteString::formatted("⏺ {} ({}s): ", state.pid, duration).length();
-                size_t avail = s_terminal_width > prefix_visible_len ? s_terminal_width - prefix_visible_len : 10;
-
-                ByteString name = state.test_name;
-                if (name.length() > avail && avail > 3)
-                    name = ByteString::formatted("...{}", name.substring_view(name.length() - avail + 3));
-
-                output.appendff("{}{}", prefix, name);
-            } else {
-                output.append("\033[90m⏺ (idle)\033[0m"sv);
-            }
-        }
-        output.append("\n"sv);
-    }
-
-    // Empty line
-    output.append("\033[2K\n"sv);
-
-    // Status counts line (bold colored labels, plain numbers)
-    output.append("\033[2K"sv);
-    output.appendff("\033[1;32mPass:\033[0m {}, ", s_pass_count);
-    output.appendff("\033[1;31mFail:\033[0m {}, ", s_fail_count);
-    output.appendff("\033[1;90mSkipped:\033[0m {}, ", s_skipped_count);
-    output.appendff("\033[1;33mTimeout:\033[0m {}, ", s_timeout_count);
-    output.appendff("\033[1;35mCrashed:\033[0m {}", s_crashed_count);
-    output.append("\n"sv);
-
-    // Empty line
-    output.append("\033[2K\n"sv);
-
-    // Print progress bar
-    output.append("\033[2K"sv);
-    if (s_total_tests > 0) {
-        size_t completed = s_completed_tests;
-        size_t total = s_total_tests;
-
-        // Calculate progress bar width (leave room for "completed/total []")
-        auto counter_start = output.length();
-        output.appendff("{}/{} ", completed, total);
-        if (Application::the().repeat_count > 1)
-            output.appendff("run {}/{} ", s_current_run, Application::the().repeat_count);
-        auto counter_length = output.length() - counter_start;
-        size_t bar_width = s_terminal_width > counter_length + 3 ? s_terminal_width - counter_length - 3 : 20;
-
-        size_t filled = total > 0 ? (completed * bar_width) / total : 0;
-        size_t empty = bar_width - filled;
-
-        output.append("\033[32m["sv); // Green color
-        for (size_t j = 0; j < filled; ++j)
-            output.append("█"sv);
-        if (empty > 0 && filled < bar_width) {
-            output.append("\033[33m▓\033[0m\033[90m"sv); // Yellow current position, then dim
-            for (size_t j = 1; j < empty; ++j)
-                output.append("░"sv);
-        }
-        output.append("\033[32m]\033[0m"sv);
-    }
-    output.append("\n"sv);
-
-    out("{}", output.string_view());
-    (void)fflush(stdout);
-}
-
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
 static Vector<ByteString> s_loaded_from_http_server;
@@ -196,31 +65,15 @@ struct TestRunContext {
 
 static TestRunContext* s_run_context { nullptr };
 
+Vector<ViewDisplayState>& view_states() { return s_view_display_states; }
+size_t total_tests() { return s_run_context ? s_run_context->total_tests : 0; }
+
 static ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
     auto& app = Application::the();
     auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path);
     TRY(Core::Directory::create(base_path.dirname(), Core::Directory::CreateDirectories::Yes));
     return base_path.string();
-}
-
-static constexpr StringView test_result_to_string(TestResult result)
-{
-    switch (result) {
-    case TestResult::Pass:
-        return "Pass"sv;
-    case TestResult::Fail:
-        return "Fail"sv;
-    case TestResult::Skipped:
-        return "Skipped"sv;
-    case TestResult::Timeout:
-        return "Timeout"sv;
-    case TestResult::Crashed:
-        return "Crashed"sv;
-    case TestResult::Expanded:
-        return "Expanded"sv;
-    }
-    VERIFY_NOT_REACHED();
 }
 
 static bool is_valid_test_name(StringView test_name)
@@ -417,58 +270,23 @@ if (!hasTestWaitClass()) {{
 static auto wait_for_crash_test_completion = generate_wait_for_test_string("test-wait"sv);
 static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest-wait"sv);
 
-static ByteString test_mode_to_string(TestMode mode)
-{
-    switch (mode) {
-    case TestMode::Layout:
-        return "Layout"sv;
-    case TestMode::Text:
-        return "Text"sv;
-    case TestMode::Ref:
-        return "Ref"sv;
-    case TestMode::Screenshot:
-        return "Screenshot"sv;
-    case TestMode::Crash:
-        return "Crash"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
+    auto& display = Display::the();
+
     bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
     auto const generated_at = UnixDateTime::now();
-
-    // Count results
-    size_t fail_count = 0;
-    size_t timeout_count = 0;
-    size_t crashed_count = 0;
-    size_t skipped_count = 0;
-    for (auto const& result : non_passing_tests) {
-        switch (result.result) {
-        case TestResult::Fail:
-            ++fail_count;
-            break;
-        case TestResult::Timeout:
-            ++timeout_count;
-            break;
-        case TestResult::Crashed:
-            ++crashed_count;
-            break;
-        case TestResult::Skipped:
-            ++skipped_count;
-            break;
-        default:
-            break;
-        }
-    }
 
     // Write results.js (as JS to avoid fetch CORS issues with file://)
     StringBuilder js;
     js.append("const RESULTS_DATA = {\n"sv);
     js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
-        s_total_tests, fail_count, timeout_count, crashed_count, skipped_count);
+        total_tests(),
+        display.fail_count,
+        display.timeout_count,
+        display.crashed_count,
+        display.skipped_count);
     js.appendff("  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
     js.appendff("  \"invocationCommandLine\": {},\n", JsonValue(app.invocation_command_line).serialized());
     js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
@@ -670,23 +488,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
         }
 
         TRY(write_test_diff_to_results(test, expectation));
-
-        if (Application::the().verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT) {
-            auto const color_output = s_is_tty ? Diff::ColorOutput::Yes : Diff::ColorOutput::No;
-
-            if (color_output == Diff::ColorOutput::Yes)
-                outln("\n\033[33;1mTest failed\033[0m: {}", url);
-            else
-                outln("\nTest failed: {}", url);
-
-            auto hunks = TRY(Diff::from_text(expectation, test.text, 3));
-            auto out = TRY(Core::File::standard_output());
-
-            TRY(Diff::write_unified_header(test.expectation_path, test.expectation_path, *out));
-            for (auto const& hunk : hunks)
-                TRY(Diff::write_unified(hunk, *out, color_output));
-        }
-
+        Display::the().print_failure_diff(url, test, expectation);
         return TestResult::Fail;
     };
 
@@ -1216,6 +1018,8 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_r
 static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePixelSize window_size)
 {
     auto& app = Application::the();
+    auto& display = Display::the();
+
     TRY(load_test_config(app.test_root_path));
 
     Vector<Test> tests;
@@ -1293,8 +1097,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         return Error::from_string_literal("No tests found matching filter");
     }
 
-    s_current_run = 1;
-
     if (app.repeat_count > 1) {
         auto base_tests = move(tests);
         tests.ensure_capacity(base_tests.size() * app.repeat_count);
@@ -1309,9 +1111,9 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
         }
     }
-    auto concurrency = min(app.test_concurrency, tests.size());
+    size_t total_tests = tests.size();
+    auto concurrency = min(app.test_concurrency, total_tests);
     size_t loaded_web_views = 0;
-
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
 
@@ -1339,66 +1141,22 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         s_view_display_states[i].active = false;
     }
 
+    display.begin_run();
+    ScopeGuard clear_live_display = [&] { display.clear_live_display(); };
+
     // Initialize per-view functions (for waking idle views)
     s_view_run_next_test.resize_and_keep_capacity(concurrency);
-
-    // Initialize live terminal display
-    s_is_tty = TRY(Core::System::isatty(STDOUT_FILENO));
-
-    // When on TTY with live display, use the N-line display; otherwise use single-line or verbose
-    bool use_live_display = !app.quiet && s_is_tty && app.verbosity < Application::VERBOSITY_LEVEL_LOG_TEST_OUTPUT;
-
-    if (use_live_display) {
-        update_terminal_size();
-
-#ifndef AK_OS_WINDOWS
-        // Handle terminal resize
-        Core::EventLoop::register_signal(SIGWINCH, [](int) {
-            Core::EventLoop::current().deferred_invoke([] {
-                update_terminal_size();
-            });
-        });
-#endif
-
-        // Start 1-second timer for display updates
-        s_display_timer = Core::Timer::create_repeating(1000, [] {
-            render_live_display();
-        });
-        s_display_timer->start();
-    }
-
-    // Reset counters for this run
-    s_pass_count = 0;
-    s_fail_count = 0;
-    s_timeout_count = 0;
-    s_crashed_count = 0;
-    s_skipped_count = 0;
-    s_completed_tests = 0;
-    s_fail_fast_triggered = false;
-
-    s_total_tests = tests.size();
-    outln("Running {} tests...", tests.size());
-
-    // Set up display area for live display
-    if (use_live_display) {
-        s_live_display_lines = AK::clamp(AK::saturating_sub(s_terminal_rows, 4uz), 5uz, concurrency + 4); // +1 empty, +1 status counts, +1 empty, +1 progress bar
-        for (size_t i = 0; i < s_live_display_lines; ++i)
-            outln();
-        (void)fflush(stdout);
-    }
 
     s_all_tests_complete = Core::Promise<Empty>::construct();
     auto tests_remaining = tests.size();
     auto current_test = 0uz;
 
-    TestRunContext context { tests, tests_remaining, s_total_tests };
+    TestRunContext context { tests, tests_remaining, total_tests };
     s_run_context = &context;
     ScopeGuard clear_run_context = [&] { s_run_context = nullptr; };
 
     Vector<TestCompletion> non_passing_tests;
-
-    auto digits_for_view_id = static_cast<size_t>(log10(views.size()) + 1);
-    auto digits_for_test_id = static_cast<size_t>(log10(tests.size()) + 1);
+    bool fail_fast_triggered = false;
 
     for (auto [view_id, view] : enumerate(views)) {
         set_ui_callbacks_for_tests(*view, test_run_capture);
@@ -1431,7 +1189,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
         // run_next_test handles: reset promise, attach callback, pick test, run test
         auto run_next_test = [&, view = view.ptr(), cleanup_test, view_id]() {
-            if (app.fail_fast && s_fail_fast_triggered) {
+            if (app.fail_fast && fail_fast_triggered) {
                 if (view_id < s_view_display_states.size())
                     s_view_display_states[view_id].active = false;
                 return;
@@ -1447,34 +1205,15 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             auto index = current_test++;
 
             auto& test = tests[index];
-            s_current_run = test.run_index;
             test.start_time = UnixDateTime::now();
             test.index = index;
 
             // Mark this view as active (for variant wake-up tracking)
-            if (view_id < s_view_display_states.size())
-                s_view_display_states[view_id].active = true;
-
-            if (use_live_display) {
-                // Update view display state for live display (refresh PID in case WebContent respawned)
-                if (view_id < s_view_display_states.size()) {
-                    s_view_display_states[view_id].pid = view->web_content_pid();
-                    s_view_display_states[view_id].test_name = test.relative_path;
-                    s_view_display_states[view_id].start_time = test.start_time;
-                }
-                render_live_display();
-            } else if (!app.quiet) {
-                if (app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
-                    outln("[{:{}}] {:{}}/{}:  Start {}", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path);
-                } else {
-                    // Non-TTY mode: print each test as it starts
-                    outln("{}/{}: {}", test.index + 1, tests.size(), test.relative_path);
-                }
-            }
+            display.on_test_started(view_id, test, view->web_content_pid());
 
             // Reset promise and attach completion callback
             view->reset_test_promise();
-            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, digits_for_view_id, digits_for_test_id, use_live_display, &test_run_capture](auto result) {
+            view->test_promise().when_resolved([&tests, &tests_remaining, &non_passing_tests, &app, view, cleanup_test, view_id, &test_run_capture, &fail_fast_triggered](auto result) {
                 cleanup_test(result.test_index, result.result);
 
                 auto& test = tests[result.test_index];
@@ -1490,62 +1229,18 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (result.result != TestResult::Crashed)
                     test_run_capture.write_test_output(*view);
 
-                if (!app.quiet && app.verbosity >= Application::VERBOSITY_LEVEL_LOG_TEST_DURATION) {
-                    auto duration = test.end_time - test.start_time;
-                    outln("[{:{}}] {:{}}/{}: Finish {}: {}ms", view_id, digits_for_view_id, test.index + 1, digits_for_test_id, tests.size(), test.relative_path, duration.to_milliseconds());
-                }
-
-                switch (result.result) {
-                case TestResult::Pass:
-                    ++s_pass_count;
-                    break;
-                case TestResult::Fail:
-                    ++s_fail_count;
-                    break;
-                case TestResult::Timeout:
-                    ++s_timeout_count;
-                    break;
-                case TestResult::Crashed:
-                    ++s_crashed_count;
-                    break;
-                case TestResult::Skipped:
-                    ++s_skipped_count;
-                    break;
-                case TestResult::Expanded:
-                    break;
-                }
-
-                // Don't count Expanded tests in the completed display count
-                if (result.result != TestResult::Expanded)
-                    ++s_completed_tests;
-
                 bool const is_non_passing_result = result.result != TestResult::Pass && result.result != TestResult::Expanded;
                 bool const should_trigger_fail_fast = result.result == TestResult::Fail || result.result == TestResult::Timeout || result.result == TestResult::Crashed;
 
                 if (is_non_passing_result)
                     non_passing_tests.append(result);
 
-                if (app.fail_fast && !s_fail_fast_triggered && should_trigger_fail_fast) {
-                    s_fail_fast_triggered = true;
+                Display::the().on_test_finished(view_id, test, result.result);
 
-                    if (s_display_timer) {
-                        s_display_timer->stop();
-                        s_display_timer = nullptr;
-                    }
-
-                    if (use_live_display) {
-                        for (size_t i = 0; i < s_live_display_lines; ++i)
-                            out("\033[A\033[2K"sv);
-                        out("\r"sv);
-                        (void)fflush(stdout);
-                        s_live_display_lines = 0;
-                    }
-
+                if (app.fail_fast && !fail_fast_triggered && should_trigger_fail_fast) {
+                    fail_fast_triggered = true;
                     auto const pid = view->web_content_pid();
-                    if (result.result == TestResult::Timeout)
-                        outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
-                    else
-                        outln("Fail-fast: {}: {}", test_result_to_string(result.result), test.relative_path);
+                    Display::the().on_fail_fast(test, result.result, pid);
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
@@ -1589,57 +1284,10 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         });
     }
 
-    auto result_or_rejection = s_all_tests_complete->await();
-
-    // Stop the live display timer
-    if (s_display_timer) {
-        s_display_timer->stop();
-        s_display_timer = nullptr;
-    }
-
-    // Clear the live display area and move cursor back up
-    if (use_live_display) {
-        for (size_t i = 0; i < s_live_display_lines; ++i)
-            out("\033[A\033[2K"sv); // Move up and clear each line
-        out("\r"sv);
-        (void)fflush(stdout);
-        s_live_display_lines = 0;
-    }
-
-    if (result_or_rejection.is_error())
-        outln("Halted; {} tests not executed.", tests_remaining);
-
-    outln("==========================================================");
-    outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}", s_pass_count, s_fail_count, s_skipped_count, s_timeout_count, s_crashed_count);
-    outln("==========================================================");
-
-    for (auto const& non_passing_test : non_passing_tests) {
-        if (non_passing_test.result == TestResult::Skipped && app.verbosity < Application::VERBOSITY_LEVEL_LOG_SKIPPED_TESTS)
-            continue;
-
-        auto const& test = tests[non_passing_test.test_index];
-        if (Application::the().repeat_count > 1)
-            outln("{}: (run {}/{}) {}", test_result_to_string(non_passing_test.result), test.run_index, test.total_runs, test.relative_path);
-        else
-            outln("{}: {}", test_result_to_string(non_passing_test.result), test.relative_path);
-    }
-
-    if (!app.quiet && app.verbosity >= Application::VERBOSITY_LEVEL_LOG_SLOWEST_TESTS) {
-        auto tests_to_print = min(10uz, tests.size());
-        outln("\nSlowest {} tests:", tests_to_print);
-
-        quick_sort(tests, [&](auto const& lhs, auto const& rhs) {
-            auto lhs_duration = lhs.end_time - lhs.start_time;
-            auto rhs_duration = rhs.end_time - rhs.start_time;
-            return lhs_duration > rhs_duration;
-        });
-
-        for (auto const& test : tests.span().trim(tests_to_print)) {
-            auto duration = test.end_time - test.start_time;
-
-            outln("{}: {}ms", test.relative_path, duration.to_milliseconds());
-        }
-    }
+    auto result_or_rejection
+        = s_all_tests_complete->await();
+    display.clear_live_display();
+    display.print_run_complete(tests, non_passing_tests, result_or_rejection.is_error() ? tests_remaining : 0);
 
     if (app.dump_gc_graph) {
         for (auto& view : views) {
@@ -1662,7 +1310,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             outln("Results: file://{}/index.html", app.results_directory);
     }
 
-    return s_fail_count + s_timeout_count + s_crashed_count + tests_remaining;
+    return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)

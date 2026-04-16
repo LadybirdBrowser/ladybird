@@ -5,6 +5,7 @@
  */
 
 #include "Fuzzy.h"
+#include "Display.h"
 #include "TestWeb.h"
 
 #include <AK/Enumerate.h>

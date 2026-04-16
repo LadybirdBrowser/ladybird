@@ -28,6 +28,23 @@ enum class TestMode {
     Crash,
 };
 
+constexpr StringView test_mode_to_string(TestMode mode)
+{
+    switch (mode) {
+    case TestMode::Layout:
+        return "Layout"sv;
+    case TestMode::Text:
+        return "Text"sv;
+    case TestMode::Ref:
+        return "Ref"sv;
+    case TestMode::Screenshot:
+        return "Screenshot"sv;
+    case TestMode::Crash:
+        return "Crash"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
 enum class TestResult {
     Pass,
     Fail,
@@ -36,6 +53,25 @@ enum class TestResult {
     Crashed,
     Expanded,
 };
+
+constexpr StringView test_result_to_string(TestResult result)
+{
+    switch (result) {
+    case TestResult::Pass:
+        return "Pass"sv;
+    case TestResult::Fail:
+        return "Fail"sv;
+    case TestResult::Skipped:
+        return "Skipped"sv;
+    case TestResult::Timeout:
+        return "Timeout"sv;
+    case TestResult::Crashed:
+        return "Crashed"sv;
+    case TestResult::Expanded:
+        return "Expanded"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
 
 enum class RefTestExpectationType {
     Match,
@@ -81,6 +117,16 @@ struct TestCompletion {
     size_t test_index;
     TestResult result;
 };
+
+struct ViewDisplayState {
+    pid_t pid { 0 };
+    ByteString test_name;
+    UnixDateTime start_time;
+    bool active { false };
+};
+
+Vector<ViewDisplayState>& view_states();
+size_t total_tests();
 
 using TestPromise = Core::Promise<TestCompletion>;
 

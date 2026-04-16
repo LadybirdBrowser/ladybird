@@ -2,6 +2,7 @@ set(SOURCES
     Application.cpp
     CaptureFile.cpp
     Debug.cpp
+    Display.cpp
     Fixture.cpp
     Fuzzy.cpp
     TestRunCapture.cpp
