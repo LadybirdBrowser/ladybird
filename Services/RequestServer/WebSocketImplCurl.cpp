@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
+
+static constexpr long s_connect_timeout_seconds = 90L;
 
 NonnullRefPtr<WebSocketImplCurl> WebSocketImplCurl::create(CURLM* multi_handle)
 {
@@ -24,6 +27,8 @@ WebSocketImplCurl::~WebSocketImplCurl()
 {
     if (m_read_notifier)
         m_read_notifier->close();
+    if (m_write_notifier)
+        m_write_notifier->close();
     if (m_error_notifier)
         m_error_notifier->close();
 
@@ -64,6 +69,7 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     auto const& url = info.url();
     set_option(CURLOPT_URL, url.to_byte_string().characters());
     set_option(CURLOPT_PORT, url.port_or_default());
+    set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
     if (auto root_certs = info.root_certificates_path(); root_certs.has_value())
         set_option(CURLOPT_CAINFO, root_certs->characters());
@@ -127,15 +133,17 @@ ErrorOr<ByteString> WebSocketImplCurl::read_line(size_t)
 
 bool WebSocketImplCurl::send(ReadonlyBytes bytes)
 {
-    size_t sent = 0;
-    CURLcode result = CURLE_OK;
-    do {
-        sent = 0;
-        result = curl_easy_send(m_easy_handle, bytes.data(), bytes.size(), &sent);
-        bytes = bytes.slice(sent);
-    } while (bytes.size() > 0 && (result == CURLE_OK || result == CURLE_AGAIN));
+    if (auto const error = m_pending_write_buffer.try_append(bytes); error.is_error()) {
+        dbgln("Failed to queue WebSocket write: {}", error.error());
+        on_connection_error();
+        return false;
+    }
 
-    return result == CURLE_OK;
+    if (flush_pending_write_buffer())
+        return true;
+
+    on_connection_error();
+    return false;
 }
 
 bool WebSocketImplCurl::eof()
@@ -149,6 +157,10 @@ void WebSocketImplCurl::discard_connection()
         m_read_notifier->close();
         m_read_notifier = nullptr;
     }
+    if (m_write_notifier) {
+        m_write_notifier->close();
+        m_write_notifier = nullptr;
+    }
     if (m_error_notifier) {
         m_error_notifier->close();
         m_error_notifier = nullptr;
@@ -158,6 +170,8 @@ void WebSocketImplCurl::discard_connection()
         curl_easy_cleanup(m_easy_handle);
         m_easy_handle = nullptr;
     }
+    m_pending_write_buffer.clear();
+    m_pending_write_buffer_offset = 0;
 }
 
 void WebSocketImplCurl::read_from_socket()
@@ -202,6 +216,39 @@ void WebSocketImplCurl::read_from_socket()
         on_ready_to_read();
 }
 
+bool WebSocketImplCurl::flush_pending_write_buffer()
+{
+    while (m_pending_write_buffer_offset < m_pending_write_buffer.size()) {
+        auto pending_bytes = m_pending_write_buffer.bytes().slice(m_pending_write_buffer_offset);
+
+        size_t sent = 0;
+        auto const result = curl_easy_send(m_easy_handle, pending_bytes.data(), pending_bytes.size(), &sent);
+        if (result != CURLE_OK && result != CURLE_AGAIN) {
+            dbgln("Failed to send to WebSocket: {}", curl_easy_strerror(result));
+            return false;
+        }
+
+        m_pending_write_buffer_offset += sent;
+        if (sent > 0)
+            continue;
+
+        if (result == CURLE_AGAIN) {
+            if (m_write_notifier)
+                m_write_notifier->set_enabled(true);
+            return true;
+        }
+
+        dbgln("Failed to make progress sending to WebSocket");
+        return false;
+    }
+
+    m_pending_write_buffer.clear();
+    m_pending_write_buffer_offset = 0;
+    if (m_write_notifier)
+        m_write_notifier->set_enabled(false);
+    return true;
+}
+
 bool WebSocketImplCurl::did_connect()
 {
     curl_socket_t socket_fd = CURL_SOCKET_BAD;
@@ -213,6 +260,12 @@ bool WebSocketImplCurl::did_connect()
     m_read_notifier->on_activation = [this] {
         read_from_socket();
     };
+    m_write_notifier = Core::Notifier::construct(socket_fd, Core::Notifier::Type::Write);
+    m_write_notifier->on_activation = [this] {
+        if (!flush_pending_write_buffer())
+            on_connection_error();
+    };
+    m_write_notifier->set_enabled(false);
     m_error_notifier = Core::Notifier::construct(socket_fd, Core::Notifier::Type::Error | Core::Notifier::Type::HangUp);
     m_error_notifier->on_activation = [this] {
         on_connection_error();

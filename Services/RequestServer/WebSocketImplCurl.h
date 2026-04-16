@@ -38,13 +38,17 @@ private:
     explicit WebSocketImplCurl(CURLM*);
 
     void read_from_socket();
+    bool flush_pending_write_buffer();
 
     CURLM* m_multi_handle { nullptr };
     CURL* m_easy_handle { nullptr };
     RefPtr<Core::Notifier> m_read_notifier;
+    RefPtr<Core::Notifier> m_write_notifier;
     RefPtr<Core::Notifier> m_error_notifier;
     Vector<curl_slist*> m_curl_string_lists;
     AllocatingMemoryStream m_read_buffer;
+    ByteBuffer m_pending_write_buffer;
+    size_t m_pending_write_buffer_offset { 0 };
 };
 
 }
