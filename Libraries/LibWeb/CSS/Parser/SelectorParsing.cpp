@@ -1196,6 +1196,7 @@ Parser::ParseErrorOr<Optional<Selector::SimpleSelector>> Parser::parse_simple_se
     return ParseError::SyntaxError;
 }
 
+// https://drafts.csswg.org/css-syntax-3/#anb-microsyntax
 Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_pattern(TokenStream<ComponentValue>& values)
 {
     auto transaction = values.begin_transaction();
@@ -1203,103 +1204,101 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     auto is_sign = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Delim) && (value.token().delim() == '+' || value.token().delim() == '-');
     };
+
+    auto is_series_of_1_or_more_digits = [](StringView string) -> bool {
+        if (string.is_empty())
+            return false;
+        for (char c : string) {
+            if (!is_ascii_digit(c))
+                return false;
+        }
+        return true;
+    };
+
+    // <n-dimension> is a <dimension-token> with its type flag set to "integer", and a unit that is an ASCII
+    // case-insensitive match for "n"
     auto is_n_dimension = [](ComponentValue const& value) -> bool {
-        if (!value.is(Token::Type::Dimension))
-            return false;
-        if (!value.token().number().is_integer())
-            return false;
-        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n"sv))
-            return false;
-        return true;
+        return value.is(Token::Type::Dimension)
+            && value.token().number().is_integer()
+            && value.token().dimension_unit().equals_ignoring_ascii_case("n"sv);
     };
+
+    // <ndash-dimension> is a <dimension-token> with its type flag set to "integer", and a unit that is an ASCII
+    // case-insensitive match for "n-"
     auto is_ndash_dimension = [](ComponentValue const& value) -> bool {
-        if (!value.is(Token::Type::Dimension))
-            return false;
-        if (!value.token().number().is_integer())
-            return false;
-        if (!value.token().dimension_unit().equals_ignoring_ascii_case("n-"sv))
-            return false;
-        return true;
+        return value.is(Token::Type::Dimension)
+            && value.token().number().is_integer()
+            && value.token().dimension_unit().equals_ignoring_ascii_case("n-"sv);
     };
-    auto is_ndashdigit_dimension = [](ComponentValue const& value) -> bool {
-        if (!value.is(Token::Type::Dimension))
-            return false;
-        if (!value.token().number().is_integer())
-            return false;
-        auto dimension_unit = value.token().dimension_unit();
-        if (!dimension_unit.starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive))
-            return false;
-        for (size_t i = 2; i < dimension_unit.bytes_as_string_view().length(); ++i) {
-            if (!is_ascii_digit(dimension_unit.bytes_as_string_view()[i]))
-                return false;
-        }
-        return true;
+
+    // <ndashdigit-dimension> is a <dimension-token> with its type flag set to "integer", and a unit that is an ASCII
+    // case-insensitive match for "n-*", where "*" is a series of one or more digits
+    auto is_ndashdigit_dimension = [&](ComponentValue const& value) -> bool {
+        return value.is(Token::Type::Dimension)
+            && value.token().number().is_integer()
+            && value.token().dimension_unit().starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive)
+            && is_series_of_1_or_more_digits(value.token().dimension_unit().bytes_as_string_view().substring_view(2));
     };
-    auto is_ndashdigit_ident = [](ComponentValue const& value) -> bool {
-        if (!value.is(Token::Type::Ident))
-            return false;
-        auto ident = value.token().ident();
-        if (!ident.starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive))
-            return false;
-        for (size_t i = 2; i < ident.bytes_as_string_view().length(); ++i) {
-            if (!is_ascii_digit(ident.bytes_as_string_view()[i]))
-                return false;
-        }
-        return true;
+
+    // <ndashdigit-ident> is an <ident-token> whose value is an ASCII case-insensitive match for "n-*", where "*" is a
+    // series of one or more digits
+    auto is_ndashdigit_ident = [&](ComponentValue const& value) -> bool {
+        return value.is(Token::Type::Ident)
+            && value.token().ident().starts_with_bytes("n-"sv, CaseSensitivity::CaseInsensitive)
+            && is_series_of_1_or_more_digits(value.token().ident().bytes_as_string_view().substring_view(2));
     };
-    auto is_dashndashdigit_ident = [](ComponentValue const& value) -> bool {
-        if (!value.is(Token::Type::Ident))
-            return false;
-        auto ident = value.token().ident();
-        if (!ident.starts_with_bytes("-n-"sv, CaseSensitivity::CaseInsensitive))
-            return false;
-        if (ident.bytes_as_string_view().length() == 3)
-            return false;
-        for (size_t i = 3; i < ident.bytes_as_string_view().length(); ++i) {
-            if (!is_ascii_digit(ident.bytes_as_string_view()[i]))
-                return false;
-        }
-        return true;
+
+    // <dashndashdigit-ident> is an <ident-token> whose value is an ASCII case-insensitive match for "-n-*", where "*"
+    // is a series of one or more digits
+    auto is_dashndashdigit_ident = [&](ComponentValue const& value) -> bool {
+        return value.is(Token::Type::Ident)
+            && value.token().ident().starts_with_bytes("-n-"sv, CaseSensitivity::CaseInsensitive)
+            && is_series_of_1_or_more_digits(value.token().ident().bytes_as_string_view().substring_view(3));
     };
+
+    // <integer> is a <number-token> with its type flag set to "integer"
     auto is_integer = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Number) && value.token().number().is_integer();
     };
+
+    // <signed-integer> is a <number-token> with its type flag set to "integer", and a sign character
     auto is_signed_integer = [](ComponentValue const& value) -> bool {
         return value.is(Token::Type::Number) && value.token().number().is_integer_with_explicit_sign();
     };
+
+    // <signless-integer> is a <number-token> with its type flag set to "integer", and no sign character
     auto is_signless_integer = [](ComponentValue const& value) -> bool {
-        return value.is(Token::Type::Number) && !value.token().number().is_integer_with_explicit_sign();
+        return value.is(Token::Type::Number)
+            && value.token().number().is_integer()
+            && !value.token().number().is_integer_with_explicit_sign();
     };
 
-    // https://www.w3.org/TR/css-syntax-3/#the-anb-type
-    // Unfortunately these can't be in the same order as in the spec.
-
     values.discard_whitespace();
-    auto const& first_value = values.consume_a_token();
 
     // odd | even
-    if (first_value.is(Token::Type::Ident)) {
-        auto ident = first_value.token().ident();
-        if (ident.equals_ignoring_ascii_case("odd"sv)) {
-            transaction.commit();
-            return Selector::SimpleSelector::ANPlusBPattern { 2, 1 };
-        }
-        if (ident.equals_ignoring_ascii_case("even"sv)) {
-            transaction.commit();
-            return Selector::SimpleSelector::ANPlusBPattern { 2, 0 };
-        }
+    if (values.next_token().is_ident("odd"sv)) {
+        values.discard_a_token(); // odd
+        transaction.commit();
+        return Selector::SimpleSelector::ANPlusBPattern { 2, 1 };
     }
+    if (values.next_token().is_ident("even"sv)) {
+        values.discard_a_token(); // even
+        transaction.commit();
+        return Selector::SimpleSelector::ANPlusBPattern { 2, 0 };
+    }
+
     // <integer>
-    if (is_integer(first_value)) {
-        int b = first_value.token().to_integer();
+    if (is_integer(values.next_token())) {
+        int b = values.consume_a_token().token().to_integer();
         transaction.commit();
         return Selector::SimpleSelector::ANPlusBPattern { 0, b };
     }
+
     // <n-dimension>
     // <n-dimension> <signed-integer>
     // <n-dimension> ['+' | '-'] <signless-integer>
-    if (is_n_dimension(first_value)) {
-        int a = first_value.token().dimension_value_int();
+    if (is_n_dimension(values.next_token())) {
+        int a = values.consume_a_token().token().dimension_value_int();
         values.discard_whitespace();
 
         // <n-dimension> <signed-integer>
@@ -1327,9 +1326,11 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         transaction.commit();
         return Selector::SimpleSelector::ANPlusBPattern { a, 0 };
     }
+
     // <ndash-dimension> <signless-integer>
-    if (is_ndash_dimension(first_value)) {
+    if (is_ndash_dimension(values.next_token())) {
         values.discard_whitespace();
+        auto const& first_value = values.consume_a_token();
         auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
             int a = first_value.token().dimension_value_int();
@@ -1340,9 +1341,10 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
         return {};
     }
+
     // <ndashdigit-dimension>
-    if (is_ndashdigit_dimension(first_value)) {
-        auto const& dimension = first_value.token();
+    if (is_ndashdigit_dimension(values.next_token())) {
+        auto const& dimension = values.consume_a_token().token();
         int a = dimension.dimension_value_int();
         auto maybe_b = dimension.dimension_unit().bytes_as_string_view().substring_view(1).to_number<int>();
         if (maybe_b.has_value()) {
@@ -1352,9 +1354,10 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
         return {};
     }
+
     // <dashndashdigit-ident>
-    if (is_dashndashdigit_ident(first_value)) {
-        auto maybe_b = first_value.token().ident().bytes_as_string_view().substring_view(2).to_number<int>();
+    if (is_dashndashdigit_ident(values.next_token())) {
+        auto maybe_b = values.consume_a_token().token().ident().bytes_as_string_view().substring_view(2).to_number<int>();
         if (maybe_b.has_value()) {
             transaction.commit();
             return Selector::SimpleSelector::ANPlusBPattern { -1, maybe_b.value() };
@@ -1362,10 +1365,12 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
 
         return {};
     }
+
     // -n
     // -n <signed-integer>
     // -n ['+' | '-'] <signless-integer>
-    if (first_value.is_ident("-n"sv)) {
+    if (values.next_token().is_ident("-n"sv)) {
+        values.discard_a_token(); // -n
         values.discard_whitespace();
 
         // -n <signed-integer>
@@ -1394,7 +1399,8 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
         return Selector::SimpleSelector::ANPlusBPattern { -1, 0 };
     }
     // -n- <signless-integer>
-    if (first_value.is_ident("-n-"sv)) {
+    if (values.next_token().is_ident("-n-"sv)) {
+        values.discard_a_token(); // -n-
         values.discard_whitespace();
         auto const& second_value = values.consume_a_token();
         if (is_signless_integer(second_value)) {
@@ -1413,9 +1419,9 @@ Optional<Selector::SimpleSelector::ANPlusBPattern> Parser::parse_a_n_plus_b_patt
     // '+'?† n- <signless-integer>
     // '+'?† <ndashdigit-ident>
     // In all of these cases, the + is optional, and has no effect.
-    // So, we just skip the +, and carry on.
-    if (!first_value.is_delim('+')) {
-        values.reconsume_current_input_token();
+    // So, we consume the + if it's there.
+    if (values.next_token().is_delim('+')) {
+        values.discard_a_token(); // +
         // We do *not* skip whitespace here.
     }
 
