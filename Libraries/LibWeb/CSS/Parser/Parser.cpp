@@ -1876,13 +1876,12 @@ RefPtr<StyleValue const> Parser::parse_source_size_value(TokenStream<ComponentVa
         return KeywordStyleValue::create(Keyword::Auto);
     }
 
-    if (auto parsed = parse_length_value(tokens)) {
-        // https://html.spec.whatwg.org/multipage/images.html#valid-source-size-list
-        // "A <source-size-value> that is a <length> must not be negative,
-        // and must not use CSS functions other than the math functions."
-        if (parsed->is_length() && parsed->as_length().length().raw_value() < 0)
-            return {};
-
+    // https://html.spec.whatwg.org/multipage/images.html#valid-source-size-list
+    // "A <source-size-value> that is a <length> must not be negative,
+    // and must not use CSS functions other than the math functions."
+    if (auto parsed = parse_length_value(tokens, non_negative_range)) {
+        // FIXME: It seems odd that we disallow infinite calculated values here rather than clamping as we do for all
+        //        other values - is this correct?
         if (parsed->is_calculated()) {
             // https://drafts.csswg.org/css-values-4/#calc-range
             // "the value resulting from a top-level calculation must be

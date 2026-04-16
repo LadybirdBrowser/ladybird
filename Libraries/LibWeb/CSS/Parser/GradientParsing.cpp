@@ -117,7 +117,7 @@ Optional<Vector<ColorStopListElement>> Parser::parse_linear_color_stop_list(Toke
     //   <linear-color-stop> , [ <linear-color-hint>? , <linear-color-stop> ]#
     return parse_color_stop_list(
         tokens,
-        [&](auto& it) { return parse_length_percentage_value(it); });
+        [&](auto& it) { return parse_length_percentage_value(it, infinite_range, infinite_range); });
 }
 
 Optional<Vector<ColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
@@ -138,7 +138,7 @@ Optional<Vector<ColorStopListElement>> Parser::parse_angular_color_stop_list(Tok
                 }
             }
 
-            return parse_angle_percentage_value(it);
+            return parse_angle_percentage_value(it, infinite_range, infinite_range);
         });
 }
 
@@ -207,7 +207,7 @@ RefPtr<LinearGradientStyleValue const> Parser::parse_linear_gradient_function(To
     tokens.discard_whitespace();
 
     auto const& first_param = tokens.next_token();
-    if (auto maybe_angle = parse_angle_value(tokens)) {
+    if (auto maybe_angle = parse_angle_value(tokens, infinite_range)) {
         gradient_direction = maybe_angle.release_nonnull();
     } else if (first_param.is(Token::Type::Number) && first_param.token().number_value() == 0) {
         // <zero>
@@ -327,7 +327,7 @@ RefPtr<ConicGradientStyleValue const> Parser::parse_conic_gradient_function(Toke
             // from [ <angle> | <zero> ]
             if (from_angle || at_position)
                 return nullptr;
-            if (auto maybe_angle = parse_angle_value(tokens)) {
+            if (auto maybe_angle = parse_angle_value(tokens, infinite_range)) {
                 from_angle = maybe_angle.release_nonnull();
             } else if (auto peek_token = tokens.next_token(); peek_token.is(Token::Type::Number) && peek_token.token().number_value() == 0) {
                 tokens.discard_a_token(); // 0
