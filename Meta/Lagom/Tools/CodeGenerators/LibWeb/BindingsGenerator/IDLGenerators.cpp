@@ -1223,6 +1223,78 @@ static void generate_callback_function_to_cpp(SourceGenerator& scoped_generator,
     }
 }
 
+static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, size_t recursion_depth)
+{
+    // https://webidl.spec.whatwg.org/#js-sequence
+    // https://webidl.spec.whatwg.org/#js-frozen-array
+
+    auto sequence_generator = scoped_generator.fork();
+    sequence_generator.set("recursion_depth", ByteString::number(recursion_depth));
+
+    // A JavaScript value V is converted to an IDL sequence<T> value as follows:
+    // 1. If V is not an Object, throw a TypeError.
+    // 2. Let method be ? GetMethod(V, %Symbol.iterator%).
+    // 3. If method is undefined, throw a TypeError.
+    // 4. Return the result of creating a sequence from V and method.
+
+    // A JavaScript value V is converted to an IDL FrozenArray<T> value by running the following algorithm:
+    // 1. Let values be the result of converting V to IDL type sequence<T>.
+    // 2. Return the result of creating a frozen array from values.
+
+    if (optional || type.is_nullable()) {
+        auto sequence_cpp_type = idl_type_name_to_cpp_type(type.parameters().first(), interface);
+        sequence_generator.set("sequence.type", sequence_cpp_type.name);
+        sequence_generator.set("sequence.storage_type", sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type));
+
+        if (!optional_default_value.has_value()) {
+            sequence_generator.append(R"~~~(
+    Optional<@sequence.storage_type@<@sequence.type@>> @cpp_name@;
+)~~~");
+        } else {
+            if (optional_default_value != "[]")
+                TODO();
+
+            if (sequence_cpp_type.sequence_storage_type == IDL::SequenceStorageType::Vector) {
+                sequence_generator.append(R"~~~(
+    @sequence.storage_type@<@sequence.type@> @cpp_name@;
+)~~~");
+            } else {
+                sequence_generator.append(R"~~~(
+    @sequence.storage_type@<@sequence.type@> @cpp_name@ { vm.heap() };
+)~~~");
+            }
+        }
+
+        if (optional) {
+            sequence_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined()) {
+)~~~");
+        } else {
+            sequence_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_nullish()) {
+)~~~");
+        }
+    }
+
+    sequence_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_object())
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
+
+    auto @js_name@@js_suffix@_iterator_method@recursion_depth@ = TRY(@js_name@@js_suffix@.get_method(vm, vm.well_known_symbol_iterator()));
+    if (!@js_name@@js_suffix@_iterator_method@recursion_depth@)
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, @js_name@@js_suffix@);
+)~~~");
+
+    type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", cpp_name, optional || type.is_nullable() ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), interface, recursion_depth + 1);
+
+    if (optional || type.is_nullable()) {
+        sequence_generator.append(R"~~~(
+        @cpp_name@ = move(@cpp_name@_non_optional);
+    }
+)~~~");
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -1281,75 +1353,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         auto& callback_function = interface.callback_functions.find(parameter.type->name())->value;
         generate_callback_function_to_cpp(scoped_generator, *parameter.type, callback_function, optional);
     } else if (parameter.type->name().is_one_of("sequence"sv, "FrozenArray"sv)) {
-        // https://webidl.spec.whatwg.org/#js-sequence
-        // https://webidl.spec.whatwg.org/#js-frozen-array
-
-        auto sequence_generator = scoped_generator.fork();
-        auto& parameterized_type = as<IDL::ParameterizedType>(*parameter.type);
-        sequence_generator.set("recursion_depth", ByteString::number(recursion_depth));
-
-        // A JavaScript value V is converted to an IDL sequence<T> value as follows:
-        // 1. If V is not an Object, throw a TypeError.
-        // 2. Let method be ? GetMethod(V, %Symbol.iterator%).
-        // 3. If method is undefined, throw a TypeError.
-        // 4. Return the result of creating a sequence from V and method.
-
-        // A JavaScript value V is converted to an IDL FrozenArray<T> value by running the following algorithm:
-        // 1. Let values be the result of converting V to IDL type sequence<T>.
-        // 2. Return the result of creating a frozen array from values.
-
-        if (optional || parameter.type->is_nullable()) {
-            auto sequence_cpp_type = idl_type_name_to_cpp_type(parameterized_type.parameters().first(), interface);
-            sequence_generator.set("sequence.type", sequence_cpp_type.name);
-            sequence_generator.set("sequence.storage_type", sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type));
-
-            if (!optional_default_value.has_value()) {
-                sequence_generator.append(R"~~~(
-    Optional<@sequence.storage_type@<@sequence.type@>> @cpp_name@;
-)~~~");
-            } else {
-                if (optional_default_value != "[]")
-                    TODO();
-
-                if (sequence_cpp_type.sequence_storage_type == IDL::SequenceStorageType::Vector) {
-                    sequence_generator.append(R"~~~(
-    @sequence.storage_type@<@sequence.type@> @cpp_name@;
-)~~~");
-                } else {
-                    sequence_generator.append(R"~~~(
-    @sequence.storage_type@<@sequence.type@> @cpp_name@ { vm.heap() };
-)~~~");
-                }
-            }
-
-            if (optional) {
-                sequence_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_undefined()) {
-)~~~");
-            } else {
-                sequence_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_nullish()) {
-)~~~");
-            }
-        }
-
-        sequence_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_object())
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAnObject, @js_name@@js_suffix@);
-
-    auto @js_name@@js_suffix@_iterator_method@recursion_depth@ = TRY(@js_name@@js_suffix@.get_method(vm, vm.well_known_symbol_iterator()));
-    if (!@js_name@@js_suffix@_iterator_method@recursion_depth@)
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, @js_name@@js_suffix@);
-)~~~");
-
-        parameterized_type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", acceptable_cpp_name, optional || parameter.type->is_nullable() ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), interface, recursion_depth + 1);
-
-        if (optional || parameter.type->is_nullable()) {
-            sequence_generator.append(R"~~~(
-        @cpp_name@ = move(@cpp_name@_non_optional);
-    }
-)~~~");
-        }
+        generate_sequence_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), js_name, js_suffix, acceptable_cpp_name, interface, optional, optional_default_value, recursion_depth);
     } else if (parameter.type->name() == "record") {
         generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, interface, recursion_depth);
     } else if (is<IDL::UnionType>(*parameter.type)) {
