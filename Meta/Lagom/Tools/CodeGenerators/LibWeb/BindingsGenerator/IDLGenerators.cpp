@@ -25,7 +25,7 @@ namespace IDL {
 Vector<StringView> g_header_search_paths;
 
 template<typename ParameterType>
-static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string = false, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
+static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
 
 // FIXME: Generate this automatically somehow.
 static bool is_platform_object(Type const& type)
@@ -730,7 +730,7 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
 )~~~");
             }
 
-            generate_to_cpp(generator, member, member_property_value_name, "", member_value_name, interface, member.extended_attributes.contains("LegacyNullToEmptyString"), !member.required, member.default_value);
+            generate_to_cpp(generator, member, member_property_value_name, "", member_value_name, interface, !member.required, member.default_value);
 
             bool may_be_null = !optional_default_value.has_value() || optional_default_value.value() == "null";
 
@@ -1169,7 +1169,7 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
 )~~~");
 
     IDL::Parameter key_parameter { .type = type.parameters()[0], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
+    generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, {}, false, recursion_depth + 1);
 
     record_generator.append(R"~~~(
         auto value@recursion_depth@ = TRY(@js_name@@js_suffix@_object.get(property_key@recursion_depth@));
@@ -1177,7 +1177,7 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
 
     // FIXME: Record value types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
     IDL::Parameter value_parameter { .type = type.parameters()[1], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, false, {}, false, recursion_depth + 1);
+    generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, {}, false, recursion_depth + 1);
 
     record_generator.append(R"~~~(
         @cpp_name@.set(typed_key@recursion_depth@, typed_value@recursion_depth@);
@@ -1296,7 +1296,7 @@ static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::Par
 }
 
 template<typename ParameterType>
-static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
+static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
     // https://webidl.spec.whatwg.org/#es-union
 
@@ -1335,7 +1335,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
 
         IDL::Parameter dictionary_parameter { .type = *dictionary_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, interface, false, {}, false, recursion_depth + 1);
 
         dictionary_generator.append(R"~~~(
         return dictionary_union_type;
@@ -1582,7 +1582,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     if (record_type) {
         IDL::Parameter record_parameter { .type = *record_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, interface, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return record_union_type;
@@ -1595,7 +1595,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
             continue;
 
         IDL::Parameter callback_interface_parameter { .type = *type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return callback_interface_union_type;
@@ -1649,7 +1649,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
             return { @js_name@@js_suffix@_number };
@@ -1727,8 +1727,8 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // 14. If types includes a string type, then return the result of converting V to that type.
         // NOTE: Currently all string types are converted to String.
 
-        IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
+        IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = parameter.extended_attributes };
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_string };
@@ -1757,7 +1757,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, {}, false, recursion_depth + 1);
 
         union_numeric_type_generator.append(R"~~~(
         return x_number;
@@ -1768,7 +1768,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_number };
@@ -1867,10 +1867,11 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 }
 
 template<typename ParameterType>
-static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
+static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
     auto scoped_generator = generator.fork();
     auto acceptable_cpp_name = make_input_acceptable_cpp(cpp_name);
+    auto legacy_null_to_empty_string = parameter.extended_attributes.contains("LegacyNullToEmptyString"sv);
     scoped_generator.set("cpp_name", acceptable_cpp_name);
     scoped_generator.set("js_name", js_name);
     scoped_generator.set("js_suffix", js_suffix);
@@ -1928,7 +1929,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "record") {
         generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, interface, recursion_depth);
     } else if (is<IDL::UnionType>(*parameter.type)) {
-        generate_union_to_cpp(scoped_generator, parameter, js_name, js_suffix, acceptable_cpp_name, interface, legacy_null_to_empty_string, optional, optional_default_value, variadic, recursion_depth);
+        generate_union_to_cpp(scoped_generator, parameter, js_name, js_suffix, acceptable_cpp_name, interface, optional, optional_default_value, variadic, recursion_depth);
     } else {
         dbgln("Unimplemented JS-to-C++ conversion: {}", parameter.type->name());
         VERIFY_NOT_REACHED();
@@ -1981,8 +1982,7 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
 )~~~");
         }
 
-        bool legacy_null_to_empty_string = parameter.extended_attributes.contains("LegacyNullToEmptyString");
-        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface, legacy_null_to_empty_string, parameter.optional, parameter.optional_default_value, parameter.variadic, 0);
+        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface, parameter.optional, parameter.optional_default_value, parameter.variadic, 0);
         ++argument_index;
     }
 
@@ -2037,7 +2037,7 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
 
     // FIXME: Sequences types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
     IDL::Parameter parameter { .type = parameters().first(), .name = iterable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(sequence_generator, parameter, "next_item", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), interface, false, false, {}, false, recursion_depth);
+    generate_to_cpp(sequence_generator, parameter, "next_item", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), interface, false, {}, false, recursion_depth);
 
     sequence_generator.append(R"~~~(
     @cpp_name@.append(sequence_item@recursion_depth@);
@@ -4300,7 +4300,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return;
     }
 
-    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface, attribute.extended_attributes.contains("LegacyNullToEmptyString"));
+    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface);
     if (attribute.extended_attributes.contains("Reflect")) {
         if (attribute.type->name() == "boolean") {
             attribute_generator.append(R"~~~(
