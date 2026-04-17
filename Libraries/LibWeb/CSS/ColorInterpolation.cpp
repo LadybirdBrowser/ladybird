@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LabLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
@@ -131,12 +130,12 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return { is_component_none(hwb.channel(0)), is_component_none(hwb.channel(1)), is_component_none(hwb.channel(2)), is_component_none(hwb.alpha()) };
     }
     case ColorStyleValue::ColorType::Lab: {
-        auto const& lab = as<LabColorStyleValue>(color);
-        return { is_component_none(lab.l()), is_component_none(lab.a()), is_component_none(lab.b()), is_component_none(lab.alpha()) };
+        auto const& lab = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(lab.channel(0)), is_component_none(lab.channel(1)), is_component_none(lab.channel(2)), is_component_none(lab.alpha()) };
     }
     case ColorStyleValue::ColorType::OKLab: {
-        auto const& oklab = as<OKLabColorStyleValue>(color);
-        return { is_component_none(oklab.l()), is_component_none(oklab.a()), is_component_none(oklab.b()), is_component_none(oklab.alpha()) };
+        auto const& oklab = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(oklab.channel(0)), is_component_none(oklab.channel(1)), is_component_none(oklab.channel(2)), is_component_none(oklab.alpha()) };
     }
     case ColorStyleValue::ColorType::LCH: {
         auto const& lch = as<LCHColorStyleValue>(color);
@@ -315,9 +314,9 @@ static ValueComparingNonnullRefPtr<StyleValue const> style_value_from_rectangula
 
     switch (space) {
     case RectangularColorSpace::Lab:
-        return LabLikeColorStyleValue::create<LabColorStyleValue>(c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::Lab, c1, c2, c3, alpha);
     case RectangularColorSpace::Oklab:
-        return LabLikeColorStyleValue::create<OKLabColorStyleValue>(c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLab, c1, c2, c3, alpha);
     case RectangularColorSpace::Srgb:
         return ColorFunctionStyleValue::create("srgb"sv, c1, c2, c3, alpha);
     case RectangularColorSpace::SrgbLinear:
@@ -418,20 +417,20 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return Gfx::ColorComponents { static_cast<float>(h.value()), static_cast<float>(w.value() / 100.0), static_cast<float>(b.value() / 100.0), a.value() };
     }
     case ColorStyleValue::ColorType::Lab: {
-        auto const& lab = as<LabColorStyleValue>(color);
-        auto l = ColorStyleValue::resolve_with_reference_value(lab.l(), 100.0f, context);
-        auto a_comp = ColorStyleValue::resolve_with_reference_value(lab.a(), 125.0f, context);
-        auto b_comp = ColorStyleValue::resolve_with_reference_value(lab.b(), 125.0f, context);
+        auto const& lab = as<ColorFunctionStyleValue>(color);
+        auto l = ColorStyleValue::resolve_with_reference_value(lab.channel(0), 100.0f, context);
+        auto a_comp = ColorStyleValue::resolve_with_reference_value(lab.channel(1), 125.0f, context);
+        auto b_comp = ColorStyleValue::resolve_with_reference_value(lab.channel(2), 125.0f, context);
         auto a = resolve_alpha(lab.alpha());
         if (!l.has_value() || !a_comp.has_value() || !b_comp.has_value() || !a.has_value())
             return {};
         return Gfx::ColorComponents { static_cast<float>(l.value()), static_cast<float>(a_comp.value()), static_cast<float>(b_comp.value()), a.value() };
     }
     case ColorStyleValue::ColorType::OKLab: {
-        auto const& oklab = as<OKLabColorStyleValue>(color);
-        auto l = ColorStyleValue::resolve_with_reference_value(oklab.l(), 1.0f, context);
-        auto a_comp = ColorStyleValue::resolve_with_reference_value(oklab.a(), 0.4f, context);
-        auto b_comp = ColorStyleValue::resolve_with_reference_value(oklab.b(), 0.4f, context);
+        auto const& oklab = as<ColorFunctionStyleValue>(color);
+        auto l = ColorStyleValue::resolve_with_reference_value(oklab.channel(0), 1.0f, context);
+        auto a_comp = ColorStyleValue::resolve_with_reference_value(oklab.channel(1), 0.4f, context);
+        auto b_comp = ColorStyleValue::resolve_with_reference_value(oklab.channel(2), 0.4f, context);
         auto a = resolve_alpha(oklab.alpha());
         if (!l.has_value() || !a_comp.has_value() || !b_comp.has_value() || !a.has_value())
             return {};

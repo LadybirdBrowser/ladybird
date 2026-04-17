@@ -57,7 +57,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LabLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
@@ -1804,7 +1803,8 @@ RefPtr<StyleValue const> Parser::parse_lab_color_value(TokenStream<ComponentValu
 
     auto& color_values = *maybe_color_values;
 
-    return LabLikeColorStyleValue::create<LabColorStyleValue>(color_values[0].release_nonnull(),
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::Lab,
+        color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -1824,7 +1824,8 @@ RefPtr<StyleValue const> Parser::parse_oklab_color_value(TokenStream<ComponentVa
 
     auto& color_values = *maybe_color_values;
 
-    return LabLikeColorStyleValue::create<OKLabColorStyleValue>(color_values[0].release_nonnull(),
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLab,
+        color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());

@@ -279,7 +279,6 @@ set(SOURCES
     CSS/StyleValues/IntegerStyleValue.cpp
     CSS/StyleValues/KeywordStyleValue.cpp
     CSS/StyleValues/LCHLikeColorStyleValue.cpp
-    CSS/StyleValues/LabLikeColorStyleValue.cpp
     CSS/StyleValues/LengthStyleValue.cpp
     CSS/StyleValues/LightDarkStyleValue.cpp
     CSS/StyleValues/LinearGradientStyleValue.cpp
