@@ -116,45 +116,10 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return {};
 
     auto const& color = style_value.as_color();
-    auto color_type = color.color_type();
-    if (!color_type.has_value())
+    if (!color.color_type().has_value())
         return {};
-    switch (*color_type) {
-    case ColorStyleValue::ColorType::HSL: {
-        auto const& hsl = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(hsl.channel(0)), is_component_none(hsl.channel(1)), is_component_none(hsl.channel(2)), is_component_none(hsl.alpha()) };
-    }
-    case ColorStyleValue::ColorType::HWB: {
-        auto const& hwb = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(hwb.channel(0)), is_component_none(hwb.channel(1)), is_component_none(hwb.channel(2)), is_component_none(hwb.alpha()) };
-    }
-    case ColorStyleValue::ColorType::Lab: {
-        auto const& lab = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(lab.channel(0)), is_component_none(lab.channel(1)), is_component_none(lab.channel(2)), is_component_none(lab.alpha()) };
-    }
-    case ColorStyleValue::ColorType::OKLab: {
-        auto const& oklab = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(oklab.channel(0)), is_component_none(oklab.channel(1)), is_component_none(oklab.channel(2)), is_component_none(oklab.alpha()) };
-    }
-    case ColorStyleValue::ColorType::LCH: {
-        auto const& lch = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(lch.channel(0)), is_component_none(lch.channel(1)), is_component_none(lch.channel(2)), is_component_none(lch.alpha()) };
-    }
-    case ColorStyleValue::ColorType::OKLCH: {
-        auto const& oklch = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(oklch.channel(0)), is_component_none(oklch.channel(1)), is_component_none(oklch.channel(2)), is_component_none(oklch.alpha()) };
-    }
-    case ColorStyleValue::ColorType::RGB: {
-        auto const& rgb = as<ColorFunctionStyleValue>(color);
-        return { is_component_none(rgb.channel(0)), is_component_none(rgb.channel(1)), is_component_none(rgb.channel(2)), is_component_none(rgb.alpha()) };
-    }
-    default:
-        if (color.is_color_function()) {
-            auto const& func = as<ColorFunctionStyleValue>(color);
-            return { is_component_none(func.channel(0)), is_component_none(func.channel(1)), is_component_none(func.channel(2)), is_component_none(func.alpha()) };
-        }
-        return {};
-    }
+    auto const& function = as<ColorFunctionStyleValue>(color);
+    return { is_component_none(function.channel(0)), is_component_none(function.channel(1)), is_component_none(function.channel(2)), is_component_none(function.alpha()) };
 }
 
 // https://drafts.csswg.org/css-color-4/#interpolation-missing
@@ -317,24 +282,24 @@ static ValueComparingNonnullRefPtr<StyleValue const> style_value_from_rectangula
     case RectangularColorSpace::Oklab:
         return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLab, c1, c2, c3, alpha);
     case RectangularColorSpace::Srgb:
-        return ColorFunctionStyleValue::create("srgb"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::sRGB, c1, c2, c3, alpha);
     case RectangularColorSpace::SrgbLinear:
-        return ColorFunctionStyleValue::create("srgb-linear"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::sRGBLinear, c1, c2, c3, alpha);
     case RectangularColorSpace::DisplayP3:
-        return ColorFunctionStyleValue::create("display-p3"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::DisplayP3, c1, c2, c3, alpha);
     case RectangularColorSpace::DisplayP3Linear:
-        return ColorFunctionStyleValue::create("display-p3-linear"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::DisplayP3Linear, c1, c2, c3, alpha);
     case RectangularColorSpace::A98Rgb:
-        return ColorFunctionStyleValue::create("a98-rgb"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::A98RGB, c1, c2, c3, alpha);
     case RectangularColorSpace::ProphotoRgb:
-        return ColorFunctionStyleValue::create("prophoto-rgb"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::ProPhotoRGB, c1, c2, c3, alpha);
     case RectangularColorSpace::Rec2020:
-        return ColorFunctionStyleValue::create("rec2020"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::Rec2020, c1, c2, c3, alpha);
     case RectangularColorSpace::Xyz:
     case RectangularColorSpace::XyzD65:
-        return ColorFunctionStyleValue::create("xyz-d65"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::XYZD65, c1, c2, c3, alpha);
     case RectangularColorSpace::XyzD50:
-        return ColorFunctionStyleValue::create("xyz-d50"sv, c1, c2, c3, alpha);
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::XYZD50, c1, c2, c3, alpha);
     }
     VERIFY_NOT_REACHED();
 }
@@ -347,7 +312,7 @@ static ValueComparingNonnullRefPtr<StyleValue const> style_value_from_polar_colo
     case PolarColorSpace::Hsl: {
         // HSL/HWB resolve to sRGB in computed values, so convert and express as color(srgb ...).
         auto srgb = Gfx::hsl_to_srgb(components);
-        return ColorFunctionStyleValue::create("srgb"sv,
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::sRGB,
             NumberStyleValue::create(srgb[0]),
             NumberStyleValue::create(srgb[1]),
             NumberStyleValue::create(srgb[2]),
@@ -355,7 +320,7 @@ static ValueComparingNonnullRefPtr<StyleValue const> style_value_from_polar_colo
     }
     case PolarColorSpace::Hwb: {
         auto srgb = Gfx::hwb_to_srgb(components);
-        return ColorFunctionStyleValue::create("srgb"sv,
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::sRGB,
             NumberStyleValue::create(srgb[0]),
             NumberStyleValue::create(srgb[1]),
             NumberStyleValue::create(srgb[2]),

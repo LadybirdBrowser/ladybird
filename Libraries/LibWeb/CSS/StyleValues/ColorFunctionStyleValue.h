@@ -27,13 +27,6 @@ public:
         ColorSyntax = ColorSyntax::Modern,
         Optional<FlyString> name = {});
 
-    static ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> create(
-        StringView color_space,
-        ValueComparingNonnullRefPtr<StyleValue const> c1,
-        ValueComparingNonnullRefPtr<StyleValue const> c2,
-        ValueComparingNonnullRefPtr<StyleValue const> c3,
-        ValueComparingRefPtr<StyleValue const> alpha = {});
-
     virtual ~ColorFunctionStyleValue() override = default;
 
     StyleValue const& channel(size_t index) const { return *m_channels[index]; }

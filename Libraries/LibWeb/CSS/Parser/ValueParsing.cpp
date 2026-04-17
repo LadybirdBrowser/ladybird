@@ -1975,7 +1975,9 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return ColorFunctionStyleValue::create(color_space,
+    auto color_type = color_type_from_color_function_name(color_space);
+    VERIFY(color_type.has_value());
+    return ColorFunctionStyleValue::create(*color_type,
         c1.release_nonnull(),
         c2.release_nonnull(),
         c3.release_nonnull(),

@@ -36,18 +36,6 @@ ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> ColorFunctionStyleVal
         color_type, move(c1), move(c2), move(c3), alpha.release_nonnull(), color_syntax, move(name)));
 }
 
-ValueComparingNonnullRefPtr<ColorFunctionStyleValue const> ColorFunctionStyleValue::create(
-    StringView color_space,
-    ValueComparingNonnullRefPtr<StyleValue const> c1,
-    ValueComparingNonnullRefPtr<StyleValue const> c2,
-    ValueComparingNonnullRefPtr<StyleValue const> c3,
-    ValueComparingRefPtr<StyleValue const> alpha)
-{
-    auto maybe_color_type = color_type_from_color_function_name(color_space);
-    VERIFY(maybe_color_type.has_value());
-    return create(*maybe_color_type, move(c1), move(c2), move(c3), move(alpha), ColorSyntax::Modern, {});
-}
-
 namespace {
 
 struct ResolvedChannels {
