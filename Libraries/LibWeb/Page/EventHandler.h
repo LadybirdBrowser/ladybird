@@ -77,6 +77,8 @@ public:
         return {};
     }
 
+    void clear_per_test_input_state(Badge<Internals::Internals>);
+
 private:
     EventResult focus_next_element();
     EventResult focus_previous_element();

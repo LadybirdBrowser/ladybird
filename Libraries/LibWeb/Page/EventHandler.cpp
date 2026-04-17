@@ -980,6 +980,19 @@ void EventHandler::stop_updating_selection()
     m_auto_scroll_handler = nullptr;
 }
 
+void EventHandler::clear_per_test_input_state(Badge<Internals::Internals>)
+{
+    clear_mousedown_tracking();
+    stop_updating_selection();
+    m_middle_button_scroll_handler = nullptr;
+    m_prevent_mouse_event = false;
+    m_hovered_chrome_widget = nullptr;
+    m_captured_chrome_widget = nullptr;
+    m_effective_legacy_mouse_pointer_position = nullptr;
+    m_drag_and_drop_event_handler->reset();
+    m_mousemove_previous_screen_position.clear();
+}
+
 EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     auto middle_button_autoscrolled = m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved_beyond_dead_zone();

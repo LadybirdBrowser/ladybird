@@ -27,6 +27,8 @@ public:
     EventResult handle_drag_leave(JS::Realm&, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_drop(JS::Realm&, CSSPixelPoint screen_position, CSSPixelPoint page_offset, CSSPixelPoint client_offset, CSSPixelPoint offset, unsigned button, unsigned buttons, unsigned modifiers);
 
+    void reset();
+
 private:
     enum class Cancelled {
         No,
@@ -48,8 +50,6 @@ private:
         GC::Ptr<DOM::EventTarget> related_target = nullptr);
 
     bool allow_text_drop(GC::Ref<DOM::Node>) const;
-
-    void reset();
 
     RefPtr<HTML::DragDataStore> m_drag_data_store;
 
