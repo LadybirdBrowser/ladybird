@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: none;
+    }
+
+    #spacer {
+        height: 2000px;
+        background: linear-gradient(white, orange);
+    }
+</style>
+<iframe id="iframe" srcdoc="<!DOCTYPE html><body style='margin: 0; height: 50px; background: lightblue;'>iframe</body>"></iframe>
+<div id="spacer"></div>
+<script>
+    promiseTest(async () => {
+        const iframe = document.getElementById("iframe");
+
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`iframe.scrollY: ${iframe.contentWindow.scrollY}`);
+    });
+</script>

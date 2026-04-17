@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: none;
+    }
+
+    #spacer {
+        height: 2000px;
+        background: linear-gradient(white, orange);
+    }
+</style>
+<div id="spacer"></div>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.id = "iframe";
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                body { margin: 0; }
+                html { scrollbar-width: none; }
+            </style>
+            <div style="width: 200px; height: 200px; background-color: darkblue;"></div>
+            <div style="width: 200px; height: 200px; background-color: blue;"></div>
+            <div style="width: 200px; height: 200px; background-color: magenta;"></div>
+        `;
+        document.body.prepend(iframe);
+
+        await new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        const scrollingElement = iframe.contentDocument.scrollingElement;
+        scrollingElement.scrollTop = 10000;
+        await animationFrame();
+
+        println(`iframe.scrollTop before wheel: ${scrollingElement.scrollTop}`);
+        println(`iframe.scrollHeight: ${scrollingElement.scrollHeight}`);
+        println(`iframe.clientHeight: ${scrollingElement.clientHeight}`);
+
+        internals.wheel(50, 50, 0, 100);
+        await animationFrame();
+
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`iframe.scrollTop after wheel: ${scrollingElement.scrollTop}`);
+    });
+</script>

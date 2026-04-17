@@ -610,8 +610,10 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             if (auto result = dispatch_event_to_nested_navigable(*paintable, visual_viewport_position, [screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
                     return event_handler.handle_mousewheel(position, screen_position, button, buttons, modifiers, wheel_delta_x, wheel_delta_y);
                 });
-                result.has_value())
-                return result.value();
+                result.has_value()) {
+                if (result.value() == EventResult::Handled || result.value() == EventResult::Cancelled)
+                    return result.value();
+            }
 
             // NB: Search for the first parent of the hit target that's an element.
             GC::Ptr<Layout::Node> layout_node;
@@ -622,11 +624,19 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             auto const& offset_paintable = layout_node->first_paintable() ? layout_node->first_paintable() : paintable.ptr();
             auto scroll_offset = document->navigable()->viewport_scroll_offset();
             auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *offset_paintable);
+            bool could_scroll_viewport = document->paintable_box()->could_be_scrolled_by_wheel_event();
             if (node->dispatch_event(UIEvents::WheelEvent::create_from_platform_event(node->realm(), m_navigable->active_window_proxy(), UIEvents::EventNames::wheel, screen_position, page_offset, viewport_position, offset, wheel_delta_x, wheel_delta_y, button, buttons, modifiers).release_value_but_fixme_should_propagate_errors())) {
-                m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
+                if (could_scroll_viewport) {
+                    auto viewport_scroll_position_before = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
+                    m_navigable->scroll_viewport_by_delta({ wheel_delta_x, wheel_delta_y });
+                    auto viewport_scroll_position_after = CSSPixelPoint { CSSPixels(document->visual_viewport()->page_left()), CSSPixels(document->visual_viewport()->page_top()) };
+                    handled_event = viewport_scroll_position_before != viewport_scroll_position_after ? EventResult::Handled : EventResult::Accepted;
+                } else {
+                    handled_event = EventResult::Accepted;
+                }
+            } else {
+                handled_event = EventResult::Cancelled;
             }
-
-            handled_event = EventResult::Handled;
         }
     }
 
