@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/PreloadEntry.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -1825,22 +1826,23 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 // 2. If there’s an authentication entry for httpRequest and either httpRequest’s use-URL-credentials
                 //    flag is unset or httpRequest’s current URL does not include credentials, then set
                 //    authorizationValue to authentication entry.
-                if (false // FIXME: "If there’s an authentication entry for httpRequest"
+                if (auto authentication_entry = http_request->get_authentication_entry(); authentication_entry.has_value()
                     && (!http_request->use_url_credentials() || !http_request->current_url().includes_credentials())) {
-                    // FIXME: "set authorizationValue to authentication entry."
+                    auto payload = MUST(String::formatted("{}:{}", URL::percent_decode(authentication_entry->username), URL::percent_decode(authentication_entry->password)));
+                    authorization_value = MUST(String::formatted("Basic {}", MUST(encode_base64(payload.bytes()))));
                 }
                 // 3. Otherwise, if httpRequest’s current URL does include credentials and isAuthenticationFetch is
                 //    true, set authorizationValue to httpRequest’s current URL, converted to an `Authorization` value.
                 else if (http_request->current_url().includes_credentials() && is_authentication_fetch == IsAuthenticationFetch::Yes) {
                     auto const& url = http_request->current_url();
                     auto payload = MUST(String::formatted("{}:{}", URL::percent_decode(url.username()), URL::percent_decode(url.password())));
-                    authorization_value = MUST(encode_base64(payload.bytes()));
+                    authorization_value = MUST(String::formatted("Basic {}", MUST(encode_base64(payload.bytes()))));
                 }
 
                 // 4. If authorizationValue is non-null, then append (`Authorization`, authorizationValue) to
                 //    httpRequest’s header list.
                 if (authorization_value.has_value()) {
-                    auto header = HTTP::Header::isomorphic_encode("Authorization"sv, *authorization_value);
+                    auto header = HTTP::Header::isomorphic_encode("Authorization"sv, authorization_value.value());
                     http_request->header_list()->append(move(header));
                 }
             }
@@ -1987,7 +1989,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             && http_request->response_tainting() != Infrastructure::Request::ResponseTainting::CORS
             && include_credentials == HTTP::Cookie::IncludeCredentials::Yes
             && request->traversable_for_user_prompts().has<GC::Ptr<HTML::TraversableNavigable>>()
-            && www_authenticate_has_credential_based_scheme()) {
+            && www_authenticate_has_credential_based_scheme()
+            && fetch_params.controller()->is_basic_or_digest_authentication_canceled() == Infrastructure::FetchController::BasicOrDigestAuthenticationIsCanceled::No) {
             // 1. Needs testing: multiple `WWW-Authenticate` headers, missing, parsing issues.
             // (Red box in the spec, no-op)
 
@@ -2015,28 +2018,36 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             if (!request->use_url_credentials() || is_authentication_fetch == IsAuthenticationFetch::Yes) {
                 // 1. If fetchParams is canceled, then return the appropriate network error for fetchParams.
                 if (fetch_params.is_canceled()) {
-                    returned_pending_response->resolve(Infrastructure::Response::appropriate_network_error(vm, fetch_params));
+                    returned_pending_response->resolve(
+                        Infrastructure::Response::appropriate_network_error(vm, fetch_params));
                     return;
                 }
 
-                // FIXME: 2. Let username and password be the result of prompting the end user for a username and password,
-                //           respectively, in request’s window.
-                dbgln("Fetch: Username/password prompt is not implemented, using empty strings. This request will probably fail.");
-                auto username = ByteString::empty();
-                auto password = ByteString::empty();
+                // 2. Let username and password be the result of prompting the end user for a username and password,
+                //    respectively, in request’s window.
+                HTML::TemporaryExecutionContext execution_context { realm };
+                auto user_prompts = *request->traversable_for_user_prompts().get_pointer<GC::Ptr<HTML::TraversableNavigable>>();
+                auto authentication_entry = user_prompts->active_window()->sign_in_dialog();
+
+                // AD-HOC: Indicate to our FetchController that the Basic/Digest authentication sequence was canceled so
+                //         we do not continue to redisplay the sign-in dialog.
+                if (!authentication_entry.has_value())
+                    fetch_params.controller()->set_is_basic_or_digest_authentication_canceled(
+                        Infrastructure::FetchController::BasicOrDigestAuthenticationIsCanceled::Yes);
 
                 // 3. Set the username given request’s current URL and username.
-                request->current_url().set_username(username);
-
                 // 4. Set the password given request’s current URL and password.
-                request->current_url().set_password(password);
+                if (authentication_entry.has_value()) {
+                    request->current_url().set_username(authentication_entry->username);
+                    request->current_url().set_password(authentication_entry->password);
+                }
             }
 
             // 4. Set response to the result of running HTTP-network-or-cache fetch given fetchParams and true.
             inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, IsAuthenticationFetch::Yes);
         }
 
-        inner_pending_response->when_loaded([&realm, &vm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch](GC::Ref<Infrastructure::Response> response) {
+        inner_pending_response->when_loaded([&realm, &vm, &fetch_params, request, returned_pending_response, is_authentication_fetch, is_new_connection_fetch, http_request](GC::Ref<Infrastructure::Response> response) {
             dbgln_if(WEB_FETCH_DEBUG, "Fetch: Running 'HTTP network-or-cache fetch' inner_pending_response load callback");
             // 15. If response’s status is 407, then:
             if (response->status() == 407) {
@@ -2086,11 +2097,20 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
                 inner_pending_response = http_network_or_cache_fetch(realm, fetch_params, is_authentication_fetch, IsNewConnectionFetch::Yes);
             }
 
-            inner_pending_response->when_loaded([returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
+            inner_pending_response->when_loaded([http_request, returned_pending_response, is_authentication_fetch](GC::Ref<Infrastructure::Response> response) {
                 // 17. If isAuthenticationFetch is true, then create an authentication entry for request and the given
                 //     realm.
-                if (is_authentication_fetch == IsAuthenticationFetch::Yes) {
-                    // FIXME: "create an authentication entry for request and the given realm"
+                if (is_authentication_fetch == IsAuthenticationFetch::Yes
+                    // AD-HOC: For unknown reasons we do a second pass here with is_authentication_fetch set to Yes and
+                    //         username and password being empty. Unless we check if username is not empty we overwrite
+                    //         the previously stored authentication entry with an empty one on the second pass.
+                    && !http_request->current_url().username().is_empty()) {
+                    // "create an authentication entry for request and the given realm"
+                    Infrastructure::set_authentication_entry(http_request->current_url(),
+                        Infrastructure::AuthenticationEntry {
+                            .username = http_request->current_url().username(),
+                            .password = http_request->current_url().password(),
+                        });
                 }
 
                 returned_pending_response->resolve(response);
