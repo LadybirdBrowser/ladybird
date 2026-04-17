@@ -193,6 +193,7 @@ public:
     void alert(String const& message = {});
     bool confirm(Optional<String> const& message);
     Optional<String> prompt(Optional<String> const& message, Optional<String> const& default_);
+    Optional<Fetch::Infrastructure::AuthenticationEntry> sign_in_dialog();
 
     WebIDL::ExceptionOr<void> post_message(JS::Value message, String const&, GC::RootVector<GC::Ref<JS::Object>> const&);
     WebIDL::ExceptionOr<void> post_message(JS::Value message, Bindings::WindowPostMessageOptions const&);

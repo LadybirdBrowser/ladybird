@@ -36,6 +36,7 @@
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/DOM/RequestFullscreenError.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
@@ -181,6 +182,9 @@ public:
     Optional<String> did_request_prompt(String const& message, String const& default_);
     void prompt_closed(Optional<String> response);
 
+    Optional<Fetch::Infrastructure::AuthenticationEntry> did_request_sign_in_dialog();
+    void sign_in_closed(Optional<Fetch::Infrastructure::AuthenticationEntry> response);
+
     enum class PendingDialog {
         None,
         Alert,
@@ -211,6 +215,7 @@ public:
         ColorPicker,
         FilePicker,
         Select,
+        SignIn,
     };
 
     void register_media_element(Badge<HTML::HTMLMediaElement>, UniqueNodeID media_id);
@@ -339,6 +344,7 @@ private:
     Optional<Empty> m_pending_alert_response;
     Optional<bool> m_pending_confirm_response;
     Optional<Optional<String>> m_pending_prompt_response;
+    Optional<Optional<Fetch::Infrastructure::AuthenticationEntry>> m_pending_sign_in_response;
     GC::Ptr<GC::Function<void()>> m_on_pending_dialog_closed;
 
     PendingNonBlockingDialog m_pending_non_blocking_dialog { PendingNonBlockingDialog::None };
@@ -462,6 +468,7 @@ public:
     virtual void page_did_request_set_prompt_text(String const&) { }
     virtual void page_did_request_accept_dialog() { }
     virtual void page_did_request_dismiss_dialog() { }
+    virtual void page_did_request_sign_in_dialog() { }
     virtual Optional<Core::SharedVersion> page_did_request_document_cookie_version([[maybe_unused]] Core::SharedVersionIndex document_index) { return {}; }
     virtual void page_did_receive_document_cookie_version_buffer([[maybe_unused]] Core::AnonymousBuffer document_cookie_version_buffer) { }
     virtual void page_did_request_document_cookie_version_index([[maybe_unused]] UniqueNodeID document_id, [[maybe_unused]] String const& domain) { }
