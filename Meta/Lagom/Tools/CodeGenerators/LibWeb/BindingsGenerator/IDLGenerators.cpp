@@ -1296,6 +1296,577 @@ static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::Par
 }
 
 template<typename ParameterType>
+static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
+{
+    // https://webidl.spec.whatwg.org/#es-union
+
+    auto union_generator = scoped_generator.fork();
+
+    auto& union_type = as<IDL::UnionType>(*parameter.type);
+    union_generator.set("union_type", union_type_to_variant(union_type, interface));
+    union_generator.set("recursion_depth", ByteString::number(recursion_depth));
+
+    // NOTE: This is handled out here as we need the dictionary conversion code for the {} optional default value.
+    // 3. Let types be the flattened member types of the union type.
+    auto types = union_type.flattened_member_types();
+
+    RefPtr<Type const> dictionary_type;
+    for (auto& dictionary : interface.dictionaries) {
+        for (auto& type : types) {
+            if (type->name() == dictionary.key) {
+                dictionary_type = type;
+                break;
+            }
+        }
+
+        if (dictionary_type)
+            break;
+    }
+
+    if (dictionary_type) {
+        auto dictionary_generator = union_generator.fork();
+        dictionary_generator.set("dictionary.type", dictionary_type->name());
+
+        // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
+        dictionary_generator.append(R"~~~(
+    auto @js_name@@js_suffix@_to_dictionary = [&vm, &realm](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@dictionary.type@> {
+        // This might be unused.
+        (void)realm;
+)~~~");
+
+        IDL::Parameter dictionary_parameter { .type = *dictionary_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+
+        dictionary_generator.append(R"~~~(
+        return dictionary_union_type;
+    };
+)~~~");
+    }
+
+    // A lambda is used because Variants without "Empty" can't easily be default initialized.
+    // Plus, this would require the user of union types to always accept a Variant with an Empty type.
+
+    // Additionally, it handles the case of unconditionally throwing a TypeError at the end if none of the types match.
+    // This is because we cannot unconditionally throw in generate_to_cpp as generate_to_cpp is supposed to assign to a variable and then continue.
+    // Note that all the other types only throw on a condition.
+
+    // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
+
+    StringBuilder to_variant_captures;
+    to_variant_captures.append("&vm, &realm"sv);
+
+    if (dictionary_type)
+        to_variant_captures.append(ByteString::formatted(", &{}{}_to_dictionary", js_name, js_suffix));
+
+    union_generator.set("to_variant_captures", to_variant_captures.to_byte_string());
+
+    union_generator.append(R"~~~(
+    auto @js_name@@js_suffix@_to_variant = [@to_variant_captures@](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@union_type@> {
+        // These might be unused.
+        (void)vm;
+        (void)realm;
+)~~~");
+
+    // 1. If the union type includes undefined and V is undefined, then return the unique undefined value.
+    if (union_type.includes_undefined()) {
+        scoped_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_undefined())
+            return Empty {};
+)~~~");
+    }
+
+    // 2. If the union type includes a nullable type and V is null or undefined, then return the IDL value null.
+    if (union_type.includes_nullable_type()) {
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_nullish())
+            return Empty {};
+)~~~");
+    } else if (dictionary_type) {
+        // 4. If V is null or undefined, then
+        //    4.1 If types includes a dictionary type, then return the result of converting V to that dictionary type.
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_nullish())
+            return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
+)~~~");
+    }
+
+    bool includes_object = false;
+    for (auto& type : types) {
+        if (type->name() == "object") {
+            includes_object = true;
+            break;
+        }
+    }
+
+    // FIXME: Don't generate this if the union type doesn't include any object types.
+    union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_object()) {
+            [[maybe_unused]] auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
+)~~~");
+
+    bool includes_platform_object = false;
+    for (auto& type : types) {
+        if (IDL::is_platform_object(type)) {
+            includes_platform_object = true;
+            break;
+        }
+    }
+
+    if (includes_platform_object) {
+        // 5. If V is a platform object, then:
+        union_generator.append(R"~~~(
+            if (is<PlatformObject>(@js_name@@js_suffix@_object)) {
+)~~~");
+
+        // NOTE: This codegen assumes that all union types are cells or values we can create a handle for.
+
+        //    1. If types includes an interface type that V implements, then return the IDL value that is a reference to the object V.
+        for (auto& type : types) {
+            if (!IDL::is_platform_object(type))
+                continue;
+
+            auto union_platform_object_type_generator = union_generator.fork();
+            union_platform_object_type_generator.set("platform_object_type", type->name());
+
+            union_platform_object_type_generator.append(R"~~~(
+                if (auto* @js_name@@js_suffix@_result = as_if<@platform_object_type@>(@js_name@@js_suffix@_object))
+                    return GC::make_root(*@js_name@@js_suffix@_result);
+)~~~");
+        }
+
+        //    2. If types includes object, then return the IDL value that is a reference to the object V.
+        if (includes_object) {
+            union_generator.append(R"~~~(
+                return GC::make_root(@js_name@@js_suffix@_object);
+)~~~");
+        }
+
+        union_generator.append(R"~~~(
+            }
+)~~~");
+    }
+
+    bool includes_window_proxy = false;
+    for (auto& type : types) {
+        if (type->name() == "WindowProxy"sv) {
+            includes_window_proxy = true;
+            break;
+        }
+    }
+
+    if (includes_window_proxy) {
+        union_generator.append(R"~~~(
+            if (auto* @js_name@@js_suffix@_result = as_if<WindowProxy>(@js_name@@js_suffix@_object))
+                return GC::make_root(*@js_name@@js_suffix@_result);
+)~~~");
+    }
+
+    // Note: This covers steps 6-8 for when Buffersource is in a union with a type other than "object".
+    //       Since in that case, the return type would be Handle<BufferSource>, and not Handle<Object>.
+    if (any_of(types, [](auto const& type) { return type->name() == "BufferSource"; }) && !includes_object) {
+        union_generator.append(R"~~~(
+            if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object) || is<JS::DataView>(@js_name@@js_suffix@_object) || is<JS::TypedArrayBase>(@js_name@@js_suffix@_object)) {
+                GC::Ref<WebIDL::BufferSource> source_object = realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@_object);
+                return GC::make_root(source_object);
+            }
+)~~~");
+    }
+
+    // 6. If Type(V) is Object and V has an [[ArrayBufferData]] internal slot, then
+    //    1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
+    //    2. If types includes object, then return the IDL value that is a reference to the object V.
+    if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; }) || includes_object) {
+        union_generator.append(R"~~~(
+            if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object))
+                return GC::make_root(@js_name@@js_suffix@_object);
+)~~~");
+    }
+
+    // 7. If Type(V) is Object and V has a [[DataView]] internal slot, then:
+    //    1. If types includes DataView, then return the result of converting V to DataView.
+    //    2. If types includes object, then return the IDL value that is a reference to the object V.
+    if (any_of(types, [](auto const& type) { return type->name() == "DataView"; }) || includes_object) {
+        union_generator.append(R"~~~(
+            if (is<JS::DataView>(@js_name@@js_suffix@_object))
+                return GC::make_root(@js_name@@js_suffix@_object);
+)~~~");
+    }
+
+    // 8. If Type(V) is Object and V has a [[TypedArrayName]] internal slot, then:
+    //    1. If types includes a typed array type whose name is the value of V’s [[TypedArrayName]] internal slot, then return the result of converting V to that type.
+    //    2. If types includes object, then return the IDL value that is a reference to the object V.
+    auto typed_array_name = types.find_if([](auto const& type) {
+        return type->name().is_one_of("Int8Array"sv, "Int16Array"sv, "Int32Array"sv, "Uint8Array"sv, "Uint16Array"sv, "Uint32Array"sv, "Uint8ClampedArray"sv, "BigInt64Array"sv, "BigUint64Array"sv, "Float16Array"sv, "Float32Array"sv, "Float64Array"sv);
+    });
+
+    if (typed_array_name != types.end()) {
+        union_generator.set("typed_array_type", (*typed_array_name)->name());
+        union_generator.append(R"~~~(
+            if (auto* typed_array = as_if<JS::@typed_array_type@>(@js_name@@js_suffix@_object))
+                return GC::make_root(*typed_array);
+)~~~");
+    } else if (includes_object) {
+        union_generator.append(R"~~~(
+            if (is<JS::TypedArrayBase>(@js_name@@js_suffix@_object))
+                return GC::make_root(@js_name@@js_suffix@_object);
+)~~~");
+    }
+
+    // 9. If IsCallable(V) is true, then:
+    //     1. If types includes a callback function type, then return the result of converting V to that callback function type.
+    //     2. If types includes object, then return the IDL value that is a reference to the object V.
+    bool includes_callable = false;
+    for (auto const& type : types) {
+        if (type->name() == "Function"sv) {
+            includes_callable = true;
+            break;
+        }
+    }
+
+    if (includes_callable) {
+        union_generator.append(R"~~~(
+            if (@js_name@@js_suffix@_object.is_function())
+                return vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_function(), HTML::incumbent_realm());
+)~~~");
+    }
+
+    // 10. If Type(V) is Object, then:
+    //     1. If types includes a sequence type, then:
+    RefPtr<IDL::ParameterizedType const> sequence_type;
+    for (auto& type : types) {
+        if (type->name() == "sequence") {
+            sequence_type = as<IDL::ParameterizedType>(*type);
+            break;
+        }
+    }
+
+    if (sequence_type) {
+        // 1. Let method be ? GetMethod(V, @@iterator).
+        union_generator.append(R"~~~(
+        auto method = TRY(@js_name@@js_suffix@.get_method(vm, vm.well_known_symbol_iterator()));
+)~~~");
+
+        // 2. If method is not undefined, return the result of creating a sequence of that type from V and method.
+        union_generator.append(R"~~~(
+        if (method) {
+)~~~");
+
+        sequence_type->generate_sequence_from_iterable(union_generator, cpp_name, ByteString::formatted("{}{}", js_name, js_suffix), "method", interface, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+
+            return @cpp_name@;
+        }
+)~~~");
+    }
+
+    // FIXME: 2. If types includes a frozen array type, then
+    //           1. Let method be ? GetMethod(V, @@iterator).
+    //           2. If method is not undefined, return the result of creating a frozen array of that type from V and method.
+
+    // 3. If types includes a dictionary type, then return the result of converting V to that dictionary type.
+    if (dictionary_type) {
+        union_generator.append(R"~~~(
+        return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
+)~~~");
+    }
+
+    // 4. If types includes a record type, then return the result of converting V to that record type.
+    RefPtr<IDL::ParameterizedType const> record_type;
+    for (auto& type : types) {
+        if (type->name() == "record") {
+            record_type = as<IDL::ParameterizedType>(*type);
+            break;
+        }
+    }
+
+    if (record_type) {
+        IDL::Parameter record_parameter { .type = *record_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+        return record_union_type;
+)~~~");
+    }
+
+    // 5. If types includes a callback interface type, then return the result of converting V to that callback interface type.
+    for (auto& type : types) {
+        if (!callback_interface_for_type(interface, type))
+            continue;
+
+        IDL::Parameter callback_interface_parameter { .type = *type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+        return callback_interface_union_type;
+)~~~");
+        break;
+    }
+
+    // 6. If types includes object, then return the IDL value that is a reference to the object V.
+    if (includes_object) {
+        union_generator.append(R"~~~(
+        return @js_name@@js_suffix@_object;
+)~~~");
+    }
+
+    // End of is_object.
+    union_generator.append(R"~~~(
+        }
+)~~~");
+
+    // 11. If Type(V) is Boolean, then:
+    //     1. If types includes boolean, then return the result of converting V to boolean.
+    bool includes_boolean = false;
+    for (auto& type : types) {
+        if (type->name() == "boolean") {
+            includes_boolean = true;
+            break;
+        }
+    }
+
+    if (includes_boolean) {
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_boolean())
+            return @union_type@ { @js_name@@js_suffix@.as_bool() };
+)~~~");
+    }
+
+    RefPtr<IDL::Type const> numeric_type;
+    for (auto& type : types) {
+        if (type->is_numeric()) {
+            numeric_type = type;
+            break;
+        }
+    }
+
+    // 12. If Type(V) is Number, then:
+    //     1. If types includes a numeric type, then return the result of converting V to that numeric type.
+    if (numeric_type) {
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_number()) {
+)~~~");
+        // NOTE: generate_to_cpp doesn't use the parameter name.
+        // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
+        IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+            return { @js_name@@js_suffix@_number };
+        }
+)~~~");
+    }
+
+    // 13. If Type(V) is BigInt, then:
+    //     1. If types includes bigint, then return the result of converting V to bigint
+    bool includes_bigint = false;
+    for (auto& type : types) {
+        if (type->name() == "bigint") {
+            includes_bigint = true;
+            break;
+        }
+    }
+
+    if (includes_bigint) {
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_bigint())
+            return @js_name@@js_suffix@.as_bigint();
+)~~~");
+    }
+
+    bool includes_enumeration = false;
+    for (auto& type : types) {
+        if (interface.enumerations.contains(type->name())) {
+            includes_enumeration = true;
+            break;
+        }
+    }
+
+    // If V is a string and types includes an enumeration type, attempt to convert the string to that enumeration.
+    // Example: Libraries/LibWeb/WebAudio/AudioContext.idl (AudioContextOptions.latencyHint: (AudioContextLatencyCategory or double)).
+    if (includes_enumeration) {
+        union_generator.append(R"~~~(
+        if (@js_name@@js_suffix@.is_string()) {
+            auto @js_name@@js_suffix@_enum_string = TRY(@js_name@@js_suffix@.to_string(vm));
+)~~~");
+
+        for (auto& type : types) {
+            if (!interface.enumerations.contains(type->name()))
+                continue;
+
+            auto& enumeration = interface.enumerations.find(type->name())->value;
+            auto enum_type = IDL::idl_type_name_to_cpp_type(*type, interface);
+
+            auto enum_generator = union_generator.fork();
+            enum_generator.set("enum.type", enum_type.name);
+
+            for (auto& it : enumeration.translated_cpp_names) {
+                enum_generator.set("enum.alt.name", it.key);
+                enum_generator.set("enum.alt.value", it.value);
+                enum_generator.append(R"~~~(
+            if (@js_name@@js_suffix@_enum_string == "@enum.alt.name@"sv)
+                return @union_type@ { @enum.type@::@enum.alt.value@ };
+)~~~");
+            }
+        }
+
+        union_generator.append(R"~~~(
+        }
+)~~~");
+    }
+
+    RefPtr<IDL::Type const> string_type;
+    for (auto& type : types) {
+        if (type->is_string()) {
+            string_type = type;
+            break;
+        }
+    }
+
+    if (string_type) {
+        // 14. If types includes a string type, then return the result of converting V to that type.
+        // NOTE: Currently all string types are converted to String.
+
+        IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+        return { @js_name@@js_suffix@_string };
+)~~~");
+    } else if (numeric_type && includes_bigint) {
+        // 15. If types includes a numeric type and bigint, then return the result of converting V to either that numeric type or bigint.
+        // https://webidl.spec.whatwg.org/#converted-to-a-numeric-type-or-bigint
+        // NOTE: This algorithm is only used here.
+
+        // An ECMAScript value V is converted to an IDL numeric type T or bigint value by running the following algorithm:
+        // 1. Let x be ? ToNumeric(V).
+        // 2. If Type(x) is BigInt, then
+        //    1. Return the IDL bigint value that represents the same numeric value as x.
+        // 3. Assert: Type(x) is Number.
+        // 4. Return the result of converting x to T.
+
+        auto union_numeric_type_generator = union_generator.fork();
+
+        union_numeric_type_generator.append(R"~~~(
+        auto x = TRY(@js_name@@js_suffix@.to_numeric(vm));
+        if (x.is_bigint())
+            return x.as_bigint();
+        VERIFY(x.is_number());
+)~~~");
+
+        // NOTE: generate_to_cpp doesn't use the parameter name.
+        // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
+        IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, false, {}, false, recursion_depth + 1);
+
+        union_numeric_type_generator.append(R"~~~(
+        return x_number;
+)~~~");
+    } else if (numeric_type) {
+        // 16. If types includes a numeric type, then return the result of converting V to that numeric type.
+
+        // NOTE: generate_to_cpp doesn't use the parameter name.
+        // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
+        IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
+
+        union_generator.append(R"~~~(
+        return { @js_name@@js_suffix@_number };
+)~~~");
+    } else if (includes_boolean) {
+        // 17. If types includes boolean, then return the result of converting V to boolean.
+        union_generator.append(R"~~~(
+        return @union_type@ { @js_name@@js_suffix@.to_boolean() };
+)~~~");
+    } else if (includes_bigint) {
+        // 18. If types includes bigint, then return the result of converting V to bigint.
+        union_generator.append(R"~~~(
+        return TRY(@js_name@@js_suffix@.to_bigint(vm));
+)~~~");
+    } else {
+        // 19. Throw a TypeError.
+        // FIXME: Replace the error message with something more descriptive.
+        union_generator.append(R"~~~(
+        return vm.throw_completion<JS::TypeError>("No union types matched"sv);
+)~~~");
+    }
+
+    // Close the lambda and then perform the conversion.
+    union_generator.append(R"~~~(
+    };
+)~~~");
+
+    if (!variadic) {
+        if (!optional) {
+            union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+        } else {
+            if (!optional_default_value.has_value()) {
+                union_generator.set("nullish_or_undefined", "undefined");
+                union_generator.append(R"~~~(
+    Optional<@union_type@> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_@nullish_or_undefined@())
+        @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+            } else {
+                if (optional_default_value == "null"sv) {
+                    if (union_type.includes_nullable_type()) {
+                        union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @union_type@ { Empty {} } : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                    } else {
+                        union_generator.append(R"~~~(
+    Optional<@union_type@> @cpp_name@;
+    if (!@js_name@@js_suffix@.is_nullish())
+        @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                    }
+                } else if (optional_default_value == "\"\"") {
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, String {})))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else if (optional_default_value->starts_with("\""sv) && optional_default_value->ends_with("\""sv)) {
+                    union_generator.set("default_string_value", optional_default_value.value());
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, MUST(String::from_utf8(@default_string_value@sv)))))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else if (optional_default_value == "{}") {
+                    VERIFY(dictionary_type);
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else if (optional_default_value->to_number<int>().has_value() || optional_default_value->to_number<unsigned>().has_value()) {
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else if (optional_default_value == "true"sv || optional_default_value == "false"sv) {
+                    union_generator.append(R"~~~(
+    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
+)~~~");
+                } else {
+                    dbgln("Don't know how to handle optional default value of `{}`", *optional_default_value);
+                    TODO();
+                }
+            }
+        }
+    } else {
+        union_generator.append(R"~~~(
+        Vector<@union_type@> @cpp_name@;
+
+        if (vm.argument_count() > @js_suffix@) {
+            @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
+
+            for (size_t i = @js_suffix@; i < vm.argument_count(); ++i) {
+                auto result = TRY(@js_name@@js_suffix@_to_variant(vm.argument(i)));
+                @cpp_name@.unchecked_append(move(result));
+            }
+        }
+    )~~~");
+    }
+}
+
+template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
     auto scoped_generator = generator.fork();
@@ -1357,572 +1928,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "record") {
         generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, interface, recursion_depth);
     } else if (is<IDL::UnionType>(*parameter.type)) {
-        // https://webidl.spec.whatwg.org/#es-union
-
-        auto union_generator = scoped_generator.fork();
-
-        auto& union_type = as<IDL::UnionType>(*parameter.type);
-        union_generator.set("union_type", union_type_to_variant(union_type, interface));
-        union_generator.set("recursion_depth", ByteString::number(recursion_depth));
-
-        // NOTE: This is handled out here as we need the dictionary conversion code for the {} optional default value.
-        // 3. Let types be the flattened member types of the union type.
-        auto types = union_type.flattened_member_types();
-
-        RefPtr<Type const> dictionary_type;
-        for (auto& dictionary : interface.dictionaries) {
-            for (auto& type : types) {
-                if (type->name() == dictionary.key) {
-                    dictionary_type = type;
-                    break;
-                }
-            }
-
-            if (dictionary_type)
-                break;
-        }
-
-        if (dictionary_type) {
-            auto dictionary_generator = union_generator.fork();
-            dictionary_generator.set("dictionary.type", dictionary_type->name());
-
-            // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
-            dictionary_generator.append(R"~~~(
-    auto @js_name@@js_suffix@_to_dictionary = [&vm, &realm](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@dictionary.type@> {
-        // This might be unused.
-        (void)realm;
-)~~~");
-
-            IDL::Parameter dictionary_parameter { .type = *dictionary_type, .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
-
-            dictionary_generator.append(R"~~~(
-        return dictionary_union_type;
-    };
-)~~~");
-        }
-
-        // A lambda is used because Variants without "Empty" can't easily be default initialized.
-        // Plus, this would require the user of union types to always accept a Variant with an Empty type.
-
-        // Additionally, it handles the case of unconditionally throwing a TypeError at the end if none of the types match.
-        // This is because we cannot unconditionally throw in generate_to_cpp as generate_to_cpp is supposed to assign to a variable and then continue.
-        // Note that all the other types only throw on a condition.
-
-        // The lambda must take the JS::Value to convert as a parameter instead of capturing it in order to support union types being variadic.
-
-        StringBuilder to_variant_captures;
-        to_variant_captures.append("&vm, &realm"sv);
-
-        if (dictionary_type)
-            to_variant_captures.append(ByteString::formatted(", &{}{}_to_dictionary", js_name, js_suffix));
-
-        union_generator.set("to_variant_captures", to_variant_captures.to_byte_string());
-
-        union_generator.append(R"~~~(
-    auto @js_name@@js_suffix@_to_variant = [@to_variant_captures@](JS::Value @js_name@@js_suffix@) -> JS::ThrowCompletionOr<@union_type@> {
-        // These might be unused.
-        (void)vm;
-        (void)realm;
-)~~~");
-
-        // 1. If the union type includes undefined and V is undefined, then return the unique undefined value.
-        if (union_type.includes_undefined()) {
-            scoped_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_undefined())
-            return Empty {};
-)~~~");
-        }
-
-        // 2. If the union type includes a nullable type and V is null or undefined, then return the IDL value null.
-        if (union_type.includes_nullable_type()) {
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_nullish())
-            return Empty {};
-)~~~");
-        } else if (dictionary_type) {
-            // 4. If V is null or undefined, then
-            //    4.1 If types includes a dictionary type, then return the result of converting V to that dictionary type.
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_nullish())
-            return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
-)~~~");
-        }
-
-        bool includes_object = false;
-        for (auto& type : types) {
-            if (type->name() == "object") {
-                includes_object = true;
-                break;
-            }
-        }
-
-        // FIXME: Don't generate this if the union type doesn't include any object types.
-        union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_object()) {
-            [[maybe_unused]] auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
-)~~~");
-
-        bool includes_platform_object = false;
-        for (auto& type : types) {
-            if (IDL::is_platform_object(type)) {
-                includes_platform_object = true;
-                break;
-            }
-        }
-
-        if (includes_platform_object) {
-            // 5. If V is a platform object, then:
-            union_generator.append(R"~~~(
-            if (is<PlatformObject>(@js_name@@js_suffix@_object)) {
-)~~~");
-
-            // NOTE: This codegen assumes that all union types are cells or values we can create a handle for.
-
-            //    1. If types includes an interface type that V implements, then return the IDL value that is a reference to the object V.
-            for (auto& type : types) {
-                if (!IDL::is_platform_object(type))
-                    continue;
-
-                auto union_platform_object_type_generator = union_generator.fork();
-                union_platform_object_type_generator.set("platform_object_type", type->name());
-
-                union_platform_object_type_generator.append(R"~~~(
-                if (auto* @js_name@@js_suffix@_result = as_if<@platform_object_type@>(@js_name@@js_suffix@_object))
-                    return GC::make_root(*@js_name@@js_suffix@_result);
-)~~~");
-            }
-
-            //    2. If types includes object, then return the IDL value that is a reference to the object V.
-            if (includes_object) {
-                union_generator.append(R"~~~(
-                return GC::make_root(@js_name@@js_suffix@_object);
-)~~~");
-            }
-
-            union_generator.append(R"~~~(
-            }
-)~~~");
-        }
-
-        bool includes_window_proxy = false;
-        for (auto& type : types) {
-            if (type->name() == "WindowProxy"sv) {
-                includes_window_proxy = true;
-                break;
-            }
-        }
-
-        if (includes_window_proxy) {
-            union_generator.append(R"~~~(
-            if (auto* @js_name@@js_suffix@_result = as_if<WindowProxy>(@js_name@@js_suffix@_object))
-                return GC::make_root(*@js_name@@js_suffix@_result);
-)~~~");
-        }
-
-        // Note: This covers steps 6-8 for when Buffersource is in a union with a type other than "object".
-        //       Since in that case, the return type would be Handle<BufferSource>, and not Handle<Object>.
-        if (any_of(types, [](auto const& type) { return type->name() == "BufferSource"; }) && !includes_object) {
-            union_generator.append(R"~~~(
-            if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object) || is<JS::DataView>(@js_name@@js_suffix@_object) || is<JS::TypedArrayBase>(@js_name@@js_suffix@_object)) {
-                GC::Ref<WebIDL::BufferSource> source_object = realm.create<WebIDL::BufferSource>(@js_name@@js_suffix@_object);
-                return GC::make_root(source_object);
-            }
-)~~~");
-        }
-
-        // 6. If Type(V) is Object and V has an [[ArrayBufferData]] internal slot, then
-        //    1. If types includes ArrayBuffer, then return the result of converting V to ArrayBuffer.
-        //    2. If types includes object, then return the IDL value that is a reference to the object V.
-        if (any_of(types, [](auto const& type) { return type->name() == "ArrayBuffer"; }) || includes_object) {
-            union_generator.append(R"~~~(
-            if (is<JS::ArrayBuffer>(@js_name@@js_suffix@_object))
-                return GC::make_root(@js_name@@js_suffix@_object);
-)~~~");
-        }
-
-        // 7. If Type(V) is Object and V has a [[DataView]] internal slot, then:
-        //    1. If types includes DataView, then return the result of converting V to DataView.
-        //    2. If types includes object, then return the IDL value that is a reference to the object V.
-        if (any_of(types, [](auto const& type) { return type->name() == "DataView"; }) || includes_object) {
-            union_generator.append(R"~~~(
-            if (is<JS::DataView>(@js_name@@js_suffix@_object))
-                return GC::make_root(@js_name@@js_suffix@_object);
-)~~~");
-        }
-
-        // 8. If Type(V) is Object and V has a [[TypedArrayName]] internal slot, then:
-        //    1. If types includes a typed array type whose name is the value of V’s [[TypedArrayName]] internal slot, then return the result of converting V to that type.
-        //    2. If types includes object, then return the IDL value that is a reference to the object V.
-        auto typed_array_name = types.find_if([](auto const& type) {
-            return type->name().is_one_of("Int8Array"sv, "Int16Array"sv, "Int32Array"sv, "Uint8Array"sv, "Uint16Array"sv, "Uint32Array"sv, "Uint8ClampedArray"sv, "BigInt64Array"sv, "BigUint64Array"sv, "Float16Array"sv, "Float32Array"sv, "Float64Array"sv);
-        });
-
-        if (typed_array_name != types.end()) {
-            union_generator.set("typed_array_type", (*typed_array_name)->name());
-            union_generator.append(R"~~~(
-            if (auto* typed_array = as_if<JS::@typed_array_type@>(@js_name@@js_suffix@_object))
-                return GC::make_root(*typed_array);
-)~~~");
-        } else if (includes_object) {
-            union_generator.append(R"~~~(
-            if (is<JS::TypedArrayBase>(@js_name@@js_suffix@_object))
-                return GC::make_root(@js_name@@js_suffix@_object);
-)~~~");
-        }
-
-        // 9. If IsCallable(V) is true, then:
-        //     1. If types includes a callback function type, then return the result of converting V to that callback function type.
-        //     2. If types includes object, then return the IDL value that is a reference to the object V.
-        bool includes_callable = false;
-        for (auto const& type : types) {
-            if (type->name() == "Function"sv) {
-                includes_callable = true;
-                break;
-            }
-        }
-
-        if (includes_callable) {
-            union_generator.append(R"~~~(
-            if (@js_name@@js_suffix@_object.is_function())
-                return vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_function(), HTML::incumbent_realm());
-)~~~");
-        }
-
-        // 10. If Type(V) is Object, then:
-        //     1. If types includes a sequence type, then:
-        RefPtr<IDL::ParameterizedType const> sequence_type;
-        for (auto& type : types) {
-            if (type->name() == "sequence") {
-                sequence_type = as<IDL::ParameterizedType>(*type);
-                break;
-            }
-        }
-
-        if (sequence_type) {
-            // 1. Let method be ? GetMethod(V, @@iterator).
-            union_generator.append(R"~~~(
-        auto method = TRY(@js_name@@js_suffix@.get_method(vm, vm.well_known_symbol_iterator()));
-)~~~");
-
-            // 2. If method is not undefined, return the result of creating a sequence of that type from V and method.
-            union_generator.append(R"~~~(
-        if (method) {
-)~~~");
-
-            sequence_type->generate_sequence_from_iterable(union_generator, acceptable_cpp_name, ByteString::formatted("{}{}", js_name, js_suffix), "method", interface, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-
-            return @cpp_name@;
-        }
-)~~~");
-        }
-
-        // FIXME: 2. If types includes a frozen array type, then
-        //           1. Let method be ? GetMethod(V, @@iterator).
-        //           2. If method is not undefined, return the result of creating a frozen array of that type from V and method.
-
-        // 3. If types includes a dictionary type, then return the result of converting V to that dictionary type.
-        if (dictionary_type) {
-            union_generator.append(R"~~~(
-        return @union_type@ { TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) };
-)~~~");
-        }
-
-        // 4. If types includes a record type, then return the result of converting V to that record type.
-        RefPtr<IDL::ParameterizedType const> record_type;
-        for (auto& type : types) {
-            if (type->name() == "record") {
-                record_type = as<IDL::ParameterizedType>(*type);
-                break;
-            }
-        }
-
-        if (record_type) {
-            IDL::Parameter record_parameter { .type = *record_type, .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-        return record_union_type;
-)~~~");
-        }
-
-        // 5. If types includes a callback interface type, then return the result of converting V to that callback interface type.
-        for (auto& type : types) {
-            if (!callback_interface_for_type(interface, type))
-                continue;
-
-            IDL::Parameter callback_interface_parameter { .type = *type, .name = acceptable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, false, {}, false, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-        return callback_interface_union_type;
-)~~~");
-            break;
-        }
-
-        // 6. If types includes object, then return the IDL value that is a reference to the object V.
-        if (includes_object) {
-            union_generator.append(R"~~~(
-        return @js_name@@js_suffix@_object;
-)~~~");
-        }
-
-        // End of is_object.
-        union_generator.append(R"~~~(
-        }
-)~~~");
-
-        // 11. If Type(V) is Boolean, then:
-        //     1. If types includes boolean, then return the result of converting V to boolean.
-        bool includes_boolean = false;
-        for (auto& type : types) {
-            if (type->name() == "boolean") {
-                includes_boolean = true;
-                break;
-            }
-        }
-
-        if (includes_boolean) {
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_boolean())
-            return @union_type@ { @js_name@@js_suffix@.as_bool() };
-)~~~");
-        }
-
-        RefPtr<IDL::Type const> numeric_type;
-        for (auto& type : types) {
-            if (type->is_numeric()) {
-                numeric_type = type;
-                break;
-            }
-        }
-
-        // 12. If Type(V) is Number, then:
-        //     1. If types includes a numeric type, then return the result of converting V to that numeric type.
-        if (numeric_type) {
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_number()) {
-)~~~");
-            // NOTE: generate_to_cpp doesn't use the parameter name.
-            // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-            return { @js_name@@js_suffix@_number };
-        }
-)~~~");
-        }
-
-        // 13. If Type(V) is BigInt, then:
-        //     1. If types includes bigint, then return the result of converting V to bigint
-        bool includes_bigint = false;
-        for (auto& type : types) {
-            if (type->name() == "bigint") {
-                includes_bigint = true;
-                break;
-            }
-        }
-
-        if (includes_bigint) {
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_bigint())
-            return @js_name@@js_suffix@.as_bigint();
-)~~~");
-        }
-
-        bool includes_enumeration = false;
-        for (auto& type : types) {
-            if (interface.enumerations.contains(type->name())) {
-                includes_enumeration = true;
-                break;
-            }
-        }
-
-        // If V is a string and types includes an enumeration type, attempt to convert the string to that enumeration.
-        // Example: Libraries/LibWeb/WebAudio/AudioContext.idl (AudioContextOptions.latencyHint: (AudioContextLatencyCategory or double)).
-        if (includes_enumeration) {
-            union_generator.append(R"~~~(
-        if (@js_name@@js_suffix@.is_string()) {
-            auto @js_name@@js_suffix@_enum_string = TRY(@js_name@@js_suffix@.to_string(vm));
-)~~~");
-
-            for (auto& type : types) {
-                if (!interface.enumerations.contains(type->name()))
-                    continue;
-
-                auto& enumeration = interface.enumerations.find(type->name())->value;
-                auto enum_type = IDL::idl_type_name_to_cpp_type(*type, interface);
-
-                auto enum_generator = union_generator.fork();
-                enum_generator.set("enum.type", enum_type.name);
-
-                for (auto& it : enumeration.translated_cpp_names) {
-                    enum_generator.set("enum.alt.name", it.key);
-                    enum_generator.set("enum.alt.value", it.value);
-                    enum_generator.append(R"~~~(
-            if (@js_name@@js_suffix@_enum_string == "@enum.alt.name@"sv)
-                return @union_type@ { @enum.type@::@enum.alt.value@ };
-)~~~");
-                }
-            }
-
-            union_generator.append(R"~~~(
-        }
-)~~~");
-        }
-
-        RefPtr<IDL::Type const> string_type;
-        for (auto& type : types) {
-            if (type->is_string()) {
-                string_type = type;
-                break;
-            }
-        }
-
-        if (string_type) {
-            // 14. If types includes a string type, then return the result of converting V to that type.
-            // NOTE: Currently all string types are converted to String.
-
-            IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, legacy_null_to_empty_string, false, {}, false, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-        return { @js_name@@js_suffix@_string };
-)~~~");
-        } else if (numeric_type && includes_bigint) {
-            // 15. If types includes a numeric type and bigint, then return the result of converting V to either that numeric type or bigint.
-            // https://webidl.spec.whatwg.org/#converted-to-a-numeric-type-or-bigint
-            // NOTE: This algorithm is only used here.
-
-            // An ECMAScript value V is converted to an IDL numeric type T or bigint value by running the following algorithm:
-            // 1. Let x be ? ToNumeric(V).
-            // 2. If Type(x) is BigInt, then
-            //    1. Return the IDL bigint value that represents the same numeric value as x.
-            // 3. Assert: Type(x) is Number.
-            // 4. Return the result of converting x to T.
-
-            auto union_numeric_type_generator = union_generator.fork();
-
-            union_numeric_type_generator.append(R"~~~(
-        auto x = TRY(@js_name@@js_suffix@.to_numeric(vm));
-        if (x.is_bigint())
-            return x.as_bigint();
-        VERIFY(x.is_number());
-)~~~");
-
-            // NOTE: generate_to_cpp doesn't use the parameter name.
-            // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, false, {}, false, recursion_depth + 1);
-
-            union_numeric_type_generator.append(R"~~~(
-        return x_number;
-)~~~");
-        } else if (numeric_type) {
-            // 16. If types includes a numeric type, then return the result of converting V to that numeric type.
-
-            // NOTE: generate_to_cpp doesn't use the parameter name.
-            // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
-            IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-            generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, false, {}, false, recursion_depth + 1);
-
-            union_generator.append(R"~~~(
-        return { @js_name@@js_suffix@_number };
-)~~~");
-        } else if (includes_boolean) {
-            // 17. If types includes boolean, then return the result of converting V to boolean.
-            union_generator.append(R"~~~(
-        return @union_type@ { @js_name@@js_suffix@.to_boolean() };
-)~~~");
-        } else if (includes_bigint) {
-            // 18. If types includes bigint, then return the result of converting V to bigint.
-            union_generator.append(R"~~~(
-        return TRY(@js_name@@js_suffix@.to_bigint(vm));
-)~~~");
-        } else {
-            // 19. Throw a TypeError.
-            // FIXME: Replace the error message with something more descriptive.
-            union_generator.append(R"~~~(
-        return vm.throw_completion<JS::TypeError>("No union types matched"sv);
-)~~~");
-        }
-
-        // Close the lambda and then perform the conversion.
-        union_generator.append(R"~~~(
-    };
-)~~~");
-
-        if (!variadic) {
-            if (!optional) {
-                union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-            } else {
-                if (!optional_default_value.has_value()) {
-                    union_generator.set("nullish_or_undefined", "undefined");
-                    union_generator.append(R"~~~(
-    Optional<@union_type@> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_@nullish_or_undefined@())
-        @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                } else {
-                    if (optional_default_value == "null"sv) {
-                        if (union_type.includes_nullable_type()) {
-                            union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @union_type@ { Empty {} } : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                        } else {
-                            union_generator.append(R"~~~(
-    Optional<@union_type@> @cpp_name@;
-    if (!@js_name@@js_suffix@.is_nullish())
-        @cpp_name@ = TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                        }
-                    } else if (optional_default_value == "\"\"") {
-                        union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, String {})))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                    } else if (optional_default_value->starts_with("\""sv) && optional_default_value->ends_with("\""sv)) {
-                        union_generator.set("default_string_value", optional_default_value.value());
-                        union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_variant(JS::Value(JS::PrimitiveString::create(vm, MUST(String::from_utf8(@default_string_value@sv)))))) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                    } else if (optional_default_value == "{}") {
-                        VERIFY(dictionary_type);
-                        union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? TRY(@js_name@@js_suffix@_to_dictionary(@js_name@@js_suffix@)) : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                    } else if (optional_default_value->to_number<int>().has_value() || optional_default_value->to_number<unsigned>().has_value()) {
-                        union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                    } else if (optional_default_value == "true"sv || optional_default_value == "false"sv) {
-                        union_generator.append(R"~~~(
-    @union_type@ @cpp_name@ = @js_name@@js_suffix@.is_undefined() ? @parameter.optional_default_value@ : TRY(@js_name@@js_suffix@_to_variant(@js_name@@js_suffix@));
-)~~~");
-                    } else {
-                        dbgln("Don't know how to handle optional default value of `{}`", *optional_default_value);
-                        TODO();
-                    }
-                }
-            }
-        } else {
-            union_generator.append(R"~~~(
-        Vector<@union_type@> @cpp_name@;
-
-        if (vm.argument_count() > @js_suffix@) {
-            @cpp_name@.ensure_capacity(vm.argument_count() - @js_suffix@);
-
-            for (size_t i = @js_suffix@; i < vm.argument_count(); ++i) {
-                auto result = TRY(@js_name@@js_suffix@_to_variant(vm.argument(i)));
-                @cpp_name@.unchecked_append(move(result));
-            }
-        }
-    )~~~");
-        }
+        generate_union_to_cpp(scoped_generator, parameter, js_name, js_suffix, acceptable_cpp_name, interface, legacy_null_to_empty_string, optional, optional_default_value, variadic, recursion_depth);
     } else {
         dbgln("Unimplemented JS-to-C++ conversion: {}", parameter.type->name());
         VERIFY_NOT_REACHED();
