@@ -27,10 +27,17 @@ class CacheIndex {
         NonnullRefPtr<HeaderList> request_headers;
         NonnullRefPtr<HeaderList> response_headers;
         u64 data_size { 0 };
+        u64 serialized_request_headers_size { 0 };
+        u64 serialized_response_headers_size { 0 };
 
         UnixDateTime request_time;
         UnixDateTime response_time;
         UnixDateTime last_access_time;
+
+        u64 estimated_size() const
+        {
+            return data_size + serialized_request_headers_size + serialized_response_headers_size;
+        }
     };
 
 public:
@@ -60,6 +67,7 @@ private:
         Database::StatementID update_response_headers { 0 };
         Database::StatementID update_last_access_time { 0 };
         Database::StatementID estimate_cache_size_accessed_since { 0 };
+        Database::StatementID select_total_estimated_size { 0 };
     };
 
     struct Limits {
@@ -68,7 +76,7 @@ private:
         u64 maximum_disk_cache_entry_size { 0 };
     };
 
-    CacheIndex(Database::Database&, Statements, Limits);
+    CacheIndex(Database::Database&, Statements, Limits, u64 total_estimated_size);
 
     Optional<Entry&> get_entry(u64 cache_key, u64 vary_key);
     void delete_entry(u64 cache_key, u64 vary_key);
@@ -79,6 +87,7 @@ private:
     HashMap<u64, Vector<Entry>, IdentityHashTraits<u64>> m_entries;
 
     Limits m_limits;
+    u64 m_total_estimated_size { 0 };
 };
 
 }

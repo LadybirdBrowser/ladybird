@@ -98,8 +98,16 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
 
     Statements statements {};
     statements.insert_entry = TRY(database.prepare_statement("INSERT OR REPLACE INTO CacheIndex VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);"sv));
-    statements.remove_entry = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE cache_key = ? AND vary_key = ?;"sv));
-    statements.remove_entries_accessed_since = TRY(database.prepare_statement("DELETE FROM CacheIndex WHERE last_access_time >= ? RETURNING cache_key, vary_key;"sv));
+    statements.remove_entry = TRY(database.prepare_statement(R"#(
+        DELETE FROM CacheIndex
+        WHERE cache_key = ? AND vary_key = ?
+        RETURNING data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
+    )#"sv));
+    statements.remove_entries_accessed_since = TRY(database.prepare_statement(R"#(
+        DELETE FROM CacheIndex
+        WHERE last_access_time >= ?
+        RETURNING cache_key, vary_key, data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
+    )#"sv));
     statements.select_entries = TRY(database.prepare_statement("SELECT * FROM CacheIndex WHERE cache_key = ?;"sv));
     statements.update_response_headers = TRY(database.prepare_statement("UPDATE CacheIndex SET response_headers = ? WHERE cache_key = ? AND vary_key = ?;"sv));
     statements.update_last_access_time = TRY(database.prepare_statement("UPDATE CacheIndex SET last_access_time = ? WHERE cache_key = ? AND vary_key = ?;"sv));
@@ -120,13 +128,18 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
             FROM RankedCacheIndex
             WHERE cumulative_estimated_size > ?
         )
-        RETURNING cache_key, vary_key;
+        RETURNING cache_key, vary_key, data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers);
     )#"sv));
 
     statements.estimate_cache_size_accessed_since = TRY(database.prepare_statement(R"#(
-        SELECT SUM(data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers))
+        SELECT COALESCE(SUM(data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers)), 0)
         FROM CacheIndex
         WHERE last_access_time >= ?;
+    )#"sv));
+
+    statements.select_total_estimated_size = TRY(database.prepare_statement(R"#(
+        SELECT COALESCE(SUM(data_size + OCTET_LENGTH(request_headers) + OCTET_LENGTH(response_headers)), 0)
+        FROM CacheIndex;
     )#"sv));
 
     auto disk_space = TRY(FileSystem::compute_disk_space(cache_directory));
@@ -138,13 +151,19 @@ ErrorOr<CacheIndex> CacheIndex::create(Database::Database& database, LexicalPath
         .maximum_disk_cache_entry_size = compute_maximum_disk_cache_entry_size(maximum_disk_cache_size),
     };
 
-    return CacheIndex { database, statements, limits };
+    u64 total_estimated_size { 0 };
+    database.execute_statement(
+        statements.select_total_estimated_size,
+        [&](auto statement_id) { total_estimated_size = database.result_column<u64>(statement_id, 0); });
+
+    return CacheIndex { database, statements, limits, total_estimated_size };
 }
 
-CacheIndex::CacheIndex(Database::Database& database, Statements statements, Limits limits)
+CacheIndex::CacheIndex(Database::Database& database, Statements statements, Limits limits, u64 total_estimated_size)
     : m_database(database)
     , m_statements(statements)
     , m_limits(limits)
+    , m_total_estimated_size(total_estimated_size)
 {
 }
 
@@ -164,19 +183,31 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
     auto serialized_request_headers = serialize_headers(request_headers);
     auto serialized_response_headers = serialize_headers(response_headers);
 
-    if (data_size + serialized_request_headers.length() + serialized_response_headers.length() > m_limits.maximum_disk_cache_entry_size)
-        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
-
     Entry entry {
         .vary_key = vary_key,
         .url = move(url),
         .request_headers = move(request_headers),
         .response_headers = move(response_headers),
         .data_size = data_size,
+        .serialized_request_headers_size = static_cast<u64>(serialized_request_headers.length()),
+        .serialized_response_headers_size = static_cast<u64>(serialized_response_headers.length()),
         .request_time = request_time,
         .response_time = response_time,
         .last_access_time = now,
     };
+    auto entry_size = entry.estimated_size();
+
+    if (entry_size > m_limits.maximum_disk_cache_entry_size)
+        return Error::from_string_literal("Cache entry size exceeds allowed maximum");
+
+    m_database->execute_statement(
+        m_statements.remove_entry,
+        [&](auto statement_id) {
+            auto removed_size = m_database->result_column<u64>(statement_id, 0);
+            m_total_estimated_size -= removed_size;
+        },
+        cache_key,
+        vary_key);
 
     auto& entries = m_entries.ensure(cache_key);
     auto existing_entry_index = entries.find_first_index_if([&](auto const& existing_entry) {
@@ -190,22 +221,37 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
     else
         entries.append(move(entry));
 
+    m_total_estimated_size += entry_size;
+
     return {};
 }
 
 void CacheIndex::remove_entry(u64 cache_key, u64 vary_key)
 {
-    m_database->execute_statement(m_statements.remove_entry, {}, cache_key, vary_key);
+    m_database->execute_statement(
+        m_statements.remove_entry,
+        [&](auto statement_id) {
+            auto removed_size = m_database->result_column<u64>(statement_id, 0);
+            m_total_estimated_size -= removed_size;
+        },
+        cache_key,
+        vary_key);
+
     delete_entry(cache_key, vary_key);
 }
 
 void CacheIndex::remove_entries_exceeding_cache_limit(Function<void(u64 cache_key, u64 vary_key)> on_entry_removed)
 {
+    if (m_total_estimated_size <= m_limits.maximum_disk_cache_size)
+        return;
+
     m_database->execute_statement(
         m_statements.remove_entries_exceeding_cache_limit,
         [&](auto statement_id) {
             auto cache_key = m_database->result_column<u64>(statement_id, 0);
             auto vary_key = m_database->result_column<u64>(statement_id, 1);
+            auto removed_size = m_database->result_column<u64>(statement_id, 2);
+            m_total_estimated_size -= removed_size;
             delete_entry(cache_key, vary_key);
 
             if (on_entry_removed)
@@ -221,6 +267,8 @@ void CacheIndex::remove_entries_accessed_since(UnixDateTime since, Function<void
         [&](auto statement_id) {
             auto cache_key = m_database->result_column<u64>(statement_id, 0);
             auto vary_key = m_database->result_column<u64>(statement_id, 1);
+            auto removed_size = m_database->result_column<u64>(statement_id, 2);
+            m_total_estimated_size -= removed_size;
             delete_entry(cache_key, vary_key);
 
             if (on_entry_removed)
@@ -235,8 +283,15 @@ void CacheIndex::update_response_headers(u64 cache_key, u64 vary_key, NonnullRef
     if (!entry.has_value())
         return;
 
-    m_database->execute_statement(m_statements.update_response_headers, {}, serialize_headers(response_headers), cache_key, vary_key);
+    auto serialized_response_headers = serialize_headers(response_headers);
+    auto serialized_response_headers_size = static_cast<u64>(serialized_response_headers.length());
+
+    m_database->execute_statement(m_statements.update_response_headers, {}, serialized_response_headers, cache_key, vary_key);
+
+    m_total_estimated_size -= entry->serialized_response_headers_size;
+    m_total_estimated_size += serialized_response_headers_size;
     entry->response_headers = move(response_headers);
+    entry->serialized_response_headers_size = serialized_response_headers_size;
 }
 
 void CacheIndex::update_last_access_time(u64 cache_key, u64 vary_key)
@@ -270,7 +325,7 @@ Optional<CacheIndex::Entry const&> CacheIndex::find_entry(u64 cache_key, HeaderL
                 auto response_time = m_database->result_column<UnixDateTime>(statement_id, column++);
                 auto last_access_time = m_database->result_column<UnixDateTime>(statement_id, column++);
 
-                entries.empend(vary_key, move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, request_time, response_time, last_access_time);
+                entries.empend(vary_key, move(url), deserialize_headers(request_headers), deserialize_headers(response_headers), data_size, request_headers.length(), response_headers.length(), request_time, response_time, last_access_time);
             },
             cache_key);
 
