@@ -28,6 +28,8 @@ private:
     struct PendingDescendantInvalidation {
         StyleInvalidationReason reason;
         CSS::DescendantInvalidationRule rule;
+
+        bool operator==(PendingDescendantInvalidation const&) const = default;
     };
 
     void add_pending_invalidation(GC::Ref<Node>, StyleInvalidationReason, CSS::InvalidationPlan const&);

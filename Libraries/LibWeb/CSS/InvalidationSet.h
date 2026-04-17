@@ -44,6 +44,8 @@ public:
     bool needs_invalidate_whole_subtree() const { return m_needs_invalidate_whole_subtree; }
     void set_needs_invalidate_whole_subtree() { m_needs_invalidate_whole_subtree = true; }
 
+    bool operator==(InvalidationSet const& other) const;
+
     void set_needs_invalidate_class(FlyString const& name) { m_properties.set({ Property::Type::Class, name }); }
     void set_needs_invalidate_id(FlyString const& name) { m_properties.set({ Property::Type::Id, name }); }
     void set_needs_invalidate_tag_name(FlyString const& name) { m_properties.set({ Property::Type::TagName, name }); }

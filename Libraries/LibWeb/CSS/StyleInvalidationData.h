@@ -32,6 +32,8 @@ struct DescendantInvalidationRule {
     InvalidationSet match_set;
     bool match_any { false };
     NonnullRefPtr<InvalidationPlan> payload;
+
+    bool operator==(DescendantInvalidationRule const&) const;
 };
 
 enum class SiblingInvalidationReach {
@@ -44,6 +46,8 @@ struct SiblingInvalidationRule {
     InvalidationSet match_set;
     bool match_any { false };
     NonnullRefPtr<InvalidationPlan> payload;
+
+    bool operator==(SiblingInvalidationRule const&) const;
 };
 
 struct InvalidationPlan final : RefCounted<InvalidationPlan> {
@@ -51,6 +55,7 @@ struct InvalidationPlan final : RefCounted<InvalidationPlan> {
 
     bool is_empty() const;
     void include_all_from(InvalidationPlan const&);
+    bool operator==(InvalidationPlan const&) const;
 
     bool invalidate_self { false };
     bool invalidate_whole_subtree { false };

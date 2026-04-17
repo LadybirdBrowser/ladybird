@@ -63,8 +63,11 @@ void StyleInvalidator::add_pending_invalidation(GC::Ref<Node> node, StyleInvalid
     auto& pending_invalidations = m_pending_invalidations.ensure(node, [] {
         return Vector<PendingDescendantInvalidation> {};
     });
-    for (auto const& descendant_rule : plan.descendant_rules)
-        pending_invalidations.append({ reason, descendant_rule });
+    for (auto const& descendant_rule : plan.descendant_rules) {
+        PendingDescendantInvalidation pending_invalidation { reason, descendant_rule };
+        if (!pending_invalidations.contains_slow(pending_invalidation))
+            pending_invalidations.append(move(pending_invalidation));
+    }
 }
 
 void StyleInvalidator::apply_invalidation_plan(Element& element, StyleInvalidationReason reason, CSS::InvalidationPlan const& plan, bool& invalidate_entire_subtree)
@@ -84,8 +87,11 @@ void StyleInvalidator::apply_invalidation_plan(Element& element, StyleInvalidati
     if (plan.invalidate_self)
         element.set_needs_style_update(true);
 
-    for (auto const& descendant_rule : plan.descendant_rules)
-        m_active_descendant_invalidations.append({ reason, descendant_rule });
+    for (auto const& descendant_rule : plan.descendant_rules) {
+        PendingDescendantInvalidation pending_invalidation { reason, descendant_rule };
+        if (!m_active_descendant_invalidations.contains_slow(pending_invalidation))
+            m_active_descendant_invalidations.append(move(pending_invalidation));
+    }
 
     for (auto const& sibling_rule : plan.sibling_rules)
         apply_sibling_invalidation(element, reason, sibling_rule);
@@ -133,8 +139,9 @@ void StyleInvalidator::perform_pending_style_invalidations(Node& node, bool inva
     };
 
     if (!invalidate_entire_subtree) {
-        if (auto pending_invalidations = m_pending_invalidations.get(node); pending_invalidations.has_value())
+        if (auto pending_invalidations = m_pending_invalidations.get(node); pending_invalidations.has_value()) {
             m_active_descendant_invalidations.extend(*pending_invalidations);
+        }
 
         if (auto* element = as_if<Element>(node)) {
             size_t invalidation_index = 0;

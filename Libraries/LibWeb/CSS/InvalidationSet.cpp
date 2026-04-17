@@ -8,6 +8,22 @@
 
 namespace Web::CSS {
 
+bool InvalidationSet::operator==(InvalidationSet const& other) const
+{
+    if (m_needs_invalidate_self != other.m_needs_invalidate_self)
+        return false;
+    if (m_needs_invalidate_whole_subtree != other.m_needs_invalidate_whole_subtree)
+        return false;
+    if (m_properties.size() != other.m_properties.size())
+        return false;
+
+    for (auto const& property : m_properties) {
+        if (!other.m_properties.contains(property))
+            return false;
+    }
+    return true;
+}
+
 void InvalidationSet::include_all_from(InvalidationSet const& other)
 {
     m_needs_invalidate_self |= other.m_needs_invalidate_self;

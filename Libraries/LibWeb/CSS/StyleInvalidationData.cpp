@@ -11,9 +11,82 @@
 
 namespace Web::CSS {
 
+static void append_or_merge_descendant_rule(Vector<DescendantInvalidationRule>& rules, DescendantInvalidationRule const& rule)
+{
+    for (auto& existing_rule : rules) {
+        if (existing_rule.match_any != rule.match_any)
+            continue;
+        if (*existing_rule.payload != *rule.payload)
+            continue;
+
+        if (existing_rule.match_any)
+            return;
+
+        existing_rule.match_set.include_all_from(rule.match_set);
+        return;
+    }
+    rules.append(rule);
+}
+
+static void append_or_merge_sibling_rule(Vector<SiblingInvalidationRule>& rules, SiblingInvalidationRule const& rule)
+{
+    for (auto& existing_rule : rules) {
+        if (existing_rule.reach != rule.reach)
+            continue;
+        if (existing_rule.match_any != rule.match_any)
+            continue;
+        if (*existing_rule.payload != *rule.payload)
+            continue;
+
+        if (existing_rule.match_any)
+            return;
+
+        existing_rule.match_set.include_all_from(rule.match_set);
+        return;
+    }
+    rules.append(rule);
+}
+
 bool InvalidationPlan::is_empty() const
 {
     return !invalidate_self && !invalidate_whole_subtree && descendant_rules.is_empty() && sibling_rules.is_empty();
+}
+
+bool DescendantInvalidationRule::operator==(DescendantInvalidationRule const& other) const
+{
+    return match_set == other.match_set
+        && match_any == other.match_any
+        && *payload == *other.payload;
+}
+
+bool SiblingInvalidationRule::operator==(SiblingInvalidationRule const& other) const
+{
+    return reach == other.reach
+        && match_set == other.match_set
+        && match_any == other.match_any
+        && *payload == *other.payload;
+}
+
+bool InvalidationPlan::operator==(InvalidationPlan const& other) const
+{
+    if (invalidate_self != other.invalidate_self)
+        return false;
+    if (invalidate_whole_subtree != other.invalidate_whole_subtree)
+        return false;
+    if (descendant_rules.size() != other.descendant_rules.size())
+        return false;
+    if (sibling_rules.size() != other.sibling_rules.size())
+        return false;
+
+    for (size_t i = 0; i < descendant_rules.size(); ++i) {
+        if (!(descendant_rules[i] == other.descendant_rules[i]))
+            return false;
+    }
+    for (size_t i = 0; i < sibling_rules.size(); ++i) {
+        if (!(sibling_rules[i] == other.sibling_rules[i]))
+            return false;
+    }
+    return true;
 }
 
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)
@@ -30,8 +103,10 @@ void InvalidationPlan::include_all_from(InvalidationPlan const& other)
         return;
     }
 
-    descendant_rules.extend(other.descendant_rules);
-    sibling_rules.extend(other.sibling_rules);
+    for (auto const& descendant_rule : other.descendant_rules)
+        append_or_merge_descendant_rule(descendant_rules, descendant_rule);
+    for (auto const& sibling_rule : other.sibling_rules)
+        append_or_merge_sibling_rule(sibling_rules, sibling_rule);
 }
 
 // Iterates over the given selector, grouping consecutive simple selectors that have no combinator (Combinator::None).
@@ -184,13 +259,13 @@ static NonnullRefPtr<InvalidationPlan> build_invalidation_for_combinator(Selecto
     switch (combinator) {
     case Selector::Combinator::ImmediateChild:
     case Selector::Combinator::Descendant:
-        invalidation->descendant_rules.append({ righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        append_or_merge_descendant_rule(invalidation->descendant_rules, { righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     case Selector::Combinator::NextSibling:
-        invalidation->sibling_rules.append({ SiblingInvalidationReach::Adjacent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        append_or_merge_sibling_rule(invalidation->sibling_rules, { SiblingInvalidationReach::Adjacent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     case Selector::Combinator::SubsequentSibling:
-        invalidation->sibling_rules.append({ SiblingInvalidationReach::Subsequent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
+        append_or_merge_sibling_rule(invalidation->sibling_rules, { SiblingInvalidationReach::Subsequent, righthand.subject_match_set, righthand.subject_matches_any, righthand.payload });
         break;
     default:
         invalidation->invalidate_whole_subtree = true;
