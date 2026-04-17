@@ -53,7 +53,6 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
-#include <LibWeb/CSS/StyleValues/HWBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -1736,7 +1735,7 @@ RefPtr<StyleValue const> Parser::parse_hwb_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return HWBColorStyleValue::create(h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HWB, h.release_nonnull(), w.release_nonnull(), b.release_nonnull(), alpha.release_nonnull());
 }
 
 Optional<Array<RefPtr<StyleValue const>, 4>> Parser::parse_lab_like_color_value(TokenStream<ComponentValue>& outer_tokens, StringView function_name)

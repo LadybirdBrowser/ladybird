@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/ColorInterpolation.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/HWBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LabLikeColorStyleValue.h>
@@ -128,8 +127,8 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return { is_component_none(hsl.channel(0)), is_component_none(hsl.channel(1)), is_component_none(hsl.channel(2)), is_component_none(hsl.alpha()) };
     }
     case ColorStyleValue::ColorType::HWB: {
-        auto const& hwb = as<HWBColorStyleValue>(color);
-        return { is_component_none(hwb.h()), is_component_none(hwb.w()), is_component_none(hwb.b()), is_component_none(hwb.alpha()) };
+        auto const& hwb = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(hwb.channel(0)), is_component_none(hwb.channel(1)), is_component_none(hwb.channel(2)), is_component_none(hwb.alpha()) };
     }
     case ColorStyleValue::ColorType::Lab: {
         auto const& lab = as<LabColorStyleValue>(color);
@@ -409,10 +408,10 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return Gfx::ColorComponents { static_cast<float>(h.value()), static_cast<float>(s.value() / 100.0), static_cast<float>(l.value() / 100.0), a.value() };
     }
     case ColorStyleValue::ColorType::HWB: {
-        auto const& hwb = as<HWBColorStyleValue>(color);
-        auto h = ColorStyleValue::resolve_hue(hwb.h(), context);
-        auto w = ColorStyleValue::resolve_with_reference_value(hwb.w(), 100.0f, context);
-        auto b = ColorStyleValue::resolve_with_reference_value(hwb.b(), 100.0f, context);
+        auto const& hwb = as<ColorFunctionStyleValue>(color);
+        auto h = ColorStyleValue::resolve_hue(hwb.channel(0), context);
+        auto w = ColorStyleValue::resolve_with_reference_value(hwb.channel(1), 100.0f, context);
+        auto b = ColorStyleValue::resolve_with_reference_value(hwb.channel(2), 100.0f, context);
         auto a = resolve_alpha(hwb.alpha());
         if (!h.has_value() || !w.has_value() || !b.has_value() || !a.has_value())
             return {};
