@@ -1387,13 +1387,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
     }
 
-    bool includes_object = false;
-    for (auto& type : types) {
-        if (type->name() == "object") {
-            includes_object = true;
-            break;
-        }
-    }
+    bool includes_object = any_of(types, [](auto const& type) { return type->name() == "object"; });
 
     // FIXME: Don't generate this if the union type doesn't include any object types.
     union_generator.append(R"~~~(
@@ -1401,13 +1395,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
             [[maybe_unused]] auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
 )~~~");
 
-    bool includes_platform_object = false;
-    for (auto& type : types) {
-        if (IDL::is_platform_object(type)) {
-            includes_platform_object = true;
-            break;
-        }
-    }
+    bool includes_platform_object = any_of(types, [](auto const& type) { return is_platform_object(type); });
 
     if (includes_platform_object) {
         // 5. If V is a platform object, then:
@@ -1443,13 +1431,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
     }
 
-    bool includes_window_proxy = false;
-    for (auto& type : types) {
-        if (type->name() == "WindowProxy"sv) {
-            includes_window_proxy = true;
-            break;
-        }
-    }
+    bool includes_window_proxy = any_of(types, [](auto const& type) { return type->name() == "WindowProxy"; });
 
     if (includes_window_proxy) {
         union_generator.append(R"~~~(
@@ -1512,13 +1494,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
     // 9. If IsCallable(V) is true, then:
     //     1. If types includes a callback function type, then return the result of converting V to that callback function type.
     //     2. If types includes object, then return the IDL value that is a reference to the object V.
-    bool includes_callable = false;
-    for (auto const& type : types) {
-        if (type->name() == "Function"sv) {
-            includes_callable = true;
-            break;
-        }
-    }
+    bool includes_callable = any_of(types, [](auto const& type) { return type->name() == "Function"sv; });
 
     if (includes_callable) {
         union_generator.append(R"~~~(
@@ -1614,13 +1590,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     // 11. If Type(V) is Boolean, then:
     //     1. If types includes boolean, then return the result of converting V to boolean.
-    bool includes_boolean = false;
-    for (auto& type : types) {
-        if (type->name() == "boolean") {
-            includes_boolean = true;
-            break;
-        }
-    }
+    bool includes_boolean = any_of(types, [](auto const& type) { return type->is_boolean(); });
 
     if (includes_boolean) {
         union_generator.append(R"~~~(
@@ -1656,13 +1626,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     // 13. If Type(V) is BigInt, then:
     //     1. If types includes bigint, then return the result of converting V to bigint
-    bool includes_bigint = false;
-    for (auto& type : types) {
-        if (type->name() == "bigint") {
-            includes_bigint = true;
-            break;
-        }
-    }
+    bool includes_bigint = any_of(types, [](auto const& type) { return type->is_bigint(); });
 
     if (includes_bigint) {
         union_generator.append(R"~~~(
