@@ -166,6 +166,7 @@ set(SOURCES
     CSS/CSSUnitValue.cpp
     CSS/CSSUnparsedValue.cpp
     CSS/CSSVariableReferenceValue.cpp
+    CSS/ColorFunctionDescriptor.cpp
     CSS/ColorInterpolation.cpp
     CSS/CustomPropertyData.cpp
     CSS/Descriptor.cpp

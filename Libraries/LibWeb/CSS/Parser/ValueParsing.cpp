@@ -1945,10 +1945,12 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
 
     auto const& maybe_color_space = inner_tokens.consume_a_token();
     inner_tokens.discard_whitespace();
-    if (!any_of(ColorFunctionStyleValue::s_supported_color_space, [&](auto supported) { return maybe_color_space.is_ident(supported); }))
+    if (!maybe_color_space.is(Token::Type::Ident))
         return {};
 
-    auto const& color_space = maybe_color_space.token().ident();
+    auto color_space = maybe_color_space.token().ident().to_ascii_lowercase();
+    if (!color_type_from_color_function_name(color_space).has_value())
+        return {};
 
     auto c1 = parse_number_percentage_none_value(inner_tokens);
     if (!c1)
@@ -1976,7 +1978,7 @@ RefPtr<StyleValue const> Parser::parse_color_function(TokenStream<ComponentValue
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return ColorFunctionStyleValue::create(color_space.to_ascii_lowercase(),
+    return ColorFunctionStyleValue::create(color_space,
         c1.release_nonnull(),
         c2.release_nonnull(),
         c3.release_nonnull(),

@@ -14,6 +14,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
@@ -629,7 +630,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& style_value, Color computed_color)
 {
-    if (style_value.is_color_function())
+    if (style_value.is_color_function() && as<ColorFunctionStyleValue>(style_value).serializes_as_color_function())
         return style_value;
     if (style_value.is_color()) {
         auto& color_style_value = static_cast<ColorStyleValue const&>(style_value);
