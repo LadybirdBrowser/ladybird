@@ -565,9 +565,6 @@ static void generate_to_string(SourceGenerator& scoped_generator, ParameterType 
         @cpp_name@ = @parameter.optional_default_value@@string_suffix@;
     }
 )~~~");
-        } else {
-            scoped_generator.append(R"~~~(
-)~~~");
         }
     }
 }
