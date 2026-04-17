@@ -10,8 +10,8 @@
 #include "KeywordStyleValue.h"
 #include <LibGfx/Palette.h>
 #include <LibWeb/CSS/CSSKeywordValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/SystemColor.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
@@ -381,7 +381,8 @@ ValueComparingNonnullRefPtr<StyleValue const> KeywordStyleValue::absolutized(Com
     if (!resolved_color.has_value())
         return *this;
 
-    return RGBColorStyleValue::create(
+    return ColorFunctionStyleValue::create(
+        ColorStyleValue::ColorType::RGB,
         NumberStyleValue::create(resolved_color->red()),
         NumberStyleValue::create(resolved_color->green()),
         NumberStyleValue::create(resolved_color->blue()),

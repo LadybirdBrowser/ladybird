@@ -374,7 +374,6 @@ class RectStyleValue;
 class RepeatStyleStyleValue;
 class Resolution;
 class ResolutionStyleValue;
-class RGBColorStyleValue;
 class Screen;
 class ScreenOrientation;
 class ScrollbarGutterStyleValue;

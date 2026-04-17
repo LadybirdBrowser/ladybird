@@ -84,7 +84,9 @@ u8 clamp_to_byte(double value)
 
 u8 fraction_to_byte(double fraction_0_1)
 {
-    return round_to<u8>(clamp(fraction_0_1 * 255.0, 0.0, 255.0));
+    // Match CSS Color 4 "resolve to sRGB" rounding: round half away from zero,
+    // not the default round-half-to-even that cvtsd2si uses.
+    return static_cast<u8>(llround(clamp(fraction_0_1 * 255.0, 0.0, 255.0)));
 }
 
 }

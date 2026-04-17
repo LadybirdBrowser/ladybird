@@ -8,9 +8,9 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 
 namespace Web::CSS {
 
@@ -65,7 +65,9 @@ ValueComparingNonnullRefPtr<StyleValue const> HWBColorStyleValue::absolutized(Co
     // If the sum of whiteness + blackness is >= 1, the result is an achromatic (gray) color.
     if (whiteness + blackness >= 1.0f) {
         auto gray = NumberStyleValue::create(clamp(whiteness / (whiteness + blackness) * 255.0f, 0.0f, 255.0f));
-        return RGBColorStyleValue::create(gray, gray, gray,
+        return ColorFunctionStyleValue::create(
+            ColorType::RGB,
+            gray, gray, gray,
             NumberStyleValue::create(clamp(resolved_alpha.value(), 0.0f, 1.0f)),
             ColorSyntax::Legacy);
     }
@@ -86,7 +88,8 @@ ValueComparingNonnullRefPtr<StyleValue const> HWBColorStyleValue::absolutized(Co
     auto g = hue_to_rgb(hue, 8.0f) * scale + whiteness;
     auto b = hue_to_rgb(hue, 4.0f) * scale + whiteness;
 
-    return RGBColorStyleValue::create(
+    return ColorFunctionStyleValue::create(
+        ColorType::RGB,
         NumberStyleValue::create(clamp(r * 255.0f, 0.0f, 255.0f)),
         NumberStyleValue::create(clamp(g * 255.0f, 0.0f, 255.0f)),
         NumberStyleValue::create(clamp(b * 255.0f, 0.0f, 255.0f)),

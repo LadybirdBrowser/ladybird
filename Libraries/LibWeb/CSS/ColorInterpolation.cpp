@@ -15,7 +15,6 @@
 #include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LabLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 
 namespace Web::CSS {
 
@@ -150,8 +149,8 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return { is_component_none(oklch.l()), is_component_none(oklch.c()), is_component_none(oklch.h()), is_component_none(oklch.alpha()) };
     }
     case ColorStyleValue::ColorType::RGB: {
-        auto const& rgb = as<RGBColorStyleValue>(color);
-        return { is_component_none(rgb.r()), is_component_none(rgb.g()), is_component_none(rgb.b()), is_component_none(rgb.alpha()) };
+        auto const& rgb = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(rgb.channel(0)), is_component_none(rgb.channel(1)), is_component_none(rgb.channel(2)), is_component_none(rgb.alpha()) };
     }
     default:
         if (color.is_color_function()) {
@@ -461,10 +460,10 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return Gfx::ColorComponents { static_cast<float>(l.value()), static_cast<float>(c.value()), static_cast<float>(h.value()), a.value() };
     }
     case ColorStyleValue::ColorType::RGB: {
-        auto const& rgb = as<RGBColorStyleValue>(color);
-        auto r = ColorStyleValue::resolve_with_reference_value(rgb.r(), 255.0f, context);
-        auto g = ColorStyleValue::resolve_with_reference_value(rgb.g(), 255.0f, context);
-        auto b = ColorStyleValue::resolve_with_reference_value(rgb.b(), 255.0f, context);
+        auto const& rgb = as<ColorFunctionStyleValue>(color);
+        auto r = ColorStyleValue::resolve_with_reference_value(rgb.channel(0), 255.0f, context);
+        auto g = ColorStyleValue::resolve_with_reference_value(rgb.channel(1), 255.0f, context);
+        auto b = ColorStyleValue::resolve_with_reference_value(rgb.channel(2), 255.0f, context);
         auto a = resolve_alpha(rgb.alpha());
         if (!r.has_value() || !g.has_value() || !b.has_value() || !a.has_value())
             return {};

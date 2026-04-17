@@ -66,7 +66,6 @@
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RadialSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>
@@ -1572,7 +1571,7 @@ RefPtr<StyleValue const> Parser::parse_rgb_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return RGBColorStyleValue::create(red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::RGB, red.release_nonnull(), green.release_nonnull(), blue.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hsl

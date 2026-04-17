@@ -288,7 +288,6 @@ set(SOURCES
     CSS/StyleValues/NumberStyleValue.cpp
     CSS/StyleValues/OpenTypeTaggedStyleValue.cpp
     CSS/StyleValues/PositionStyleValue.cpp
-    CSS/StyleValues/RGBColorStyleValue.cpp
     CSS/StyleValues/RadialGradientStyleValue.cpp
     CSS/StyleValues/RadialSizeStyleValue.cpp
     CSS/StyleValues/RandomValueSharingStyleValue.cpp

@@ -12,16 +12,17 @@
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 
 namespace Web::CSS {
 
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<FlyString> name)
 {
-    return RGBColorStyleValue::create(
+    return ColorFunctionStyleValue::create(
+        ColorType::RGB,
         NumberStyleValue::create(color.red()),
         NumberStyleValue::create(color.green()),
         NumberStyleValue::create(color.blue()),

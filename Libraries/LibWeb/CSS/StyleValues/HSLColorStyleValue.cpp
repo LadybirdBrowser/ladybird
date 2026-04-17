@@ -8,9 +8,9 @@
 #include <AK/TypeCasts.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/RGBColorStyleValue.h>
 
 namespace Web::CSS {
 
@@ -62,7 +62,8 @@ ValueComparingNonnullRefPtr<StyleValue const> HSLColorStyleValue::absolutized(Co
     auto g = to_rgb(hue, saturation, lightness, 8.0);
     auto b = to_rgb(hue, saturation, lightness, 4.0);
 
-    return RGBColorStyleValue::create(
+    return ColorFunctionStyleValue::create(
+        ColorType::RGB,
         NumberStyleValue::create(clamp(r * 255.0, 0, 255)),
         NumberStyleValue::create(clamp(g * 255.0, 0, 255)),
         NumberStyleValue::create(clamp(b * 255.0, 0, 255)),
