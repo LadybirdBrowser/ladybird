@@ -2371,7 +2371,7 @@ enum class IsConstructor {
 
 static void generate_return_statement(SourceGenerator& generator, IDL::Type const& return_type, IDL::Interface const& interface)
 {
-    return generate_wrap_statement(generator, "retval", return_type, interface, "return"sv);
+    generate_wrap_statement(generator, "retval", return_type, interface, "return"sv);
 }
 
 static void generate_variable_statement(SourceGenerator& generator, ByteString const& variable_name, IDL::Type const& value_type, ByteString const& value_name, IDL::Interface const& interface)
@@ -2381,7 +2381,7 @@ static void generate_variable_statement(SourceGenerator& generator, ByteString c
     variable_generator.append(R"~~~(
     JS::Value @variable_name@;
 )~~~");
-    return generate_wrap_statement(generator, value_name, value_type, interface, ByteString::formatted("{} = ", variable_name));
+    generate_wrap_statement(generator, value_name, value_type, interface, ByteString::formatted("{} = ", variable_name));
 }
 
 static void generate_function(SourceGenerator& generator, IDL::Function const& function, StaticFunction is_static_function, ByteString const& class_name, ByteString const& interface_fully_qualified_name, IDL::Interface const& interface)
