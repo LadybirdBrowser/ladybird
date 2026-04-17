@@ -1,0 +1,15 @@
+[add unrelated class]
+  hasInvalidationMetadataCandidates: 0
+  hasAncestorWalkInvocations: 0
+  hasAncestorWalkVisits: 0
+  styleInvalidations: 0
+[add class referenced by one :has()]
+  hasInvalidationMetadataCandidates: 1
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 4
+  styleInvalidations: 0
+[add class referenced by two :has() rules]
+  hasInvalidationMetadataCandidates: 2
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 4
+  styleInvalidations: 0

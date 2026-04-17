@@ -154,27 +154,55 @@ static void for_each_consecutive_simple_selector_group(Selector const& selector,
         callback(simple_selectors, combinator, is_rightmost);
 }
 
-static void collect_properties_used_in_has(Selector::SimpleSelector const& selector, StyleInvalidationData& style_invalidation_data, bool in_has)
+static HasArgumentScope classify_has_argument_scope(Selector const& selector)
+{
+    if (selector.compound_selectors().is_empty())
+        return HasArgumentScope::Complex;
+
+    auto leftmost_combinator = selector.compound_selectors().first().combinator;
+    switch (leftmost_combinator) {
+    case Selector::Combinator::Descendant:
+        return HasArgumentScope::AllDescendants;
+    case Selector::Combinator::ImmediateChild:
+        return selector.compound_selectors().size() == 1 ? HasArgumentScope::ChildrenOnly : HasArgumentScope::Complex;
+    case Selector::Combinator::NextSibling:
+        return selector.compound_selectors().size() == 1 ? HasArgumentScope::NextSiblingOnly : HasArgumentScope::Complex;
+    case Selector::Combinator::SubsequentSibling:
+        return selector.compound_selectors().size() == 1 ? HasArgumentScope::AllFollowingSiblings : HasArgumentScope::Complex;
+    default:
+        return HasArgumentScope::Complex;
+    }
+}
+
+template<typename Key>
+static void append_has_invalidation_metadata(HashMap<Key, Vector<HasInvalidationMetadata>>& map, Key const& key, HasInvalidationMetadata const& metadata)
+{
+    auto& bucket = map.ensure(key, [] { return Vector<HasInvalidationMetadata> {}; });
+    if (!bucket.contains_slow(metadata))
+        bucket.append(metadata);
+}
+
+static void collect_properties_used_in_has(Selector::SimpleSelector const& selector, StyleInvalidationData& style_invalidation_data, Optional<HasInvalidationMetadata> metadata)
 {
     switch (selector.type) {
     case Selector::SimpleSelector::Type::Id: {
-        if (in_has)
-            style_invalidation_data.ids_used_in_has_selectors.set(selector.name());
+        if (metadata.has_value())
+            append_has_invalidation_metadata(style_invalidation_data.ids_used_in_has_selectors, selector.name(), *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::Class: {
-        if (in_has)
-            style_invalidation_data.class_names_used_in_has_selectors.set(selector.name());
+        if (metadata.has_value())
+            append_has_invalidation_metadata(style_invalidation_data.class_names_used_in_has_selectors, selector.name(), *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::Attribute: {
-        if (in_has)
-            style_invalidation_data.attribute_names_used_in_has_selectors.set(selector.attribute().qualified_name.name.lowercase_name);
+        if (metadata.has_value())
+            append_has_invalidation_metadata(style_invalidation_data.attribute_names_used_in_has_selectors, selector.attribute().qualified_name.name.lowercase_name, *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::TagName: {
-        if (in_has)
-            style_invalidation_data.tag_names_used_in_has_selectors.set(selector.qualified_name().name.lowercase_name);
+        if (metadata.has_value())
+            append_has_invalidation_metadata(style_invalidation_data.tag_names_used_in_has_selectors, selector.qualified_name().name.lowercase_name, *metadata);
         break;
     }
     case Selector::SimpleSelector::Type::PseudoClass: {
@@ -191,16 +219,23 @@ static void collect_properties_used_in_has(Selector::SimpleSelector const& selec
         case PseudoClass::AnyLink:
         case PseudoClass::LocalLink:
         case PseudoClass::Default:
-            if (in_has)
-                style_invalidation_data.pseudo_classes_used_in_has_selectors.set(pseudo_class.type);
+            if (metadata.has_value())
+                append_has_invalidation_metadata(style_invalidation_data.pseudo_classes_used_in_has_selectors, pseudo_class.type, *metadata);
             break;
         default:
             break;
         }
         for (auto const& child_selector : pseudo_class.argument_selector_list) {
+            Optional<HasInvalidationMetadata> child_metadata = metadata;
+            if (pseudo_class.type == PseudoClass::Has) {
+                child_metadata = HasInvalidationMetadata {
+                    .relative_selector = child_selector.ptr(),
+                    .scope = classify_has_argument_scope(*child_selector),
+                };
+            }
             for (auto const& compound_selector : child_selector->compound_selectors()) {
                 for (auto const& simple_selector : compound_selector.simple_selectors)
-                    collect_properties_used_in_has(simple_selector, style_invalidation_data, in_has || pseudo_class.type == PseudoClass::Has);
+                    collect_properties_used_in_has(simple_selector, style_invalidation_data, child_metadata);
             }
         }
         break;
@@ -408,13 +443,7 @@ static InvalidationSet build_invalidation_sets_for_selector_impl(StyleInvalidati
         // Collect properties used in :has() so we can decide if only specific properties
         // trigger descendant invalidation or if the entire document must be invalidated.
         for (auto const& simple_selector : simple_selectors) {
-            bool in_has = false;
-            if (simple_selector.type == Selector::SimpleSelector::Type::PseudoClass) {
-                auto const& pseudo_class = simple_selector.pseudo_class();
-                if (pseudo_class.type == PseudoClass::Has)
-                    in_has = true;
-            }
-            collect_properties_used_in_has(simple_selector, style_invalidation_data, in_has);
+            collect_properties_used_in_has(simple_selector, style_invalidation_data, {});
         }
 
         auto invalidation_properties = build_invalidation_set_for_simple_selectors(simple_selectors, ExcludePropertiesNestedInNotPseudoClass::No, style_invalidation_data, inside_nth_child_pseudo_class);

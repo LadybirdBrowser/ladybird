@@ -212,35 +212,33 @@ NonnullRefPtr<InvalidationPlan> StyleComputer::invalidation_plan_for_properties(
     return result;
 }
 
-bool StyleComputer::invalidation_property_used_in_has_selector(InvalidationSet::Property const& property, StyleScope const& style_scope) const
+Vector<HasInvalidationMetadata> const* StyleComputer::has_invalidation_metadata_for_property(InvalidationSet::Property const& property, StyleScope const& style_scope) const
 {
     if (!style_scope.m_style_invalidation_data)
-        return true;
+        return nullptr;
+
+    auto return_bucket_if_present = [](auto const& map, auto const& key) -> Vector<HasInvalidationMetadata> const* {
+        auto bucket = map.get(key);
+        if (!bucket.has_value())
+            return nullptr;
+        return &bucket.value();
+    };
+
     switch (property.type) {
     case InvalidationSet::Property::Type::Id:
-        if (style_scope.m_style_invalidation_data->ids_used_in_has_selectors.contains(property.name()))
-            return true;
-        break;
+        return return_bucket_if_present(style_scope.m_style_invalidation_data->ids_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::Class:
-        if (style_scope.m_style_invalidation_data->class_names_used_in_has_selectors.contains(property.name()))
-            return true;
-        break;
+        return return_bucket_if_present(style_scope.m_style_invalidation_data->class_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::Attribute:
-        if (style_scope.m_style_invalidation_data->attribute_names_used_in_has_selectors.contains(property.name()))
-            return true;
-        break;
+        return return_bucket_if_present(style_scope.m_style_invalidation_data->attribute_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::TagName:
-        if (style_scope.m_style_invalidation_data->tag_names_used_in_has_selectors.contains(property.name()))
-            return true;
-        break;
+        return return_bucket_if_present(style_scope.m_style_invalidation_data->tag_names_used_in_has_selectors, property.name());
     case InvalidationSet::Property::Type::PseudoClass:
-        if (style_scope.m_style_invalidation_data->pseudo_classes_used_in_has_selectors.contains(property.value.get<PseudoClass>()))
-            return true;
-        break;
+        return return_bucket_if_present(style_scope.m_style_invalidation_data->pseudo_classes_used_in_has_selectors, property.value.get<PseudoClass>());
     default:
         break;
     }
-    return false;
+    return nullptr;
 }
 
 Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractElement abstract_element, CascadeOrigin cascade_origin, PseudoClassBitmap& attempted_pseudo_class_matches, Optional<FlyString const> qualified_layer_name) const

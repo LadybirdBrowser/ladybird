@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor-a:has(.match-a) { color: red; }
+    .anchor-b:has(.match-b) { color: red; }
+    .anchor-c:has(.shared) { color: red; }
+    .anchor-d:has(.shared) { color: red; }
+</style>
+<div class="anchor-a"><span class="match-a">a</span></div>
+<div class="anchor-b"><span class="match-b">b</span></div>
+<div class="anchor-c"><span class="shared">c</span></div>
+<div class="anchor-d"><span class="shared">d</span></div>
+
+<div id="outside">
+    <span id="unrelated-target">u</span>
+    <span id="single-target">s</span>
+    <span id="shared-target">m</span>
+</div>
+<script>
+    function printMetadataCounters(label) {
+        const counters = internals.getStyleInvalidationCounters();
+        println(`[${label}]`);
+        println(`  hasInvalidationMetadataCandidates: ${counters.hasInvalidationMetadataCandidates}`);
+        println(`  hasAncestorWalkInvocations: ${counters.hasAncestorWalkInvocations}`);
+        println(`  hasAncestorWalkVisits: ${counters.hasAncestorWalkVisits}`);
+        println(`  styleInvalidations: ${counters.styleInvalidations}`);
+    }
+
+    test(() => {
+        let unrelatedTarget = document.getElementById("unrelated-target");
+        let singleTarget = document.getElementById("single-target");
+        let sharedTarget = document.getElementById("shared-target");
+
+        settleAndReset();
+
+        unrelatedTarget.classList.add("unrelated");
+        getComputedStyle(unrelatedTarget).color;
+        printMetadataCounters("add unrelated class");
+
+        internals.resetStyleInvalidationCounters();
+
+        singleTarget.classList.add("match-a");
+        getComputedStyle(singleTarget).color;
+        printMetadataCounters("add class referenced by one :has()");
+
+        internals.resetStyleInvalidationCounters();
+
+        sharedTarget.classList.add("shared");
+        getComputedStyle(sharedTarget).color;
+        printMetadataCounters("add class referenced by two :has() rules");
+    });
+</script>

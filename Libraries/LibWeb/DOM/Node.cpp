@@ -539,10 +539,18 @@ void Node::invalidate_style(StyleInvalidationReason reason, Vector<CSS::Invalida
     }
 
     bool properties_used_in_has_selectors = false;
+    auto& counters = document().style_invalidation_counters();
     for (auto const& property : properties) {
-        properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property, style_scope);
-        if (shadow_style_scope)
-            properties_used_in_has_selectors |= document().style_computer().invalidation_property_used_in_has_selector(property, *shadow_style_scope);
+        if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, style_scope)) {
+            properties_used_in_has_selectors = true;
+            counters.has_invalidation_metadata_candidates += metadata->size();
+        }
+        if (shadow_style_scope) {
+            if (auto const* metadata = document().style_computer().has_invalidation_metadata_for_property(property, *shadow_style_scope)) {
+                properties_used_in_has_selectors = true;
+                counters.has_invalidation_metadata_candidates += metadata->size();
+            }
+        }
     }
     if (properties_used_in_has_selectors) {
         style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*this);
