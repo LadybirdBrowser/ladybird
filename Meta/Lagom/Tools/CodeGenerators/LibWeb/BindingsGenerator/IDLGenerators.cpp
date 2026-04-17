@@ -680,7 +680,7 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 }
 
 // https://webidl.spec.whatwg.org/#es-dictionary
-static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interface const& interface, IDL::Dictionary const& dictionary, ByteString dictionary_name, bool optional = false, Optional<ByteString> optional_default_value = {})
+static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interface const& interface, IDL::Dictionary const& dictionary, ByteString dictionary_name)
 {
     auto const* current_dictionary = &dictionary;
     auto current_dictionary_name = move(dictionary_name);
@@ -735,21 +735,9 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
 
             generate_to_cpp(generator, member, member_property_value_name, "", member_value_name, interface, !member.required, member.default_value);
 
-            bool may_be_null = !optional_default_value.has_value() || optional_default_value.value() == "null";
-
-            // Required dictionary members cannot be null.
-            may_be_null &= !member.required && !member.default_value.has_value();
-
-            if (member.type->is_string() && optional && may_be_null) {
-                generator.append(R"~~~(
-    if (@member_value_name@.has_value())
-        @cpp_name@.@member_name@ = @member_value_name@.release_value();
-)~~~");
-            } else {
-                generator.append(R"~~~(
+            generator.append(R"~~~(
     @cpp_name@.@member_name@ = @member_value_name@;
 )~~~");
-            }
             if (!member.required && !member.default_value.has_value()) {
                 generator.append(R"~~~(
     }
@@ -1887,7 +1875,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         auto dictionary_generator = scoped_generator.fork();
         auto dictionary_name = parameter.type->name();
         auto& dictionary = interface.dictionaries.find(dictionary_name)->value;
-        generate_dictionary_to_cpp(dictionary_generator, interface, dictionary, dictionary_name, optional, optional_default_value);
+        generate_dictionary_to_cpp(dictionary_generator, interface, dictionary, dictionary_name);
     } else if (interface.callback_functions.contains(parameter.type->name())) {
         auto& callback_function = interface.callback_functions.find(parameter.type->name())->value;
         generate_callback_function_to_cpp(scoped_generator, *parameter.type, callback_function, optional);
