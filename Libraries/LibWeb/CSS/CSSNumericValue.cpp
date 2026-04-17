@@ -450,7 +450,7 @@ static WebIDL::ExceptionOr<GC::Ref<CSSNumericValue>> reify_a_numeric_value(JS::R
     if (numeric_value.is_function()) {
         // AD-HOC: The only feasible way is to parse it as a StyleValue and rely on the reification code there.
         auto parser = Parser::Parser::create(Parser::ParsingParams {}, {});
-        if (auto calculation = parser.parse_calculated_value(numeric_value)) {
+        if (auto calculation = parser.parse_calculated_value(numeric_value, {})) {
             auto reified = calculation->reify(realm, {});
             // AD-HOC: Not all math functions can be reified. Until we have clear guidance on that, throw a SyntaxError.
             // See: https://github.com/w3c/css-houdini-drafts/issues/1090#issuecomment-3200229996

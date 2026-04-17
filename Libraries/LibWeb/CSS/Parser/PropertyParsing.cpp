@@ -1872,9 +1872,7 @@ RefPtr<StyleValue const> Parser::parse_single_shadow_value(TokenStream<Component
             if (!tokens.has_next_token())
                 break;
 
-            m_value_context.append(SpecialContext::ShadowBlurRadius);
             auto maybe_blur_radius = parse_length_value(tokens, non_negative_range);
-            m_value_context.take_last();
             if (!maybe_blur_radius)
                 continue;
             blur_radius = maybe_blur_radius;
@@ -4517,7 +4515,6 @@ RefPtr<StyleValue const> Parser::parse_translate_value(TokenStream<ComponentValu
         return TransformationStyleValue::create(PropertyID::Translate, TransformFunction::Translate, { maybe_x.release_nonnull(), maybe_y.release_nonnull() });
     }
 
-    auto context_guard = push_temporary_value_parsing_context(SpecialContext::TranslateZArgument);
     auto maybe_z = parse_length_value(tokens, infinite_range);
     if (!maybe_z)
         return nullptr;

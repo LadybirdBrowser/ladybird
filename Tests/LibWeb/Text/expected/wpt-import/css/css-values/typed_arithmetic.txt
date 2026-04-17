@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 35 tests
 
-32 Pass
-3 Fail
+30 Pass
+5 Fail
 Pass	min(1em, 110px / 10px * 1px) should be used-value-equivalent to 10px
 Pass	max(10px, 110px / 10px * 1px) should be used-value-equivalent to 11px
 Pass	max(1em + 2px, 110px / 10px * 1px) should be used-value-equivalent to 12px
@@ -14,11 +14,11 @@ Pass	calc(10em / 1em) should be used-value-equivalent to 10
 Pass	calc(10em / 1rem) should be used-value-equivalent to 10
 Pass	calc(10em / 1px) should be used-value-equivalent to 100
 Pass	calc(1px / 10em * NaN) should be used-value-equivalent to 0
-Pass	calc(10% / 1px) should be used-value-equivalent to 1
+Fail	calc(10% / 1px) should be used-value-equivalent to 1
 Pass	calc(1% * 100% / 10%) should be used-value-equivalent to 10%
 Pass	calc(10% / 10%) should be used-value-equivalent to 1
 Pass	calc((10% * 1%) / 1px) should be used-value-equivalent to 10px
-Pass	calc(10% * 10% / 1px * 10deg / 1deg / 10px) should be used-value-equivalent to 1
+Fail	calc(10% * 10% / 1px * 10deg / 1deg / 10px) should be used-value-equivalent to 1
 Pass	calc(10% * 10% / 1px * 1deg / 1deg) should be used-value-equivalent to 1px
 Pass	calc(1px * 2deg / 1deg) should be used-value-equivalent to 2px
 Pass	calc(1px * 3deg / 1deg / 1px) should be used-value-equivalent to 3

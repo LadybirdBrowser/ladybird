@@ -588,7 +588,7 @@ RefPtr<StyleValue const> Parser::parse_integer_value(TokenStream<ComponentValue>
         return IntegerStyleValue::create(peek_token.token().to_integer());
     }
 
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
+    if (auto calc = parse_calculated_value(peek_token, { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, accepted_range } } }); calc && calc->as_calculated().resolves_to_number()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -609,7 +609,7 @@ RefPtr<StyleValue const> Parser::parse_number_value(TokenStream<ComponentValue>&
         return NumberStyleValue::create(peek_token.token().number_value());
     }
 
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_number()) {
+    if (auto calc = parse_calculated_value(peek_token, { .accepted_ranges_by_type = { { ValueType::Number, accepted_range } } }); calc && calc->as_calculated().resolves_to_number()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -656,7 +656,7 @@ RefPtr<StyleValue const> Parser::parse_percentage_value(TokenStream<ComponentVal
         return PercentageStyleValue::create(Percentage(peek_token.token().percentage()));
     }
 
-    if (auto calc = parse_calculated_value(peek_token); calc && calc->as_calculated().resolves_to_percentage()) {
+    if (auto calc = parse_calculated_value(peek_token, { .accepted_ranges_by_type = { { ValueType::Percentage, accepted_range } } }); calc && calc->as_calculated().resolves_to_percentage()) {
         tokens.discard_a_token(); // calc
         return calc;
     }
@@ -915,7 +915,7 @@ RefPtr<StyleValue const> Parser::parse_angle_value(TokenStream<ComponentValue>& 
         return literal_angle;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_angle()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Angle, accepted_range } } }); calc && calc->as_calculated().resolves_to_angle()) {
         transaction.commit();
         return calc;
     }
@@ -931,7 +931,7 @@ RefPtr<StyleValue const> Parser::parse_angle_percentage_value(TokenStream<Compon
         return literal_percentage;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_angle_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .percentages_resolve_as = ValueType::Angle, .accepted_ranges_by_type = { { ValueType::Angle, { accepted_angle_range } } } }); calc && calc->as_calculated().resolves_to_angle_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -958,7 +958,7 @@ RefPtr<StyleValue const> Parser::parse_flex_value(TokenStream<ComponentValue>& t
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_flex()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Flex, accepted_range } } }); calc && calc->as_calculated().resolves_to_flex()) {
         transaction.commit();
         return calc;
     }
@@ -992,7 +992,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_value(TokenStream<ComponentValu
         return literal_frequency;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_frequency()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Frequency, accepted_range } } }); calc && calc->as_calculated().resolves_to_frequency()) {
         transaction.commit();
         return calc;
     }
@@ -1008,7 +1008,7 @@ RefPtr<StyleValue const> Parser::parse_frequency_percentage_value(TokenStream<Co
         return literal_percentage;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_frequency_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .percentages_resolve_as = ValueType::Frequency, .accepted_ranges_by_type = { { ValueType::Frequency, accepted_frequency_range } } }); calc && calc->as_calculated().resolves_to_frequency_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -1086,7 +1086,7 @@ RefPtr<StyleValue const> Parser::parse_length_value(TokenStream<ComponentValue>&
         return parse_anchor_size(tokens);
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_length()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Length, accepted_range } } }); calc && calc->as_calculated().resolves_to_length()) {
         transaction.commit();
         return calc;
     }
@@ -1105,7 +1105,7 @@ RefPtr<StyleValue const> Parser::parse_length_percentage_value(TokenStream<Compo
         return parse_anchor_size(tokens);
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_length_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .percentages_resolve_as = ValueType::Length, .accepted_ranges_by_type = { { ValueType::Length, accepted_length_range } } }); calc && calc->as_calculated().resolves_to_length_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -1135,7 +1135,7 @@ RefPtr<StyleValue const> Parser::parse_resolution_value(TokenStream<ComponentVal
     }
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_resolution()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Resolution, accepted_range } } }); calc && calc->as_calculated().resolves_to_resolution()) {
         transaction.commit();
         return calc;
     }
@@ -1169,7 +1169,7 @@ RefPtr<StyleValue const> Parser::parse_time_value(TokenStream<ComponentValue>& t
         return literal_time;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_time()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .accepted_ranges_by_type = { { ValueType::Time, accepted_range } } }); calc && calc->as_calculated().resolves_to_time()) {
         transaction.commit();
         return calc;
     }
@@ -1185,7 +1185,7 @@ RefPtr<StyleValue const> Parser::parse_time_percentage_value(TokenStream<Compone
         return literal_percentage;
 
     auto transaction = tokens.begin_transaction();
-    if (auto calc = parse_calculated_value(tokens.consume_a_token()); calc && calc->as_calculated().resolves_to_time_percentage()) {
+    if (auto calc = parse_calculated_value(tokens.consume_a_token(), { .percentages_resolve_as = ValueType::Time, .accepted_ranges_by_type = { { ValueType::Time, accepted_time_range } } }); calc && calc->as_calculated().resolves_to_time_percentage()) {
         transaction.commit();
         return calc;
     }
@@ -2628,7 +2628,6 @@ RefPtr<StyleValue const> Parser::parse_ratio_value(TokenStream<ComponentValue>& 
     // <ratio> = <number [0,∞]> [ / <number [0,∞]> ]?
     auto transaction = tokens.begin_transaction();
 
-    auto scope_guard = push_temporary_value_parsing_context(SpecialContext::RatioComponent);
     tokens.discard_whitespace();
 
     auto numerator = parse_number_value(tokens, non_negative_range);
@@ -3137,11 +3136,8 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
             return parse_number_value(argument_tokens, accepted_range);
         };
 
-        m_value_context.append(SpecialContext::CubicBezierFunctionXCoordinate);
         auto x1 = parse_argument(0, { .min = 0, .max = 1 });
         auto x2 = parse_argument(2, { .min = 0, .max = 1 });
-        m_value_context.take_last();
-
         auto y1 = parse_argument(1, infinite_range);
         auto y2 = parse_argument(3, infinite_range);
         if (!x1 || !y1 || !x2 || !y2)
@@ -3198,10 +3194,8 @@ RefPtr<StyleValue const> Parser::parse_easing_value(TokenStream<ComponentValue>&
         // If the <step-position> is jump-none, the <integer> must be at least 2, or the function is invalid.
         // Otherwise, the <integer> must be at least 1, or the function is invalid.
 
-        m_value_context.append(position == StepPosition::JumpNone ? SpecialContext::StepsIntervalsJumpNone : SpecialContext::StepsIntervalsNormal);
         double min_internals = position == StepPosition::JumpNone ? 2 : 1;
         auto intervals = parse_integer_value(intervals_token, NumericRange { .min = min_internals, .max = AK::NumericLimits<i32>::max() });
-        m_value_context.take_last();
 
         if (!intervals)
             return nullptr;
@@ -3385,8 +3379,6 @@ RefPtr<BorderRadiusRectStyleValue const> Parser::parse_border_radius_rect_value(
     auto transaction = tokens.begin_transaction();
     tokens.discard_whitespace();
 
-    auto context_guard = push_temporary_value_parsing_context(SpecialContext::BorderRadius);
-
     while (tokens.has_next_token()) {
         if (tokens.next_token().is_delim('/')) {
             if (reading_vertical || horizontal_radii.is_empty())
@@ -3454,8 +3446,6 @@ RefPtr<RadialSizeStyleValue const> Parser::parse_radial_size(TokenStream<Compone
 
     auto parse_nonnegative_length_percentage_value = [&](TokenStream<ComponentValue>& tokens) -> RefPtr<StyleValue const> {
         auto length_percentage_transaction = tokens.begin_transaction();
-
-        auto context_guard = push_temporary_value_parsing_context(SpecialContext::RadialSizeLengthPercentage);
 
         auto length_percentage_value = parse_length_percentage_value(tokens, non_negative_range, non_negative_range);
         if (!length_percentage_value)
@@ -3536,7 +3526,6 @@ RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentVal
         return nullptr;
 
     if (tokens.has_next_token() && keyword_value->to_keyword() == Keyword::Oblique) {
-        auto context_guard = push_temporary_value_parsing_context(SpecialContext::FontStyleAngle);
         if (auto angle_value = parse_angle_value(tokens, { .min = -90, .max = 90 })) {
             transaction.commit();
             return FontStyleStyleValue::create(font_style.release_value(), angle_value);
@@ -4253,7 +4242,6 @@ RefPtr<RandomValueSharingStyleValue const> Parser::parse_random_value_sharing(To
         tokens.discard_a_token();
         tokens.discard_whitespace();
 
-        auto context_guard = push_temporary_value_parsing_context(SpecialContext::RandomValueSharingFixedValue);
         // NB: Fixed values have to be less than one and numbers serialize with six digits of precision
         if (auto fixed_value = parse_number_value(tokens, { .min = 0, .max = 0.999999 })) {
             tokens.discard_whitespace();
@@ -4556,8 +4544,6 @@ Optional<GridRepeat> Parser::parse_grid_track_repeat(TokenStream<ComponentValue>
     // <track-repeat> = repeat( [ <integer [1,∞]> ] , [ <line-names>? <track-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [this](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
-        auto context_guard = push_temporary_value_parsing_context(SpecialContext::GridTrackRepeatCount);
-
         auto maybe_integer = parse_integer_value(tokens, { .min = 1, .max = NumericLimits<i32>::max() });
         if (!maybe_integer)
             return {};
@@ -4600,8 +4586,6 @@ Optional<GridRepeat> Parser::parse_grid_fixed_repeat(TokenStream<ComponentValue>
     // <fixed-repeat> = repeat( [ <integer [1,∞]> ] , [ <line-names>? <fixed-size> ]+ <line-names>? )
 
     GridRepeatTypeParser parse_repeat_type = [this](TokenStream<ComponentValue>& tokens) -> Optional<GridRepeatParams> {
-        auto context_guard = push_temporary_value_parsing_context(SpecialContext::GridTrackRepeatCount);
-
         auto maybe_integer = parse_integer_value(tokens, { .min = 1, .max = NumericLimits<i32>::max() });
         if (!maybe_integer)
             return {};
@@ -4854,132 +4838,12 @@ RefPtr<GridTrackPlacementStyleValue const> Parser::parse_grid_track_placement(To
     return nullptr;
 }
 
-RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue const& component_value)
+RefPtr<CalculatedStyleValue const> Parser::parse_calculated_value(ComponentValue const& component_value, CalculationContext&& context)
 {
     if (!component_value.is_function())
         return nullptr;
 
-    auto const& function = component_value.function();
-
-    CalculationContext context {};
-    for (auto const& value_context : m_value_context.in_reverse()) {
-        auto maybe_context = value_context.visit(
-            [](PropertyID property_id) -> Optional<CalculationContext> {
-                return CalculationContext::for_property(PropertyNameAndID::from_id(property_id));
-            },
-            [](FunctionContext const& function) -> Optional<CalculationContext> {
-                // Gradients resolve percentages as lengths relative to the gradient-box (except within
-                // <angular-color-stop-list>s which are handled by a special context)
-                if (function.name.is_one_of_ignoring_ascii_case(
-                        "linear-gradient"sv, "repeating-linear-gradient"sv,
-                        "radial-gradient"sv, "repeating-radial-gradient"sv,
-                        "conic-gradient"sv, "repeating-conic-gradient"sv)) {
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
-                }
-                // https://drafts.csswg.org/css-transforms-2/#transform-functions
-                // The scale family of functions treats percentages as numbers.
-                if (function.name.is_one_of_ignoring_ascii_case(
-                        "scale"sv, "scalex"sv, "scaley"sv, "scalez"sv, "scale3d"sv)) {
-                    // NOTE: Resolving percentages as numbers isn't supported by the spec and we instead expect the
-                    //       caller to handle the resolved value being a percentage.
-                    return CalculationContext {};
-                }
-                if (function.name.is_one_of_ignoring_ascii_case(
-                        "rgb"sv, "rgba"sv, "hsl"sv, "hsla"sv,
-                        "hwb"sv, "lab"sv, "lch"sv, "oklab"sv, "oklch"sv,
-                        "color"sv)) {
-                    return CalculationContext {};
-                }
-                if (function.name.is_one_of_ignoring_ascii_case(
-                        "circle"sv, "ellipse"sv, "inset"sv, "polygon"sv, "rect"sv, "xywh"sv)) {
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
-                }
-                if (function.name.equals_ignoring_ascii_case("view"sv)) {
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
-                }
-                if (function.name.is_one_of_ignoring_ascii_case("brightness"sv, "contrast"sv, "saturate"sv)) {
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, NumericLimits<float>::max() } }, { ValueType::Percentage, { 0, NumericLimits<float>::max() } } } };
-                }
-                if (function.name.equals_ignoring_ascii_case("blur"sv)) {
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
-                }
-                // FIXME: Add other functions that provide a context for resolving values
-                return {};
-            },
-            [](DescriptorContext const& descriptor_context) -> Optional<CalculationContext> {
-                switch (descriptor_context.descriptor) {
-                case DescriptorID::AdditiveSymbols:
-                case DescriptorID::Pad:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 0, NumericLimits<i32>::max() } } } };
-                default:
-                    return CalculationContext {};
-                }
-                // FIXME: Add other descriptors which require special calculation contexts
-            },
-            [](SpecialContext special_context) -> Optional<CalculationContext> {
-                switch (special_context) {
-                case SpecialContext::AngularColorStopList:
-                    return CalculationContext { .percentages_resolve_as = ValueType::Angle };
-                case SpecialContext::BorderRadius:
-                    return CalculationContext {
-                        .percentages_resolve_as = ValueType::Length,
-                        .accepted_ranges_by_type = {
-                            { ValueType::Length, { 0, NumericLimits<float>::max() } },
-                            { ValueType::Percentage, { 0, NumericLimits<float>::max() } } },
-                    };
-                case SpecialContext::CubicBezierFunctionXCoordinate:
-                    // Coordinates on the X axis must be between 0 and 1
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, 1 } } } };
-                case SpecialContext::FontStyleAngle:
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Angle, { -90, 90 } } } };
-                case SpecialContext::GridTrackRepeatCount:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
-                case SpecialContext::RadialSizeLengthPercentage:
-                    // Radial size length-percentages are nonnegative
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length, .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
-                case SpecialContext::RandomValueSharingFixedValue:
-                    // Fixed values have to be less than one and numbers serialize with six digits of precision
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, 0.999999 } } } };
-                case SpecialContext::RatioComponent:
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Number, { 0, NumericLimits<float>::max() } } } };
-                case SpecialContext::StepsIntervalsJumpNone:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 2, NumericLimits<i32>::max() } } } };
-                case SpecialContext::StepsIntervalsNormal:
-                    return CalculationContext { .resolve_numbers_as_integers = true, .accepted_ranges_by_type = { { ValueType::Integer, { 1, NumericLimits<i32>::max() } } } };
-                case SpecialContext::ShadowBlurRadius:
-                    return CalculationContext { .accepted_ranges_by_type = { { ValueType::Length, { 0, NumericLimits<float>::max() } } } };
-                case SpecialContext::TranslateZArgument:
-                    // Percentages are disallowed for the Z axis
-                    return CalculationContext {};
-                case SpecialContext::CanvasContextGenericValue:
-                case SpecialContext::DOMMatrixInitString:
-                case SpecialContext::MediaCondition:
-                case SpecialContext::OnScreenCanvasContextFontValue:
-                    return {};
-                }
-                VERIFY_NOT_REACHED();
-            },
-            [](SyntaxParsingContext const& syntax_context) -> Optional<CalculationContext> {
-                switch (syntax_context.type) {
-                case ValueType::AnglePercentage:
-                    return CalculationContext { .percentages_resolve_as = ValueType::Angle };
-                case ValueType::FrequencyPercentage:
-                    return CalculationContext { .percentages_resolve_as = ValueType::Frequency };
-                case ValueType::LengthPercentage:
-                    return CalculationContext { .percentages_resolve_as = ValueType::Length };
-                case ValueType::TimePercentage:
-                    return CalculationContext { .percentages_resolve_as = ValueType::Time };
-                default:
-                    return {};
-                }
-            });
-        if (maybe_context.has_value()) {
-            context = maybe_context.release_value();
-            break;
-        }
-    }
-
-    auto function_node = parse_a_calc_function_node(function, context);
+    auto function_node = parse_a_calc_function_node(component_value.function(), context);
     if (!function_node)
         return nullptr;
 

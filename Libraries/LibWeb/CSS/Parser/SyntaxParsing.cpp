@@ -263,7 +263,6 @@ RefPtr<StyleValue const> Parser::parse_according_to_syntax_node(TokenStream<Comp
         auto const& type_node = as<TypeSyntaxNode>(syntax_node);
         auto const& type_name = type_node.type_name();
         if (auto value_type = value_type_from_string(type_name); value_type.has_value()) {
-            auto scope_guard = push_temporary_value_parsing_context(SyntaxParsingContext { *value_type });
             if (auto result = parse_value(*value_type, tokens)) {
                 transaction.commit();
                 return result.release_nonnull();

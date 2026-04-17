@@ -122,8 +122,6 @@ Optional<Vector<ColorStopListElement>> Parser::parse_linear_color_stop_list(Toke
 
 Optional<Vector<ColorStopListElement>> Parser::parse_angular_color_stop_list(TokenStream<ComponentValue>& tokens)
 {
-    auto context_guard = push_temporary_value_parsing_context(SpecialContext::AngularColorStopList);
-
     // <angular-color-stop-list> =
     //   <angular-color-stop> , [ <angular-color-hint>? , <angular-color-stop> ]#
     return parse_color_stop_list(

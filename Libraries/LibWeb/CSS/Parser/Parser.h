@@ -61,9 +61,6 @@ struct NegateNode {
 
 }
 
-struct SyntaxParsingContext {
-    ValueType type;
-};
 struct FunctionContext {
     StringView name;
 };
@@ -72,25 +69,13 @@ struct DescriptorContext {
     DescriptorID descriptor;
 };
 enum SpecialContext : u8 {
-    AngularColorStopList,
-    BorderRadius,
     CanvasContextGenericValue,
-    CubicBezierFunctionXCoordinate,
     DOMMatrixInitString,
-    FontStyleAngle,
-    GridTrackRepeatCount,
     MediaCondition,
-    OnScreenCanvasContextFontValue,
-    RadialSizeLengthPercentage,
-    RandomValueSharingFixedValue,
-    RatioComponent,
-    ShadowBlurRadius,
-    StepsIntervalsJumpNone,
-    StepsIntervalsNormal,
-    TranslateZArgument,
+    OnScreenCanvasContextFontValue
 };
 // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext, SyntaxParsingContext>;
+using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
 
 enum class ParsingMode {
     Normal,
@@ -178,7 +163,7 @@ public:
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Vector<ComponentValue> const& input, SyntaxNode const& syntax);
 
-    RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&);
+    RefPtr<CalculatedStyleValue const> parse_calculated_value(ComponentValue const&, CalculationContext&&);
     RefPtr<TreeCountingFunctionStyleValue const> parse_tree_counting_function(TokenStream<ComponentValue>&, TreeCountingFunctionStyleValue::ComputedType);
 
     OwnPtr<BooleanExpression> parse_if_condition(TokenStream<ComponentValue>&);

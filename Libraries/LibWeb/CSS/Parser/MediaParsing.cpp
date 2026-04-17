@@ -547,7 +547,7 @@ Optional<MediaFeatureValue> Parser::parse_media_feature_value(MediaFeatureID med
                 // value type doesn't allow 'unitless zeroes'."
                 if (tokens.has_next_token()) {
                     auto const& token = tokens.next_token();
-                    if (auto calc = parse_calculated_value(token); calc && calc->as_calculated().resolves_to_number()) {
+                    if (auto calc = parse_calculated_value(token, { .accepted_ranges_by_type = { { ValueType::Number, infinite_range } } }); calc && calc->as_calculated().resolves_to_number()) {
                         if (auto resolved_number = calc->as_calculated().resolve_number({}); resolved_number.has_value() && *resolved_number == 0) {
                             tokens.discard_a_token();
                             transaction.commit();
