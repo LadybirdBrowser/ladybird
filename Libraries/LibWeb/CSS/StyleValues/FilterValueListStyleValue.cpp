@@ -130,9 +130,14 @@ ValueComparingNonnullRefPtr<StyleValue const> FilterValueListStyleValue::absolut
                 });
             },
             [&](FilterOperation::Color const& color) {
+                auto absolutized_amount = number_from_style_value(color.amount->absolutized(computation_context), 1);
+
+                if (first_is_one_of(color.operation, Gfx::ColorFilterType::Grayscale, Gfx::ColorFilterType::Invert, Gfx::ColorFilterType::Opacity, Gfx::ColorFilterType::Sepia))
+                    absolutized_amount = clamp(absolutized_amount, 0.0f, 1.0f);
+
                 absolutized_filter_values.append(FilterOperation::Color {
                     .operation = color.operation,
-                    .amount = NumberStyleValue::create(number_from_style_value(color.amount->absolutized(computation_context), 1)),
+                    .amount = NumberStyleValue::create(absolutized_amount),
                 });
             },
             [&](CSS::URL const& url) {
