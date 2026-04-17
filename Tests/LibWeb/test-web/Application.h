@@ -36,6 +36,8 @@ public:
     ByteString results_directory { "test-dumps/results"sv };
     size_t test_concurrency { 1 };
     Vector<ByteString> test_globs;
+    ByteString wpt_path;
+    Vector<ByteString> wpt_filters;
 
     ByteString python_executable_path;
     String invocation_command_line;
@@ -51,6 +53,10 @@ public:
 
     u8 verbosity { 0 };
     bool quiet { false };
+
+    bool has_wpt_filters() const { return !wpt_filters.is_empty(); }
+    bool should_collect_regular_tests() const { return !has_wpt_filters() || !test_globs.is_empty(); }
+    ByteString wpt_certificates_path() const;
 };
 
 }

@@ -112,6 +112,9 @@
             margin-bottom: 24px;
         }
 
+        .accent-red { color: var(--accent-red) !important; }
+        .accent-orange { color: var(--accent-orange) !important; }
+
         .stat-card {
             background: var(--bg-secondary);
             border: 1px solid var(--border-primary);
@@ -157,6 +160,10 @@
         .stat-card.timeout .stat-value { color: var(--accent-orange); }
         .stat-card.crashed .stat-value { color: var(--accent-purple); }
         .stat-card.skipped .stat-value { color: var(--text-muted); }
+        .subtests { 
+            color: var(--text-secondary);
+            border-color: var(--text-secondary);
+        }
 
         .stat-label {
             font-size: 12px;
@@ -241,8 +248,8 @@
             font-weight: 600;
             padding: 4px 8px;
             border-radius: 4px;
-            background: var(--bg-tertiary);
             color: var(--text-secondary);
+            background: var(--bg-tertiary);
             border: 1px solid var(--border-primary);
         }
 
@@ -251,6 +258,10 @@
             font-size: 13px;
             color: var(--text-primary);
             word-break: break-all;
+        }
+
+        .wpt {
+            color: var(--text-secondary);
         }
 
         .copy-btn {
@@ -558,6 +569,13 @@
             color: var(--accent-red);
         }
 
+        .fake-wpt-summary {
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-primary);
+        }
+
         .loading {
             display: flex;
             align-items: center;
@@ -631,6 +649,7 @@
 
         let currentIndex = -1;
         let testElements = [];
+        let resultsByTestId = new Map();
 
         function setCopyButtonContents(btn, icon) {
             if (btn.id !== 'copy-run-command-btn') return btn.innerHTML = icon;
@@ -661,8 +680,9 @@
             const content = document.getElementById('content');
 
             const items = data.hasLogs
-                ? [{ name: 'test-dumps/results/helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...data.tests]
+                ? [{ name: 'helper-process-logs.html', mode: 'LOGS', inlineFileResult: 'helper-process-logs.html' }, ...data.tests]
                 : data.tests;
+            resultsByTestId = new Map(items.map(item => [item.name.replace(/[^a-zA-Z0-9]/g, '-'), item]));
 
             let html = `
                 <div class="summary">
@@ -682,10 +702,13 @@
                         <div class="stat-value">${data.summary.crashed}</div>
                         <div class="stat-label">Crashed</div>
                     </div>
-                    <div class="stat-card skipped">
+                    ${data.summary.wptSubtestCount > 0 ? `<div class="stat-card subtests">
+                        <div class="stat-value">${data.summary.wptSubtestsPassed}/${data.summary.wptSubtestCount}</div>
+                        <div class="stat-label">WPT Subtests</div>
+                    </div>` : `<div class="stat-card skipped">
                         <div class="stat-value">${data.summary.skipped}</div>
                         <div class="stat-label">Skipped</div>
-                    </div>
+                    </div>`}
                 </div>
                 <div class="test-list" id="testList">
             `;
@@ -703,13 +726,12 @@
         function renderResultItem(item) {
             const testId = item.name.replace(/[^a-zA-Z0-9]/g, '-');
             const tabs = item.inlineFileResult ? null : buildTabs(item);
-
             let html = `
                 <div class="test-item" data-name="${item.name.toLowerCase()}" id="test-${testId}">
                     <div class="test-header" onclick="toggleTest('${testId}')">
                         ${item.result ? `<span class="result-badge ${item.result}">${item.result}</span>` : ''}
-                        ${item.mode ? `<span class="mode-badge">${item.mode}</span>` : ''}
-                        <span class="test-name">${item.name}</span>
+                        ${modeHtml(item)}
+                        <span class="${item.isWptTest ? 'test-name wpt' : 'test-name'}">${item.name}</span>
                         ${item.result ? `<button class="copy-btn" onclick="copyText(event, this, '${item.name}')" title="Copy test path">${copySvg}</button>` : ''}
                         <span class="expand-icon">&#9654;</span>
                     </div>
@@ -726,17 +748,56 @@
             return html;
         }
 
+        function modeHtml(test) {
+            if (!test.mode) return '';
+            if (test.subtestCount) {
+                const colorClass = test.subtestsPassed === 0 ? 'accent-red' : 'accent-orange';
+                const label = test.isWptTest ? `WPT ${test.subtestsPassed}/${test.subtestCount}` : `${test.subtestsPassed}/${test.subtestCount}`;
+                return `<span class="mode-badge ${colorClass}">${label}</span>`;
+            }
+            if (test.isWptTest && test.mode === 'Ref') {
+                return `<span class="mode-badge accent-red">WPT Ref</span>`;
+            }
+            if (test.isWptTest && test.mode === 'Text') {
+                return `<span class="mode-badge accent-red">WPT Text</span>`;
+            }
+            return `<span class="mode-badge">${test.mode}</span>`;
+        }
+
+        function renderFakeWptSummaryTab(test) {
+            const fields = [
+                ['Test', test.name],
+                ['Result', test.result || 'Unknown'],
+                ['Mode', test.mode || 'Unknown'],
+            ];
+            if (test.subtestCount) {
+                fields.push(['WPT subtests', `${test.subtestsPassed}/${test.subtestCount}`]);
+            }
+            if (test.pixelErrors !== undefined) {
+                fields.push(['Pixel errors', String(test.pixelErrors)]);
+                fields.push(['Max channel diff', String(test.maxChannelDiff)]);
+            }
+            const rows = fields.map(([label, value]) => `<div class="ctx">${label}: ${value}</div>`).join('');
+            return `<div class="fake-wpt-summary">${rows}</div>`;
+        }
+
         function buildTabs(test) {
             let tabs = [];
 
-            if (test.mode === 'Layout' || test.mode === 'Text') {
+            if (test.isWptTest) {
+                if (test.hasWptResult) {
+                    tabs.push({ id: 'summary', label: 'Summary', file: `${test.name}.wpt.html`, type: 'text' });
+                } else {
+                    tabs.push({ id: 'summary', label: 'Summary', type: 'summary' });
+                }
+            } else if (test.mode === 'Layout' || test.mode === 'Text') {
                 tabs.push({ id: 'diff', label: 'Diff', file: `${test.name}.diff.html`, type: 'diff' });
                 tabs.push({ id: 'expected', label: 'Expected', file: `${test.name}.expected.txt`, type: 'text' });
                 tabs.push({ id: 'actual', label: 'Actual', file: `${test.name}.actual.txt`, type: 'text' });
-            } else if (test.mode === 'Ref' || test.mode === 'Screenshot') {
+            }
+            if ((test.mode === 'Ref' || test.mode === 'Screenshot') && test.hasImageResult) {
                 tabs.push({ id: 'compare', label: 'Compare', expected: `${test.name}.expected.png`, actual: `${test.name}.actual.png`, diff: `${test.name}.diff.png`, pixelErrors: test.pixelErrors, maxChannelDiff: test.maxChannelDiff, type: 'imageDiff' });
             }
-
             if (test.hasLogs) tabs.push({ id: 'std-logs', label: 'std logs', file: `${test.name}.logs.html`, type: 'text' });
 
             const bar = tabs.map((t, i) =>
@@ -782,8 +843,11 @@
             btn.classList.add('active');
 
             const container = document.getElementById(`preview-${testId}`);
+            const test = resultsByTestId.get(testId);
 
-            if (tab.type === 'diff' || tab.type === 'text') {
+            if (tab.type === 'summary') {
+                container.innerHTML = renderFakeWptSummaryTab(test);
+            } else if (tab.type === 'diff' || tab.type === 'text') {
                 container.innerHTML = `<iframe class="preview-frame" src="${tab.file}"></iframe>`;
             } else if (tab.type === 'image') {
                 container.innerHTML = `<img class="preview-image" src="${tab.file}" alt="${tab.label}">`;
