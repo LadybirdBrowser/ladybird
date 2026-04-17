@@ -42,6 +42,11 @@ public:
         Stopped,
     };
 
+    enum class BasicOrDigestAuthenticationIsCanceled : u8 {
+        No,
+        Yes
+    };
+
     [[nodiscard]] static GC::Ref<FetchController> create(JS::VM&);
 
     void set_full_timing_info(GC::Ref<FetchTimingInfo> full_timing_info) { m_full_timing_info = full_timing_info; }
@@ -49,6 +54,8 @@ public:
     void set_next_manual_redirect_steps(Function<void()> next_manual_redirect_steps);
 
     [[nodiscard]] State state() const { return m_state; }
+    [[nodiscard]] BasicOrDigestAuthenticationIsCanceled is_basic_or_digest_authentication_canceled() const { return m_is_is_basic_or_digest_authentication_canceled; }
+    void set_is_basic_or_digest_authentication_canceled(BasicOrDigestAuthenticationIsCanceled is_cancelled) { m_is_is_basic_or_digest_authentication_canceled = is_cancelled; }
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
@@ -100,6 +107,8 @@ private:
     // next manual redirect steps (default null)
     //     Null or an algorithm accepting nothing.
     GC::Ptr<GC::Function<void()>> m_next_manual_redirect_steps;
+
+    BasicOrDigestAuthenticationIsCanceled m_is_is_basic_or_digest_authentication_canceled { BasicOrDigestAuthenticationIsCanceled::No };
 
     GC::Ptr<FetchParams> m_fetch_params;
     // NB: Assumes one waiting consumer for a pending preloaded response.
