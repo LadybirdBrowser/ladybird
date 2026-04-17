@@ -154,8 +154,10 @@ void RequestClient::websocket_errored(u64 websocket_id, i32 message)
 
 void RequestClient::websocket_closed(u64 websocket_id, u16 code, ByteString reason, bool clean)
 {
-    if (auto connection = m_websockets.get(websocket_id); connection.has_value())
+    if (auto connection = m_websockets.take(websocket_id); connection.has_value()) {
+        (*connection)->set_ready_state(WebSocket::ReadyState::Closed);
         (*connection)->did_close({}, code, move(reason), clean);
+    }
 }
 
 void RequestClient::websocket_ready_state_changed(u64 websocket_id, u32 ready_state)

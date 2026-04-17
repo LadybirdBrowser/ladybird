@@ -12,6 +12,7 @@
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibHTTP/Forward.h>
 #include <LibIPC/ConnectionFromClient.h>
+#include <LibRequests/WebSocket.h>
 #include <LibWebSocket/WebSocket.h>
 #include <RequestServer/Forward.h>
 #include <RequestServer/RequestClientEndpoint.h>
@@ -70,6 +71,7 @@ private:
     static int on_socket_callback(void*, int sockfd, int what, void* user_data, void*);
     static int on_timeout_callback(void*, long timeout_ms, void* user_data);
     void check_active_requests();
+    void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
 
     ErrorOr<IPC::TransportHandle> create_client_socket();
 
