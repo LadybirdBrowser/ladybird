@@ -1185,6 +1185,44 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
 )~~~");
 }
 
+static void generate_callback_function_to_cpp(SourceGenerator& scoped_generator, IDL::Type const& type, IDL::CallbackFunction const& callback_function, bool optional)
+{
+    // https://webidl.spec.whatwg.org/#es-callback-function
+
+    auto callback_function_generator = scoped_generator.fork();
+
+    if (callback_function.return_type->is_parameterized() && callback_function.return_type->name() == "Promise")
+        callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::Yes");
+    else
+        callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::No");
+
+    // An ECMAScript value V is converted to an IDL callback function type value by running the following algorithm:
+    // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
+    if (!type.is_nullable() && !callback_function.is_legacy_treat_non_object_as_null) {
+        callback_function_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_function()
+)~~~");
+        if (optional)
+            callback_function_generator.append("&& !@js_name@@js_suffix@.is_undefined()");
+        callback_function_generator.append(R"~~~()
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, @js_name@@js_suffix@);
+)~~~");
+    }
+    // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
+    if (optional || type.is_nullable() || callback_function.is_legacy_treat_non_object_as_null) {
+        callback_function_generator.append(R"~~~(
+    GC::Ptr<WebIDL::CallbackType> @cpp_name@;
+    if (@js_name@@js_suffix@.is_object())
+        @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
+)~~~");
+        // FIXME: Handle default value for optional parameter here.
+    } else {
+        callback_function_generator.append(R"~~~(
+    auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
+)~~~");
+    }
+}
+
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool legacy_null_to_empty_string, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
@@ -1240,41 +1278,8 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         auto& dictionary = interface.dictionaries.find(dictionary_name)->value;
         generate_dictionary_to_cpp(dictionary_generator, interface, dictionary, dictionary_name, optional, optional_default_value);
     } else if (interface.callback_functions.contains(parameter.type->name())) {
-        // https://webidl.spec.whatwg.org/#es-callback-function
-
-        auto callback_function_generator = scoped_generator.fork();
         auto& callback_function = interface.callback_functions.find(parameter.type->name())->value;
-
-        if (callback_function.return_type->is_parameterized() && callback_function.return_type->name() == "Promise")
-            callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::Yes");
-        else
-            callback_function_generator.set("operation_returns_promise", "WebIDL::OperationReturnsPromise::No");
-
-        // An ECMAScript value V is converted to an IDL callback function type value by running the following algorithm:
-        // 1. If the result of calling IsCallable(V) is false and the conversion to an IDL value is not being performed due to V being assigned to an attribute whose type is a nullable callback function that is annotated with [LegacyTreatNonObjectAsNull], then throw a TypeError.
-        if (!parameter.type->is_nullable() && !callback_function.is_legacy_treat_non_object_as_null) {
-            callback_function_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_function()
-)~~~");
-            if (optional)
-                callback_function_generator.append("&& !@js_name@@js_suffix@.is_undefined()");
-            callback_function_generator.append(R"~~~()
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotAFunction, @js_name@@js_suffix@);
-)~~~");
-        }
-        // 2. Return the IDL callback function type value that represents a reference to the same object that V represents, with the incumbent realm as the callback context.
-        if (optional || parameter.type->is_nullable() || callback_function.is_legacy_treat_non_object_as_null) {
-            callback_function_generator.append(R"~~~(
-    GC::Ptr<WebIDL::CallbackType> @cpp_name@;
-    if (@js_name@@js_suffix@.is_object())
-        @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
-)~~~");
-            // FIXME: Handle default value for optional parameter here.
-        } else {
-            callback_function_generator.append(R"~~~(
-    auto @cpp_name@ = vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_object(), HTML::incumbent_realm(), @operation_returns_promise@);
-)~~~");
-        }
+        generate_callback_function_to_cpp(scoped_generator, *parameter.type, callback_function, optional);
     } else if (parameter.type->name().is_one_of("sequence"sv, "FrozenArray"sv)) {
         // https://webidl.spec.whatwg.org/#js-sequence
         // https://webidl.spec.whatwg.org/#js-frozen-array
