@@ -5424,8 +5424,9 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
     auto transaction = tokens.begin_transaction();
 
-    // FIXME: <url>s are ignored for now
+    // https://drafts.csswg.org/filter-effects-1/#typedef-filter-value-list
     // <filter-value-list> = [ <filter-function> | <url> ]+
+    // FIXME: <url>s are ignored for now
 
     enum class FilterToken {
         // Color filters:
@@ -5471,6 +5472,8 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
         return {};
     };
 
+    // https://drafts.csswg.org/filter-effects-1/#typedef-filter-function
+    // <blur()> | <brightness()> | <contrast()> | <drop-shadow()> | <grayscale()> | <hue-rotate()> | <invert()> | <opacity()> | <sepia()> | <saturate()>
     auto parse_filter_function = [&](auto filter_token, auto const& function_values) -> Optional<FilterValue> {
         TokenStream tokens { function_values };
         tokens.discard_whitespace();
@@ -5483,18 +5486,26 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
         };
 
         if (filter_token == FilterToken::Blur) {
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-blur
             // blur( <length>? )
+
+            // Default value when omitted is 0px.
             if (!tokens.has_next_token())
                 return FilterOperation::Blur { LengthStyleValue::create(Length::make_px(0)) };
+
+            // Negative values are not allowed.
             auto blur_radius = parse_length_value(tokens);
             tokens.discard_whitespace();
             if (!blur_radius || (blur_radius->is_length() && blur_radius->as_length().raw_value() < 0))
                 return {};
+
             return if_no_more_tokens_return(FilterOperation::Blur { blur_radius.release_nonnull() });
         } else if (filter_token == FilterToken::DropShadow) {
             if (!tokens.has_next_token())
                 return {};
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-drop-shadow
             // drop-shadow( [ <color>? && <length>{2,3} ] )
+
             // Note: The following code is a little awkward to allow the color to be before or after the lengths.
             RefPtr<StyleValue const> maybe_radius;
             auto maybe_color = parse_color_value(tokens);
@@ -5523,10 +5534,14 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
 
             return if_no_more_tokens_return(FilterOperation::DropShadow { x_offset.release_nonnull(), y_offset.release_nonnull(), maybe_radius, maybe_color });
         } else if (filter_token == FilterToken::HueRotate) {
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-hue-rotate
             // hue-rotate( [ <angle> | <zero> ]? )
+
+            // Default value when omitted is 0deg.
             if (!tokens.has_next_token())
                 return FilterOperation::HueRotate { AngleStyleValue::create(Angle::make_degrees(0)) };
 
+            // The unit identifier may be omitted if the <angle> is zero.
             if (tokens.next_token().is(Token::Type::Number)) {
                 // hue-rotate(0)
                 auto token = tokens.consume_a_token().token();
@@ -5541,13 +5556,29 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
             return {};
         } else {
             // Simple filters:
-            // brightness( <number-percentage>? )
-            // contrast( <number-percentage>? )
-            // grayscale( <number-percentage>? )
-            // invert( <number-percentage>? )
-            // opacity( <number-percentage>? )
-            // sepia( <number-percentage>? )
-            // saturate( <number-percentage>? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-brightness
+            // brightness( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-contrast
+            // contrast( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-grayscale
+            // grayscale( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-invert
+            // invert( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-opacity
+            // opacity( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-sepia
+            // sepia( [ <number> | <percentage> ]? )
+
+            // https://drafts.csswg.org/filter-effects-1/#funcdef-filter-saturate
+            // saturate( [ <number> | <percentage> ]? )
+
+            // Default value when omitted is 1.
             if (!tokens.has_next_token())
                 return FilterOperation::Color { filter_token_to_operation(filter_token), NumberStyleValue::create(1) };
 
@@ -5556,12 +5587,15 @@ RefPtr<StyleValue const> Parser::parse_filter_value_list_value(TokenStream<Compo
             if (!amount)
                 return {};
 
+            // Negative values are not allowed.
             if (amount->is_percentage() && amount->as_percentage().percentage().value() < 0)
                 return {};
 
             if (amount->is_number() && amount->as_number().number() < 0)
                 return {};
 
+            // Values of amount over 100% are allowed but UAs must clamp the values to 1.
+            // NB: Only for grayscale(), invert(), opacity() and sepia() functions
             if (first_is_one_of(filter_token, FilterToken::Grayscale, FilterToken::Invert, FilterToken::Opacity, FilterToken::Sepia)) {
                 if (amount->is_percentage() && amount->as_percentage().percentage().value() > 100)
                     amount = PercentageStyleValue::create(Percentage { 100 });
