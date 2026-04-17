@@ -312,8 +312,11 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name() == "boolean" && !type.is_nullable())
         return { .name = "bool", .sequence_storage_type = SequenceStorageType::Vector };
 
-    if (type.name() == "unsigned long" && !type.is_nullable())
-        return { .name = "WebIDL::UnsignedLong", .sequence_storage_type = SequenceStorageType::Vector };
+    if (type.name() == "byte" && !type.is_nullable())
+        return { .name = "WebIDL::Byte", .sequence_storage_type = SequenceStorageType::Vector };
+
+    if (type.name() == "octet" && !type.is_nullable())
+        return { .name = "WebIDL::Octet", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "short" && !type.is_nullable())
         return { .name = "WebIDL::Short", .sequence_storage_type = SequenceStorageType::Vector };
@@ -321,14 +324,17 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name() == "unsigned short" && !type.is_nullable())
         return { .name = "WebIDL::UnsignedShort", .sequence_storage_type = SequenceStorageType::Vector };
 
+    if (type.name() == "long" && !type.is_nullable())
+        return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
+
+    if (type.name() == "unsigned long" && !type.is_nullable())
+        return { .name = "WebIDL::UnsignedLong", .sequence_storage_type = SequenceStorageType::Vector };
+
     if (type.name() == "long long" && !type.is_nullable())
         return { .name = "WebIDL::LongLong", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "unsigned long long" && !type.is_nullable())
         return { .name = "WebIDL::UnsignedLongLong", .sequence_storage_type = SequenceStorageType::Vector };
-
-    if (type.name() == "long" && !type.is_nullable())
-        return { .name = "WebIDL::Long", .sequence_storage_type = SequenceStorageType::Vector };
 
     if (type.name() == "any")
         return { .name = "JS::Value", .sequence_storage_type = SequenceStorageType::RootVector };
