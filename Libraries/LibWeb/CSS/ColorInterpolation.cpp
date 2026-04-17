@@ -10,7 +10,6 @@
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 
 namespace Web::CSS {
@@ -138,12 +137,12 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return { is_component_none(oklab.channel(0)), is_component_none(oklab.channel(1)), is_component_none(oklab.channel(2)), is_component_none(oklab.alpha()) };
     }
     case ColorStyleValue::ColorType::LCH: {
-        auto const& lch = as<LCHColorStyleValue>(color);
-        return { is_component_none(lch.l()), is_component_none(lch.c()), is_component_none(lch.h()), is_component_none(lch.alpha()) };
+        auto const& lch = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(lch.channel(0)), is_component_none(lch.channel(1)), is_component_none(lch.channel(2)), is_component_none(lch.alpha()) };
     }
     case ColorStyleValue::ColorType::OKLCH: {
-        auto const& oklch = as<OKLCHColorStyleValue>(color);
-        return { is_component_none(oklch.l()), is_component_none(oklch.c()), is_component_none(oklch.h()), is_component_none(oklch.alpha()) };
+        auto const& oklch = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(oklch.channel(0)), is_component_none(oklch.channel(1)), is_component_none(oklch.channel(2)), is_component_none(oklch.alpha()) };
     }
     case ColorStyleValue::ColorType::RGB: {
         auto const& rgb = as<ColorFunctionStyleValue>(color);
@@ -363,13 +362,13 @@ static ValueComparingNonnullRefPtr<StyleValue const> style_value_from_polar_colo
             alpha);
     }
     case PolarColorSpace::Lch:
-        return LCHLikeColorStyleValue::create<LCHColorStyleValue>(
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::LCH,
             number_or_none(components[0], missing.component(0)),
             number_or_none(components[1], missing.component(1)),
             number_or_none(components[2], missing.component(2)),
             alpha);
     case PolarColorSpace::Oklch:
-        return LCHLikeColorStyleValue::create<OKLCHColorStyleValue>(
+        return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLCH,
             number_or_none(components[0], missing.component(0)),
             number_or_none(components[1], missing.component(1)),
             number_or_none(components[2], missing.component(2)),
@@ -437,20 +436,20 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return Gfx::ColorComponents { static_cast<float>(l.value()), static_cast<float>(a_comp.value()), static_cast<float>(b_comp.value()), a.value() };
     }
     case ColorStyleValue::ColorType::LCH: {
-        auto const& lch = as<LCHColorStyleValue>(color);
-        auto l = ColorStyleValue::resolve_with_reference_value(lch.l(), 100.0f, context);
-        auto c = ColorStyleValue::resolve_with_reference_value(lch.c(), 150.0f, context);
-        auto h = ColorStyleValue::resolve_hue(lch.h(), context);
+        auto const& lch = as<ColorFunctionStyleValue>(color);
+        auto l = ColorStyleValue::resolve_with_reference_value(lch.channel(0), 100.0f, context);
+        auto c = ColorStyleValue::resolve_with_reference_value(lch.channel(1), 150.0f, context);
+        auto h = ColorStyleValue::resolve_hue(lch.channel(2), context);
         auto a = resolve_alpha(lch.alpha());
         if (!l.has_value() || !c.has_value() || !h.has_value() || !a.has_value())
             return {};
         return Gfx::ColorComponents { static_cast<float>(l.value()), static_cast<float>(c.value()), static_cast<float>(h.value()), a.value() };
     }
     case ColorStyleValue::ColorType::OKLCH: {
-        auto const& oklch = as<OKLCHColorStyleValue>(color);
-        auto l = ColorStyleValue::resolve_with_reference_value(oklch.l(), 1.0f, context);
-        auto c = ColorStyleValue::resolve_with_reference_value(oklch.c(), 0.4f, context);
-        auto h = ColorStyleValue::resolve_hue(oklch.h(), context);
+        auto const& oklch = as<ColorFunctionStyleValue>(color);
+        auto l = ColorStyleValue::resolve_with_reference_value(oklch.channel(0), 1.0f, context);
+        auto c = ColorStyleValue::resolve_with_reference_value(oklch.channel(1), 0.4f, context);
+        auto h = ColorStyleValue::resolve_hue(oklch.channel(2), context);
         auto a = resolve_alpha(oklch.alpha());
         if (!l.has_value() || !c.has_value() || !h.has_value() || !a.has_value())
             return {};

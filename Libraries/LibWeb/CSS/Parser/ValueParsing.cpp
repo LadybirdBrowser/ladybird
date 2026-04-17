@@ -56,7 +56,6 @@
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
@@ -1893,7 +1892,7 @@ RefPtr<StyleValue const> Parser::parse_lch_color_value(TokenStream<ComponentValu
 
     auto& color_values = *maybe_color_values;
 
-    return LCHLikeColorStyleValue::create<LCHColorStyleValue>(color_values[0].release_nonnull(),
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::LCH, color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
@@ -1913,7 +1912,7 @@ RefPtr<StyleValue const> Parser::parse_oklch_color_value(TokenStream<ComponentVa
 
     auto& color_values = *maybe_color_values;
 
-    return LCHLikeColorStyleValue::create<OKLCHColorStyleValue>(color_values[0].release_nonnull(),
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::OKLCH, color_values[0].release_nonnull(),
         color_values[1].release_nonnull(),
         color_values[2].release_nonnull(),
         color_values[3].release_nonnull());
