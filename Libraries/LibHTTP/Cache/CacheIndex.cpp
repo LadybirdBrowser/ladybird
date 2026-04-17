@@ -178,8 +178,17 @@ ErrorOr<void> CacheIndex::create_entry(u64 cache_key, u64 vary_key, String url, 
         .last_access_time = now,
     };
 
+    auto& entries = m_entries.ensure(cache_key);
+    auto existing_entry_index = entries.find_first_index_if([&](auto const& existing_entry) {
+        return existing_entry.vary_key == vary_key;
+    });
+
     m_database->execute_statement(m_statements.insert_entry, {}, cache_key, vary_key, entry.url, serialized_request_headers, serialized_response_headers, entry.data_size, entry.request_time, entry.response_time, entry.last_access_time);
-    m_entries.ensure(cache_key).append(move(entry));
+
+    if (existing_entry_index.has_value())
+        entries[*existing_entry_index] = move(entry);
+    else
+        entries.append(move(entry));
 
     return {};
 }
