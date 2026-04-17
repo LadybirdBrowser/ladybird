@@ -215,16 +215,19 @@ ErrorOr<void> copy_file(StringView destination_path, StringView source_path, str
 
 ErrorOr<void> copy_directory(StringView destination_path, StringView source_path, struct stat const& source_stat, LinkMode link, PreserveMode preserve_mode)
 {
-    TRY(Core::System::mkdir(destination_path, 0755));
-
     auto source_rp = TRY(real_path(source_path));
     source_rp = ByteString::formatted("{}/", source_rp);
 
-    auto destination_rp = TRY(real_path(destination_path));
+    LexicalPath destination_lexical_path(destination_path);
+    auto destination_parent_rp = TRY(real_path(destination_lexical_path.dirname()));
+    auto destination_rp = LexicalPath::join(destination_parent_rp, destination_lexical_path.basename()).string();
     destination_rp = ByteString::formatted("{}/", destination_rp);
 
     if (!destination_rp.is_empty() && destination_rp.starts_with(source_rp))
         return Error::from_errno(EINVAL);
+
+    // Only create the directory after the self-copy guard passes, otherwise a failed copy can leave partial state behind.
+    TRY(Core::System::mkdir(destination_path, 0755));
 
     Core::DirIterator di(source_path, Core::DirIterator::SkipParentAndBaseDir);
     if (di.has_error())
