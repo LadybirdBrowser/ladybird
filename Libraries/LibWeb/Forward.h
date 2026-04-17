@@ -335,7 +335,6 @@ class GridTrackPlacementStyleValue;
 class GridTrackSizeList;
 class GridTrackSizeListStyleValue;
 class GuaranteedInvalidStyleValue;
-class HSLColorStyleValue;
 class HWBColorStyleValue;
 class ImageStyleValue;
 class IntegerStyleValue;

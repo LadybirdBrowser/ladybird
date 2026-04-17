@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/ColorInterpolation.h>
 #include <LibWeb/CSS/Interpolation.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/HSLColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/HWBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LCHLikeColorStyleValue.h>
@@ -125,8 +124,8 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return {};
     switch (*color_type) {
     case ColorStyleValue::ColorType::HSL: {
-        auto const& hsl = as<HSLColorStyleValue>(color);
-        return { is_component_none(hsl.h()), is_component_none(hsl.s()), is_component_none(hsl.l()), is_component_none(hsl.alpha()) };
+        auto const& hsl = as<ColorFunctionStyleValue>(color);
+        return { is_component_none(hsl.channel(0)), is_component_none(hsl.channel(1)), is_component_none(hsl.channel(2)), is_component_none(hsl.alpha()) };
     }
     case ColorStyleValue::ColorType::HWB: {
         auto const& hwb = as<HWBColorStyleValue>(color);
@@ -399,10 +398,10 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
 
     switch (*color_type) {
     case ColorStyleValue::ColorType::HSL: {
-        auto const& hsl = as<HSLColorStyleValue>(color);
-        auto h = ColorStyleValue::resolve_hue(hsl.h(), context);
-        auto s = ColorStyleValue::resolve_with_reference_value(hsl.s(), 100.0f, context);
-        auto l = ColorStyleValue::resolve_with_reference_value(hsl.l(), 100.0f, context);
+        auto const& hsl = as<ColorFunctionStyleValue>(color);
+        auto h = ColorStyleValue::resolve_hue(hsl.channel(0), context);
+        auto s = ColorStyleValue::resolve_with_reference_value(hsl.channel(1), 100.0f, context);
+        auto l = ColorStyleValue::resolve_with_reference_value(hsl.channel(2), 100.0f, context);
         auto a = resolve_alpha(hsl.alpha());
         if (!h.has_value() || !s.has_value() || !l.has_value() || !a.has_value())
             return {};

@@ -53,7 +53,6 @@
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
-#include <LibWeb/CSS/StyleValues/HSLColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/HWBColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -1683,7 +1682,7 @@ RefPtr<StyleValue const> Parser::parse_hsl_color_value(TokenStream<ComponentValu
         alpha = NumberStyleValue::create(1);
 
     transaction.commit();
-    return HSLColorStyleValue::create(h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
+    return ColorFunctionStyleValue::create(ColorStyleValue::ColorType::HSL, h.release_nonnull(), s.release_nonnull(), l.release_nonnull(), alpha.release_nonnull(), legacy_syntax ? ColorSyntax::Legacy : ColorSyntax::Modern);
 }
 
 // https://www.w3.org/TR/css-color-4/#funcdef-hwb
