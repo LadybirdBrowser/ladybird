@@ -1,0 +1,7 @@
+[after add .leaf]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 6
+  hasMatchInvocations: 4
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 4
+  styleInvalidations: 1

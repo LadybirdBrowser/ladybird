@@ -67,26 +67,42 @@ bool SiblingInvalidationRule::operator==(SiblingInvalidationRule const& other) c
         && *payload == *other.payload;
 }
 
+template<typename Rule>
+static bool rule_lists_are_equal_ignoring_order(Vector<Rule> const& a, Vector<Rule> const& b)
+{
+    if (a.size() != b.size())
+        return false;
+
+    Vector<bool> matched_rules;
+    matched_rules.resize(b.size());
+
+    for (auto const& rule : a) {
+        bool found_match = false;
+        for (size_t i = 0; i < b.size(); ++i) {
+            if (matched_rules[i])
+                continue;
+            if (!(rule == b[i]))
+                continue;
+            matched_rules[i] = true;
+            found_match = true;
+            break;
+        }
+        if (!found_match)
+            return false;
+    }
+
+    return true;
+}
+
 bool InvalidationPlan::operator==(InvalidationPlan const& other) const
 {
     if (invalidate_self != other.invalidate_self)
         return false;
     if (invalidate_whole_subtree != other.invalidate_whole_subtree)
         return false;
-    if (descendant_rules.size() != other.descendant_rules.size())
-        return false;
-    if (sibling_rules.size() != other.sibling_rules.size())
-        return false;
 
-    for (size_t i = 0; i < descendant_rules.size(); ++i) {
-        if (!(descendant_rules[i] == other.descendant_rules[i]))
-            return false;
-    }
-    for (size_t i = 0; i < sibling_rules.size(); ++i) {
-        if (!(sibling_rules[i] == other.sibling_rules[i]))
-            return false;
-    }
-    return true;
+    return rule_lists_are_equal_ignoring_order(descendant_rules, other.descendant_rules)
+        && rule_lists_are_equal_ignoring_order(sibling_rules, other.sibling_rules);
 }
 
 void InvalidationPlan::include_all_from(InvalidationPlan const& other)

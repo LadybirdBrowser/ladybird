@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(:is(.outer-a, .outer-b) :is(.inner-a, .inner-b) .leaf) { color: red; }
+    .anchor:has(:is(.outer-b, .outer-a) :is(.inner-b, .inner-a) .leaf) { color: red; }
+    .anchor:has(:is(.outer-a, .outer-b) :is(.inner-b, .inner-a) .leaf) { color: red; }
+    .anchor:has(:is(.outer-b, .outer-a) :is(.inner-a, .inner-b) .leaf) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <div class="outer-a" id="outer">
+        <div class="inner-b" id="inner">
+            <span id="target">leaf</span>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        let anchor = document.getElementById("anchor");
+        let target = document.getElementById("target");
+
+        settleAndReset(anchor);
+
+        target.classList.add("leaf");
+        getComputedStyle(anchor).color;
+        printCounters("after add .leaf");
+    });
+</script>
