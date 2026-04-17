@@ -106,8 +106,13 @@ WebIDL::ExceptionOr<GC::Ref<WebSocket>> WebSocket::construct_impl(JS::Realm& rea
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(vm.heap(), [web_socket, url_record, protocols_sequence = move(protocols_sequence)]() {
         auto& client = HTML::relevant_settings_object(*web_socket);
 
-        //  1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
-        (void)web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client);
+        // 1. Establish a WebSocket connection given urlRecord, protocols, and client. [FETCH]
+        // AD-HOC: We don't yet implement this method to spec, so it's possible for the connection to fail before we
+        //         make a Requests::WebSocket. If so, we need to manually error and close it.
+        if (web_socket->establish_web_socket_connection(*url_record, protocols_sequence, client).is_error()) {
+            web_socket->on_error();
+            web_socket->on_close(to_underlying(::WebSocket::CloseStatusCode::AbnormalClosure), String {}, false);
+        }
     }));
 
     return web_socket;
@@ -194,6 +199,7 @@ bool WebSocket::must_survive_garbage_collection() const
 ErrorOr<void> WebSocket::establish_web_socket_connection(URL::URL const& url_record, Vector<String> const& protocols, HTML::EnvironmentSettingsObject& client)
 {
     // FIXME: Integrate properly with FETCH as per https://fetch.spec.whatwg.org/#websocket-opening-handshake
+    //        That means following https://websockets.spec.whatwg.org/#concept-websocket-establish
 
     auto& window_or_worker = as<HTML::WindowOrWorkerGlobalScopeMixin>(client.global_object());
     auto origin_string = window_or_worker.origin().to_byte_string();
