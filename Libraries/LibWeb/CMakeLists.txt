@@ -413,6 +413,7 @@ set(SOURCES
     Fetch/FetchMethod.cpp
     Fetch/Headers.cpp
     Fetch/HeadersIterator.cpp
+    Fetch/Infrastructure/AuthenticationEntry.cpp
     Fetch/Infrastructure/FetchAlgorithms.cpp
     Fetch/Infrastructure/FetchController.cpp
     Fetch/Infrastructure/FetchParams.cpp

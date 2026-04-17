@@ -24,6 +24,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 
@@ -323,6 +324,11 @@ public:
     }
 
     UnixDateTime request_time() const { return m_request_time; }
+
+    [[nodiscard]] Optional<AuthenticationEntry> get_authentication_entry()
+    {
+        return Infrastructure::get_authentication_entry(current_url());
+    }
 
 private:
     explicit Request(NonnullRefPtr<HTTP::HeaderList>);
