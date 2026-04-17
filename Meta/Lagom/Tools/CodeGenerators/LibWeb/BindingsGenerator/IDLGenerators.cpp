@@ -1050,6 +1050,71 @@ static void generate_any_to_cpp(SourceGenerator& scoped_generator, bool optional
     }
 }
 
+enum class ThrowOnInvalidEnumValue {
+    Yes,
+    No,
+};
+
+static void generate_enum_to_cpp(SourceGenerator& scoped_generator, Enumeration const& enumeration, ThrowOnInvalidEnumValue throw_on_invalid, bool optional, Optional<ByteString> const& optional_default_value)
+{
+    auto enum_generator = scoped_generator.fork();
+    StringView enum_member_name;
+    if (optional_default_value.has_value()) {
+        VERIFY(optional_default_value->length() >= 2 && (*optional_default_value)[0] == '"' && (*optional_default_value)[optional_default_value->length() - 1] == '"');
+        enum_member_name = optional_default_value->substring_view(1, optional_default_value->length() - 2);
+    } else {
+        enum_member_name = enumeration.first_member;
+    }
+    auto default_value_cpp_name = enumeration.translated_cpp_names.get(enum_member_name);
+    VERIFY(default_value_cpp_name.has_value());
+    enum_generator.set("enum.default.cpp_value", *default_value_cpp_name);
+    enum_generator.set("js_name.as_string", ByteString::formatted("{}{}_string", enum_generator.get("js_name"sv), enum_generator.get("js_suffix"sv)));
+    enum_generator.append(R"~~~(
+    @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
+)~~~");
+
+    if (optional) {
+        enum_generator.append(R"~~~(
+    if (!@js_name@@js_suffix@.is_undefined()) {
+)~~~");
+    }
+
+    enum_generator.append(R"~~~(
+    auto @js_name.as_string@ = TRY(@js_name@@js_suffix@.to_string(vm));
+)~~~");
+    auto first = true;
+    VERIFY(enumeration.translated_cpp_names.size() >= 1);
+    for (auto& it : enumeration.translated_cpp_names) {
+        enum_generator.set("enum.alt.name", it.key);
+        enum_generator.set("enum.alt.value", it.value);
+        enum_generator.set("else", first ? "" : "else ");
+        first = false;
+
+        enum_generator.append(R"~~~(
+    @else@if (@js_name.as_string@ == "@enum.alt.name@"sv)
+        @cpp_name@ = @parameter.type.name.normalized@::@enum.alt.value@;
+)~~~");
+    }
+
+    if (throw_on_invalid == ThrowOnInvalidEnumValue::Yes) {
+        enum_generator.append(R"~~~(
+    else
+        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, @js_name.as_string@, "@parameter.type.name@");
+)~~~");
+    } else {
+        enum_generator.append(R"~~~(
+    else
+        return JS::js_undefined();
+)~~~");
+    }
+
+    if (optional) {
+        enum_generator.append(R"~~~(
+    }
+)~~~");
+    }
+}
+
 // https://webidl.spec.whatwg.org/#es-record
 static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& cpp_name, IDL::Interface const& interface, size_t recursion_depth)
 {
@@ -1162,64 +1227,11 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
     } else if (parameter.type->name() == "any") {
         generate_any_to_cpp(scoped_generator, optional, optional_default_value, variadic);
     } else if (interface.enumerations.contains(parameter.type->name())) {
-        auto enum_generator = scoped_generator.fork();
-        auto& enumeration = interface.enumerations.find(parameter.type->name())->value;
-        StringView enum_member_name;
-        if (optional_default_value.has_value()) {
-            VERIFY(optional_default_value->length() >= 2 && (*optional_default_value)[0] == '"' && (*optional_default_value)[optional_default_value->length() - 1] == '"');
-            enum_member_name = optional_default_value->substring_view(1, optional_default_value->length() - 2);
-        } else {
-            enum_member_name = enumeration.first_member;
-        }
-        auto default_value_cpp_name = enumeration.translated_cpp_names.get(enum_member_name);
-        VERIFY(default_value_cpp_name.has_value());
-        enum_generator.set("enum.default.cpp_value", *default_value_cpp_name);
-        enum_generator.set("js_name.as_string", ByteString::formatted("{}{}_string", enum_generator.get("js_name"sv), enum_generator.get("js_suffix"sv)));
-        enum_generator.append(R"~~~(
-    @parameter.type.name.normalized@ @cpp_name@ { @parameter.type.name.normalized@::@enum.default.cpp_value@ };
-)~~~");
-
-        if (optional) {
-            enum_generator.append(R"~~~(
-    if (!@js_name@@js_suffix@.is_undefined()) {
-)~~~");
-        }
-
-        enum_generator.append(R"~~~(
-    auto @js_name.as_string@ = TRY(@js_name@@js_suffix@.to_string(vm));
-)~~~");
-        auto first = true;
-        VERIFY(enumeration.translated_cpp_names.size() >= 1);
-        for (auto& it : enumeration.translated_cpp_names) {
-            enum_generator.set("enum.alt.name", it.key);
-            enum_generator.set("enum.alt.value", it.value);
-            enum_generator.set("else", first ? "" : "else ");
-            first = false;
-
-            enum_generator.append(R"~~~(
-    @else@if (@js_name.as_string@ == "@enum.alt.name@"sv)
-        @cpp_name@ = @parameter.type.name.normalized@::@enum.alt.value@;
-)~~~");
-        }
-
         // NOTE: Attribute setters return undefined instead of throwing when the string doesn't match an enum value.
-        if constexpr (!IsSame<Attribute, RemoveConst<ParameterType>>) {
-            enum_generator.append(R"~~~(
-    else
-        return vm.throw_completion<JS::TypeError>(JS::ErrorType::InvalidEnumerationValue, @js_name.as_string@, "@parameter.type.name@");
-)~~~");
-        } else {
-            enum_generator.append(R"~~~(
-    else
-        return JS::js_undefined();
-)~~~");
-        }
-
-        if (optional) {
-            enum_generator.append(R"~~~(
-    }
-)~~~");
-        }
+        ThrowOnInvalidEnumValue throw_on_invalid = ThrowOnInvalidEnumValue::No;
+        if constexpr (!IsSame<Attribute, RemoveConst<ParameterType>>)
+            throw_on_invalid = ThrowOnInvalidEnumValue::Yes;
+        generate_enum_to_cpp(scoped_generator, interface.enumerations.find(parameter.type->name())->value, throw_on_invalid, optional, optional_default_value);
     } else if (interface.dictionaries.contains(parameter.type->name())) {
         if (optional_default_value.has_value() && optional_default_value != "{}")
             TODO();
