@@ -70,6 +70,7 @@ public:
     void did_error(Badge<RequestClient>, i32);
     void did_close(Badge<RequestClient>, u16, ByteString, bool);
     void did_request_certificates(Badge<RequestClient>);
+    void detach_from_client(Badge<RequestClient>);
 
 private:
     WebSocket(RequestClient&, u64 websocket_id);
