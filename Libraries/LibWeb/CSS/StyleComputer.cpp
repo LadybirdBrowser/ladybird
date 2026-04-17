@@ -419,16 +419,12 @@ Vector<MatchingRule const*> StyleComputer::collect_matching_rules(DOM::AbstractE
 static void sort_matching_rules(Vector<MatchingRule const*>& matching_rules)
 {
     quick_sort(matching_rules, [&](MatchingRule const* a, MatchingRule const* b) {
-        auto const& a_selector = a->selector;
-        auto const& b_selector = b->selector;
-        auto a_specificity = a_selector.specificity();
-        auto b_specificity = b_selector.specificity();
-        if (a_specificity == b_specificity) {
+        if (a->specificity == b->specificity) {
             if (a->style_sheet_index == b->style_sheet_index)
                 return a->rule_index < b->rule_index;
             return a->style_sheet_index < b->style_sheet_index;
         }
-        return a_specificity < b_specificity;
+        return a->specificity < b->specificity;
     });
 }
 
