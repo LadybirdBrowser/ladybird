@@ -268,7 +268,7 @@ public:
         if (kind == RowKind::SectionHeader) {
             auto text = index.data(HeaderTextRole).toString();
             painter->setFont(autocomplete_section_header_font());
-            painter->setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+            painter->setPen(option.palette.color(QPalette::PlaceholderText));
             auto rect = option.rect.adjusted(
                 SECTION_HEADER_HORIZONTAL_PADDING, SECTION_HEADER_VERTICAL_PADDING,
                 -SECTION_HEADER_HORIZONTAL_PADDING, -SECTION_HEADER_VERTICAL_PADDING);
@@ -327,7 +327,7 @@ public:
                 Qt::AlignLeft | Qt::AlignVCenter, elided_title);
 
             painter->setFont(autocomplete_secondary_font());
-            painter->setPen(option.palette.color(QPalette::Disabled, QPalette::Text));
+            painter->setPen(option.palette.color(QPalette::PlaceholderText));
             auto elided_secondary = secondary_fm.elidedText(secondary_text, Qt::ElideRight, text_width);
             painter->drawText(
                 QRect(text_x, block_y + primary_fm.height() + CELL_LABEL_VERTICAL_SPACING,
