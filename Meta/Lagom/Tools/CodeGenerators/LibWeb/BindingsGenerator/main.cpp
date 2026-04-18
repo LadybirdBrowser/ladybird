@@ -132,8 +132,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
 
     auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
-    auto header_path = TRY(String::formatted("{}.h", path_prefix));
-    auto implementation_path = TRY(String::formatted("{}.cpp", path_prefix));
+    auto header_path = ByteString::formatted("{}.h", path_prefix);
+    auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
 
     TRY(write_if_changed(&IDL::generate_header, header_path));
     TRY(write_if_changed(&IDL::generate_implementation, implementation_path));
