@@ -38,6 +38,43 @@
 
 namespace Web::SelectorEngine {
 
+static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
+
+static CSS::Selector::SimpleSelector const* simple_has_child_tag_selector(CSS::Selector const& selector)
+{
+    if (selector.compound_selectors().size() != 1)
+        return nullptr;
+
+    auto const& first = selector.compound_selectors().first();
+    if (first.combinator != CSS::Selector::Combinator::ImmediateChild)
+        return nullptr;
+    if (first.simple_selectors.size() != 1)
+        return nullptr;
+
+    auto const& simple_selector = first.simple_selectors.first();
+    if (simple_selector.type != CSS::Selector::SimpleSelector::Type::TagName)
+        return nullptr;
+
+    return &simple_selector;
+}
+
+static bool matches_has_child_tag_fast_path(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& anchor, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
+{
+    bool has = false;
+    anchor.for_each_child([&](DOM::Node const& child) {
+        if (!child.is_element())
+            return IterationDecision::Continue;
+
+        auto const& child_element = static_cast<DOM::Element const&>(child);
+        if (!fast_matches_simple_selector(simple_selector, child_element, shadow_host, context))
+            return IterationDecision::Continue;
+
+        has = true;
+        return IterationDecision::Break;
+    });
+    return has;
+}
+
 static inline bool matches_compound_selector(CSS::Selector const& selector, int component_list_index, DOM::AbstractElement const& target, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope, SelectorKind selector_kind, GC::Ptr<DOM::Element const> anchor = nullptr);
 
 // Upward traversal for descendant (' ') and immediate child combinator ('>')
@@ -242,7 +279,12 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
         ++counters.has_result_cache_misses;
     }
 
-    bool result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor, scope);
+    bool result;
+    if (auto const* simple_selector = simple_has_child_tag_selector(selector)) {
+        result = matches_has_child_tag_fast_path(*simple_selector, anchor, shadow_host, context);
+    } else {
+        result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor, scope);
+    }
 
     if (context.has_result_cache)
         context.has_result_cache->set({ &selector, &anchor }, result ? HasMatchResult::Matched : HasMatchResult::NotMatched);
