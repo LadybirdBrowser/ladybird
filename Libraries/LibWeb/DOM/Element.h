@@ -509,6 +509,12 @@ public:
 
     bool affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator() const { return m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator; }
     void set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(bool value) { m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator = value; }
+    // Set on any element reached by stepping through a + or ~ combinator while
+    // matching a :has() argument. Lets generic invalidation defer ancestor
+    // sibling scans until it reaches the sibling subtree root. Write-once,
+    // intentionally never cleared.
+    bool in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator() const { return m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator; }
+    void set_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator(bool value) { m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator = value; }
 
     // Set on any element that was traversed during matching of a :has() argument
     // selector (i.e. the descendant/child/sibling walk inside :has()). Lets the
@@ -714,6 +720,7 @@ private:
     bool m_affected_by_forward_positional_pseudo_class : 1 { false };
     bool m_affected_by_backward_positional_pseudo_class : 1 { false };
     bool m_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator : 1 { false };
+    bool m_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator : 1 { false };
     bool m_in_has_scope : 1 { false };
     bool m_fullscreen_flag : 1 { false };
 

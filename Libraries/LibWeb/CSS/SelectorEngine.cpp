@@ -297,8 +297,10 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
         auto* sibling = element.next_element_sibling();
         if (!sibling)
             return false;
-        if (context.inside_has_argument_match && context.collect_per_element_selector_involvement_metadata)
+        if (context.inside_has_argument_match && context.collect_per_element_selector_involvement_metadata) {
             const_cast<DOM::Element&>(*sibling).set_in_has_scope(true);
+            const_cast<DOM::Element&>(*sibling).set_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator(true);
+        }
         if (!matches_compound_selector(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
             return false;
         return matches_relative_selector(selector, compound_index + 1, *sibling, shadow_host, context, anchor, scope);
@@ -308,8 +310,10 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
             const_cast<DOM::Element&>(*anchor).set_affected_by_has_pseudo_class_with_relative_selector_that_has_sibling_combinator(true);
         }
         for (auto const* sibling = element.next_element_sibling(); sibling; sibling = sibling->next_element_sibling()) {
-            if (context.inside_has_argument_match && context.collect_per_element_selector_involvement_metadata)
+            if (context.inside_has_argument_match && context.collect_per_element_selector_involvement_metadata) {
                 const_cast<DOM::Element&>(*sibling).set_in_has_scope(true);
+                const_cast<DOM::Element&>(*sibling).set_in_subtree_of_has_pseudo_class_relative_selector_with_sibling_combinator(true);
+            }
             if (!matches_compound_selector(selector, compound_index, *sibling, shadow_host, context, scope, SelectorKind::Relative, anchor))
                 continue;
             if (matches_relative_selector(selector, compound_index + 1, *sibling, shadow_host, context, anchor, scope))
@@ -1513,10 +1517,19 @@ bool matches_compound_selector(CSS::Selector const& selector, int component_list
         return s.type == CSS::Selector::SimpleSelector::Type::PseudoClass
             && s.pseudo_class().type == CSS::PseudoClass::Has;
     };
+    bool has_part_pseudo_element = false;
+    for (auto const& simple_selector : compound_selector.simple_selectors) {
+        if (simple_selector.type == CSS::Selector::SimpleSelector::Type::PseudoElement
+            && simple_selector.pseudo_element().type() == CSS::PseudoElement::Part) {
+            has_part_pseudo_element = true;
+            break;
+        }
+    }
+    auto defer_has_pseudo_class = !has_part_pseudo_element;
 
     auto element_for_compound_matching { target };
     for (auto& simple_selector : compound_selector.simple_selectors.in_reverse()) {
-        if (is_has_pseudo_class(simple_selector))
+        if (defer_has_pseudo_class && is_has_pseudo_class(simple_selector))
             continue;
         if (!matches_simple_selector(simple_selector, element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
             return false;
@@ -1540,11 +1553,13 @@ bool matches_compound_selector(CSS::Selector const& selector, int component_list
             }
         }
     }
-    for (auto& simple_selector : compound_selector.simple_selectors.in_reverse()) {
-        if (!is_has_pseudo_class(simple_selector))
-            continue;
-        if (!matches_simple_selector(simple_selector, element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
-            return false;
+    if (defer_has_pseudo_class) {
+        for (auto& simple_selector : compound_selector.simple_selectors.in_reverse()) {
+            if (!is_has_pseudo_class(simple_selector))
+                continue;
+            if (!matches_simple_selector(simple_selector, element_for_compound_matching, shadow_host, context, scope, selector_kind, anchor)) {
+                return false;
+            }
         }
     }
     auto const& element = element_for_compound_matching;

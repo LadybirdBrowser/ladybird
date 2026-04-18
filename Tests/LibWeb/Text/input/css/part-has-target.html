@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    #host::part(p):has(.match) { background-color: red; }
+    #host:has(.match)::part(p) { color: green; }
+</style>
+<div id="host">
+    <span class="match"></span>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<span id="inner" part="p">text</span>`;
+        const inner = shadow.getElementById("inner");
+        println(getComputedStyle(inner).backgroundColor);
+        println(getComputedStyle(inner).color);
+    });
+</script>

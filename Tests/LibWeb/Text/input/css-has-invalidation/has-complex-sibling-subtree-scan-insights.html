@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .anchor:has(+ .wrapper .match) { color: red; }
+</style>
+<div id="outer">
+    <div id="anchor" class="anchor">anchor</div>
+    <div class="wrapper">
+        <div>
+            <div>
+                <span id="target">target</span>
+            </div>
+        </div>
+    </div>
+    <div>unrelated sibling</div>
+</div>
+<script>
+    function printCounters() {
+        let counters = internals.getStyleInvalidationCounters();
+        println(`hasAncestorWalkInvocations: ${counters.hasAncestorWalkInvocations}`);
+        println(`hasAncestorWalkVisits: ${counters.hasAncestorWalkVisits}`);
+        println(`hasAncestorSiblingElementChecks: ${counters.hasAncestorSiblingElementChecks}`);
+        println(`hasMatchInvocations: ${counters.hasMatchInvocations}`);
+        println(`hasResultCacheHits: ${counters.hasResultCacheHits}`);
+        println(`hasResultCacheMisses: ${counters.hasResultCacheMisses}`);
+        println(`styleInvalidations: ${counters.styleInvalidations}`);
+    }
+
+    test(() => {
+        let anchor = document.getElementById("anchor");
+        let target = document.getElementById("target");
+
+        getComputedStyle(anchor).color;
+        internals.resetStyleInvalidationCounters();
+
+        target.classList.add("match");
+        getComputedStyle(anchor).color;
+        printCounters();
+    });
+</script>
