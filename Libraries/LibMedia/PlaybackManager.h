@@ -78,6 +78,7 @@ public:
 
     bool track_is_enabled(Track const&) const;
 
+    void start();
     void play();
     void pause();
     void seek(AK::Duration timestamp, SeekMode);

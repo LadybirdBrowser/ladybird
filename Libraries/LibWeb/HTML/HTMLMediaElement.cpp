@@ -1743,7 +1743,9 @@ void HTMLMediaElement::on_metadata_parsed()
         });
     }
 
-    // AD-HOC: If we've already got buffered data, we need to upgrade the readyState further than HAVE_METADATA.
+    // AD-HOC: Now that we've enabled one of each available track type, the playback manager can be started. If this
+    //         causes the playback manager to exit the initial state, the ready state should change.
+    m_playback_manager->start();
     update_ready_state();
 }
 
@@ -2127,7 +2129,8 @@ void HTMLMediaElement::update_ready_state()
     auto current_range = ranges.range_at_or_after(current_time);
     auto available_data = m_playback_manager->available_data();
 
-    if (available_data == Media::AvailableData::Current && !current_range.has_value()) {
+    if (available_data == Media::AvailableData::None
+        || (available_data == Media::AvailableData::Current && !current_range.has_value())) {
         // 1. Set the HTMLMediaElement's readyState attribute to HAVE_METADATA.
         set_ready_state(ReadyState::HaveMetadata);
         // 2. Abort these steps.

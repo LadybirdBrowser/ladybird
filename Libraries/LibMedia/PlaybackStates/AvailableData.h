@@ -11,6 +11,7 @@
 namespace Media {
 
 enum class AvailableData : u8 {
+    None,
     Current,
     Future,
 };

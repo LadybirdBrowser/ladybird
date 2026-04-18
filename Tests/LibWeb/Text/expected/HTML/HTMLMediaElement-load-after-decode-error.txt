@@ -1,15 +1,12 @@
 loadstart: readyState=0
-durationchange: readyState=4 duration=0
-loadedmetadata: readyState=4
-loadeddata: readyState=4
-canplay: readyState=4
-canplaythrough: readyState=4
-error: readyState=4 code=3
+durationchange: readyState=1 duration=0
+loadedmetadata: readyState=1
+error: readyState=1 code=3
 abort: readyState=0
 emptied: readyState=0
 loadstart: readyState=0
-durationchange: readyState=4 duration=12.043
-loadedmetadata: readyState=4
+durationchange: readyState=1 duration=12.043
+loadedmetadata: readyState=1
 loadeddata: readyState=4
 canplay: readyState=4
 canplaythrough: readyState=4
