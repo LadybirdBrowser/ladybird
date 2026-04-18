@@ -39,6 +39,7 @@
 namespace Web::SelectorEngine {
 
 static bool fast_matches_simple_selector(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
+static bool fast_matches_compound_selector(CSS::Selector::CompoundSelector const& compound_selector, DOM::Element const& element, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context);
 
 static CSS::Selector::SimpleSelector const* simple_has_child_tag_selector(CSS::Selector const& selector)
 {
@@ -58,6 +59,30 @@ static CSS::Selector::SimpleSelector const* simple_has_child_tag_selector(CSS::S
     return &simple_selector;
 }
 
+static CSS::Selector::CompoundSelector const* simple_has_descendant_tag_and_class_compound(CSS::Selector const& selector)
+{
+    if (selector.compound_selectors().size() != 1)
+        return nullptr;
+
+    auto const& first = selector.compound_selectors().first();
+    if (first.combinator != CSS::Selector::Combinator::Descendant)
+        return nullptr;
+    if (first.simple_selectors.is_empty())
+        return nullptr;
+
+    for (auto const& simple_selector : first.simple_selectors) {
+        switch (simple_selector.type) {
+        case CSS::Selector::SimpleSelector::Type::TagName:
+        case CSS::Selector::SimpleSelector::Type::Class:
+            break;
+        default:
+            return nullptr;
+        }
+    }
+
+    return &first;
+}
+
 static bool matches_has_child_tag_fast_path(CSS::Selector::SimpleSelector const& simple_selector, DOM::Element const& anchor, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
 {
     bool has = false;
@@ -72,6 +97,31 @@ static bool matches_has_child_tag_fast_path(CSS::Selector::SimpleSelector const&
         has = true;
         return IterationDecision::Break;
     });
+    return has;
+}
+
+static bool matches_has_descendant_tag_and_class_fast_path(CSS::Selector const& selector, CSS::Selector::CompoundSelector const& compound_selector, DOM::Element const& anchor, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context)
+{
+    bool has = false;
+    DOM::Element const* matching_descendant = nullptr;
+    anchor.for_each_in_subtree([&](auto const& descendant) {
+        if (!descendant.is_element())
+            return TraversalDecision::Continue;
+
+        auto const& descendant_element = static_cast<DOM::Element const&>(descendant);
+        if (!fast_matches_compound_selector(compound_selector, descendant_element, shadow_host, context))
+            return TraversalDecision::Continue;
+
+        has = true;
+        matching_descendant = &descendant_element;
+        return TraversalDecision::Break;
+    });
+
+    if (has && matching_descendant && context.has_result_cache) {
+        for (auto ancestor = matching_descendant->parent_element(); ancestor && ancestor.ptr() != &anchor; ancestor = ancestor->parent_element())
+            context.has_result_cache->set({ &selector, ancestor.ptr() }, HasMatchResult::Matched);
+    }
+
     return has;
 }
 
@@ -282,6 +332,8 @@ static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::
     bool result;
     if (auto const* simple_selector = simple_has_child_tag_selector(selector)) {
         result = matches_has_child_tag_fast_path(*simple_selector, anchor, shadow_host, context);
+    } else if (auto const* compound_selector = simple_has_descendant_tag_and_class_compound(selector)) {
+        result = matches_has_descendant_tag_and_class_fast_path(selector, *compound_selector, anchor, shadow_host, context);
     } else {
         result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor, scope);
     }
