@@ -65,11 +65,7 @@ pub unsafe extern "C" fn yuv_u8_to_rgba(
     matrix: YUVMatrix,
 ) -> bool {
     let y_len = y_stride as usize * height as usize;
-    let uv_height = if subsampling_y {
-        height.div_ceil(2)
-    } else {
-        height
-    } as usize;
+    let uv_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
     let uv_len = u_stride as usize * uv_height;
 
     let planar_image = YuvPlanarImage {
@@ -87,28 +83,10 @@ pub unsafe extern "C" fn yuv_u8_to_rgba(
     let dst_slice = unsafe { core::slice::from_raw_parts_mut(dst, dst_len) };
 
     let result = match (subsampling_x, subsampling_y) {
-        (true, true) => yuv::yuv420_to_rgba(
-            &planar_image,
-            dst_slice,
-            dst_stride,
-            range.into(),
-            matrix.into(),
-        ),
-        (true, false) => yuv::yuv422_to_rgba(
-            &planar_image,
-            dst_slice,
-            dst_stride,
-            range.into(),
-            matrix.into(),
-        ),
+        (true, true) => yuv::yuv420_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
+        (true, false) => yuv::yuv422_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
         (false, true) => return false,
-        (false, false) => yuv::yuv444_to_rgba(
-            &planar_image,
-            dst_slice,
-            dst_stride,
-            range.into(),
-            matrix.into(),
-        ),
+        (false, false) => yuv::yuv444_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
     };
 
     result.is_ok()
@@ -137,11 +115,7 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
     matrix: YUVMatrix,
 ) -> bool {
     let y_len = y_stride as usize * height as usize;
-    let uv_height = if subsampling_y {
-        height.div_ceil(2)
-    } else {
-        height
-    } as usize;
+    let uv_height = if subsampling_y { height.div_ceil(2) } else { height } as usize;
     let uv_len = u_stride as usize * uv_height;
 
     let planar_image = YuvPlanarImage {
@@ -160,28 +134,10 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
 
     let result = if bit_depth <= 10 {
         match (subsampling_x, subsampling_y) {
-            (true, true) => yuv::i010_to_rgba(
-                &planar_image,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            ),
-            (true, false) => yuv::i210_to_rgba(
-                &planar_image,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            ),
+            (true, true) => yuv::i010_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
+            (true, false) => yuv::i210_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
             (false, true) => return false,
-            (false, false) => yuv::i410_to_rgba(
-                &planar_image,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            ),
+            (false, false) => yuv::i410_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
         }
     } else {
         // 12-bit 4:4:4 has no 8-bit RGBA output; shift to 10-bit and use I410.
@@ -208,30 +164,11 @@ pub unsafe extern "C" fn yuv_u16_to_rgba(
                 width,
                 height,
             };
-            return yuv::i410_to_rgba(
-                &planar_10,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            )
-            .is_ok();
+            return yuv::i410_to_rgba(&planar_10, dst_slice, dst_stride, range.into(), matrix.into()).is_ok();
         }
         match (subsampling_x, subsampling_y) {
-            (true, true) => yuv::i012_to_rgba(
-                &planar_image,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            ),
-            (true, false) => yuv::i212_to_rgba(
-                &planar_image,
-                dst_slice,
-                dst_stride,
-                range.into(),
-                matrix.into(),
-            ),
+            (true, true) => yuv::i012_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
+            (true, false) => yuv::i212_to_rgba(&planar_image, dst_slice, dst_stride, range.into(), matrix.into()),
             (false, true) => return false,
             (false, false) => unreachable!(),
         }
