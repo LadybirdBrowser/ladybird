@@ -2,6 +2,11 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
 
+  <template class="LadybirdLocationEntry" parent="GtkEntry">
+    <property name="hexpand">true</property>
+    <property name="placeholder-text">Enter URL or search...</property>
+  </template>
+
   <object class="GtkPopover" id="completion_popover">
     <property name="autohide">false</property>
     <property name="has-arrow">false</property>

@@ -6,3 +6,5 @@
 
 #[cfg(all(unix, not(target_os = "macos")))]
 pub mod browser_window;
+#[cfg(all(unix, not(target_os = "macos")))]
+pub mod location_entry;

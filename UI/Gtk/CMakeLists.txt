@@ -33,9 +33,9 @@ target_sources(ladybird PRIVATE
     Events.cpp
     EventLoopImplementationGtk.cpp
     Menu.cpp
+    RustFFI.cpp
     Tab.cpp
     WebContentView.cpp
-    Widgets/LadybirdLocationEntry.cpp
     Widgets/LadybirdWebView.cpp
     "${GTK_GRESOURCE_SOURCE}"
 )
