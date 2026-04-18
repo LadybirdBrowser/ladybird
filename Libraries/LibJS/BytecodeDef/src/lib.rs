@@ -124,9 +124,7 @@ pub fn field_type_info(ty: &str) -> FieldType {
         "Label" => ("Label", 4, 4, "label"),
         "Optional<Label>" => ("Option<Label>", 4, 8, "optional_label"),
         "IdentifierTableIndex" => ("IdentifierTableIndex", 4, 4, "u32_newtype"),
-        "Optional<IdentifierTableIndex>" => {
-            ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype")
-        }
+        "Optional<IdentifierTableIndex>" => ("Option<IdentifierTableIndex>", 4, 4, "optional_u32_newtype"),
         "PropertyKeyTableIndex" => ("PropertyKeyTableIndex", 4, 4, "u32_newtype"),
         "StringTableIndex" => ("StringTableIndex", 4, 4, "u32_newtype"),
         "Optional<StringTableIndex>" => ("Option<StringTableIndex>", 4, 4, "optional_u32_newtype"),
@@ -228,13 +226,7 @@ pub fn compute_layouts(ops: &[OpDef]) -> HashMap<String, OpLayout> {
             Some(round_up(offset, STRUCT_ALIGN))
         };
 
-        result.insert(
-            op.name.clone(),
-            OpLayout {
-                field_offsets,
-                size,
-            },
-        );
+        result.insert(op.name.clone(), OpLayout { field_offsets, size });
     }
 
     result

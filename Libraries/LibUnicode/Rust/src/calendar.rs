@@ -120,12 +120,7 @@ fn is_chinese_or_dangi(calendar_name: &str) -> bool {
 ///
 /// Uses `try_from_fields` instead of `try_new` to support the wider year range (+/- 1,040,000) needed by
 /// Chinese and Dangi calendars with extreme years.
-fn try_new_date(
-    extended_year: i32,
-    month: Month,
-    day: u8,
-    calendar: AnyCalendar,
-) -> Option<Date<AnyCalendar>> {
+fn try_new_date(extended_year: i32, month: Month, day: u8, calendar: AnyCalendar) -> Option<Date<AnyCalendar>> {
     let mut fields = DateFields::default();
     fields.extended_year = Some(extended_year);
     fields.month = Some(month);
@@ -166,14 +161,10 @@ fn collect_year_months(
         let month = current_date.month().to_input();
         let days_in_month = current_date.days_in_month();
 
-        result.push(ChineseMonthInfo {
-            month,
-            days_in_month,
-        });
+        result.push(ChineseMonthInfo { month, days_in_month });
 
         // Advance to day 1 of next month via RataDie arithmetic.
-        let rata_die =
-            RataDie::new(current_date.to_rata_die().to_i64_date() + days_in_month as i64);
+        let rata_die = RataDie::new(current_date.to_rata_die().to_i64_date() + days_in_month as i64);
 
         let next_date = Date::from_rata_die(rata_die, calendar.clone());
         if next_date.year().extended_year() != extended_year {
@@ -206,10 +197,7 @@ fn chinese_or_dangi_extended_year(calendar: &AnyCalendar, arithmetic_year: i32) 
 }
 
 /// Build a list of month info for each ordinal month in a Chinese/Dangi year.
-fn chinese_year_months(
-    calendar: &AnyCalendar,
-    arithmetic_year: i32,
-) -> Option<Vec<ChineseMonthInfo>> {
+fn chinese_year_months(calendar: &AnyCalendar, arithmetic_year: i32) -> Option<Vec<ChineseMonthInfo>> {
     let extended_year = chinese_or_dangi_extended_year(calendar, arithmetic_year)?;
 
     let year_start = try_new_date(extended_year, Month::new(1), 1, calendar.clone())?;
@@ -256,12 +244,7 @@ fn make_calendar_date_from_ordinal(
 
         try_new_date(arithmetic_year, month, day, calendar.clone())
     } else {
-        try_new_date(
-            arithmetic_year,
-            Month::new(ordinal_month),
-            day,
-            calendar.clone(),
-        )
+        try_new_date(arithmetic_year, Month::new(ordinal_month), day, calendar.clone())
     }
 }
 
@@ -291,10 +274,7 @@ fn iso_date_to_calendar_date_impl(
 
         (year_start.to_calendar(Iso).year().extended_year(), ordinal)
     } else {
-        (
-            calendar_date.year().extended_year(),
-            calendar_date.month().ordinal,
-        )
+        (calendar_date.year().extended_year(), calendar_date.month().ordinal)
     };
 
     let month = calendar_date.month().to_input();
@@ -329,8 +309,7 @@ pub unsafe extern "C" fn icu_iso_date_to_calendar_date(
     abort_on_panic(|| {
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
 
-        iso_date_to_calendar_date_impl(calendar_name, iso_year, iso_month, iso_day)
-            .unwrap_or(EMPTY_CALENDAR_DATE)
+        iso_date_to_calendar_date_impl(calendar_name, iso_year, iso_month, iso_day).unwrap_or(EMPTY_CALENDAR_DATE)
     })
 }
 
@@ -342,13 +321,7 @@ fn calendar_date_to_iso_date_impl(
 ) -> Option<FfiISODate> {
     let calendar = make_calendar(calendar_name)?;
 
-    let calendar_date = make_calendar_date_from_ordinal(
-        calendar_name,
-        &calendar,
-        arithmetic_year,
-        ordinal_month,
-        day,
-    )?;
+    let calendar_date = make_calendar_date_from_ordinal(calendar_name, &calendar, arithmetic_year, ordinal_month, day)?;
 
     let iso_date = calendar_date.to_calendar(Iso);
 
@@ -536,11 +509,7 @@ pub unsafe extern "C" fn icu_calendar_months_in_year(
     })
 }
 
-fn calendar_days_in_month_impl(
-    calendar_name: &str,
-    arithmetic_year: i32,
-    ordinal_month: u8,
-) -> Option<u8> {
+fn calendar_days_in_month_impl(calendar_name: &str, arithmetic_year: i32, ordinal_month: u8) -> Option<u8> {
     let calendar = make_calendar(calendar_name)?;
 
     if is_chinese_or_dangi(calendar_name) {
@@ -550,13 +519,7 @@ fn calendar_days_in_month_impl(
         return months.get(month_index).map(|m| m.days_in_month);
     }
 
-    let date = make_calendar_date_from_ordinal(
-        calendar_name,
-        &calendar,
-        arithmetic_year,
-        ordinal_month,
-        1,
-    )?;
+    let date = make_calendar_date_from_ordinal(calendar_name, &calendar, arithmetic_year, ordinal_month, 1)?;
 
     Some(date.days_in_month())
 }
@@ -577,10 +540,7 @@ pub unsafe extern "C" fn icu_calendar_days_in_month(
     })
 }
 
-fn calendar_max_days_in_month_code_impl(
-    calendar_name: &str,
-    month_code_string: &str,
-) -> Option<u8> {
+fn calendar_max_days_in_month_code_impl(calendar_name: &str, month_code_string: &str) -> Option<u8> {
     let calendar = make_calendar(calendar_name)?;
     let month = Month::try_from_str(month_code_string).ok()?;
 
@@ -625,11 +585,7 @@ pub unsafe extern "C" fn icu_calendar_max_days_in_month_code(
     })
 }
 
-fn year_contains_month_code_impl(
-    calendar_name: &str,
-    arithmetic_year: i32,
-    month_code_string: &str,
-) -> Option<bool> {
+fn year_contains_month_code_impl(calendar_name: &str, arithmetic_year: i32, month_code_string: &str) -> Option<bool> {
     let calendar = make_calendar(calendar_name)?;
     let month = Month::try_from_str(month_code_string).ok()?;
 
@@ -661,7 +617,6 @@ pub unsafe extern "C" fn icu_year_contains_month_code(
         let calendar_name = ascii_string_from_ffi(calendar, calendar_length);
         let month_code_string = ascii_string_from_ffi(month_code, month_code_length);
 
-        year_contains_month_code_impl(calendar_name, arithmetic_year, month_code_string)
-            .unwrap_or(false)
+        year_contains_month_code_impl(calendar_name, arithmetic_year, month_code_string).unwrap_or(false)
     })
 }

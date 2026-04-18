@@ -383,10 +383,7 @@ pub unsafe extern "C" fn rust_regex_get_named_groups(
 /// # Safety
 /// `groups` must be a pointer returned by `rust_regex_get_named_groups`, or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_regex_free_named_groups(
-    groups: *mut RustRegexNamedGroup,
-    count: u32,
-) {
+pub unsafe extern "C" fn rust_regex_free_named_groups(groups: *mut RustRegexNamedGroup, count: u32) {
     if !groups.is_null() {
         let len = count as usize;
         drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(groups, len)) });

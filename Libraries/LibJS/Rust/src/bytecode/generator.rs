@@ -435,10 +435,7 @@ impl Generator {
     /// Copy a local variable into a fresh register to prevent later
     /// side effects from changing its value. Returns the operand unchanged
     /// if it is not a local.
-    pub fn copy_if_needed_to_preserve_evaluation_order(
-        &mut self,
-        operand: &ScopedOperand,
-    ) -> ScopedOperand {
+    pub fn copy_if_needed_to_preserve_evaluation_order(&mut self, operand: &ScopedOperand) -> ScopedOperand {
         match operand.operand().operand_type() {
             OperandType::Register | OperandType::Constant => operand.clone(),
             OperandType::Local | OperandType::Argument => {
@@ -539,12 +536,7 @@ impl Generator {
 
     // --- Table interning ---
 
-    define_intern_method!(
-        intern_string,
-        StringTableIndex,
-        string_table,
-        string_table_index
-    );
+    define_intern_method!(intern_string, StringTableIndex, string_table, string_table_index);
     define_intern_method!(
         intern_identifier,
         IdentifierTableIndex,
@@ -561,10 +553,7 @@ impl Generator {
     /// If `operand` is a constant string that is not an array index, intern it
     /// as a property key and return the index. Uses split borrows to avoid
     /// cloning the string when it is already interned (the common case).
-    pub fn try_constant_string_to_property_key(
-        &mut self,
-        operand: &ScopedOperand,
-    ) -> Option<PropertyKeyTableIndex> {
+    pub fn try_constant_string_to_property_key(&mut self, operand: &ScopedOperand) -> Option<PropertyKeyTableIndex> {
         if !operand.operand().is_constant() {
             return None;
         }
@@ -697,12 +686,7 @@ impl Generator {
     }
 
     /// Emit a conditional jump, with comparison fusion and constant folding.
-    pub fn emit_jump_if(
-        &mut self,
-        condition: &ScopedOperand,
-        true_target: Label,
-        false_target: Label,
-    ) {
+    pub fn emit_jump_if(&mut self, condition: &ScopedOperand, true_target: Label, false_target: Label) {
         // OPTIMIZATION: If condition is a constant, emit an unconditional jump.
         if let Some(constant) = self.get_constant(condition)
             && let Some(is_truthy) = constant_to_boolean(constant)
@@ -727,9 +711,7 @@ impl Generator {
                             false_target,
                         })
                     }
-                    Instruction::LessThanEquals { dst, lhs, rhs }
-                        if *dst == condition.operand() =>
-                    {
+                    Instruction::LessThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpLessThanEquals {
                             lhs: *lhs,
                             rhs: *rhs,
@@ -745,9 +727,7 @@ impl Generator {
                             false_target,
                         })
                     }
-                    Instruction::GreaterThanEquals { dst, lhs, rhs }
-                        if *dst == condition.operand() =>
-                    {
+                    Instruction::GreaterThanEquals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpGreaterThanEquals {
                             lhs: *lhs,
                             rhs: *rhs,
@@ -763,9 +743,7 @@ impl Generator {
                             false_target,
                         })
                     }
-                    Instruction::LooselyInequals { dst, lhs, rhs }
-                        if *dst == condition.operand() =>
-                    {
+                    Instruction::LooselyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpLooselyInequals {
                             lhs: *lhs,
                             rhs: *rhs,
@@ -773,9 +751,7 @@ impl Generator {
                             false_target,
                         })
                     }
-                    Instruction::StrictlyEquals { dst, lhs, rhs }
-                        if *dst == condition.operand() =>
-                    {
+                    Instruction::StrictlyEquals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpStrictlyEquals {
                             lhs: *lhs,
                             rhs: *rhs,
@@ -783,9 +759,7 @@ impl Generator {
                             false_target,
                         })
                     }
-                    Instruction::StrictlyInequals { dst, lhs, rhs }
-                        if *dst == condition.operand() =>
-                    {
+                    Instruction::StrictlyInequals { dst, lhs, rhs } if *dst == condition.operand() => {
                         Some(Instruction::JumpStrictlyInequals {
                             lhs: *lhs,
                             rhs: *rhs,
@@ -817,10 +791,7 @@ impl Generator {
     next_cache_method!(next_global_variable_cache, next_global_variable_cache);
     next_cache_method!(next_template_object_cache, next_template_object_cache);
     next_cache_method!(next_object_shape_cache, next_object_shape_cache);
-    next_cache_method!(
-        next_object_property_iterator_cache,
-        next_object_property_iterator_cache
-    );
+    next_cache_method!(next_object_property_iterator_cache, next_object_property_iterator_cache);
 
     // --- Lexical environment helpers ---
 
@@ -828,16 +799,12 @@ impl Generator {
         self.lexical_environment_register_stack
             .last()
             .cloned()
-            .unwrap_or_else(|| {
-                self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT))
-            })
+            .unwrap_or_else(|| self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT)))
     }
 
     pub fn capture_saved_lexical_environment(&mut self) {
         let env_reg = self.scoped_operand(Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT));
-        self.emit(Instruction::GetLexicalEnvironment {
-            dst: env_reg.operand(),
-        });
+        self.emit(Instruction::GetLexicalEnvironment { dst: env_reg.operand() });
         self.lexical_environment_register_stack.push(env_reg);
     }
 
@@ -871,8 +838,7 @@ impl Generator {
             parent: parent.operand(),
             capacity,
         });
-        self.lexical_environment_register_stack
-            .push(new_env.clone());
+        self.lexical_environment_register_stack.push(new_env.clone());
         new_env
     }
 
@@ -972,9 +938,7 @@ impl Generator {
     fn has_outer_finally_before_target(&self, is_break: bool, boundary_index: usize) -> bool {
         for j in (0..boundary_index.saturating_sub(1)).rev() {
             let inner = self.boundaries[j];
-            if (is_break && inner == BlockBoundaryType::Break)
-                || (!is_break && inner == BlockBoundaryType::Continue)
-            {
+            if (is_break && inner == BlockBoundaryType::Break) || (!is_break && inner == BlockBoundaryType::Continue) {
                 return false;
             }
             if inner == BlockBoundaryType::ReturnToFinally {
@@ -987,9 +951,7 @@ impl Generator {
     /// Register a jump target with the current FinallyContext.
     /// Assigns a unique completion_type index and emits code to set it and jump to finally.
     pub fn register_jump_in_finally_context(&mut self, target: Label) {
-        let index = self
-            .current_finally_context
-            .expect("no active finally context");
+        let index = self.current_finally_context.expect("no active finally context");
         let ctx = &mut self.finally_contexts[index];
         let jump_index = ctx.next_jump_index;
         ctx.next_jump_index += 1;
@@ -1001,9 +963,7 @@ impl Generator {
         let finally_body = ctx.finally_body;
         let index_const = self.add_constant_i32(jump_index);
         self.emit_mov(&completion_type, &index_const);
-        self.emit(Instruction::Jump {
-            target: finally_body,
-        });
+        self.emit(Instruction::Jump { target: finally_body });
     }
 
     /// For break/continue through nested finally: create a trampoline block.
@@ -1012,9 +972,7 @@ impl Generator {
         self.register_jump_in_finally_context(trampoline_block);
         self.switch_to_basic_block(trampoline_block);
         // Pop to the parent FinallyContext (simulating the inner finally completing).
-        let index = self
-            .current_finally_context
-            .expect("no active finally context");
+        let index = self.current_finally_context.expect("no active finally context");
         self.current_unwind_handler = self.finally_contexts[index].saved_unwind_handler;
         self.current_finally_context = self.finally_contexts[index].parent_index;
     }
@@ -1049,14 +1007,10 @@ impl Generator {
             let boundary = self.boundaries[i];
             match boundary {
                 BlockBoundaryType::Break if is_break => {
-                    let target_scope = self
-                        .breakable_scopes
-                        .last()
-                        .expect("no active breakable scope");
+                    let target_scope = self.breakable_scopes.last().expect("no active breakable scope");
                     let target = target_scope.bytecode_target;
                     let completion = target_scope.completion_register.clone();
-                    if let (Some(cur), Some(tgt)) =
-                        (self.current_completion_register.clone(), completion)
+                    if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion)
                         && cur != tgt
                     {
                         self.emit_mov(&tgt, &cur);
@@ -1066,14 +1020,10 @@ impl Generator {
                     return;
                 }
                 BlockBoundaryType::Continue if !is_break => {
-                    let target_scope = self
-                        .continuable_scopes
-                        .last()
-                        .expect("no active continuable scope");
+                    let target_scope = self.continuable_scopes.last().expect("no active continuable scope");
                     let target = target_scope.bytecode_target;
                     let completion = target_scope.completion_register.clone();
-                    if let (Some(cur), Some(tgt)) =
-                        (self.current_completion_register.clone(), completion)
+                    if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion)
                         && cur != tgt
                     {
                         self.emit_mov(&tgt, &cur);
@@ -1092,18 +1042,13 @@ impl Generator {
                 BlockBoundaryType::ReturnToFinally => {
                     if !self.has_outer_finally_before_target(is_break, i + 1) {
                         let target_scope = if is_break {
-                            self.breakable_scopes
-                                .last()
-                                .expect("no active breakable scope")
+                            self.breakable_scopes.last().expect("no active breakable scope")
                         } else {
-                            self.continuable_scopes
-                                .last()
-                                .expect("no active continuable scope")
+                            self.continuable_scopes.last().expect("no active continuable scope")
                         };
                         let target = target_scope.bytecode_target;
                         let completion = target_scope.completion_register.clone();
-                        if let (Some(cur), Some(tgt)) =
-                            (self.current_completion_register.clone(), completion)
+                        if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion)
                             && cur != tgt
                         {
                             self.emit_mov(&tgt, &cur);
@@ -1192,8 +1137,7 @@ impl Generator {
             }
 
             if label_set.iter().any(|l| l == label) {
-                if let (Some(cur), Some(tgt)) =
-                    (self.current_completion_register.clone(), completion.clone())
+                if let (Some(cur), Some(tgt)) = (self.current_completion_register.clone(), completion.clone())
                     && cur != tgt
                 {
                     self.emit_mov(&tgt, &cur);
@@ -1216,8 +1160,7 @@ impl Generator {
             match self.boundaries[i] {
                 BlockBoundaryType::LeaveLexicalEnvironment => {
                     env_stack_offset -= 1;
-                    let parent_env =
-                        self.lexical_environment_register_stack[env_stack_offset - 1].clone();
+                    let parent_env = self.lexical_environment_register_stack[env_stack_offset - 1].clone();
                     self.emit(Instruction::SetLexicalEnvironment {
                         environment: parent_env.operand(),
                     });
@@ -1241,18 +1184,14 @@ impl Generator {
             self.emit_mov(&completion_value, value);
             let ret_const = self.add_constant_i32(FinallyContext::RETURN);
             self.emit_mov(&completion_type, &ret_const);
-            self.emit(Instruction::Jump {
-                target: finally_body,
-            });
+            self.emit(Instruction::Jump { target: finally_body });
         } else if self.is_in_generator_or_async_function() {
             self.emit(Instruction::Yield {
                 continuation_label: None,
                 value: value.operand(),
             });
         } else {
-            self.emit(Instruction::Return {
-                value: value.operand(),
-            });
+            self.emit(Instruction::Return { value: value.operand() });
         }
     }
 
@@ -1263,10 +1202,7 @@ impl Generator {
     // --- Local variable initialization tracking ---
 
     pub fn is_local_initialized(&self, index: u32) -> bool {
-        self.initialized_locals
-            .get(index as usize)
-            .copied()
-            .unwrap_or(false)
+        self.initialized_locals.get(index as usize).copied().unwrap_or(false)
     }
 
     pub fn is_local_lexically_declared(&self, index: u32) -> bool {
@@ -1284,10 +1220,7 @@ impl Generator {
     }
 
     pub fn is_argument_initialized(&self, index: u32) -> bool {
-        self.initialized_arguments
-            .get(index as usize)
-            .copied()
-            .unwrap_or(false)
+        self.initialized_arguments.get(index as usize).copied().unwrap_or(false)
     }
 
     pub fn mark_argument_initialized(&mut self, index: u32) {
@@ -1322,27 +1255,25 @@ impl Generator {
         });
 
         if let Some(load_block_index) = synthetic_load_block {
-            let saved_environment_is_used =
-                self.basic_blocks
+            let saved_environment_is_used = self.basic_blocks.iter().enumerate().any(|(block_index, block)| {
+                block
+                    .instructions
                     .iter()
                     .enumerate()
-                    .any(|(block_index, block)| {
-                        block.instructions.iter().enumerate().any(
-                            |(instruction_index, (instruction, _))| {
-                                if block_index == load_block_index && instruction_index == 0 {
-                                    return false;
-                                }
-                                let mut instruction = instruction.clone();
-                                let mut mentions_saved_environment = false;
-                                instruction.visit_operands(&mut |operand: &mut Operand| {
-                                    if *operand == saved_environment {
-                                        mentions_saved_environment = true;
-                                    }
-                                });
-                                mentions_saved_environment
-                            },
-                        )
-                    });
+                    .any(|(instruction_index, (instruction, _))| {
+                        if block_index == load_block_index && instruction_index == 0 {
+                            return false;
+                        }
+                        let mut instruction = instruction.clone();
+                        let mut mentions_saved_environment = false;
+                        instruction.visit_operands(&mut |operand: &mut Operand| {
+                            if *operand == saved_environment {
+                                mentions_saved_environment = true;
+                            }
+                        });
+                        mentions_saved_environment
+                    })
+            });
 
             if !saved_environment_is_used {
                 self.basic_blocks[load_block_index].instructions.remove(0);
@@ -1374,9 +1305,9 @@ impl Generator {
                         OperandType::Constant => {
                             op.offset_index_by(number_of_registers + number_of_locals);
                         }
-                        OperandType::Argument => op.offset_index_by(
-                            number_of_registers + number_of_locals + number_of_constants,
-                        ),
+                        OperandType::Argument => {
+                            op.offset_index_by(number_of_registers + number_of_locals + number_of_constants);
+                        }
                     }
                 });
             }
@@ -1410,8 +1341,7 @@ impl Generator {
                     {
                         let (dst3, src3) = (*dst, *src);
                         let mov2_is_dup = dst2 == dst1 && src2 == src1;
-                        let mov3_is_dup =
-                            (dst3 == dst1 && src3 == src1) || (dst3 == dst2 && src3 == src2);
+                        let mov3_is_dup = (dst3 == dst1 && src3 == src1) || (dst3 == dst2 && src3 == src2);
                         if mov2_is_dup && mov3_is_dup {
                             // All three identical: keep single Mov.
                             block.instructions.remove(i + 2);
@@ -1431,12 +1361,7 @@ impl Generator {
                             continue;
                         } else if mov3_is_dup {
                             // mov3 is dup: Mov2(mov1, mov2).
-                            block.instructions[i].0 = Instruction::Mov2 {
-                                dst1,
-                                src1,
-                                dst2,
-                                src2,
-                            };
+                            block.instructions[i].0 = Instruction::Mov2 { dst1, src1, dst2, src2 };
                             block.instructions.remove(i + 2);
                             block.instructions.remove(i + 1);
                             i += 1;
@@ -1458,12 +1383,7 @@ impl Generator {
                         }
                     }
                     // Only two unique Movs: Mov2.
-                    block.instructions[i].0 = Instruction::Mov2 {
-                        dst1,
-                        src1,
-                        dst2,
-                        src2,
-                    };
+                    block.instructions[i].0 = Instruction::Mov2 { dst1, src1, dst2, src2 };
                     block.instructions.remove(i + 1);
                     i += 1;
                     continue;
@@ -1646,10 +1566,7 @@ impl Generator {
                         let replacement = Instruction::End { value };
                         replacement.encode(self.strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpFalse {
-                        condition,
-                        mut target,
-                    } => {
+                    InstAction::EmitJumpFalse { condition, mut target } => {
                         // Patch label for the target
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
@@ -1662,10 +1579,7 @@ impl Generator {
                         let replacement = Instruction::JumpFalse { condition, target };
                         replacement.encode(self.strict, &mut bytecode);
                     }
-                    InstAction::EmitJumpTrue {
-                        condition,
-                        mut target,
-                    } => {
+                    InstAction::EmitJumpTrue { condition, mut target } => {
                         let target_block = target.0 as usize;
                         target.0 = u32_from_usize(block_offsets[target_block]);
                         let instruction_offset = bytecode.len();
@@ -1682,12 +1596,9 @@ impl Generator {
 
             // Unterminated blocks get an implicit End(undefined).
             if !block.terminated {
-                let mut undef_rewritten =
-                    undefined_constant_operand.expect("undefined constant must exist");
+                let mut undef_rewritten = undefined_constant_operand.expect("undefined constant must exist");
                 undef_rewritten.offset_index_by(number_of_registers + number_of_locals);
-                let end_instruction = Instruction::End {
-                    value: undef_rewritten,
-                };
+                let end_instruction = Instruction::End { value: undef_rewritten };
                 let instruction_offset = bytecode.len();
                 source_map.push(SourceMapEntry {
                     bytecode_offset: u32_from_usize(instruction_offset),
@@ -1702,9 +1613,7 @@ impl Generator {
                 exception_handlers.push(ExceptionHandler {
                     start_offset: u32_from_usize(block_start),
                     end_offset: u32_from_usize(bytecode.len()),
-                    handler_offset: u32_from_usize(
-                        block_offsets[handler_label.basic_block_index()],
-                    ),
+                    handler_offset: u32_from_usize(block_offsets[handler_label.basic_block_index()]),
                 });
             }
         }
@@ -1798,10 +1707,7 @@ pub fn parse_bigint(s: &str) -> Option<num_bigint::BigInt> {
 }
 
 /// Use `preferred_dst` if available, otherwise allocate a fresh register.
-pub fn choose_dst(
-    generator: &mut Generator,
-    preferred_dst: Option<&ScopedOperand>,
-) -> ScopedOperand {
+pub fn choose_dst(generator: &mut Generator, preferred_dst: Option<&ScopedOperand>) -> ScopedOperand {
     match preferred_dst {
         Some(dst) => dst.clone(),
         None => generator.allocate_register(),

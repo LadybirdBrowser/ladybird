@@ -183,10 +183,7 @@ fn next_search_position(match_start: i32, match_end: i32) -> usize {
 
 use crate::bytecode::append_code_point_wtf16;
 
-fn extract_trailing_literal(
-    instructions: &[Instruction],
-    assert_end_pc: usize,
-) -> Option<Vec<u16>> {
+fn extract_trailing_literal(instructions: &[Instruction], assert_end_pc: usize) -> Option<Vec<u16>> {
     let mut trailing_code_points = Vec::new();
     let mut suffix_start = assert_end_pc;
     let mut pc = assert_end_pc;
@@ -200,10 +197,7 @@ fn extract_trailing_literal(
                 pc = prev_pc;
             }
             // Skip zero-width bookkeeping so suffixes after capture boundaries still count.
-            Instruction::Save(_)
-            | Instruction::ClearRegister(_)
-            | Instruction::PopModifiers
-            | Instruction::Nop => {
+            Instruction::Save(_) | Instruction::ClearRegister(_) | Instruction::PopModifiers | Instruction::Nop => {
                 suffix_start = prev_pc;
                 pc = prev_pc;
             }
@@ -251,12 +245,7 @@ fn suffix_has_linear_tail(instructions: &[Instruction], suffix_start: usize) -> 
     true
 }
 
-fn for_each_successor(
-    instruction: &Instruction,
-    pc: usize,
-    instruction_count: usize,
-    mut callback: impl FnMut(usize),
-) {
+fn for_each_successor(instruction: &Instruction, pc: usize, instruction_count: usize, mut callback: impl FnMut(usize)) {
     match instruction {
         Instruction::Jump(target) => callback(*target as usize),
         Instruction::Split { prefer, other } => {
@@ -301,9 +290,7 @@ fn contains_u16_from<I: Input>(input: I, start: usize, needle: &[u16]) -> bool {
     }
 
     if needle.len() == 1 {
-        return input
-            .find_code_unit(start, input.len(), needle[0])
-            .is_some();
+        return input.find_code_unit(start, input.len(), needle[0]).is_some();
     }
 
     if start + needle.len() > input.len() {
@@ -334,11 +321,7 @@ fn fold_ascii_for_compare(ch: u16) -> u16 {
 }
 
 #[inline(always)]
-fn contains_ascii_case_insensitive_u16_from<I: Input>(
-    input: I,
-    start: usize,
-    needle: &[u16],
-) -> bool {
+fn contains_ascii_case_insensitive_u16_from<I: Input>(input: I, start: usize, needle: &[u16]) -> bool {
     if needle.is_empty() {
         return true;
     }
@@ -403,10 +386,9 @@ fn fails_required_literal_hint<I: Input>(input: I, start: usize, hints: &Pattern
 fn leading_start_anchor_at(instructions: &[Instruction], pc: usize) -> Option<bool> {
     match instructions.get(pc)? {
         Instruction::AssertStart { multiline } => Some(*multiline),
-        Instruction::Save(_)
-        | Instruction::Nop
-        | Instruction::ClearRegister(_)
-        | Instruction::PushModifiers { .. } => leading_start_anchor_at(instructions, pc + 1),
+        Instruction::Save(_) | Instruction::Nop | Instruction::ClearRegister(_) | Instruction::PushModifiers { .. } => {
+            leading_start_anchor_at(instructions, pc + 1)
+        }
         Instruction::LookStart {
             positive: true,
             forward: true,
@@ -417,13 +399,7 @@ fn leading_start_anchor_at(instructions: &[Instruction], pc: usize) -> Option<bo
 }
 
 #[inline(always)]
-fn first_char_matches<I: Input>(
-    program: &Program,
-    input: I,
-    pos: usize,
-    ch: u32,
-    case_insensitive: bool,
-) -> bool {
+fn first_char_matches<I: Input>(program: &Program, input: I, pos: usize, ch: u32, case_insensitive: bool) -> bool {
     if pos >= input.len() {
         return false;
     }
@@ -433,9 +409,7 @@ fn first_char_matches<I: Input>(
         && pos + 1 < input.len()
         && is_low_surrogate(input.code_unit(pos + 1))
     {
-        0x10000
-            + ((input.code_unit(pos) as u32 - 0xD800) << 10)
-            + (input.code_unit(pos + 1) as u32 - 0xDC00)
+        0x10000 + ((input.code_unit(pos) as u32 - 0xD800) << 10) + (input.code_unit(pos + 1) as u32 - 0xDC00)
     } else {
         input.code_unit(pos) as u32
     };
@@ -448,40 +422,24 @@ fn first_char_matches<I: Input>(
 }
 
 #[inline(always)]
-fn first_filter_matches<I: Input>(
-    program: &Program,
-    input: I,
-    pos: usize,
-    filter: &SimpleMatch,
-) -> bool {
+fn first_filter_matches<I: Input>(program: &Program, input: I, pos: usize, filter: &SimpleMatch) -> bool {
     let cp = decode_code_point(program.unicode, input, pos);
     match filter {
-        SimpleMatch::BuiltinClass(class) => {
-            match_builtin_class(cp, *class, program.ignore_case && program.unicode)
-        }
+        SimpleMatch::BuiltinClass(class) => match_builtin_class(cp, *class, program.ignore_case && program.unicode),
         SimpleMatch::CharClass { ranges, negated } => char_in_ranges(cp, ranges) != *negated,
         SimpleMatch::AnyChar { dot_all } => *dot_all || !is_line_terminator(cp),
         SimpleMatch::Char(c) => cp == *c,
         SimpleMatch::CharNoCase(lo, _hi) => case_fold_eq(cp, *lo, program.unicode),
         SimpleMatch::UnicodeProperty(data) => {
-            let matched = match_unicode_property_resolved(
-                cp,
-                &data.name,
-                data.value.as_deref(),
-                data.resolved.as_ref(),
-            );
+            let matched =
+                match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
             matched != data.negated
         }
     }
 }
 
 #[inline(always)]
-fn next_candidate_start<I: Input>(
-    program: &Program,
-    input: I,
-    hints: &PatternHints,
-    mut pos: usize,
-) -> Option<usize> {
+fn next_candidate_start<I: Input>(program: &Program, input: I, hints: &PatternHints, mut pos: usize) -> Option<usize> {
     while pos <= input.len() {
         if program.unicode
             && !hints.can_match_empty
@@ -494,10 +452,7 @@ fn next_candidate_start<I: Input>(
             continue;
         }
 
-        if hints.starts_with_anchor
-            && pos != 0
-            && !is_line_terminator(input.code_unit(pos - 1) as u32)
-        {
+        if hints.starts_with_anchor && pos != 0 && !is_line_terminator(input.code_unit(pos - 1) as u32) {
             pos += 1;
             continue;
         }
@@ -893,12 +848,8 @@ fn match_simple_match(matcher: &SimpleMatch, cp: u32) -> bool {
         SimpleMatch::CharClass { ranges, negated } => char_in_ranges(cp, ranges) != *negated,
         SimpleMatch::BuiltinClass(class) => match_builtin_class(cp, *class, false),
         SimpleMatch::UnicodeProperty(data) => {
-            let matched = match_unicode_property_resolved(
-                cp,
-                &data.name,
-                data.value.as_deref(),
-                data.resolved.as_ref(),
-            );
+            let matched =
+                match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
             matched != data.negated
         }
     }
@@ -912,9 +863,7 @@ pub(crate) fn decode_code_point<I: Input>(unicode: bool, input: I, pos: usize) -
         && pos + 1 < input.len()
         && is_low_surrogate(input.code_unit(pos + 1))
     {
-        0x10000
-            + ((input.code_unit(pos) as u32 - 0xD800) << 10)
-            + (input.code_unit(pos + 1) as u32 - 0xDC00)
+        0x10000 + ((input.code_unit(pos) as u32 - 0xD800) << 10) + (input.code_unit(pos + 1) as u32 - 0xDC00)
     } else {
         input.code_unit(pos) as u32
     }
@@ -1017,10 +966,7 @@ struct StartPositionHint {
 /// A simple pattern that can be scanned without the full VM.
 enum SimpleScan {
     /// A single character class.
-    CharClass {
-        ranges: Vec<CharRange>,
-        negated: bool,
-    },
+    CharClass { ranges: Vec<CharRange>, negated: bool },
     /// A single builtin class.
     BuiltinClass(BuiltinCharacterClass),
     /// A single character.
@@ -1083,26 +1029,16 @@ enum LeadingAlternativeStart {
     LiteralCodeUnit(u16),
 }
 
-fn leading_alternative_start_at(
-    instructions: &[Instruction],
-    pc: usize,
-) -> Option<LeadingAlternativeStart> {
+fn leading_alternative_start_at(instructions: &[Instruction], pc: usize) -> Option<LeadingAlternativeStart> {
     match instructions.get(pc)? {
         Instruction::AssertStart { multiline: false } => Some(LeadingAlternativeStart::InputStart),
-        Instruction::Char(c) if *c <= 0xFFFF => {
-            Some(LeadingAlternativeStart::LiteralCodeUnit(*c as u16))
-        }
-        Instruction::Save(_) | Instruction::Nop => {
-            leading_alternative_start_at(instructions, pc + 1)
-        }
+        Instruction::Char(c) if *c <= 0xFFFF => Some(LeadingAlternativeStart::LiteralCodeUnit(*c as u16)),
+        Instruction::Save(_) | Instruction::Nop => leading_alternative_start_at(instructions, pc + 1),
         _ => None,
     }
 }
 
-fn analyze_start_position_hint(
-    instructions: &[Instruction],
-    start: usize,
-) -> Option<StartPositionHint> {
+fn analyze_start_position_hint(instructions: &[Instruction], start: usize) -> Option<StartPositionHint> {
     let Instruction::Split { .. } = instructions.get(start)? else {
         return None;
     };
@@ -1151,11 +1087,7 @@ fn analyze_start_position_hint(
 }
 
 #[inline(always)]
-fn next_literal_start_from_hint<I: Input>(
-    input: I,
-    start: usize,
-    hint: &StartPositionHint,
-) -> Option<usize> {
+fn next_literal_start_from_hint<I: Input>(input: I, start: usize, hint: &StartPositionHint) -> Option<usize> {
     let [literal] = hint.literal_code_units.as_slice() else {
         return None;
     };
@@ -1195,9 +1127,7 @@ pub(crate) fn analyze_pattern(
         Some(Instruction::CharNoCase(c, _)) => Some((*c, true)),
         // For disjunctions (Split chains), find the common first character
         // across all alternatives. E.g., /<script|<style|<link/ all start with '<'.
-        Some(Instruction::Split { .. }) => {
-            find_common_first_char(&program.instructions, filter_offset as u32)
-        }
+        Some(Instruction::Split { .. }) => find_common_first_char(&program.instructions, filter_offset as u32),
         _ => None,
     };
 
@@ -1211,9 +1141,7 @@ pub(crate) fn analyze_pattern(
                 ranges: ranges.clone(),
                 negated: *negated,
             }),
-            Some(Instruction::GreedyLoop { matcher, min, .. }) if *min >= 1 => {
-                Some(matcher.clone())
-            }
+            Some(Instruction::GreedyLoop { matcher, min, .. }) if *min >= 1 => Some(matcher.clone()),
             _ => None,
         }
     } else {
@@ -1226,11 +1154,10 @@ pub(crate) fn analyze_pattern(
         None
     };
 
-    let (starts_with_anchor, anchor_multiline) =
-        match leading_start_anchor_at(&program.instructions, skip) {
-            Some(multiline) => (true, multiline || program.multiline),
-            _ => (false, false),
-        };
+    let (starts_with_anchor, anchor_multiline) = match leading_start_anchor_at(&program.instructions, skip) {
+        Some(multiline) => (true, multiline || program.multiline),
+        _ => (false, false),
+    };
 
     let trailing_literal = match program.instructions.as_slice() {
         [
@@ -1244,32 +1171,33 @@ pub(crate) fn analyze_pattern(
         _ => None,
     };
 
-    let required_literal =
-        pick_more_selective_required_literal(
-            ast_required_literal,
-            match program.instructions.as_slice() {
-                [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
-                    extract_trailing_literal(&program.instructions, program.instructions.len() - 2)
-                        .map(|literal| RequiredLiteralHint {
-                            literal,
-                            ascii_case_insensitive: false,
-                        })
-                }
-                [
-                    ..,
-                    Instruction::AssertEnd { .. },
-                    Instruction::Save(1),
-                    Instruction::Match,
-                ] if !program.ignore_case => {
-                    extract_trailing_literal(&program.instructions, program.instructions.len() - 3)
-                        .map(|literal| RequiredLiteralHint {
-                            literal,
-                            ascii_case_insensitive: false,
-                        })
-                }
-                _ => None,
-            },
-        );
+    let required_literal = pick_more_selective_required_literal(
+        ast_required_literal,
+        match program.instructions.as_slice() {
+            [.., Instruction::Save(1), Instruction::Match] if !program.ignore_case => {
+                extract_trailing_literal(&program.instructions, program.instructions.len() - 2).map(|literal| {
+                    RequiredLiteralHint {
+                        literal,
+                        ascii_case_insensitive: false,
+                    }
+                })
+            }
+            [
+                ..,
+                Instruction::AssertEnd { .. },
+                Instruction::Save(1),
+                Instruction::Match,
+            ] if !program.ignore_case => {
+                extract_trailing_literal(&program.instructions, program.instructions.len() - 3).map(|literal| {
+                    RequiredLiteralHint {
+                        literal,
+                        ascii_case_insensitive: false,
+                    }
+                })
+            }
+            _ => None,
+        },
+    );
 
     // Detect simple patterns: Save(0) + single_matcher + Save(1) + Match
     let simple_scan = if !program.ignore_case
@@ -1287,13 +1215,11 @@ pub(crate) fn analyze_pattern(
             Instruction::Char(c) => Some(SimpleScan::Char(*c)),
             // GreedyLoop of a simple matcher: e.g., \s+, \d+, .+
             // Only when min >= 1 (min=0 means every position matches, complicating the scan).
-            Instruction::GreedyLoop { matcher, min, max } if *min >= 1 => {
-                Some(SimpleScan::GreedyQuantifier {
-                    matcher: matcher.clone(),
-                    min: *min,
-                    max: *max,
-                })
-            }
+            Instruction::GreedyLoop { matcher, min, max } if *min >= 1 => Some(SimpleScan::GreedyQuantifier {
+                matcher: matcher.clone(),
+                min: *min,
+                max: *max,
+            }),
             _ => None,
         }
     } else {
@@ -1320,9 +1246,7 @@ fn pick_more_selective_required_literal(
     match (lhs, rhs) {
         (Some(lhs), Some(rhs)) => {
             if rhs.literal.len() > lhs.literal.len()
-                || (rhs.literal.len() == lhs.literal.len()
-                    && !rhs.ascii_case_insensitive
-                    && lhs.ascii_case_insensitive)
+                || (rhs.literal.len() == lhs.literal.len() && !rhs.ascii_case_insensitive && lhs.ascii_case_insensitive)
             {
                 Some(rhs)
             } else {
@@ -1748,11 +1672,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.handle_repeat_check(*counter_reg, *min, *max, *body, *greedy);
                 }
 
-                Instruction::LookStart {
-                    positive,
-                    forward,
-                    end,
-                } => {
+                Instruction::LookStart { positive, forward, end } => {
                     if let Some(result) = self.handle_look_start(*positive, *forward, *end) {
                         return result;
                     }
@@ -1784,10 +1704,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::ProgressCheck {
-                    reg,
-                    clear_captures,
-                } => {
+                Instruction::ProgressCheck { reg, clear_captures } => {
                     let reg = *reg as usize;
                     let last_pos = self.registers[reg];
                     if last_pos == self.pos as i32 {
@@ -1813,13 +1730,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     let max = *max;
                     let start_pos = self.pos;
 
-                    let count = Self::greedy_consume_fast(
-                        input,
-                        &mut self.pos,
-                        matcher,
-                        &self.modifiers,
-                        max,
-                    );
+                    let count = Self::greedy_consume_fast(input, &mut self.pos, matcher, &self.modifiers, max);
 
                     if count < min {
                         self.pos = start_pos;
@@ -1952,11 +1863,8 @@ impl<'a, I: Input> Vm<'a, I> {
                 Instruction::BuiltinClass(class) => {
                     let class = *class;
                     if let Some(cp) = self.current_code_point() {
-                        let matches = match_builtin_class(
-                            cp,
-                            class,
-                            self.modifiers.ignore_case && self.program.unicode,
-                        );
+                        let matches =
+                            match_builtin_class(cp, class, self.modifiers.ignore_case && self.program.unicode);
                         if matches {
                             self.advance_char();
                             self.pc += 1;
@@ -1972,17 +1880,10 @@ impl<'a, I: Input> Vm<'a, I> {
                     if let Some(cp) = self.current_code_point() {
                         let result = if self.modifiers.ignore_case && self.program.unicode {
                             if data.negated && !self.program.unicode_sets {
-                                !match_unicode_property_all_case_equivalents(
-                                    cp,
-                                    &data.name,
-                                    data.value.as_deref(),
-                                )
+                                !match_unicode_property_all_case_equivalents(cp, &data.name, data.value.as_deref())
                             } else {
-                                let matched = match_unicode_property_case_insensitive(
-                                    cp,
-                                    &data.name,
-                                    data.value.as_deref(),
-                                );
+                                let matched =
+                                    match_unicode_property_case_insensitive(cp, &data.name, data.value.as_deref());
                                 if data.negated { !matched } else { matched }
                             }
                         } else {
@@ -2103,11 +2004,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     self.handle_repeat_check(*counter_reg, *min, *max, *body, *greedy);
                 }
 
-                Instruction::LookStart {
-                    positive,
-                    forward,
-                    end,
-                } => {
+                Instruction::LookStart { positive, forward, end } => {
                     if let Some(result) = self.handle_look_start(*positive, *forward, *end) {
                         return result;
                     }
@@ -2139,10 +2036,7 @@ impl<'a, I: Input> Vm<'a, I> {
                     }
                 }
 
-                Instruction::ProgressCheck {
-                    reg,
-                    clear_captures,
-                } => {
+                Instruction::ProgressCheck { reg, clear_captures } => {
                     let reg = *reg as usize;
                     let last_pos = self.registers[reg];
                     if last_pos == self.pos as i32 {
@@ -2168,13 +2062,7 @@ impl<'a, I: Input> Vm<'a, I> {
 
                     // Fast path for common non-unicode matchers.
                     let count = if !self.program.unicode && !self.backward {
-                        Self::greedy_consume_fast(
-                            self.input,
-                            &mut self.pos,
-                            matcher,
-                            &self.modifiers,
-                            max,
-                        )
+                        Self::greedy_consume_fast(self.input, &mut self.pos, matcher, &self.modifiers, max)
                     } else {
                         let mut count: u32 = 0;
                         while max.is_none() || count < max.unwrap() {
@@ -2257,9 +2145,7 @@ impl<'a, I: Input> Vm<'a, I> {
     fn handle_assert_start(&mut self, multiline: bool) -> Option<VmResult> {
         let multiline = multiline || self.modifiers.multiline;
         let at_start = self.pos == 0
-            || (multiline
-                && self.pos > 0
-                && is_line_terminator(self.input_code_unit(self.pos - 1) as u32));
+            || (multiline && self.pos > 0 && is_line_terminator(self.input_code_unit(self.pos - 1) as u32));
         if at_start {
             self.pc += 1;
             None
@@ -2271,8 +2157,7 @@ impl<'a, I: Input> Vm<'a, I> {
     #[inline(always)]
     fn handle_assert_end(&mut self, multiline: bool, input_len: usize) -> Option<VmResult> {
         let multiline = multiline || self.modifiers.multiline;
-        let at_end = self.pos >= input_len
-            || (multiline && is_line_terminator(self.input_code_unit(self.pos) as u32));
+        let at_end = self.pos >= input_len || (multiline && is_line_terminator(self.input_code_unit(self.pos) as u32));
         if at_end {
             self.pc += 1;
             None
@@ -2321,14 +2206,7 @@ impl<'a, I: Input> Vm<'a, I> {
     }
 
     #[inline(always)]
-    fn handle_repeat_check(
-        &mut self,
-        counter_reg: u32,
-        min: u32,
-        max: Option<u32>,
-        body: u32,
-        greedy: bool,
-    ) {
+    fn handle_repeat_check(&mut self, counter_reg: u32, min: u32, max: Option<u32>, body: u32, greedy: bool) {
         let reg = counter_reg as usize;
         let count = self.registers[reg] as u32;
 
@@ -2382,9 +2260,8 @@ impl<'a, I: Input> Vm<'a, I> {
                 self.register_pool.truncate(saved_pool_len);
                 self.pc = end;
             } else {
-                self.registers.copy_from_slice(
-                    &self.register_pool[reg_save_offset..reg_save_offset + reg_count],
-                );
+                self.registers
+                    .copy_from_slice(&self.register_pool[reg_save_offset..reg_save_offset + reg_count]);
                 self.register_pool.truncate(saved_pool_len);
                 return self.fail_current_path();
             }
@@ -2402,12 +2279,7 @@ impl<'a, I: Input> Vm<'a, I> {
     }
 
     #[inline(always)]
-    fn handle_push_modifiers(
-        &mut self,
-        ignore_case: Option<bool>,
-        multiline: Option<bool>,
-        dot_all: Option<bool>,
-    ) {
+    fn handle_push_modifiers(&mut self, ignore_case: Option<bool>, multiline: Option<bool>, dot_all: Option<bool>) {
         self.modifier_stack.push(self.modifiers);
         if let Some(v) = ignore_case {
             self.modifiers.ignore_case = v;
@@ -2429,11 +2301,7 @@ impl<'a, I: Input> Vm<'a, I> {
         self.pc += 1;
     }
 
-    fn handle_string_property_match(
-        &mut self,
-        strings: &[u32],
-        property: &UnicodePropertyData,
-    ) -> Option<VmResult> {
+    fn handle_string_property_match(&mut self, strings: &[u32], property: &UnicodePropertyData) -> Option<VmResult> {
         // Try multi-codepoint strings first (longest match, atomic).
         let mut matched_len = 0usize;
         let mut offset = 0usize;
@@ -2706,9 +2574,8 @@ impl<'a, I: Input> Vm<'a, I> {
     #[inline(always)]
     fn restore_registers(&mut self, reg_snapshot_offset: usize) {
         let reg_count = self.registers.len();
-        self.registers.copy_from_slice(
-            &self.register_pool[reg_snapshot_offset..reg_snapshot_offset + reg_count],
-        );
+        self.registers
+            .copy_from_slice(&self.register_pool[reg_snapshot_offset..reg_snapshot_offset + reg_count]);
     }
 
     // Sum the minimum counts of immediately following loops that match the
@@ -2775,20 +2642,14 @@ impl<'a, I: Input> Vm<'a, I> {
         count
     }
 
-    fn same_matcher_loop_suffix_deficit(
-        &self,
-        pc: usize,
-        current_pos: usize,
-        backward: bool,
-    ) -> Option<u32> {
+    fn same_matcher_loop_suffix_deficit(&self, pc: usize, current_pos: usize, backward: bool) -> Option<u32> {
         let matcher = match self.program.instructions.get(pc) {
             Some(Instruction::GreedyLoop { matcher, .. }) => matcher,
             _ => return None,
         };
 
         let suffix_min = self.same_matcher_loop_suffix_min(pc + 1, matcher)?;
-        let available =
-            self.count_available_same_matcher_chars(current_pos, matcher, suffix_min, backward);
+        let available = self.count_available_same_matcher_chars(current_pos, matcher, suffix_min, backward);
         let deficit = suffix_min.saturating_sub(available);
         (deficit > 0).then_some(deficit)
     }
@@ -2878,10 +2739,8 @@ impl<'a, I: Input> Vm<'a, I> {
                         };
 
                         let next_inst = self.program.instructions.get(pc as usize + 1);
-                        let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit
-                        {
-                            let Some(pos) = self.advance_n_chars(current_pos, suffix_deficit)
-                            else {
+                        let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit {
+                            let Some(pos) = self.advance_n_chars(current_pos, suffix_deficit) else {
                                 return self.backtrack();
                             };
                             if pos > max_pos {
@@ -2890,9 +2749,7 @@ impl<'a, I: Input> Vm<'a, I> {
                             pos
                         } else {
                             match next_inst {
-                                Some(Instruction::Char(target))
-                                    if !self.modifiers.ignore_case && *target <= 0xFFFF =>
-                                {
+                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target <= 0xFFFF => {
                                     let target = *target as u16;
                                     // In backward mode the next Char reads the code
                                     // point immediately to the left of the current
@@ -2903,9 +2760,7 @@ impl<'a, I: Input> Vm<'a, I> {
                                         if scan_pos > max_pos {
                                             return self.backtrack();
                                         }
-                                        if scan_pos > 0
-                                            && self.input_code_unit(scan_pos - 1) == target
-                                        {
+                                        if scan_pos > 0 && self.input_code_unit(scan_pos - 1) == target {
                                             break scan_pos;
                                         }
                                         let next_scan_pos = self.advance_one_char(scan_pos);
@@ -2915,9 +2770,7 @@ impl<'a, I: Input> Vm<'a, I> {
                                         scan_pos = next_scan_pos;
                                     }
                                 }
-                                Some(Instruction::Char(target))
-                                    if !self.modifiers.ignore_case && *target > 0xFFFF =>
-                                {
+                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target > 0xFFFF => {
                                     let hi = ((*target - 0x10000) >> 10) as u16 + 0xD800;
                                     let lo = ((*target - 0x10000) & 0x3FF) as u16 + 0xDC00;
                                     let mut scan_pos = self.advance_one_char(current_pos);
@@ -2988,10 +2841,8 @@ impl<'a, I: Input> Vm<'a, I> {
                         // Char, scan backward for that char to skip positions
                         // that can't match.
                         let next_inst = self.program.instructions.get(pc as usize + 1);
-                        let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit
-                        {
-                            let Some(pos) = self.retreat_n_chars(current_pos, suffix_deficit)
-                            else {
+                        let new_pos = if let Some(suffix_deficit) = same_matcher_loop_suffix_deficit {
+                            let Some(pos) = self.retreat_n_chars(current_pos, suffix_deficit) else {
                                 return self.backtrack();
                             };
                             if pos < min_pos {
@@ -3000,13 +2851,10 @@ impl<'a, I: Input> Vm<'a, I> {
                             pos
                         } else {
                             match next_inst {
-                                Some(Instruction::Char(target))
-                                    if !self.modifiers.ignore_case && *target <= 0xFFFF =>
-                                {
+                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target <= 0xFFFF => {
                                     // BMP char: scan code units directly.
                                     let target = *target as u16;
-                                    let mut scan_pos =
-                                        if current_pos > 0 { current_pos - 1 } else { 0 };
+                                    let mut scan_pos = if current_pos > 0 { current_pos - 1 } else { 0 };
                                     loop {
                                         if scan_pos < min_pos {
                                             return self.backtrack();
@@ -3020,14 +2868,11 @@ impl<'a, I: Input> Vm<'a, I> {
                                         scan_pos -= 1;
                                     }
                                 }
-                                Some(Instruction::Char(target))
-                                    if !self.modifiers.ignore_case && *target > 0xFFFF =>
-                                {
+                                Some(Instruction::Char(target)) if !self.modifiers.ignore_case && *target > 0xFFFF => {
                                     // Supplementary char: scan for the surrogate pair.
                                     let hi = ((*target - 0x10000) >> 10) as u16 + 0xD800;
                                     let lo = ((*target - 0x10000) & 0x3FF) as u16 + 0xDC00;
-                                    let mut scan_pos =
-                                        if current_pos > 1 { current_pos - 2 } else { 0 };
+                                    let mut scan_pos = if current_pos > 1 { current_pos - 2 } else { 0 };
                                     loop {
                                         if scan_pos < min_pos {
                                             return self.backtrack();
@@ -3150,34 +2995,20 @@ impl<'a, I: Input> Vm<'a, I> {
                 );
                 in_class != *negated
             }
-            SimpleMatch::BuiltinClass(class) => match_builtin_class(
-                cp,
-                *class,
-                self.modifiers.ignore_case && self.program.unicode,
-            ),
+            SimpleMatch::BuiltinClass(class) => {
+                match_builtin_class(cp, *class, self.modifiers.ignore_case && self.program.unicode)
+            }
             SimpleMatch::UnicodeProperty(data) => {
                 if self.modifiers.ignore_case && self.program.unicode {
                     if data.negated && !self.program.unicode_sets {
-                        !match_unicode_property_all_case_equivalents(
-                            cp,
-                            &data.name,
-                            data.value.as_deref(),
-                        )
+                        !match_unicode_property_all_case_equivalents(cp, &data.name, data.value.as_deref())
                     } else {
-                        let matched = match_unicode_property_case_insensitive(
-                            cp,
-                            &data.name,
-                            data.value.as_deref(),
-                        );
+                        let matched = match_unicode_property_case_insensitive(cp, &data.name, data.value.as_deref());
                         if data.negated { !matched } else { matched }
                     }
                 } else {
-                    let matched = match_unicode_property_resolved(
-                        cp,
-                        &data.name,
-                        data.value.as_deref(),
-                        data.resolved.as_ref(),
-                    );
+                    let matched =
+                        match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
                     matched != data.negated
                 }
             }
@@ -3284,13 +3115,7 @@ impl<'a, I: Input> Vm<'a, I> {
             SimpleMatch::CharClass { ranges, negated } => {
                 if modifiers.ignore_case {
                     while *pos < len && count < limit {
-                        let in_class = match_char_class(
-                            input.code_unit(*pos) as u32,
-                            ranges,
-                            true,
-                            false,
-                            false,
-                        );
+                        let in_class = match_char_class(input.code_unit(*pos) as u32, ranges, true, false, false);
                         if in_class == *negated {
                             break;
                         }
@@ -3320,12 +3145,8 @@ impl<'a, I: Input> Vm<'a, I> {
             SimpleMatch::UnicodeProperty(data) => {
                 while *pos < len && count < limit {
                     let cp = input.code_unit(*pos) as u32;
-                    let matched = match_unicode_property_resolved(
-                        cp,
-                        &data.name,
-                        data.value.as_deref(),
-                        data.resolved.as_ref(),
-                    );
+                    let matched =
+                        match_unicode_property_resolved(cp, &data.name, data.value.as_deref(), data.resolved.as_ref());
                     if matched == data.negated {
                         break;
                     }
@@ -3359,16 +3180,8 @@ impl<'a, I: Input> Vm<'a, I> {
     /// Implement `BackreferenceMatcher` for a numbered capture.
     /// <https://tc39.es/ecma262/#sec-backreference-matcher>
     fn match_backref(&mut self, index: u32) -> bool {
-        let start = self
-            .registers
-            .get(index as usize * 2)
-            .copied()
-            .unwrap_or(-1);
-        let end = self
-            .registers
-            .get(index as usize * 2 + 1)
-            .copied()
-            .unwrap_or(-1);
+        let start = self.registers.get(index as usize * 2).copied().unwrap_or(-1);
+        let end = self.registers.get(index as usize * 2 + 1).copied().unwrap_or(-1);
         if start < 0 || end < 0 {
             // Unmatched group — backreference succeeds matching empty string (ECMA-262).
             return true;
@@ -3509,16 +3322,8 @@ impl<'a, I: Input> Vm<'a, I> {
         for ng in &self.program.named_groups {
             if ng.name == name {
                 any_group_exists = true;
-                let start = self
-                    .registers
-                    .get(ng.index as usize * 2)
-                    .copied()
-                    .unwrap_or(-1);
-                let end = self
-                    .registers
-                    .get(ng.index as usize * 2 + 1)
-                    .copied()
-                    .unwrap_or(-1);
+                let start = self.registers.get(ng.index as usize * 2).copied().unwrap_or(-1);
+                let end = self.registers.get(ng.index as usize * 2 + 1).copied().unwrap_or(-1);
                 if start >= 0 && end >= 0 {
                     captured_index = Some(ng.index);
                     break;
@@ -3683,25 +3488,16 @@ pub(crate) fn match_char_class(
         // other characters that share the same canonical form as cp.
         // Always use the ICU-based range matcher which correctly handles
         // cross-script case folding (e.g. U+017F ſ folds to ASCII s).
-        ranges.iter().any(|r| {
-            crate::unicode_ffi::code_point_matches_range_ignoring_case(
-                cp,
-                r.start,
-                r.end,
-                unicode_mode,
-            )
-        })
+        ranges
+            .iter()
+            .any(|r| crate::unicode_ffi::code_point_matches_range_ignoring_case(cp, r.start, r.end, unicode_mode))
     } else {
         char_in_ranges(cp, ranges)
     }
 }
 
 #[inline(always)]
-pub(crate) fn match_builtin_class(
-    cp: u32,
-    class: BuiltinCharacterClass,
-    unicode_ignore_case: bool,
-) -> bool {
+pub(crate) fn match_builtin_class(cp: u32, class: BuiltinCharacterClass, unicode_ignore_case: bool) -> bool {
     match class {
         BuiltinCharacterClass::Digit => is_digit(cp),
         BuiltinCharacterClass::NonDigit => !is_digit(cp),
@@ -3714,21 +3510,13 @@ pub(crate) fn match_builtin_class(
 
 /// Match a Unicode property considering case closure for ignore-case matching.
 /// <https://tc39.es/ecma262/#sec-maybesimplecasefolding>
-pub(crate) fn match_unicode_property_case_insensitive(
-    cp: u32,
-    name: &str,
-    value: Option<&str>,
-) -> bool {
+pub(crate) fn match_unicode_property_case_insensitive(cp: u32, name: &str, value: Option<&str>) -> bool {
     crate::unicode_ffi::property_matches_case_insensitive(cp, name, value)
 }
 
 /// Check if all case-equivalents of `cp` have the property.
 /// <https://tc39.es/ecma262/#sec-maybesimplecasefolding>
-pub(crate) fn match_unicode_property_all_case_equivalents(
-    cp: u32,
-    name: &str,
-    value: Option<&str>,
-) -> bool {
+pub(crate) fn match_unicode_property_all_case_equivalents(cp: u32, name: &str, value: Option<&str>) -> bool {
     crate::unicode_ffi::property_all_case_equivalents_match(cp, name, value)
 }
 

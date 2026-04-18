@@ -13,8 +13,8 @@ use std::rc::Rc;
 use crate::ast::*;
 use crate::lexer::ch;
 use crate::parser::{
-    Associativity, DeclarationKind, ForbiddenTokens, FunctionKind, MethodKind,
-    PRECEDENCE_ASSIGNMENT, ParamInfo, ParsedParameters, Parser, Position, ProgramType, PropertyKey,
+    Associativity, DeclarationKind, ForbiddenTokens, FunctionKind, MethodKind, PRECEDENCE_ASSIGNMENT, ParamInfo,
+    ParsedParameters, Parser, Position, ProgramType, PropertyKey,
 };
 use crate::token::TokenType;
 
@@ -162,14 +162,11 @@ impl Parser<'_> {
                         declaration_line,
                         declaration_column,
                     );
-                    self.scope_collector
-                        .register_identifier(id.clone(), Some(kind));
+                    self.scope_collector.register_identifier(id.clone(), Some(kind));
                 }
 
                 VariableDeclaratorTarget::Identifier(id)
-            } else if self.match_token(TokenType::CurlyOpen)
-                || self.match_token(TokenType::BracketOpen)
-            {
+            } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 let pat = self.parse_binding_pattern();
                 let bound_names = std::mem::take(&mut self.pattern_bound_names);
 
@@ -197,19 +194,12 @@ impl Parser<'_> {
                         .collect();
                     // NOTE: Binding pattern identifiers don't get declaration_kind,
                     // matching C++ behavior where only simple identifiers do.
-                    self.scope_collector.add_var_declaration(
-                        &entries,
-                        declaration_line,
-                        declaration_column,
-                        None,
-                    );
+                    self.scope_collector
+                        .add_var_declaration(&entries, declaration_line, declaration_column, None);
                 } else {
                     let refs: Vec<&[u16]> = bound_names.iter().map(|(n, _)| n.as_slice()).collect();
-                    self.scope_collector.add_lexical_declaration(
-                        &refs,
-                        declaration_line,
-                        declaration_column,
-                    );
+                    self.scope_collector
+                        .add_lexical_declaration(&refs, declaration_line, declaration_column);
                     // Register each binding pattern identifier for scope analysis
                     // so they get is_local() annotations.
                     // NOTE: C++ does not pass declaration_kind for binding pattern identifiers,
@@ -307,11 +297,8 @@ impl Parser<'_> {
 
             let id = self.make_identifier(declaration_start, name.clone());
 
-            self.scope_collector.add_lexical_declaration(
-                &[name.as_slice()],
-                declaration_line,
-                declaration_column,
-            );
+            self.scope_collector
+                .add_lexical_declaration(&[name.as_slice()], declaration_line, declaration_column);
             // C++ calls parse_lexical_binding() without declaration_kind for using,
             // so we pass None to match.
             self.scope_collector.register_identifier(id.clone(), None);
@@ -319,11 +306,7 @@ impl Parser<'_> {
             let init = if self.match_token(TokenType::Equals) {
                 self.consume();
                 if is_for_loop {
-                    Some(self.parse_expression(
-                        PRECEDENCE_ASSIGNMENT,
-                        Associativity::Right,
-                        ForbiddenTokens::with_in(),
-                    ))
+                    Some(self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, ForbiddenTokens::with_in()))
                 } else {
                     Some(self.parse_assignment_expression())
                 }
@@ -358,10 +341,7 @@ impl Parser<'_> {
             self.for_loop_declaration_has_init = any_init;
         }
 
-        self.statement(
-            start,
-            StatementKind::UsingDeclaration(Box::new(declarators)),
-        )
+        self.statement(start, StatementKind::UsingDeclaration(Box::new(declarators)))
     }
 
     // https://tc39.es/ecma262/#sec-function-definitions
@@ -385,10 +365,7 @@ impl Parser<'_> {
         let (name, fn_name) = if self.has_default_export_name && !self.match_identifier() {
             let default_name = Utf16String::from(utf16!("*default*"));
             self.last_function_name = default_name.clone();
-            (
-                Some(self.make_identifier(start, default_name.clone())),
-                default_name,
-            )
+            (Some(self.make_identifier(start, default_name.clone())), default_name)
         } else if self.match_identifier() {
             let token = self.consume();
             let value = Utf16String::from(self.token_value(&token));
@@ -515,9 +492,7 @@ impl Parser<'_> {
     ) -> FunctionData {
         // Validate name against async generator and class static init restrictions.
         if name.is_some() {
-            if kind == FunctionKind::AsyncGenerator
-                && (fn_name == utf16!("await") || fn_name == utf16!("yield"))
-            {
+            if kind == FunctionKind::AsyncGenerator && (fn_name == utf16!("await") || fn_name == utf16!("yield")) {
                 let name_str = String::from_utf16_lossy(fn_name);
                 self.syntax_error(&format!(
                     "async generator function is not allowed to be called '{name_str}'"
@@ -553,8 +528,7 @@ impl Parser<'_> {
         self.flags.in_generator_function_context = in_generator_before;
         self.flags.await_expression_is_valid = await_before;
 
-        let (body, has_use_strict, mut insights) =
-            self.parse_function_body(is_async, is_generator, parsed.is_simple);
+        let (body, has_use_strict, mut insights) = self.parse_function_body(is_async, is_generator, parsed.is_simple);
         self.flags.allow_super_constructor_call = saved_allow_super_call;
         self.flags.allow_super_property_lookup = saved_allow_super_lookup;
 
@@ -629,8 +603,7 @@ impl Parser<'_> {
         } else {
             Some(name_value.as_slice())
         };
-        self.scope_collector
-            .open_class_declaration_scope(class_name_for_scope);
+        self.scope_collector.open_class_declaration_scope(class_name_for_scope);
 
         if name_id.is_some() {
             self.check_identifier_name_for_assignment_validity(&name_value, true);
@@ -649,8 +622,7 @@ impl Parser<'_> {
         self.consume_token(TokenType::CurlyOpen);
         let mut elements: Vec<Node<ClassElement>> = Vec::new();
         let mut constructor: Option<Expression> = None;
-        let mut found_private_names: HashMap<Utf16String, (Option<ClassMethodKind>, bool)> =
-            HashMap::new();
+        let mut found_private_names: HashMap<Utf16String, (Option<ClassMethodKind>, bool)> = HashMap::new();
 
         self.referenced_private_names_stack.push(HashSet::new());
 
@@ -683,10 +655,7 @@ impl Parser<'_> {
         self.class_has_super_class = saved_class_has_super;
 
         // AllPrivateNamesValid: check that all referenced private names were declared.
-        let referenced = self
-            .referenced_private_names_stack
-            .pop()
-            .unwrap_or_default();
+        let referenced = self.referenced_private_names_stack.pop().unwrap_or_default();
         for name in referenced {
             if found_private_names.contains_key(&name) {
                 continue;
@@ -696,9 +665,7 @@ impl Parser<'_> {
                 outer.insert(name);
             } else {
                 let name_str = String::from_utf16_lossy(&name);
-                self.syntax_error(&format!(
-                    "Reference to undeclared private field or method '{name_str}'"
-                ));
+                self.syntax_error(&format!("Reference to undeclared private field or method '{name_str}'"));
             }
         }
         self.flags.strict_mode = strict_before;
@@ -706,11 +673,7 @@ impl Parser<'_> {
         self.scope_collector.close_scope();
 
         if constructor.is_none() {
-            constructor = Some(self.synthesize_default_constructor(
-                start,
-                &name_value,
-                super_class.is_some(),
-            ));
+            constructor = Some(self.synthesize_default_constructor(start, &name_value, super_class.is_some()));
         }
 
         self.last_class_name = saved_class_name;
@@ -744,8 +707,7 @@ impl Parser<'_> {
                         start.line,
                         start.column,
                     );
-                    self.scope_collector
-                        .register_identifier(name_ident.clone(), None);
+                    self.scope_collector.register_identifier(name_ident.clone(), None);
                 }
                 self.statement(start, StatementKind::ClassDeclaration(data))
             }
@@ -757,12 +719,7 @@ impl Parser<'_> {
     // If no constructor is present in the ClassBody:
     //   - Base class: constructor() {}
     //   - Derived class: constructor(...arguments) { super(...arguments); }
-    fn synthesize_default_constructor(
-        &mut self,
-        start: Position,
-        class_name: &[u16],
-        has_super: bool,
-    ) -> Expression {
+    fn synthesize_default_constructor(&mut self, start: Position, class_name: &[u16], has_super: bool) -> Expression {
         let ctor_name = if !class_name.is_empty() {
             Some(self.make_identifier(start, Utf16String::from(class_name)))
         } else {
@@ -775,12 +732,8 @@ impl Parser<'_> {
         if has_super {
             let arguments_name = Utf16String::from(utf16!("args"));
 
-            let arguments_ref = Rc::new(Identifier::new(
-                self.range_from(start),
-                arguments_name.clone().into(),
-            ));
-            let arguments_expression =
-                self.expression(start, ExpressionKind::Identifier(arguments_ref));
+            let arguments_ref = Rc::new(Identifier::new(self.range_from(start), arguments_name.clone().into()));
+            let arguments_expression = self.expression(start, ExpressionKind::Identifier(arguments_ref));
 
             let super_call = self.expression(
                 start,
@@ -792,17 +745,13 @@ impl Parser<'_> {
                     is_synthetic: true,
                 })),
             );
-            let return_statement =
-                self.statement(start, StatementKind::Return(Some(Box::new(super_call))));
+            let return_statement = self.statement(start, StatementKind::Return(Some(Box::new(super_call))));
             let body = self.statement(
                 start,
                 StatementKind::Block(ScopeData::shared_with_children(vec![return_statement])),
             );
 
-            let arguments_binding = Rc::new(Identifier::new(
-                self.range_from(start),
-                arguments_name.into(),
-            ));
+            let arguments_binding = Rc::new(Identifier::new(self.range_from(start), arguments_name.into()));
             let parameters = vec![FunctionParameter {
                 binding: FunctionParameterBinding::Identifier(arguments_binding),
                 default_value: None,
@@ -827,10 +776,7 @@ impl Parser<'_> {
             });
             self.expression(start, ExpressionKind::Function(function_id))
         } else {
-            let body = self.statement(
-                start,
-                StatementKind::Block(ScopeData::shared_with_children(Vec::new())),
-            );
+            let body = self.statement(start, StatementKind::Block(ScopeData::shared_with_children(Vec::new())));
 
             let function_id = self.function_table.insert(FunctionData {
                 name: ctor_name,
@@ -865,56 +811,53 @@ impl Parser<'_> {
         found_private_names: &mut HashMap<Utf16String, (Option<ClassMethodKind>, bool)>,
     ) -> (Option<Node<ClassElement>>, Option<Expression>) {
         // C++ lexes "static" as Identifier and checks original_value() == "static".
-        let mut is_static = if self.match_identifier()
-            && self.token_original_value(&self.current_token) == utf16!("static")
-        {
-            self.consume();
-            // https://tc39.es/ecma262/#sec-class-static-initialization-blocks
-            // ClassStaticBlock : `static` `{` ClassStaticBlockBody `}`
-            if self.match_token(TokenType::CurlyOpen) {
-                // C++ captures static_start (push_start) before consuming '{'.
-                let static_start = self.position();
-                self.consume(); // consume '{'
-                let saved_flags = self.flags;
-                self.flags.in_break_context = false;
-                self.flags.in_continue_context = false;
-                self.flags.in_function_context = false;
-                self.flags.in_generator_function_context = false;
-                self.flags.await_expression_is_valid = false;
-                self.flags.in_class_field_initializer = true;
-                self.flags.in_class_static_init_block = true;
-                self.flags.allow_super_property_lookup = true;
-                self.flags.new_target_is_valid = true;
-                self.scope_collector.open_static_init_scope(None);
-                let children = self.parse_statement_list(false);
-                self.flags = saved_flags;
-                self.consume_token(TokenType::CurlyClose);
-                let scope = ScopeData::shared_with_children(children);
-                self.scope_collector.set_scope_node(scope.clone());
-                self.scope_collector.close_scope();
-                // C++ uses rule_start (class start) for FunctionBody position.
-                let body = self.statement(
-                    class_start,
-                    StatementKind::FunctionBody {
-                        scope,
-                        in_strict_mode: self.flags.strict_mode,
-                    },
-                );
-                // C++ uses static_start (after '{') for StaticInitializer position.
-                return (
-                    Some(Node::new(
-                        self.range_from(static_start),
-                        ClassElement::StaticInitializer {
-                            body: Box::new(body),
+        let mut is_static =
+            if self.match_identifier() && self.token_original_value(&self.current_token) == utf16!("static") {
+                self.consume();
+                // https://tc39.es/ecma262/#sec-class-static-initialization-blocks
+                // ClassStaticBlock : `static` `{` ClassStaticBlockBody `}`
+                if self.match_token(TokenType::CurlyOpen) {
+                    // C++ captures static_start (push_start) before consuming '{'.
+                    let static_start = self.position();
+                    self.consume(); // consume '{'
+                    let saved_flags = self.flags;
+                    self.flags.in_break_context = false;
+                    self.flags.in_continue_context = false;
+                    self.flags.in_function_context = false;
+                    self.flags.in_generator_function_context = false;
+                    self.flags.await_expression_is_valid = false;
+                    self.flags.in_class_field_initializer = true;
+                    self.flags.in_class_static_init_block = true;
+                    self.flags.allow_super_property_lookup = true;
+                    self.flags.new_target_is_valid = true;
+                    self.scope_collector.open_static_init_scope(None);
+                    let children = self.parse_statement_list(false);
+                    self.flags = saved_flags;
+                    self.consume_token(TokenType::CurlyClose);
+                    let scope = ScopeData::shared_with_children(children);
+                    self.scope_collector.set_scope_node(scope.clone());
+                    self.scope_collector.close_scope();
+                    // C++ uses rule_start (class start) for FunctionBody position.
+                    let body = self.statement(
+                        class_start,
+                        StatementKind::FunctionBody {
+                            scope,
+                            in_strict_mode: self.flags.strict_mode,
                         },
-                    )),
-                    None,
-                );
-            }
-            true
-        } else {
-            false
-        };
+                    );
+                    // C++ uses static_start (after '{') for StaticInitializer position.
+                    return (
+                        Some(Node::new(
+                            self.range_from(static_start),
+                            ClassElement::StaticInitializer { body: Box::new(body) },
+                        )),
+                        None,
+                    );
+                }
+                true
+            } else {
+                false
+            };
 
         let mut is_async = false;
         let mut is_generator = false;
@@ -1014,9 +957,7 @@ impl Parser<'_> {
         // It is a Syntax Error if PrivateBoundIdentifiers of ClassElementList contains
         // any duplicate entries, unless the name is used once for a getter and once for
         // a setter and in no other entries, and they are either both static or both non-static.
-        let is_private = key_value
-            .as_ref()
-            .is_some_and(|v| v.first() == Some(&ch(b'#')));
+        let is_private = key_value.as_ref().is_some_and(|v| v.first() == Some(&ch(b'#')));
         if is_private {
             let name = key_value.as_ref().unwrap();
             let current_kind = if is_getter {
@@ -1045,9 +986,7 @@ impl Parser<'_> {
                     };
                     if is_error {
                         let name_str = String::from_utf16_lossy(name);
-                        self.syntax_error(&format!(
-                            "Duplicate private field or method named '{name_str}'"
-                        ));
+                        self.syntax_error(&format!("Duplicate private field or method named '{name_str}'"));
                     }
                 }
                 found_private_names.insert(name.clone(), (current_kind, is_static));
@@ -1056,16 +995,13 @@ impl Parser<'_> {
                 .is_some()
             {
                 let name_str = String::from_utf16_lossy(name);
-                self.syntax_error(&format!(
-                    "Duplicate private field or method named '{name_str}'"
-                ));
+                self.syntax_error(&format!("Duplicate private field or method named '{name_str}'"));
             }
         }
 
         if self.match_token(TokenType::ParenOpen) {
             let ctor_name = utf16!("constructor");
-            let is_constructor =
-                !is_static && !is_getter && !is_setter && key_value.as_deref() == Some(ctor_name);
+            let is_constructor = !is_static && !is_getter && !is_setter && key_value.as_deref() == Some(ctor_name);
 
             // https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
             // It is a Syntax Error if SpecialMethod of MethodDefinition is true
@@ -1098,8 +1034,7 @@ impl Parser<'_> {
             } else {
                 MethodKind::Normal
             };
-            let function =
-                self.parse_method_definition(is_async, is_generator, method_kind, function_start);
+            let function = self.parse_method_definition(is_async, is_generator, method_kind, function_start);
             let class_method_kind = if is_getter {
                 ClassMethodKind::Getter
             } else if is_setter {
@@ -1193,9 +1128,7 @@ impl Parser<'_> {
         if has_use_strict {
             self.flags.strict_mode = true;
             if !is_simple {
-                self.syntax_error(
-                    "Illegal 'use strict' directive in function with non-simple parameter list",
-                );
+                self.syntax_error("Illegal 'use strict' directive in function with non-simple parameter list");
             }
         }
 
@@ -1321,9 +1254,7 @@ impl Parser<'_> {
                     identifier: Some(id.clone()),
                 });
                 (FunctionParameterBinding::Identifier(id), false)
-            } else if self.match_token(TokenType::CurlyOpen)
-                || self.match_token(TokenType::BracketOpen)
-            {
+            } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 let pat = self.parse_binding_pattern();
                 for (n, id) in std::mem::take(&mut self.pattern_bound_names) {
                     parameter_info.push(ParamInfo {
@@ -1349,11 +1280,8 @@ impl Parser<'_> {
                 has_seen_default = true;
                 let saved_in_function = self.flags.in_function_context;
                 self.flags.in_function_context = true;
-                let expr = self.parse_expression(
-                    PRECEDENCE_ASSIGNMENT,
-                    Associativity::Right,
-                    ForbiddenTokens::with_in(),
-                );
+                let expr =
+                    self.parse_expression(PRECEDENCE_ASSIGNMENT, Associativity::Right, ForbiddenTokens::with_in());
                 self.flags.in_function_context = saved_in_function;
                 Some(expr)
             } else {
@@ -1371,11 +1299,7 @@ impl Parser<'_> {
                 is_rest: rest,
             });
             let parameter_info_end = parameter_info.len();
-            parameter_info_ranges.push((
-                parameter_info_start,
-                parameter_info_end,
-                parameter_is_non_simple,
-            ));
+            parameter_info_ranges.push((parameter_info_start, parameter_info_end, parameter_is_non_simple));
 
             if rest || !self.match_token(TokenType::Comma) {
                 break;
@@ -1499,12 +1423,9 @@ impl Parser<'_> {
                         ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                     );
                     if Self::is_member_expression(&expression) {
-                        entry_alias =
-                            Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
+                        entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                     } else if Self::is_identifier(&expression) {
-                        entry_name = Some(BindingEntryName::Identifier(
-                            expression_into_identifier(expression),
-                        ));
+                        entry_name = Some(BindingEntryName::Identifier(expression_into_identifier(expression)));
                     } else {
                         self.syntax_error("Invalid destructuring assignment target");
                         break;
@@ -1520,18 +1441,14 @@ impl Parser<'_> {
                         || self.match_token(TokenType::BigIntLiteral)
                     {
                         // C++ uses the binding pattern start position for all name identifiers.
-                        let entry_start = self
-                            .binding_pattern_start
-                            .unwrap_or_else(|| self.position());
+                        let entry_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
 
-                        if self.match_token(TokenType::StringLiteral)
-                            || self.match_token(TokenType::NumericLiteral)
-                        {
+                        if self.match_token(TokenType::StringLiteral) || self.match_token(TokenType::NumericLiteral) {
                             needs_alias = true;
                         }
 
-                        entry_is_keyword = self.current_token.token_type.is_identifier_name()
-                            && !self.match_identifier();
+                        entry_is_keyword =
+                            self.current_token.token_type.is_identifier_name() && !self.match_identifier();
 
                         // Suppress eval/arguments check for binding pattern property
                         // keys. C++ uses regular consume() here (no arguments check),
@@ -1587,32 +1504,23 @@ impl Parser<'_> {
                                 Associativity::Right,
                                 ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                             );
-                            if Self::is_object_expression(&expression)
-                                || Self::is_array_expression(&expression)
-                            {
+                            if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
                                 let pattern = self.synthesize_binding_pattern(expression_start);
-                                entry_alias =
-                                    Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
+                                entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                             } else if Self::is_member_expression(&expression) {
-                                entry_alias =
-                                    Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
+                                entry_alias = Some(BindingEntryAlias::MemberExpression(Box::new(expression)));
                             } else if Self::is_identifier(&expression) {
-                                entry_alias = Some(BindingEntryAlias::Identifier(
-                                    expression_into_identifier(expression),
-                                ));
+                                entry_alias =
+                                    Some(BindingEntryAlias::Identifier(expression_into_identifier(expression)));
                             } else {
                                 self.syntax_error("Invalid destructuring assignment target");
                                 break;
                             }
-                        } else if self.match_token(TokenType::CurlyOpen)
-                            || self.match_token(TokenType::BracketOpen)
-                        {
+                        } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                             let nested = self.parse_binding_pattern();
                             entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(nested)));
                         } else if self.match_identifier_name() {
-                            let alias_start = self
-                                .binding_pattern_start
-                                .unwrap_or_else(|| self.position());
+                            let alias_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
                             let token = self.consume();
                             let name = self.token_identifier_name(&token);
                             let id = self.make_identifier(alias_start, name.clone());
@@ -1631,8 +1539,7 @@ impl Parser<'_> {
                             self.syntax_error("Binding pattern target may not be a reserved word");
                         }
                         if let Some(BindingEntryName::Identifier(ref id)) = entry_name {
-                            self.pattern_bound_names
-                                .push((entry_name_value, id.clone()));
+                            self.pattern_bound_names.push((entry_name_value, id.clone()));
                         }
                     }
                 }
@@ -1643,8 +1550,7 @@ impl Parser<'_> {
                     Associativity::Right,
                     ForbiddenTokens::none().forbid(&[TokenType::Equals]),
                 );
-                if Self::is_object_expression(&expression) || Self::is_array_expression(&expression)
-                {
+                if Self::is_object_expression(&expression) || Self::is_array_expression(&expression) {
                     let pattern = self.synthesize_binding_pattern(expression_start);
                     entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(pattern)));
                 } else if Self::is_member_expression(&expression) {
@@ -1657,15 +1563,11 @@ impl Parser<'_> {
                     self.syntax_error("Invalid destructuring assignment target");
                     break;
                 }
-            } else if self.match_token(TokenType::CurlyOpen)
-                || self.match_token(TokenType::BracketOpen)
-            {
+            } else if self.match_token(TokenType::CurlyOpen) || self.match_token(TokenType::BracketOpen) {
                 let nested = self.parse_binding_pattern();
                 entry_alias = Some(BindingEntryAlias::BindingPattern(Box::new(nested)));
             } else if self.match_identifier_name() {
-                let alias_start = self
-                    .binding_pattern_start
-                    .unwrap_or_else(|| self.position());
+                let alias_start = self.binding_pattern_start.unwrap_or_else(|| self.position());
                 let token = self.consume();
                 let name = self.token_identifier_name(&token);
                 let id = self.make_identifier(alias_start, name.clone());
@@ -1808,10 +1710,7 @@ impl Parser<'_> {
                             });
                         } else if require_as {
                             self.syntax_error_at_position(
-                                &format!(
-                                    "Unexpected reserved word '{}'",
-                                    String::from_utf16_lossy(&name)
-                                ),
+                                &format!("Unexpected reserved word '{}'", String::from_utf16_lossy(&name)),
                                 name_pos,
                             );
                         } else {
@@ -1921,8 +1820,7 @@ impl Parser<'_> {
                 statement = Some(Box::new(declaration));
             } else if self.match_token(TokenType::Class) {
                 let next = self.next_token();
-                if next.token_type != TokenType::CurlyOpen && next.token_type != TokenType::Extends
-                {
+                if next.token_type != TokenType::CurlyOpen && next.token_type != TokenType::Extends {
                     let declaration = self.parse_class_declaration();
                     if let StatementKind::ClassDeclaration(ref class) = declaration.inner
                         && let Some(ref name_id) = class.name
@@ -2115,19 +2013,15 @@ impl Parser<'_> {
     }
 
     fn match_imported_binding(&self) -> bool {
-        self.match_identifier()
-            || self.match_token(TokenType::Yield)
-            || self.match_token(TokenType::Await)
+        self.match_identifier() || self.match_token(TokenType::Yield) || self.match_token(TokenType::Await)
     }
 
     fn match_as(&self) -> bool {
-        self.match_token(TokenType::Identifier)
-            && self.token_original_value(&self.current_token) == utf16!("as")
+        self.match_token(TokenType::Identifier) && self.token_original_value(&self.current_token) == utf16!("as")
     }
 
     fn match_from(&self) -> bool {
-        self.match_token(TokenType::Identifier)
-            && self.token_original_value(&self.current_token) == utf16!("from")
+        self.match_token(TokenType::Identifier) && self.token_original_value(&self.current_token) == utf16!("from")
     }
 
     fn consume_module_specifier(&mut self) -> Utf16String {

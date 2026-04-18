@@ -78,9 +78,7 @@ impl FunctionTable {
     /// # Panics
     /// Panics if the slot was already taken.
     pub fn get(&self, id: FunctionId) -> &FunctionData {
-        self.functions
-            .get(&id)
-            .expect("FunctionTable::get: slot already taken")
+        self.functions.get(&id).expect("FunctionTable::get: slot already taken")
     }
 
     /// Take ownership of the data (for codegen / GDI).
@@ -404,9 +402,7 @@ impl FunctionTable {
                     self.collect_from_expression(key, result);
                     self.collect_from_expression(function, result);
                 }
-                ClassElement::Field {
-                    key, initializer, ..
-                } => {
+                ClassElement::Field { key, initializer, .. } => {
                     self.collect_from_expression(key, result);
                     if let Some(init) = initializer {
                         self.collect_from_expression(init, result);
@@ -441,11 +437,7 @@ impl FunctionTable {
         }
     }
 
-    fn collect_from_target(
-        &mut self,
-        target: &VariableDeclaratorTarget,
-        result: &mut FunctionTable,
-    ) {
+    fn collect_from_target(&mut self, target: &VariableDeclaratorTarget, result: &mut FunctionTable) {
         if let VariableDeclaratorTarget::BindingPattern(pat) = target {
             self.collect_from_pattern(pat, result);
         }
@@ -1461,10 +1453,7 @@ pub enum ExpressionKind {
     // Operators
     Binary(Box<BinaryExprData>),
     Logical(Box<LogicalExprData>),
-    Unary {
-        op: UnaryOp,
-        operand: Box<Expression>,
-    },
+    Unary { op: UnaryOp, operand: Box<Expression> },
     Update(Box<UpdateExprData>),
     Assignment(Box<AssignmentExprData>),
     Conditional(Box<ConditionalExprData>),

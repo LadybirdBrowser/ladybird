@@ -49,8 +49,8 @@ use crate::u32_from_usize;
 
 use super::ffi::{LiteralValueKind, WellKnownSymbolKind};
 use super::generator::{
-    BlockBoundaryType, ConstantValue, FinallyContext, Generator, ScopedOperand, choose_dst,
-    constant_to_boolean, parse_bigint,
+    BlockBoundaryType, ConstantValue, FinallyContext, Generator, ScopedOperand, choose_dst, constant_to_boolean,
+    parse_bigint,
 };
 use super::instruction::Instruction;
 use super::operand::*;
@@ -81,10 +81,7 @@ fn generate_expression_inner(
     // NamedEvaluation: only function/class expressions consume pending_lhs_name.
     // Clear it for all other expression types so it doesn't leak through to
     // nested function expressions (e.g. IIFEs: `let x = (function() { ... })()`).
-    if !matches!(
-        expression.inner,
-        ExpressionKind::Function(_) | ExpressionKind::Class(_)
-    ) {
+    if !matches!(expression.inner, ExpressionKind::Function(_) | ExpressionKind::Class(_)) {
         generator.pending_lhs_name = None;
     }
 
@@ -96,9 +93,7 @@ fn generate_expression_inner(
 
         ExpressionKind::NullLiteral => Some(generator.add_constant_null()),
 
-        ExpressionKind::StringLiteral(value) => {
-            Some(generator.add_constant_string((**value).clone()))
-        }
+        ExpressionKind::StringLiteral(value) => Some(generator.add_constant_string((**value).clone())),
 
         ExpressionKind::BigIntLiteral(value) => {
             // The AST stores the raw value including the 'n' suffix; strip it for codegen.
@@ -122,9 +117,7 @@ fn generate_expression_inner(
         }
 
         // === Identifiers ===
-        ExpressionKind::Identifier(ident) => {
-            Some(generate_identifier(ident, generator, preferred_dst))
-        }
+        ExpressionKind::Identifier(ident) => Some(generate_identifier(ident, generator, preferred_dst)),
 
         // === This ===
         ExpressionKind::This => {
@@ -137,9 +130,7 @@ fn generate_expression_inner(
         }
 
         // === Unary ===
-        ExpressionKind::Unary { op, operand } => {
-            generate_unary_expression(generator, *op, operand, preferred_dst)
-        }
+        ExpressionKind::Unary { op, operand } => generate_unary_expression(generator, *op, operand, preferred_dst),
 
         // === Binary ===
         ExpressionKind::Binary(data) => {
@@ -147,18 +138,12 @@ fn generate_expression_inner(
         }
 
         // === Logical (short-circuit) ===
-        ExpressionKind::Logical(data) => {
-            generate_logical(generator, data.op, &data.lhs, &data.rhs, preferred_dst)
-        }
+        ExpressionKind::Logical(data) => generate_logical(generator, data.op, &data.lhs, &data.rhs, preferred_dst),
 
         // === Conditional (ternary) ===
-        ExpressionKind::Conditional(data) => generate_conditional(
-            generator,
-            &data.test,
-            &data.consequent,
-            &data.alternate,
-            preferred_dst,
-        ),
+        ExpressionKind::Conditional(data) => {
+            generate_conditional(generator, &data.test, &data.consequent, &data.alternate, preferred_dst)
+        }
 
         // === Sequence ===
         ExpressionKind::Sequence(expressions) => {
@@ -173,32 +158,20 @@ fn generate_expression_inner(
         }
 
         // === Function expressions ===
-        ExpressionKind::Function(function_id) => Some(generate_function_expression(
-            generator,
-            *function_id,
-            preferred_dst,
-        )),
+        ExpressionKind::Function(function_id) => {
+            Some(generate_function_expression(generator, *function_id, preferred_dst))
+        }
 
         // === Array ===
-        ExpressionKind::Array(elements) => Some(generate_array_expression(
-            generator,
-            elements,
-            preferred_dst,
-        )),
+        ExpressionKind::Array(elements) => Some(generate_array_expression(generator, elements, preferred_dst)),
 
         // === Member access ===
-        ExpressionKind::Member(data) => generate_member_expression(
-            generator,
-            &data.object,
-            &data.property,
-            data.computed,
-            preferred_dst,
-        ),
+        ExpressionKind::Member(data) => {
+            generate_member_expression(generator, &data.object, &data.property, data.computed, preferred_dst)
+        }
 
         // === Call ===
-        ExpressionKind::Call(data) => {
-            generate_call_expression(generator, data, preferred_dst, false)
-        }
+        ExpressionKind::Call(data) => generate_call_expression(generator, data, preferred_dst, false),
 
         // === New ===
         ExpressionKind::New(data) => generate_call_expression(generator, data, preferred_dst, true),
@@ -206,11 +179,7 @@ fn generate_expression_inner(
         // === Spread ===
         ExpressionKind::Spread(inner) => {
             // Spread is handled by the caller (Call, Array, Object)
-            Some(generate_expression_or_undefined(
-                inner,
-                generator,
-                preferred_dst,
-            ))
+            Some(generate_expression_or_undefined(inner, generator, preferred_dst))
         }
 
         // === Yield ===
@@ -268,9 +237,7 @@ fn generate_expression_inner(
         }
 
         // === Update (++/--) ===
-        ExpressionKind::Update(data) => {
-            generate_update_expression(generator, data.op, &data.argument, data.prefixed)
-        }
+        ExpressionKind::Update(data) => generate_update_expression(generator, data.op, &data.argument, data.prefixed),
 
         // === Assignment ===
         ExpressionKind::Assignment(data) => {
@@ -278,9 +245,7 @@ fn generate_expression_inner(
         }
 
         // === Template literals ===
-        ExpressionKind::TemplateLiteral(data) => {
-            generate_template_literal(generator, data, preferred_dst)
-        }
+        ExpressionKind::TemplateLiteral(data) => generate_template_literal(generator, data, preferred_dst),
 
         // === Tagged template literals ===
         ExpressionKind::TaggedTemplateLiteral(data) => Some(generate_tagged_template_literal(
@@ -291,9 +256,7 @@ fn generate_expression_inner(
         )),
 
         // === Object ===
-        ExpressionKind::Object(data) => {
-            Some(generate_object_expression(generator, data, preferred_dst))
-        }
+        ExpressionKind::Object(data) => Some(generate_object_expression(generator, data, preferred_dst)),
 
         // === OptionalChain ===
         ExpressionKind::OptionalChain(oc_data) => {
@@ -340,9 +303,7 @@ fn generate_expression_inner(
             Some(dst)
         }
 
-        ExpressionKind::Class(data) => {
-            Some(generate_class_expression(generator, data, preferred_dst))
-        }
+        ExpressionKind::Class(data) => Some(generate_class_expression(generator, data, preferred_dst)),
 
         ExpressionKind::PrivateIdentifier(_) => {
             // Private identifiers are handled by member access codegen
@@ -463,12 +424,10 @@ fn might_contain_assignment_expression(expression: &Expression) -> bool {
         | ExpressionKind::Identifier(_) => false,
         ExpressionKind::Unary { op: _, operand } => might_contain_assignment_expression(operand),
         ExpressionKind::Binary(data) => {
-            might_contain_assignment_expression(&data.lhs)
-                || might_contain_assignment_expression(&data.rhs)
+            might_contain_assignment_expression(&data.lhs) || might_contain_assignment_expression(&data.rhs)
         }
         ExpressionKind::Member(data) => {
-            might_contain_assignment_expression(&data.object)
-                || might_contain_assignment_expression(&data.property)
+            might_contain_assignment_expression(&data.object) || might_contain_assignment_expression(&data.property)
         }
         // Conservatively consider everything else, including assignments themselves as potentially
         // assigning.
@@ -578,13 +537,7 @@ fn generate_function_expression(
         });
         generator.lexical_environment_register_stack.push(new_env);
 
-        let id = generator.intern_identifier(
-            &data
-                .name
-                .as_ref()
-                .expect("function declaration must have a name")
-                .name,
-        );
+        let id = generator.intern_identifier(&data.name.as_ref().expect("function declaration must have a name").name);
         generator.emit(Instruction::CreateVariable {
             identifier: id,
             mode: EnvironmentMode::Lexical as u32,
@@ -605,13 +558,8 @@ fn generate_function_expression(
     } else {
         None
     };
-    let lhs_name_str: Option<Utf16String> =
-        lhs_name.map(|index| generator.identifier_table[index.0 as usize].clone());
-    let name_override = if !has_name {
-        lhs_name_str.as_deref()
-    } else {
-        None
-    };
+    let lhs_name_str: Option<Utf16String> = lhs_name.map(|index| generator.identifier_table[index.0 as usize].clone());
+    let name_override = if !has_name { lhs_name_str.as_deref() } else { None };
     let shared_function_data_index = emit_new_function(generator, data, name_override);
     let home_object = generator.home_objects.last().map(|ho| ho.operand());
     generator.emit(Instruction::NewFunction {
@@ -644,9 +592,7 @@ fn generate_array_expression(
             None => true, // holes
             Some(e) => matches!(
                 e.inner,
-                ExpressionKind::NumericLiteral(_)
-                    | ExpressionKind::BooleanLiteral(_)
-                    | ExpressionKind::NullLiteral
+                ExpressionKind::NumericLiteral(_) | ExpressionKind::BooleanLiteral(_) | ExpressionKind::NullLiteral
             ),
         })
     {
@@ -672,9 +618,9 @@ fn generate_array_expression(
     }
 
     // Find the first spread element.
-    let first_spread = elements.iter().position(
-        |e| matches!(e, Some(element) if matches!(element.inner, ExpressionKind::Spread(_))),
-    );
+    let first_spread = elements
+        .iter()
+        .position(|e| matches!(e, Some(element) if matches!(element.inner, ExpressionKind::Spread(_))));
 
     // Collect elements before the first spread into a NewArray.
     let pre_spread_count = first_spread.unwrap_or(elements.len());
@@ -895,8 +841,7 @@ fn generate_expression_or_undefined(
     generator: &mut Generator,
     preferred_dst: Option<&ScopedOperand>,
 ) -> ScopedOperand {
-    generate_expression(expression, generator, preferred_dst)
-        .unwrap_or_else(|| generator.add_constant_undefined())
+    generate_expression(expression, generator, preferred_dst).unwrap_or_else(|| generator.add_constant_undefined())
 }
 
 /// Generate bytecode for a statement.
@@ -918,14 +863,10 @@ pub fn generate_statement(
         StatementKind::Expression(expression) => generate_expression(expression, generator, None),
 
         // === Block ===
-        StatementKind::Block(scope) => {
-            generate_block_statement(generator, &scope.borrow(), preferred_dst)
-        }
+        StatementKind::Block(scope) => generate_block_statement(generator, &scope.borrow(), preferred_dst),
 
         // === FunctionBody ===
-        StatementKind::FunctionBody { scope, .. } => {
-            generate_scope_children(generator, &scope.borrow(), preferred_dst)
-        }
+        StatementKind::FunctionBody { scope, .. } => generate_scope_children(generator, &scope.borrow(), preferred_dst),
 
         // === Program ===
         // Note: GlobalDeclarationInstantiation (GDI) runs before this bytecode
@@ -953,14 +894,10 @@ pub fn generate_statement(
         ),
 
         // === While ===
-        StatementKind::While(data) => {
-            generate_while_statement(generator, &data.test, &data.body, preferred_dst)
-        }
+        StatementKind::While(data) => generate_while_statement(generator, &data.test, &data.body, preferred_dst),
 
         // === DoWhile ===
-        StatementKind::DoWhile(data) => {
-            generate_do_while_statement(generator, &data.test, &data.body, preferred_dst)
-        }
+        StatementKind::DoWhile(data) => generate_do_while_statement(generator, &data.test, &data.body, preferred_dst),
 
         // === For ===
         StatementKind::For(data) => generate_for_statement(
@@ -1027,9 +964,7 @@ pub fn generate_statement(
         }
 
         // === Labelled ===
-        StatementKind::Labelled(data) => {
-            generate_labelled_statement(generator, &data.label, &data.item, preferred_dst)
-        }
+        StatementKind::Labelled(data) => generate_labelled_statement(generator, &data.label, &data.item, preferred_dst),
 
         // === Switch ===
         StatementKind::Switch(data) => generate_switch_statement(generator, data, preferred_dst),
@@ -1068,9 +1003,7 @@ pub fn generate_statement(
                 dst: object_environment.operand(),
                 object: obj.operand(),
             });
-            generator
-                .lexical_environment_register_stack
-                .push(object_environment);
+            generator.lexical_environment_register_stack.push(object_environment);
             generator.start_boundary(BlockBoundaryType::LeaveLexicalEnvironment);
 
             let result = generate_statement(&data.body, generator, preferred_dst);
@@ -1082,14 +1015,9 @@ pub fn generate_statement(
         }
 
         // === ForIn / ForOf / ForAwaitOf ===
-        StatementKind::ForInOf(data) => generate_for_in_of_statement(
-            generator,
-            data.kind,
-            &data.lhs,
-            &data.rhs,
-            &data.body,
-            preferred_dst,
-        ),
+        StatementKind::ForInOf(data) => {
+            generate_for_in_of_statement(generator, data.kind, &data.lhs, &data.rhs, &data.body, preferred_dst)
+        }
 
         // === UsingDeclaration ===
         StatementKind::UsingDeclaration(_) => {
@@ -1101,9 +1029,7 @@ pub fn generate_statement(
                 error_string: msg,
             });
             generator.perform_needed_unwinds();
-            generator.emit(Instruction::Throw {
-                src: error.operand(),
-            });
+            generator.emit(Instruction::Throw { src: error.operand() });
             // Switch to a dead block so subsequent codegen doesn't crash.
             let dead = generator.make_block();
             generator.switch_to_basic_block(dead);
@@ -1120,10 +1046,8 @@ pub fn generate_statement(
             // TDZ checks for subsequent uses of the class name.
             if let Some(name_ident) = &data.name {
                 if name_ident.is_local() {
-                    let local = generator.resolve_local(
-                        name_ident.local_index.get(),
-                        name_ident.local_type.get().unwrap(),
-                    );
+                    let local =
+                        generator.resolve_local(name_ident.local_index.get(), name_ident.local_type.get().unwrap());
                     generator.emit_mov(&local, &value);
                 } else {
                     let id = generator.intern_identifier(&name_ident.name);
@@ -1156,8 +1080,7 @@ pub fn generate_statement(
                         // export default <expression>
                         // The child_statement wraps an Expression via StatementKind::Expression.
                         let default_name: Utf16String = Utf16String::from(utf16!("default"));
-                        generator.pending_lhs_name =
-                            Some(generator.intern_identifier(&default_name));
+                        generator.pending_lhs_name = Some(generator.intern_identifier(&default_name));
                         let value = generate_statement(child_statement, generator, None);
                         generator.pending_lhs_name = None;
                         if let Some(value) = value {
@@ -1187,9 +1110,7 @@ pub fn generate_statement(
             }
             let value = generate_expression_or_undefined(&data.expression, generator, None);
             generator.pending_lhs_name = None;
-            generator.emit(Instruction::Return {
-                value: value.operand(),
-            });
+            generator.emit(Instruction::Return { value: value.operand() });
             None
         }
     };
@@ -1392,36 +1313,18 @@ fn generate_yield_from(
     // v. If done is true, then return ? IteratorValue(innerResult).
     let type_is_normal_done_block = generator.make_block();
     let type_is_normal_not_done_block = generator.make_block();
-    generator.emit_jump_if(
-        &done,
-        type_is_normal_done_block,
-        type_is_normal_not_done_block,
-    );
+    generator.emit_jump_if(&done, type_is_normal_done_block, type_is_normal_not_done_block);
 
     generator.switch_to_basic_block(type_is_normal_done_block);
     let return_value = generator.allocate_register();
-    emit_get_by_id(
-        generator,
-        &return_value,
-        &inner_result,
-        utf16!("value"),
-        None,
-    );
-    generator.emit(Instruction::Jump {
-        target: loop_end_block,
-    });
+    emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
+    generator.emit(Instruction::Jump { target: loop_end_block });
 
     // vi/vii. Yield IteratorValue(innerResult), receive new completion.
     generator.switch_to_basic_block(type_is_normal_not_done_block);
     {
         let current_value = generator.allocate_register();
-        emit_get_by_id(
-            generator,
-            &current_value,
-            &inner_result,
-            utf16!("value"),
-            None,
-        );
+        emit_get_by_id(generator, &current_value, &inner_result, utf16!("value"), None);
 
         generate_yield(
             generator,
@@ -1504,35 +1407,17 @@ fn generate_yield_from(
     // 6. If done is true, return ? IteratorValue(innerResult).
     let type_is_throw_done_block = generator.make_block();
     let type_is_throw_not_done_block = generator.make_block();
-    generator.emit_jump_if(
-        &done,
-        type_is_throw_done_block,
-        type_is_throw_not_done_block,
-    );
+    generator.emit_jump_if(&done, type_is_throw_done_block, type_is_throw_not_done_block);
 
     generator.switch_to_basic_block(type_is_throw_done_block);
-    emit_get_by_id(
-        generator,
-        &return_value,
-        &inner_result,
-        utf16!("value"),
-        None,
-    );
-    generator.emit(Instruction::Jump {
-        target: loop_end_block,
-    });
+    emit_get_by_id(generator, &return_value, &inner_result, utf16!("value"), None);
+    generator.emit(Instruction::Jump { target: loop_end_block });
 
     // 7/8. Yield IteratorValue(innerResult), receive new completion.
     generator.switch_to_basic_block(type_is_throw_not_done_block);
     {
         let yield_value = generator.allocate_register();
-        emit_get_by_id(
-            generator,
-            &yield_value,
-            &inner_result,
-            utf16!("value"),
-            None,
-        );
+        emit_get_by_id(generator, &yield_value, &inner_result, utf16!("value"), None);
         generate_yield(
             generator,
             continuation_block,
@@ -1583,13 +1468,9 @@ fn generate_yield_from(
             received_completion_type,
             received_completion_value,
         );
-        generator.emit(Instruction::ThrowIfNotObject {
-            src: awaited.operand(),
-        });
+        generator.emit(Instruction::ThrowIfNotObject { src: awaited.operand() });
 
-        generator.emit(Instruction::Jump {
-            target: after_close,
-        });
+        generator.emit(Instruction::Jump { target: after_close });
         generator.switch_to_basic_block(after_close);
     } else {
         // Sync: IteratorClose with Normal completion.
@@ -1605,9 +1486,7 @@ fn generate_yield_from(
 
     // Throw a TypeError: iterator does not have a throw method.
     let exception = generator.allocate_register();
-    let error_string = generator.intern_string(utf16!(
-        "yield* protocol violation: iterator must have a throw method"
-    ));
+    let error_string = generator.intern_string(utf16!("yield* protocol violation: iterator must have a throw method"));
     generator.emit(Instruction::NewTypeError {
         dst: exception.operand(),
         error_string,
@@ -1690,11 +1569,7 @@ fn generate_yield_from(
     // viii. If done is true, return IteratorValue(innerReturnResult).
     let type_is_return_done_block = generator.make_block();
     let type_is_return_not_done_block = generator.make_block();
-    generator.emit_jump_if(
-        &done,
-        type_is_return_done_block,
-        type_is_return_not_done_block,
-    );
+    generator.emit_jump_if(&done, type_is_return_done_block, type_is_return_not_done_block);
 
     generator.switch_to_basic_block(type_is_return_done_block);
     let inner_return_result_value = generator.allocate_register();
@@ -1710,13 +1585,7 @@ fn generate_yield_from(
     // ix/x. Yield IteratorValue(innerReturnResult), receive new completion.
     generator.switch_to_basic_block(type_is_return_not_done_block);
     let received = generator.allocate_register();
-    emit_get_by_id(
-        generator,
-        &received,
-        &inner_return_result,
-        utf16!("value"),
-        None,
-    );
+    emit_get_by_id(generator, &received, &inner_return_result, utf16!("value"), None);
     generate_yield(
         generator,
         continuation_block,
@@ -1866,8 +1735,7 @@ fn generate_identifier(
         let needs_tdz_check = if ident.local_type.get() == Some(LocalType::Argument) {
             !generator.is_argument_initialized(local_index)
         } else {
-            generator.is_local_lexically_declared(local_index)
-                && !generator.is_local_initialized(local_index)
+            generator.is_local_lexically_declared(local_index) && !generator.is_local_initialized(local_index)
         };
         if needs_tdz_check {
             if ident.local_type.get() == Some(LocalType::Argument) {
@@ -1877,9 +1745,7 @@ fn generate_identifier(
                 let empty = generator.add_constant_empty();
                 generator.emit_mov(&local, &empty);
             }
-            generator.emit(Instruction::ThrowIfTDZ {
-                src: local.operand(),
-            });
+            generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
         }
         return local;
     }
@@ -1918,10 +1784,7 @@ fn generate_identifier(
     dst
 }
 
-fn maybe_generate_builtin_constant(
-    generator: &mut Generator,
-    name: &[u16],
-) -> Option<ScopedOperand> {
+fn maybe_generate_builtin_constant(generator: &mut Generator, name: &[u16]) -> Option<ScopedOperand> {
     if name == utf16!("undefined") {
         return Some(generator.add_constant_undefined());
     }
@@ -2554,11 +2417,7 @@ fn generate_for_statement(
     // Body
     generator.switch_to_basic_block(body_block);
     let labels = std::mem::take(&mut generator.pending_labels);
-    let continue_target = if update.is_some() {
-        update_block
-    } else {
-        test_block
-    };
+    let continue_target = if update.is_some() { update_block } else { test_block };
     generator.begin_continuable_scope(continue_target, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
@@ -2570,9 +2429,7 @@ fn generate_for_statement(
         // CreatePerIterationEnvironment at end of each iteration.
         emit_per_iteration_bindings(generator, &per_iteration_binding_names);
         if update.is_some() {
-            generator.emit(Instruction::Jump {
-                target: update_block,
-            });
+            generator.emit(Instruction::Jump { target: update_block });
         } else {
             generator.emit(Instruction::Jump { target: test_block });
         }
@@ -2695,8 +2552,7 @@ fn generate_block_statement(
     // environment and its only child is a for-loop variant, skip
     // generate_scope_children and generate the child directly to avoid
     // emitting a redundant completion Mov.
-    let result = if !did_create_env && scope.children.len() == 1 && is_for_loop(&scope.children[0])
-    {
+    let result = if !did_create_env && scope.children.len() == 1 && is_for_loop(&scope.children[0]) {
         generate_statement(&scope.children[0], generator, preferred_dst)
     } else {
         generate_scope_children(generator, scope, preferred_dst)
@@ -2873,8 +2729,7 @@ fn generate_variable_declaration(
                 let value = init_value.unwrap_or_else(|| generator.add_constant_undefined());
                 if ident.is_local() {
                     let local_index = ident.local_index.get();
-                    let local =
-                        generator.resolve_local(local_index, ident.local_type.get().unwrap());
+                    let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
                     generator.emit_mov(&local, &value);
                     generator.mark_local_initialized(local_index);
                 } else {
@@ -2910,9 +2765,7 @@ fn generate_variable_declaration(
                 if let Some(value) = init_value {
                     let mode = match kind {
                         DeclarationKind::Var => BindingMode::Set,
-                        DeclarationKind::Let | DeclarationKind::Const => {
-                            BindingMode::InitializeLexical
-                        }
+                        DeclarationKind::Let | DeclarationKind::Const => BindingMode::InitializeLexical,
                     };
                     generate_binding_pattern_bytecode(generator, pattern, mode, &value);
                 }
@@ -3030,8 +2883,7 @@ fn try_generate_builtin_abstract_operation(
     }
     if name == utf16!("CreateAsyncFromSyncIterator") {
         let iterator = generate_expression_or_undefined(&data.arguments[0].value, generator, None);
-        let next_method =
-            generate_expression_or_undefined(&data.arguments[1].value, generator, None);
+        let next_method = generate_expression_or_undefined(&data.arguments[1].value, generator, None);
         let done = generate_expression_or_undefined(&data.arguments[2].value, generator, None);
         generator.emit(Instruction::CreateAsyncFromSyncIterator {
             dst: dst.operand(),
@@ -3054,16 +2906,15 @@ fn try_generate_builtin_abstract_operation(
     }
     if name == utf16!("Call") {
         let callee = generate_expression_or_undefined(&data.arguments[0].value, generator, None);
-        let this_value =
-            generate_expression_or_undefined(&data.arguments[1].value, generator, None);
+        let this_value = generate_expression_or_undefined(&data.arguments[1].value, generator, None);
         let extra_args = &data.arguments[2..];
         let mut argument_holders = Vec::with_capacity(extra_args.len());
         for argument in extra_args {
             let val = generate_expression_or_undefined(&argument.value, generator, None);
             argument_holders.push(generator.copy_if_needed_to_preserve_evaluation_order(&val));
         }
-        let callee_name = expression_string_approximation(&data.arguments[0].value)
-            .map(|s| generator.intern_string(&s));
+        let callee_name =
+            expression_string_approximation(&data.arguments[0].value).map(|s| generator.intern_string(&s));
         let arguments: Vec<Operand> = argument_holders.iter().map(|a| a.operand()).collect();
         generator.emit(Instruction::Call {
             dst: dst.operand(),
@@ -3087,11 +2938,7 @@ fn try_generate_builtin_abstract_operation(
     for &op_name in known_operations {
         if *name == op_name {
             let intrinsic_value = unsafe {
-                super::ffi::get_abstract_operation_function(
-                    generator.vm_ptr,
-                    op_name.as_ptr(),
-                    op_name.len(),
-                )
+                super::ffi::get_abstract_operation_function(generator.vm_ptr, op_name.as_ptr(), op_name.len())
             };
             let callee = generator.add_constant_raw_value(intrinsic_value);
             let undefined = generator.add_constant_undefined();
@@ -3119,26 +2966,17 @@ fn try_generate_builtin_abstract_operation(
 
 /// Try to generate a builtin constant (e.g. SYMBOL_ITERATOR).
 /// Returns Some(operand) if the identifier is a known builtin constant.
-fn try_generate_builtin_constant(
-    generator: &mut Generator,
-    name: &Utf16String,
-) -> Option<ScopedOperand> {
+fn try_generate_builtin_constant(generator: &mut Generator, name: &Utf16String) -> Option<ScopedOperand> {
     if !generator.builtin_abstract_operations_enabled {
         return None;
     }
     if *name == utf16!("SYMBOL_ITERATOR") {
-        let value = unsafe {
-            super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolIterator)
-        };
+        let value = unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolIterator) };
         return Some(generator.add_constant_raw_value(value));
     }
     if *name == utf16!("SYMBOL_ASYNC_ITERATOR") {
-        let value = unsafe {
-            super::ffi::get_well_known_symbol(
-                generator.vm_ptr,
-                WellKnownSymbolKind::SymbolAsyncIterator,
-            )
-        };
+        let value =
+            unsafe { super::ffi::get_well_known_symbol(generator.vm_ptr, WellKnownSymbolKind::SymbolAsyncIterator) };
         return Some(generator.add_constant_raw_value(value));
     }
     if *name == utf16!("MAX_ARRAY_LIKE_INDEX") {
@@ -3162,10 +3000,7 @@ fn generate_call_expression(
     is_new: bool,
 ) -> Option<ScopedOperand> {
     // Check for builtin abstract operations before anything else.
-    if !is_new
-        && let Some(result) =
-            try_generate_builtin_abstract_operation(generator, data, preferred_dst)
-    {
+    if !is_new && let Some(result) = try_generate_builtin_abstract_operation(generator, data, preferred_dst) {
         return result;
     }
 
@@ -3176,15 +3011,11 @@ fn generate_call_expression(
         expression_string_approximation(&data.callee).map(|s| generator.intern_string(&s));
 
     // Detect direct eval calls: bare identifier "eval" as callee.
-    let is_direct_eval = !is_new
-        && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if ident.name == utf16!("eval"));
+    let is_direct_eval =
+        !is_new && matches!(&data.callee.inner, ExpressionKind::Identifier(ident) if ident.name == utf16!("eval"));
 
     // Detect known builtins for member expression callees (e.g. Math.abs).
-    let builtin: Option<u8> = if !is_new {
-        get_builtin(&data.callee)
-    } else {
-        None
-    };
+    let builtin: Option<u8> = if !is_new { get_builtin(&data.callee) } else { None };
 
     // For method calls (obj.method()), we need to use the object as `this`.
     let (callee, this_value) = if !is_new {
@@ -3198,11 +3029,7 @@ fn generate_call_expression(
                 // 4. GetByIdWithThis / GetByValueWithThis
                 let this_value = emit_resolve_this_binding(generator);
                 let computed_key = if data.computed {
-                    Some(generate_expression_or_undefined(
-                        &data.property,
-                        generator,
-                        None,
-                    ))
+                    Some(generate_expression_or_undefined(&data.property, generator, None))
                 } else {
                     None
                 };
@@ -3214,13 +3041,7 @@ fn generate_call_expression(
                 if let Some(key) = computed_key {
                     emit_get_by_value_with_this(generator, &method, &super_base, &key, &this_value);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
-                    emit_get_by_id_with_this(
-                        generator,
-                        &method,
-                        &super_base,
-                        &ident.name,
-                        &this_value,
-                    );
+                    emit_get_by_id_with_this(generator, &method, &super_base, &ident.name, &this_value);
                 }
                 (method, Some(this_value))
             }
@@ -3229,8 +3050,7 @@ fn generate_call_expression(
                 let base_id = intern_base_identifier(generator, &data.object);
                 let method = generator.allocate_register();
                 if data.computed {
-                    let property =
-                        generate_expression_or_undefined(&data.property, generator, None);
+                    let property = generate_expression_or_undefined(&data.property, generator, None);
                     emit_get_by_value(generator, &method, &obj, &property, None);
                 } else if let ExpressionKind::Identifier(ident) = &data.property.inner {
                     emit_get_by_id(generator, &method, &obj, &ident.name, base_id);
@@ -3247,8 +3067,7 @@ fn generate_call_expression(
             ExpressionKind::Identifier(ident) if ident.is_local() => {
                 // Local identifier: use the local directly, with ThrowIfTDZ
                 // if not yet initialized.
-                let local = generator
-                    .resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
+                let local = generator.resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
                 let needs_tdz = if ident.local_type.get() == Some(LocalType::Argument) {
                     !generator.is_argument_initialized(ident.local_index.get())
                 } else {
@@ -3256,9 +3075,7 @@ fn generate_call_expression(
                         && !generator.is_local_initialized(ident.local_index.get())
                 };
                 if needs_tdz {
-                    generator.emit(Instruction::ThrowIfTDZ {
-                        src: local.operand(),
-                    });
+                    generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
                 }
                 (local, None)
             }
@@ -3281,13 +3098,7 @@ fn generate_call_expression(
                 // (current_base) second.
                 let callee = generator.allocate_register();
                 let this_value = generator.allocate_register();
-                generate_optional_chain_inner(
-                    generator,
-                    &oc_data.base,
-                    &oc_data.references,
-                    &callee,
-                    &this_value,
-                )?;
+                generate_optional_chain_inner(generator, &oc_data.base, &oc_data.references, &callee, &this_value)?;
                 (callee, Some(this_value))
             }
             _ => {
@@ -3441,20 +3252,11 @@ fn generate_call_expression(
 
 /// Emit the increment/decrement operation for an update expression.
 /// Returns the result operand: `value` for prefix, a new `dst` for postfix.
-fn emit_update_op(
-    generator: &mut Generator,
-    op: UpdateOp,
-    prefixed: bool,
-    value: &ScopedOperand,
-) -> ScopedOperand {
+fn emit_update_op(generator: &mut Generator, op: UpdateOp, prefixed: bool, value: &ScopedOperand) -> ScopedOperand {
     if prefixed {
         match op {
-            UpdateOp::Increment => generator.emit(Instruction::Increment {
-                dst: value.operand(),
-            }),
-            UpdateOp::Decrement => generator.emit(Instruction::Decrement {
-                dst: value.operand(),
-            }),
+            UpdateOp::Increment => generator.emit(Instruction::Increment { dst: value.operand() }),
+            UpdateOp::Decrement => generator.emit(Instruction::Decrement { dst: value.operand() }),
         }
         value.clone()
     } else {
@@ -3500,18 +3302,12 @@ fn generate_update_expression(
                 // 4. Property lookup with this
                 let this_value = emit_resolve_this_binding(generator);
                 let computed_key = if data.computed {
-                    Some(generate_expression_or_undefined(
-                        &data.property,
-                        generator,
-                        None,
-                    ))
+                    Some(generate_expression_or_undefined(&data.property, generator, None))
                 } else {
                     None
                 };
                 let base = generator.allocate_register();
-                generator.emit(Instruction::ResolveSuperBase {
-                    dst: base.operand(),
-                });
+                generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
                 let value = generator.allocate_register();
                 if let Some(ref key) = computed_key {
                     emit_get_by_value_with_this(generator, &value, &base, key, &this_value);
@@ -3624,9 +3420,7 @@ fn generate_assignment_expression(
 
                 let is_logical = matches!(
                     op,
-                    AssignmentOp::AndAssignment
-                        | AssignmentOp::OrAssignment
-                        | AssignmentOp::NullishAssignment
+                    AssignmentOp::AndAssignment | AssignmentOp::OrAssignment | AssignmentOp::NullishAssignment
                 );
                 if is_logical {
                     // Logical assignments short-circuit: evaluate RHS only if condition met.
@@ -3696,18 +3490,12 @@ fn generate_assignment_expression(
 
                     if op == AssignmentOp::Assignment {
                         let computed_key = if member_data.computed {
-                            Some(generate_expression_or_undefined(
-                                &member_data.property,
-                                generator,
-                                None,
-                            ))
+                            Some(generate_expression_or_undefined(&member_data.property, generator, None))
                         } else {
                             None
                         };
                         let base = generator.allocate_register();
-                        generator.emit(Instruction::ResolveSuperBase {
-                            dst: base.operand(),
-                        });
+                        generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
                         let rhs_val = generate_expression(rhs, generator, None)?;
                         emit_super_put(
                             generator,
@@ -3724,35 +3512,21 @@ fn generate_assignment_expression(
                     // Compound/logical assignment: evaluate property, resolve
                     // super base, then get old value.
                     let computed_key = if member_data.computed {
-                        Some(generate_expression_or_undefined(
-                            &member_data.property,
-                            generator,
-                            None,
-                        ))
+                        Some(generate_expression_or_undefined(&member_data.property, generator, None))
                     } else {
                         None
                     };
                     let base = generator.allocate_register();
-                    generator.emit(Instruction::ResolveSuperBase {
-                        dst: base.operand(),
-                    });
+                    generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
                     let old_val = generator.allocate_register();
                     if let Some(ref key) = computed_key {
                         emit_get_by_value_with_this(generator, &old_val, &base, key, &super_this);
                     } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
-                        emit_get_by_id_with_this(
-                            generator,
-                            &old_val,
-                            &base,
-                            &ident.name,
-                            &super_this,
-                        );
+                        emit_get_by_id_with_this(generator, &old_val, &base, &ident.name, &super_this);
                     }
                     let is_logical = matches!(
                         op,
-                        AssignmentOp::AndAssignment
-                            | AssignmentOp::OrAssignment
-                            | AssignmentOp::NullishAssignment
+                        AssignmentOp::AndAssignment | AssignmentOp::OrAssignment | AssignmentOp::NullishAssignment
                     );
                     if is_logical {
                         let rhs_block = generator.make_block();
@@ -3800,11 +3574,7 @@ fn generate_assignment_expression(
                 if op == AssignmentOp::Assignment {
                     let base = generator.copy_if_needed_to_preserve_evaluation_order(&base_raw);
                     let precomputed_key = if member_data.computed {
-                        let key_val = generate_expression_or_undefined(
-                            &member_data.property,
-                            generator,
-                            None,
-                        );
+                        let key_val = generate_expression_or_undefined(&member_data.property, generator, None);
                         Some(generator.copy_if_needed_to_preserve_evaluation_order(&key_val))
                     } else {
                         None
@@ -3831,9 +3601,7 @@ fn generate_assignment_expression(
                 let base_id = intern_base_identifier(generator, &member_data.object);
                 let is_logical = matches!(
                     op,
-                    AssignmentOp::AndAssignment
-                        | AssignmentOp::OrAssignment
-                        | AssignmentOp::NullishAssignment
+                    AssignmentOp::AndAssignment | AssignmentOp::OrAssignment | AssignmentOp::NullishAssignment
                 );
 
                 if member_data.computed {
@@ -3910,9 +3678,7 @@ fn generate_assignment_expression(
                         kind: 0,
                     });
                     return Some(dst);
-                } else if let ExpressionKind::PrivateIdentifier(priv_ident) =
-                    &member_data.property.inner
-                {
+                } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
                     let old_val = generator.allocate_register();
                     let id = generator.intern_identifier(&priv_ident.name);
                     generator.emit(Instruction::GetPrivateById {
@@ -4371,8 +4137,7 @@ fn emit_tdz_check_if_needed(generator: &mut Generator, ident: &Identifier) {
     let needs_tdz_check = if ident.local_type.get() == Some(LocalType::Argument) {
         !generator.is_argument_initialized(local_index)
     } else {
-        generator.is_local_lexically_declared(local_index)
-            && !generator.is_local_initialized(local_index)
+        generator.is_local_lexically_declared(local_index) && !generator.is_local_initialized(local_index)
     };
     if needs_tdz_check {
         let local = generator.resolve_local(local_index, ident.local_type.get().unwrap());
@@ -4380,9 +4145,7 @@ fn emit_tdz_check_if_needed(generator: &mut Generator, ident: &Identifier) {
             let empty = generator.add_constant_empty();
             generator.emit_mov(&local, &empty);
         }
-        generator.emit(Instruction::ThrowIfTDZ {
-            src: local.operand(),
-        });
+        generator.emit(Instruction::ThrowIfTDZ { src: local.operand() });
     }
 }
 
@@ -4485,11 +4248,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                 // Evaluate computed property for side effects before throwing.
                 // Per spec, property key evaluation precedes ResolveSuperBase.
                 let _computed_key = if data.computed {
-                    Some(generate_expression_or_undefined(
-                        &data.property,
-                        generator,
-                        None,
-                    ))
+                    Some(generate_expression_or_undefined(&data.property, generator, None))
                 } else {
                     None
                 };
@@ -4498,8 +4257,7 @@ fn emit_delete_reference(generator: &mut Generator, operand: &Expression) -> Sco
                     dst: super_base.operand(),
                 });
                 let exception = generator.allocate_register();
-                let error_string =
-                    generator.intern_string(utf16!("Can't delete a property on 'super'"));
+                let error_string = generator.intern_string(utf16!("Can't delete a property on 'super'"));
                 generator.emit(Instruction::NewReferenceError {
                     dst: exception.operand(),
                     error_string,
@@ -4577,10 +4335,7 @@ enum EvaluatedReference {
 /// Evaluate a member expression target to get pre-computed reference operands
 /// without performing a load. This implements the "Let lref be ? Evaluation of
 /// DestructuringAssignmentTarget" step from the spec.
-fn emit_evaluate_member_reference(
-    generator: &mut Generator,
-    target: &Expression,
-) -> EvaluatedReference {
+fn emit_evaluate_member_reference(generator: &mut Generator, target: &Expression) -> EvaluatedReference {
     if let ExpressionKind::Member(member_data) = &target.inner {
         let is_super = matches!(member_data.object.inner, ExpressionKind::Super);
 
@@ -4588,12 +4343,9 @@ fn emit_evaluate_member_reference(
             // ResolveThisBinding first, then ResolveSuperBase.
             let this_value = emit_resolve_this_binding(generator);
             let base = generator.allocate_register();
-            generator.emit(Instruction::ResolveSuperBase {
-                dst: base.operand(),
-            });
+            generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
             if member_data.computed {
-                let property =
-                    generate_expression_or_undefined(&member_data.property, generator, None);
+                let property = generate_expression_or_undefined(&member_data.property, generator, None);
                 // If the computed property is a constant string (e.g. super["minutes"]),
                 // optimize to SuperMemberId.
                 if let Some(key) = generator.try_constant_string_to_property_key(&property) {
@@ -4628,8 +4380,7 @@ fn emit_evaluate_member_reference(
         } else {
             let base = generate_expression_or_undefined(&member_data.object, generator, None);
             if member_data.computed {
-                let property =
-                    generate_expression_or_undefined(&member_data.property, generator, None);
+                let property = generate_expression_or_undefined(&member_data.property, generator, None);
                 // If the computed property is a constant string (e.g. obj["key"]),
                 // optimize to MemberId.
                 if let Some(key) = generator.try_constant_string_to_property_key(&property) {
@@ -4658,15 +4409,11 @@ fn emit_evaluate_member_reference(
                     cache,
                     base_identifier: None,
                 }
-            } else if let ExpressionKind::PrivateIdentifier(priv_ident) =
-                &member_data.property.inner
-            {
+            } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
                 let id = generator.intern_identifier(&priv_ident.name);
                 EvaluatedReference::PrivateMember { base, property: id }
             } else {
-                unreachable!(
-                    "non-computed member property must be an identifier or private identifier"
-                )
+                unreachable!("non-computed member property must be an identifier or private identifier")
             }
         }
     } else {
@@ -4675,11 +4422,7 @@ fn emit_evaluate_member_reference(
 }
 
 /// Store a value to a pre-evaluated reference.
-fn emit_store_to_evaluated_reference(
-    generator: &mut Generator,
-    reference: &EvaluatedReference,
-    value: &ScopedOperand,
-) {
+fn emit_store_to_evaluated_reference(generator: &mut Generator, reference: &EvaluatedReference, value: &ScopedOperand) {
     match reference {
         EvaluatedReference::Member {
             base,
@@ -4745,9 +4488,7 @@ fn emit_store_to_reference(generator: &mut Generator, target: &Expression, value
                 // ResolveThisBinding first, then ResolveSuperBase.
                 let this_value = emit_resolve_this_binding(generator);
                 let base = generator.allocate_register();
-                generator.emit(Instruction::ResolveSuperBase {
-                    dst: base.operand(),
-                });
+                generator.emit(Instruction::ResolveSuperBase { dst: base.operand() });
                 emit_super_put(
                     generator,
                     &base,
@@ -4869,9 +4610,7 @@ fn emit_compound_assignment(
                 rhs: rhs_op,
             });
         }
-        AssignmentOp::AndAssignment
-        | AssignmentOp::OrAssignment
-        | AssignmentOp::NullishAssignment => {
+        AssignmentOp::AndAssignment | AssignmentOp::OrAssignment | AssignmentOp::NullishAssignment => {
             unreachable!("logical assignment in compound path")
         }
         AssignmentOp::Assignment => unreachable!("plain assignment in compound path"),
@@ -4952,19 +4691,13 @@ fn generate_tagged_template_literal(
 ) -> ScopedOperand {
     // Resolve tag and this_value based on the tag expression type.
     let (tag_reg, this_value) = match &tag.inner {
-        ExpressionKind::Member(member_data)
-            if matches!(member_data.object.inner, ExpressionKind::Super) =>
-        {
+        ExpressionKind::Member(member_data) if matches!(member_data.object.inner, ExpressionKind::Super) => {
             // super.func`` or super["func"]``
             // Per spec, evaluation order: ResolveThisBinding, evaluate
             // computed property, then ResolveSuperBase.
             let this_value = emit_resolve_this_binding(generator);
             let computed_key = if member_data.computed {
-                Some(generate_expression_or_undefined(
-                    &member_data.property,
-                    generator,
-                    None,
-                ))
+                Some(generate_expression_or_undefined(&member_data.property, generator, None))
             } else {
                 None
             };
@@ -4984,15 +4717,12 @@ fn generate_tagged_template_literal(
             let obj = generate_expression_or_undefined(&member_data.object, generator, None);
             let method = generator.allocate_register();
             if member_data.computed {
-                let property =
-                    generate_expression_or_undefined(&member_data.property, generator, None);
+                let property = generate_expression_or_undefined(&member_data.property, generator, None);
                 emit_get_by_value(generator, &method, &obj, &property, None);
             } else if let ExpressionKind::Identifier(ident) = &member_data.property.inner {
                 let base_id = intern_base_identifier(generator, &member_data.object);
                 emit_get_by_id(generator, &method, &obj, &ident.name, base_id);
-            } else if let ExpressionKind::PrivateIdentifier(priv_ident) =
-                &member_data.property.inner
-            {
+            } else if let ExpressionKind::PrivateIdentifier(priv_ident) = &member_data.property.inner {
                 let id = generator.intern_identifier(&priv_ident.name);
                 generator.emit(Instruction::GetPrivateById {
                     dst: method.operand(),
@@ -5174,9 +4904,7 @@ fn generate_switch_statement(
             if did_create_env
                 && let StatementKind::FunctionDeclaration(ref fd) = child.inner
                 && let Some(ref name_ident) = fd.name
-                && generator
-                    .annexb_function_names
-                    .contains(name_ident.name.as_slice())
+                && generator.annexb_function_names.contains(name_ident.name.as_slice())
             {
                 let id = generator.intern_identifier(&name_ident.name);
                 let value = generator.allocate_register();
@@ -5233,16 +4961,10 @@ fn generate_switch_statement(
 /// Create block declaration instantiation for switch statements.
 /// Function declarations and let/const declarations across all cases
 /// share a single lexical environment.
-fn emit_switch_block_declaration_instantiation(
-    generator: &mut Generator,
-    data: &SwitchStatementData,
-) -> bool {
+fn emit_switch_block_declaration_instantiation(generator: &mut Generator, data: &SwitchStatementData) -> bool {
     // Collect all statements across all cases.
     let case_scopes: Vec<_> = data.cases.iter().map(|c| c.scope.borrow()).collect();
-    let all_children: Vec<&Statement> = case_scopes
-        .iter()
-        .flat_map(|scope| scope.children.iter())
-        .collect();
+    let all_children: Vec<&Statement> = case_scopes.iter().flat_map(|scope| scope.children.iter()).collect();
 
     // Check if we need a lexical environment.
     // Only needed if there are non-local lexical declarations.
@@ -5258,9 +4980,7 @@ fn emit_switch_block_declaration_instantiation(
             })
         }
         StatementKind::VariableDeclaration(_) => false,
-        StatementKind::ClassDeclaration(class_data) => {
-            class_data.name.as_ref().is_some_and(|n| !n.is_local())
-        }
+        StatementKind::ClassDeclaration(class_data) => class_data.name.as_ref().is_some_and(|n| !n.is_local()),
         _ => false,
     });
 
@@ -5343,8 +5063,7 @@ fn generate_object_expression(
         //
         // NB: StringLiteral keys are always treated as non-computed (see is_simple comment).
         let is_string_literal_key = matches!(&property.key.inner, ExpressionKind::StringLiteral(_));
-        let is_string_key =
-            is_string_literal_key || matches!(&property.key.inner, ExpressionKind::Identifier(_));
+        let is_string_key = is_string_literal_key || matches!(&property.key.inner, ExpressionKind::Identifier(_));
         let effectively_computed = property.is_computed && !is_string_literal_key;
         let computed_key = if effectively_computed || !is_string_key {
             let key = generate_expression_or_undefined(&property.key, generator, None);
@@ -5425,9 +5144,7 @@ fn generate_object_expression(
                 } else {
                     // Non-simple object: use PutOwnById instead of InitObjectLiteralProperty
                     let property_key = match &property.key.inner {
-                        ExpressionKind::Identifier(ident) => {
-                            generator.intern_property_key(&ident.name)
-                        }
+                        ExpressionKind::Identifier(ident) => generator.intern_property_key(&ident.name),
                         ExpressionKind::StringLiteral(s) => generator.intern_property_key(s),
                         _ => {
                             emit_object_property_set_by_key(
@@ -5457,28 +5174,14 @@ fn generate_object_expression(
                 if let Some(key_val) = &computed_key {
                     emit_put_by_value(generator, &dst, key_val, &value, PutKind::Getter);
                 } else {
-                    emit_object_accessor_by_key(
-                        generator,
-                        &dst,
-                        &property.key,
-                        &value,
-                        true,
-                        false,
-                    );
+                    emit_object_accessor_by_key(generator, &dst, &property.key, &value, true, false);
                 }
             }
             ObjectPropertyType::Setter => {
                 if let Some(key_val) = &computed_key {
                     emit_put_by_value(generator, &dst, key_val, &value, PutKind::Setter);
                 } else {
-                    emit_object_accessor_by_key(
-                        generator,
-                        &dst,
-                        &property.key,
-                        &value,
-                        false,
-                        false,
-                    );
+                    emit_object_accessor_by_key(generator, &dst, &property.key, &value, false, false);
                 }
             }
             ObjectPropertyType::ProtoSetter => {
@@ -5723,9 +5426,7 @@ fn generate_optional_chain_inner(
             OptionalChainReference::Call { mode, .. }
             | OptionalChainReference::ComputedReference { mode, .. }
             | OptionalChainReference::MemberReference { mode, .. }
-            | OptionalChainReference::PrivateMemberReference { mode, .. } => {
-                *mode == OptionalChainMode::Optional
-            }
+            | OptionalChainReference::PrivateMemberReference { mode, .. } => *mode == OptionalChainMode::Optional,
         };
 
         if is_optional {
@@ -5741,13 +5442,7 @@ fn generate_optional_chain_inner(
         match reference {
             OptionalChainReference::MemberReference { identifier, .. } => {
                 generator.emit_mov(current_base, current_value);
-                emit_get_by_id(
-                    generator,
-                    current_value,
-                    current_value,
-                    &identifier.name,
-                    None,
-                );
+                emit_get_by_id(generator, current_value, current_value, &identifier.name, None);
             }
             OptionalChainReference::ComputedReference { expression, .. } => {
                 generator.emit_mov(current_base, current_value);
@@ -5766,9 +5461,7 @@ fn generate_optional_chain_inner(
                 let undef = generator.add_constant_undefined();
                 generator.emit_mov(current_base, &undef);
             }
-            OptionalChainReference::PrivateMemberReference {
-                private_identifier, ..
-            } => {
+            OptionalChainReference::PrivateMemberReference { private_identifier, .. } => {
                 generator.emit_mov(current_base, current_value);
                 let id = generator.intern_identifier(&private_identifier.name);
                 generator.emit(Instruction::GetPrivateById {
@@ -5792,10 +5485,7 @@ fn generate_optional_chain_inner(
 }
 
 /// Convert arguments to an array for CallWithArgumentArray.
-fn generate_arguments_array(
-    generator: &mut Generator,
-    arguments: &[CallArgument],
-) -> ScopedOperand {
+fn generate_arguments_array(generator: &mut Generator, arguments: &[CallArgument]) -> ScopedOperand {
     let dst = generator.allocate_register();
     if arguments.is_empty() {
         generator.emit(Instruction::NewArray {
@@ -5806,10 +5496,7 @@ fn generate_arguments_array(
         return dst;
     }
 
-    let first_spread = arguments
-        .iter()
-        .position(|a| a.is_spread)
-        .unwrap_or(arguments.len());
+    let first_spread = arguments.iter().position(|a| a.is_spread).unwrap_or(arguments.len());
 
     let mut arg_holders = Vec::with_capacity(first_spread);
     for argument in &arguments[..first_spread] {
@@ -5873,9 +5560,7 @@ fn generate_class_expression(
         parent: parent_env.operand(),
         capacity: 0,
     });
-    generator
-        .lexical_environment_register_stack
-        .push(class_env.clone());
+    generator.lexical_environment_register_stack.push(class_env.clone());
 
     // Step 3.a: Create binding for the class name in the class environment.
     // Only emit when the class has a name, or when there's no lhs_name
@@ -5994,11 +5679,7 @@ fn generate_class_expression(
                 // correctly handles computed keys (Symbols, etc).
                 let sfd_index = if let ExpressionKind::Function(function_id) = &function.inner {
                     let function_data = generator.function_table.take(*function_id);
-                    super::ffi::FFIOptionalU32::some(emit_new_function(
-                        generator,
-                        function_data,
-                        None,
-                    ))
+                    super::ffi::FFIOptionalU32::some(emit_new_function(generator, function_data, None))
                 } else {
                     super::ffi::FFIOptionalU32::none()
                 };
@@ -6089,18 +5770,14 @@ fn generate_class_expression(
                         // Wrap the expression in a ClassFieldInitializer statement.
                         let body_statement = Statement::new(
                             init_expression.range,
-                            StatementKind::ClassFieldInitializer(Box::new(
-                                ClassFieldInitializerData {
-                                    expression: Box::new(init_expression.as_ref().clone()),
-                                    field_name,
-                                },
-                            )),
+                            StatementKind::ClassFieldInitializer(Box::new(ClassFieldInitializerData {
+                                expression: Box::new(init_expression.as_ref().clone()),
+                                field_name,
+                            })),
                         );
                         let wrapper_body = Statement::new(
                             init_expression.range,
-                            StatementKind::Block(ScopeData::shared_with_children(vec![
-                                body_statement,
-                            ])),
+                            StatementKind::Block(ScopeData::shared_with_children(vec![body_statement])),
                         );
 
                         // Class bodies are always strict mode.
@@ -6120,8 +5797,7 @@ fn generate_class_expression(
                                 ..Default::default()
                             },
                         });
-                        let index =
-                            emit_new_function(generator, function_data, Some(utf16!("field")));
+                        let index = emit_new_function(generator, function_data, Some(utf16!("field")));
 
                         // Set class_field_initializer_name on the SFD.
                         let sfd_ptr = generator.shared_function_data[index as usize];
@@ -6155,9 +5831,7 @@ fn generate_class_expression(
                 // Keep literal string data alive until FFI call.
                 let (str_ptr, str_len) = if !literal_value_string.is_empty() {
                     literal_string_storage.push(literal_value_string);
-                    let s = literal_string_storage
-                        .last()
-                        .expect("just pushed an element");
+                    let s = literal_string_storage.last().expect("just pushed an element");
                     (s.as_ptr(), s.len())
                 } else {
                     (std::ptr::null(), 0)
@@ -6196,11 +5870,7 @@ fn generate_class_expression(
                         ..Default::default()
                     },
                 });
-                let sfd_index = super::ffi::FFIOptionalU32::some(emit_new_function(
-                    generator,
-                    function_data,
-                    None,
-                ));
+                let sfd_index = super::ffi::FFIOptionalU32::some(emit_new_function(generator, function_data, None));
 
                 ffi_elements.push(super::ffi::FFIClassElement {
                     kind: ClassElementKind::StaticInitializer as u8,
@@ -6246,17 +5916,11 @@ fn generate_class_expression(
             ffi_elements.len(),
         )
     };
-    assert!(
-        !bp_ptr.is_null(),
-        "rust_create_class_blueprint returned null"
-    );
+    assert!(!bp_ptr.is_null(), "rust_create_class_blueprint returned null");
     let blueprint_index = generator.register_class_blueprint(bp_ptr);
 
     // Build element_keys operands for the NewClass instruction
-    let element_key_ops: Vec<Option<Operand>> = element_keys
-        .iter()
-        .map(|k| k.as_ref().map(|s| s.operand()))
-        .collect();
+    let element_key_ops: Vec<Option<Operand>> = element_keys.iter().map(|k| k.as_ref().map(|s| s.operand())).collect();
 
     // Restore parent environment before emitting NewClass.
     generator.emit(Instruction::SetLexicalEnvironment {
@@ -6291,9 +5955,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
 
     // Wrap in "function" keyword so it parses as a FunctionDeclaration.
     let source: Utf16String = if has_super {
-        Utf16String::from(utf16!(
-            "function constructor(...arguments) { super(...arguments); }"
-        ))
+        Utf16String::from(utf16!("function constructor(...arguments) { super(...arguments); }"))
     } else {
         Utf16String::from(utf16!("function constructor() {}"))
     };
@@ -6340,10 +6002,7 @@ fn emit_default_constructor(generator: &mut Generator, has_super: bool) -> u32 {
             None,
         )
     };
-    assert!(
-        !sfd_ptr.is_null(),
-        "default constructor creation returned null"
-    );
+    assert!(!sfd_ptr.is_null(), "default constructor creation returned null");
     generator.register_shared_function_data(sfd_ptr)
 }
 
@@ -6504,12 +6163,8 @@ fn generate_for_in_of_statement(
 ) -> Option<ScopedOperand> {
     match kind {
         ForInOfKind::ForIn => generate_for_in_statement(generator, lhs, rhs, body, preferred_dst),
-        ForInOfKind::ForOf => {
-            generate_for_of_statement_inner(generator, lhs, rhs, body, preferred_dst, false)
-        }
-        ForInOfKind::ForAwaitOf => {
-            generate_for_of_statement_inner(generator, lhs, rhs, body, preferred_dst, true)
-        }
+        ForInOfKind::ForOf => generate_for_of_statement_inner(generator, lhs, rhs, body, preferred_dst, false),
+        ForInOfKind::ForAwaitOf => generate_for_of_statement_inner(generator, lhs, rhs, body, preferred_dst, true),
     }
 }
 
@@ -6526,8 +6181,7 @@ fn generate_for_in_statement(
         && let StatementKind::VariableDeclaration(vd) = &statement.inner
         && vd.kind == DeclarationKind::Var
         && let Some(declaration) = vd.declarations.first()
-        && let (VariableDeclaratorTarget::Identifier(ident), Some(init)) =
-            (&declaration.target, &declaration.init)
+        && let (VariableDeclaratorTarget::Identifier(ident), Some(init)) = (&declaration.target, &declaration.init)
     {
         generator.pending_lhs_name = Some(generator.intern_identifier(&ident.name));
         let value = generate_expression_or_undefined(init, generator, None);
@@ -6584,9 +6238,7 @@ fn generate_for_in_statement(
     // Body evaluation: completion, then jump to update block.
     let completion = generator.allocate_completion_register();
 
-    generator.emit(Instruction::Jump {
-        target: update_block,
-    });
+    generator.emit(Instruction::Jump { target: update_block });
 
     // Update: get next value
     generator.switch_to_basic_block(update_block);
@@ -6630,9 +6282,7 @@ fn generate_for_in_statement(
     generator.end_continuable_scope();
 
     if !generator.is_current_block_terminated() {
-        generator.emit(Instruction::Jump {
-            target: update_block,
-        });
+        generator.emit(Instruction::Jump { target: update_block });
     }
 
     generator.switch_to_basic_block(end_block);
@@ -6778,9 +6428,7 @@ fn generate_for_of_statement_inner(
     generator.begin_breakable_scope(end_block, labels.clone(), completion.clone());
     generator.start_boundary(BlockBoundaryType::ReturnToFinally);
 
-    generator.emit(Instruction::Jump {
-        target: update_block,
-    });
+    generator.emit(Instruction::Jump { target: update_block });
 
     // Update: get next value
     generator.switch_to_basic_block(update_block);
@@ -6879,9 +6527,7 @@ fn generate_for_of_statement_inner(
     generator.end_breakable_scope();
 
     // Pop the FinallyContext.
-    let finally_ctx_index = generator
-        .current_finally_context
-        .expect("no active finally context");
+    let finally_ctx_index = generator.current_finally_context.expect("no active finally context");
     generator.current_finally_context = generator.finally_contexts[finally_ctx_index].parent_index;
 
     // Restore unwind handler
@@ -6896,9 +6542,7 @@ fn generate_for_of_statement_inner(
                 environment: parent.operand(),
             });
         }
-        generator.emit(Instruction::Jump {
-            target: update_block,
-        });
+        generator.emit(Instruction::Jump { target: update_block });
     }
 
     // --- Exception preamble: catch thrown exception, route to iterator close ---
@@ -6970,12 +6614,8 @@ fn generate_for_of_statement_inner(
         let rct = generator.allocate_register();
         let rcv = generator.allocate_register();
         let awaited = generate_await_with_completions(generator, &inner_result, &rc, &rct, &rcv);
-        generator.emit(Instruction::ThrowIfNotObject {
-            src: awaited.operand(),
-        });
-        generator.emit(Instruction::Jump {
-            target: after_close,
-        });
+        generator.emit(Instruction::ThrowIfNotObject { src: awaited.operand() });
+        generator.emit(Instruction::Jump { target: after_close });
         generator.switch_to_basic_block(after_close);
     } else {
         let undef = generator.add_constant_undefined();
@@ -6989,8 +6629,7 @@ fn generate_for_of_statement_inner(
     }
 
     // Dispatch registered jumps (break/continue targets).
-    let registered_jumps =
-        std::mem::take(&mut generator.finally_contexts[finally_ctx_index].registered_jumps);
+    let registered_jumps = std::mem::take(&mut generator.finally_contexts[finally_ctx_index].registered_jumps);
     for jump in &registered_jumps {
         let after_check = generator.make_block();
         let jump_const = generator.add_constant_i32(jump.index);
@@ -7016,12 +6655,8 @@ fn generate_for_of_statement_inner(
 
     generator.switch_to_basic_block(return_block);
     if let Some(outer_index) = generator.current_finally_context {
-        let outer_ct = generator.finally_contexts[outer_index]
-            .completion_type
-            .clone();
-        let outer_cv = generator.finally_contexts[outer_index]
-            .completion_value
-            .clone();
+        let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
+        let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
         let outer_fb = generator.finally_contexts[outer_index].finally_body;
         generator.emit_mov(&outer_ct, &close_completion_type);
         generator.emit_mov(&outer_cv, &close_completion_value);
@@ -7097,9 +6732,7 @@ fn generate_for_of_statement_inner(
             generate_await_with_completions(generator, &inner_result, &rc, &rct, &rcv);
 
             // Even if close succeeded, rethrow original (spec step 5).
-            generator.emit(Instruction::Jump {
-                target: rethrow_block,
-            });
+            generator.emit(Instruction::Jump { target: rethrow_block });
         }
 
         // Exception handler: discard close error, rethrow original.
@@ -7109,9 +6742,7 @@ fn generate_for_of_statement_inner(
         generator.emit(Instruction::Catch {
             dst: discarded.operand(),
         });
-        generator.emit(Instruction::Jump {
-            target: rethrow_block,
-        });
+        generator.emit(Instruction::Jump { target: rethrow_block });
 
         generator.switch_to_basic_block(rethrow_block);
         generator.emit(Instruction::Throw {
@@ -7154,8 +6785,7 @@ fn assign_to_for_in_of_lhs(generator: &mut Generator, lhs: &ForInOfLhs, value: &
             if matches!(statement.inner, StatementKind::UsingDeclaration(_)) {
                 generate_statement(statement, generator, None);
                 let exception = generator.allocate_register();
-                let error_string =
-                    generator.intern_string(utf16!("Invalid left-hand side in assignment"));
+                let error_string = generator.intern_string(utf16!("Invalid left-hand side in assignment"));
                 generator.emit(Instruction::NewReferenceError {
                     dst: exception.operand(),
                     error_string,
@@ -7248,8 +6878,7 @@ fn emit_set_variable_with_mode(
     mode: BindingMode,
 ) {
     if ident.is_local() {
-        let local =
-            generator.resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
+        let local = generator.resolve_local(ident.local_index.get(), ident.local_type.get().unwrap());
         generator.emit_mov(&local, value);
     } else {
         let id = generator.intern_identifier(&ident.name);
@@ -7331,12 +6960,11 @@ fn generate_array_binding_pattern(
         if entry.is_rest {
             // 13.15.5.3 AssignmentRestElement: ... DestructuringAssignmentTarget
             // Step 1: Evaluate the reference BEFORE iterating remaining elements.
-            let evaluated_ref =
-                if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                    Some(emit_evaluate_member_reference(generator, expression))
-                } else {
-                    None
-                };
+            let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+                Some(emit_evaluate_member_reference(generator, expression))
+            } else {
+                None
+            };
 
             // Rest element: collect remaining into array.
             // NB: Allocate register unconditionally, then re-allocate in the
@@ -7364,9 +6992,7 @@ fn generate_array_binding_pattern(
                     element_count: 0,
                     elements: Vec::new(),
                 });
-                generator.emit(Instruction::Jump {
-                    target: continuation,
-                });
+                generator.emit(Instruction::Jump { target: continuation });
 
                 generator.switch_to_basic_block(if_not_exhausted);
                 generator.emit(Instruction::IteratorToArray {
@@ -7375,9 +7001,7 @@ fn generate_array_binding_pattern(
                     iterator_next_method: iterator_next.operand(),
                     iterator_done_property: iterator_done.operand(),
                 });
-                generator.emit(Instruction::Jump {
-                    target: continuation,
-                });
+                generator.emit(Instruction::Jump { target: continuation });
 
                 generator.switch_to_basic_block(continuation);
             }
@@ -7392,12 +7016,11 @@ fn generate_array_binding_pattern(
 
         // 13.15.5.5 AssignmentElement: DestructuringAssignmentTarget Initializer(opt)
         // Step 1: Evaluate the reference BEFORE calling IteratorStepValue.
-        let evaluated_ref =
-            if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
-                Some(emit_evaluate_member_reference(generator, expression))
-            } else {
-                None
-            };
+        let evaluated_ref = if let Some(BindingEntryAlias::MemberExpression(expression)) = &entry.alias {
+            Some(emit_evaluate_member_reference(generator, expression))
+        } else {
+            None
+        };
 
         // For elisions (name is None), we still advance the iterator
         // but don't bind anything.
@@ -7492,9 +7115,7 @@ fn generate_object_binding_pattern(
     mode: BindingMode,
     object: &ScopedOperand,
 ) {
-    generator.emit(Instruction::ThrowIfNullish {
-        src: object.operand(),
-    });
+    generator.emit(Instruction::ThrowIfNullish { src: object.operand() });
 
     let mut excluded_names: Vec<ScopedOperand> = Vec::new();
     let has_rest = pattern.entries.last().is_some_and(|e| e.is_rest);
@@ -7626,15 +7247,9 @@ fn generate_try_statement(
         //   completion_type = THROW
         //   Jump → finally_body
         generator.switch_to_basic_block(exception_preamble_block);
-        let ctx_index = generator
-            .current_finally_context
-            .expect("no active finally context");
-        let cv = generator.finally_contexts[ctx_index]
-            .completion_value
-            .clone();
-        let ct = generator.finally_contexts[ctx_index]
-            .completion_type
-            .clone();
+        let ctx_index = generator.current_finally_context.expect("no active finally context");
+        let cv = generator.finally_contexts[ctx_index].completion_value.clone();
+        let ct = generator.finally_contexts[ctx_index].completion_type.clone();
         generator.emit(Instruction::Catch { dst: cv.operand() });
         generator.emit(Instruction::SetLexicalEnvironment {
             environment: saved_env.operand(),
@@ -7758,12 +7373,8 @@ fn generate_try_statement(
         if !generator.is_current_block_terminated() {
             if has_finally {
                 // Normal exit from catch → completion_type = NORMAL, jump to finally.
-                let ctx_index = generator
-                    .current_finally_context
-                    .expect("no active finally context");
-                let ct = generator.finally_contexts[ctx_index]
-                    .completion_type
-                    .clone();
+                let ctx_index = generator.current_finally_context.expect("no active finally context");
+                let ct = generator.finally_contexts[ctx_index].completion_type.clone();
                 let fb = generator.finally_contexts[ctx_index].finally_body;
                 let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
                 generator.emit_mov(&ct, &normal_const);
@@ -7799,9 +7410,7 @@ fn generate_try_statement(
 
     let try_body_block = generator.make_block();
     generator.switch_to_basic_block(saved_block);
-    generator.emit(Instruction::Jump {
-        target: try_body_block,
-    });
+    generator.emit(Instruction::Jump { target: try_body_block });
 
     if has_finally {
         generator.start_boundary(BlockBoundaryType::ReturnToFinally);
@@ -7839,12 +7448,8 @@ fn generate_try_statement(
     if !generator.is_current_block_terminated() {
         if has_finally {
             // Normal exit from try → completion_type = NORMAL, jump to finally.
-            let ctx_index = generator
-                .current_finally_context
-                .expect("no active finally context");
-            let ct = generator.finally_contexts[ctx_index]
-                .completion_type
-                .clone();
+            let ctx_index = generator.current_finally_context.expect("no active finally context");
+            let ct = generator.finally_contexts[ctx_index].completion_type.clone();
             let fb = generator.finally_contexts[ctx_index].finally_body;
             let normal_const = generator.add_constant_i32(FinallyContext::NORMAL);
             generator.emit_mov(&ct, &normal_const);
@@ -7870,18 +7475,12 @@ fn generate_try_statement(
     // --- Generate finally body and after-finally dispatch ---
     if let Some(fb_block) = finally_body_block {
         // Pop FinallyContext.
-        let ctx_index = generator
-            .current_finally_context
-            .expect("no active finally context");
+        let ctx_index = generator.current_finally_context.expect("no active finally context");
         generator.current_finally_context = generator.finally_contexts[ctx_index].parent_index;
 
         // Extract fields needed for dispatch (to avoid borrow conflicts).
-        let ctx_ct = generator.finally_contexts[ctx_index]
-            .completion_type
-            .clone();
-        let ctx_cv = generator.finally_contexts[ctx_index]
-            .completion_value
-            .clone();
+        let ctx_ct = generator.finally_contexts[ctx_index].completion_type.clone();
+        let ctx_cv = generator.finally_contexts[ctx_index].completion_value.clone();
 
         generator.switch_to_basic_block(fb_block);
         generator.start_boundary(BlockBoundaryType::LeaveFinally);
@@ -7922,8 +7521,7 @@ fn generate_try_statement(
             generator.switch_to_basic_block(after_normal_check);
 
             // 2. Registered break/continue jumps
-            let registered_jumps =
-                std::mem::take(&mut generator.finally_contexts[ctx_index].registered_jumps);
+            let registered_jumps = std::mem::take(&mut generator.finally_contexts[ctx_index].registered_jumps);
             for jump in &registered_jumps {
                 let after_jump_check = generator.make_block();
                 let jump_const = generator.add_constant_i32(jump.index);
@@ -7951,12 +7549,8 @@ fn generate_try_statement(
             generator.switch_to_basic_block(return_block);
             if let Some(outer_index) = generator.current_finally_context {
                 // Nested finally: copy completion record to outer and jump to outer finally.
-                let outer_ct = generator.finally_contexts[outer_index]
-                    .completion_type
-                    .clone();
-                let outer_cv = generator.finally_contexts[outer_index]
-                    .completion_value
-                    .clone();
+                let outer_ct = generator.finally_contexts[outer_index].completion_type.clone();
+                let outer_cv = generator.finally_contexts[outer_index].completion_value.clone();
                 let outer_fb = generator.finally_contexts[outer_index].finally_body;
                 generator.emit_mov(&outer_ct, &ctx_ct);
                 generator.emit_mov(&outer_cv, &ctx_cv);
@@ -7974,9 +7568,7 @@ fn generate_try_statement(
 
             // 4. Default → rethrow the exception.
             generator.switch_to_basic_block(rethrow_block);
-            generator.emit(Instruction::Throw {
-                src: ctx_cv.operand(),
-            });
+            generator.emit(Instruction::Throw { src: ctx_cv.operand() });
         }
 
         generator.finally_contexts[ctx_index].lexical_environment_at_entry = None;
@@ -8000,11 +7592,7 @@ fn generate_try_statement(
 /// and register it with the generator.
 ///
 /// Returns the shared_function_data_index for use in NewFunction instructions.
-fn emit_new_function(
-    generator: &mut Generator,
-    data: Box<FunctionData>,
-    name_override: Option<&[u16]>,
-) -> u32 {
+fn emit_new_function(generator: &mut Generator, data: Box<FunctionData>, name_override: Option<&[u16]>) -> u32 {
     assert!(
         data.source_text_end as usize <= generator.source_len,
         "Function source range out of bounds: {}..{} (source len {})",
@@ -8073,22 +7661,13 @@ pub fn emit_function_declaration_instantiation(
                 }
             }
             FunctionParameterBinding::BindingPattern(pattern) => {
-                collect_binding_pattern_names(
-                    pattern,
-                    &mut parameter_names,
-                    &mut seen_names,
-                    &mut has_duplicates,
-                );
+                collect_binding_pattern_names(pattern, &mut parameter_names, &mut seen_names, &mut has_duplicates);
             }
         }
     }
 
     // Determine if arguments object is needed (from parsing insights).
-    let mut arguments_object_needed = if is_arrow
-        || parameter_names
-            .iter()
-            .any(|p| p.name == utf16!("arguments"))
-    {
+    let mut arguments_object_needed = if is_arrow || parameter_names.iter().any(|p| p.name == utf16!("arguments")) {
         false
     } else {
         function_data.parsing_insights.might_need_arguments_object
@@ -8100,10 +7679,7 @@ pub fn emit_function_declaration_instantiation(
         if !has_parameter_expressions && fsd.has_function_named_arguments {
             arguments_object_needed = false;
         }
-        if !has_parameter_expressions
-            && arguments_object_needed
-            && fsd.has_lexically_declared_arguments
-        {
+        if !has_parameter_expressions && arguments_object_needed && fsd.has_lexically_declared_arguments {
             arguments_object_needed = false;
         }
     }
@@ -8153,9 +7729,7 @@ pub fn emit_function_declaration_instantiation(
 
         let kind = if strict
             || !function_data.parameters.iter().all(|p| {
-                !p.is_rest
-                    && p.default_value.is_none()
-                    && matches!(p.binding, FunctionParameterBinding::Identifier(_))
+                !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
             }) {
             ArgumentsKind::Unmapped as u32
         } else {
@@ -8267,8 +7841,7 @@ pub fn emit_function_declaration_instantiation(
 
                 if let Some(local_binding) = var.local {
                     let undef = generator.add_constant_undefined();
-                    let local =
-                        var_local_operand(generator, local_binding.local_type, local_binding.index);
+                    let local = var_local_operand(generator, local_binding.local_type, local_binding.index);
                     generator.emit_mov(&local, &undef);
                 } else {
                     let id = generator.intern_identifier(&var.name);
@@ -8301,15 +7874,13 @@ pub fn emit_function_declaration_instantiation(
                 // (e.g. Step 7) use the var environment as their parent, not the
                 // parameter scope.
                 let var_env = generator.allocate_register();
-                generator.emit(Instruction::GetLexicalEnvironment {
-                    dst: var_env.operand(),
-                });
+                generator.emit(Instruction::GetLexicalEnvironment { dst: var_env.operand() });
                 generator.lexical_environment_register_stack.push(var_env);
             }
 
             for var in &fsd.vars_to_initialize {
-                let is_in_parameter_bindings = var.is_parameter
-                    || (arguments_object_needed && var.name == utf16!("arguments"));
+                let is_in_parameter_bindings =
+                    var.is_parameter || (arguments_object_needed && var.name == utf16!("arguments"));
 
                 let initial_value = if !is_in_parameter_bindings || var.is_function_name {
                     let value = generator.allocate_register();
@@ -8317,8 +7888,7 @@ pub fn emit_function_declaration_instantiation(
                     generator.emit_mov(&value, &undef);
                     value
                 } else if let Some(local_binding) = var.local {
-                    let local =
-                        var_local_operand(generator, local_binding.local_type, local_binding.index);
+                    let local = var_local_operand(generator, local_binding.local_type, local_binding.index);
                     let value = generator.allocate_register();
                     generator.emit_mov(&value, &local);
                     value
@@ -8334,8 +7904,7 @@ pub fn emit_function_declaration_instantiation(
                 };
 
                 if let Some(local_binding) = var.local {
-                    let local =
-                        var_local_operand(generator, local_binding.local_type, local_binding.index);
+                    let local = var_local_operand(generator, local_binding.local_type, local_binding.index);
                     generator.emit_mov(&local, &initial_value);
                 } else {
                     let id = generator.intern_identifier(&var.name);
@@ -8477,10 +8046,7 @@ pub fn emit_function_declaration_instantiation(
 
 /// Check if a statement is a for-loop variant (for, for-in, for-of, for-await-of).
 fn is_for_loop(statement: &Statement) -> bool {
-    matches!(
-        statement.inner,
-        StatementKind::For(_) | StatementKind::ForInOf(_)
-    )
+    matches!(statement.inner, StatementKind::For(_) | StatementKind::ForInOf(_))
 }
 
 /// Check if a block needs block declaration instantiation.
@@ -8538,9 +8104,7 @@ fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
                     count += u32_from_usize(names.len());
                 }
             }
-            StatementKind::ClassDeclaration(class_data)
-                if class_data.name.as_ref().is_some_and(|n| !n.is_local()) =>
-            {
+            StatementKind::ClassDeclaration(class_data) if class_data.name.as_ref().is_some_and(|n| !n.is_local()) => {
                 count += 1;
             }
             _ => {}
@@ -8550,11 +8114,7 @@ fn count_non_local_lexical_bindings(scope: &ScopeData) -> u32 {
 }
 
 /// Create a ScopedOperand for a VarToInit's local variable (argument or variable).
-fn var_local_operand(
-    generator: &mut Generator,
-    local_type: LocalType,
-    index: u32,
-) -> ScopedOperand {
+fn var_local_operand(generator: &mut Generator, local_type: LocalType, index: u32) -> ScopedOperand {
     generator.resolve_local(index, local_type)
 }
 
@@ -8578,12 +8138,7 @@ fn collect_binding_pattern_names(
                 }
             }
             Some(BindingEntryAlias::BindingPattern(sub_pattern)) => {
-                collect_binding_pattern_names(
-                    sub_pattern,
-                    parameter_names,
-                    seen_names,
-                    has_duplicates,
-                );
+                collect_binding_pattern_names(sub_pattern, parameter_names, seen_names, has_duplicates);
             }
             None => {
                 // No alias — the name itself is the binding.
@@ -8670,11 +8225,7 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
         (utf16!("Math"), utf16!("sin"), BUILTIN_MATH_SIN),
         (utf16!("Math"), utf16!("cos"), BUILTIN_MATH_COS),
         (utf16!("Math"), utf16!("tan"), BUILTIN_MATH_TAN),
-        (
-            utf16!("RegExpPrototype"),
-            utf16!("exec"),
-            BUILTIN_REGEXP_PROTOTYPE_EXEC,
-        ),
+        (utf16!("RegExpPrototype"), utf16!("exec"), BUILTIN_REGEXP_PROTOTYPE_EXEC),
         (
             utf16!("RegExpPrototype"),
             utf16!("replace"),
@@ -8710,11 +8261,7 @@ fn get_builtin(callee: &Expression) -> Option<u8> {
             utf16!("next"),
             BUILTIN_STRING_ITERATOR_PROTOTYPE_NEXT,
         ),
-        (
-            utf16!("String"),
-            utf16!("fromCharCode"),
-            BUILTIN_STRING_FROM_CHAR_CODE,
-        ),
+        (utf16!("String"), utf16!("fromCharCode"), BUILTIN_STRING_FROM_CHAR_CODE),
     ];
     for &(base, property, id) in BUILTINS {
         if base_ident.name == base && property_ident.name == property {
@@ -8914,11 +8461,7 @@ fn is_numeric_index_key(key: &[u16]) -> bool {
 // =============================================================================
 
 /// Try to constant-fold a unary operation when the operand is a constant.
-fn try_constant_fold_unary(
-    generator: &mut Generator,
-    op: UnaryOp,
-    operand: &ScopedOperand,
-) -> Option<ScopedOperand> {
+fn try_constant_fold_unary(generator: &mut Generator, op: UnaryOp, operand: &ScopedOperand) -> Option<ScopedOperand> {
     let constant = generator.get_constant(operand)?;
     match op {
         UnaryOp::Minus => {
@@ -8946,10 +8489,7 @@ fn try_constant_fold_unary(
 }
 
 /// Constant-fold !!x when x is a constant, returning Boolean(x).
-fn try_constant_fold_to_boolean(
-    generator: &mut Generator,
-    operand: &ScopedOperand,
-) -> Option<ScopedOperand> {
+fn try_constant_fold_to_boolean(generator: &mut Generator, operand: &ScopedOperand) -> Option<ScopedOperand> {
     let constant = generator.get_constant(operand)?;
     let as_bool = constant_to_boolean(constant)?;
     Some(generator.add_constant_boolean(as_bool))
@@ -8960,12 +8500,12 @@ fn try_constant_fold_to_boolean(
 fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Option<bool> {
     // Same type: use strict equality rules.
     match (lhs, rhs) {
-        (
-            ConstantValue::Null | ConstantValue::Undefined,
-            ConstantValue::Null | ConstantValue::Undefined,
-        ) => return Some(true),
-        (ConstantValue::Null | ConstantValue::Undefined, _)
-        | (_, ConstantValue::Null | ConstantValue::Undefined) => return Some(false),
+        (ConstantValue::Null | ConstantValue::Undefined, ConstantValue::Null | ConstantValue::Undefined) => {
+            return Some(true);
+        }
+        (ConstantValue::Null | ConstantValue::Undefined, _) | (_, ConstantValue::Null | ConstantValue::Undefined) => {
+            return Some(false);
+        }
         (ConstantValue::Number(a), ConstantValue::Number(b)) => return Some(a == b),
         (ConstantValue::String(a), ConstantValue::String(b)) => return Some(a == b),
         (ConstantValue::Boolean(a), ConstantValue::Boolean(b)) => return Some(a == b),
@@ -8987,11 +8527,11 @@ fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Opti
     // Number == String → compare ToNumber(string) to number.
     // String == Number → compare number to ToNumber(string).
     match (lhs, rhs) {
-        (ConstantValue::Number(n), ConstantValue::String(s))
-        | (ConstantValue::String(s), ConstantValue::Number(n)) => Some(*n == string_to_number(s)),
+        (ConstantValue::Number(n), ConstantValue::String(s)) | (ConstantValue::String(s), ConstantValue::Number(n)) => {
+            Some(*n == string_to_number(s))
+        }
         // BigInt == Number or Number == BigInt: compare mathematical values.
-        (ConstantValue::BigInt(b), ConstantValue::Number(n))
-        | (ConstantValue::Number(n), ConstantValue::BigInt(b)) => {
+        (ConstantValue::BigInt(b), ConstantValue::Number(n)) | (ConstantValue::Number(n), ConstantValue::BigInt(b)) => {
             if n.is_nan() || n.is_infinite() {
                 return Some(false);
             }
@@ -9012,14 +8552,15 @@ fn try_constant_loosely_equals(lhs: &ConstantValue, rhs: &ConstantValue) -> Opti
         }
         // BigInt == String or String == BigInt: parse string as BigInt per StringToBigInt.
         // If the string cannot be parsed, the result is false (not equal).
-        (ConstantValue::BigInt(b), ConstantValue::String(s))
-        | (ConstantValue::String(s), ConstantValue::BigInt(b)) => match string_to_bigint(s) {
-            Some(s_bi) => {
-                let bi = parse_bigint(b)?;
-                Some(bi == s_bi)
+        (ConstantValue::BigInt(b), ConstantValue::String(s)) | (ConstantValue::String(s), ConstantValue::BigInt(b)) => {
+            match string_to_bigint(s) {
+                Some(s_bi) => {
+                    let bi = parse_bigint(b)?;
+                    Some(bi == s_bi)
+                }
+                None => Some(false),
             }
-            None => Some(false),
-        },
+        }
         _ => None,
     }
 }
@@ -9147,12 +8688,8 @@ fn try_constant_fold_bigint_binary(
             Some(generator.add_constant_bigint(num_traits::pow::pow(a, exp as usize).to_string()))
         }
         // Comparison operations: produce a Boolean result.
-        BinaryOp::StrictlyEquals | BinaryOp::LooselyEquals => {
-            Some(generator.add_constant_boolean(a == b))
-        }
-        BinaryOp::StrictlyInequals | BinaryOp::LooselyInequals => {
-            Some(generator.add_constant_boolean(a != b))
-        }
+        BinaryOp::StrictlyEquals | BinaryOp::LooselyEquals => Some(generator.add_constant_boolean(a == b)),
+        BinaryOp::StrictlyInequals | BinaryOp::LooselyInequals => Some(generator.add_constant_boolean(a != b)),
         BinaryOp::LessThan => Some(generator.add_constant_boolean(a < b)),
         BinaryOp::LessThanEquals => Some(generator.add_constant_boolean(a <= b)),
         BinaryOp::GreaterThan => Some(generator.add_constant_boolean(a > b)),
@@ -9239,9 +8776,10 @@ fn string_to_number(s: &Utf16String) -> f64 {
         // Convert validated suffix digits using the parser.
         return bigint_string_to_f64(rest, radix.as_u32());
     }
-    if !trimmed.bytes().all(|b| {
-        b.is_ascii_digit() || b == b'.' || b == b'e' || b == b'E' || b == b'+' || b == b'-'
-    }) {
+    if !trimmed
+        .bytes()
+        .all(|b| b.is_ascii_digit() || b == b'.' || b == b'e' || b == b'E' || b == b'+' || b == b'-')
+    {
         return f64::NAN;
     }
     trimmed.parse::<f64>().unwrap_or(f64::NAN)
@@ -9345,9 +8883,7 @@ fn try_constant_fold_binary(
     match op {
         BinaryOp::Addition => {
             // If either operand is a string, do string concatenation using ToString.
-            if matches!(lhs_const, ConstantValue::String(_))
-                || matches!(rhs_const, ConstantValue::String(_))
-            {
+            if matches!(lhs_const, ConstantValue::String(_)) || matches!(rhs_const, ConstantValue::String(_)) {
                 let a = constant_to_string(lhs_const)?;
                 let b = constant_to_string(rhs_const)?;
                 let mut result = a;
@@ -9401,10 +8937,7 @@ fn try_constant_fold_binary(
             };
             Some(generator.add_constant_boolean(result))
         }
-        BinaryOp::GreaterThan
-        | BinaryOp::GreaterThanEquals
-        | BinaryOp::LessThan
-        | BinaryOp::LessThanEquals => {
+        BinaryOp::GreaterThan | BinaryOp::GreaterThanEquals | BinaryOp::LessThan | BinaryOp::LessThanEquals => {
             // String-string comparison is lexicographic (by UTF-16 code units).
             if let (ConstantValue::String(a), ConstantValue::String(b)) = (lhs_const, rhs_const) {
                 let result = match op {
@@ -9428,9 +8961,7 @@ fn try_constant_fold_binary(
             };
             // BigInt vs Number comparison using Abstract Relational Comparison.
             let bigint_ord = match (lhs_for_cmp, rhs_for_cmp) {
-                (ConstantValue::BigInt(b), ConstantValue::Number(n)) => {
-                    compare_bigint_and_number(b, *n)
-                }
+                (ConstantValue::BigInt(b), ConstantValue::Number(n)) => compare_bigint_and_number(b, *n),
                 (ConstantValue::Number(n), ConstantValue::BigInt(b)) => {
                     compare_bigint_and_number(b, *n).map(|o| o.map(|o| o.reverse()))
                 }
@@ -9457,15 +8988,13 @@ fn try_constant_fold_binary(
             if let Some(ord) = bigint_ord {
                 let result = match op {
                     BinaryOp::GreaterThan => matches!(ord, Some(std::cmp::Ordering::Greater)),
-                    BinaryOp::GreaterThanEquals => matches!(
-                        ord,
-                        Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Equal)
-                    ),
+                    BinaryOp::GreaterThanEquals => {
+                        matches!(ord, Some(std::cmp::Ordering::Greater | std::cmp::Ordering::Equal))
+                    }
                     BinaryOp::LessThan => matches!(ord, Some(std::cmp::Ordering::Less)),
-                    BinaryOp::LessThanEquals => matches!(
-                        ord,
-                        Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal)
-                    ),
+                    BinaryOp::LessThanEquals => {
+                        matches!(ord, Some(std::cmp::Ordering::Less | std::cmp::Ordering::Equal))
+                    }
                     _ => unreachable!("outer match arm only matches comparison operators"),
                 };
                 return Some(generator.add_constant_boolean(result));
@@ -9539,11 +9068,7 @@ const NEGATIVE_ZERO_BITS: u64 = 1u64 << 63;
 
 fn nanboxed_number(value: f64) -> u64 {
     let is_negative_zero = value.to_bits() == NEGATIVE_ZERO_BITS;
-    if value >= i32::MIN as f64
-        && value <= i32::MAX as f64
-        && value.trunc() == value
-        && !is_negative_zero
-    {
+    if value >= i32::MIN as f64 && value <= i32::MAX as f64 && value.trunc() == value && !is_negative_zero {
         (NANBOX_INT32_TAG << NANBOX_TAG_SHIFT) | ((value as i32 as u32) as u64)
     } else if value.is_nan() {
         // Canon NaN
@@ -9571,10 +9096,7 @@ fn nanboxed_empty() -> u64 {
 
 /// Intern the base expression as an identifier for error messages like
 /// "Cannot access property X on null object Y".
-fn intern_base_identifier(
-    generator: &mut Generator,
-    base: &Expression,
-) -> Option<IdentifierTableIndex> {
+fn intern_base_identifier(generator: &mut Generator, base: &Expression) -> Option<IdentifierTableIndex> {
     expression_identifier(base).map(|s| generator.intern_identifier(&s))
 }
 

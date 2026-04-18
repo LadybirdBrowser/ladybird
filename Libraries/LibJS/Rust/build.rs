@@ -10,9 +10,7 @@
 //! code instead of C++. The generated code lives in $OUT_DIR/instruction_generated.rs
 //! and is included! from src/bytecode/instruction.rs.
 
-use bytecode_def::{
-    Field, OpDef, STRUCT_ALIGN, field_type_info, find_m_length_offset, round_up, user_fields,
-};
+use bytecode_def::{Field, OpDef, STRUCT_ALIGN, field_type_info, find_m_length_offset, round_up, user_fields};
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -27,10 +25,7 @@ fn rust_field_name(name: &str) -> String {
 }
 
 fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "// @generated from Libraries/LibJS/Bytecode/Bytecode.def"
-    )?;
+    writeln!(w, "// @generated from Libraries/LibJS/Bytecode/Bytecode.def")?;
     writeln!(w, "// Do not edit manually.")?;
     writeln!(w)?;
     writeln!(w, "use super::operand::*;")?;
@@ -43,10 +38,7 @@ fn generate_rust_code(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn st
     Ok(())
 }
 
-fn generate_opcode_enum(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_opcode_enum(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(
         w,
         "/// Bytecode opcode (u8), matching the C++ `Instruction::Type` enum."
@@ -63,16 +55,10 @@ fn generate_opcode_enum(
     Ok(())
 }
 
-fn generate_instruction_enum(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_instruction_enum(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "/// A bytecode instruction with typed fields.")?;
     writeln!(w, "///")?;
-    writeln!(
-        w,
-        "/// Each variant corresponds to one C++ instruction class."
-    )?;
+    writeln!(w, "/// Each variant corresponds to one C++ instruction class.")?;
     writeln!(
         w,
         "/// During codegen, instructions are stored as these typed variants."
@@ -107,10 +93,7 @@ fn generate_instruction_enum(
     Ok(())
 }
 
-fn generate_instruction_impl(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_instruction_impl(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "impl Instruction {{").unwrap();
     generate_opcode_method(&mut w, ops)?;
     generate_is_terminator_method(&mut w, ops)?;
@@ -122,20 +105,13 @@ fn generate_instruction_impl(
     Ok(())
 }
 
-fn generate_opcode_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_opcode_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "    pub fn opcode(&self) -> OpCode {{")?;
     writeln!(w, "        match self {{")?;
     for op in ops {
         let fields = user_fields(op);
         if fields.is_empty() {
-            writeln!(
-                w,
-                "            Instruction::{} => OpCode::{},",
-                op.name, op.name
-            )?;
+            writeln!(w, "            Instruction::{} => OpCode::{},", op.name, op.name)?;
         } else {
             writeln!(
                 w,
@@ -151,10 +127,7 @@ fn generate_opcode_method(
     Ok(())
 }
 
-fn generate_is_terminator_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_is_terminator_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "    pub fn is_terminator(&self) -> bool {{")?;
     writeln!(w, "        matches!(self, ")?;
     let terminators: Vec<&OpDef> = ops.iter().filter(|op| op.is_terminator).collect();
@@ -174,14 +147,8 @@ fn generate_is_terminator_method(
     Ok(())
 }
 
-fn generate_encoded_size_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "    /// Returns the encoded size of this instruction in bytes."
-    )?;
+fn generate_encoded_size_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(w, "    /// Returns the encoded size of this instruction in bytes.")?;
     writeln!(w, "    pub fn encoded_size(&self) -> usize {{")?;
     writeln!(w, "        match self {{")?;
 
@@ -266,18 +233,12 @@ fn generate_encoded_size_method(
     Ok(())
 }
 
-fn generate_encode_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_encode_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(
         w,
         "    /// Encode this instruction into bytes matching the C++ struct layout."
     )?;
-    writeln!(
-        w,
-        "    pub fn encode(&self, strict: bool, buf: &mut Vec<u8>) {{"
-    )?;
+    writeln!(w, "    pub fn encode(&self, strict: bool, buf: &mut Vec<u8>) {{")?;
     writeln!(w, "        let start = buf.len();")?;
     writeln!(w, "        match self {{")?;
 
@@ -380,10 +341,7 @@ fn generate_encode_method(
             if has_m_length {
                 // Patch m_length: it's the first u32 field after the header
                 let m_length_offset = find_m_length_offset(&op.fields);
-                writeln!(
-                    w,
-                    "                let total_len = (buf.len() - start) as u32;"
-                )?;
+                writeln!(w, "                let total_len = (buf.len() - start) as u32;")?;
                 writeln!(
                     w,
                     "                buf[start + {}..start + {}].copy_from_slice(&total_len.to_ne_bytes());",
@@ -396,10 +354,7 @@ fn generate_encode_method(
             let final_size = round_up(offset, 8);
             let tail_pad = final_size - offset;
             if tail_pad > 0 {
-                writeln!(
-                    w,
-                    "                buf.extend_from_slice(&[0u8; {tail_pad}]);"
-                )?;
+                writeln!(w, "                buf.extend_from_slice(&[0u8; {tail_pad}]);")?;
             }
         }
 
@@ -429,10 +384,7 @@ fn emit_field_write(
         "u8" => writeln!(w, "{prefix}buf.push(*{name});")?,
         "u32" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
         "u64" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.to_ne_bytes());")?,
-        "operand" => writeln!(
-            w,
-            "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());"
-        )?,
+        "operand" => writeln!(w, "{prefix}buf.extend_from_slice(&{name}.raw().to_ne_bytes());")?,
         "optional_operand" => {
             writeln!(w, "{prefix}match {name} {{")?;
             writeln!(
@@ -450,24 +402,12 @@ fn emit_field_write(
             // C++ Optional<Label> layw: u32 value, bool has_value, 3 bytes padding = 8 bytes total
             writeln!(w, "{prefix}match {name} {{")?;
             writeln!(w, "{prefix}    Some(lbl) => {{")?;
-            writeln!(
-                w,
-                "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());"
-            )?;
-            writeln!(
-                w,
-                "{prefix}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);"
-            )?;
+            writeln!(w, "{prefix}        buf.extend_from_slice(&lbl.0.to_ne_bytes());")?;
+            writeln!(w, "{prefix}        buf.push(1); buf.push(0); buf.push(0); buf.push(0);")?;
             writeln!(w, "{prefix}    }}")?;
             writeln!(w, "{prefix}    None => {{")?;
-            writeln!(
-                w,
-                "{prefix}        buf.extend_from_slice(&0u32.to_ne_bytes());"
-            )?;
-            writeln!(
-                w,
-                "{prefix}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);"
-            )?;
+            writeln!(w, "{prefix}        buf.extend_from_slice(&0u32.to_ne_bytes());")?;
+            writeln!(w, "{prefix}        buf.push(0); buf.push(0); buf.push(0); buf.push(0);")?;
             writeln!(w, "{prefix}    }}")?;
             writeln!(w, "{prefix}}}")?;
         }
@@ -485,14 +425,8 @@ fn emit_field_write(
             writeln!(w, "{prefix}}}")?;
         }
         "env_coord" => {
-            writeln!(
-                w,
-                "{prefix}buf.extend_from_slice(&{name}.hops.to_ne_bytes());"
-            )?;
-            writeln!(
-                w,
-                "{prefix}buf.extend_from_slice(&{name}.index.to_ne_bytes());"
-            )?;
+            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.hops.to_ne_bytes());")?;
+            writeln!(w, "{prefix}buf.extend_from_slice(&{name}.index.to_ne_bytes());")?;
         }
         other => panic!("Unknown encoding kind: {other}"),
     }
@@ -500,14 +434,8 @@ fn emit_field_write(
     Ok(())
 }
 
-fn generate_visit_operands_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
-    writeln!(
-        w,
-        "    /// Visit all `Operand` fields (for operand rewriting)."
-    )?;
+fn generate_visit_operands_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
+    writeln!(w, "    /// Visit all `Operand` fields (for operand rewriting).")?;
     writeln!(
         w,
         "    pub fn visit_operands(&mut self, visitor: &mut dyn FnMut(&mut Operand)) {{"
@@ -559,16 +487,10 @@ fn generate_visit_operands_method(
                         "                for op in {rname}.iter_mut().flatten() {{ visitor(op); }}"
                     )?;
                 } else {
-                    writeln!(
-                        w,
-                        "                for item in {rname}.iter_mut() {{ visitor(item); }}"
-                    )?;
+                    writeln!(w, "                for item in {rname}.iter_mut() {{ visitor(item); }}")?;
                 }
             } else if f.ty == "Optional<Operand>" {
-                writeln!(
-                    w,
-                    "                if let Some(op) = {rname} {{ visitor(op); }}"
-                )?;
+                writeln!(w, "                if let Some(op) = {rname} {{ visitor(op); }}")?;
             } else {
                 writeln!(w, "                visitor({rname});")?;
             }
@@ -584,10 +506,7 @@ fn generate_visit_operands_method(
     Ok(())
 }
 
-fn generate_visit_labels_method(
-    mut w: impl Write,
-    ops: &[OpDef],
-) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_visit_labels_method(mut w: impl Write, ops: &[OpDef]) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(w, "    /// Visit all `Label` fields (for label linking).")?;
     writeln!(
         w,
@@ -635,22 +554,13 @@ fn generate_visit_labels_method(
             if f.is_array {
                 if f.ty == "Optional<Label>" {
                     writeln!(w, "                for item in {rname}.iter_mut() {{")?;
-                    writeln!(
-                        w,
-                        "                    if let Some(lbl) = item {{ visitor(lbl); }}"
-                    )?;
+                    writeln!(w, "                    if let Some(lbl) = item {{ visitor(lbl); }}")?;
                     writeln!(w, "                }}")?;
                 } else {
-                    writeln!(
-                        w,
-                        "                for item in {rname}.iter_mut() {{ visitor(item); }}"
-                    )?;
+                    writeln!(w, "                for item in {rname}.iter_mut() {{ visitor(item); }}")?;
                 }
             } else if f.ty == "Optional<Label>" {
-                writeln!(
-                    w,
-                    "                if let Some(lbl) = {rname} {{ visitor(lbl); }}"
-                )?;
+                writeln!(w, "                if let Some(lbl) = {rname} {{ visitor(lbl); }}")?;
             } else {
                 writeln!(w, "                visitor({rname});")?;
             }

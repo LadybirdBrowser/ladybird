@@ -10,12 +10,7 @@ unsafe extern "C" {
     fn ladybird_rust_alloc(size: usize, alignment: usize) -> *mut u8;
     fn ladybird_rust_alloc_zeroed(size: usize, alignment: usize) -> *mut u8;
     fn ladybird_rust_dealloc(ptr: *mut u8, alignment: usize);
-    fn ladybird_rust_realloc(
-        ptr: *mut u8,
-        old_size: usize,
-        new_size: usize,
-        alignment: usize,
-    ) -> *mut u8;
+    fn ladybird_rust_realloc(ptr: *mut u8, old_size: usize, new_size: usize, alignment: usize) -> *mut u8;
 }
 
 struct LadybirdAllocator;

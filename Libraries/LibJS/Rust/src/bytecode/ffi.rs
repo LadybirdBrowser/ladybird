@@ -89,10 +89,7 @@ impl FFIOptionalU32 {
     }
 
     pub fn some(value: u32) -> Self {
-        Self {
-            value,
-            has_value: true,
-        }
+        Self { value, has_value: true }
     }
 }
 
@@ -238,20 +235,10 @@ unsafe extern "C" {
     // Callbacks for populating Script GDI data from Rust.
     pub fn script_gdi_push_lexical_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn script_gdi_push_var_name(ctx: *mut c_void, name: *const u16, len: usize);
-    pub fn script_gdi_push_function(
-        ctx: *mut c_void,
-        sfd: *mut c_void,
-        name: *const u16,
-        len: usize,
-    );
+    pub fn script_gdi_push_function(ctx: *mut c_void, sfd: *mut c_void, name: *const u16, len: usize);
     pub fn script_gdi_push_var_scoped_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn script_gdi_push_annex_b_name(ctx: *mut c_void, name: *const u16, len: usize);
-    pub fn script_gdi_push_lexical_binding(
-        ctx: *mut c_void,
-        name: *const u16,
-        len: usize,
-        is_constant: bool,
-    );
+    pub fn script_gdi_push_lexical_binding(ctx: *mut c_void, name: *const u16, len: usize, is_constant: bool);
 
     // Callbacks for populating eval EDI data from Rust.
     pub fn eval_gdi_set_strict(ctx: *mut c_void, is_strict: bool);
@@ -259,12 +246,7 @@ unsafe extern "C" {
     pub fn eval_gdi_push_function(ctx: *mut c_void, sfd: *mut c_void, name: *const u16, len: usize);
     pub fn eval_gdi_push_var_scoped_name(ctx: *mut c_void, name: *const u16, len: usize);
     pub fn eval_gdi_push_annex_b_name(ctx: *mut c_void, name: *const u16, len: usize);
-    pub fn eval_gdi_push_lexical_binding(
-        ctx: *mut c_void,
-        name: *const u16,
-        len: usize,
-        is_constant: bool,
-    );
+    pub fn eval_gdi_push_lexical_binding(ctx: *mut c_void, name: *const u16, len: usize, is_constant: bool);
 
     pub fn rust_compile_regex(
         pattern_data: *const u16,
@@ -283,11 +265,7 @@ unsafe extern "C" {
 
     // Get an intrinsic abstract operation function as an opaque Value.
     // name/name_len is the function name (e.g. "GetMethod").
-    pub fn get_abstract_operation_function(
-        vm_ptr: *mut c_void,
-        name: *const u16,
-        name_len: usize,
-    ) -> u64;
+    pub fn get_abstract_operation_function(vm_ptr: *mut c_void, name: *const u16, name_len: usize) -> u64;
 }
 
 /// Create a SharedFunctionInstanceData from a FunctionData.
@@ -327,9 +305,7 @@ pub unsafe fn create_shared_function_data(
         };
 
         let has_simple_parameter_list = function_data.parameters.iter().all(|p| {
-            !p.is_rest
-                && p.default_value.is_none()
-                && matches!(p.binding, FunctionParameterBinding::Identifier(_))
+            !p.is_rest && p.default_value.is_none() && matches!(p.binding, FunctionParameterBinding::Identifier(_))
         });
 
         let parameter_name_slices: Vec<FFIUtf16Slice> = if has_simple_parameter_list {
@@ -340,9 +316,7 @@ pub unsafe fn create_shared_function_data(
                     if let FunctionParameterBinding::Identifier(ref id) = p.binding {
                         FFIUtf16Slice::from(id.name.as_ref())
                     } else {
-                        unreachable!(
-                            "has_simple_parameter_list guarantees all bindings are identifiers"
-                        )
+                        unreachable!("has_simple_parameter_list guarantees all bindings are identifiers")
                     }
                 })
                 .collect()
@@ -403,16 +377,7 @@ pub unsafe fn create_sfd_for_gdi(
     source_code_ptr: *const c_void,
     is_strict: bool,
 ) -> *mut c_void {
-    unsafe {
-        create_shared_function_data(
-            function_data,
-            subtable,
-            vm_ptr,
-            source_code_ptr,
-            is_strict,
-            None,
-        )
-    }
+    unsafe { create_shared_function_data(function_data, subtable, vm_ptr, source_code_ptr, is_strict, None) }
 }
 
 /// Constant tags for the FFI constant buffer (ABI-compatible).
@@ -566,9 +531,7 @@ pub unsafe fn create_executable(
             object_property_iterator_cache_count: generator.next_object_property_iterator_cache,
             number_of_registers: assembled.number_of_registers,
             is_strict: generator.strict,
-            length_identifier: FFIOptionalU32::from(
-                generator.length_identifier.map(|index| index.0),
-            ),
+            length_identifier: FFIOptionalU32::from(generator.length_identifier.map(|index| index.0)),
             shared_function_data: sfd_ptrs.as_ptr(),
             shared_function_data_count: sfd_ptrs.len(),
             class_blueprints: bp_ptrs.as_ptr(),
@@ -606,9 +569,7 @@ pub fn compile_regex(pattern: &[u16], flags: &[u16]) -> Result<*mut c_void, Stri
         if error.is_null() {
             Ok(handle)
         } else {
-            let msg = std::ffi::CStr::from_ptr(error)
-                .to_string_lossy()
-                .into_owned();
+            let msg = std::ffi::CStr::from_ptr(error).to_string_lossy().into_owned();
             rust_free_error_string(error);
             Err(msg)
         }

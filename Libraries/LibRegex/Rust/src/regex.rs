@@ -37,11 +37,7 @@ impl Regex {
         let mut program = compiler::compile(&parsed);
         Self::resolve_properties(&mut program);
         let required_literal_hint = extract_required_literal_hint(&parsed, flags);
-        let hints = vm::analyze_pattern(
-            &program,
-            pattern_can_match_empty(&parsed),
-            required_literal_hint,
-        );
+        let hints = vm::analyze_pattern(&program, pattern_can_match_empty(&parsed), required_literal_hint);
 
         let literal_u16 = extract_literal_u16(&parsed, flags);
         let word_boundary_literal_u16 = extract_word_boundary_literal_u16(&parsed, flags);
@@ -70,22 +66,10 @@ impl Regex {
         self.exec_into_input(input, start, out)
     }
 
-    pub(crate) fn exec_into_input<I: vm::Input>(
-        &self,
-        input: I,
-        start: usize,
-        out: &mut [i32],
-    ) -> vm::VmResult {
+    pub(crate) fn exec_into_input<I: vm::Input>(&self, input: I, start: usize, out: &mut [i32]) -> vm::VmResult {
         if self.flags.sticky {
             let scratch = &mut *self.scratch.borrow_mut();
-            return vm::execute_anchored_into_with_scratch(
-                &self.program,
-                input,
-                start,
-                &self.hints,
-                out,
-                scratch,
-            );
+            return vm::execute_anchored_into_with_scratch(&self.program, input, start, &self.hints, out, scratch);
         }
 
         // Fast path for literal patterns: use fast substring search.
@@ -129,14 +113,7 @@ impl Regex {
         if self.flags.sticky {
             let mut out = [-1i32; 2];
             let scratch = &mut *self.scratch.borrow_mut();
-            return vm::execute_anchored_into_with_scratch(
-                &self.program,
-                input,
-                start,
-                &self.hints,
-                &mut out,
-                scratch,
-            );
+            return vm::execute_anchored_into_with_scratch(&self.program, input, start, &self.hints, &mut out, scratch);
         }
 
         if let Some(ref needle) = self.literal_u16 {
@@ -168,13 +145,7 @@ impl Regex {
     }
 
     /// Fast literal substring search for whole-pattern literal fast paths.
-    fn literal_search<I: vm::Input>(
-        input: I,
-        start: usize,
-        needle: &[u16],
-        flags: &Flags,
-        out: &mut [i32],
-    ) -> bool {
+    fn literal_search<I: vm::Input>(input: I, start: usize, needle: &[u16], flags: &Flags, out: &mut [i32]) -> bool {
         if needle.is_empty() {
             // Empty pattern matches at start position.
             if out.len() >= 2 {
@@ -299,12 +270,7 @@ impl Regex {
         false
     }
 
-    fn word_boundary_literal_test<I: vm::Input>(
-        input: I,
-        start: usize,
-        needle: &[u16],
-        flags: &Flags,
-    ) -> bool {
+    fn word_boundary_literal_test<I: vm::Input>(input: I, start: usize, needle: &[u16], flags: &Flags) -> bool {
         let mut out = [0i32; 2];
         Self::word_boundary_literal_search(input, start, needle, flags, &mut out)
     }
@@ -552,24 +518,13 @@ impl Regex {
         self.find_all_into_input(input, start, result_buf)
     }
 
-    pub(crate) fn find_all_into_input<I: vm::Input>(
-        &self,
-        input: I,
-        start: usize,
-        result_buf: &mut [i32],
-    ) -> i32 {
+    pub(crate) fn find_all_into_input<I: vm::Input>(&self, input: I, start: usize, result_buf: &mut [i32]) -> i32 {
         // Fast path for literal patterns.
         if let Some(ref needle) = self.literal_u16 {
             return Self::literal_find_all(input, start, needle, &self.flags, result_buf);
         }
         if let Some(ref needle) = self.word_boundary_literal_u16 {
-            return Self::word_boundary_literal_find_all(
-                input,
-                start,
-                needle,
-                &self.flags,
-                result_buf,
-            );
+            return Self::word_boundary_literal_find_all(input, start, needle, &self.flags, result_buf);
         }
         // Fast path for literal alternation patterns.
         if let Some(ref alts) = self.literal_alt_u16 {
@@ -577,14 +532,7 @@ impl Regex {
         }
         // Use the VM-internal find_all loop which reuses a single VM across matches.
         let scratch = &mut *self.scratch.borrow_mut();
-        vm::find_all_with_scratch(
-            &self.program,
-            input,
-            start,
-            &self.hints,
-            result_buf,
-            scratch,
-        )
+        vm::find_all_with_scratch(&self.program, input, start, &self.hints, result_buf, scratch)
     }
 }
 
@@ -644,11 +592,7 @@ fn find_ascii_case_insensitive_code_unit_in_set<I: vm::Input>(
 }
 
 #[inline(always)]
-fn matches_ascii_case_insensitive_u16_at<I: vm::Input>(
-    input: I,
-    pos: usize,
-    needle: &[u16],
-) -> bool {
+fn matches_ascii_case_insensitive_u16_at<I: vm::Input>(input: I, pos: usize, needle: &[u16]) -> bool {
     if pos + needle.len() > input.len() {
         return false;
     }
@@ -662,14 +606,9 @@ fn matches_ascii_case_insensitive_u16_at<I: vm::Input>(
 }
 
 #[inline(always)]
-fn has_ascii_word_boundaries_at<I: vm::Input>(
-    input: I,
-    match_start: usize,
-    match_end: usize,
-) -> bool {
+fn has_ascii_word_boundaries_at<I: vm::Input>(input: I, match_start: usize, match_end: usize) -> bool {
     let left_is_word = match_start > 0 && is_ascii_word_code_unit(input.code_unit(match_start - 1));
-    let right_is_word =
-        match_end < input.len() && is_ascii_word_code_unit(input.code_unit(match_end));
+    let right_is_word = match_end < input.len() && is_ascii_word_code_unit(input.code_unit(match_end));
     !left_is_word && !right_is_word
 }
 
@@ -682,15 +621,9 @@ struct RequiredLiteralAnalysis {
     guaranteed_runs: Vec<Vec<u16>>,
 }
 
-fn extract_required_literal_hint(
-    pattern: &Pattern,
-    flags: Flags,
-) -> Option<vm::RequiredLiteralHint> {
+fn extract_required_literal_hint(pattern: &Pattern, flags: Flags) -> Option<vm::RequiredLiteralHint> {
     let analysis = analyze_required_literal_disjunction(&pattern.disjunction, flags);
-    let literal = analysis
-        .guaranteed_runs
-        .into_iter()
-        .max_by_key(|run| run.len())?;
+    let literal = analysis.guaranteed_runs.into_iter().max_by_key(|run| run.len())?;
     if literal.is_empty() {
         return None;
     }
@@ -710,10 +643,7 @@ fn extract_required_literal_hint(
     })
 }
 
-fn analyze_required_literal_disjunction(
-    disjunction: &Disjunction,
-    flags: Flags,
-) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_disjunction(disjunction: &Disjunction, flags: Flags) -> RequiredLiteralAnalysis {
     let mut analyses = disjunction
         .alternatives
         .iter()
@@ -732,8 +662,7 @@ fn analyze_required_literal_disjunction(
         if exact_literal.as_deref() != analysis.exact_literal.as_deref() {
             exact_literal = None;
         }
-        guaranteed_runs =
-            intersect_required_literal_runs(&guaranteed_runs, &analysis.guaranteed_runs);
+        guaranteed_runs = intersect_required_literal_runs(&guaranteed_runs, &analysis.guaranteed_runs);
         if guaranteed_runs.is_empty() && exact_literal.is_none() {
             break;
         }
@@ -751,10 +680,7 @@ fn analyze_required_literal_disjunction(
     }
 }
 
-fn analyze_required_literal_alternative(
-    alternative: &Alternative,
-    flags: Flags,
-) -> RequiredLiteralAnalysis {
+fn analyze_required_literal_alternative(alternative: &Alternative, flags: Flags) -> RequiredLiteralAnalysis {
     let mut exact_literal = Some(Vec::new());
     let mut current_run = Vec::new();
     let mut guaranteed_runs = Vec::new();
@@ -878,22 +804,14 @@ fn intersect_required_literal_runs(lhs: &[Vec<u16>], rhs: &[Vec<u16>]) -> Vec<Ve
 }
 
 fn maximal_common_substrings(lhs: &[u16], rhs: &[u16]) -> Vec<Vec<u16>> {
-    let max_len = lhs
-        .len()
-        .min(rhs.len())
-        .min(MAX_REQUIRED_LITERAL_CODE_UNITS);
-    let (shorter, longer) = if lhs.len() <= rhs.len() {
-        (lhs, rhs)
-    } else {
-        (rhs, lhs)
-    };
+    let max_len = lhs.len().min(rhs.len()).min(MAX_REQUIRED_LITERAL_CODE_UNITS);
+    let (shorter, longer) = if lhs.len() <= rhs.len() { (lhs, rhs) } else { (rhs, lhs) };
 
     let mut substrings: Vec<Vec<u16>> = Vec::new();
     for len in (1..=max_len).rev() {
         // Required-literal hints keep at most 64 code units, so intersect
         // fixed-size windows instead of walking every start-position pair.
-        let shorter_windows: HashSet<Vec<u16>> =
-            shorter.windows(len).map(|window| window.to_vec()).collect();
+        let shorter_windows: HashSet<Vec<u16>> = shorter.windows(len).map(|window| window.to_vec()).collect();
         let mut matches = HashSet::new();
         for window in longer.windows(len) {
             if shorter_windows.contains(window) {
@@ -939,9 +857,7 @@ fn repeat_literal_prefix(literal: &[u16], repeat_count: u32) -> Vec<u16> {
         return repeated;
     }
 
-    repeated.reserve(
-        MAX_REQUIRED_LITERAL_CODE_UNITS.min(literal.len().saturating_mul(repeat_count as usize)),
-    );
+    repeated.reserve(MAX_REQUIRED_LITERAL_CODE_UNITS.min(literal.len().saturating_mul(repeat_count as usize)));
     for _ in 0..repeat_count {
         for code_unit in literal {
             if repeated.len() == MAX_REQUIRED_LITERAL_CODE_UNITS {
@@ -959,10 +875,7 @@ fn prune_required_literal_runs(mut runs: Vec<Vec<u16>>) -> Vec<Vec<u16>> {
 
     let mut pruned: Vec<Vec<u16>> = Vec::new();
     'outer: for run in runs {
-        if pruned
-            .iter()
-            .any(|existing| contains_literal_subslice(existing, &run))
-        {
+        if pruned.iter().any(|existing| contains_literal_subslice(existing, &run)) {
             continue;
         }
         pruned.push(run);
@@ -980,9 +893,7 @@ fn contains_literal_subslice(haystack: &[u16], needle: &[u16]) -> bool {
     if needle.len() > haystack.len() {
         return false;
     }
-    haystack
-        .windows(needle.len())
-        .any(|window| window == needle)
+    haystack.windows(needle.len()).any(|window| window == needle)
 }
 
 fn pattern_can_match_empty(pattern: &Pattern) -> bool {
@@ -990,10 +901,7 @@ fn pattern_can_match_empty(pattern: &Pattern) -> bool {
 }
 
 fn disjunction_can_match_empty(disjunction: &Disjunction) -> bool {
-    disjunction
-        .alternatives
-        .iter()
-        .any(alternative_can_match_empty)
+    disjunction.alternatives.iter().any(alternative_can_match_empty)
 }
 
 fn alternative_can_match_empty(alternative: &Alternative) -> bool {
@@ -1113,10 +1021,7 @@ fn extract_word_boundary_literal_u16(pattern: &Pattern, flags: Flags) -> Option<
     ) {
         return None;
     }
-    if !matches!(
-        last_term.atom,
-        Atom::Assertion(crate::ast::AssertionKind::WordBoundary)
-    ) {
+    if !matches!(last_term.atom, Atom::Assertion(crate::ast::AssertionKind::WordBoundary)) {
         return None;
     }
 

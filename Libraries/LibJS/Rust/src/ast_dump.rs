@@ -126,10 +126,7 @@ fn format_position(state: &DumpState, range: &SourceRange) -> String {
         return String::new();
     }
     if state.use_color {
-        format!(
-            " {}@{}:{}{}",
-            DIM, range.start.line, range.start.column, RESET
-        )
+        format!(" {}@{}:{}{}", DIM, range.start.line, range.start.column, RESET)
     } else {
         format!(" @{}:{}", range.start.line, range.start.column)
     }
@@ -356,11 +353,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             let s = scope.borrow();
             // The parser wraps for-loops in a Block for scope. The C++
             // parser does not, so skip the wrapper and dump the child directly.
-            if s.children.len() == 1
-                && matches!(
-                    s.children[0].inner,
-                    StatementKind::For(_) | StatementKind::ForInOf(_)
-                )
+            if s.children.len() == 1 && matches!(s.children[0].inner, StatementKind::For(_) | StatementKind::ForInOf(_))
             {
                 dump_statement(&s.children[0], state);
                 return;
@@ -457,12 +450,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
 
         StatementKind::Switch(data) => {
             dump_node!(state, "SwitchStatement", &statement.range);
-            dump_labeled_expression(
-                "discriminant",
-                &data.discriminant,
-                data.cases.is_empty(),
-                state,
-            );
+            dump_labeled_expression("discriminant", &data.discriminant, data.cases.is_empty(), state);
             for (i, case) in data.cases.iter().enumerate() {
                 dump_switch_case(case, &child_state(state, i == data.cases.len() - 1), state);
             }
@@ -538,32 +526,18 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
         StatementKind::UsingDeclaration(declarations) => {
             dump_node!(state, "UsingDeclaration", &statement.range);
             for (i, declaration) in declarations.iter().enumerate() {
-                dump_variable_declarator(
-                    declaration,
-                    &child_state(state, i == declarations.len() - 1),
-                    state,
-                );
+                dump_variable_declarator(declaration, &child_state(state, i == declarations.len() - 1), state);
             }
         }
 
         StatementKind::FunctionDeclaration(data) => {
             let function_data = state.function_table().get(data.function_id);
-            dump_function(
-                function_data,
-                "FunctionDeclaration",
-                &statement.range,
-                state,
-            );
+            dump_function(function_data, "FunctionDeclaration", &statement.range, state);
         }
 
         StatementKind::ClassDeclaration(class_data) => {
             dump_node!(state, "ClassDeclaration", &statement.range);
-            dump_class(
-                class_data,
-                &statement.range,
-                &child_state(state, true),
-                state,
-            );
+            dump_class(class_data, &statement.range, &child_state(state, true), state);
         }
 
         StatementKind::Import(data) => {
@@ -573,11 +547,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                 state,
                 "ImportStatement",
                 &statement.range,
-                format!(
-                    "from {}{}",
-                    color_string(state, &module_spec),
-                    assert_clauses
-                )
+                format!("from {}{}", color_string(state, &module_spec), assert_clauses)
             );
             if !data.entries.is_empty() {
                 for (i, entry) in data.entries.iter().enumerate() {
@@ -601,10 +571,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
             let has_entries = !data.entries.is_empty();
 
             if has_entries {
-                print_node(
-                    &child_state(state, !has_statement),
-                    &color_label(state, "entries"),
-                );
+                print_node(&child_state(state, !has_statement), &color_label(state, "entries"));
                 let entries_state = child_state(state, !has_statement);
                 for (i, entry) in data.entries.iter().enumerate() {
                     let export_name = match &entry.export_name {
@@ -629,10 +596,7 @@ fn dump_statement(statement: &Statement, state: &DumpState) {
                             format_assert_clauses(module_request)
                         ));
                     }
-                    print_node(
-                        &child_state(&entries_state, i == data.entries.len() - 1),
-                        &desc,
-                    );
+                    print_node(&child_state(&entries_state, i == data.entries.len() - 1), &desc);
                 }
             }
 
@@ -825,29 +789,16 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
                     OptionalChainReference::Call { arguments, mode } => {
                         print_node(&ref_state, &format!("Call({})", optional_mode_str(*mode)));
                         for (j, argument) in arguments.iter().enumerate() {
-                            dump_expression(
-                                &argument.value,
-                                &child_state(&ref_state, j == arguments.len() - 1),
-                            );
+                            dump_expression(&argument.value, &child_state(&ref_state, j == arguments.len() - 1));
                         }
                     }
                     OptionalChainReference::ComputedReference { expression, mode } => {
-                        print_node(
-                            &ref_state,
-                            &format!("ComputedReference({})", optional_mode_str(*mode)),
-                        );
+                        print_node(&ref_state, &format!("ComputedReference({})", optional_mode_str(*mode)));
                         dump_expression(expression, &child_state(&ref_state, true));
                     }
                     OptionalChainReference::MemberReference { identifier, mode } => {
-                        print_node(
-                            &ref_state,
-                            &format!("MemberReference({})", optional_mode_str(*mode)),
-                        );
-                        dump_identifier(
-                            identifier,
-                            &identifier.range,
-                            &child_state(&ref_state, true),
-                        );
+                        print_node(&ref_state, &format!("MemberReference({})", optional_mode_str(*mode)));
+                        dump_identifier(identifier, &identifier.range, &child_state(&ref_state, true));
                     }
                     OptionalChainReference::PrivateMemberReference {
                         private_identifier,
@@ -875,10 +826,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_node!(state, "CallExpression", &expression.range);
             dump_expression(&data.callee, &child_state(state, data.arguments.is_empty()));
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(
-                    &argument.value,
-                    &child_state(state, i == data.arguments.len() - 1),
-                );
+                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
             }
         }
 
@@ -886,20 +834,14 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
             dump_node!(state, "NewExpression", &expression.range);
             dump_expression(&data.callee, &child_state(state, data.arguments.is_empty()));
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(
-                    &argument.value,
-                    &child_state(state, i == data.arguments.len() - 1),
-                );
+                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
             }
         }
 
         ExpressionKind::SuperCall(data) => {
             dump_node!(state, "SuperCall", &expression.range);
             for (i, argument) in data.arguments.iter().enumerate() {
-                dump_expression(
-                    &argument.value,
-                    &child_state(state, i == data.arguments.len() - 1),
-                );
+                dump_expression(&argument.value, &child_state(state, i == data.arguments.len() - 1));
             }
         }
 
@@ -918,12 +860,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
 
         ExpressionKind::Function(function_id) => {
             let function_data = state.function_table().get(*function_id);
-            dump_function(
-                function_data,
-                "FunctionExpression",
-                &expression.range,
-                state,
-            );
+            dump_function(function_data, "FunctionExpression", &expression.range, state);
         }
 
         ExpressionKind::Class(class_data) => {
@@ -945,11 +882,7 @@ fn dump_expression(expression: &Expression, state: &DumpState) {
         ExpressionKind::Object(properties) => {
             dump_node!(state, "ObjectExpression", &expression.range);
             for (i, property) in properties.iter().enumerate() {
-                dump_object_property(
-                    property,
-                    &child_state(state, i == properties.len() - 1),
-                    state,
-                );
+                dump_object_property(property, &child_state(state, i == properties.len() - 1), state);
             }
         }
 
@@ -1018,10 +951,7 @@ fn dump_identifier(ident: &Identifier, range: &SourceRange, state: &DumpState) {
         } else {
             "variable"
         };
-        desc.push_str(&format!(
-            " {}",
-            color_local(state, kind, ident.local_index.get())
-        ));
+        desc.push_str(&format!(" {}", color_local(state, kind, ident.local_index.get())));
     } else if ident.is_global.get() {
         desc.push_str(&format!(" {}", color_global(state)));
     }
@@ -1049,17 +979,11 @@ fn dump_scope_node(class_name: &str, scope: &ScopeData, range: &SourceRange, sta
     }
 }
 
-fn dump_function(
-    function_data: &FunctionData,
-    class_name: &str,
-    range: &SourceRange,
-    state: &DumpState,
-) {
+fn dump_function(function_data: &FunctionData, class_name: &str, range: &SourceRange, state: &DumpState) {
     let mut desc = color_node_name(state, class_name);
-    let is_async = function_data.kind == FunctionKind::Async
-        || function_data.kind == FunctionKind::AsyncGenerator;
-    let is_generator = function_data.kind == FunctionKind::Generator
-        || function_data.kind == FunctionKind::AsyncGenerator;
+    let is_async = function_data.kind == FunctionKind::Async || function_data.kind == FunctionKind::AsyncGenerator;
+    let is_generator =
+        function_data.kind == FunctionKind::Generator || function_data.kind == FunctionKind::AsyncGenerator;
     if is_async {
         desc.push_str(" async");
     }
@@ -1084,10 +1008,7 @@ fn dump_function(
         desc.push_str(&format!(" {}", color_flag(state, "uses-this")));
     }
     if function_data.parsing_insights.uses_this_from_environment {
-        desc.push_str(&format!(
-            " {}",
-            color_flag(state, "uses-this-from-environment")
-        ));
+        desc.push_str(&format!(" {}", color_flag(state, "uses-this-from-environment")));
     }
     if function_data.parsing_insights.might_need_arguments_object {
         desc.push_str(&format!(" {}", color_flag(state, "might-need-arguments")));
@@ -1096,31 +1017,19 @@ fn dump_function(
     print_node(state, &desc);
 
     if !function_data.parameters.is_empty() {
-        print_node(
-            &child_state(state, false),
-            &color_label(state, "parameters"),
-        );
+        print_node(&child_state(state, false), &color_label(state, "parameters"));
         let parameters_state = child_state(state, false);
         for (i, parameter) in function_data.parameters.iter().enumerate() {
-            let parameter_state =
-                child_state(&parameters_state, i == function_data.parameters.len() - 1);
+            let parameter_state = child_state(&parameters_state, i == function_data.parameters.len() - 1);
             let has_default = parameter.default_value.is_some();
             if parameter.is_rest {
                 print_node(&parameter_state, &color_label(state, "rest"));
                 match &parameter.binding {
                     FunctionParameterBinding::Identifier(ident) => {
-                        dump_identifier(
-                            ident,
-                            &ident.range,
-                            &child_state(&parameter_state, !has_default),
-                        );
+                        dump_identifier(ident, &ident.range, &child_state(&parameter_state, !has_default));
                     }
                     FunctionParameterBinding::BindingPattern(pattern) => {
-                        dump_binding_pattern(
-                            pattern,
-                            &child_state(&parameter_state, !has_default),
-                            state,
-                        );
+                        dump_binding_pattern(pattern, &child_state(&parameter_state, !has_default), state);
                     }
                 }
             } else {
@@ -1129,34 +1038,22 @@ fn dump_function(
                         dump_identifier(
                             ident,
                             &ident.range,
-                            &child_state(
-                                &parameters_state,
-                                i == function_data.parameters.len() - 1,
-                            ),
+                            &child_state(&parameters_state, i == function_data.parameters.len() - 1),
                         );
                     }
                     FunctionParameterBinding::BindingPattern(pattern) => {
                         dump_binding_pattern(
                             pattern,
-                            &child_state(
-                                &parameters_state,
-                                i == function_data.parameters.len() - 1,
-                            ),
+                            &child_state(&parameters_state, i == function_data.parameters.len() - 1),
                             state,
                         );
                     }
                 }
             }
             if has_default {
-                print_node(
-                    &child_state(&parameter_state, true),
-                    &color_label(state, "default"),
-                );
+                print_node(&child_state(&parameter_state, true), &color_label(state, "default"));
                 dump_expression(
-                    parameter
-                        .default_value
-                        .as_ref()
-                        .expect("guarded by is_some check"),
+                    parameter.default_value.as_ref().expect("guarded by is_some check"),
                     &child_state(&child_state(&parameter_state, true), true),
                 );
             }
@@ -1164,18 +1061,10 @@ fn dump_function(
     }
 
     print_node(&child_state(state, true), &color_label(state, "body"));
-    dump_statement(
-        &function_data.body,
-        &child_state(&child_state(state, true), true),
-    );
+    dump_statement(&function_data.body, &child_state(&child_state(state, true), true));
 }
 
-fn dump_class(
-    class_data: &ClassData,
-    range: &SourceRange,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_class(class_data: &ClassData, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
     let name_str = match &class_data.name {
         Some(ident) => utf16_to_string(&ident.name),
         None => String::new(),
@@ -1193,10 +1082,7 @@ fn dump_class(
     let has_elements = !class_data.elements.is_empty();
 
     if has_super {
-        print_node(
-            &child_state(state, false),
-            &color_label(root_state, "super class"),
-        );
+        print_node(&child_state(state, false), &color_label(root_state, "super class"));
         dump_expression(
             class_data
                 .super_class
@@ -1211,37 +1097,23 @@ fn dump_class(
             &child_state(state, !has_elements),
             &color_label(root_state, "constructor"),
         );
-        dump_expression(
-            constructor,
-            &child_state(&child_state(state, !has_elements), true),
-        );
+        dump_expression(constructor, &child_state(&child_state(state, !has_elements), true));
     }
 
     if has_elements {
-        print_node(
-            &child_state(state, true),
-            &color_label(root_state, "elements"),
-        );
+        print_node(&child_state(state, true), &color_label(root_state, "elements"));
         for (i, element) in class_data.elements.iter().enumerate() {
             dump_class_element(
                 &element.inner,
                 &element.range,
-                &child_state(
-                    &child_state(state, true),
-                    i == class_data.elements.len() - 1,
-                ),
+                &child_state(&child_state(state, true), i == class_data.elements.len() - 1),
                 root_state,
             );
         }
     }
 }
 
-fn dump_class_element(
-    element: &ClassElement,
-    range: &SourceRange,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_class_element(element: &ClassElement, range: &SourceRange, state: &DumpState, root_state: &DumpState) {
     match element {
         ClassElement::Method {
             key,
@@ -1277,10 +1149,7 @@ fn dump_class_element(
             print_node(state, &desc);
             dump_expression(key, &child_state(state, initializer.is_none()));
             if let Some(init) = initializer {
-                print_node(
-                    &child_state(state, true),
-                    &color_label(root_state, "initializer"),
-                );
+                print_node(&child_state(state, true), &color_label(root_state, "initializer"));
                 dump_expression(init, &child_state(&child_state(state, true), true));
             }
         }
@@ -1339,10 +1208,7 @@ fn dump_binding_pattern(pattern: &BindingPattern, state: &DumpState, root_state:
                     dump_identifier(
                         ident,
                         &ident.range,
-                        &child_state(
-                            &child_state(&entry_state, !has_alias && !has_initializer),
-                            true,
-                        ),
+                        &child_state(&child_state(&entry_state, !has_alias && !has_initializer), true),
                     );
                 }
                 Some(BindingEntryName::Expression(expression)) => {
@@ -1352,10 +1218,7 @@ fn dump_binding_pattern(pattern: &BindingPattern, state: &DumpState, root_state:
                     );
                     dump_expression(
                         expression,
-                        &child_state(
-                            &child_state(&entry_state, !has_alias && !has_initializer),
-                            true,
-                        ),
+                        &child_state(&child_state(&entry_state, !has_alias && !has_initializer), true),
                     );
                 }
                 None => {}
@@ -1397,10 +1260,7 @@ fn dump_binding_pattern(pattern: &BindingPattern, state: &DumpState, root_state:
                 &color_label(root_state, "initializer"),
             );
             dump_expression(
-                entry
-                    .initializer
-                    .as_ref()
-                    .expect("guarded by is_some check"),
+                entry.initializer.as_ref().expect("guarded by is_some check"),
                 &child_state(&child_state(&entry_state, true), true),
             );
         }
@@ -1411,11 +1271,7 @@ fn is_elision(entry: &BindingEntry) -> bool {
     entry.name.is_none() && entry.alias.is_none() && entry.initializer.is_none() && !entry.is_rest
 }
 
-fn dump_variable_declarator(
-    declaration: &VariableDeclarator,
-    state: &DumpState,
-    root_state: &DumpState,
-) {
+fn dump_variable_declarator(declaration: &VariableDeclarator, state: &DumpState, root_state: &DumpState) {
     print_node(
         state,
         &format!(
@@ -1480,26 +1336,12 @@ fn dump_catch_clause(clause: &CatchClause, state: &DumpState, root_state: &DumpS
     if let Some(parameter) = &clause.parameter {
         match parameter {
             CatchBinding::Identifier(ident) => {
-                print_node(
-                    &child_state(state, false),
-                    &color_label(root_state, "parameter"),
-                );
-                dump_identifier(
-                    ident,
-                    &ident.range,
-                    &child_state(&child_state(state, false), true),
-                );
+                print_node(&child_state(state, false), &color_label(root_state, "parameter"));
+                dump_identifier(ident, &ident.range, &child_state(&child_state(state, false), true));
             }
             CatchBinding::BindingPattern(pattern) => {
-                print_node(
-                    &child_state(state, false),
-                    &color_label(root_state, "parameter"),
-                );
-                dump_binding_pattern(
-                    pattern,
-                    &child_state(&child_state(state, false), true),
-                    root_state,
-                );
+                print_node(&child_state(state, false), &color_label(root_state, "parameter"));
+                dump_binding_pattern(pattern, &child_state(&child_state(state, false), true), root_state);
             }
         }
     }
@@ -1529,18 +1371,12 @@ fn dump_switch_case(case: &SwitchCase, state: &DumpState, root_state: &DumpState
             ),
         );
     }
-    print_node(
-        &child_state(state, true),
-        &color_label(root_state, "consequent"),
-    );
+    print_node(&child_state(state, true), &color_label(root_state, "consequent"));
     let consequent_state = child_state(&child_state(state, true), true);
     let scope = case.scope.borrow();
     let children = &scope.children;
     for (i, child) in children.iter().enumerate() {
-        dump_statement(
-            child,
-            &child_state(&consequent_state, i == children.len() - 1),
-        );
+        dump_statement(child, &child_state(&consequent_state, i == children.len() - 1));
     }
 }
 

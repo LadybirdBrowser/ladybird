@@ -67,10 +67,7 @@ pub enum Instruction {
     AnyChar { dot_all: bool },
 
     /// Match a character in a set of ranges. `negated` inverts the match.
-    CharClass {
-        ranges: Vec<CharRange>,
-        negated: bool,
-    },
+    CharClass { ranges: Vec<CharRange>, negated: bool },
 
     /// Match a built-in character class (\d, \w, \s and negations).
     BuiltinClass(BuiltinCharacterClass),
@@ -134,11 +131,7 @@ pub enum Instruction {
     /// `forward`: lookahead (true) or lookbehind (false).
     /// `body`: start of the assertion body.
     /// `end`: instruction after the assertion.
-    LookStart {
-        positive: bool,
-        forward: bool,
-        end: u32,
-    },
+    LookStart { positive: bool, forward: bool, end: u32 },
 
     /// End of a lookaround body. Signals success of the assertion sub-match.
     LookEnd,
@@ -245,10 +238,7 @@ pub enum SimpleMatch {
     /// Case-insensitive character.
     CharNoCase(u32, u32),
     /// Character class (set of ranges), negated flag.
-    CharClass {
-        ranges: Vec<CharRange>,
-        negated: bool,
-    },
+    CharClass { ranges: Vec<CharRange>, negated: bool },
     /// Built-in class (\d, \w, \s, etc.)
     BuiltinClass(BuiltinCharacterClass),
     /// Unicode property (\p{...}, \P{...}).

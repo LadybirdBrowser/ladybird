@@ -160,14 +160,12 @@ impl Compiler {
     }
 
     fn emit_unicode_property(&mut self, negated: bool, name: &str, value: Option<&str>) {
-        self.emit(Instruction::UnicodeProperty(Box::new(
-            UnicodePropertyData {
-                negated,
-                name: name.to_string(),
-                value: value.map(|v| v.to_string()),
-                resolved: None,
-            },
-        )));
+        self.emit(Instruction::UnicodeProperty(Box::new(UnicodePropertyData {
+            negated,
+            name: name.to_string(),
+            value: value.map(|v| v.to_string()),
+            resolved: None,
+        })));
     }
 
     fn emit_char_string(&mut self, chars: &[char]) {
@@ -198,14 +196,10 @@ impl Compiler {
 
     fn class_set_expression_lengths(&self, expr: &ClassSetExpression) -> BTreeSet<usize> {
         match expr {
-            ClassSetExpression::Union(operands) => {
-                operands
-                    .iter()
-                    .fold(BTreeSet::new(), |mut lengths, operand| {
-                        lengths.extend(self.class_set_operand_lengths(operand));
-                        lengths
-                    })
-            }
+            ClassSetExpression::Union(operands) => operands.iter().fold(BTreeSet::new(), |mut lengths, operand| {
+                lengths.extend(self.class_set_operand_lengths(operand));
+                lengths
+            }),
             ClassSetExpression::Intersection(operands) => {
                 let Some((first, rest)) = operands.split_first() else {
                     return BTreeSet::new();
@@ -226,9 +220,9 @@ impl Compiler {
 
     fn class_set_operand_lengths(&self, operand: &ClassSetOperand) -> BTreeSet<usize> {
         match operand {
-            ClassSetOperand::Char(_)
-            | ClassSetOperand::Range(_, _)
-            | ClassSetOperand::BuiltinClass(_) => Self::singleton_length_set(),
+            ClassSetOperand::Char(_) | ClassSetOperand::Range(_, _) | ClassSetOperand::BuiltinClass(_) => {
+                Self::singleton_length_set()
+            }
             ClassSetOperand::NestedClass(cc) => {
                 if cc.negated {
                     return Self::singleton_length_set();
@@ -239,10 +233,7 @@ impl Compiler {
                 }
             }
             ClassSetOperand::UnicodeProperty(up) => {
-                if self.program.unicode_sets
-                    && !up.negated
-                    && crate::unicode_ffi::is_string_property(&up.name)
-                {
+                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
                     let mut lengths = Self::singleton_length_set();
                     for string in Self::get_string_property_strings(&up.name) {
                         lengths.insert(string.len());
@@ -389,10 +380,7 @@ impl Compiler {
     }
 
     fn alternative_can_be_zero_width(&self, alternative: &Alternative) -> bool {
-        alternative
-            .terms
-            .iter()
-            .all(|term| self.term_can_be_zero_width(term))
+        alternative.terms.iter().all(|term| self.term_can_be_zero_width(term))
     }
 
     fn term_can_be_zero_width(&self, term: &Term) -> bool {
@@ -498,10 +486,7 @@ impl Compiler {
                             ranges.push(CharRange { start: *c, end: *c });
                         }
                         CharacterClassRange::Range(lo, hi) => {
-                            ranges.push(CharRange {
-                                start: *lo,
-                                end: *hi,
-                            });
+                            ranges.push(CharRange { start: *lo, end: *hi });
                         }
                         _ => return None, // BuiltinClass or UnicodeProperty in class
                     }
@@ -519,14 +504,12 @@ impl Compiler {
                 if self.program.unicode_sets && crate::unicode_ffi::is_string_property(&up.name) {
                     return None;
                 }
-                Some(SimpleMatch::UnicodeProperty(Box::new(
-                    UnicodePropertyData {
-                        negated: up.negated,
-                        name: up.name.clone(),
-                        value: up.value.clone(),
-                        resolved: None, // Will be populated after compilation.
-                    },
-                )))
+                Some(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
+                    negated: up.negated,
+                    name: up.name.clone(),
+                    value: up.value.clone(),
+                    resolved: None, // Will be populated after compilation.
+                })))
             }
             _ => None,
         }
@@ -767,12 +750,7 @@ impl Compiler {
         }
     }
 
-    fn compile_counted_optional_repetitions(
-        &mut self,
-        atom: &Atom,
-        optional_count: u32,
-        greedy: bool,
-    ) {
+    fn compile_counted_optional_repetitions(&mut self, atom: &Atom, optional_count: u32, greedy: bool) {
         let counter_reg = self.alloc_register();
         self.emit(Instruction::RepeatStart { counter_reg });
 
@@ -835,10 +813,7 @@ impl Compiler {
             }
 
             Atom::UnicodeProperty(up) => {
-                if self.program.unicode_sets
-                    && !up.negated
-                    && crate::unicode_ffi::is_string_property(&up.name)
-                {
+                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
                     self.emit_string_property_match(&up.name, up.value.as_deref());
                     return;
                 }
@@ -881,11 +856,7 @@ impl Compiler {
                 self.emit(Instruction::LookEnd);
                 let end = self.current_offset();
                 // Patch the end offset.
-                self.program.instructions[look_start as usize] = Instruction::LookStart {
-                    positive,
-                    forward,
-                    end,
-                };
+                self.program.instructions[look_start as usize] = Instruction::LookStart { positive, forward, end };
             }
 
             Atom::Backreference(br) => match br {
@@ -983,20 +954,13 @@ impl Compiler {
                                 char_ranges.push(CharRange { start: hi, end: hi });
                                 char_ranges.push(CharRange { start: lo, end: lo });
                             } else {
-                                char_ranges.push(CharRange {
-                                    start: *cp,
-                                    end: *cp,
-                                });
+                                char_ranges.push(CharRange { start: *cp, end: *cp });
                             }
                         }
                         CharacterClassRange::Range(lo, hi) => {
-                            char_ranges.push(CharRange {
-                                start: *lo,
-                                end: *hi,
-                            });
+                            char_ranges.push(CharRange { start: *lo, end: *hi });
                         }
-                        CharacterClassRange::BuiltinClass(_)
-                        | CharacterClassRange::UnicodeProperty(_) => {
+                        CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_) => {
                             has_builtin = true;
                         }
                     }
@@ -1065,10 +1029,7 @@ impl Compiler {
             }
             CharacterClassRange::Range(lo, hi) => {
                 self.emit(Instruction::CharClass {
-                    ranges: vec![CharRange {
-                        start: *lo,
-                        end: *hi,
-                    }],
+                    ranges: vec![CharRange { start: *lo, end: *hi }],
                     negated: false,
                 });
             }
@@ -1126,10 +1087,7 @@ impl Compiler {
     fn compile_class_set_expression(&mut self, expr: &ClassSetExpression) {
         // NB: Compile each exact match length separately, longest first, so
         // intersection/subtraction only compare equal-length alternatives.
-        let mut lengths: Vec<_> = self
-            .class_set_expression_lengths(expr)
-            .into_iter()
-            .collect();
+        let mut lengths: Vec<_> = self.class_set_expression_lengths(expr).into_iter().collect();
         lengths.sort_unstable_by(|a, b| b.cmp(a));
 
         if lengths.is_empty() {
@@ -1137,9 +1095,7 @@ impl Compiler {
             return;
         }
 
-        self.emit_split_chain(&lengths, |s, len| {
-            s.compile_class_set_expression_at_length(expr, *len)
-        });
+        self.emit_split_chain(&lengths, |s, len| s.compile_class_set_expression_at_length(expr, *len));
     }
 
     fn compile_class_set_expression_at_length(&mut self, expr: &ClassSetExpression, length: usize) {
@@ -1275,10 +1231,7 @@ impl Compiler {
                 self.emit(Instruction::BuiltinClass(*bc));
             }
             ClassSetOperand::UnicodeProperty(up) => {
-                if self.program.unicode_sets
-                    && !up.negated
-                    && crate::unicode_ffi::is_string_property(&up.name)
-                {
+                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
                     if length == 1 {
                         self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
                     } else {
@@ -1287,9 +1240,7 @@ impl Compiler {
                             self.emit(Instruction::Fail);
                             return;
                         }
-                        self.emit_split_chain(&strings, |s, string| {
-                            s.emit_code_point_string(string)
-                        });
+                        self.emit_split_chain(&strings, |s, string| s.emit_code_point_string(string));
                     }
                     return;
                 }

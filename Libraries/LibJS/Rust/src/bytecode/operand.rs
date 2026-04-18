@@ -78,10 +78,7 @@ impl Operand {
     }
 
     pub fn operand_type(self) -> OperandType {
-        assert!(
-            !self.is_invalid(),
-            "operand_type() called on INVALID operand"
-        );
+        assert!(!self.is_invalid(), "operand_type() called on INVALID operand");
         match (self.0 >> Self::TYPE_SHIFT) & 0x7 {
             0 => OperandType::Register,
             1 => OperandType::Local,

@@ -191,13 +191,7 @@ unsafe fn source_from_raw<'a>(source: *const u16, len: usize) -> Option<&'a [u16
 
 /// Callback type for reporting parse errors to C++.
 pub type ParseErrorCallback = Option<
-    unsafe extern "C" fn(
-        ctx: *mut c_void,
-        message: *const u8,
-        message_len: usize,
-        line: u32,
-        column: u32,
-    ) -> (),
+    unsafe extern "C" fn(ctx: *mut c_void, message: *const u8, message_len: usize, line: u32, column: u32) -> (),
 >;
 
 /// Log parser and scope collector errors, returning true if any were found.
@@ -287,9 +281,7 @@ unsafe fn compile_program_body(
         if !generator.is_current_block_terminated()
             && let Some(value) = result
         {
-            generator.emit(bytecode::instruction::Instruction::End {
-                value: value.operand(),
-            });
+            generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
         }
         // If result is None, the assembler will add End(undefined) as a
         // fallthrough for unterminated blocks, matching C++ compile().
@@ -363,16 +355,9 @@ pub unsafe extern "C" fn rust_compile_program(
                 return std::ptr::null_mut();
             };
 
-            let mut generator =
-                new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
+            let mut generator = new_program_generator(starts_in_strict_mode, vm_ptr, source_code_ptr, source_len);
             generator.function_table = std::mem::take(&mut parser.function_table);
-            compile_program_body(
-                &mut generator,
-                &program,
-                &scope_ref,
-                vm_ptr,
-                source_code_ptr,
-            )
+            compile_program_body(&mut generator, &program, &scope_ref, vm_ptr, source_code_ptr)
         })
     }
 }
@@ -437,11 +422,7 @@ pub unsafe extern "C" fn rust_parse_program(
 
             let (scope_ref, is_strict, has_tla) = if errors.is_empty() {
                 if let StatementKind::Program(ref data) = program.inner {
-                    (
-                        data.scope.clone(),
-                        data.is_strict_mode,
-                        data.has_top_level_await,
-                    )
+                    (data.scope.clone(), data.is_strict_mode, data.has_top_level_await)
                 } else {
                     let scope = Rc::new(RefCell::new(ast::ScopeData::default()));
                     (scope, false, false)
@@ -557,8 +538,7 @@ pub unsafe extern "C" fn rust_compile_parsed_script(
         abort_on_panic(|| {
             let mut parsed = Box::from_raw(parsed);
 
-            let mut generator =
-                new_program_generator(parsed.is_strict_mode, vm_ptr, source_code_ptr, source_len);
+            let mut generator = new_program_generator(parsed.is_strict_mode, vm_ptr, source_code_ptr, source_len);
             generator.function_table = std::mem::take(&mut parsed.function_table);
             let exec_ptr = compile_program_body(
                 &mut generator,
@@ -638,12 +618,7 @@ pub unsafe extern "C" fn rust_compile_eval(
 
             parser.scope_collector.analyze(true);
 
-            write_ast_dump_output(
-                &program,
-                &parser.function_table,
-                ast_dump_output,
-                ast_dump_output_len,
-            );
+            write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
 
             let (scope_ref, is_strict) = if let StatementKind::Program(ref data) = program.inner {
                 (data.scope.clone(), data.is_strict_mode)
@@ -651,16 +626,9 @@ pub unsafe extern "C" fn rust_compile_eval(
                 return std::ptr::null_mut();
             };
 
-            let mut generator =
-                new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
+            let mut generator = new_program_generator(is_strict, vm_ptr, source_code_ptr, source_len);
             generator.function_table = std::mem::take(&mut parser.function_table);
-            let exec_ptr = compile_program_body(
-                &mut generator,
-                &program,
-                &scope_ref,
-                vm_ptr,
-                source_code_ptr,
-            );
+            let exec_ptr = compile_program_body(&mut generator, &program, &scope_ref, vm_ptr, source_code_ptr);
             if exec_ptr.is_null() {
                 return std::ptr::null_mut();
             }
@@ -727,8 +695,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             // Validate parameters standalone.
             // First lex independently to catch lexer errors (e.g. unterminated comments)
             // with correct line/column positions relative to the parameter string.
-            let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len)
-            else {
+            let Some(parameters_slice) = source_from_raw(parameters_source, parameters_source_len) else {
                 return std::ptr::null_mut();
             };
             {
@@ -739,9 +706,9 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                         break;
                     }
                     if token.token_type == token::TokenType::Invalid {
-                        let msg = token.message.unwrap_or_else(|| {
-                            format!("Unexpected token {}", token.token_type.name())
-                        });
+                        let msg = token
+                            .message
+                            .unwrap_or_else(|| format!("Unexpected token {}", token.token_type.name()));
                         if let Some(cb) = error_callback {
                             cb(
                                 error_context,
@@ -836,12 +803,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
                 return std::ptr::null_mut();
             }
 
-            write_ast_dump_output(
-                &program,
-                &parser.function_table,
-                ast_dump_output,
-                ast_dump_output_len,
-            );
+            write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
 
             // Extract the FunctionExpression from the program.
             // The program should contain a single ExpressionStatement wrapping a FunctionExpression.
@@ -879,13 +841,7 @@ pub unsafe extern "C" fn rust_compile_dynamic_function(
             let is_strict = function_data.is_strict_mode;
             let subtable = parser.function_table.extract_reachable(&function_data);
 
-            bytecode::ffi::create_sfd_for_gdi(
-                function_data,
-                subtable,
-                vm_ptr,
-                source_code_ptr,
-                is_strict,
-            )
+            bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, is_strict)
         })
     }
 }
@@ -940,12 +896,7 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
 
             parser.scope_collector.analyze(false);
 
-            write_ast_dump_output(
-                &program,
-                &parser.function_table,
-                ast_dump_output,
-                ast_dump_output_len,
-            );
+            write_ast_dump_output(&program, &parser.function_table, ast_dump_output, ast_dump_output_len);
 
             let scope_ref = if let StatementKind::Program(ref data) = program.inner {
                 data.scope.clone()
@@ -968,12 +919,7 @@ pub unsafe extern "C" fn rust_compile_builtin_file(
                     if !sfd_ptr.is_null()
                         && let Some(name_ident) = &fd.name
                     {
-                        push_function(
-                            ctx,
-                            sfd_ptr,
-                            name_ident.name.as_ptr(),
-                            name_ident.name.len(),
-                        );
+                        push_function(ctx, sfd_ptr, name_ident.name.as_ptr(), name_ident.name.len());
                     }
                 }
             }
@@ -1052,8 +998,7 @@ pub unsafe extern "C" fn rust_compile_parsed_module(
                 if !tla_executable_out.is_null() {
                     *tla_executable_out = std::ptr::null_mut();
                 }
-                let mut generator =
-                    new_program_generator(true, vm_ptr, source_code_ptr, source_len);
+                let mut generator = new_program_generator(true, vm_ptr, source_code_ptr, source_len);
                 generator.function_table = std::mem::take(&mut parsed.function_table);
                 compile_program_body(
                     &mut generator,
@@ -1110,13 +1055,8 @@ type ModuleRequestedModuleCallback = unsafe extern "C" fn(
 );
 type ModuleFunctionCallback =
     unsafe extern "C" fn(ctx: *mut c_void, sfd_ptr: *mut c_void, name: *const u16, name_len: usize);
-type ModuleLexicalBindingCallback = unsafe extern "C" fn(
-    ctx: *mut c_void,
-    name: *const u16,
-    name_len: usize,
-    is_constant: bool,
-    function_index: i32,
-);
+type ModuleLexicalBindingCallback =
+    unsafe extern "C" fn(ctx: *mut c_void, name: *const u16, name_len: usize, is_constant: bool, function_index: i32);
 
 /// Module callback table passed from C++ to avoid many function pointer parameters.
 #[repr(C)]
@@ -1136,10 +1076,7 @@ pub struct ModuleCallbacks {
 /// Helper to build FFI attribute arrays from a ModuleRequest.
 fn build_attribute_slices(
     attributes: &[ast::ImportAttribute],
-) -> (
-    Vec<bytecode::ffi::FFIUtf16Slice>,
-    Vec<bytecode::ffi::FFIUtf16Slice>,
-) {
+) -> (Vec<bytecode::ffi::FFIUtf16Slice>, Vec<bytecode::ffi::FFIUtf16Slice>) {
     attributes
         .iter()
         .map(|a| {
@@ -1287,11 +1224,8 @@ unsafe fn extract_module_metadata(scope: &ast::ScopeData, ctx: *mut c_void, cb: 
                     let (in_ptr, in_len, is_ns) = entry
                         .import_name
                         .as_ref()
-                        .map_or((std::ptr::null(), 0, true), |n| {
-                            (n.as_ptr(), n.len(), false)
-                        });
-                    let (keys, values) =
-                        build_attribute_slices(&import_data.module_request.attributes);
+                        .map_or((std::ptr::null(), 0, true), |n| (n.as_ptr(), n.len(), false));
+                    let (keys, values) = build_attribute_slices(&import_data.module_request.attributes);
                     (cb.push_import_entry)(
                         ctx,
                         in_ptr,
@@ -1444,18 +1378,12 @@ unsafe fn extract_module_declarations(
 
             match declaration {
                 StatementKind::FunctionDeclaration(fd) => {
-                    let is_default =
-                        is_exported && fd.name.as_ref().is_some_and(|n| n.name == default_name);
+                    let is_default = is_exported && fd.name.as_ref().is_some_and(|n| n.name == default_name);
 
                     let function_data = function_table.take(fd.function_id);
                     let subtable = function_table.extract_reachable(&function_data);
-                    let sfd_ptr = bytecode::ffi::create_sfd_for_gdi(
-                        function_data,
-                        subtable,
-                        vm_ptr,
-                        source_code_ptr,
-                        true,
-                    );
+                    let sfd_ptr =
+                        bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, true);
                     if sfd_ptr.is_null() {
                         continue;
                     }
@@ -1470,11 +1398,7 @@ unsafe fn extract_module_declarations(
                     // If default export with *default* name, set the SFD display name to "default".
                     let sfd_name = if is_default {
                         let sfd_display_name = utf16!("default");
-                        module_sfd_set_name(
-                            sfd_ptr,
-                            sfd_display_name.as_ptr(),
-                            sfd_display_name.len(),
-                        );
+                        module_sfd_set_name(sfd_ptr, sfd_display_name.as_ptr(), sfd_display_name.len());
                         let display_name: ast::Utf16String = sfd_display_name.into();
                         display_name
                     } else {
@@ -1486,36 +1410,18 @@ unsafe fn extract_module_declarations(
                     function_count += 1;
 
                     // Lexical binding uses the AST name (e.g., "*default*").
-                    (cb.push_lexical_binding)(
-                        ctx,
-                        binding_name.as_ptr(),
-                        binding_name.len(),
-                        false,
-                        function_index,
-                    );
+                    (cb.push_lexical_binding)(ctx, binding_name.as_ptr(), binding_name.len(), false, function_index);
                 }
                 StatementKind::ClassDeclaration(class_data) => {
                     if let Some(ref name_ident) = class_data.name {
-                        (cb.push_lexical_binding)(
-                            ctx,
-                            name_ident.name.as_ptr(),
-                            name_ident.name.len(),
-                            false,
-                            -1,
-                        );
+                        (cb.push_lexical_binding)(ctx, name_ident.name.as_ptr(), name_ident.name.len(), false, -1);
                     }
                 }
                 StatementKind::VariableDeclaration(vd) if vd.kind != ast::DeclarationKind::Var => {
                     let is_constant = vd.kind == ast::DeclarationKind::Const;
                     for declaration in &vd.declarations {
                         for_each_bound_name(&declaration.target, &mut |name| {
-                            (cb.push_lexical_binding)(
-                                ctx,
-                                name.as_ptr(),
-                                name.len(),
-                                is_constant,
-                                -1,
-                            );
+                            (cb.push_lexical_binding)(ctx, name.as_ptr(), name.len(), is_constant, -1);
                         });
                     }
                 }
@@ -1562,11 +1468,7 @@ unsafe fn collect_module_var_names(
 }
 
 /// Extract requested modules sorted by source offset.
-unsafe fn extract_requested_modules(
-    scope: &ast::ScopeData,
-    ctx: *mut c_void,
-    cb: &ModuleCallbacks,
-) {
+unsafe fn extract_requested_modules(scope: &ast::ScopeData, ctx: *mut c_void, cb: &ModuleCallbacks) {
     unsafe {
         use ast::StatementKind;
 
@@ -1750,15 +1652,8 @@ fn extract_gdi_common(
     for (function_id, name) in &functions_to_init {
         let function_data = function_table.take(*function_id);
         let subtable = function_table.extract_reachable(&function_data);
-        let sfd_ptr = unsafe {
-            bytecode::ffi::create_sfd_for_gdi(
-                function_data,
-                subtable,
-                vm_ptr,
-                source_code_ptr,
-                is_strict,
-            )
-        };
+        let sfd_ptr =
+            unsafe { bytecode::ffi::create_sfd_for_gdi(function_data, subtable, vm_ptr, source_code_ptr, is_strict) };
         assert!(!sfd_ptr.is_null(), "create_sfd_for_gdi returned null");
         push_function(sfd_ptr, name);
     }
@@ -1811,8 +1706,8 @@ unsafe fn extract_eval_gdi(
 ) {
     unsafe {
         use bytecode::ffi::{
-            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding,
-            eval_gdi_push_var_name, eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
+            eval_gdi_push_annex_b_name, eval_gdi_push_function, eval_gdi_push_lexical_binding, eval_gdi_push_var_name,
+            eval_gdi_push_var_scoped_name, eval_gdi_set_strict,
         };
 
         eval_gdi_set_strict(ctx, is_strict);
@@ -1847,9 +1742,8 @@ unsafe fn extract_script_gdi(
     unsafe {
         use ast::{DeclarationKind, StatementKind};
         use bytecode::ffi::{
-            script_gdi_push_annex_b_name, script_gdi_push_function,
-            script_gdi_push_lexical_binding, script_gdi_push_lexical_name,
-            script_gdi_push_var_name, script_gdi_push_var_scoped_name,
+            script_gdi_push_annex_b_name, script_gdi_push_function, script_gdi_push_lexical_binding,
+            script_gdi_push_lexical_name, script_gdi_push_var_name, script_gdi_push_var_scoped_name,
         };
 
         // Lexical names (let/const/using/class at top level) — script-only step.
@@ -1897,10 +1791,7 @@ unsafe fn extract_script_gdi(
 
 /// Visit each child statement of a statement, excluding function/class bodies
 /// (which create new var scopes). This enables recursive var-declaration walking.
-fn for_each_child_statement(
-    statement: &ast::StatementKind,
-    f: &mut dyn FnMut(&ast::StatementKind),
-) {
+fn for_each_child_statement(statement: &ast::StatementKind, f: &mut dyn FnMut(&ast::StatementKind)) {
     use ast::StatementKind;
 
     match statement {
@@ -2117,8 +2008,7 @@ pub unsafe extern "C" fn rust_compile_function(
                 generator.switch_to_basic_block(start_block);
             }
 
-            let result =
-                bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
+            let result = bytecode::codegen::generate_statement(&function_data.body, &mut generator, None);
 
             if !generator.is_current_block_terminated() {
                 if generator.is_in_generator_or_async_function() {
@@ -2129,9 +2019,7 @@ pub unsafe extern "C" fn rust_compile_function(
                         value: undef.operand(),
                     });
                 } else if let Some(value) = result {
-                    generator.emit(bytecode::instruction::Instruction::End {
-                        value: value.operand(),
-                    });
+                    generator.emit(bytecode::instruction::Instruction::End { value: value.operand() });
                 }
                 // If result is None, the assembler will add End(undefined) as a
                 // fallthrough for unterminated blocks, matching C++ compile().
@@ -2202,8 +2090,7 @@ fn compute_sfd_metadata(function_data: &ast::FunctionData) -> SfdMetadata {
                 || function_data.parsing_insights.uses_this_from_environment,
             might_need_arguments: function_data.parsing_insights.might_need_arguments_object,
             has_function_named_arguments: fsd.is_some_and(|f| f.has_function_named_arguments),
-            has_lexically_declared_arguments: fsd
-                .is_some_and(|f| f.has_lexically_declared_arguments),
+            has_lexically_declared_arguments: fsd.is_some_and(|f| f.has_lexically_declared_arguments),
             non_local_var_count: fsd.map_or(0, |f| f.non_local_var_count),
             non_local_var_count_for_parameter_expressions: fsd
                 .map_or(0, |f| f.non_local_var_count_for_parameter_expressions),
@@ -2439,10 +2326,7 @@ fn count_non_local_names_in_binding_pattern(pattern: &ast::BindingPattern, count
     }
 }
 
-fn for_each_binding_pattern_identifier(
-    pattern: &ast::BindingPattern,
-    callback: &mut dyn FnMut(&Rc<ast::Identifier>),
-) {
+fn for_each_binding_pattern_identifier(pattern: &ast::BindingPattern, callback: &mut dyn FnMut(&Rc<ast::Identifier>)) {
     for entry in &pattern.entries {
         match &entry.alias {
             Some(ast::BindingEntryAlias::Identifier(ident)) => callback(ident),

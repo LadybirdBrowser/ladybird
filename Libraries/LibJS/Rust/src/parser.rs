@@ -37,9 +37,8 @@ use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use crate::ast::{
-    BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier,
-    PrivateIdentifier, ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement,
-    StatementKind, Utf16String,
+    BindingPattern, Expression, ExpressionKind, FunctionParameter, FunctionTable, Identifier, PrivateIdentifier,
+    ProgramData, ScopeData, SharedUtf16String, SourceRange, Statement, StatementKind, Utf16String,
 };
 use crate::lexer::{Lexer, ch};
 use crate::scope_collector::{ScopeCollector, ScopeCollectorState};
@@ -151,8 +150,7 @@ impl ForbiddenTokens {
             forbid_logical: self.forbid_logical || other.forbid_logical,
             forbid_coalesce: self.forbid_coalesce || other.forbid_coalesce,
             forbid_paren_open: self.forbid_paren_open || other.forbid_paren_open,
-            forbid_question_mark_period: self.forbid_question_mark_period
-                || other.forbid_question_mark_period,
+            forbid_question_mark_period: self.forbid_question_mark_period || other.forbid_question_mark_period,
             forbid_equals: self.forbid_equals || other.forbid_equals,
         }
     }
@@ -307,11 +305,7 @@ impl<'a> Parser<'a> {
         Self::new_with_line_offset(source, program_type, 1)
     }
 
-    pub fn new_with_line_offset(
-        source: &'a [u16],
-        program_type: ProgramType,
-        initial_line_number: u32,
-    ) -> Self {
+    pub fn new_with_line_offset(source: &'a [u16], program_type: ProgramType, initial_line_number: u32) -> Self {
         let mut lexer = Lexer::new(source, initial_line_number, 0);
         if program_type == ProgramType::Module {
             lexer.disallow_html_comments();
@@ -368,11 +362,7 @@ impl<'a> Parser<'a> {
         Statement::new(self.range_from(start), statement)
     }
 
-    pub(crate) fn make_identifier(
-        &self,
-        start: Position,
-        name: impl Into<SharedUtf16String>,
-    ) -> Rc<Identifier> {
+    pub(crate) fn make_identifier(&self, start: Position, name: impl Into<SharedUtf16String>) -> Rc<Identifier> {
         Rc::new(Identifier::new(self.range_from(start), name.into()))
     }
 
@@ -431,9 +421,7 @@ impl<'a> Parser<'a> {
                         is_first_from_pattern: true,
                     });
                     // Then push bound names from this pattern.
-                    while info_index < parameter_info.len()
-                        && parameter_info[info_index].is_from_pattern
-                    {
+                    while info_index < parameter_info.len() && parameter_info[info_index].is_from_pattern {
                         let pi = &parameter_info[info_index];
                         entries.push(ParameterEntry {
                             name: pi.name.clone(),
@@ -556,11 +544,7 @@ impl<'a> Parser<'a> {
             // https://tc39.es/ecma262/#sec-additional-syntax-numeric-literals
             // In strict mode, legacy octal literals (0-prefixed) are not permitted.
             let value = self.token_value(&token);
-            if value.len() > 1
-                && value[0] == ch(b'0')
-                && value[1] >= ch(b'0')
-                && value[1] <= ch(b'9')
-            {
+            if value.len() > 1 && value[0] == ch(b'0') && value[1] >= ch(b'0') && value[1] <= ch(b'9') {
                 self.syntax_error("Unprefixed octal number not allowed in strict mode");
             }
         }
@@ -583,10 +567,7 @@ impl<'a> Parser<'a> {
             self.consume();
             return;
         }
-        if self.current_token.trivia_has_line_terminator
-            || self.match_token(TokenType::CurlyClose)
-            || self.done()
-        {
+        if self.current_token.trivia_has_line_terminator || self.match_token(TokenType::CurlyClose) || self.done() {
             return;
         }
         self.expected("Semicolon");
@@ -656,9 +637,7 @@ impl<'a> Parser<'a> {
         let value = self.token_value(&self.current_token).to_vec();
         if !self.register_referenced_private_name(&value) {
             let name = String::from_utf16_lossy(&value);
-            self.syntax_error(&format!(
-                "Reference to undeclared private field or method '{name}'"
-            ));
+            self.syntax_error(&format!("Reference to undeclared private field or method '{name}'"));
         }
         let token = self.consume();
         let value = self.token_value(&token).to_vec();
@@ -812,16 +791,10 @@ impl<'a> Parser<'a> {
         value != utf16!("let") && value != utf16!("static")
     }
 
-    pub(crate) fn check_identifier_name_for_assignment_validity(
-        &mut self,
-        name: &[u16],
-        force_strict: bool,
-    ) {
+    pub(crate) fn check_identifier_name_for_assignment_validity(&mut self, name: &[u16], force_strict: bool) {
         if self.flags.strict_mode || force_strict {
             if name == utf16!("arguments") || name == utf16!("eval") {
-                self.syntax_error(
-                    "Binding pattern target may not be called 'arguments' or 'eval' in strict mode",
-                );
+                self.syntax_error("Binding pattern target may not be called 'arguments' or 'eval' in strict mode");
             } else if is_strict_reserved_word(name) {
                 let name_str = String::from_utf16_lossy(name);
                 self.syntax_error(&format!(
@@ -873,9 +846,7 @@ impl<'a> Parser<'a> {
             self.check_identifier_name_for_assignment_validity(name, force_strict);
             if !seen_names.insert(&**name) {
                 let name_str = String::from_utf16_lossy(name);
-                self.syntax_error(&format!(
-                    "Duplicate parameter '{name_str}' not allowed in strict mode"
-                ));
+                self.syntax_error(&format!("Duplicate parameter '{name_str}' not allowed in strict mode"));
             }
         }
     }
@@ -1140,9 +1111,7 @@ impl<'a> Parser<'a> {
             if is_use_strict(raw_value) {
                 found_use_strict = true;
                 if self.flags.string_legacy_octal_escape_sequence_in_scope {
-                    self.syntax_error(
-                        "Octal escape sequence in string literal not allowed in strict mode",
-                    );
+                    self.syntax_error("Octal escape sequence in string literal not allowed in strict mode");
                 }
                 break;
             }
@@ -1151,10 +1120,7 @@ impl<'a> Parser<'a> {
         (found_use_strict, statements)
     }
 
-    pub(crate) fn parse_statement_list(
-        &mut self,
-        allow_labelled_functions: bool,
-    ) -> Vec<Statement> {
+    pub(crate) fn parse_statement_list(&mut self, allow_labelled_functions: bool) -> Vec<Statement> {
         let mut statements = Vec::new();
         while !self.done() {
             if self.match_export_or_import() {
@@ -1253,10 +1219,7 @@ impl<'a> Parser<'a> {
 
     pub(crate) fn operator_precedence(tt: TokenType) -> i32 {
         match tt {
-            TokenType::Period
-            | TokenType::BracketOpen
-            | TokenType::ParenOpen
-            | TokenType::QuestionMarkPeriod => 20,
+            TokenType::Period | TokenType::BracketOpen | TokenType::ParenOpen | TokenType::QuestionMarkPeriod => 20,
             TokenType::New => 19,
             TokenType::PlusPlus | TokenType::MinusMinus => 18,
             TokenType::ExclamationMark
@@ -1355,10 +1318,7 @@ fn is_use_strict(raw: &[u16]) -> bool {
 }
 
 /// Collect all binding names introduced by a variable declarator target.
-fn collect_binding_names(
-    target: &crate::ast::VariableDeclaratorTarget,
-    names: &mut HashSet<Utf16String>,
-) {
+fn collect_binding_names(target: &crate::ast::VariableDeclaratorTarget, names: &mut HashSet<Utf16String>) {
     match target {
         crate::ast::VariableDeclaratorTarget::Identifier(identifier) => {
             names.insert(identifier.name.to_utf16_string());
@@ -1370,10 +1330,7 @@ fn collect_binding_names(
 }
 
 /// Collect all binding names from a binding pattern (object or array destructuring).
-fn collect_binding_pattern_names(
-    pattern: &crate::ast::BindingPattern,
-    names: &mut HashSet<Utf16String>,
-) {
+fn collect_binding_pattern_names(pattern: &crate::ast::BindingPattern, names: &mut HashSet<Utf16String>) {
     for entry in &pattern.entries {
         if let Some(ref alias) = entry.alias {
             match alias {
@@ -1395,10 +1352,7 @@ fn collect_binding_pattern_names(
 /// This includes lexical declarations (let/const), function/class declarations, imports,
 /// and also `var` declarations which hoist to module scope even when nested inside
 /// blocks, loops, if/else, etc.
-fn collect_module_declared_names(
-    statement: &crate::ast::Statement,
-    names: &mut HashSet<Utf16String>,
-) {
+fn collect_module_declared_names(statement: &crate::ast::Statement, names: &mut HashSet<Utf16String>) {
     use crate::ast::*;
     match &statement.inner {
         StatementKind::VariableDeclaration(data) => {
