@@ -36,11 +36,14 @@ target_sources(ladybird PRIVATE
     Menu.cpp
     Tab.cpp
     WebContentView.cpp
-    Widgets/LadybirdBrowserWindow.cpp
     Widgets/LadybirdLocationEntry.cpp
     Widgets/LadybirdWebView.cpp
     "${GTK_GRESOURCE_SOURCE}"
 )
 target_link_libraries(ladybird PRIVATE PkgConfig::GTK4 PkgConfig::LIBADWAITA)
 add_dependencies(ladybird gtk_ui_resources)
+
+import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME ladybird_gtk_rust FFI_HEADER RustFFI.h)
+target_link_libraries(ladybird PRIVATE ladybird_gtk_rust)
+
 create_ladybird_bundle(ladybird)
