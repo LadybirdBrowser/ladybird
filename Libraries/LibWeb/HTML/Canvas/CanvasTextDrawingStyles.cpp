@@ -196,7 +196,7 @@ String CanvasTextDrawingStyles<CanvasType>::letter_spacing() const
 {
     // The letterSpacing getter steps are to return the serialized form of this's letter spacing.
     StringBuilder builder;
-    drawing_state().letter_spacing.serialize(builder);
+    drawing_state().letter_spacing->serialize(builder, CSS::SerializationMode::Normal);
     return MUST(builder.to_string());
 }
 
@@ -208,11 +208,11 @@ void CanvasTextDrawingStyles<CanvasType>::set_letter_spacing(StringView letter_s
     auto parsed = parse_css_type(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, letter_spacing, CSS::ValueType::Length);
 
     // 2. If parsed is failure, then return.
-    if (!parsed || !parsed->is_length())
+    if (!parsed)
         return;
 
     // 3. Set this's letter spacing to parsed.
-    drawing_state().letter_spacing = parsed->as_length().length();
+    drawing_state().letter_spacing = parsed.release_nonnull();
 }
 
 template class CanvasTextDrawingStyles<HTMLCanvasElement>;

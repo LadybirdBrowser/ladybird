@@ -7,6 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/CanvasRenderingContext2D.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/HTML/CanvasGradient.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 
@@ -84,7 +85,7 @@ struct DrawingState {
     Bindings::CanvasTextAlign text_align { Bindings::CanvasTextAlign::Start };
     Bindings::CanvasTextBaseline text_baseline { Bindings::CanvasTextBaseline::Alphabetic };
     Bindings::CanvasDirection direction { Bindings::CanvasDirection::Inherit };
-    CSS::Length letter_spacing { CSS::Length::make_px(0) };
+    NonnullRefPtr<CSS::StyleValue const> letter_spacing { CSS::LengthStyleValue::create(CSS::Length::make_px(0)) };
 
     void visit_edges(GC::Cell::Visitor& visitor)
     {

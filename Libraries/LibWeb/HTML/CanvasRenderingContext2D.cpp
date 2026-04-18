@@ -286,7 +286,10 @@ static float resolved_letter_spacing(DrawingState const& drawing_state, HTMLCanv
             return CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
         return CSS::Length::ResolutionContext::for_document(canvas_element.document());
     }();
-    return static_cast<float>(drawing_state.letter_spacing.to_px(context).to_double());
+
+    auto absolutized_length = CSS::Length::from_style_value(drawing_state.letter_spacing->absolutized({ .length_resolution_context = context }), {});
+
+    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
 }
 
 Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)

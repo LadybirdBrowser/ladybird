@@ -19,6 +19,9 @@
         ctx.letterSpacing = "";
         println(`after set empty: ${ctx.letterSpacing}`);
 
+        ctx.letterSpacing = "calc(1px + 2px)";
+        println(`after set calc(1px + 2px): ${ctx.letterSpacing}`);
+
         ctx.letterSpacing = "10px";
         println(`after set 10px: ${ctx.letterSpacing}`);
 
@@ -33,5 +36,9 @@
         ctx.letterSpacing = "0px";
         const width_without_spacing = ctx.measureText("hello").width;
         println(`spacing affects measureText: ${width_with_spacing > width_without_spacing}`);
+
+        ctx.letterSpacing = "calc(1px + 2px)";
+        const width_with_calc_spacing = ctx.measureText("hello").width;
+        println(`calc spacing matches 3px: ${width_with_calc_spacing === width_with_spacing}`);
     });
 </script>
