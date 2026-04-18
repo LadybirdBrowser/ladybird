@@ -77,12 +77,12 @@ pub struct Lexer<'a> {
 // Unicode constants used by the lexical grammar.
 // https://tc39.es/ecma262/#sec-white-space
 // https://tc39.es/ecma262/#sec-line-terminators
-const NO_BREAK_SPACE: u16 = 0x00A0;
-const ZERO_WIDTH_NON_JOINER: u32 = 0x200C;
-const ZERO_WIDTH_JOINER: u32 = 0x200D;
+const TAB: u32 = 0x0009;
+const VERTICAL_TAB: u32 = 0x000B;
+const FORM_FEED: u32 = 0x000C;
 const LINE_SEPARATOR: u16 = 0x2028;
 const PARAGRAPH_SEPARATOR: u16 = 0x2029;
-const ZERO_WIDTH_NO_BREAK_SPACE: u16 = 0xFEFF;
+const ZERO_WIDTH_NO_BREAK_SPACE: u32 = 0xFEFF;
 
 /// Convert an ASCII byte literal to a UTF-16 code unit.
 pub(crate) const fn ch(c: u8) -> u16 {
@@ -93,24 +93,12 @@ fn is_ascii(cu: u16) -> bool {
     cu < 128
 }
 
-fn is_ascii_alpha(cp: u32) -> bool {
-    cp < 128 && (cp as u8).is_ascii_alphabetic()
-}
-
 fn is_ascii_digit(cu: u16) -> bool {
     cu >= ch(b'0') && cu <= ch(b'9')
 }
 
-fn is_ascii_digit_cp(cp: u32) -> bool {
-    cp >= b'0' as u32 && cp <= b'9' as u32
-}
-
 fn is_ascii_hex_digit(cu: u16) -> bool {
     is_ascii_digit(cu) || (cu >= ch(b'a') && cu <= ch(b'f')) || (cu >= ch(b'A') && cu <= ch(b'F'))
-}
-
-fn is_ascii_alphanumeric(cp: u32) -> bool {
-    is_ascii_alpha(cp) || is_ascii_digit_cp(cp)
 }
 
 fn is_ascii_space(cu: u16) -> bool {
@@ -160,55 +148,25 @@ fn is_line_terminator_cp(cp: u32) -> bool {
 // WhiteSpace :: <TAB> | <VT> | <FF> | <ZWNBSP> | <USP>
 // where <USP> is any code point with General Category "Space_Separator" (Zs).
 fn is_whitespace_cp(cp: u32) -> bool {
-    if cp < 128 {
-        return is_ascii_space(cp as u16);
-    }
-    if cp == NO_BREAK_SPACE as u32 || cp == ZERO_WIDTH_NO_BREAK_SPACE as u32 {
+    if matches!(cp, TAB | VERTICAL_TAB | FORM_FEED | ZERO_WIDTH_NO_BREAK_SPACE) {
         return true;
     }
-    // Unicode General Category "Space_Separator" (Zs)
-    matches!(cp, 0x1680 | 0x2000..=0x200A | 0x202F | 0x205F | 0x3000)
+
+    libunicode_rust::character_types::code_point_has_space_separator_general_category(cp)
 }
 
-// https://tc39.es/ecma262/#sec-identifier-names
+// https://tc39.es/ecma262/#prod-IdentifierStartChar
 // IdentifierStartChar :: UnicodeIDStart | $ | _
 fn is_identifier_start_cp(cp: u32) -> bool {
-    if is_ascii_alpha(cp) || cp == '_' as u32 || cp == '$' as u32 {
-        return true;
-    }
-    if cp < 128 {
-        return false;
-    }
-    unicode_id_start(cp)
-}
-
-// https://tc39.es/ecma262/#sec-identifier-names
-// IdentifierPartChar :: UnicodeIDContinue | $ | <ZWNJ> | <ZWJ>
-fn is_identifier_continue_cp(cp: u32) -> bool {
-    if is_ascii_alphanumeric(cp)
-        || cp == '$' as u32
+    cp == '$' as u32
         || cp == '_' as u32
-        || cp == ZERO_WIDTH_NON_JOINER
-        || cp == ZERO_WIDTH_JOINER
-    {
-        return true;
-    }
-    if cp < 128 {
-        return false;
-    }
-    unicode_id_continue(cp)
+        || libunicode_rust::character_types::code_point_has_identifier_start_property(cp)
 }
 
-fn unicode_id_start(cp: u32) -> bool {
-    // NB: The ECMAScript spec requires ID_Start, not XID_Start.
-    //     U+309B and U+309C are Other_ID_Start (thus ID_Start) but not XID_Start.
-    cp == 0x309B || cp == 0x309C || char::from_u32(cp).is_some_and(unicode_ident::is_xid_start)
-}
-
-fn unicode_id_continue(cp: u32) -> bool {
-    // NB: The ECMAScript spec requires ID_Continue, not XID_Continue.
-    //     U+309B and U+309C are Other_ID_Start (thus ID_Continue) but not XID_Continue.
-    cp == 0x309B || cp == 0x309C || char::from_u32(cp).is_some_and(unicode_ident::is_xid_continue)
+// https://tc39.es/ecma262/#prod-IdentifierPartChar
+// IdentifierPartChar :: UnicodeIDContinue | $
+fn is_identifier_continue_cp(cp: u32) -> bool {
+    cp == '$' as u32 || libunicode_rust::character_types::code_point_has_identifier_continue_property(cp)
 }
 
 // https://tc39.es/ecma262/#sec-keywords-and-reserved-words

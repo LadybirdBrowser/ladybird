@@ -375,10 +375,10 @@ version = "0.1.0"
 dependencies = [
  "bytecode_def",
  "cbindgen",
+ "libunicode_rust",
  "num-bigint",
  "num-integer",
  "num-traits",
- "unicode-ident",
 ]
 
 [[package]]

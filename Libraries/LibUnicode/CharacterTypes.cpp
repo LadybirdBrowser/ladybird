@@ -739,6 +739,8 @@ bool unicode_property_all_case_equivalents_match(u32, unsigned char const*, size
 bool unicode_resolve_property(unsigned char const*, size_t, unsigned char const*, size_t, unsigned char*, u32*);
 bool unicode_resolved_property_matches(u32, unsigned char, u32);
 
+bool unicode_code_point_has_space_separator_general_category(u32);
+
 bool unicode_code_point_has_identifier_start_property(u32);
 bool unicode_code_point_has_identifier_continue_property(u32);
 
@@ -827,6 +829,11 @@ extern "C" bool unicode_resolved_property_matches(u32 code_point, unsigned char 
         return Unicode::code_point_has_property(code_point, Unicode::Property { id });
     }
     VERIFY_NOT_REACHED();
+}
+
+extern "C" bool unicode_code_point_has_space_separator_general_category(u32 code_point)
+{
+    return Unicode::code_point_has_space_separator_general_category(code_point);
 }
 
 extern "C" bool unicode_code_point_has_identifier_start_property(u32 code_point)

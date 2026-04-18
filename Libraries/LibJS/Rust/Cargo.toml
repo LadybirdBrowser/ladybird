@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 # After changing dependencies, regenerate the Flatpak sources:
 #   python3 Meta/CMake/flatpak/generate-cargo-sources.py
 [dependencies]
-unicode-ident = "1.0"
+libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
 num-bigint = "0.4"
 num-traits = "0.2"
 num-integer = "0.1"
