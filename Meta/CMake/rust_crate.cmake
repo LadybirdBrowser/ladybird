@@ -7,7 +7,7 @@
 # https://github.com/corrosion-rs/corrosion/issues/206
 # https://github.com/corrosion-rs/corrosion/issues/624
 function(import_rust_crate)
-    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "")
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;FFI_HEADER" "FEATURES")
 
     set(ARG_MANIFEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_MANIFEST_PATH}")
     if (NOT ARG_FFI_OUTPUT_DIR)
@@ -36,6 +36,12 @@ function(import_rust_crate)
     # Build the uppercased and underscored variants of the target triple.
     string(REPLACE "-" "_" target_underscore "${RUST_TARGET_TRIPLE}")
     string(TOUPPER "${target_underscore}" target_upper)
+
+    set(cargo_feature_flags "")
+    if (ARG_FEATURES)
+        list(JOIN ARG_FEATURES "," cargo_features)
+        list(APPEND cargo_feature_flags "--features=${cargo_features}")
+    endif()
 
     # Determine the cargo profile and output directory name.
     string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type_upper)
@@ -90,6 +96,7 @@ function(import_rust_crate)
                 --package ${ARG_CRATE_NAME}
                 --manifest-path "${ARG_MANIFEST_PATH}"
                 --target-dir "${cargo_target_dir}"
+                ${cargo_feature_flags}
                 ${cargo_profile_flag}
                 --
                 -Cdefault-linker-libraries=yes

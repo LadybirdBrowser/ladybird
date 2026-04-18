@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#[cfg(feature = "allocator")]
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
