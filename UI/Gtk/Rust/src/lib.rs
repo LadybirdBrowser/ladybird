@@ -5,3 +5,4 @@
  */
 
 pub mod browser_window;
+pub mod location_entry;

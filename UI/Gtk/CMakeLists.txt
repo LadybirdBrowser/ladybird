@@ -36,7 +36,6 @@ target_sources(ladybird PRIVATE
     Menu.cpp
     Tab.cpp
     WebContentView.cpp
-    Widgets/LadybirdLocationEntry.cpp
     Widgets/LadybirdWebView.cpp
     "${GTK_GRESOURCE_SOURCE}"
 )

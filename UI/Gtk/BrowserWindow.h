@@ -10,7 +10,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/Menu.h>
-#include <UI/Gtk/Widgets/LadybirdLocationEntry.h>
+#include <UI/Gtk/RustFFI.h>
 
 #include <adwaita.h>
 
@@ -37,7 +37,7 @@ public:
     int tab_count() const;
 
     void update_navigation_buttons(bool back_enabled, bool forward_enabled);
-    void update_location_entry(StringView url);
+    void update_location_entry(URL::URL const& url);
     void update_zoom_label();
     void update_find_in_page_result(size_t current_match_index, Optional<size_t> const& total_match_count);
 
@@ -60,7 +60,7 @@ private:
     void bind_navigation_actions(WebContentView& view);
 
     AdwApplicationWindow* m_window { nullptr };
-    LadybirdLocationEntry* m_location_entry { nullptr };
+    FFI::LadybirdLocationEntry* m_location_entry { nullptr };
     Vector<NonnullOwnPtr<Tab>> m_tabs;
 
     AdwTabView* m_tab_view { nullptr };

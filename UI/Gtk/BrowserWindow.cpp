@@ -19,6 +19,13 @@
 
 namespace Ladybird {
 
+static FFI::SchemeShouldShowLock scheme_should_show_lock(URL::URL const& url)
+{
+    return (url.scheme() == "https"sv || url.scheme() == "wss"sv)
+        ? FFI::SchemeShouldShowLock::Yes
+        : FFI::SchemeShouldShowLock::No;
+}
+
 class NavActionObserver final : public WebView::Action::Observer {
 public:
     NavActionObserver(GSimpleAction* gaction)
@@ -85,7 +92,7 @@ void BrowserWindow::register_actions()
     add_action("new-tab", [](BrowserWindow& self) { self.create_new_tab(Web::HTML::ActivateTab::Yes); });
     add_action("new-window", [](BrowserWindow&) { Application::the().new_window({}); });
     add_action("close-tab", [](BrowserWindow& self) { self.close_current_tab(); });
-    add_action("focus-location", [](BrowserWindow& self) { ladybird_location_entry_focus_and_select_all(self.m_location_entry); });
+    add_action("focus-location", [](BrowserWindow& self) { FFI::ladybird_location_entry_focus_and_select_all(self.m_location_entry); });
 
     add_action("go-back", [](BrowserWindow& self) {
         if (auto* tab = self.current_tab())
@@ -190,15 +197,23 @@ void BrowserWindow::setup_ui(AdwApplication* app)
         this);
 
     // URL entry (centered title widget)
-    m_location_entry = ladybird_location_entry_new();
-    ladybird_location_entry_set_on_navigate(m_location_entry, [this](String url_string) {
-        if (auto url = URL::Parser::basic_parse(url_string); url.has_value()) {
-            if (auto* tab = current_tab())
-                tab->navigate(url.release_value());
-            if (auto* v = view())
-                gtk_widget_grab_focus(GTK_WIDGET(v->gtk_widget()));
-        }
-    });
+    m_location_entry = FFI::ladybird_location_entry_new();
+    FFI::ladybird_location_entry_set_on_navigate(
+        m_location_entry,
+        +[](uint8_t const* url_utf8, size_t url_len, void* user_data) {
+            auto* self = static_cast<BrowserWindow*>(user_data);
+            if (!url_utf8)
+                return;
+            auto url_view = StringView(reinterpret_cast<char const*>(url_utf8), url_len);
+            if (auto url = URL::Parser::basic_parse(url_view); url.has_value()) {
+                if (auto* tab = self->current_tab())
+                    tab->navigate(url.release_value());
+                if (auto* v = self->view())
+                    gtk_widget_grab_focus(GTK_WIDGET(v->gtk_widget()));
+            }
+        },
+        this,
+        nullptr);
 
     adw_header_bar_set_title_widget(m_header_bar, GTK_WIDGET(m_location_entry));
 
@@ -274,13 +289,7 @@ void BrowserWindow::on_tab_switched()
     if (!tab)
         return;
 
-    auto const& url = tab->view().url();
-    if (is_internal_url(url)) {
-        ladybird_location_entry_set_text(m_location_entry, "");
-    } else {
-        auto url_str = url.serialize().to_byte_string();
-        ladybird_location_entry_set_url(m_location_entry, url_str.characters());
-    }
+    update_location_entry(tab->view().url());
 
     bind_navigation_actions(tab->view());
     update_zoom_label();
@@ -307,8 +316,8 @@ Tab& BrowserWindow::create_new_tab(URL::URL const& url, Web::HTML::ActivateTab a
         bind_navigation_actions(tab_ref.view());
 
         if (is_internal_url(url)) {
-            ladybird_location_entry_set_text(m_location_entry, "");
-            ladybird_location_entry_focus_and_select_all(m_location_entry);
+            FFI::ladybird_location_entry_clear_text(m_location_entry);
+            FFI::ladybird_location_entry_focus_and_select_all(m_location_entry);
         }
     }
 
@@ -420,14 +429,20 @@ void BrowserWindow::bind_navigation_actions(WebContentView& view)
     bind(m_forward_binding, view.navigate_forward_action(), "go-forward");
 }
 
-void BrowserWindow::update_location_entry(StringView url)
+void BrowserWindow::update_location_entry(URL::URL const& url)
 {
-    if (url.is_empty()) {
-        ladybird_location_entry_set_text(m_location_entry, "");
+    if (is_internal_url(url)) {
+        FFI::ladybird_location_entry_clear_text(m_location_entry);
         return;
     }
-    auto byte_url = ByteString(url);
-    ladybird_location_entry_set_url(m_location_entry, byte_url.characters());
+
+    auto serialized_url = url.serialize();
+    auto url_bytes = serialized_url.bytes_as_string_view().bytes();
+    FFI::ladybird_location_entry_set_url(
+        m_location_entry,
+        url_bytes.data(),
+        url_bytes.size(),
+        scheme_should_show_lock(url));
 }
 
 void BrowserWindow::show_find_bar()
