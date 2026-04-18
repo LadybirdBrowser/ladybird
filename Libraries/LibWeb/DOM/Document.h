@@ -840,6 +840,7 @@ public:
     struct StyleInvalidationCounters {
         u64 has_ancestor_walk_invocations { 0 };
         u64 has_ancestor_walk_visits { 0 };
+        u64 has_ancestor_sibling_element_checks { 0 };
         u64 has_invalidation_metadata_candidates { 0 };
         u64 has_match_invocations { 0 };
         u64 has_result_cache_hits { 0 };
