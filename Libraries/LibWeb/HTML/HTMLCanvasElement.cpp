@@ -186,7 +186,7 @@ CSS::ComputationContext HTMLCanvasElement::canvas_font_computation_context()
         //     OffscreenCanvas
         .abstract_element = abstract_element,
 
-        // FIXME: Do we require a color scheme to resolve light-dark()?
+        // NB: We don't require a color scheme since this is only used for resolving font values, not colors
         .color_scheme = {}
     };
 }
