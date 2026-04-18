@@ -255,12 +255,14 @@ Ladybird will be built with one of the following browser frontends, depending on
 * [GTK 4](https://docs.gtk.org/gtk4/) - An alternative UI on Linux (experimental).
 * [Android UI](https://developer.android.com/develop/ui) - The native UI on Android.
 
-The Qt and GTK UIs are available on Linux. You can pick the UI using the `LADYBIRD_GUI_FRAMEWORK` option:
+You can pick the UI using the `LADYBIRD_GUI_FRAMEWORK` option, or the `--gui` argument to ladybird.py.
+For example, to force building with the Qt UI:
 
 ```bash
 # From /path/to/ladybird
 cmake --preset Release -DLADYBIRD_GUI_FRAMEWORK=Qt
-cmake --preset Release -DLADYBIRD_GUI_FRAMEWORK=Gtk
+# Or
+./Meta/ladybird.py run --gui=Qt
 ```
 
 #### Additional prerequisites for the GTK UI

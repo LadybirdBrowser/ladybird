@@ -18,6 +18,7 @@ from typing import Optional
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from Meta.find_compiler import pick_host_compiler
+from Meta.host_platform import GUIFramework
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
@@ -43,6 +44,7 @@ def main():
     compiler_parser.add_argument("--cc", required=False, default=default_cc)
     compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
     compiler_parser.add_argument("--jobs", "-j", required=False)
+    compiler_parser.add_argument("--gui", required=False, choices=platform.valid_gui_frameworks())
 
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument("target", nargs=argparse.OPTIONAL)
@@ -139,10 +141,10 @@ def main():
             args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
     if args.command == "build":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "test":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs)
         test_main(build_dir, args.preset, args.pattern)
     elif args.command == "run":
@@ -156,19 +158,19 @@ def main():
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
         debug_main(platform.host_system, build_dir, args.target, args.debugger, args.cmd)
     elif args.command == "profile":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target)
         profile_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "install":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
         build_main(build_dir, args.jobs, "install", args.args)
     elif args.command == "vcpkg":
@@ -178,20 +180,24 @@ def main():
         clean_main(platform, args.preset)
     elif args.command == "rebuild":
         clean_main(platform, args.preset)
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
     elif args.command == "addr2line":
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx)
+        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target)
         addr2line_main(build_dir, args.target, args.program, args.addresses)
 
 
-def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
+def configure_main(platform: Platform, preset: str, cc: str, cxx: str, gui: Optional[GUIFramework]) -> Path:
     ladybird_source_dir, build_preset_dir = configure_build_env(platform, preset)
     build_vcpkg()
 
     if build_preset_dir.joinpath("build.ninja").exists() or build_preset_dir.joinpath("ladybird.sln").exists():
-        return build_preset_dir
+        if not gui or gui == gui_for_build_dir(build_preset_dir):
+            return build_preset_dir
+
+    if not gui:
+        gui = platform.default_gui_framework()
 
     validate_cmake_version()
 
@@ -207,6 +213,7 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
         build_preset_dir,
         f"-DCMAKE_C_COMPILER={cc}",
         f"-DCMAKE_CXX_COMPILER={cxx}",
+        f"-DLADYBIRD_GUI_FRAMEWORK={gui}",
     ]
 
     if platform.host_system == HostSystem.Linux and platform.host_architecture == HostArchitecture.AArch64:
@@ -217,6 +224,21 @@ def configure_main(platform: Platform, preset: str, cc: str, cxx: str) -> Path:
     run_command(config_args, exit_on_failure=True)
 
     return build_preset_dir
+
+
+def gui_for_build_dir(build_preset_dir: Path) -> Optional[GUIFramework]:
+    cmake_cachefile = build_preset_dir.joinpath("CMakeCache.txt")
+    if not cmake_cachefile.exists():
+        return None
+
+    with cmake_cachefile.open("r") as f:
+        for line in f:
+            if line.startswith("LADYBIRD_GUI_FRAMEWORK:STRING="):
+                try:
+                    return GUIFramework(line.strip().split("=", 1)[1])
+                except ValueError:
+                    return None
+    return None
 
 
 def configure_skia_jemalloc() -> list[str]:

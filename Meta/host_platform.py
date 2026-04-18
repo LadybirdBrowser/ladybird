@@ -22,6 +22,14 @@ class HostSystem(enum.IntEnum):
     BSD = enum.auto()
 
 
+class GUIFramework(enum.StrEnum):
+    # enum.auto() will tolower the values
+    Qt = "Qt"
+    AppKit = "AppKit"
+    Gtk = "Gtk"
+    Android = "Android"
+
+
 class Platform:
     def __init__(self):
         self.system = platform.system()
@@ -76,3 +84,19 @@ class Platform:
 
         libc, _ = platform.libc_ver()
         return libc
+
+    def valid_gui_frameworks(self) -> list[GUIFramework]:
+        """
+        List of valid GUI frameworks based on target platform.
+        Keep in sync with Meta/CMake/gui_framework.cmake
+        """
+        if self.host_system == HostSystem.macOS:
+            return [GUIFramework.Qt, GUIFramework.AppKit]
+        if self.host_system in (HostSystem.Linux, HostSystem.BSD):
+            return [GUIFramework.Qt, GUIFramework.Gtk]
+        return [GUIFramework.Qt]
+
+    def default_gui_framework(self) -> GUIFramework:
+        if self.host_system == HostSystem.macOS:
+            return GUIFramework.AppKit
+        return GUIFramework.Qt
