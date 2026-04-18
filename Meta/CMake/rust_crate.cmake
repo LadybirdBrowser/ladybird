@@ -171,6 +171,18 @@ function(_rust_crate_common_setup)
         list(APPEND cargo_env "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}")
     endif()
 
+    # Forward the vcpkg pkg-config directory to cargo's pkg-config-rs so that
+    # *-sys crates can locate vcpkg-installed libraries (e.g. gtk4, pango).
+    if (DEFINED VCPKG_TARGET_TRIPLET)
+        set(vcpkg_pkgconfig_dir "${CMAKE_BINARY_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}/lib/pkgconfig")
+        if (DEFINED ENV{PKG_CONFIG_PATH})
+            list(APPEND cargo_env "PKG_CONFIG_PATH=${vcpkg_pkgconfig_dir}:$ENV{PKG_CONFIG_PATH}")
+        else()
+            list(APPEND cargo_env "PKG_CONFIG_PATH=${vcpkg_pkgconfig_dir}")
+        endif()
+        list(APPEND cargo_env "PKG_CONFIG_ALLOW_CROSS=1")
+    endif()
+
     # On Windows, rustc invokes the linker directly with MSVC-style flags, so we must not override it with a
     # compiler driver like clang-cl.
     if (NOT WIN32)

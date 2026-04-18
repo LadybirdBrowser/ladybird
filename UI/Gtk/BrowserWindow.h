@@ -10,7 +10,6 @@
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWebView/Menu.h>
-#include <UI/Gtk/Widgets/LadybirdBrowserWindow.h>
 #include <UI/Gtk/Widgets/LadybirdLocationEntry.h>
 
 #include <adwaita.h>

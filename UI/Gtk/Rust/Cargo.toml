@@ -1,0 +1,19 @@
+[package]
+name = "ladybird_gtk_rust"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["staticlib"]
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies.adw]
+package = "libadwaita"
+version = "0.9.1"
+features = ["v1_4"]
+
+[target.'cfg(all(unix, not(target_os = "macos")))'.dependencies.gtk]
+package = "gtk4"
+version = "0.11.2"
+
+[build-dependencies]
+cbindgen = "0.29"

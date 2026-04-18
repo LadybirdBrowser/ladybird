@@ -13,6 +13,7 @@
 #include <UI/Gtk/BrowserWindow.h>
 #include <UI/Gtk/GLibPtr.h>
 #include <UI/Gtk/Menu.h>
+#include <UI/Gtk/RustFFI.h>
 #include <UI/Gtk/Tab.h>
 #include <UI/Gtk/WebContentView.h>
 
@@ -133,18 +134,18 @@ void BrowserWindow::register_actions()
 
 void BrowserWindow::setup_ui(AdwApplication* app)
 {
-    auto* browser_window_widget = LadybirdWidgets::create_browser_window_widget(app);
-    m_window = ADW_APPLICATION_WINDOW(browser_window_widget);
+    auto browser_window_widget = GObjectPtr { FFI::create_browser_window_widget(app) };
+    m_window = ADW_APPLICATION_WINDOW(browser_window_widget.ptr());
 
-    m_tab_view = LadybirdWidgets::browser_window_tab_view(browser_window_widget);
-    m_header_bar = LadybirdWidgets::browser_window_header_bar(browser_window_widget);
-    m_restore_button = LadybirdWidgets::browser_window_restore_button(browser_window_widget);
-    m_zoom_label = LadybirdWidgets::browser_window_zoom_label(browser_window_widget);
-    m_devtools_banner = LadybirdWidgets::browser_window_devtools_banner(browser_window_widget);
-    m_find_bar_revealer = LadybirdWidgets::browser_window_find_bar_revealer(browser_window_widget);
-    m_find_entry = LadybirdWidgets::browser_window_find_entry(browser_window_widget);
-    m_find_result_label = LadybirdWidgets::browser_window_find_result_label(browser_window_widget);
-    m_toast_overlay = LadybirdWidgets::browser_window_toast_overlay(browser_window_widget);
+    m_tab_view = FFI::browser_window_tab_view(browser_window_widget);
+    m_header_bar = FFI::browser_window_header_bar(browser_window_widget);
+    m_restore_button = FFI::browser_window_restore_button(browser_window_widget);
+    m_zoom_label = FFI::browser_window_zoom_label(browser_window_widget);
+    m_devtools_banner = FFI::browser_window_devtools_banner(browser_window_widget);
+    m_find_bar_revealer = FFI::browser_window_find_bar_revealer(browser_window_widget);
+    m_find_entry = FFI::browser_window_find_entry(browser_window_widget);
+    m_find_result_label = FFI::browser_window_find_result_label(browser_window_widget);
+    m_toast_overlay = FFI::browser_window_toast_overlay(browser_window_widget);
 
     // Connect find entry signals
     g_signal_connect_swapped(m_find_entry, "search-changed", G_CALLBACK(+[](BrowserWindow* self, GtkSearchEntry* entry) {
@@ -210,7 +211,7 @@ void BrowserWindow::setup_ui(AdwApplication* app)
     }) };
     g_menu_append_section(G_MENU(developer_tools_submenu.ptr()), nullptr, G_MENU_MODEL(inspect_gmenu.ptr()));
     g_menu_append_section(G_MENU(developer_tools_submenu.ptr()), "Debug", G_MENU_MODEL(debug_gmenu.ptr()));
-    append_submenu_to_section_containing_action(LadybirdWidgets::browser_window_hamburger_menu(browser_window_widget), "win.new-window", "Developer Tools", G_MENU_MODEL(developer_tools_submenu.ptr()));
+    append_submenu_to_section_containing_action(FFI::browser_window_hamburger_menu(browser_window_widget), "win.new-window", "Developer Tools", G_MENU_MODEL(developer_tools_submenu.ptr()));
 
     // Listen for fullscreen state changes
     g_signal_connect_swapped(m_window, "notify::fullscreened", G_CALLBACK(+[](BrowserWindow* self, GParamSpec*) {
