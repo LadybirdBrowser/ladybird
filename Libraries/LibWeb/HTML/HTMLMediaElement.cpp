@@ -1701,6 +1701,7 @@ void HTMLMediaElement::on_metadata_parsed()
     if (m_selected_video_track && video_element) {
         video_element->set_video_height(m_selected_video_track->track_in_playback_manager().video_data().pixel_height);
         video_element->set_video_width(m_selected_video_track->track_in_playback_manager().video_data().pixel_width);
+        video_element->set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementResized);
 
         queue_a_media_element_task([this] {
             dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
