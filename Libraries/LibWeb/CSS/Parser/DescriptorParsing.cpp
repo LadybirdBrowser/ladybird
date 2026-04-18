@@ -293,25 +293,13 @@ Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_descriptor_v
                 }
                 case DescriptorMetadata::ValueType::FontWeightAbsolutePair: {
                     // <font-weight-absolute>{1,2}
-                    // <font-weight-absolute> = [ normal | bold | <number [1,1000]> ]
-                    // This is the same as the font-weight property, twice, without 'lighter' or 'bolder'.
-                    auto parse_absolute_font_weight = [&] -> RefPtr<StyleValue const> {
-                        auto value_for_property = parse_css_value_for_property(PropertyID::FontWeight, tokens);
-                        if (!value_for_property)
-                            return nullptr;
-                        if (value_for_property->is_css_wide_keyword() || value_for_property->is_unresolved())
-                            return nullptr;
-                        if (first_is_one_of(value_for_property->to_keyword(), Keyword::Lighter, Keyword::Bolder))
-                            return nullptr;
-                        return value_for_property;
-                    };
-                    auto first = parse_absolute_font_weight();
+                    auto first = parse_font_weight_absolute_value(tokens);
                     if (!first)
                         return nullptr;
                     tokens.discard_whitespace();
                     if (!tokens.has_next_token())
                         return StyleValueList::create({ first.release_nonnull() }, StyleValueList::Separator::Space);
-                    auto second = parse_absolute_font_weight();
+                    auto second = parse_font_weight_absolute_value(tokens);
                     if (!second)
                         return nullptr;
                     return StyleValueList::create({ first.release_nonnull(), second.release_nonnull() }, StyleValueList::Separator::Space);

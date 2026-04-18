@@ -1,4 +1,9 @@
 {
+    "<font-weight-absolute>": {
+        "spec": "https://drafts.csswg.org/css-fonts-4/#font-weight-absolute-values",
+        "grammar": "normal | bold | <number [1,1000]>",
+        "__comment": "FIXME: The spec defines this wrapped in a group i.e. '[ normal | bold | <number [1,1000]> ]' but our CSS grammar parser doesn't currently know how to handle that"
+    },
     "<symbol>": {
         "spec": "https://drafts.csswg.org/css-counter-styles-3/#typedef-symbol",
         "grammar": "<string> | <custom-ident>",
