@@ -24,6 +24,8 @@ public:
     DrawingState& drawing_state() override { return m_drawing_state; }
     DrawingState const& drawing_state() const override { return m_drawing_state; }
 
+    CSS::ComputationContext computation_context_for_drawing_state() const override;
+
     void clear_drawing_state_stack() { m_drawing_state_stack.clear(); }
     void reset_drawing_state() { m_drawing_state = {}; }
 

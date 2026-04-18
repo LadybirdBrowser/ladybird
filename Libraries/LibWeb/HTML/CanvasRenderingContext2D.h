@@ -129,6 +129,7 @@ public:
 protected:
     [[nodiscard]] Gfx::Painter* painter() override;
     Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() override { return m_element; }
+    Variant<GC::Ref<HTMLCanvasElement>, GC::Ref<OffscreenCanvas>> canvas_element() const override { return m_element; }
     JS::Realm& my_realm() override { return realm(); }
     Gfx::Path& mutable_path() override { return path(); }
 
