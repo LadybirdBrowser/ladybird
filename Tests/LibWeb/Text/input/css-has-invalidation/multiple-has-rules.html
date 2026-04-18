@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    /* Two different :has() rules on the same anchor. Each has a different
+       argument, so changes to either argument class should trigger match
+       re-evaluation. */
+    .anchor:has(.red) { color: red; }
+    .anchor:has(.blue) { background: blue; }
+</style>
+<div class="anchor" id="anchor">
+    <span id="target">target</span>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        document.getElementById("target").classList.add("red");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .red (only :has(.red) flips)");
+
+        internals.resetStyleInvalidationCounters();
+
+        document.getElementById("target").classList.add("blue");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .blue (only :has(.blue) flips, .red stable)");
+    });
+</script>

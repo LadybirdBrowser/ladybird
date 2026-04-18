@@ -1,0 +1,14 @@
+[add unrelated class outside any :has() scope]
+  hasAncestorWalkInvocations: 0
+  hasAncestorWalkVisits: 0
+  hasMatchInvocations: 0
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 0
+  styleInvalidations: 0
+[add .match class outside any :has() scope]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 0
+  hasMatchInvocations: 0
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 0
+  styleInvalidations: 0

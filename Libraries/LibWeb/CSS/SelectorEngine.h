@@ -51,6 +51,12 @@ struct MatchContext {
     GC::Ptr<DOM::ShadowRoot const> rule_shadow_root {}; // Shadow root the matched rule belongs to
     bool collect_per_element_selector_involvement_metadata { false };
     bool for_host_part_matching { false };
+    // True while we are evaluating the argument of a :has() pseudo-class.
+    // Elements visited by selector walks (descendants, siblings, etc.) while
+    // this is set get marked as in_has_scope so the invalidation walker can
+    // later terminate once it leaves the scope. Transparent to callers; set
+    // by matches_has_pseudo_class with a ScopeGuard.
+    bool inside_has_argument_match { false };
     CSS::PseudoClassBitmap attempted_pseudo_class_matches {};
     HasResultCache* has_result_cache { nullptr };
 };

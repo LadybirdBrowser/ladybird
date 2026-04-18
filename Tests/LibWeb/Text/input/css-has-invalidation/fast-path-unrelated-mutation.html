@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(.match) { color: red; }
+</style>
+<!-- "anchor" is one subtree. "outside" is another subtree that has no :has()
+     rule pointing at it. Mutations inside "outside" must not walk any :has()
+     ancestors. -->
+<div id="wrapper">
+    <div class="anchor"><span class="match">a</span></div>
+    <div id="outside">
+        <div>
+            <div>
+                <span id="target">target</span>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        // The class "unrelated" is not used in any selector (including :has()).
+        // The walker should not run at all.
+        document.getElementById("target").classList.add("unrelated");
+        getComputedStyle(document.getElementById("target")).color;
+        printCounters("add unrelated class outside any :has() scope");
+
+        internals.resetStyleInvalidationCounters();
+
+        // The class "match" IS used in :has(.match), but target is not inside
+        // any anchor's scope. The walker should still terminate immediately.
+        document.getElementById("target").classList.add("match");
+        getComputedStyle(document.getElementById("target")).color;
+        printCounters("add .match class outside any :has() scope");
+    });
+</script>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(> .match) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <div id="child">
+        <span id="grandchild">grandchild</span>
+    </div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        // Adding .match to a direct child should invalidate.
+        document.getElementById("child").classList.add("match");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .match to direct child");
+
+        internals.resetStyleInvalidationCounters();
+
+        // Adding .match to a grandchild is NOT enough for :has(> .match);
+        // the anchor should stay unstyled. The walker may still run if the
+        // grandchild is in_has_scope (walked during initial match attempt).
+        document.getElementById("grandchild").classList.add("match");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .match to grandchild (should not style anchor)");
+    });
+</script>

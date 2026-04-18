@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(.match) { color: red; }
+</style>
+<!-- 10-deep chain, anchor sits at depth 5. Mutation at depth 10.
+     The walker must stop at depth ~4 (the ancestor just above the anchor),
+     not walk to the document root. -->
+<div id="d1">
+<div id="d2">
+<div id="d3">
+<div id="d4">
+<div id="anchor" class="anchor">
+<div id="d6">
+<div id="d7">
+<div id="d8">
+<div id="d9">
+<span id="target">target</span>
+</div></div></div></div></div></div></div></div></div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        document.getElementById("target").classList.add("match");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .match at depth 10 (anchor at depth 5)");
+    });
+</script>

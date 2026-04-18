@@ -1,0 +1,14 @@
+[add .match to direct child]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 2
+  hasMatchInvocations: 1
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 1
+  styleInvalidations: 1
+[add .match to grandchild (should not style anchor)]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 0
+  hasMatchInvocations: 0
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 0
+  styleInvalidations: 0

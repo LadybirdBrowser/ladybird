@@ -439,7 +439,11 @@ void Node::invalidate_style(StyleInvalidationReason reason)
     auto& style_scope = root().is_shadow_root() ? static_cast<ShadowRoot&>(root()).style_scope() : document().style_scope();
 
     if (style_scope.may_have_has_selectors()) {
-        if (reason == StyleInvalidationReason::NodeRemove) {
+        // On insertion and removal the mutated node itself is uninteresting to the
+        // :has() walker (a freshly inserted node has no :has() scope flags yet, and
+        // a removed node is about to leave the tree). Start the walk at the parent,
+        // which was in scope before and reliably carries the correct flags.
+        if (reason == StyleInvalidationReason::NodeRemove || reason == StyleInvalidationReason::NodeInsertBefore) {
             if (auto* parent = parent_or_shadow_host(); parent) {
                 style_scope.schedule_ancestors_style_invalidation_due_to_presence_of_has(*parent);
                 parent->for_each_child_of_type<Element>([&](auto& element) {

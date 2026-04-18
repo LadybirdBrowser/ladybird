@@ -1,15 +1,13 @@
-[descendant-only :has() sheet]
+[set data-matched attribute]
   hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 0
+  hasAncestorWalkVisits: 2
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1
   styleInvalidations: 1
-[sheet with sibling-sensitive :has()]
+[remove data-matched attribute]
   hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 4
+  hasAncestorWalkVisits: 2
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:not(:has(.x)) { color: red; }
+</style>
+<!-- Negated :has(). When .x appears inside the anchor, the rule stops matching;
+     when .x disappears, it starts matching. -->
+<div class="anchor" id="anchor">
+    <div>
+        <span id="target">target</span>
+    </div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        document.getElementById("target").classList.add("x");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .x (anchor should stop being styled)");
+
+        internals.resetStyleInvalidationCounters();
+
+        document.getElementById("target").classList.remove("x");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("remove .x (anchor should be styled again)");
+    });
+</script>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(~ .match) { color: red; }
+</style>
+<div>
+    <span id="anchor" class="anchor">anchor</span>
+    <span>between</span>
+    <span id="far-sibling">far</span>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        // Add .match to a non-adjacent later sibling: anchor should restyle.
+        document.getElementById("far-sibling").classList.add("match");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .match to non-adjacent later sibling");
+    });
+</script>

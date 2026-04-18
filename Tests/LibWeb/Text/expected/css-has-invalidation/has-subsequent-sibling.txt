@@ -1,6 +1,6 @@
-[after add .match on target]
+[add .match to non-adjacent later sibling]
   hasAncestorWalkInvocations: 1
-  hasAncestorWalkVisits: 3
+  hasAncestorWalkVisits: 2
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1

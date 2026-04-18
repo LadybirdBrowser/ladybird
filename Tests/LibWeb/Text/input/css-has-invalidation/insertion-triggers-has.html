@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(.match) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <div id="container">
+        <span>existing</span>
+    </div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        // Insert an already-matching element. The freshly inserted node has
+        // no in_has_scope flag; invalidation must run via the parent.
+        const child = document.createElement("span");
+        child.className = "match";
+        document.getElementById("container").appendChild(child);
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("insert <span class='match'> into anchor subtree");
+
+        internals.resetStyleInvalidationCounters();
+
+        // Remove the matching element. Anchor should unstyle.
+        child.remove();
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("remove the matching span");
+    });
+</script>

@@ -1,15 +1,13 @@
-[descendant-only :has() sheet]
+[add .a (matches :is() branch)]
   hasAncestorWalkInvocations: 1
   hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 0
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1
   styleInvalidations: 1
-[sheet with sibling-sensitive :has()]
+[swap to .b (other :is() branch)]
   hasAncestorWalkInvocations: 1
   hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 4
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1

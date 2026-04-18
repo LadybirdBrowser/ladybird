@@ -1,15 +1,13 @@
-[descendant-only :has() sheet]
+[add .x (anchor should stop being styled)]
   hasAncestorWalkInvocations: 1
   hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 0
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1
   styleInvalidations: 1
-[sheet with sibling-sensitive :has()]
+[remove .x (anchor should be styled again)]
   hasAncestorWalkInvocations: 1
   hasAncestorWalkVisits: 3
-  hasAncestorSiblingElementChecks: 4
   hasMatchInvocations: 1
   hasResultCacheHits: 0
   hasResultCacheMisses: 1

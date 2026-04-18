@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has([data-matched]) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <span id="target">target</span>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        document.getElementById("target").setAttribute("data-matched", "");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("set data-matched attribute");
+
+        internals.resetStyleInvalidationCounters();
+
+        document.getElementById("target").removeAttribute("data-matched");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("remove data-matched attribute");
+    });
+</script>

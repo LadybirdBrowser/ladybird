@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(:is(.a, .b)) { color: red; }
+</style>
+<div class="anchor" id="anchor">
+    <div>
+        <span id="target">target</span>
+    </div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+
+        // .a is in the :is() branch - anchor should restyle.
+        document.getElementById("target").classList.add("a");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("add .a (matches :is() branch)");
+
+        internals.resetStyleInvalidationCounters();
+
+        // Replace .a with .b - anchor still matches via the other :is() branch.
+        document.getElementById("target").classList.remove("a");
+        document.getElementById("target").classList.add("b");
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("swap to .b (other :is() branch)");
+    });
+</script>
