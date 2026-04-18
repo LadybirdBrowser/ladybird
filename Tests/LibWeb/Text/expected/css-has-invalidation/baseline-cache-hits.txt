@@ -1,0 +1,7 @@
+[after remove .match]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 5
+  hasMatchInvocations: 2
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 2
+  styleInvalidations: 1

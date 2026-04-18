@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor .descendant { color: red; }
+</style>
+<div class="anchor">
+    <div>
+        <span id="target">target</span>
+    </div>
+</div>
+<script>
+    test(() => {
+        getComputedStyle(document.getElementById("target")).color;
+        internals.resetStyleInvalidationCounters();
+
+        // No :has() in any stylesheet: walk must not run, no matches should happen.
+        document.getElementById("target").classList.add("descendant");
+        getComputedStyle(document.getElementById("target")).color;
+        printCounters("after add .descendant (no :has() in sheet)");
+    });
+</script>

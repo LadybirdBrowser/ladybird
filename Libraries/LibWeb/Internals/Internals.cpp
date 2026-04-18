@@ -595,4 +595,22 @@ void Internals::set_environments_top_level_url(StringView url)
     HTML::principal_realm_settings_object(realm).top_level_creation_url = URL::Parser::basic_parse(url);
 }
 
+JS::Object* Internals::get_style_invalidation_counters()
+{
+    auto const& counters = window().associated_document().style_invalidation_counters();
+    auto object = JS::Object::create(realm(), nullptr);
+    object->define_direct_property("hasAncestorWalkInvocations"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_invocations), JS::default_attributes);
+    object->define_direct_property("hasAncestorWalkVisits"_utf16_fly_string, JS::Value(counters.has_ancestor_walk_visits), JS::default_attributes);
+    object->define_direct_property("hasMatchInvocations"_utf16_fly_string, JS::Value(counters.has_match_invocations), JS::default_attributes);
+    object->define_direct_property("hasResultCacheHits"_utf16_fly_string, JS::Value(counters.has_result_cache_hits), JS::default_attributes);
+    object->define_direct_property("hasResultCacheMisses"_utf16_fly_string, JS::Value(counters.has_result_cache_misses), JS::default_attributes);
+    object->define_direct_property("styleInvalidations"_utf16_fly_string, JS::Value(counters.style_invalidations), JS::default_attributes);
+    return object;
+}
+
+void Internals::reset_style_invalidation_counters()
+{
+    window().associated_document().reset_style_invalidation_counters();
+}
+
 }

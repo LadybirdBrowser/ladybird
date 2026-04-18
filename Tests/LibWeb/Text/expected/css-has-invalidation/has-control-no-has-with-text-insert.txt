@@ -1,0 +1,7 @@
+[after text insert (no :has() rule)]
+  hasAncestorWalkInvocations: 0
+  hasAncestorWalkVisits: 0
+  hasMatchInvocations: 0
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 0
+  styleInvalidations: 2

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    /* No :has() rule. Same DOM and mutation as has-empty-pseudo so the
+       difference in styleInvalidations isolates the :has()-specific cost. */
+</style>
+<div class="anchor" id="anchor">
+    <div id="target"></div>
+</div>
+<script>
+    test(() => {
+        settleAndReset();
+        document.getElementById("target").appendChild(document.createTextNode("x"));
+        getComputedStyle(document.getElementById("anchor")).color;
+        printCounters("after text insert (no :has() rule)");
+    });
+</script>

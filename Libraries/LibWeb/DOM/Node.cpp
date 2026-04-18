@@ -1844,6 +1844,7 @@ void Node::set_needs_style_update(bool value)
     m_needs_style_update = value;
 
     if (m_needs_style_update) {
+        ++document().style_invalidation_counters().style_invalidations;
         for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
             if (ancestor->m_child_needs_style_update)
                 break;

@@ -1,0 +1,7 @@
+[after add .match on adjacent sibling]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 6
+  hasMatchInvocations: 1
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 1
+  styleInvalidations: 1

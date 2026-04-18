@@ -231,9 +231,15 @@ static inline bool matches_relative_selector(CSS::Selector const& selector, size
 // https://drafts.csswg.org/selectors-4/#relational
 static inline bool matches_has_pseudo_class(CSS::Selector const& selector, DOM::Element const& anchor, GC::Ptr<DOM::Element const> shadow_host, MatchContext& context, GC::Ptr<DOM::ParentNode const> scope)
 {
+    auto& counters = anchor.document().style_invalidation_counters();
+    ++counters.has_match_invocations;
+
     if (context.has_result_cache) {
-        if (auto cached = context.has_result_cache->get({ &selector, &anchor }); cached.has_value())
+        if (auto cached = context.has_result_cache->get({ &selector, &anchor }); cached.has_value()) {
+            ++counters.has_result_cache_hits;
             return cached.value() == HasMatchResult::Matched;
+        }
+        ++counters.has_result_cache_misses;
     }
 
     bool result = matches_relative_selector(selector, 0, anchor, shadow_host, context, anchor, scope);

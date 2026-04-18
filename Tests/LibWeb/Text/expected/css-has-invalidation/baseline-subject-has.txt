@@ -1,0 +1,14 @@
+[after add .match on target]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 8
+  hasMatchInvocations: 1
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 1
+  styleInvalidations: 1
+[after remove .match on target]
+  hasAncestorWalkInvocations: 1
+  hasAncestorWalkVisits: 8
+  hasMatchInvocations: 1
+  hasResultCacheHits: 0
+  hasResultCacheMisses: 1
+  styleInvalidations: 1

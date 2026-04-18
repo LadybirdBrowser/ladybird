@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script src="_helpers.js"></script>
+<style>
+    .anchor:has(.match) { color: red; }
+</style>
+<div id="a1">
+    <div id="a2">
+        <div id="a3" class="anchor">
+            <div id="a4">
+                <div id="a5">
+                    <span id="target">target</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    test(() => {
+        // Force a style pass before measuring so initial-matching counters are not in scope.
+        getComputedStyle(document.getElementById("a3")).color;
+        internals.resetStyleInvalidationCounters();
+
+        // Subject-position :has() mutation: add matching class to deep descendant.
+        document.getElementById("target").classList.add("match");
+        getComputedStyle(document.getElementById("a3")).color;
+        printCounters("after add .match on target");
+
+        internals.resetStyleInvalidationCounters();
+
+        // Remove the class again.
+        document.getElementById("target").classList.remove("match");
+        getComputedStyle(document.getElementById("a3")).color;
+        printCounters("after remove .match on target");
+    });
+</script>

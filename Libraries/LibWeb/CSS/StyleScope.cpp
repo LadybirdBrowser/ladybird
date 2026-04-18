@@ -816,6 +816,9 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
         return;
     }
 
+    auto& counters = document().style_invalidation_counters();
+    ++counters.has_ancestor_walk_invocations;
+
     HashTable<DOM::Element*> elements_already_invalidated_for_has;
     auto nodes = move(m_pending_nodes_for_style_invalidation_due_to_presence_of_has);
     for (auto& node : nodes) {
@@ -827,6 +830,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
             if (elements_already_invalidated_for_has.set(&element) != AK::HashSetResult::InsertedNewEntry)
                 break;
 
+            ++counters.has_ancestor_walk_visits;
             element.invalidate_style_if_affected_by_has();
 
             auto* parent = ancestor->parent_or_shadow_host();
@@ -840,6 +844,7 @@ void StyleScope::invalidate_style_of_elements_affected_by_has()
                     if (elements_already_invalidated_for_has.set(&ancestor_sibling_element) != AK::HashSetResult::InsertedNewEntry)
                         return IterationDecision::Continue;
 
+                    ++counters.has_ancestor_walk_visits;
                     ancestor_sibling_element.invalidate_style_if_affected_by_has();
                 }
                 return IterationDecision::Continue;
