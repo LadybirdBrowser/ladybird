@@ -410,9 +410,9 @@ PlaybackState PlaybackManager::state()
     return m_handler->state();
 }
 
-bool PlaybackManager::has_future_data()
+AvailableData PlaybackManager::available_data()
 {
-    return m_handler->has_future_data();
+    return m_handler->available_data();
 }
 
 TimeRanges PlaybackManager::buffered_time_ranges() const

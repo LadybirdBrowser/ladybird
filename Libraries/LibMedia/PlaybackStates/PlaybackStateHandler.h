@@ -8,6 +8,7 @@
 
 #include <AK/Time.h>
 #include <LibMedia/Forward.h>
+#include <LibMedia/PlaybackStates/AvailableData.h>
 #include <LibMedia/PlaybackStates/PlaybackState.h>
 #include <LibMedia/SeekMode.h>
 
@@ -30,7 +31,7 @@ public:
 
     virtual bool is_playing() = 0;
     virtual PlaybackState state() = 0;
-    virtual bool has_future_data() = 0;
+    virtual AvailableData available_data() = 0;
 
     virtual void enter_buffering() = 0;
     virtual void exit_buffering() = 0;

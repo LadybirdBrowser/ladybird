@@ -2125,9 +2125,9 @@ void HTMLMediaElement::update_ready_state()
     auto current_time = m_playback_manager->current_time();
     auto ranges = m_playback_manager->buffered_time_ranges();
     auto current_range = ranges.range_at_or_after(current_time);
-    auto has_future_data = m_playback_manager->has_future_data();
+    auto available_data = m_playback_manager->available_data();
 
-    if (!has_future_data && !current_range.has_value()) {
+    if (available_data == Media::AvailableData::Current && !current_range.has_value()) {
         // 1. Set the HTMLMediaElement's readyState attribute to HAVE_METADATA.
         set_ready_state(ReadyState::HaveMetadata);
         // 2. Abort these steps.
@@ -2146,7 +2146,7 @@ void HTMLMediaElement::update_ready_state()
 
     // -> If HTMLMediaElement's buffered contains a TimeRanges that includes the current playback position and
     //    enough data to ensure uninterrupted playback:
-    if (has_future_data && (playable_duration >= have_enough_data_duration || current_range_end >= duration)) {
+    if (available_data == Media::AvailableData::Future && (playable_duration >= have_enough_data_duration || current_range_end >= duration)) {
         // 1. Set the HTMLMediaElement's readyState attribute to HAVE_ENOUGH_DATA.
         set_ready_state(ReadyState::HaveEnoughData);
 
@@ -2159,7 +2159,7 @@ void HTMLMediaElement::update_ready_state()
 
     // -> If HTMLMediaElement's buffered contains a TimeRanges that includes the current playback position and
     //    some time beyond the current playback position:
-    if (has_future_data && playable_duration > AK::Duration::zero()) {
+    if (available_data == Media::AvailableData::Future && playable_duration > AK::Duration::zero()) {
         // 1. Set the HTMLMediaElement's readyState attribute to HAVE_FUTURE_DATA.
         set_ready_state(ReadyState::HaveFutureData);
 
