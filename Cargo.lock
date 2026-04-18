@@ -392,6 +392,7 @@ name = "libregex_rust"
 version = "0.1.0"
 dependencies = [
  "cbindgen",
+ "libunicode_rust",
 ]
 
 [[package]]

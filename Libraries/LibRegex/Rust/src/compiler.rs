@@ -24,7 +24,7 @@ use std::collections::BTreeSet;
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchproperty-p>
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchpropertyvalue-p-v>
 pub fn resolve_property(name: &str, value: Option<&str>) -> Option<ResolvedProperty> {
-    crate::unicode_ffi::resolve_property(name, value)
+    libunicode_rust::character_types::resolve_property(name, value)
 }
 
 /// Compile a parsed pattern into a bytecode program.
@@ -88,7 +88,7 @@ impl Compiler {
     /// match atomically, as described by `CompileClassSetString`.
     /// <https://tc39.es/ecma262/#sec-compileclasssetstring>
     fn get_string_property_strings(name: &str) -> Vec<Vec<u32>> {
-        let buf = crate::unicode_ffi::get_string_property_data(name);
+        let buf = libunicode_rust::character_types::get_string_property_data(name);
         if buf.is_empty() {
             return Vec::new();
         }
@@ -233,7 +233,10 @@ impl Compiler {
                 }
             }
             ClassSetOperand::UnicodeProperty(up) => {
-                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
+                if self.program.unicode_sets
+                    && !up.negated
+                    && libunicode_rust::character_types::is_string_property(&up.name)
+                {
                     let mut lengths = Self::singleton_length_set();
                     for string in Self::get_string_property_strings(&up.name) {
                         lengths.insert(string.len());
@@ -501,7 +504,7 @@ impl Compiler {
             Atom::UnicodeProperty(up) => {
                 // String properties (e.g. Basic_Emoji) can match multi-character
                 // sequences and cannot use simple matching.
-                if self.program.unicode_sets && crate::unicode_ffi::is_string_property(&up.name) {
+                if self.program.unicode_sets && libunicode_rust::character_types::is_string_property(&up.name) {
                     return None;
                 }
                 Some(SimpleMatch::UnicodeProperty(Box::new(UnicodePropertyData {
@@ -813,7 +816,10 @@ impl Compiler {
             }
 
             Atom::UnicodeProperty(up) => {
-                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
+                if self.program.unicode_sets
+                    && !up.negated
+                    && libunicode_rust::character_types::is_string_property(&up.name)
+                {
                     self.emit_string_property_match(&up.name, up.value.as_deref());
                     return;
                 }
@@ -1231,7 +1237,10 @@ impl Compiler {
                 self.emit(Instruction::BuiltinClass(*bc));
             }
             ClassSetOperand::UnicodeProperty(up) => {
-                if self.program.unicode_sets && !up.negated && crate::unicode_ffi::is_string_property(&up.name) {
+                if self.program.unicode_sets
+                    && !up.negated
+                    && libunicode_rust::character_types::is_string_property(&up.name)
+                {
                     if length == 1 {
                         self.emit_unicode_property(up.negated, &up.name, up.value.as_deref());
                     } else {

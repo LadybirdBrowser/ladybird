@@ -791,7 +791,7 @@ impl Parser {
 
         // Validate against the ECMA-262 allow-list up front so later compiler
         // and VM stages can assume the escape names already match spec.
-        if !crate::unicode_ffi::is_valid_ecma262_property(&name, value.as_deref()) {
+        if !libunicode_rust::character_types::is_valid_ecma262_property(&name, value.as_deref()) {
             return Err(Error::InvalidUnicodeProperty(name));
         }
 
@@ -800,7 +800,7 @@ impl Parser {
 
     /// Check if a property name refers to a Unicode string property (e.g. Basic_Emoji).
     fn is_string_property(name: &str) -> bool {
-        crate::unicode_ffi::is_string_property(name)
+        libunicode_rust::character_types::is_string_property(name)
     }
 
     fn parse_unicode_property_name(&mut self) -> Result<String, Error> {
@@ -1010,7 +1010,7 @@ impl Parser {
     fn parse_group_name(&mut self) -> Result<String, Error> {
         let mut name = String::new();
         let first = self.parse_group_name_char()?;
-        if !is_id_start(first) {
+        if !is_identifier_start_char(first) {
             return Err(Error::InvalidGroupName);
         }
         name.push(first);
@@ -1019,7 +1019,7 @@ impl Parser {
                 break;
             }
             let ch = self.parse_group_name_char()?;
-            if !is_id_continue(ch) {
+            if !is_identifier_continue_char(ch) {
                 return Err(Error::InvalidGroupName);
             }
             name.push(ch);
@@ -1422,7 +1422,7 @@ impl Parser {
     }
 
     fn get_string_property_strings(name: &str) -> std::collections::BTreeSet<Vec<u32>> {
-        let buf = crate::unicode_ffi::get_string_property_data(name);
+        let buf = libunicode_rust::character_types::get_string_property_data(name);
         if buf.is_empty() {
             return std::collections::BTreeSet::new();
         }
@@ -1782,12 +1782,16 @@ fn is_modifier_flag(ch: char) -> bool {
     matches!(ch, 'i' | 'm' | 's')
 }
 
-fn is_id_start(ch: char) -> bool {
-    ch == '$' || ch == '_' || crate::unicode_ffi::is_id_start(ch as u32)
+// https://tc39.es/ecma262/#prod-IdentifierStartChar
+// IdentifierStartChar :: UnicodeIDStart | $ | _
+fn is_identifier_start_char(ch: char) -> bool {
+    ch == '$' || ch == '_' || libunicode_rust::character_types::code_point_has_identifier_start_property(ch as u32)
 }
 
-fn is_id_continue(ch: char) -> bool {
-    matches!(ch, '$' | '_' | '\u{200C}' | '\u{200D}') || crate::unicode_ffi::is_id_continue(ch as u32)
+// https://tc39.es/ecma262/#prod-IdentifierPartChar
+// IdentifierPartChar :: UnicodeIDContinue | $
+fn is_identifier_continue_char(ch: char) -> bool {
+    ch == '$' || libunicode_rust::character_types::code_point_has_identifier_continue_property(ch as u32)
 }
 
 /// Extract a single code point from a class atom, for use in ranges.

@@ -3381,7 +3381,7 @@ fn case_fold(cp: u32, unicode_mode: bool) -> u32 {
         return cp;
     }
     // Non-ASCII: call FFI which handles both modes correctly.
-    crate::unicode_ffi::simple_case_fold(cp, unicode_mode)
+    libunicode_rust::character_types::simple_case_fold(cp, unicode_mode)
 }
 
 /// Compare two code points for case-insensitive equality.
@@ -3464,7 +3464,7 @@ pub(crate) fn match_char_class(
         // v-flag case-insensitive: check full case closure.
         // Get all case-equivalent code points and check if any falls in the ranges.
         let mut closure_buf = [0u32; 16];
-        let count = crate::unicode_ffi::get_case_closure(cp, &mut closure_buf);
+        let count = libunicode_rust::character_types::get_case_closure(cp, &mut closure_buf);
         for item in closure_buf.iter().take(count) {
             let equiv = *item;
             if char_in_ranges(equiv, ranges) {
@@ -3488,9 +3488,9 @@ pub(crate) fn match_char_class(
         // other characters that share the same canonical form as cp.
         // Always use the ICU-based range matcher which correctly handles
         // cross-script case folding (e.g. U+017F ſ folds to ASCII s).
-        ranges
-            .iter()
-            .any(|r| crate::unicode_ffi::code_point_matches_range_ignoring_case(cp, r.start, r.end, unicode_mode))
+        ranges.iter().any(|r| {
+            libunicode_rust::character_types::code_point_matches_range_ignoring_case(cp, r.start, r.end, unicode_mode)
+        })
     } else {
         char_in_ranges(cp, ranges)
     }
@@ -3511,20 +3511,20 @@ pub(crate) fn match_builtin_class(cp: u32, class: BuiltinCharacterClass, unicode
 /// Match a Unicode property considering case closure for ignore-case matching.
 /// <https://tc39.es/ecma262/#sec-maybesimplecasefolding>
 pub(crate) fn match_unicode_property_case_insensitive(cp: u32, name: &str, value: Option<&str>) -> bool {
-    crate::unicode_ffi::property_matches_case_insensitive(cp, name, value)
+    libunicode_rust::character_types::property_matches_case_insensitive(cp, name, value)
 }
 
 /// Check if all case-equivalents of `cp` have the property.
 /// <https://tc39.es/ecma262/#sec-maybesimplecasefolding>
 pub(crate) fn match_unicode_property_all_case_equivalents(cp: u32, name: &str, value: Option<&str>) -> bool {
-    crate::unicode_ffi::property_all_case_equivalents_match(cp, name, value)
+    libunicode_rust::character_types::property_all_case_equivalents_match(cp, name, value)
 }
 
 /// Match a Unicode property via FFI to C++ LibUnicode.
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchproperty-p>
 /// - <https://tc39.es/ecma262/#sec-runtime-semantics-unicodematchpropertyvalue-p-v>
 fn match_unicode_property(cp: u32, name: &str, value: Option<&str>) -> bool {
-    crate::unicode_ffi::property_matches(cp, name, value)
+    libunicode_rust::character_types::property_matches(cp, name, value)
 }
 
 /// Match a Unicode property using a resolved ICU property ID if available,
@@ -3539,7 +3539,7 @@ pub(crate) fn match_unicode_property_resolved(
     resolved: Option<&ResolvedProperty>,
 ) -> bool {
     if let Some(r) = resolved {
-        return crate::unicode_ffi::resolved_property_matches(cp, *r);
+        return libunicode_rust::character_types::resolved_property_matches(cp, *r);
     }
     match_unicode_property(cp, name, value)
 }

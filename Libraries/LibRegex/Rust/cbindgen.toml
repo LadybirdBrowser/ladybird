@@ -18,20 +18,5 @@ parse_deps = false
 [parse.expand]
 all_features = false
 
-[export]
-exclude = [
-    "unicode_property_matches",
-    "unicode_simple_case_fold",
-    "unicode_code_point_matches_range_ignoring_case",
-    "unicode_property_matches_case_insensitive",
-    "unicode_get_case_closure",
-    "unicode_is_string_property",
-    "unicode_property_all_case_equivalents_match",
-    "unicode_resolved_property_matches",
-    "unicode_is_valid_ecma262_property",
-    "unicode_get_string_property_data",
-    "unicode_resolve_property",
-]
-
 [export.mangle]
 rename_types = "PascalCase"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2024, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2021-2026, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -636,4 +636,304 @@ bool code_point_matches_range_ignoring_case(u32 code_point, u32 from, u32 to, bo
     return false;
 }
 
+}
+
+enum class ResolvedPropertyKind : u8 {
+    Script,
+    ScriptExtension,
+    GeneralCategory,
+    BinaryProperty,
+};
+
+static constexpr StringView string_view_from_ffi(unsigned char const* string, size_t length)
+{
+    VERIFY(string);
+    return { reinterpret_cast<char const*>(string), length };
+}
+
+static constexpr Optional<StringView> optional_string_view_from_ffi(unsigned char const* string, size_t length)
+{
+    if (string)
+        return string_view_from_ffi(string, length);
+    return {};
+}
+
+static bool has_property(u32 code_point, StringView name, Optional<StringView> value)
+{
+    if (value.has_value()) {
+        if (name.is_one_of("sc"sv, "Script"sv, "scx"sv, "Script_Extensions"sv)) {
+            if (auto script = Unicode::script_from_string(*value); script.has_value()) {
+                if (name.is_one_of("sc"sv, "Script"sv))
+                    return Unicode::code_point_has_script(code_point, *script);
+                return Unicode::code_point_has_script_extension(code_point, *script);
+            }
+        } else if (name.is_one_of("gc"sv, "General_Category"sv)) {
+            if (auto category = Unicode::general_category_from_string(*value); category.has_value())
+                return Unicode::code_point_has_general_category(code_point, *category);
+        }
+
+        return false;
+    }
+
+    if (auto property = Unicode::property_from_string(name); property.has_value())
+        return Unicode::code_point_has_property(code_point, *property);
+
+    if (auto category = Unicode::general_category_from_string(name); category.has_value())
+        return Unicode::code_point_has_general_category(code_point, *category);
+
+    if (auto script = Unicode::script_from_string(name); script.has_value())
+        return Unicode::code_point_has_script(code_point, *script);
+
+    return false;
+}
+
+static bool resolve_property(StringView name, Optional<StringView> value, unsigned char* out_kind, u32* out_id)
+{
+    if (value.has_value()) {
+        if (name.is_one_of("sc"sv, "Script"sv, "scx"sv, "Script_Extensions"sv)) {
+            if (auto script = Unicode::script_from_string(*value); script.has_value()) {
+                *out_kind = to_underlying(name.is_one_of("scx"sv, "Script_Extensions"sv)
+                        ? ResolvedPropertyKind::ScriptExtension
+                        : ResolvedPropertyKind::Script);
+                *out_id = script->value();
+                return true;
+            }
+        } else if (name.is_one_of("gc"sv, "General_Category"sv)) {
+            if (auto category = Unicode::general_category_from_string(*value); category.has_value()) {
+                *out_kind = to_underlying(ResolvedPropertyKind::GeneralCategory);
+                *out_id = category->value();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    if (auto property = Unicode::property_from_string(name); property.has_value()) {
+        *out_kind = to_underlying(ResolvedPropertyKind::BinaryProperty);
+        *out_id = property->value();
+        return true;
+    }
+
+    if (auto category = Unicode::general_category_from_string(name); category.has_value()) {
+        *out_kind = to_underlying(ResolvedPropertyKind::GeneralCategory);
+        *out_id = category->value();
+        return true;
+    }
+
+    if (auto script = Unicode::script_from_string(name); script.has_value()) {
+        *out_kind = to_underlying(ResolvedPropertyKind::Script);
+        *out_id = script->value();
+        return true;
+    }
+
+    return false;
+}
+
+extern "C" {
+
+bool unicode_property_matches(u32, unsigned char const*, size_t, unsigned char const*, size_t);
+bool unicode_property_matches_case_insensitive(u32, unsigned char const*, size_t, unsigned char const*, size_t);
+bool unicode_property_all_case_equivalents_match(u32, unsigned char const*, size_t, unsigned char const*, size_t);
+
+bool unicode_resolve_property(unsigned char const*, size_t, unsigned char const*, size_t, unsigned char*, u32*);
+bool unicode_resolved_property_matches(u32, unsigned char, u32);
+
+bool unicode_code_point_has_identifier_start_property(u32);
+bool unicode_code_point_has_identifier_continue_property(u32);
+
+bool unicode_is_string_property(unsigned char const*, size_t);
+bool unicode_is_valid_ecma262_property(unsigned char const*, size_t, unsigned char const*, size_t);
+u32 unicode_get_string_property_data(unsigned char const*, size_t, u32*, u32);
+
+u32 unicode_simple_case_fold(u32, bool);
+
+bool unicode_code_point_matches_range_ignoring_case(u32, u32, u32, bool);
+u32 unicode_get_case_closure(u32, u32*, u32);
+}
+
+extern "C" bool unicode_property_matches(
+    u32 code_point,
+    unsigned char const* name_ptr, size_t name_len,
+    unsigned char const* value_ptr, size_t value_len)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto value = optional_string_view_from_ffi(value_ptr, value_len);
+
+    return has_property(code_point, name, value);
+}
+
+extern "C" bool unicode_property_matches_case_insensitive(
+    u32 code_point,
+    unsigned char const* name_ptr, size_t name_len,
+    unsigned char const* value_ptr, size_t value_len)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto value = optional_string_view_from_ffi(value_ptr, value_len);
+    bool found = false;
+
+    Unicode::for_each_case_folded_code_point(code_point, [&](u32 cp) {
+        if (has_property(cp, name, value)) {
+            found = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+
+    return found;
+}
+
+extern "C" bool unicode_property_all_case_equivalents_match(
+    u32 code_point,
+    unsigned char const* name_ptr, size_t name_len,
+    unsigned char const* value_ptr, size_t value_len)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto value = optional_string_view_from_ffi(value_ptr, value_len);
+    bool all_match = true;
+
+    Unicode::for_each_case_folded_code_point(code_point, [&](u32 cp) {
+        if (!has_property(cp, name, value)) {
+            all_match = false;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+
+    return all_match;
+}
+
+extern "C" bool unicode_resolve_property(
+    unsigned char const* name_ptr, size_t name_len,
+    unsigned char const* value_ptr, size_t value_len,
+    unsigned char* out_kind, u32* out_id)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto value = optional_string_view_from_ffi(value_ptr, value_len);
+
+    return resolve_property(name, value, out_kind, out_id);
+}
+
+extern "C" bool unicode_resolved_property_matches(u32 code_point, unsigned char kind, u32 id)
+{
+    switch (static_cast<ResolvedPropertyKind>(kind)) {
+    case ResolvedPropertyKind::Script:
+        return Unicode::code_point_has_script(code_point, Unicode::Script { id });
+    case ResolvedPropertyKind::ScriptExtension:
+        return Unicode::code_point_has_script_extension(code_point, Unicode::Script { id });
+    case ResolvedPropertyKind::GeneralCategory:
+        return Unicode::code_point_has_general_category(code_point, Unicode::GeneralCategory { id });
+    case ResolvedPropertyKind::BinaryProperty:
+        return Unicode::code_point_has_property(code_point, Unicode::Property { id });
+    }
+    VERIFY_NOT_REACHED();
+}
+
+extern "C" bool unicode_code_point_has_identifier_start_property(u32 code_point)
+{
+    return Unicode::code_point_has_identifier_start_property(code_point);
+}
+
+extern "C" bool unicode_code_point_has_identifier_continue_property(u32 code_point)
+{
+    return Unicode::code_point_has_identifier_continue_property(code_point);
+}
+
+extern "C" bool unicode_is_string_property(unsigned char const* name_ptr, size_t name_len)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+
+    if (auto property = Unicode::property_from_string(name); property.has_value())
+        return Unicode::is_ecma262_string_property(*property);
+
+    return false;
+}
+
+extern "C" bool unicode_is_valid_ecma262_property(
+    unsigned char const* name_ptr, size_t name_len,
+    unsigned char const* value_ptr, size_t value_len)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto value = optional_string_view_from_ffi(value_ptr, value_len);
+
+    if (value.has_value()) {
+        if (name.is_one_of("sc"sv, "Script"sv, "scx"sv, "Script_Extensions"sv))
+            return Unicode::script_from_string(*value).has_value();
+        if (name.is_one_of("gc"sv, "General_Category"sv))
+            return Unicode::general_category_from_string(*value).has_value();
+        return false;
+    }
+
+    if (auto property = Unicode::property_from_string(name); property.has_value())
+        return Unicode::is_ecma262_property(*property) || Unicode::is_ecma262_string_property(*property);
+
+    return Unicode::general_category_from_string(name).has_value();
+}
+
+extern "C" u32 unicode_get_string_property_data(
+    unsigned char const* name_ptr, size_t name_len,
+    u32* out, u32 capacity)
+{
+    auto name = string_view_from_ffi(name_ptr, name_len);
+    auto property = Unicode::property_from_string(name);
+    if (!property.has_value() || !Unicode::is_ecma262_string_property(*property))
+        return 0;
+
+    auto strings = Unicode::get_property_strings(*property);
+
+    Vector<Vector<u32>> multi_code_point_strings;
+    for (auto const& string : strings) {
+        Vector<u32> code_points;
+        for (auto code_point : string.code_points())
+            code_points.append(code_point);
+        if (code_points.size() > 1)
+            multi_code_point_strings.append(move(code_points));
+    }
+
+    u32 total_size = 1;
+    for (auto const& code_points : multi_code_point_strings)
+        total_size += 1 + static_cast<u32>(code_points.size());
+
+    if (!out || capacity < total_size)
+        return total_size;
+
+    u32 offset = 0;
+    out[offset++] = static_cast<u32>(multi_code_point_strings.size());
+
+    for (auto const& code_points : multi_code_point_strings) {
+        out[offset++] = static_cast<u32>(code_points.size());
+
+        for (auto code_point : code_points)
+            out[offset++] = code_point;
+    }
+
+    return total_size;
+}
+
+extern "C" u32 unicode_simple_case_fold(u32 code_point, bool unicode_mode)
+{
+    return Unicode::canonicalize(code_point, unicode_mode);
+}
+
+extern "C" bool unicode_code_point_matches_range_ignoring_case(u32 code_point, u32 from, u32 to, bool unicode_mode)
+{
+    return Unicode::code_point_matches_range_ignoring_case(code_point, from, to, unicode_mode);
+}
+
+extern "C" u32 unicode_get_case_closure(
+    u32 code_point,
+    u32* out_buffer,
+    u32 buffer_capacity)
+{
+    u32 count = 0;
+
+    Unicode::for_each_case_folded_code_point(code_point, [&](u32 cp) {
+        if (count < buffer_capacity) {
+            out_buffer[count++] = cp;
+            return IterationDecision::Continue;
+        }
+        return IterationDecision::Break;
+    });
+
+    return count;
 }

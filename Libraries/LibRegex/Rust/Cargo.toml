@@ -6,5 +6,10 @@ edition = "2024"
 [lib]
 crate-type = ["staticlib"]
 
+# After changing dependencies, regenerate the Flatpak sources:
+#   python3 Meta/CMake/flatpak/generate-cargo-sources.py
+[dependencies]
+libunicode_rust = { path = "../../LibUnicode/Rust", default-features = false }
+
 [build-dependencies]
 cbindgen = "0.29"

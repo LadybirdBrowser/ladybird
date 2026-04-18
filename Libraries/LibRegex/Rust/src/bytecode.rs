@@ -18,6 +18,8 @@
 //! - A set of registers for capture group positions
 //! - A backtrack stack for saving/restoring state
 
+pub use libunicode_rust::character_types::{PropertyKind, ResolvedProperty};
+
 /// A named capture group mapping derived from the pattern's named captures.
 /// <https://tc39.es/ecma262/#sec-parsepattern>
 #[derive(Debug, Clone)]
@@ -184,38 +186,6 @@ pub enum Instruction {
         min: u32,
         max: Option<u32>,
     },
-}
-
-/// The kind of a resolved Unicode property.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum PropertyKind {
-    Script = 0,
-    ScriptExtension = 1,
-    GeneralCategory = 2,
-    BinaryProperty = 3,
-}
-
-impl PropertyKind {
-    pub fn from_u8(v: u8) -> Option<Self> {
-        match v {
-            0 => Some(Self::Script),
-            1 => Some(Self::ScriptExtension),
-            2 => Some(Self::GeneralCategory),
-            3 => Some(Self::BinaryProperty),
-            _ => None,
-        }
-    }
-}
-
-/// A resolved Unicode property — the string name/value has been resolved to
-/// an ICU enum at compile time, so match-time lookups avoid string parsing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ResolvedProperty {
-    /// The kind of Unicode property (Script, GeneralCategory, etc.).
-    pub kind: PropertyKind,
-    /// ICU enum value (e.g. script code, general category, binary property ID).
-    pub id: u32,
 }
 
 /// Data for a Unicode property match instruction.
