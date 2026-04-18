@@ -10,8 +10,6 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/FontSupport.h>
 #include <LibGfx/Font/Typeface.h>
-#include <LibGfx/Font/WOFF/Loader.h>
-#include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/FontFacePrototype.h>
@@ -21,6 +19,7 @@
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/FontLoading.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
@@ -78,32 +77,36 @@ static int compute_slope(StyleValue const& value)
     return StyleComputer::compute_font_style(value)->as_font_style().to_font_slope();
 }
 
-static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font(JS::Realm& realm, ByteBuffer const& data)
+static NonnullRefPtr<Core::Promise<NonnullRefPtr<Gfx::Typeface const>>> load_vector_font([[maybe_unused]] JS::Realm& realm, ByteBuffer data)
 {
     auto promise = Core::Promise<NonnullRefPtr<Gfx::Typeface const>>::construct();
 
-    // FIXME: 'Asynchronously' shouldn't mean 'later on the main thread'.
-    //        Can we defer this to a background thread?
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&data, promise] {
-        // FIXME: This should be de-duplicated with StyleComputer::FontLoader::try_load_font
-        // We don't have the luxury of knowing the MIME type, so we have to try all formats.
-        auto ttf = Gfx::Typeface::try_load_from_externally_owned_memory(data);
-        if (!ttf.is_error()) {
-            promise->resolve(ttf.release_value());
+    if (!requires_off_thread_vector_font_preparation(data)) {
+        auto result = try_load_vector_font(data);
+        if (result.is_error()) {
+            promise->reject(result.release_error());
+            return promise;
+        }
+
+        promise->resolve(result.release_value());
+        return promise;
+    }
+
+    prepare_vector_font_data_off_thread(move(data), [promise](auto prepared_font_data) {
+        if (prepared_font_data.is_error()) {
+            promise->reject(prepared_font_data.release_error());
             return;
         }
-        auto woff = WOFF::try_load_from_bytes(data);
-        if (!woff.is_error()) {
-            promise->resolve(woff.release_value());
+
+        auto prepared = prepared_font_data.release_value();
+        auto result = try_load_vector_font(prepared.data, prepared.mime_type_essence);
+        if (result.is_error()) {
+            promise->reject(result.release_error());
             return;
         }
-        auto woff2 = WOFF2::try_load_from_bytes(data);
-        if (!woff2.is_error()) {
-            promise->resolve(woff2.release_value());
-            return;
-        }
-        promise->reject(Error::from_string_literal("Automatic format detection failed"));
-    }));
+
+        promise->resolve(result.release_value());
+    });
 
     return promise;
 }
@@ -200,7 +203,7 @@ GC::Ref<FontFace> FontFace::construct_impl(JS::Realm& realm, String family, Font
 
         // 3. Asynchronously, attempt to parse the data in it as a font.
         //    When this is completed, successfully or not, queue a task to run the following steps synchronously:
-        font_face->m_font_load_promise = load_vector_font(realm, font_face->m_binary_data);
+        font_face->m_font_load_promise = load_vector_font(realm, move(font_face->m_binary_data));
 
         font_face->m_font_load_promise->when_resolved([font = GC::make_root(font_face)](auto const& vector_font) -> ErrorOr<void> {
             HTML::queue_global_task(HTML::Task::Source::FontLoading, HTML::relevant_global_object(*font), GC::create_function(font->heap(), [font = GC::Ref(*font), vector_font] {

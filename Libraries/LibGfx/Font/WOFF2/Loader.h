@@ -7,12 +7,14 @@
 
 #pragma once
 
+#include <AK/ByteBuffer.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Font/Typeface.h>
 
 namespace WOFF2 {
 
+ErrorOr<ByteBuffer> convert_to_ttf(ReadonlyBytes);
 ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes);
 
 }

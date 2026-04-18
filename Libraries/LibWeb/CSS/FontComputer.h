@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibWeb/CSS/Fetch.h>
@@ -77,7 +78,7 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    ErrorOr<NonnullRefPtr<Gfx::Typeface const>> try_load_font(Fetch::Infrastructure::Response const&, ByteBuffer const&);
+    Optional<ByteString> try_load_font_mime_type_essence(Fetch::Infrastructure::Response const&, ByteBuffer const&);
 
     void font_did_load_or_fail(RefPtr<Gfx::Typeface const>);
 

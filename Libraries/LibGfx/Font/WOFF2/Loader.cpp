@@ -53,7 +53,7 @@ private:
     ByteBuffer& m_buffer;
 };
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes)
+ErrorOr<ByteBuffer> convert_to_ttf(ReadonlyBytes bytes)
 {
     auto ttf_buffer = TRY(ByteBuffer::create_uninitialized(0));
     auto output = WOFF2ByteBufferOut { ttf_buffer };
@@ -62,6 +62,12 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes)
         return Error::from_string_literal("Failed to convert the WOFF2 font to TTF");
     }
 
+    return ttf_buffer;
+}
+
+ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes bytes)
+{
+    auto ttf_buffer = TRY(convert_to_ttf(bytes));
     auto font_data = Gfx::FontData::create_from_byte_buffer(move(ttf_buffer));
     auto input_font = TRY(Gfx::Typeface::try_load_from_font_data(move(font_data)));
     return input_font;

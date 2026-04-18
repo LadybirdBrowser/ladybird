@@ -10,8 +10,6 @@
 
 #include "FontComputer.h"
 #include <LibGfx/Font/FontDatabase.h>
-#include <LibGfx/Font/WOFF/Loader.h>
-#include <LibGfx/Font/WOFF2/Loader.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
@@ -19,6 +17,7 @@
 #include <LibWeb/CSS/Fetch.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/FontLoading.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -130,24 +129,60 @@ void FontLoader::start_loading_next_url()
             // 1. If stream is null, return.
             // 2. Load a font from stream according to its type.
 
-            // NB: We need to fetch the next source if this one fails to fetch OR decode. So, first try to decode it.
-            RefPtr<Gfx::Typeface const> typeface;
-            if (auto* bytes = stream.template get_pointer<ByteBuffer>()) {
-                if (auto maybe_typeface = loader->try_load_font(response, *bytes); !maybe_typeface.is_error())
-                    typeface = maybe_typeface.release_value();
-            }
-
-            if (!typeface) {
-                // NB: If we have other sources available, try the next one.
+            auto* bytes = stream.template get_pointer<ByteBuffer>();
+            if (!bytes) {
                 if (loader->m_urls.is_empty()) {
                     loader->font_did_load_or_fail(nullptr);
                 } else {
                     loader->m_fetch_controller = nullptr;
                     loader->start_loading_next_url();
                 }
-            } else {
-                loader->font_did_load_or_fail(move(typeface));
+                return;
             }
+
+            auto mime_type_essence = loader->try_load_font_mime_type_essence(response, *bytes);
+            if (!requires_off_thread_vector_font_preparation(*bytes, mime_type_essence)) {
+                auto maybe_typeface = try_load_vector_font(*bytes, mime_type_essence);
+                if (maybe_typeface.is_error()) {
+                    if (loader->m_urls.is_empty()) {
+                        loader->font_did_load_or_fail(nullptr);
+                    } else {
+                        loader->m_fetch_controller = nullptr;
+                        loader->start_loading_next_url();
+                    }
+                    return;
+                }
+
+                loader->font_did_load_or_fail(maybe_typeface.release_value());
+                return;
+            }
+
+            auto loader_handle = GC::make_root(GC::Ref(*loader));
+            prepare_vector_font_data_off_thread(move(*bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
+                if (prepared_font_data.is_error()) {
+                    // NB: If we have other sources available, try the next one.
+                    if (loader->m_urls.is_empty()) {
+                        loader->font_did_load_or_fail(nullptr);
+                    } else {
+                        loader->m_fetch_controller = nullptr;
+                        loader->start_loading_next_url();
+                    }
+                    return;
+                }
+
+                auto prepared = prepared_font_data.release_value();
+                auto maybe_typeface = try_load_vector_font(prepared.data, prepared.mime_type_essence);
+                if (maybe_typeface.is_error()) {
+                    if (loader->m_urls.is_empty()) {
+                        loader->font_did_load_or_fail(nullptr);
+                    } else {
+                        loader->m_fetch_controller = nullptr;
+                        loader->start_loading_next_url();
+                    }
+                    return;
+                }
+
+                loader->font_did_load_or_fail(maybe_typeface.release_value()); }, move(mime_type_essence));
         });
 
     if (!m_fetch_controller)
@@ -168,32 +203,16 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
     m_fetch_controller = nullptr;
 }
 
-ErrorOr<NonnullRefPtr<Gfx::Typeface const>> FontLoader::try_load_font(Fetch::Infrastructure::Response const& response, ByteBuffer const& bytes)
+Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastructure::Response const& response, ByteBuffer const& bytes)
 {
     // FIXME: This could maybe use the format() provided in @font-face as well, since often the mime type is just application/octet-stream and we have to try every format
     auto mime_type = Fetch::Infrastructure::extract_mime_type(response.header_list());
     if (!mime_type.has_value() || !mime_type->is_font()) {
         mime_type = MimeSniff::Resource::sniff(bytes, MimeSniff::SniffingConfiguration { .sniffing_context = MimeSniff::SniffingContext::Font });
     }
-    if (mime_type.has_value()) {
-        if (mime_type->essence() == "font/ttf"sv || mime_type->essence() == "application/x-font-ttf"sv || mime_type->essence() == "font/otf"sv) {
-            if (auto result = Gfx::Typeface::try_load_from_temporary_memory(bytes); !result.is_error()) {
-                return result;
-            }
-        }
-        if (mime_type->essence() == "font/woff"sv || mime_type->essence() == "application/font-woff"sv) {
-            if (auto result = WOFF::try_load_from_bytes(bytes); !result.is_error()) {
-                return result;
-            }
-        }
-        if (mime_type->essence() == "font/woff2"sv || mime_type->essence() == "application/font-woff2"sv) {
-            if (auto result = WOFF2::try_load_from_bytes(bytes); !result.is_error()) {
-                return result;
-            }
-        }
-    }
-
-    return Error::from_string_literal("Automatic format detection failed");
+    if (!mime_type.has_value())
+        return {};
+    return mime_type->essence().to_byte_string();
 }
 
 struct FontComputer::MatchingFontCandidate {
