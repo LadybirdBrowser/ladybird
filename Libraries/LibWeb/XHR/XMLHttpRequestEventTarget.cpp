@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XMLHttpRequestEventTargetPrototype.h>
+#include <LibWeb/Bindings/XMLHttpRequestEventTarget.h>
 #include <LibWeb/HTML/EventHandler.h>
 #include <LibWeb/XHR/EventNames.h>
 #include <LibWeb/XHR/XMLHttpRequestEventTarget.h>

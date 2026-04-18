@@ -5,7 +5,7 @@
  */
 
 #include "CSSNumericArray.h"
-#include <LibWeb/Bindings/CSSNumericArrayPrototype.h>
+#include <LibWeb/Bindings/CSSNumericArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 

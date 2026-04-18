@@ -10,7 +10,7 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/AnalyserNodePrototype.h>
+#include <LibWeb/Bindings/AnalyserNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebIDL/Buffers.h>

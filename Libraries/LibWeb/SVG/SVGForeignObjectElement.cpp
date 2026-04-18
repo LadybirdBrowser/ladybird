@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGForeignObjectElementPrototype.h>
+#include <LibWeb/Bindings/SVGForeignObjectElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/SVGForeignObjectBox.h>

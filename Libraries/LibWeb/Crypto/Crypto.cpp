@@ -7,7 +7,7 @@
 
 #include <AK/Random.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/CryptoPrototype.h>
+#include <LibWeb/Bindings/Crypto.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/Crypto/SubtleCrypto.h>

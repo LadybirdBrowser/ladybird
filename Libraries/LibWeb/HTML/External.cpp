@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ExternalPrototype.h>
+#include <LibWeb/Bindings/External.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/External.h>
 

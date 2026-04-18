@@ -5,7 +5,7 @@
  */
 
 #include "CSSUnitValue.h"
-#include <LibWeb/Bindings/CSSUnitValuePrototype.h>
+#include <LibWeb/Bindings/CSSUnitValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/Serialize.h>

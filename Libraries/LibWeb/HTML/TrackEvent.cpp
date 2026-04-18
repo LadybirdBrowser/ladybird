@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TrackEventPrototype.h>
+#include <LibWeb/Bindings/TrackEvent.h>
 #include <LibWeb/HTML/AudioTrack.h>
 #include <LibWeb/HTML/TextTrack.h>
 #include <LibWeb/HTML/TrackEvent.h>

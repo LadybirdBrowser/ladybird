@@ -10,7 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/CSSImportRulePrototype.h>
+#include <LibWeb/Bindings/CSSImportRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>

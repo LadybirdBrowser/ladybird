@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechSynthesisVoicePrototype.h>
+#include <LibWeb/Bindings/SpeechSynthesisVoice.h>
 #include <LibWeb/Speech/SpeechSynthesisVoice.h>
 
 namespace Web::Speech {

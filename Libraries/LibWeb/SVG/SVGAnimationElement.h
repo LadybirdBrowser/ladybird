@@ -8,7 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/SVGAnimationElementPrototype.h>
+#include <LibWeb/Bindings/SVGAnimationElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::SVG {

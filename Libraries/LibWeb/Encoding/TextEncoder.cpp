@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextEncoderPrototype.h>
+#include <LibWeb/Bindings/TextEncoder.h>
 #include <LibWeb/Encoding/TextEncoder.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

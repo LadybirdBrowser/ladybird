@@ -7,7 +7,7 @@
 
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SelectionPrototype.h>
+#include <LibWeb/Bindings/Selection.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/Position.h>

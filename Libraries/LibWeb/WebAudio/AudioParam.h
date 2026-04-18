@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/AudioParamPrototype.h>
+#include <LibWeb/Bindings/AudioParam.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::WebAudio {

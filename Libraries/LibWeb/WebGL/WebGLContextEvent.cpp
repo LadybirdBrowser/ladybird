@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLContextEventPrototype.h>
+#include <LibWeb/Bindings/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLContextEvent.h>
 
 namespace Web::WebGL {

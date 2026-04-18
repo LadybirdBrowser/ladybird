@@ -6,7 +6,7 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWeb/Bindings/CanvasGradientPrototype.h>
+#include <LibWeb/Bindings/CanvasGradient.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>

@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MimeTypePrototype.h>
+#include <LibWeb/Bindings/MimeType.h>
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>

@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathClamp.h"
-#include <LibWeb/Bindings/CSSMathClampPrototype.h>
+#include <LibWeb/Bindings/CSSMathClamp.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>

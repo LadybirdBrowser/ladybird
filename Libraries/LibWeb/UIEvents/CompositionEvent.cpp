@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CompositionEventPrototype.h>
+#include <LibWeb/Bindings/CompositionEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/UIEvents/CompositionEvent.h>
 

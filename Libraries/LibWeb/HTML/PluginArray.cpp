@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PluginArrayPrototype.h>
+#include <LibWeb/Bindings/PluginArray.h>
 #include <LibWeb/HTML/PluginArray.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>

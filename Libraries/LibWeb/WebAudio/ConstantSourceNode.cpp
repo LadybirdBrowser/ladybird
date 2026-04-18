@@ -5,7 +5,7 @@
  */
 
 #include <AK/NumericLimits.h>
-#include <LibWeb/Bindings/ConstantSourceNodePrototype.h>
+#include <LibWeb/Bindings/ConstantSourceNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/ConstantSourceNode.h>

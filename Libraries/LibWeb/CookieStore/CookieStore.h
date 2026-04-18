@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/String.h>
 #include <LibHTTP/Forward.h>
-#include <LibWeb/Bindings/CookieStorePrototype.h>
+#include <LibWeb/Bindings/CookieStore.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>

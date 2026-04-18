@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PeriodicWavePrototype.h>
+#include <LibWeb/Bindings/PeriodicWave.h>
 #include <LibWeb/WebAudio/PeriodicWave.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

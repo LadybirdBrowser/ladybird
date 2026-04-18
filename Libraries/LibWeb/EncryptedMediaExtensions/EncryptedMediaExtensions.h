@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibWeb/Bindings/MediaKeySystemAccessPrototype.h>
+#include <LibWeb/Bindings/MediaKeySystemAccess.h>
 
 namespace Web::Bindings {
 

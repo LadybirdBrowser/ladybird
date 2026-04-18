@@ -6,7 +6,7 @@
  */
 
 #include <AK/InsertionSort.h>
-#include <LibWeb/Bindings/HTMLCollectionPrototype.h>
+#include <LibWeb/Bindings/HTMLCollection.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>

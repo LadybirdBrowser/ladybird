@@ -7,7 +7,7 @@
 
 #include <AK/TypeCasts.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StaticRangePrototype.h>
+#include <LibWeb/Bindings/StaticRange.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/DocumentType.h>
 #include <LibWeb/DOM/StaticRange.h>

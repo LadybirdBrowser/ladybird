@@ -9,7 +9,7 @@
 #include <AK/HashMap.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ViewTransitionPrototype.h>
+#include <LibWeb/Bindings/ViewTransition.h>
 #include <LibWeb/CSS/Filter.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/StyleValues/TransformationStyleValue.h>

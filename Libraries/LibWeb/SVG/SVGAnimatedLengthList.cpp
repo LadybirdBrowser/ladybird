@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedLengthListPrototype.h>
+#include <LibWeb/Bindings/SVGAnimatedLengthList.h>
 #include <LibWeb/SVG/SVGAnimatedLengthList.h>
 
 namespace Web::SVG {

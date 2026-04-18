@@ -6,7 +6,7 @@
 
 #include <LibGfx/Path.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGRectElementPrototype.h>
+#include <LibWeb/Bindings/SVGRectElement.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>

@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLQueryPrototype.h>
+#include <LibWeb/Bindings/WebGLQuery.h>
 #include <LibWeb/WebGL/WebGLQuery.h>
 
 namespace Web::WebGL {

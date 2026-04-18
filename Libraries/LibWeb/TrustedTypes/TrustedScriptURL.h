@@ -8,7 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/TrustedScriptURLPrototype.h>
+#include <LibWeb/Bindings/TrustedScriptURL.h>
 
 namespace Web::TrustedTypes {
 

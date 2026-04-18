@@ -8,7 +8,7 @@
 
 #include <AK/HashTable.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/SharedWorkerGlobalScopeGlobalMixin.h>
+#include <LibWeb/Bindings/SharedWorkerGlobalScope.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 

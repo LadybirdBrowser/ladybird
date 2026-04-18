@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEGaussianBlurElementPrototype.h>
+#include <LibWeb/Bindings/SVGFEGaussianBlurElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>

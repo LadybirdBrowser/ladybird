@@ -5,7 +5,7 @@
  */
 
 #include "CSSRotate.h"
-#include <LibWeb/Bindings/CSSRotatePrototype.h>
+#include <LibWeb/Bindings/CSSRotate.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

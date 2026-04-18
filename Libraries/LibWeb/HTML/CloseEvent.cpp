@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CloseEventPrototype.h>
+#include <LibWeb/Bindings/CloseEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CloseEvent.h>
 

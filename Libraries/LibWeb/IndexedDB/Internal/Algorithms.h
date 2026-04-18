@@ -8,7 +8,7 @@
 
 #include <AK/Variant.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/IDBCursorPrototype.h>
+#include <LibWeb/Bindings/IDBCursor.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/IDBRequest.h>

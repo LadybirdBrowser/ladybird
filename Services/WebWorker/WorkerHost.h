@@ -9,7 +9,7 @@
 #include <AK/RefCounted.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/StructuredSerialize.h>

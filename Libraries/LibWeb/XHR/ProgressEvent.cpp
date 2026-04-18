@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ProgressEventPrototype.h>
+#include <LibWeb/Bindings/ProgressEvent.h>
 #include <LibWeb/XHR/ProgressEvent.h>
 
 namespace Web::XHR {

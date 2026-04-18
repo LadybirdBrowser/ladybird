@@ -8,7 +8,7 @@
 #include <AK/Time.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NotificationPrototype.h>
+#include <LibWeb/Bindings/Notification.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>

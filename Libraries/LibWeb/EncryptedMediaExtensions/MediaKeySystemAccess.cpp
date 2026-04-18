@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaKeySystemAccessPrototype.h>
+#include <LibWeb/Bindings/MediaKeySystemAccess.h>
 #include <LibWeb/EncryptedMediaExtensions/MediaKeySystemAccess.h>
 
 namespace Web::EncryptedMediaExtensions {

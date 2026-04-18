@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/AudioConstructor.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLAudioElementPrototype.h>
+#include <LibWeb/Bindings/HTMLAudioElement.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEMorphologyElementPrototype.h>
+#include <LibWeb/Bindings/SVGFEMorphologyElement.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGFEMorphologyElement.h>
 

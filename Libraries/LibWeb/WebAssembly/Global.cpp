@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/Types.h>
-#include <LibWeb/Bindings/GlobalPrototype.h>
+#include <LibWeb/Bindings/Global.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAssembly/Global.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>

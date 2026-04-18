@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ServiceWorkerPrototype.h>
+#include <LibWeb/Bindings/ServiceWorker.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 #define ENUMERATE_SERVICE_WORKER_EVENT_HANDLERS(E)  \

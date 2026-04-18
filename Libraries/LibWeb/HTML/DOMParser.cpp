@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMParserPrototype.h>
+#include <LibWeb/Bindings/DOMParser.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/DOMParser.h>

@@ -5,7 +5,7 @@
  */
 
 #include "CSSFunctionDeclarations.h"
-#include <LibWeb/Bindings/CSSFunctionDeclarationsPrototype.h>
+#include <LibWeb/Bindings/CSSFunctionDeclarations.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>

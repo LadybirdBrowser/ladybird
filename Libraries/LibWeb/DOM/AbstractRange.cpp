@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AbstractRangePrototype.h>
+#include <LibWeb/Bindings/AbstractRange.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbstractRange.h>
 #include <LibWeb/DOM/Document.h>

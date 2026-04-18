@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ScreenOrientationPrototype.h>
+#include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/CSS/ScreenOrientation.h>
 #include <LibWeb/HTML/EventNames.h>
 

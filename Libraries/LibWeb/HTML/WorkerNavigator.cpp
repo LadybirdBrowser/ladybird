@@ -7,7 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WorkerNavigatorPrototype.h>
+#include <LibWeb/Bindings/WorkerNavigator.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerNavigator.h>
 

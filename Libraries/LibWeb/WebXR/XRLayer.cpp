@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XRLayerPrototype.h>
+#include <LibWeb/Bindings/XRLayer.h>
 #include <LibWeb/WebXR/XRLayer.h>
 
 namespace Web::WebXR {

@@ -7,7 +7,7 @@
 #include <LibHTTP/Method.h>
 #include <LibJS/Runtime/Completion.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/RequestPrototype.h>
+#include <LibWeb/Bindings/Request.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Enums.h>

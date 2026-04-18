@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Variant.h>
-#include <LibWeb/Bindings/AudioContextPrototype.h>
+#include <LibWeb/Bindings/AudioContext.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>

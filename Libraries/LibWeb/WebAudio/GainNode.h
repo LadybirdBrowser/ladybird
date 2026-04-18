@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GainNodePrototype.h>
+#include <LibWeb/Bindings/GainNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {

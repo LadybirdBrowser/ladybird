@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGAElementPrototype.h>
+#include <LibWeb/Bindings/SVGAElement.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/Layout/SVGGraphicsBox.h>

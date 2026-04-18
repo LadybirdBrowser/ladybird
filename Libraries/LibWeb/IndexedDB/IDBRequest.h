@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/IDBRequestPrototype.h>
+#include <LibWeb/Bindings/IDBRequest.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::IndexedDB {

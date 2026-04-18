@@ -6,7 +6,7 @@
  */
 
 #include <LibJS/Runtime/NativeFunction.h>
-#include <LibWeb/Bindings/HTMLDialogElementPrototype.h>
+#include <LibWeb/Bindings/HTMLDialogElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>

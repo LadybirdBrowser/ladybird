@@ -9,7 +9,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLUniformLocationPrototype.h>
+#include <LibWeb/Bindings/WebGLUniformLocation.h>
 #include <LibWeb/WebGL/WebGLUniformLocation.h>
 
 #include <GLES2/gl2.h>

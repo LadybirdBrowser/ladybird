@@ -5,7 +5,7 @@
  */
 
 #include "SVGViewElement.h"
-#include <LibWeb/Bindings/SVGViewElementPrototype.h>
+#include <LibWeb/Bindings/SVGViewElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/SVG/AttributeNames.h>

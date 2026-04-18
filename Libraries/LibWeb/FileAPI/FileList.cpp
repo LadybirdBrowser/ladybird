@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/FileListPrototype.h>
+#include <LibWeb/Bindings/FileList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/FileAPI/FileList.h>

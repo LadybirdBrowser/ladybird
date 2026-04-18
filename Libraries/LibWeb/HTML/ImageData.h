@@ -8,7 +8,7 @@
 #pragma once
 
 #include <LibGfx/Forward.h>
-#include <LibWeb/Bindings/ImageDataPrototype.h>
+#include <LibWeb/Bindings/ImageData.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/WebIDL/Types.h>

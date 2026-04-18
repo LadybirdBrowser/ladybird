@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XRSystemPrototype.h>
+#include <LibWeb/Bindings/XRSystem.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 

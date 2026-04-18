@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaErrorPrototype.h>
+#include <LibWeb/Bindings/MediaError.h>
 #include <LibWeb/HTML/MediaError.h>
 
 namespace Web::HTML {

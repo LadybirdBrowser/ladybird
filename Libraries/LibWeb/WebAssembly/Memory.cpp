@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibWasm/Types.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MemoryPrototype.h>
+#include <LibWeb/Bindings/Memory.h>
 #include <LibWeb/WebAssembly/Memory.h>
 #include <LibWeb/WebAssembly/WebAssembly.h>
 

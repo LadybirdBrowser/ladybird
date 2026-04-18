@@ -6,7 +6,7 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/IDBKeyRangePrototype.h>
+#include <LibWeb/Bindings/IDBKeyRange.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>
 #include <LibWeb/IndexedDB/Internal/Algorithms.h>

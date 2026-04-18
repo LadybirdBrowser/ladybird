@@ -5,7 +5,7 @@
  */
 
 #include <AK/ScopeGuard.h>
-#include <LibWeb/Bindings/HTMLLabelElementPrototype.h>
+#include <LibWeb/Bindings/HTMLLabelElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>

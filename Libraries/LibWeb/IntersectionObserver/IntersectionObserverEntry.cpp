@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/IntersectionObserverEntryPrototype.h>
+#include <LibWeb/Bindings/IntersectionObserverEntry.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserverEntry.h>

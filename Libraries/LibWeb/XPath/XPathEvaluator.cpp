@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathEvaluatorPrototype.h>
+#include <LibWeb/Bindings/XPathEvaluator.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 #include "XPath.h"

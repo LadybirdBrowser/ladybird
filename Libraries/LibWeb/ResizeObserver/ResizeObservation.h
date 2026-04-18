@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ResizeObserverPrototype.h>
+#include <LibWeb/Bindings/ResizeObserver.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
 
 namespace Web::ResizeObserver {

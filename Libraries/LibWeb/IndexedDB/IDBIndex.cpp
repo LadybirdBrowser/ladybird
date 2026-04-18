@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/IDBIndexPrototype.h>
+#include <LibWeb/Bindings/IDBIndex.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/IndexedDB/IDBCursor.h>

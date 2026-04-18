@@ -7,7 +7,7 @@
 
 #include <LibGC/Function.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransferItemPrototype.h>
+#include <LibWeb/Bindings/DataTransferItem.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWeb/HTML/DataTransfer.h>

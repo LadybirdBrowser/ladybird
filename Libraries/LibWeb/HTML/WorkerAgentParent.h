@@ -8,8 +8,8 @@
 
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/AgentType.h>
-#include <LibWeb/Bindings/RequestPrototype.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/Request.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {

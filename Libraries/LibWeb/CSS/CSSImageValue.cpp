@@ -5,7 +5,7 @@
  */
 
 #include "CSSImageValue.h"
-#include <LibWeb/Bindings/CSSImageValuePrototype.h>
+#include <LibWeb/Bindings/CSSImageValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

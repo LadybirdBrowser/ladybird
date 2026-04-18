@@ -134,23 +134,15 @@ static ErrorOr<void> generate_intrinsic_definitions_implementation(StringView ou
 
     for (auto& interface : interface_sets.intrinsics) {
         auto gen = generator.fork();
-        gen.set("namespace_class", interface.namespace_class);
-        gen.set("prototype_class", interface.prototype_class);
-        gen.set("constructor_class", interface.constructor_class);
+        gen.set("bindings_name", interface.implemented_name);
 
-        if (interface.is_namespace) {
-            gen.append(R"~~~(
-#include <LibWeb/Bindings/@namespace_class@.h>)~~~");
-        } else {
-            gen.append(R"~~~(
-#include <LibWeb/Bindings/@constructor_class@.h>
-#include <LibWeb/Bindings/@prototype_class@.h>)~~~");
+        gen.append(R"~~~(
+#include <LibWeb/Bindings/@bindings_name@.h>)~~~");
 
-            if (auto const& legacy_constructor = lookup_legacy_constructor(interface); legacy_constructor.has_value()) {
-                gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
-                gen.append(R"~~~(
+        if (auto const& legacy_constructor = lookup_legacy_constructor(interface); legacy_constructor.has_value()) {
+            gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
+            gen.append(R"~~~(
 #include <LibWeb/Bindings/@legacy_constructor_class@.h>)~~~");
-            }
         }
     }
 
@@ -329,7 +321,7 @@ WEB_API void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>
             gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
             gen.append(R"~~~(
     auto legacy_constructor = realm.create<@legacy_constructor_class@>(realm);
-    m_constructors.set("@legacy_interface_name@"_fly_string, legacy_constructor);)~~~");
+    m_constructors.set("@legacy_interface_name@"_fly_string, legacy_constructor.ptr());)~~~");
         }
 
         gen.append(R"~~~(
@@ -405,25 +397,9 @@ static ErrorOr<void> generate_exposed_interface_implementation(StringView class_
 )~~~");
     for (auto& interface : exposed_interfaces) {
         auto gen = generator.fork();
-        gen.set("namespace_class", interface.namespace_class);
-        gen.set("prototype_class", interface.prototype_class);
-        gen.set("constructor_class", interface.constructor_class);
-
-        if (interface.is_namespace) {
-            gen.append(R"~~~(#include <LibWeb/Bindings/@namespace_class@.h>
+        gen.set("bindings_name", interface.implemented_name);
+        gen.append(R"~~~(#include <LibWeb/Bindings/@bindings_name@.h>
 )~~~");
-        } else {
-
-            gen.append(R"~~~(#include <LibWeb/Bindings/@constructor_class@.h>
-#include <LibWeb/Bindings/@prototype_class@.h>
-)~~~");
-
-            if (auto const& legacy_constructor = lookup_legacy_constructor(interface); legacy_constructor.has_value()) {
-                gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
-                gen.append(R"~~~(#include <LibWeb/Bindings/@legacy_constructor_class@.h>
-)~~~");
-            }
-        }
     }
 
     generator.append(R"~~~(

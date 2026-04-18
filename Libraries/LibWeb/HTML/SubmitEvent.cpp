@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SubmitEventPrototype.h>
+#include <LibWeb/Bindings/SubmitEvent.h>
 #include <LibWeb/HTML/SubmitEvent.h>
 
 namespace Web::HTML {

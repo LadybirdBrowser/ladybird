@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StorageManagerPrototype.h>
+#include <LibWeb/Bindings/StorageManager.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/StorageAPI/StorageManager.h>
 

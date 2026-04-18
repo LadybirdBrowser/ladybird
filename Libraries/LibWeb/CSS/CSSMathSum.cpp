@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathSum.h"
-#include <LibWeb/Bindings/CSSMathSumPrototype.h>
+#include <LibWeb/Bindings/CSSMathSum.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>

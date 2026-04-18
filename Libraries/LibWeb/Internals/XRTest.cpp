@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/XRTestPrototype.h>
+#include <LibWeb/Bindings/XRTest.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/Internals/XRTest.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CredentialPrototype.h>
+#include <LibWeb/Bindings/Credential.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebIDL/Promise.h>
 

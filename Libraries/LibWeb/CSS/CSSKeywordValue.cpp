@@ -6,7 +6,7 @@
 
 #include "CSSKeywordValue.h"
 #include <AK/StringBuilder.h>
-#include <LibWeb/Bindings/CSSKeywordValuePrototype.h>
+#include <LibWeb/Bindings/CSSKeywordValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Keyword.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

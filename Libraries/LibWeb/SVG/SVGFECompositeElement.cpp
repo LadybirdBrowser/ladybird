@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFECompositeElementPrototype.h>
+#include <LibWeb/Bindings/SVGFECompositeElement.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGFECompositeElement.h>
 

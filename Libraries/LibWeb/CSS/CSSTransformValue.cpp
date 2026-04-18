@@ -5,7 +5,7 @@
  */
 
 #include "CSSTransformValue.h"
-#include <LibWeb/Bindings/CSSTransformValuePrototype.h>
+#include <LibWeb/Bindings/CSSTransformValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSTransformComponent.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

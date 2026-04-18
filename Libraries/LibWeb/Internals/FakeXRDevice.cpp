@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FakeXRDevicePrototype.h>
+#include <LibWeb/Bindings/FakeXRDevice.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/FakeXRDevice.h>
 #include <LibWeb/WebIDL/Promise.h>

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/HistoryPrototype.h>
+#include <LibWeb/Bindings/History.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/HTML/HistoryHandlingBehavior.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

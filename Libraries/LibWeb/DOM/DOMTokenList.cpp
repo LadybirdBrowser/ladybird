@@ -6,7 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibWeb/Bindings/DOMTokenListPrototype.h>
+#include <LibWeb/Bindings/DOMTokenList.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>

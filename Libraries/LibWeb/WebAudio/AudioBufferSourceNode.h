@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/AudioBufferSourceNodePrototype.h>
+#include <LibWeb/Bindings/AudioBufferSourceNode.h>
 #include <LibWeb/WebAudio/AudioBuffer.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>

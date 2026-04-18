@@ -5,7 +5,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/Bindings/CSSRuleListPrototype.h>
+#include <LibWeb/Bindings/CSSRuleList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSContainerRule.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>

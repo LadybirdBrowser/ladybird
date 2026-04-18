@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/WebGLRenderingContextPrototype.h>
+#include <LibWeb/Bindings/WebGLRenderingContext.h>
 
 namespace Web::WebGL {
 

@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/EXTTextureFilterAnisotropicPrototype.h>
+#include <LibWeb/Bindings/EXTTextureFilterAnisotropic.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebGL/Extensions/EXTTextureFilterAnisotropic.h>
 #include <LibWeb/WebGL/OpenGLContext.h>

@@ -9,7 +9,7 @@
 #pragma once
 
 #include <AK/Function.h>
-#include <LibWeb/Bindings/BaseAudioContextPrototype.h>
+#include <LibWeb/Bindings/BaseAudioContext.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/AnalyserNode.h>
 #include <LibWeb/WebAudio/AudioListener.h>

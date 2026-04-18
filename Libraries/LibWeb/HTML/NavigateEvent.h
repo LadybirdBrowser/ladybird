@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/NavigateEventPrototype.h>
+#include <LibWeb/Bindings/NavigateEvent.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/NavigationType.h>
 

@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/QuotaExceededErrorPrototype.h>
+#include <LibWeb/Bindings/QuotaExceededError.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 

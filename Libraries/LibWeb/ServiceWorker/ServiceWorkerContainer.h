@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/ServiceWorkerRegistration.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>

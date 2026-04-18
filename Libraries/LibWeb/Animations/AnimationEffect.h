@@ -10,7 +10,7 @@
 #include <AK/String.h>
 #include <AK/Variant.h>
 #include <LibWeb/Animations/TimeValue.h>
-#include <LibWeb/Bindings/AnimationEffectPrototype.h>
+#include <LibWeb/Bindings/AnimationEffect.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/EasingFunction.h>
 

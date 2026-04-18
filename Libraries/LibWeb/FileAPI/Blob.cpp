@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/BlobPrototype.h>
+#include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>

@@ -13,7 +13,7 @@
 #include <AK/RefPtr.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WindowGlobalMixin.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>

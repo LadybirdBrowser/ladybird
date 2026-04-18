@@ -5,7 +5,7 @@
  */
 
 #include "CSSTransformComponent.h"
-#include <LibWeb/Bindings/CSSTransformComponentPrototype.h>
+#include <LibWeb/Bindings/CSSTransformComponent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 
 namespace Web::CSS {

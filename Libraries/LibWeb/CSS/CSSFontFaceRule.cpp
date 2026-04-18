@@ -7,7 +7,7 @@
 
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
-#include <LibWeb/Bindings/CSSFontFaceRulePrototype.h>
+#include <LibWeb/Bindings/CSSFontFaceRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>

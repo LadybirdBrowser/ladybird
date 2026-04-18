@@ -235,43 +235,12 @@ function (generate_js_bindings target)
     set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
     list(TRANSFORM generated_idl_targets PREPEND "generate_")
     function(libweb_js_bindings class)
-        cmake_parse_arguments(PARSE_ARGV 1 LIBWEB_BINDINGS "NAMESPACE;ITERABLE;ASYNC_ITERABLE;GLOBAL" "" "")
         get_filename_component(basename "${class}" NAME)
 
-        if (LIBWEB_BINDINGS_NAMESPACE)
-            set(BINDINGS_SOURCES
-                "Bindings/${basename}Namespace.h"
-                "Bindings/${basename}Namespace.cpp"
-            )
-        else()
-            set(BINDINGS_SOURCES
-                "Bindings/${basename}Constructor.h"
-                "Bindings/${basename}Constructor.cpp"
-                "Bindings/${basename}Prototype.h"
-                "Bindings/${basename}Prototype.cpp"
-            )
-        endif()
-
-        if(LIBWEB_BINDINGS_ITERABLE)
-            list(APPEND BINDINGS_SOURCES
-                "Bindings/${basename}IteratorPrototype.h"
-                "Bindings/${basename}IteratorPrototype.cpp"
-            )
-        endif()
-
-        if(LIBWEB_BINDINGS_ASYNC_ITERABLE)
-            list(APPEND BINDINGS_SOURCES
-                "Bindings/${basename}AsyncIteratorPrototype.h"
-                "Bindings/${basename}AsyncIteratorPrototype.cpp"
-            )
-        endif()
-
-        if(LIBWEB_BINDINGS_GLOBAL)
-            list(APPEND BINDINGS_SOURCES
-                "Bindings/${basename}GlobalMixin.h"
-                "Bindings/${basename}GlobalMixin.cpp"
-            )
-        endif()
+        set(BINDINGS_SOURCES
+            "Bindings/${basename}.h"
+            "Bindings/${basename}.cpp"
+        )
 
         list(TRANSFORM BINDINGS_SOURCES PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
         target_sources(${target} PRIVATE ${BINDINGS_SOURCES})

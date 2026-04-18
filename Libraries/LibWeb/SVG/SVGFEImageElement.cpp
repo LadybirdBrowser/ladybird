@@ -7,7 +7,7 @@
 #include "SVGFEImageElement.h"
 #include <LibCore/Timer.h>
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibWeb/Bindings/SVGFEImageElementPrototype.h>
+#include <LibWeb/Bindings/SVGFEImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>

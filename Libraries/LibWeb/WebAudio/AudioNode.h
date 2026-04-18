@@ -9,7 +9,7 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/AudioNodePrototype.h>
+#include <LibWeb/Bindings/AudioNode.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebAudio/Types.h>

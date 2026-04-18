@@ -9,7 +9,7 @@
 #include <AK/FlyString.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/TrustedTypePolicyPrototype.h>
+#include <LibWeb/Bindings/TrustedTypePolicy.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 
 namespace Web::TrustedTypes {

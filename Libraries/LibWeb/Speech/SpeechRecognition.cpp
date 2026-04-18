@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionPrototype.h>
+#include <LibWeb/Bindings/SpeechRecognition.h>
 #include <LibWeb/Speech/SpeechRecognition.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

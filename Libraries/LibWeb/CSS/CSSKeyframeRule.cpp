@@ -6,7 +6,7 @@
  */
 
 #include "CSSKeyframeRule.h"
-#include <LibWeb/Bindings/CSSKeyframeRulePrototype.h>
+#include <LibWeb/Bindings/CSSKeyframeRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/Dump.h>

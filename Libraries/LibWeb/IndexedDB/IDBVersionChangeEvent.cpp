@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/IDBVersionChangeEventPrototype.h>
+#include <LibWeb/Bindings/IDBVersionChangeEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/IndexedDB/IDBVersionChangeEvent.h>
 

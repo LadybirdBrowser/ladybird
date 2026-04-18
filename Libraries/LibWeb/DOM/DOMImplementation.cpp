@@ -6,7 +6,7 @@
  */
 
 #include <LibURL/Origin.h>
-#include <LibWeb/Bindings/DOMImplementationPrototype.h>
+#include <LibWeb/Bindings/DOMImplementation.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/DOM/DOMImplementation.h>

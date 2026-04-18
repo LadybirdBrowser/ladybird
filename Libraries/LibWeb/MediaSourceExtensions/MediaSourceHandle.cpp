@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaSourceHandlePrototype.h>
+#include <LibWeb/Bindings/MediaSourceHandle.h>
 #include <LibWeb/MediaSourceExtensions/MediaSourceHandle.h>
 
 namespace Web::MediaSourceExtensions {

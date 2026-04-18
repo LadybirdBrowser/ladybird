@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/MediaSourcePrototype.h>
+#include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::MediaSourceExtensions {

@@ -5,7 +5,7 @@
  */
 
 #include "CSSScale.h"
-#include <LibWeb/Bindings/CSSScalePrototype.h>
+#include <LibWeb/Bindings/CSSScale.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>

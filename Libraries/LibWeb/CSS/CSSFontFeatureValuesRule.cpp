@@ -6,7 +6,7 @@
 
 #include "CSSFontFeatureValuesRule.h"
 #include <AK/QuickSort.h>
-#include <LibWeb/Bindings/CSSFontFeatureValuesRulePrototype.h>
+#include <LibWeb/Bindings/CSSFontFeatureValuesRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>

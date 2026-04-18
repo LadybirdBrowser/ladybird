@@ -6,7 +6,7 @@
 
 #include <LibURL/Parser.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OriginPrototype.h>
+#include <LibWeb/Bindings/Origin.h>
 #include <LibWeb/DOMURL/Origin.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>

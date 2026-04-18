@@ -10,7 +10,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NavigatorPrototype.h>
+#include <LibWeb/Bindings/Navigator.h>
 #include <LibWeb/Clipboard/Clipboard.h>
 #include <LibWeb/CredentialManagement/CredentialsContainer.h>
 #include <LibWeb/Geolocation/Geolocation.h>

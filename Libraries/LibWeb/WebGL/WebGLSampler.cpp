@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLSamplerPrototype.h>
+#include <LibWeb/Bindings/WebGLSampler.h>
 #include <LibWeb/WebGL/WebGLSampler.h>
 
 namespace Web::WebGL {

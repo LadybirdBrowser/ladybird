@@ -7,7 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/NavigationHistoryEntryPrototype.h>
+#include <LibWeb/Bindings/NavigationHistoryEntry.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/Navigable.h>

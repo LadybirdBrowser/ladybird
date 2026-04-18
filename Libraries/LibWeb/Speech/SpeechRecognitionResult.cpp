@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionResultPrototype.h>
+#include <LibWeb/Bindings/SpeechRecognitionResult.h>
 #include <LibWeb/Speech/SpeechRecognitionResult.h>
 
 namespace Web::Speech {

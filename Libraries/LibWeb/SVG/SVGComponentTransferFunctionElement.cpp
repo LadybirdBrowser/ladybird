@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGComponentTransferFunctionElementPrototype.h>
+#include <LibWeb/Bindings/SVGComponentTransferFunctionElement.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>

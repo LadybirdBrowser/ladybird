@@ -8,7 +8,7 @@
 #include <AK/QuickSort.h>
 #include <LibCore/System.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/BroadcastChannelPrototype.h>
+#include <LibWeb/Bindings/BroadcastChannel.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>

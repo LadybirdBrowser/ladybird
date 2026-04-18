@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextEventPrototype.h>
+#include <LibWeb/Bindings/TextEvent.h>
 #include <LibWeb/UIEvents/TextEvent.h>
 
 namespace Web::UIEvents {

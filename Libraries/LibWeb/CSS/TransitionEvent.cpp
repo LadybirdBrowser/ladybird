@@ -6,7 +6,7 @@
 
 #include "TransitionEvent.h"
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TransitionEventPrototype.h>
+#include <LibWeb/Bindings/TransitionEvent.h>
 
 namespace Web::CSS {
 

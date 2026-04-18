@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XRRenderStatePrototype.h>
+#include <LibWeb/Bindings/XRRenderState.h>
 #include <LibWeb/WebXR/XRRenderState.h>
 
 namespace Web::WebXR {

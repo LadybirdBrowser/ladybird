@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/VTTCuePrototype.h>
+#include <LibWeb/Bindings/VTTCue.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 #include <LibWeb/WebIDL/Types.h>
 #include <LibWeb/WebVTT/VTTRegion.h>

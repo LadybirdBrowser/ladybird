@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMQuadPrototype.h>
+#include <LibWeb/Bindings/DOMQuad.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMQuad.h>
 #include <LibWeb/HTML/StructuredSerialize.h>

@@ -5,8 +5,8 @@
  */
 
 #include <AK/Math.h>
-#include <LibWeb/Bindings/AudioParamPrototype.h>
-#include <LibWeb/Bindings/BiquadFilterNodePrototype.h>
+#include <LibWeb/Bindings/AudioParam.h>
+#include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>

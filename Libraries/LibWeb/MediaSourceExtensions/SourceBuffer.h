@@ -8,7 +8,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
-#include <LibWeb/Bindings/SourceBufferPrototype.h>
+#include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/EventTarget.h>
 
 namespace Web::MediaSourceExtensions {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/FileSystemEntryPrototype.h>
+#include <LibWeb/Bindings/FileSystemEntry.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/EntriesAPI/FileSystemEntry.h>
 #include <LibWeb/HTML/Window.h>

@@ -6,7 +6,7 @@
 
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedRectPrototype.h>
+#include <LibWeb/Bindings/SVGAnimatedRect.h>
 #include <LibWeb/SVG/SVGAnimatedRect.h>
 
 namespace Web::SVG {

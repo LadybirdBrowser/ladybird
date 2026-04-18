@@ -8,7 +8,7 @@
 
 #include <AK/GenericShorthands.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ScriptProcessorNodePrototype.h>
+#include <LibWeb/Bindings/ScriptProcessorNode.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/WebAudio/ScriptProcessorNode.h>
 

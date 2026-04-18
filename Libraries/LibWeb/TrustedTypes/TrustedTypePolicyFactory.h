@@ -8,7 +8,7 @@
 
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/TrustedTypePolicyFactoryPrototype.h>
+#include <LibWeb/Bindings/TrustedTypePolicyFactory.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/TrustedTypes/InjectionSink.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>

@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechGrammarListPrototype.h>
+#include <LibWeb/Bindings/SpeechGrammarList.h>
 #include <LibWeb/Speech/SpeechGrammarList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

@@ -14,7 +14,7 @@
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/TablePrototype.h>
+#include <LibWeb/Bindings/Table.h>
 
 namespace Web::WebAssembly {
 

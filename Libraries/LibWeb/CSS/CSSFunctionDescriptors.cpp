@@ -5,7 +5,7 @@
  */
 
 #include "CSSFunctionDescriptors.h"
-#include <LibWeb/Bindings/CSSFunctionDescriptorsPrototype.h>
+#include <LibWeb/Bindings/CSSFunctionDescriptors.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 
 namespace Web::CSS {

@@ -7,7 +7,7 @@
  */
 
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/HTMLTrackElementPrototype.h>
+#include <LibWeb/Bindings/HTMLTrackElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/KeyframeEffectPrototype.h>
+#include <LibWeb/Bindings/KeyframeEffect.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

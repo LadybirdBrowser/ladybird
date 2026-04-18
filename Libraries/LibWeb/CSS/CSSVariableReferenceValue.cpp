@@ -5,7 +5,7 @@
  */
 
 #include "CSSVariableReferenceValue.h"
-#include <LibWeb/Bindings/CSSVariableReferenceValuePrototype.h>
+#include <LibWeb/Bindings/CSSVariableReferenceValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>
 #include <LibWeb/CSS/PropertyName.h>

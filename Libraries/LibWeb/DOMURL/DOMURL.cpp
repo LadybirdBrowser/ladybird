@@ -10,7 +10,7 @@
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/DOMURLPrototype.h>
+#include <LibWeb/Bindings/DOMURL.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/FileAPI/Blob.h>

@@ -6,7 +6,7 @@
 
 #include <LibWeb/Animations/Animation.h>
 #include <LibWeb/Animations/AnimationTimeline.h>
-#include <LibWeb/Bindings/AnimationTimelinePrototype.h>
+#include <LibWeb/Bindings/AnimationTimeline.h>
 #include <LibWeb/DOM/Document.h>
 
 namespace Web::Animations {

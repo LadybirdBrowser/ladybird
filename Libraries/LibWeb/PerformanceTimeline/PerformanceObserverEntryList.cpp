@@ -6,7 +6,7 @@
 
 #include <AK/QuickSort.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceObserverEntryListPrototype.h>
+#include <LibWeb/Bindings/PerformanceObserverEntryList.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceObserverEntryList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

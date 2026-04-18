@@ -8,7 +8,7 @@
 
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/SetIterator.h>
-#include <LibWeb/Bindings/CustomStateSetPrototype.h>
+#include <LibWeb/Bindings/CustomStateSet.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::HTML {

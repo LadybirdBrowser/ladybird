@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/XMLHttpRequestUploadPrototype.h>
+#include <LibWeb/Bindings/XMLHttpRequestUpload.h>
 #include <LibWeb/XHR/XMLHttpRequestUpload.h>
 
 namespace Web::XHR {

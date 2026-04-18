@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceNavigationPrototype.h>
+#include <LibWeb/Bindings/PerformanceNavigation.h>
 #include <LibWeb/NavigationTiming/PerformanceNavigation.h>
 
 namespace Web::NavigationTiming {

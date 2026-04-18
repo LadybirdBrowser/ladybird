@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/BooleanObject.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaCapabilitiesPrototype.h>
+#include <LibWeb/Bindings/MediaCapabilities.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/MediaCapabilitiesAPI/MediaCapabilities.h>

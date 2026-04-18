@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathMax.h"
-#include <LibWeb/Bindings/CSSMathMaxPrototype.h>
+#include <LibWeb/Bindings/CSSMathMax.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>

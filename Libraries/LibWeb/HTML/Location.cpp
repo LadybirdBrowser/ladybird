@@ -13,7 +13,7 @@
 #include <LibJS/Runtime/PropertyDescriptor.h>
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/LocationPrototype.h>
+#include <LibWeb/Bindings/Location.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>

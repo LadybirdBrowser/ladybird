@@ -7,7 +7,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedIntegerPrototype.h>
+#include <LibWeb/Bindings/SVGAnimatedInteger.h>
 #include <LibWeb/SVG/AttributeParser.h>
 #include <LibWeb/SVG/SVGAnimatedInteger.h>
 

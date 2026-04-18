@@ -10,7 +10,7 @@
 #include <AK/String.h>
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Weak.h>
-#include <LibWeb/Bindings/HTMLFormElementPrototype.h>
+#include <LibWeb/Bindings/HTMLFormElement.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>

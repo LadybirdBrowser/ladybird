@@ -5,7 +5,7 @@
  */
 
 #include "CSSLayerBlockRule.h"
-#include <LibWeb/Bindings/CSSLayerBlockRulePrototype.h>
+#include <LibWeb/Bindings/CSSLayerBlockRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>

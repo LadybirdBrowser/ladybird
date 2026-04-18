@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/StereoPannerNodePrototype.h>
+#include <LibWeb/Bindings/StereoPannerNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 
 namespace Web::WebAudio {

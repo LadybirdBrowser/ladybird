@@ -5,7 +5,7 @@
  */
 
 #include <LibGC/Root.h>
-#include <LibWeb/Bindings/DOMRectListPrototype.h>
+#include <LibWeb/Bindings/DOMRectList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>

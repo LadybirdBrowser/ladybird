@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLFramebufferPrototype.h>
+#include <LibWeb/Bindings/WebGLFramebuffer.h>
 #include <LibWeb/WebGL/WebGLFramebuffer.h>
 
 namespace Web::WebGL {

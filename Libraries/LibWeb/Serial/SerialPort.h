@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SerialPortPrototype.h>
+#include <LibWeb/Bindings/SerialPort.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/WritableStream.h>

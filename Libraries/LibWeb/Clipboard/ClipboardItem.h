@@ -8,7 +8,7 @@
 
 #include <LibGC/Ptr.h>
 #include <LibJS/Runtime/PromiseCapability.h>
-#include <LibWeb/Bindings/ClipboardItemPrototype.h>
+#include <LibWeb/Bindings/ClipboardItem.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/DataTransfer.h>

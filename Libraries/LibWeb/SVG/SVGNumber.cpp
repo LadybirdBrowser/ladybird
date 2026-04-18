@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGNumberPrototype.h>
+#include <LibWeb/Bindings/SVGNumber.h>
 #include <LibWeb/SVG/SVGNumber.h>
 
 namespace Web::SVG {

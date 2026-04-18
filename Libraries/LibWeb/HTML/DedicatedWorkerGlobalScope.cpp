@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/DedicatedWorkerExposedInterfaces.h>
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScopePrototype.h>
+#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
 #include <LibWeb/HTML/EventHandler.h>

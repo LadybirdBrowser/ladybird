@@ -6,7 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/AttrPrototype.h>
+#include <LibWeb/Bindings/Attr.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Attr.h>
 #include <LibWeb/DOM/Document.h>

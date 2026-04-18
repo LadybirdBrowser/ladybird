@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OfflineAudioCompletionEventPrototype.h>
+#include <LibWeb/Bindings/OfflineAudioCompletionEvent.h>
 #include <LibWeb/WebAudio/OfflineAudioCompletionEvent.h>
 
 namespace Web::WebAudio {

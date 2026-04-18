@@ -5,7 +5,7 @@
  */
 
 #include "CSSNestedDeclarations.h"
-#include <LibWeb/Bindings/CSSNestedDeclarationsPrototype.h>
+#include <LibWeb/Bindings/CSSNestedDeclarations.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>

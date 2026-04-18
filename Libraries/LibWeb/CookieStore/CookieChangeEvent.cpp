@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CookieChangeEventPrototype.h>
+#include <LibWeb/Bindings/CookieChangeEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
 

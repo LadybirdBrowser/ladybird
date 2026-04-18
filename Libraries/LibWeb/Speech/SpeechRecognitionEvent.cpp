@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechRecognitionEventPrototype.h>
+#include <LibWeb/Bindings/SpeechRecognitionEvent.h>
 #include <LibWeb/Speech/SpeechRecognitionEvent.h>
 
 namespace Web::Speech {

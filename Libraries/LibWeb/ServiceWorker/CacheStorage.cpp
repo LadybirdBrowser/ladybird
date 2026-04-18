@@ -6,7 +6,7 @@
  */
 
 #include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/CacheStoragePrototype.h>
+#include <LibWeb/Bindings/CacheStorage.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>

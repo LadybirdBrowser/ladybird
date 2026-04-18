@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/HTMLImageElementPrototype.h>
+#include <LibWeb/Bindings/HTMLImageElement.h>
 #include <LibWeb/Bindings/ImageConstructor.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/Scripting/Environments.h>

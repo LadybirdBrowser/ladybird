@@ -3,7 +3,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibWeb/Bindings/AgentType.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
 

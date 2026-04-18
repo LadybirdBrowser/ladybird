@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/OfflineAudioContextPrototype.h>
+#include <LibWeb/Bindings/OfflineAudioContext.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/Types.h>

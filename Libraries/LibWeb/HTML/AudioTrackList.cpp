@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/AudioTrackListPrototype.h>
+#include <LibWeb/Bindings/AudioTrackList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/EventNames.h>

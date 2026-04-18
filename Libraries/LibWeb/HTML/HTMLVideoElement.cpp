@@ -8,7 +8,7 @@
 
 #include <LibGfx/Bitmap.h>
 #include <LibMedia/Sinks/DisplayingVideoSink.h>
-#include <LibWeb/Bindings/HTMLVideoElementPrototype.h>
+#include <LibWeb/Bindings/HTMLVideoElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>

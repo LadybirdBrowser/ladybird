@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathProduct.h"
-#include <LibWeb/Bindings/CSSMathProductPrototype.h>
+#include <LibWeb/Bindings/CSSMathProduct.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSNumericArray.h>

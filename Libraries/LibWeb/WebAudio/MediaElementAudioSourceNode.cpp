@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaElementAudioSourceNodePrototype.h>
+#include <LibWeb/Bindings/MediaElementAudioSourceNode.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/WebAudio/AudioContext.h>
 #include <LibWeb/WebAudio/MediaElementAudioSourceNode.h>

@@ -8,7 +8,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLShaderPrototype.h>
+#include <LibWeb/Bindings/WebGLShader.h>
 #include <LibWeb/WebGL/WebGLShader.h>
 
 namespace Web::WebGL {

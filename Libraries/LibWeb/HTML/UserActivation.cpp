@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/UserActivationPrototype.h>
+#include <LibWeb/Bindings/UserActivation.h>
 #include <LibWeb/HTML/UserActivation.h>
 #include <LibWeb/HTML/Window.h>
 

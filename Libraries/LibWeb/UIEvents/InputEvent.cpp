@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/InputEventPrototype.h>
+#include <LibWeb/Bindings/InputEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 

@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TimeRangesPrototype.h>
+#include <LibWeb/Bindings/TimeRanges.h>
 #include <LibWeb/HTML/TimeRanges.h>
 
 namespace Web::HTML {

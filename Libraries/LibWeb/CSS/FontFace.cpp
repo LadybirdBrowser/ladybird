@@ -12,7 +12,7 @@
 #include <LibGfx/Font/Typeface.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/FontFacePrototype.h>
+#include <LibWeb/Bindings/FontFace.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/Enums.h>

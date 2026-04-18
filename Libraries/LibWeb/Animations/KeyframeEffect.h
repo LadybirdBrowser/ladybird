@@ -9,7 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/RedBlackTree.h>
 #include <LibWeb/Animations/AnimationEffect.h>
-#include <LibWeb/Bindings/KeyframeEffectPrototype.h>
+#include <LibWeb/Bindings/KeyframeEffect.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>

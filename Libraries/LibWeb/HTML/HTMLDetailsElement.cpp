@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLDetailsElementPrototype.h>
+#include <LibWeb/Bindings/HTMLDetailsElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>

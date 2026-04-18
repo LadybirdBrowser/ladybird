@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/XRSystemPrototype.h>
+#include <LibWeb/Bindings/XRSystem.h>
 #include <LibWeb/Internals/InternalsBase.h>
 #include <LibWeb/WebXR/XRSession.h>
 

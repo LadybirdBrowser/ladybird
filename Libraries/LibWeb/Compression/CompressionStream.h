@@ -12,7 +12,7 @@
 #include <LibCompress/Forward.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CompressionStreamPrototype.h>
+#include <LibWeb/Bindings/CompressionStream.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Streams/GenericTransformStream.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

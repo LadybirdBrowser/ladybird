@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/NodeFilterPrototype.h>
+#include <LibWeb/Bindings/NodeFilter.h>
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

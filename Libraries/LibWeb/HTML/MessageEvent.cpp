@@ -8,7 +8,7 @@
 
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageEventPrototype.h>
+#include <LibWeb/Bindings/MessageEvent.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/WindowProxy.h>

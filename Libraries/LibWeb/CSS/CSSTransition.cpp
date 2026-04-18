@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Animations/DocumentTimeline.h>
-#include <LibWeb/Bindings/CSSTransitionPrototype.h>
+#include <LibWeb/Bindings/CSSTransition.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSTransition.h>

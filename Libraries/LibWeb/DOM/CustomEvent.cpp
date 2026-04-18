@@ -6,7 +6,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CustomEventPrototype.h>
+#include <LibWeb/Bindings/CustomEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/CustomEvent.h>
 

@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/CachePrototype.h>
+#include <LibWeb/Bindings/Cache.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>

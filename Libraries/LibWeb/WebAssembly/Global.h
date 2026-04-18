@@ -8,7 +8,7 @@
 
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/GlobalPrototype.h>
+#include <LibWeb/Bindings/Global.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::WebAssembly {

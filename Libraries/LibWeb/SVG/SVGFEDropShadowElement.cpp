@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/SVGFEDropShadowElementPrototype.h>
+#include <LibWeb/Bindings/SVGFEDropShadowElement.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/SVG/SVGFEDropShadowElement.h>
 

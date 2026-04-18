@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ToggleEventPrototype.h>
+#include <LibWeb/Bindings/ToggleEvent.h>
 #include <LibWeb/HTML/ToggleEvent.h>
 
 namespace Web::HTML {

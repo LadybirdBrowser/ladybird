@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/RadioNodeListPrototype.h>
+#include <LibWeb/Bindings/RadioNodeList.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/RadioNodeList.h>

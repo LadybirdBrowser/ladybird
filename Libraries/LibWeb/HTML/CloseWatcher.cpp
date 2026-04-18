@@ -6,7 +6,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/Bindings/CloseWatcherPrototype.h>
+#include <LibWeb/Bindings/CloseWatcher.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/EventDispatcher.h>

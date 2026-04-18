@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Completion.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/HeadersPrototype.h>
+#include <LibWeb/Bindings/Headers.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Fetch/Headers.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/CORS.h>

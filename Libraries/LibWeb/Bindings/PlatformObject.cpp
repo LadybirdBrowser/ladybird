@@ -8,7 +8,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/WindowPrototype.h>
+#include <LibWeb/Bindings/Window.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::Bindings {

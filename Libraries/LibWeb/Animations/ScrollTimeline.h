@@ -8,7 +8,7 @@
 
 #include <LibWeb/Animations/AnimationTimeline.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ScrollTimelinePrototype.h>
+#include <LibWeb/Bindings/ScrollTimeline.h>
 
 namespace Web::Animations {
 

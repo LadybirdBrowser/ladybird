@@ -7,7 +7,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLObjectPrototype.h>
+#include <LibWeb/Bindings/WebGLObject.h>
 #include <LibWeb/WebGL/WebGLObject.h>
 
 #include <GLES2/gl2.h>

@@ -13,7 +13,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/FileReaderPrototype.h>
+#include <LibWeb/Bindings/FileReader.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>

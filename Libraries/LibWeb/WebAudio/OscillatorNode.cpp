@@ -7,7 +7,7 @@
 
 #include <AK/Math.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OscillatorNodePrototype.h>
+#include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebAudio/OscillatorNode.h>

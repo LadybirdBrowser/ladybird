@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathNegate.h"
-#include <LibWeb/Bindings/CSSMathNegatePrototype.h>
+#include <LibWeb/Bindings/CSSMathNegate.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

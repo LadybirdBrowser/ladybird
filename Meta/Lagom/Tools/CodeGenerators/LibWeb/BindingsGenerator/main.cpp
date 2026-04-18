@@ -131,68 +131,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return {};
     };
 
-    String namespace_header;
-    String namespace_implementation;
-    String constructor_header;
-    String constructor_implementation;
-    String prototype_header;
-    String prototype_implementation;
-    String iterator_prototype_header;
-    String iterator_prototype_implementation;
-    String async_iterator_prototype_header;
-    String async_iterator_prototype_implementation;
-    String global_mixin_header;
-    String global_mixin_implementation;
-
     auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
+    auto header_path = TRY(String::formatted("{}.h", path_prefix));
+    auto implementation_path = TRY(String::formatted("{}.cpp", path_prefix));
 
-    if (interface.is_namespace) {
-        namespace_header = TRY(String::formatted("{}Namespace.h", path_prefix));
-        namespace_implementation = TRY(String::formatted("{}Namespace.cpp", path_prefix));
-
-        TRY(write_if_changed(&IDL::generate_namespace_header, namespace_header));
-        TRY(write_if_changed(&IDL::generate_namespace_implementation, namespace_implementation));
-    } else {
-        constructor_header = TRY(String::formatted("{}Constructor.h", path_prefix));
-        constructor_implementation = TRY(String::formatted("{}Constructor.cpp", path_prefix));
-        prototype_header = TRY(String::formatted("{}Prototype.h", path_prefix));
-        prototype_implementation = TRY(String::formatted("{}Prototype.cpp", path_prefix));
-
-        TRY(write_if_changed(&IDL::generate_constructor_header, constructor_header));
-        TRY(write_if_changed(&IDL::generate_constructor_implementation, constructor_implementation));
-        TRY(write_if_changed(&IDL::generate_prototype_header, prototype_header));
-        TRY(write_if_changed(&IDL::generate_prototype_implementation, prototype_implementation));
-    }
-
-    if (interface.pair_iterator_types.has_value()) {
-        iterator_prototype_header = TRY(String::formatted("{}IteratorPrototype.h", path_prefix));
-        iterator_prototype_implementation = TRY(String::formatted("{}IteratorPrototype.cpp", path_prefix));
-
-        TRY(write_if_changed(&IDL::generate_iterator_prototype_header, iterator_prototype_header));
-        TRY(write_if_changed(&IDL::generate_iterator_prototype_implementation, iterator_prototype_implementation));
-    }
-
-    if (interface.async_value_iterator_type.has_value()) {
-        async_iterator_prototype_header = TRY(String::formatted("{}AsyncIteratorPrototype.h", path_prefix));
-        async_iterator_prototype_implementation = TRY(String::formatted("{}AsyncIteratorPrototype.cpp", path_prefix));
-
-        TRY(write_if_changed(&IDL::generate_async_iterator_prototype_header, async_iterator_prototype_header));
-        TRY(write_if_changed(&IDL::generate_async_iterator_prototype_implementation, async_iterator_prototype_implementation));
-    }
-
-    if (interface.extended_attributes.contains("Global")) {
-        global_mixin_header = TRY(String::formatted("{}GlobalMixin.h", path_prefix));
-        global_mixin_implementation = TRY(String::formatted("{}GlobalMixin.cpp", path_prefix));
-
-        TRY(write_if_changed(&IDL::generate_global_mixin_header, global_mixin_header));
-        TRY(write_if_changed(&IDL::generate_global_mixin_implementation, global_mixin_implementation));
-    }
+    TRY(write_if_changed(&IDL::generate_header, header_path));
+    TRY(write_if_changed(&IDL::generate_implementation, implementation_path));
 
     if (!depfile_path.is_empty()) {
         auto depfile = TRY(Core::File::open_file_or_standard_stream(depfile_path, Core::File::OpenMode::Write));
 
         StringBuilder depfile_builder;
-        for (StringView s : { constructor_header, constructor_implementation, prototype_header, prototype_implementation, namespace_header, namespace_implementation, iterator_prototype_header, iterator_prototype_implementation, async_iterator_prototype_header, async_iterator_prototype_implementation, global_mixin_header, global_mixin_implementation }) {
+        for (StringView s : { header_path, implementation_path }) {
             if (s.is_empty())
                 continue;
 

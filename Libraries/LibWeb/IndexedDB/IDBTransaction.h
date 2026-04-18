@@ -10,8 +10,8 @@
 #include <AK/HashMap.h>
 #include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/IDBDatabasePrototype.h>
-#include <LibWeb/Bindings/IDBTransactionPrototype.h>
+#include <LibWeb/Bindings/IDBDatabase.h>
+#include <LibWeb/Bindings/IDBTransaction.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>

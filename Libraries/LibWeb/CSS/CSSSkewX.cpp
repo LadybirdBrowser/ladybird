@@ -5,7 +5,7 @@
  */
 
 #include "CSSSkewX.h"
-#include <LibWeb/Bindings/CSSSkewXPrototype.h>
+#include <LibWeb/Bindings/CSSSkewX.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>

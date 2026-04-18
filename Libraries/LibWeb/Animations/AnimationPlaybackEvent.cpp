@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Animations/AnimationPlaybackEvent.h>
-#include <LibWeb/Bindings/AnimationPlaybackEventPrototype.h>
+#include <LibWeb/Bindings/AnimationPlaybackEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 

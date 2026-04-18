@@ -8,7 +8,7 @@
 
 #include <AK/Optional.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/CredentialsContainerPrototype.h>
+#include <LibWeb/Bindings/CredentialsContainer.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/FederatedCredential.h>

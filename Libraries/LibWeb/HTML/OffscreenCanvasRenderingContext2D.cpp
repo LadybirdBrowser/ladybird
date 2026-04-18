@@ -10,7 +10,7 @@
 #include <LibGfx/Rect.h>
 #include <LibUnicode/Segmenter.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/OffscreenCanvasRenderingContext2DPrototype.h>
+#include <LibWeb/Bindings/OffscreenCanvasRenderingContext2D.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>

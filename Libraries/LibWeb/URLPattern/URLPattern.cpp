@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/URLPatternPrototype.h>
+#include <LibWeb/Bindings/URLPattern.h>
 #include <LibWeb/URLPattern/URLPattern.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

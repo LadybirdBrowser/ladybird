@@ -6,7 +6,7 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <LibWeb/Bindings/CSSNumericValuePrototype.h>
+#include <LibWeb/Bindings/CSSNumericValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathInvert.h>
 #include <LibWeb/CSS/CSSMathMax.h>

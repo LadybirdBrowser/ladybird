@@ -5,7 +5,7 @@
  */
 
 #include "CSSFunctionRule.h"
-#include <LibWeb/Bindings/CSSFunctionRulePrototype.h>
+#include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Serialize.h>
 

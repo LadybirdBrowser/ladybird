@@ -17,18 +17,8 @@
 
 namespace IDL {
 
-void generate_namespace_header(IDL::Interface const&, StringBuilder&);
-void generate_namespace_implementation(IDL::Interface const&, StringBuilder&);
-void generate_constructor_header(IDL::Interface const&, StringBuilder&);
-void generate_constructor_implementation(IDL::Interface const&, StringBuilder&);
-void generate_prototype_header(IDL::Interface const&, StringBuilder&);
-void generate_prototype_implementation(IDL::Interface const&, StringBuilder&);
-void generate_iterator_prototype_header(IDL::Interface const&, StringBuilder&);
-void generate_iterator_prototype_implementation(IDL::Interface const&, StringBuilder&);
-void generate_async_iterator_prototype_header(IDL::Interface const&, StringBuilder&);
-void generate_async_iterator_prototype_implementation(IDL::Interface const&, StringBuilder&);
-void generate_global_mixin_header(IDL::Interface const&, StringBuilder&);
-void generate_global_mixin_implementation(IDL::Interface const&, StringBuilder&);
+void generate_header(Interface const&, StringBuilder&);
+void generate_implementation(Interface const&, StringBuilder&);
 
 CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface);
 

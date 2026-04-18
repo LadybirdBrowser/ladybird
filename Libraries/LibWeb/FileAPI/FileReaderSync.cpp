@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/FileReaderSyncPrototype.h>
+#include <LibWeb/Bindings/FileReaderSync.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/FileReaderSync.h>

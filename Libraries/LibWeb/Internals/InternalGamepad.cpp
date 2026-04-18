@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/InternalGamepadPrototype.h>
+#include <LibWeb/Bindings/InternalGamepad.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>

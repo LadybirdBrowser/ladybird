@@ -5,7 +5,7 @@
  */
 
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/WorkerLocationPrototype.h>
+#include <LibWeb/Bindings/WorkerLocation.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/HTML/WorkerLocation.h>
 

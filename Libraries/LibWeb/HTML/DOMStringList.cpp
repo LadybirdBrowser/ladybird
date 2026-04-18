@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMStringListPrototype.h>
+#include <LibWeb/Bindings/DOMStringList.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

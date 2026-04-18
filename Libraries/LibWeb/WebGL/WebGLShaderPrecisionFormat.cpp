@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLShaderPrecisionFormatPrototype.h>
+#include <LibWeb/Bindings/WebGLShaderPrecisionFormat.h>
 #include <LibWeb/WebGL/WebGLShaderPrecisionFormat.h>
 
 namespace Web::WebGL {

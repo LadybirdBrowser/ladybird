@@ -5,7 +5,7 @@
  */
 
 #include "CSSPerspective.h"
-#include <LibWeb/Bindings/CSSPerspectivePrototype.h>
+#include <LibWeb/Bindings/CSSPerspective.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>

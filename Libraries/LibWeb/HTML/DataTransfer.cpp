@@ -7,7 +7,7 @@
 #include <AK/Enumerate.h>
 #include <AK/Find.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/DataTransferPrototype.h>
+#include <LibWeb/Bindings/DataTransfer.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/File.h>

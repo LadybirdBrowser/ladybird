@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/XRSessionEventPrototype.h>
+#include <LibWeb/Bindings/XRSessionEvent.h>
 #include <LibWeb/WebXR/XRSession.h>
 #include <LibWeb/WebXR/XRSessionEvent.h>
 

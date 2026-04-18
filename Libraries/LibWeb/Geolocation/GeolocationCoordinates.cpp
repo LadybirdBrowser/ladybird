@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/GeolocationCoordinatesPrototype.h>
+#include <LibWeb/Bindings/GeolocationCoordinates.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Geolocation/GeolocationCoordinates.h>
 

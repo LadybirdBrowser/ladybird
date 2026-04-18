@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DOMExceptionPrototype.h>
+#include <LibWeb/Bindings/DOMException.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>

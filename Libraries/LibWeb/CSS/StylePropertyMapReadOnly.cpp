@@ -6,7 +6,7 @@
 
 #include "StylePropertyMapReadOnly.h"
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StylePropertyMapReadOnlyPrototype.h>
+#include <LibWeb/Bindings/StylePropertyMapReadOnly.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedProperties.h>

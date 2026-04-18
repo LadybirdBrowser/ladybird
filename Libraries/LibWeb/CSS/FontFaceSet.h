@@ -9,7 +9,7 @@
 
 #include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/SetIterator.h>
-#include <LibWeb/Bindings/FontFaceSetPrototype.h>
+#include <LibWeb/Bindings/FontFaceSet.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/DOM/EventTarget.h>

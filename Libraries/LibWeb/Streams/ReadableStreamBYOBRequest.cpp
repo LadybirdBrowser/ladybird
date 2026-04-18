@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ReadableStreamBYOBRequestPrototype.h>
+#include <LibWeb/Bindings/ReadableStreamBYOBRequest.h>
 #include <LibWeb/Streams/ReadableByteStreamController.h>
 #include <LibWeb/Streams/ReadableStreamBYOBRequest.h>
 #include <LibWeb/Streams/ReadableStreamOperations.h>

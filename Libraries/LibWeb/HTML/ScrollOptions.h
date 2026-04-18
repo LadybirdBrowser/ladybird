@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/WindowGlobalMixin.h>
+#include <LibWeb/Bindings/Window.h>
+#include <LibWeb/Forward.h>
 
 namespace Web::HTML {
 

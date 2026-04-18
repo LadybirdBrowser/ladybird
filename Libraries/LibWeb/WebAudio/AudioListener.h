@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/AudioListenerPrototype.h>
+#include <LibWeb/Bindings/AudioListener.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

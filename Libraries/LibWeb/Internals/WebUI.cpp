@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebUIPrototype.h>
+#include <LibWeb/Bindings/WebUI.h>
 #include <LibWeb/Internals/WebUI.h>
 #include <LibWeb/Page/Page.h>
 

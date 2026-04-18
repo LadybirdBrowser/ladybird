@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ManagedSourceBufferPrototype.h>
+#include <LibWeb/Bindings/ManagedSourceBuffer.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/ManagedMediaSource.h>
 #include <LibWeb/MediaSourceExtensions/ManagedSourceBuffer.h>

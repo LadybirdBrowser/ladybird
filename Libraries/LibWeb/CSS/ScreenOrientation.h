@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ScreenOrientationPrototype.h>
+#include <LibWeb/Bindings/ScreenOrientation.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/WebIDL/Types.h>
 

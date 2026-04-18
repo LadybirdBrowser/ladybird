@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextEncoderStreamPrototype.h>
+#include <LibWeb/Bindings/TextEncoderStream.h>
 #include <LibWeb/Encoding/TextEncoderStream.h>
 #include <LibWeb/Streams/TransformStream.h>
 #include <LibWeb/Streams/TransformStreamOperations.h>

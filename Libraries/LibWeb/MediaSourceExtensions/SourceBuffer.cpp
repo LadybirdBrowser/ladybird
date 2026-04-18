@@ -8,7 +8,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SourceBufferPrototype.h>
+#include <LibWeb/Bindings/SourceBuffer.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrackList.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>

@@ -8,7 +8,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLTexturePrototype.h>
+#include <LibWeb/Bindings/WebGLTexture.h>
 #include <LibWeb/WebGL/WebGLTexture.h>
 
 namespace Web::WebGL {

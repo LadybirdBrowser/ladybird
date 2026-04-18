@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibGC/Heap.h>
-#include <LibWeb/Bindings/IDBCursorPrototype.h>
-#include <LibWeb/Bindings/IDBCursorWithValuePrototype.h>
+#include <LibWeb/Bindings/IDBCursor.h>
+#include <LibWeb/Bindings/IDBCursorWithValue.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/IndexedDB/IDBIndex.h>
 #include <LibWeb/IndexedDB/IDBKeyRange.h>

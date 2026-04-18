@@ -6,7 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/HashChangeEventPrototype.h>
+#include <LibWeb/Bindings/HashChangeEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HashChangeEvent.h>
 

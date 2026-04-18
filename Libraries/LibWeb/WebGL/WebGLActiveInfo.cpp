@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLActiveInfoPrototype.h>
+#include <LibWeb/Bindings/WebGLActiveInfo.h>
 #include <LibWeb/WebGL/WebGLActiveInfo.h>
 
 namespace Web::WebGL {

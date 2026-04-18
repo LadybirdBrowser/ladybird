@@ -874,6 +874,7 @@ void Parser::parse_namespace(Interface& interface)
     consume_whitespace();
 
     interface.name = parse_identifier_ending_with_space();
+    interface.implemented_name = interface.name;
     interface.is_namespace = true;
 
     consume_whitespace();

@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/AudioDestinationNodePrototype.h>
+#include <LibWeb/Bindings/AudioDestinationNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/BaseAudioContext.h>
 #include <LibWeb/WebIDL/Types.h>

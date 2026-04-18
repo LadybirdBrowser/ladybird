@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/PerformanceTimingPrototype.h>
+#include <LibWeb/Bindings/PerformanceTiming.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/NavigationTiming/PerformanceTiming.h>
 

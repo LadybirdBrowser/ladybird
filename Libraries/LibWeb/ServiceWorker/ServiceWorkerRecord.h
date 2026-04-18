@@ -7,8 +7,8 @@
 #pragma once
 
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/ServiceWorkerPrototype.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/ServiceWorker.h>
+#include <LibWeb/Bindings/Worker.h>
 
 namespace Web::ServiceWorker {
 

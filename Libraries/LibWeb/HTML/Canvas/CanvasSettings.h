@@ -9,8 +9,8 @@
 #include <LibJS/Forward.h>
 
 // FIXME: this needs to be shared inside the idl, this is not that easily fixable, so until that we are just using the definition of ImageDataPrototype and CanvasRenderingContext2DPrototype, and assert that it's the same in all duplicate declarations
-#include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
-#include <LibWeb/Bindings/ImageDataPrototype.h>
+#include <LibWeb/Bindings/CanvasRenderingContext2D.h>
+#include <LibWeb/Bindings/ImageData.h>
 
 namespace Web::HTML {
 

@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/DedicatedWorkerGlobalScopeGlobalMixin.h>
-#include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
+#include <LibWeb/Bindings/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
 

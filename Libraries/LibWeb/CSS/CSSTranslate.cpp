@@ -5,7 +5,7 @@
  */
 
 #include "CSSTranslate.h"
-#include <LibWeb/Bindings/CSSTranslatePrototype.h>
+#include <LibWeb/Bindings/CSSTranslate.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>

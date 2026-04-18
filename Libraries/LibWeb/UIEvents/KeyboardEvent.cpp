@@ -7,7 +7,7 @@
 #include <AK/CharacterTypes.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/KeyboardEventPrototype.h>
+#include <LibWeb/Bindings/KeyboardEvent.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/KeyboardEvent.h>
 

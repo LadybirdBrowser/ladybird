@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/XMLDocumentPrototype.h>
+#include <LibWeb/Bindings/XMLDocument.h>
 #include <LibWeb/DOM/XMLDocument.h>
 
 namespace Web::DOM {

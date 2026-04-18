@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CountQueuingStrategyPrototype.h>
+#include <LibWeb/Bindings/CountQueuingStrategy.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
 #include <LibWeb/Streams/CountQueuingStrategy.h>

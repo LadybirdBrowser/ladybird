@@ -3589,8 +3589,6 @@ static void generate_named_properties_object_definitions(IDL::Interface const& i
 
     // https://webidl.spec.whatwg.org/#create-a-named-properties-object
     generator.append(R"~~~(
-#include <LibWeb/WebIDL/AbstractOperations.h>
-
 GC_DEFINE_ALLOCATOR(@named_properties_class@);
 
 @named_properties_class@::@named_properties_class@(JS::Realm& realm)
@@ -5357,19 +5355,13 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::clear)
     generate_dictionaries(generator, interface);
 }
 
-void generate_namespace_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_namespace_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
     generator.set("namespace_class", interface.namespace_class);
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/Object.h>
-
-namespace Web::Bindings {
-
 class @namespace_class@ final : public JS::Object {
     JS_OBJECT(@namespace_class@, JS::Object);
     GC_DECLARE_ALLOCATOR(@namespace_class@);
@@ -5415,8 +5407,6 @@ private:
 
     generator.append(R"~~~(
 };
-
-} // namespace Web::Bindings
 )~~~");
 }
 
@@ -5499,46 +5489,14 @@ static void define_the_operations(SourceGenerator& generator, OrderedHashMap<Byt
     }
 }
 
-void generate_namespace_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_namespace_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
     generator.set("name", interface.name);
     generator.set("namespace_class", interface.namespace_class);
     generator.set("interface_name", interface.name);
-
     generator.append(R"~~~(
-#include <AK/Function.h>
-#include <LibIDL/Types.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/DataView.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/PrimitiveString.h>
-#include <LibJS/Runtime/PromiseConstructor.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/@namespace_class@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/OverloadResolution.h>
-#include <LibWeb/WebIDL/Promise.h>
-#include <LibWeb/WebIDL/Tracing.h>
-#include <LibWeb/WebIDL/Types.h>
-
-)~~~");
-
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 GC_DEFINE_ALLOCATOR(@namespace_class@);
 
 @namespace_class@::@namespace_class@(JS::Realm& realm)
@@ -5603,25 +5561,15 @@ void @namespace_class@::finalize()
             continue;
         generate_overload_arbiter(generator, overload_set, interface, interface.namespace_class, IsConstructor::No);
     }
-
-    generator.append(R"~~~(
-} // namespace Web::Bindings
-)~~~");
 }
 
-void generate_constructor_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_constructor_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
     generator.set("constructor_class", interface.constructor_class);
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/NativeFunction.h>
-
-namespace Web::Bindings {
-
 class @constructor_class@ : public JS::NativeFunction {
     JS_OBJECT(@constructor_class@, JS::NativeFunction);
     GC_DECLARE_ALLOCATOR(@constructor_class@);
@@ -5686,12 +5634,10 @@ private:
 
     generator.append(R"~~~(
 };
-
-} // namespace Web::Bindings
 )~~~");
 }
 
-void generate_constructor_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_constructor_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
@@ -5703,58 +5649,7 @@ void generate_constructor_implementation(IDL::Interface const& interface, String
     generator.set("parent_name", interface.parent_name);
     generator.set("prototype_base_class", interface.prototype_base_class);
     generator.set("constructor.length", "0");
-
     generator.append(R"~~~(
-#include <LibIDL/Types.h>
-#include <LibGC/Heap.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/DataView.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/Iterator.h>
-#include <LibJS/Runtime/PromiseConstructor.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/@constructor_class@.h>
-#include <LibWeb/Bindings/@prototype_class@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
-#include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/CallbackType.h>
-#include <LibWeb/WebIDL/OverloadResolution.h>
-#include <LibWeb/WebIDL/Tracing.h>
-#include <LibWeb/WebIDL/Types.h>
-
-#if __has_include(<LibWeb/Bindings/@prototype_base_class@.h>)
-#    include <LibWeb/Bindings/@prototype_base_class@.h>
-#endif
-
-)~~~");
-
-    if (interface.constructors.size() == 1) {
-        auto& constructor = interface.constructors[0];
-        if (constructor.extended_attributes.contains("HTMLConstructor"sv)) {
-            generator.append(R"~~~(
-#include <LibJS/Runtime/AbstractOperations.h>
-#include <LibWeb/DOM/ElementFactory.h>
-#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
-#include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/Namespace.h>
-)~~~");
-        }
-    }
-
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 GC_DEFINE_ALLOCATOR(@constructor_class@);
 
 @constructor_class@::@constructor_class@(JS::Realm& realm)
@@ -5879,11 +5774,10 @@ JS_DEFINE_NATIVE_FUNCTION(@constructor_class@::@attribute.getter_callback@)
     }
 
     generator.append(R"~~~(
-} // namespace Web::Bindings
 )~~~");
 }
 
-void generate_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
@@ -5891,12 +5785,6 @@ void generate_prototype_header(IDL::Interface const& interface, StringBuilder& b
     auto has_immutable_prototype = interface_prototype_has_immutable_prototype(interface);
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/Object.h>
-
-namespace Web::Bindings {
-
 class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
     GC_DECLARE_ALLOCATOR(@prototype_class@);
@@ -5927,13 +5815,9 @@ private:
     } else {
         generate_prototype_or_global_mixin_declarations(interface, builder);
     }
-
-    generator.append(R"~~~(
-} // namespace Web::Bindings
-    )~~~");
 }
 
-void generate_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
@@ -5943,89 +5827,6 @@ void generate_prototype_implementation(IDL::Interface const& interface, StringBu
     auto has_immutable_prototype = interface_prototype_has_immutable_prototype(interface);
 
     generator.append(R"~~~(
-#include <AK/Function.h>
-#include <LibIDL/Types.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/ArrayBuffer.h>
-#include <LibJS/Runtime/DataView.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/Iterator.h>
-#include <LibJS/Runtime/PromiseConstructor.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibURL/Origin.h>
-#include <LibWeb/Bindings/@prototype_class@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/DOM/NodeFilter.h>
-#include <LibWeb/DOM/Range.h>
-#include <LibWeb/HTML/Numbers.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/Infra/Strings.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/Buffers.h>
-#include <LibWeb/WebIDL/OverloadResolution.h>
-#include <LibWeb/WebIDL/Promise.h>
-#include <LibWeb/WebIDL/Tracing.h>
-#include <LibWeb/WebIDL/Types.h>
-
-#if __has_include(<LibWeb/Bindings/@prototype_base_class@.h>)
-#    include <LibWeb/Bindings/@prototype_base_class@.h>
-#endif
-
-)~~~");
-
-    bool has_ce_reactions = false;
-    for (auto const& function : interface.functions) {
-        if (function.extended_attributes.contains("FIXME"))
-            continue;
-        if (function.extended_attributes.contains("CEReactions")) {
-            has_ce_reactions = true;
-            break;
-        }
-    }
-
-    if (!has_ce_reactions) {
-        for (auto const& attribute : interface.attributes) {
-            if (attribute.extended_attributes.contains("CEReactions")) {
-                has_ce_reactions = true;
-                break;
-            }
-        }
-    }
-
-    if (!has_ce_reactions && interface.indexed_property_setter.has_value() && interface.indexed_property_setter->extended_attributes.contains("CEReactions"))
-        has_ce_reactions = true;
-
-    if (!has_ce_reactions && interface.named_property_setter.has_value() && interface.named_property_setter->extended_attributes.contains("CEReactions"))
-        has_ce_reactions = true;
-
-    if (!has_ce_reactions && interface.named_property_deleter.has_value() && interface.named_property_deleter->extended_attributes.contains("CEReactions"))
-        has_ce_reactions = true;
-
-    if (has_ce_reactions) {
-        generator.append(R"~~~(
-#include <LibWeb/Bindings/MainThreadVM.h>
-)~~~");
-    }
-
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 GC_DEFINE_ALLOCATOR(@prototype_class@);
 
 @prototype_class@::@prototype_class@([[maybe_unused]] JS::Realm& realm))~~~");
@@ -6103,13 +5904,9 @@ void @prototype_class@::initialize(JS::Realm& realm)
         generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
         generate_prototype_or_global_mixin_definitions(interface, builder);
     }
-
-    generator.append(R"~~~(
-} // namespace Web::Bindings
-)~~~");
 }
 
-void generate_iterator_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_iterator_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     VERIFY(interface.pair_iterator_types.has_value());
     SourceGenerator generator { builder };
@@ -6117,12 +5914,6 @@ void generate_iterator_prototype_header(IDL::Interface const& interface, StringB
     generator.set("prototype_class", ByteString::formatted("{}IteratorPrototype", interface.name));
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/Object.h>
-
-namespace Web::Bindings {
-
 class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
     GC_DECLARE_ALLOCATOR(@prototype_class@);
@@ -6134,12 +5925,10 @@ public:
 private:
     JS_DECLARE_NATIVE_FUNCTION(next);
 };
-
-} // namespace Web::Bindings
-    )~~~");
+)~~~");
 }
 
-void generate_iterator_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_iterator_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     VERIFY(interface.pair_iterator_types.has_value());
     SourceGenerator generator { builder };
@@ -6151,29 +5940,7 @@ void generate_iterator_prototype_implementation(IDL::Interface const& interface,
     generator.set("prototype_base_class", interface.prototype_base_class);
     generator.set("fully_qualified_name", ByteString::formatted("{}Iterator", interface.fully_qualified_name));
     generator.set("possible_include_path", ByteString::formatted("{}Iterator", interface.name.replace("::"sv, "/"sv, ReplaceMode::All)));
-
     generator.append(R"~~~(
-#include <AK/Function.h>
-#include <AK/TypeCasts.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/@prototype_class@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/WebIDL/Tracing.h>
-)~~~");
-
-    emit_includes_for_all_imports(interface, generator, true);
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 GC_DEFINE_ALLOCATOR(@prototype_class@);
 
 @prototype_class@::@prototype_class@(JS::Realm& realm)
@@ -6193,7 +5960,7 @@ void @prototype_class@::initialize(JS::Realm& realm)
     define_direct_property(vm.well_known_symbol_to_string_tag(), JS::PrimitiveString::create(vm, "@to_string_tag@"_string), JS::Attribute::Configurable);
 }
 
-static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
+static JS::ThrowCompletionOr<@fully_qualified_name@*> iterator_impl_from(JS::VM& vm)
 {
     auto this_object = TRY(vm.this_value().to_object(vm));
     if (!is<@fully_qualified_name@>(*this_object))
@@ -6204,15 +5971,13 @@ static JS::ThrowCompletionOr<@fully_qualified_name@*> impl_from(JS::VM& vm)
 JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::next)
 {
     WebIDL::log_trace(vm, "@prototype_class@::next");
-    auto* impl = TRY(impl_from(vm));
+    auto* impl = TRY(iterator_impl_from(vm));
     return TRY(throw_dom_exception_if_needed(vm, [&] { return impl->next(); }));
 }
-
-} // namespace Web::Bindings
 )~~~");
 }
 
-void generate_async_iterator_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_async_iterator_prototype_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     VERIFY(interface.async_value_iterator_type.has_value());
     SourceGenerator generator { builder };
@@ -6220,12 +5985,6 @@ void generate_async_iterator_prototype_header(IDL::Interface const& interface, S
     generator.set("prototype_class", ByteString::formatted("{}AsyncIteratorPrototype", interface.name));
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/Object.h>
-
-namespace Web::Bindings {
-
 class @prototype_class@ : public JS::Object {
     JS_OBJECT(@prototype_class@, JS::Object);
     GC_DECLARE_ALLOCATOR(@prototype_class@);
@@ -6247,12 +6006,10 @@ private:
 
     generator.append(R"~~~(
 };
-
-} // namespace Web::Bindings
-    )~~~");
+)~~~");
 }
 
-void generate_async_iterator_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_async_iterator_prototype_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     VERIFY(interface.async_value_iterator_type.has_value());
     SourceGenerator generator { builder };
@@ -6264,29 +6021,7 @@ void generate_async_iterator_prototype_implementation(IDL::Interface const& inte
     generator.set("prototype_base_class", interface.prototype_base_class);
     generator.set("fully_qualified_name", ByteString::formatted("{}AsyncIterator", interface.fully_qualified_name));
     generator.set("possible_include_path", ByteString::formatted("{}AsyncIterator", interface.name.replace("::"sv, "/"sv, ReplaceMode::All)));
-
     generator.append(R"~~~(
-#include <AK/Function.h>
-#include <AK/TypeCasts.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/@prototype_class@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/WebIDL/AsyncIterator.h>
-#include <LibWeb/WebIDL/Tracing.h>
-)~~~");
-
-    emit_includes_for_all_imports(interface, generator, false, true);
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 GC_DEFINE_ALLOCATOR(@prototype_class@);
 
 @prototype_class@::@prototype_class@(JS::Realm& realm)
@@ -6340,25 +6075,15 @@ JS_DEFINE_NATIVE_FUNCTION(@prototype_class@::return_)
 }
 )~~~");
     }
-
-    generator.append(R"~~~(
-} // namespace Web::Bindings
-)~~~");
 }
 
-void generate_global_mixin_header(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_global_mixin_header(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
     generator.set("class_name", interface.global_mixin_class);
 
     generator.append(R"~~~(
-#pragma once
-
-#include <LibJS/Runtime/Object.h>
-
-namespace Web::Bindings {
-
 class @class_name@ {
 public:
     void initialize(JS::Realm&, JS::Object&);
@@ -6370,59 +6095,15 @@ private:
 )~~~");
 
     generate_prototype_or_global_mixin_declarations(interface, builder);
-
-    generator.append(R"~~~(
-} // namespace Web::Bindings
-    )~~~");
 }
 
-void generate_global_mixin_implementation(IDL::Interface const& interface, StringBuilder& builder)
+static void generate_global_mixin_implementation(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
     generator.set("class_name", interface.global_mixin_class);
     generator.set("prototype_name", interface.prototype_class);
-
     generator.append(R"~~~(
-#include <AK/Function.h>
-#include <LibIDL/Types.h>
-#include <LibJS/Runtime/Array.h>
-#include <LibJS/Runtime/DataView.h>
-#include <LibJS/Runtime/Error.h>
-#include <LibJS/Runtime/FunctionObject.h>
-#include <LibJS/Runtime/GlobalObject.h>
-#include <LibJS/Runtime/Iterator.h>
-#include <LibJS/Runtime/TypedArray.h>
-#include <LibJS/Runtime/Value.h>
-#include <LibJS/Runtime/ValueInlines.h>
-#include <LibURL/Origin.h>
-#include <LibWeb/Bindings/@class_name@.h>
-#include <LibWeb/Bindings/@prototype_name@.h>
-#include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/DOM/Element.h>
-#include <LibWeb/DOM/Event.h>
-#include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/DOM/NodeFilter.h>
-#include <LibWeb/DOM/Range.h>
-#include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/Window.h>
-#include <LibWeb/HTML/WindowProxy.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/OverloadResolution.h>
-#include <LibWeb/WebIDL/Tracing.h>
-#include <LibWeb/WebIDL/Types.h>
-
-)~~~");
-
-    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
-
-    generate_using_namespace_definitions(generator);
-
-    generator.append(R"~~~(
-namespace Web::Bindings {
-
 @class_name@::@class_name@() = default;
 @class_name@::~@class_name@() = default;
 )~~~");
@@ -6430,10 +6111,138 @@ namespace Web::Bindings {
     generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::No);
     generate_prototype_or_global_mixin_initialization(interface, builder, GenerateUnforgeables::Yes);
     generate_prototype_or_global_mixin_definitions(interface, builder);
+}
+
+static void generate_implementation_prologue(IDL::Interface const& interface, StringBuilder& builder)
+{
+    SourceGenerator generator { builder };
+
+    generator.set("bindings_name", interface.implemented_name);
+    if (!interface.parent_name.is_empty())
+        generator.set("parent_bindings_name", interface.parent_name);
 
     generator.append(R"~~~(
+#include <AK/Function.h>
+#include <AK/TypeCasts.h>
+#include <LibGC/Heap.h>
+#include <LibIDL/Types.h>
+#include <LibJS/Runtime/AbstractOperations.h>
+#include <LibJS/Runtime/Array.h>
+#include <LibJS/Runtime/ArrayBuffer.h>
+#include <LibJS/Runtime/DataView.h>
+#include <LibJS/Runtime/Error.h>
+#include <LibJS/Runtime/FunctionObject.h>
+#include <LibJS/Runtime/GlobalObject.h>
+#include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibJS/Runtime/TypedArray.h>
+#include <LibJS/Runtime/Value.h>
+#include <LibJS/Runtime/ValueInlines.h>
+#include <LibWeb/Bindings/@bindings_name@.h>
+#include <LibWeb/Bindings/ExceptionOrUtils.h>
+#include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/ElementFactory.h>
+#include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/DOM/NodeFilter.h>
+#include <LibWeb/DOM/Range.h>
+#include <LibWeb/HTML/CustomElements/CustomElementDefinition.h>
+#include <LibWeb/HTML/CustomElements/CustomElementRegistry.h>
+#include <LibWeb/HTML/Numbers.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
+#include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Infra/Strings.h>
+#include <LibWeb/Namespace.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/AsyncIterator.h>
+#include <LibWeb/WebIDL/Buffers.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/OverloadResolution.h>
+#include <LibWeb/WebIDL/Promise.h>
+#include <LibWeb/WebIDL/Tracing.h>
+#include <LibWeb/WebIDL/Types.h>
+
+)~~~");
+
+    if (!interface.parent_name.is_empty()) {
+        generator.append(R"~~~(
+#if __has_include(<LibWeb/Bindings/@parent_bindings_name@.h>)
+#    include <LibWeb/Bindings/@parent_bindings_name@.h>
+#endif
+
+)~~~");
+    }
+
+    emit_includes_for_all_imports(interface, generator, interface.pair_iterator_types.has_value(), interface.async_value_iterator_type.has_value());
+    generate_using_namespace_definitions(generator);
+
+    generator.append(R"~~~(
+namespace Web::Bindings {
+
+)~~~");
+}
+
+void generate_header(IDL::Interface const& interface, StringBuilder& builder)
+{
+    builder.append(R"~~~(#pragma once
+
+#include <LibJS/Runtime/NativeFunction.h>
+#include <LibJS/Runtime/Object.h>
+
+namespace Web::Bindings {
+
+)~~~"sv);
+
+    if (interface.is_namespace) {
+        generate_namespace_header(interface, builder);
+    } else {
+        generate_constructor_header(interface, builder);
+        generate_prototype_header(interface, builder);
+    }
+
+    if (interface.pair_iterator_types.has_value())
+        generate_iterator_prototype_header(interface, builder);
+
+    if (interface.async_value_iterator_type.has_value())
+        generate_async_iterator_prototype_header(interface, builder);
+
+    if (interface.extended_attributes.contains("Global"))
+        generate_global_mixin_header(interface, builder);
+
+    builder.append(R"~~~(
 } // namespace Web::Bindings
-    )~~~");
+)~~~"sv);
+}
+
+void generate_implementation(IDL::Interface const& interface, StringBuilder& builder)
+{
+    generate_implementation_prologue(interface, builder);
+
+    if (interface.is_namespace) {
+        generate_namespace_implementation(interface, builder);
+    } else {
+        generate_constructor_implementation(interface, builder);
+        generate_prototype_implementation(interface, builder);
+    }
+
+    if (interface.pair_iterator_types.has_value())
+        generate_iterator_prototype_implementation(interface, builder);
+
+    if (interface.async_value_iterator_type.has_value())
+        generate_async_iterator_prototype_implementation(interface, builder);
+
+    if (interface.extended_attributes.contains("Global"))
+        generate_global_mixin_implementation(interface, builder);
+
+    builder.append(R"~~~(
+} // namespace Web::Bindings
+)~~~"sv);
 }
 
 }

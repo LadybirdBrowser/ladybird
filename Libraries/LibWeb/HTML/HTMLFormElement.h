@@ -10,7 +10,7 @@
 
 #include <AK/Time.h>
 #include <LibWeb/ARIA/Roles.h>
-#include <LibWeb/Bindings/NavigationPrototype.h>
+#include <LibWeb/Bindings/Navigation.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 

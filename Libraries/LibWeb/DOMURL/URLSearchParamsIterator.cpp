@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Iterator.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/URLSearchParamsIteratorPrototype.h>
+#include <LibWeb/Bindings/URLSearchParams.h>
 #include <LibWeb/DOMURL/URLSearchParamsIterator.h>
 
 namespace Web::Bindings {

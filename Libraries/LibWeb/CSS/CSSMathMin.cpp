@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathMin.h"
-#include <LibWeb/Bindings/CSSMathMinPrototype.h>
+#include <LibWeb/Bindings/CSSMathMin.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSMathNegate.h>
 #include <LibWeb/CSS/CSSNumericArray.h>

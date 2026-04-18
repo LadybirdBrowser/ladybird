@@ -7,7 +7,7 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PopStateEventPrototype.h>
+#include <LibWeb/Bindings/PopStateEvent.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 
 namespace Web::HTML {

@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TreeWalkerPrototype.h>
+#include <LibWeb/Bindings/TreeWalker.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeFilter.h>
 #include <LibWeb/DOM/TreeWalker.h>

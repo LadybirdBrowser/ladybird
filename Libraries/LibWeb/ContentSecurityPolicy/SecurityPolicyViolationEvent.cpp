@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SecurityPolicyViolationEventPrototype.h>
+#include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/ContentSecurityPolicy/SecurityPolicyViolationEvent.h>
 
 namespace Web::ContentSecurityPolicy {

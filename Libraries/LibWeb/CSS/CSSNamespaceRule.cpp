@@ -7,7 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSNamespaceRulePrototype.h>
+#include <LibWeb/Bindings/CSSNamespaceRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSNamespaceRule.h>
 #include <LibWeb/CSS/Serialize.h>

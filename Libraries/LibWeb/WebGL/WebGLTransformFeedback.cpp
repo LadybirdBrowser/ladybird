@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLTransformFeedbackPrototype.h>
+#include <LibWeb/Bindings/WebGLTransformFeedback.h>
 #include <LibWeb/WebGL/WebGLTransformFeedback.h>
 
 namespace Web::WebGL {

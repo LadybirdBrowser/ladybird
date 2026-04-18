@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGMetadataElementPrototype.h>
+#include <LibWeb/Bindings/SVGMetadataElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGMetadataElement.h>

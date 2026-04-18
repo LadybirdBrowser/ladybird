@@ -9,7 +9,7 @@
 #include <LibJS/Runtime/Array.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/ResizeObserverPrototype.h>
+#include <LibWeb/Bindings/ResizeObserver.h>
 #include <LibWeb/Geometry/DOMRectReadOnly.h>
 #include <LibWeb/ResizeObserver/ResizeObserverSize.h>
 

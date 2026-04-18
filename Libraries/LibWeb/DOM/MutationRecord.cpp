@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MutationRecordPrototype.h>
+#include <LibWeb/Bindings/MutationRecord.h>
 #include <LibWeb/DOM/MutationRecord.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeList.h>

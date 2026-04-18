@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLUnknownElementPrototype.h>
+#include <LibWeb/Bindings/HTMLUnknownElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/HTMLUnknownElement.h>
 

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/CSSMathValuePrototype.h>
+#include <LibWeb/Bindings/CSSMathValue.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/Forward.h>
 

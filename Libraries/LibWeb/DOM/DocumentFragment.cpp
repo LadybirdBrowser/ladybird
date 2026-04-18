@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/DocumentFragmentPrototype.h>
+#include <LibWeb/Bindings/DocumentFragment.h>
 #include <LibWeb/DOM/DocumentFragment.h>
 #include <LibWeb/HTML/Window.h>
 

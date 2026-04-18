@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessageChannelPrototype.h>
+#include <LibWeb/Bindings/MessageChannel.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/MessageChannel.h>
 #include <LibWeb/HTML/MessagePort.h>

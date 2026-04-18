@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GamepadPrototype.h>
+#include <LibWeb/Bindings/Gamepad.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Gamepad/SDLGamepadForward.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>

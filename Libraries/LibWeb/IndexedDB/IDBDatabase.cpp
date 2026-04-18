@@ -5,7 +5,7 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibWeb/Bindings/IDBDatabasePrototype.h>
+#include <LibWeb/Bindings/IDBDatabase.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>

@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaQueryListEventPrototype.h>
+#include <LibWeb/Bindings/MediaQueryListEvent.h>
 #include <LibWeb/CSS/MediaQueryListEvent.h>
 
 namespace Web::CSS {

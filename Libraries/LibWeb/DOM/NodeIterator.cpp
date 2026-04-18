@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/ValueInlines.h>
-#include <LibWeb/Bindings/NodeIteratorPrototype.h>
+#include <LibWeb/Bindings/NodeIterator.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/NodeIterator.h>

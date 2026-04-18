@@ -6,7 +6,7 @@
 
 #include <AK/Tuple.h>
 #include <LibGfx/Bitmap.h>
-#include <LibWeb/Bindings/OffscreenCanvasPrototype.h>
+#include <LibWeb/Bindings/OffscreenCanvas.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/Canvas/SerializeBitmap.h>

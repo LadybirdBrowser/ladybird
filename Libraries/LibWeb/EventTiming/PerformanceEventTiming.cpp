@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/PerformanceEventTimingPrototype.h>
+#include <LibWeb/Bindings/PerformanceEventTiming.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/PerformanceTimeline/EntryTypes.h>

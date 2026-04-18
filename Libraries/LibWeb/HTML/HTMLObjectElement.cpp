@@ -5,7 +5,7 @@
  */
 
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibWeb/Bindings/HTMLObjectElementPrototype.h>
+#include <LibWeb/Bindings/HTMLObjectElement.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleComputer.h>

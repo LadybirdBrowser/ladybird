@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/BiquadFilterNodePrototype.h>
+#include <LibWeb/Bindings/BiquadFilterNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
 #include <LibWeb/WebAudio/AudioParam.h>
 

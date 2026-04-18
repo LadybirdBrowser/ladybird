@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/FormDataPrototype.h>
+#include <LibWeb/Bindings/FormData.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOMURL/URLSearchParams.h>
 #include <LibWeb/Forward.h>

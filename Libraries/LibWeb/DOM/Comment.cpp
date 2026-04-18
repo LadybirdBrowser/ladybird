@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CommentPrototype.h>
+#include <LibWeb/Bindings/Comment.h>
 #include <LibWeb/DOM/Comment.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/TextNode.h>

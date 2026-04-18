@@ -5,7 +5,7 @@
  */
 
 #include "CSSStyleValue.h"
-#include <LibWeb/Bindings/CSSStyleValuePrototype.h>
+#include <LibWeb/Bindings/CSSStyleValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>

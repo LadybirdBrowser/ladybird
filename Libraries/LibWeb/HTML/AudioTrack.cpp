@@ -7,7 +7,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/AudioTrackPrototype.h>
+#include <LibWeb/Bindings/AudioTrack.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/AudioTrack.h>

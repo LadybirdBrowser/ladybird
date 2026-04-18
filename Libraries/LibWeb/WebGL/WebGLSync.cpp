@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLSyncPrototype.h>
+#include <LibWeb/Bindings/WebGLSync.h>
 #include <LibWeb/WebGL/WebGLSync.h>
 
 #include <GLES2/gl2.h>

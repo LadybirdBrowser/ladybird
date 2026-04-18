@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/PropertyKey.h>
-#include <LibWeb/Bindings/HTMLAllCollectionPrototype.h>
+#include <LibWeb/Bindings/HTMLAllCollection.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>

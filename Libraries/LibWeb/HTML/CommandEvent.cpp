@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CommandEventPrototype.h>
+#include <LibWeb/Bindings/CommandEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CommandEvent.h>
 

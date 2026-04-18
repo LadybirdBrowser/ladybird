@@ -8,7 +8,7 @@
 #include <LibHTTP/Cookie/ParsedCookie.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibURL/Parser.h>
-#include <LibWeb/Bindings/CookieStorePrototype.h>
+#include <LibWeb/Bindings/CookieStore.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CookieStore/CookieChangeEvent.h>
 #include <LibWeb/CookieStore/CookieStore.h>

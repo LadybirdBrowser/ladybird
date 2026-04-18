@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/VTTRegionPrototype.h>
+#include <LibWeb/Bindings/VTTRegion.h>
 #include <LibWeb/WebIDL/Types.h>
 
 namespace Web::WebVTT {

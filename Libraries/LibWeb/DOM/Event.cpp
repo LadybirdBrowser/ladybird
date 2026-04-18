@@ -7,7 +7,7 @@
  */
 
 #include <AK/TypeCasts.h>
-#include <LibWeb/Bindings/EventPrototype.h>
+#include <LibWeb/Bindings/Event.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Node.h>

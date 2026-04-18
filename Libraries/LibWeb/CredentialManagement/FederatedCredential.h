@@ -7,7 +7,7 @@
 #pragma once
 
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/FederatedCredentialPrototype.h>
+#include <LibWeb/Bindings/FederatedCredential.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CredentialManagement/Credential.h>
 #include <LibWeb/CredentialManagement/CredentialUserData.h>

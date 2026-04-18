@@ -6,7 +6,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGLengthPrototype.h>
+#include <LibWeb/Bindings/SVGLength.h>
 #include <LibWeb/CSS/PercentageOr.h>
 #include <LibWeb/SVG/SVGLength.h>
 

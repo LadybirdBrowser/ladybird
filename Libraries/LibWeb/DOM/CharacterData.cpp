@@ -6,7 +6,7 @@
  */
 
 #include <LibUnicode/Segmenter.h>
-#include <LibWeb/Bindings/CharacterDataPrototype.h>
+#include <LibWeb/Bindings/CharacterData.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/MutationType.h>

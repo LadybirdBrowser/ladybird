@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLOptionsCollectionPrototype.h>
+#include <LibWeb/Bindings/HTMLOptionsCollection.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/HTML/HTMLOptGroupElement.h>

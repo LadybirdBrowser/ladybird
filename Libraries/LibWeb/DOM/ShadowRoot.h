@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/ShadowRootPrototype.h>
+#include <LibWeb/Bindings/ShadowRoot.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
 #include <LibWeb/DOM/DocumentFragment.h>

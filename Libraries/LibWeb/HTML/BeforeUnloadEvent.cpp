@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/BeforeUnloadEventPrototype.h>
+#include <LibWeb/Bindings/BeforeUnloadEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/BeforeUnloadEvent.h>
 

@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/ValidityStatePrototype.h>
+#include <LibWeb/Bindings/ValidityState.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/ValidityState.h>
 

@@ -5,7 +5,7 @@
  */
 
 #include "CSSUnparsedValue.h"
-#include <LibWeb/Bindings/CSSUnparsedValuePrototype.h>
+#include <LibWeb/Bindings/CSSUnparsedValue.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSVariableReferenceValue.h>
 #include <LibWeb/CSS/Parser/Parser.h>

@@ -7,7 +7,7 @@
  */
 
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/DOMMatrixReadOnlyPrototype.h>
+#include <LibWeb/Bindings/DOMMatrixReadOnly.h>
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>

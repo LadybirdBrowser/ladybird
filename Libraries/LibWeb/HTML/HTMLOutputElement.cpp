@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/HTMLOutputElementPrototype.h>
+#include <LibWeb/Bindings/HTMLOutputElement.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/HTML/HTMLOutputElement.h>

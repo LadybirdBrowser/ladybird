@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/ElementInternalsPrototype.h>
+#include <LibWeb/Bindings/ElementInternals.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/FileAPI/File.h>

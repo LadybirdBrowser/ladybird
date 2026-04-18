@@ -7,7 +7,7 @@
 
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WorkerGlobalScopePrototype.h>
+#include <LibWeb/Bindings/WorkerGlobalScope.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/ContentSecurityPolicy/Policy.h>

@@ -5,7 +5,7 @@
  */
 
 #include "CSSLayerStatementRule.h"
-#include <LibWeb/Bindings/CSSLayerStatementRulePrototype.h>
+#include <LibWeb/Bindings/CSSLayerStatementRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/Dump.h>

@@ -7,7 +7,7 @@
 #include <AK/Math.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextTrackCuePrototype.h>
+#include <LibWeb/Bindings/TextTrackCue.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/TextTrackCue.h>
 

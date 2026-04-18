@@ -8,7 +8,7 @@
 #include <AK/Vector.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/Value.h>
-#include <LibWeb/Bindings/IDBFactoryPrototype.h>
+#include <LibWeb/Bindings/IDBFactory.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>

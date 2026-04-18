@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLVertexArrayObjectPrototype.h>
+#include <LibWeb/Bindings/WebGLVertexArrayObject.h>
 #include <LibWeb/WebGL/WebGLVertexArrayObject.h>
 
 namespace Web::WebGL {

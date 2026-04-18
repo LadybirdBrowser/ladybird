@@ -9,7 +9,7 @@
 #include <LibGfx/Font/Typeface.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/FontFacePrototype.h>
+#include <LibWeb/Bindings/FontFace.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
 

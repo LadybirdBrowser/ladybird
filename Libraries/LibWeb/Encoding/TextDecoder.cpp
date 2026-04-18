@@ -8,7 +8,7 @@
 #include <AK/FlyString.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/TextDecoderPrototype.h>
+#include <LibWeb/Bindings/TextDecoder.h>
 #include <LibWeb/Encoding/TextDecoder.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>

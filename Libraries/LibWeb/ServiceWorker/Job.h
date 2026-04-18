@@ -8,8 +8,8 @@
 
 #include <AK/Types.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
-#include <LibWeb/Bindings/WorkerPrototype.h>
+#include <LibWeb/Bindings/ServiceWorkerRegistration.h>
+#include <LibWeb/Bindings/Worker.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::ServiceWorker {

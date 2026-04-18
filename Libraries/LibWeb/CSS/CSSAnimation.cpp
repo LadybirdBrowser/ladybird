@@ -6,7 +6,7 @@
 
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
-#include <LibWeb/Bindings/CSSAnimationPrototype.h>
+#include <LibWeb/Bindings/CSSAnimation.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/PropertyID.h>

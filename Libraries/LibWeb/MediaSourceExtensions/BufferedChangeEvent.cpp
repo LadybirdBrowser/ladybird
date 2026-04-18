@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/BufferedChangeEventPrototype.h>
+#include <LibWeb/Bindings/BufferedChangeEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/MediaSourceExtensions/BufferedChangeEvent.h>
 

@@ -6,7 +6,7 @@
 
 #include "CSSContainerRule.h"
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/CSSContainerRulePrototype.h>
+#include <LibWeb/Bindings/CSSContainerRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/Serialize.h>

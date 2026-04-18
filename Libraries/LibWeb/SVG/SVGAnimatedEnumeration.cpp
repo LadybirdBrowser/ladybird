@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimatedEnumerationPrototype.h>
+#include <LibWeb/Bindings/SVGAnimatedEnumeration.h>
 #include <LibWeb/SVG/SVGAnimatedEnumeration.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

@@ -8,7 +8,7 @@
 #include <LibCore/Timer.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibWeb/Bindings/SVGImageElementPrototype.h>
+#include <LibWeb/Bindings/SVGImageElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/Event.h>

@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/VideoTrackListPrototype.h>
+#include <LibWeb/Bindings/VideoTrackList.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 

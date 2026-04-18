@@ -10,7 +10,7 @@
 #include <AK/Time.h>
 #include <AK/Traits.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/ServiceWorkerRegistrationPrototype.h>
+#include <LibWeb/Bindings/ServiceWorkerRegistration.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerRecord.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 

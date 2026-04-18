@@ -10,7 +10,7 @@
 #include <GLES2/gl2.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/WebGLBufferPrototype.h>
+#include <LibWeb/Bindings/WebGLBuffer.h>
 #include <LibWeb/WebGL/WebGLBuffer.h>
 
 namespace Web::WebGL {

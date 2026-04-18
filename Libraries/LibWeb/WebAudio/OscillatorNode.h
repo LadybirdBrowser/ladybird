@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/OscillatorNodePrototype.h>
+#include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/WebAudio/AudioScheduledSourceNode.h>
 
 namespace Web::WebAudio {

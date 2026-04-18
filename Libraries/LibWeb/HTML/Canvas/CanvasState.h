@@ -15,7 +15,7 @@
 #include <LibGfx/Filter.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/PaintStyle.h>
-#include <LibWeb/Bindings/CanvasRenderingContext2DPrototype.h>
+#include <LibWeb/Bindings/CanvasRenderingContext2D.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/HTML/CanvasGradient.h>

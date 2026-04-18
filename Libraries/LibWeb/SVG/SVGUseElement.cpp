@@ -7,7 +7,7 @@
 
 #include <LibGC/HeapHashTable.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGUseElementPrototype.h>
+#include <LibWeb/Bindings/SVGUseElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOM/ElementFactory.h>

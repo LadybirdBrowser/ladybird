@@ -7,7 +7,7 @@
 #include <LibWeb/SVG/SVGAnimationElement.h>
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SVGAnimationElementPrototype.h>
+#include <LibWeb/Bindings/SVGAnimationElement.h>
 #include <LibWeb/Layout/Node.h>
 
 namespace Web::SVG {

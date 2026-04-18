@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Bindings/CSSPageDescriptorsPrototype.h>
+#include <LibWeb/Bindings/CSSPageDescriptors.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/CSSPageDescriptors.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

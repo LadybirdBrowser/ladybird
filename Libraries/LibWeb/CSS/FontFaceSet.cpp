@@ -10,7 +10,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/Set.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
-#include <LibWeb/Bindings/FontFaceSetPrototype.h>
+#include <LibWeb/Bindings/FontFaceSet.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>

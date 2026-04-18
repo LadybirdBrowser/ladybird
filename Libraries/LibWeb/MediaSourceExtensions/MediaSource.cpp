@@ -6,7 +6,7 @@
 
 #include <LibMedia/PlaybackManager.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaSourcePrototype.h>
+#include <LibWeb/Bindings/MediaSource.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>

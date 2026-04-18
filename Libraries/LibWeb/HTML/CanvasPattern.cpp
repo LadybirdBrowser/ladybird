@@ -7,7 +7,7 @@
  */
 
 #include <LibGfx/ImmutableBitmap.h>
-#include <LibWeb/Bindings/CanvasPatternPrototype.h>
+#include <LibWeb/Bindings/CanvasPattern.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/CanvasPattern.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>

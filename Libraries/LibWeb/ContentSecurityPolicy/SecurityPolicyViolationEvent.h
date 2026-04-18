@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/SecurityPolicyViolationEventPrototype.h>
+#include <LibWeb/Bindings/SecurityPolicyViolationEvent.h>
 #include <LibWeb/DOM/Event.h>
 
 namespace Web::ContentSecurityPolicy {

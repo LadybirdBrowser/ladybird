@@ -7,7 +7,7 @@
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/Bindings/XPathResultPrototype.h>
+#include <LibWeb/Bindings/XPathResult.h>
 #include <LibWeb/DOM/Node.h>
 
 #include "XPathResult.h"

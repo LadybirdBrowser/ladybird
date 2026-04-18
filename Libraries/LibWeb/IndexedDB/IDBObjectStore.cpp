@@ -6,7 +6,7 @@
 
 #include <AK/String.h>
 #include <LibJS/Runtime/Array.h>
-#include <LibWeb/Bindings/IDBObjectStorePrototype.h>
+#include <LibWeb/Bindings/IDBObjectStore.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>

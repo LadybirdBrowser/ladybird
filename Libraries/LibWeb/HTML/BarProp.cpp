@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/BarPropPrototype.h>
+#include <LibWeb/Bindings/BarProp.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/BrowsingContext.h>

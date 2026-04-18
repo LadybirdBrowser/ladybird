@@ -5,7 +5,7 @@
  */
 
 #include <AK/CharacterTypes.h>
-#include <LibWeb/Bindings/DOMStringMapPrototype.h>
+#include <LibWeb/Bindings/DOMStringMap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>

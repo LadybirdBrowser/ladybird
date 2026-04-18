@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Realm.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/SpeechSynthesisUtterancePrototype.h>
+#include <LibWeb/Bindings/SpeechSynthesisUtterance.h>
 #include <LibWeb/Speech/SpeechSynthesisUtterance.h>
 #include <LibWeb/Speech/SpeechSynthesisVoice.h>
 

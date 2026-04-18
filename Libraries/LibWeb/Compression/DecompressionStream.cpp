@@ -11,7 +11,7 @@
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/TypedArray.h>
-#include <LibWeb/Bindings/DecompressionStreamPrototype.h>
+#include <LibWeb/Bindings/DecompressionStream.h>
 #include <LibWeb/Bindings/ExceptionOrUtils.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Compression/DecompressionStream.h>

@@ -5,7 +5,7 @@
  */
 
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ClipboardEventPrototype.h>
+#include <LibWeb/Bindings/ClipboardEvent.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Clipboard/ClipboardEvent.h>
 

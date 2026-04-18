@@ -5,7 +5,7 @@
  */
 
 #include "CSSMathInvert.h"
-#include <LibWeb/Bindings/CSSMathInvertPrototype.h>
+#include <LibWeb/Bindings/CSSMathInvert.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <LibWeb/Bindings/GamepadHapticActuatorPrototype.h>
+#include <LibWeb/Bindings/GamepadHapticActuator.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 
 namespace Web::Gamepad {

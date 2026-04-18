@@ -6,7 +6,7 @@
 
 #include "StylePropertyMap.h"
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/StylePropertyMapPrototype.h>
+#include <LibWeb/Bindings/StylePropertyMap.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/CSSUnparsedValue.h>

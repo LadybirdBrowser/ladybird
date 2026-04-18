@@ -13,7 +13,7 @@
 #include <LibGfx/ImmutableBitmap.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
-#include <LibWeb/Bindings/HTMLLinkElementPrototype.h>
+#include <LibWeb/Bindings/HTMLLinkElement.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleSheetList.h>
