@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2025, Gregory Bertilson <gregory@ladybird.org>
+ * Copyright (c) 2022-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -261,17 +261,14 @@ void PlaybackManager::set_up_data_providers()
 
 void PlaybackManager::track_started_buffering(Track const& track)
 {
-    bool was_buffering = state() == PlaybackState::Buffering;
     m_tracks_still_buffering.set(track);
-    if (!was_buffering)
-        m_handler->enter_buffering();
+    m_handler->enter_buffering();
 }
 
 void PlaybackManager::track_stopped_buffering(Track const& track)
 {
-    bool was_buffering = state() == PlaybackState::Buffering;
     m_tracks_still_buffering.remove(track);
-    if (was_buffering && m_tracks_still_buffering.is_empty())
+    if (m_tracks_still_buffering.is_empty())
         m_handler->exit_buffering();
 }
 

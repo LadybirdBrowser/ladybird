@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Gregory Bertilson <zaggy1024@gmail.com>
+ * Copyright (c) 2025-2026, Gregory Bertilson <gregory@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -32,8 +32,8 @@ public:
     virtual PlaybackState state() = 0;
     virtual bool has_future_data() = 0;
 
-    virtual void enter_buffering() { VERIFY_NOT_REACHED(); }
-    virtual void exit_buffering() { VERIFY_NOT_REACHED(); }
+    virtual void enter_buffering() = 0;
+    virtual void exit_buffering() = 0;
 
     virtual void on_track_enabled(Track const&);
     virtual void on_track_disabled(Track const&) { }
