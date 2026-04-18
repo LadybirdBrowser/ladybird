@@ -1968,6 +1968,23 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
     }
 
+    // AD-HOC: UI Events describes keydown default actions in general, but does not define this exact element set.
+    // NB: Use activation behavior here so keyboard activation follows the same element boundary as pointer activation.
+    // Space still falls through for anchors so the page-scroll behavior below
+    // remains.
+    if (!target && !modifiers && (key == UIEvents::KeyCode::Key_Return || key == UIEvents::KeyCode::Key_Space)) {
+        auto* focused = document->focused_area().ptr();
+        auto* html_element = focused ? as_if<HTML::HTMLElement>(*focused) : nullptr;
+        if (html_element && html_element->has_activation_behavior()) {
+            // AD-HOC: Space does not activate anchor elements; the page-scroll below still applies.
+            bool should_activate = key == UIEvents::KeyCode::Key_Return || !is<HTML::HTMLAnchorElement>(*html_element);
+            if (should_activate) {
+                html_element->click();
+                return EventResult::Handled;
+            }
+        }
+    }
+
     // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
     auto arrow_key_scroll_distance = 100;
     auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
