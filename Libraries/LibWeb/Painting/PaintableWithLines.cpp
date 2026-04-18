@@ -183,43 +183,27 @@ TraversalDecision PaintableWithLines::hit_test_fragments(CSSPixelPoint position,
                 // To determine the best place, we first find the closest fragment horizontally to the cursor. If we could not
                 // find one, then find for the closest vertically above the cursor. If we knew the direction of selection, we
                 // would look above if selecting upward.
+                HitTestResult hit_test_result {
+                    .paintable = const_cast<Paintable&>(fragment.paintable()),
+                    .index_in_node = fragment.start_offset(),
+                };
                 if (fragment_absolute_rect.bottom() - 1 <= local_position.y()) { // fully below the fragment
-                    HitTestResult hit_test_result {
-                        .paintable = const_cast<Paintable&>(fragment.paintable()),
-                        .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
-                        .vertical_distance = local_position.y() - fragment_absolute_rect.bottom(),
-                    };
-                    if (callback(hit_test_result) == TraversalDecision::Break)
-                        return TraversalDecision::Break;
+                    hit_test_result.index_in_node += fragment.length_in_code_units();
+                    hit_test_result.vertical_distance = local_position.y() - fragment_absolute_rect.bottom();
                 } else if (local_position.y() < fragment_absolute_rect.top()) { // fully above the fragment
-                    HitTestResult hit_test_result {
-                        .paintable = const_cast<Paintable&>(fragment.paintable()),
-                        .index_in_node = fragment.start_offset(),
-                        .vertical_distance = fragment_absolute_rect.top() - local_position.y(),
-                    };
-                    if (callback(hit_test_result) == TraversalDecision::Break)
-                        return TraversalDecision::Break;
-                } else if (fragment_absolute_rect.top() <= local_position.y()) { // vertically within the fragment
+                    hit_test_result.vertical_distance = fragment_absolute_rect.top() - local_position.y();
+                } else { // vertically within the fragment
+                    hit_test_result.vertical_distance = 0;
                     if (local_position.x() < fragment_absolute_rect.left()) {
-                        HitTestResult hit_test_result {
-                            .paintable = const_cast<Paintable&>(fragment.paintable()),
-                            .index_in_node = fragment.start_offset(),
-                            .vertical_distance = 0,
-                            .horizontal_distance = fragment_absolute_rect.left() - local_position.x(),
-                        };
-                        if (callback(hit_test_result) == TraversalDecision::Break)
-                            return TraversalDecision::Break;
-                    } else if (local_position.x() > fragment_absolute_rect.right()) {
-                        HitTestResult hit_test_result {
-                            .paintable = const_cast<Paintable&>(fragment.paintable()),
-                            .index_in_node = fragment.start_offset() + fragment.length_in_code_units(),
-                            .vertical_distance = 0,
-                            .horizontal_distance = local_position.x() - fragment_absolute_rect.right(),
-                        };
-                        if (callback(hit_test_result) == TraversalDecision::Break)
-                            return TraversalDecision::Break;
+                        hit_test_result.horizontal_distance = fragment_absolute_rect.left() - local_position.x();
+                    } else {
+                        hit_test_result.index_in_node += fragment.length_in_code_units();
+                        hit_test_result.horizontal_distance = local_position.x() - fragment_absolute_rect.right();
                     }
                 }
+
+                if (callback(hit_test_result) == TraversalDecision::Break)
+                    return TraversalDecision::Break;
             }
         }
     }
