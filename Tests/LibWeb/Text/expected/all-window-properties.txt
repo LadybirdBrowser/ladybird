@@ -353,6 +353,8 @@ PerformanceObserverEntryList
 PerformanceResourceTiming
 PerformanceTiming
 PeriodicWave
+PermissionStatus
+Permissions
 Plugin
 PluginArray
 PointerEvent

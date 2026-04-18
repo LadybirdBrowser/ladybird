@@ -20,10 +20,48 @@
 
 namespace Web::PermissionsAPI {
 
-bool is_permission_supported(String const&)
+bool is_permission_supported(String const& name)
 {
-    // FIXME: Actually support permissions
+    if (name == "geolocation") {
+        return true;
+    }
     return false;
+}
+
+// https://w3c.github.io/permissions/#dfn-request-permission-to-use
+Bindings::PermissionState request_permission(Bindings::PermissionDescriptor const& descriptor)
+{
+    // 1. Let current state be the descriptor's permission state.
+    auto current_state = permission_state(descriptor);
+
+    // 2. If current state is not "prompt", return current state and abort these steps.
+    if (current_state != Bindings::PermissionState::Prompt)
+        return current_state;
+
+    // FIXME: 3. Ask the user for express permission for the calling algorithm to use the powerful feature described by descriptor.
+
+    // 4. If the user gives express permission to use the powerful feature, set current state to "granted"; otherwise to "denied".
+    // The user's interaction may provide new information about the user's intent for the origin.
+    if (false) {
+        current_state = Bindings::PermissionState::Granted;
+    } else {
+        current_state = Bindings::PermissionState::Denied;
+    }
+
+    // 5. Let settings be the current settings object.
+    auto& settings = HTML::current_settings_object();
+
+    // 6. Let key be the result of generating a permission key for descriptor with settings's top-level origin and settings's origin.
+    VERIFY(settings.top_level_origin.has_value());
+    auto key = permission_key_generation_algorithm(settings.top_level_origin.value(), settings.origin());
+
+    // 7. Queue a task on the current settings object's responsible event loop to set a permission store entry with descriptor, key, and current state.
+    HTML::queue_global_task(HTML::Task::Source::Permissions, settings.global_object(), GC::create_function(settings.realm().heap(), [descriptor, key, current_state] {
+        PermissionStore::the().set_permission_store_entry(descriptor, key, current_state);
+    }));
+
+    // 8. Return current state.
+    return current_state;
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state

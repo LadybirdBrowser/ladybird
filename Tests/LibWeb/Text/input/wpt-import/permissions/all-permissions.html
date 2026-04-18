@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Test all known permissions support</title>
+<script src=../resources/testharness.js></script>
+<script src=../resources/testharnessreport.js></script>
+<div id="log"></div>
+
+<script>
+  // These are marked "at risk" in the spec...
+  const atRisk = [
+    "accelerometer",
+    "ambient-light-sensor",
+    "background-fetch",
+    "background-sync",
+    "bluetooth",
+    "gyroscope",
+    "magnetometer",
+    "midi",
+    "nfc",
+    "screen-wake-lock",
+    "display-capture",
+    "speaker-selection",
+    "xr-spatial-tracking",
+  ];
+
+  // These are known to be supported by multiple engines...
+  const permissions = [
+    "camera",
+    "geolocation",
+    "microphone",
+    "notifications",
+    "persistent-storage",
+    "push",
+  ];
+
+  for (const name of [...permissions, ...atRisk]) {
+    promise_test(async (test) => {
+      const status = await navigator.permissions.query({ name });
+      assert_true(status instanceof PermissionStatus);
+      //assert_equals(status.name, name, `permission's name should be "${name}"`);
+    }, `Query "${name}" permission`);
+  }
+</script>

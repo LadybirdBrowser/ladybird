@@ -7,14 +7,17 @@
 #include <AK/Time.h>
 #include <LibWeb/Bindings/Geolocation.h>
 #include <LibWeb/Bindings/Intrinsics.h>
+#include <LibWeb/Bindings/Permissions.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/Geolocation/Geolocation.h>
 #include <LibWeb/Geolocation/GeolocationPosition.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -324,15 +327,17 @@ void Geolocation::request_a_position(GC::Ref<WebIDL::CallbackType> success_callb
         // 2. Continue to the next steps below.
         // AD-HOC: This is implemented by run_in_parallel_when_document_is_visible().
 
-        // FIXME: 6. Let descriptor be a new PermissionDescriptor whose name is "geolocation".
+        // 6. Let descriptor be a new PermissionDescriptor whose name is "geolocation".
+        auto descriptor = Bindings::PermissionDescriptor { "geolocation"_string };
 
         // 7. In parallel:
         // AD-HOC: run_in_parallel_when_document_is_visible() already runs this in parallel.
         {
-            // FIXME: 1. Set permission to request permission to use descriptor.
+            // 1. Set permission to request permission to use descriptor.
+            auto permission = Web::PermissionsAPI::request_permission(descriptor);
 
-            // FIXME: 2. If permission is "denied", then:
-            if (false) {
+            // 2. If permission is "denied", then:
+            if (permission == Bindings::PermissionState::Denied) {
                 // 1. If watchId was passed, remove watchId from watchIDs.
                 if (watch_id.has_value())
                     m_watch_ids.remove(watch_id.value());
@@ -371,7 +376,11 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
 {
     // Run callback in parallel if the document is already visible.
     if (document.visibility_state_value() == HTML::VisibilityState::Visible) {
-        Platform::EventLoopPlugin::the().deferred_invoke(callback);
+        auto callback_with_context = GC::create_function(heap(), [this, callback] {
+            HTML::TemporaryExecutionContext execution_context { realm() };
+            callback->function()();
+        });
+        Platform::EventLoopPlugin::the().deferred_invoke(callback_with_context);
         return;
     }
 
@@ -389,9 +398,10 @@ void Geolocation::run_in_parallel_when_document_is_visible(DOM::Document& docume
         clear_observer_and_timer();
     });
 
-    document_observer->set_document_visibility_state_observer([clear_observer_and_timer, callback](HTML::VisibilityState state) {
+    document_observer->set_document_visibility_state_observer([this, clear_observer_and_timer, callback](HTML::VisibilityState state) {
         if (state == HTML::VisibilityState::Visible) {
             clear_observer_and_timer();
+            HTML::TemporaryExecutionContext execution_context { realm() };
             callback->function()();
         }
     });
