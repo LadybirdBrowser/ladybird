@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async (done) => {
+        const server = httpTestServer();
+        const imageUrl = await server.createEcho("GET", "/image-webp-served-from-svg-url.svg", {
+            status: 200,
+            headers: {
+                "Content-Type": "image/webp",
+                "X-Content-Type-Options": "nosniff",
+            },
+            body_encoding: "base64",
+            // 1x1 webp
+            body: "UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA",
+        });
+
+        const image = new Image();
+        image.onload = () => {
+            println(`naturalWidth: ${image.naturalWidth}`);
+            println(`naturalHeight: ${image.naturalHeight}`);
+            done();
+        };
+        image.onerror = () => {
+            println("FAIL: image failed to load");
+            done();
+        };
+        image.src = imageUrl;
+    });
+</script>

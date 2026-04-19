@@ -148,7 +148,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
 
-    bool const is_svg_image = mime_type == "image/svg+xml"sv || url_string.basename().ends_with(".svg"sv);
+    bool const is_svg_image = mime_type == "image/svg+xml"sv
+        || (mime_type.is_empty() && url_string.basename().ends_with(".svg"sv));
 
     if (is_svg_image) {
         auto result = SVG::SVGDecodedImageData::create(m_document->realm(), m_page, url_string, data);
