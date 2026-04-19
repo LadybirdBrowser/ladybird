@@ -1301,10 +1301,11 @@ handler GetCalleeAndThisFromEnvironment
     load64 t0, [t3, BINDINGS_DATA_PTR]
     mul t2, t2, SIZEOF_BINDING
     add t0, t2
+    # TDZ state lives in Binding.initialized; the value slot itself starts as
+    # undefined, so checking for EMPTY would miss cached second-hit calls.
+    load8 t1, [t0, BINDING_INITIALIZED]
+    branch_zero t1, .slow
     load64 t1, [t0, BINDING_VALUE]
-    # Check value is not empty (TDZ)
-    mov t4, EMPTY_TAG_SHIFTED
-    branch_eq t1, t4, .slow
     store_operand m_callee, t1
     # this = undefined (DeclarativeEnvironment.with_base_object() always returns nullptr)
     mov t0, UNDEFINED_SHIFTED
