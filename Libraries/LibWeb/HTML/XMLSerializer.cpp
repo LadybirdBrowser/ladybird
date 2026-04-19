@@ -672,7 +672,7 @@ static WebIDL::ExceptionOr<String> serialize_element(DOM::Element const& element
     // 14. If ns is the HTML namespace, and the node's list of children is empty, and the node's localName matches any one of the following void elements:
     //    "area", "base", "basefont", "bgsound", "br", "col", "embed", "frame", "hr", "img", "input", "keygen", "link", "menuitem", "meta", "param", "source", "track", "wbr";
     //    then append the following to markup, in the order listed:
-    if (ns == Namespace::HTML && !element.has_children() && element.local_name().is_one_of(HTML::TagNames::area, HTML::TagNames::area, HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::br, HTML::TagNames::col, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::hr, HTML::TagNames::img, HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::link, HTML::TagNames::menuitem, HTML::TagNames::meta, HTML::TagNames::param, HTML::TagNames::source, HTML::TagNames::track, HTML::TagNames::wbr)) {
+    if (ns == Namespace::HTML && !element.has_children() && element.local_name().is_one_of(HTML::TagNames::area, HTML::TagNames::base, HTML::TagNames::basefont, HTML::TagNames::bgsound, HTML::TagNames::br, HTML::TagNames::col, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::hr, HTML::TagNames::img, HTML::TagNames::input, HTML::TagNames::keygen, HTML::TagNames::link, HTML::TagNames::menuitem, HTML::TagNames::meta, HTML::TagNames::param, HTML::TagNames::source, HTML::TagNames::track, HTML::TagNames::wbr)) {
         // 1. " " (U+0020 SPACE);
         // 2. "/" (U+002F SOLIDUS).
         markup.append(" /"sv);
