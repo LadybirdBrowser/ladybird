@@ -10,10 +10,12 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibGfx/Font/Font.h>
+#include <LibGfx/FourCC.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/TextLayout.h>
 #include <core/SkFont.h>
 #include <core/SkTextBlob.h>
+#include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
 namespace Gfx {
@@ -112,7 +114,7 @@ Vector<float> GlyphRun::get_glyph_intercepts(float scale, float y_top, float y_b
     return intervals;
 }
 
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing)
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const& string, FontCascadeList const& font_cascade_list, float letter_spacing, Optional<StringView> const& locale)
 {
     if (string.is_empty())
         return {};
@@ -124,8 +126,8 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
     Font const* last_font = &font_cascade_list.font_for_code_point(*it);
     FloatPoint last_position = baseline_start;
 
-    auto add_run = [&runs, &last_position, letter_spacing](Utf16View const& string, Font const& font) {
-        auto run = shape_text(last_position, letter_spacing, string, font, GlyphRun::TextType::Common);
+    auto add_run = [&runs, &last_position, letter_spacing, &locale](Utf16View const& string, Font const& font) {
+        auto run = shape_text(last_position, letter_spacing, string, font, GlyphRun::TextType::Common, locale);
         last_position.translate_by(run->width(), 0);
         runs.append(*run);
     };
@@ -195,8 +197,123 @@ static hb_buffer_t* setup_text_shaping(Utf16View const& string, Font const& font
     return buffer;
 }
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type)
+static bool has_enabled_shape_feature(Font const& font, FourCC tag)
 {
+    auto tag_value = tag.to_u32();
+    for (auto const& feature : font.features()) {
+        if (feature.value != 0 && FourCC { feature.tag }.to_u32() == tag_value)
+            return true;
+    }
+    return false;
+}
+
+static bool font_has_opentype_feature(Font const& font, FourCC tag)
+{
+    auto* face = font.typeface().harfbuzz_typeface();
+    auto feature_tag = tag.to_u32();
+
+    unsigned feature_count = 0;
+    hb_ot_layout_table_get_feature_tags(face, HB_OT_TAG_GSUB, 0, &feature_count, nullptr);
+    if (feature_count == 0)
+        return false;
+
+    Vector<hb_tag_t, 16> feature_tags;
+    feature_tags.resize(feature_count);
+    hb_ot_layout_table_get_feature_tags(face, HB_OT_TAG_GSUB, 0, &feature_count, feature_tags.data());
+
+    for (auto tag : feature_tags) {
+        if (tag == feature_tag)
+            return true;
+    }
+
+    return false;
+}
+
+enum class FontVariantCapsSynthesis {
+    None,
+    SmallCaps,
+    AllSmallCaps,
+};
+
+// https://drafts.csswg.org/css-fonts/#font-variant-caps-prop
+// Some fonts may only support a subset or none of the features described for this property. For backwards compatibility
+// with CSS 2.1, if small-caps or all-small-caps is specified but small-caps glyphs are not available for a given font,
+// user agents should simulate a small-caps font, for example by taking a normal font and replacing the glyphs for
+// lowercase letters with scaled versions of the glyphs for uppercase characters (replacing the glyphs for both upper
+// and lowercase letters in the case of all-small-caps).
+static FontVariantCapsSynthesis font_variant_caps_synthesis_for_font(Font const& font)
+{
+    // small-caps (smcp) / all-small-caps (smcp + c2sc)
+    if (has_enabled_shape_feature(font, FourCC { "smcp" })) {
+        if (has_enabled_shape_feature(font, FourCC { "c2sc" })) {
+            if (!font_has_opentype_feature(font, FourCC { "smcp" }) || !font_has_opentype_feature(font, FourCC { "c2sc" }))
+                return FontVariantCapsSynthesis::AllSmallCaps;
+        } else if (!font_has_opentype_feature(font, FourCC { "smcp" })) {
+            return FontVariantCapsSynthesis::SmallCaps;
+        }
+    }
+
+    // If either petite-caps or all-petite-caps is specified for a font that doesn’t support these features,
+    // the property behaves as if small-caps or all-small-caps, respectively, had been specified.
+    if (has_enabled_shape_feature(font, FourCC { "pcap" })) {
+        if (has_enabled_shape_feature(font, FourCC { "c2pc" })) {
+            if (!font_has_opentype_feature(font, FourCC { "pcap" }) || !font_has_opentype_feature(font, FourCC { "c2pc" }))
+                return FontVariantCapsSynthesis::AllSmallCaps;
+        } else if (!font_has_opentype_feature(font, FourCC { "pcap" })) {
+            return FontVariantCapsSynthesis::SmallCaps;
+        }
+    }
+
+    // If unicase is specified for a font that doesn’t support that feature, the property behaves as if
+    // small-caps was applied only to lowercased uppercase letters.
+    if (has_enabled_shape_feature(font, FourCC { "unic" }) && !font_has_opentype_feature(font, FourCC { "unic" }))
+        return FontVariantCapsSynthesis::SmallCaps;
+
+    // If titling-caps is specified with a font that does not support this feature, this property has no visible effect.
+    return FontVariantCapsSynthesis::None;
+}
+
+// https://drafts.csswg.org/css-fonts/#font-variant-caps-prop
+// When simulated small capital glyphs are used, for scripts that lack uppercase and lowercase letters,
+// small-caps, all-small-caps, petite-caps, all-petite-caps and unicase have no visible effect.
+//
+// When casing transforms are used to simulate small capitals, the casing transformations must match
+// those used for the text-transform property.
+static Optional<Utf16String> uppercase_for_synthetic_small_caps(Utf16View const& string, Optional<StringView> const& locale)
+{
+    auto original = Utf16String::from_utf16(string);
+    auto uppercase = original.to_uppercase(locale);
+    if (uppercase == original)
+        return {};
+    return uppercase;
+}
+
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const& string,
+    Font const& font, GlyphRun::TextType text_type, Optional<StringView> const& locale)
+{
+    switch (font_variant_caps_synthesis_for_font(font)) {
+    case FontVariantCapsSynthesis::SmallCaps:
+        if (auto uppercase_string = uppercase_for_synthetic_small_caps(string, locale); uppercase_string.has_value()) {
+            auto small_caps_font = font.typeface().font(font.point_size() * 0.7f);
+            // FIXME: This scales the entire run including originally-uppercase letters, which should remain at
+            // full size. Correct synthesis requires splitting the run into per-character segments.
+            return shape_text(baseline_start, letter_spacing, uppercase_string->utf16_view(), *small_caps_font, text_type, locale);
+        }
+        // FIXME: As a last resort, unscaled uppercase letter glyphs in a normal font may replace glyphs in a small-caps
+        //        font so that the text appears in all uppercase letters.
+        break;
+    case FontVariantCapsSynthesis::AllSmallCaps: {
+        auto small_caps_font = font.typeface().font(font.point_size() * 0.7f);
+        if (auto uppercase_string = uppercase_for_synthetic_small_caps(string, locale); uppercase_string.has_value())
+            return shape_text(baseline_start, letter_spacing, uppercase_string->utf16_view(), *small_caps_font, text_type, locale);
+        // All letters are already uppercase (or caseless): scale without case conversion.
+        return shape_text(baseline_start, letter_spacing, string, *small_caps_font, text_type, locale);
+    }
+    case FontVariantCapsSynthesis::None:
+        // Handled by normal shaping below.
+        break;
+    }
+
     auto const& metrics = font.pixel_metrics();
     auto& shaping_cache = font.shaping_cache();
 

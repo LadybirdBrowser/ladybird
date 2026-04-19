@@ -330,7 +330,10 @@ Optional<InlineLevelIterator::Item> InlineLevelIterator::generate_next_item()
             x = tab_stop_dist.to_float();
         }
 
-        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type);
+        auto parent_element = text_node->dom_node().parent_element();
+        auto const maybe_lang = parent_element ? parent_element->lang() : Optional<String> {};
+        auto const lang = maybe_lang.has_value() ? maybe_lang.value() : Optional<StringView> {};
+        auto glyph_run = Gfx::shape_text({ x, 0 }, letter_spacing.to_float(), chunk.view, chunk.font, text_type, lang);
 
         CSSPixels chunk_width = CSSPixels::nearest_value_for(glyph_run->width() + x);
 

@@ -10,6 +10,7 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/Vector.h>
 #include <LibGfx/Font/Font.h>
@@ -69,8 +70,8 @@ private:
     mutable OwnPtr<CachedTextBlob> m_cached_text_blob;
 };
 
-NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType);
-Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f);
+NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, Utf16View const&, Gfx::Font const& font, GlyphRun::TextType, Optional<StringView> const& locale = {});
+Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View const&, FontCascadeList const&, float letter_spacing = 0.f, Optional<StringView> const& locale = {});
 float measure_text_width(Utf16View const&, Font const& font, float letter_spacing = 0.f);
 
 }
