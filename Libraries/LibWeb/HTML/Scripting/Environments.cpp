@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
@@ -57,7 +58,7 @@ void EnvironmentSettingsObject::initialize(JS::Realm& realm)
 {
     Base::initialize(realm);
     m_module_map = realm.heap().allocate<ModuleMap>();
-    m_universal_global_scope = &as<UniversalGlobalScopeMixin>(global_object());
+    m_universal_global_scope = as_if<UniversalGlobalScopeMixin>(&global_object());
 }
 
 void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
@@ -181,8 +182,8 @@ void clean_up_after_running_script(EnvironmentSettingsObject const& settings)
     vm.pop_execution_context();
 
     // 3. If the JavaScript execution context stack is now empty, perform a microtask checkpoint. (If this runs scripts, these algorithms will be invoked reentrantly.)
-    if (!vm.has_running_execution_context())
-        main_thread_event_loop().perform_a_microtask_checkpoint();
+    if (vm.execution_context_stack().is_empty())
+        static_cast<HTML::Agent*>(vm.agent())->event_loop->perform_a_microtask_checkpoint();
 }
 
 static JS::ExecutionContext* top_most_script_having_execution_context(JS::VM& vm)
@@ -207,7 +208,7 @@ void prepare_to_run_callback(EnvironmentSettingsObject& settings)
     // 1. Push settings onto the backup incumbent settings object stack.
     // NOTE: The spec doesn't say which event loop's stack to put this on. However, all the examples of the incumbent settings object use iframes and cross browsing context communication to demonstrate the concept.
     //       This means that it must rely on some global state that can be accessed by all browsing contexts, which is the main thread event loop.
-    HTML::main_thread_event_loop().push_onto_backup_incumbent_realm_stack(settings);
+    static_cast<HTML::Agent*>(vm.agent())->event_loop->push_onto_backup_incumbent_realm_stack(settings);
 
     // 2. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);
@@ -276,7 +277,7 @@ void clean_up_after_running_callback(EnvironmentSettingsObject const& settings)
     }
 
     // 3. Assert: the topmost entry of the backup incumbent realm stack is settings.
-    auto& event_loop = HTML::main_thread_event_loop();
+    auto& event_loop = *static_cast<HTML::Agent*>(vm.agent())->event_loop;
     VERIFY(&event_loop.top_of_backup_incumbent_realm_stack() == &settings);
 
     // 4. Remove settings from the backup incumbent realm stack.
@@ -360,10 +361,16 @@ JS::Realm& incumbent_realm()
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#incumbent-settings-object
+// https://whatpr.org/html/9893/b8ea975...df5706b/webappapis.html#incumbent-settings-object
 EnvironmentSettingsObject& incumbent_settings_object()
 {
-    auto& event_loop = HTML::main_thread_event_loop();
-    auto& vm = event_loop.vm();
+    // Then, the incumbent settings object is the incumbent realm's principal realm settings object.
+    return incumbent_settings_object(JS::VM::the());
+}
+
+EnvironmentSettingsObject& incumbent_settings_object(JS::VM& vm)
+{
+    auto& event_loop = *static_cast<HTML::Agent*>(vm.agent())->event_loop;
 
     // 1. Let context be the topmost script-having execution context.
     auto* context = top_most_script_having_execution_context(vm);

@@ -35,7 +35,6 @@ public:
         Microtask,
         TimerTask,
         JavaScriptEngine,
-
         // https://w3c.github.io/geolocation/#dfn-geolocation-task-source
         Geolocation,
 
@@ -89,7 +88,7 @@ public:
 
         // https://www.w3.org/TR/webcrypto-2/#dfn-crypto-task-source
         Crypto,
-
+        AudioWorklet,
         // !!! IMPORTANT: Keep this field last!
         // This serves as the base value of all unique task sources.
         // Some elements, such as the HTMLMediaElement, must have a unique task source per instance.

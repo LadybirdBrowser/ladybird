@@ -148,6 +148,12 @@ void ConnectionFromClient::connect_to_image_decoder(IPC::TransportHandle handle)
         on_image_decoder_connection(handle);
 }
 
+void ConnectionFromClient::connect_to_audio_server(IPC::TransportHandle handle, ByteString grant_id)
+{
+    if (on_audio_server_connection)
+        on_audio_server_connection(handle, grant_id);
+}
+
 void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle)
 {
     if (on_request_server_connection)
@@ -1073,6 +1079,11 @@ void ConnectionFromClient::request_internal_page_info(u64 page_id, WebView::Page
         if (!builder.is_empty())
             builder.append("\n"sv);
         append_gc_graph(builder);
+    }
+
+    if (builder.is_empty()) {
+        async_did_get_internal_page_info(page_id, type, Core::AnonymousBuffer {});
+        return;
     }
 
     auto buffer = MUST(Core::AnonymousBuffer::create_with_size(builder.length()));

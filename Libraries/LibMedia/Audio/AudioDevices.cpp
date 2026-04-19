@@ -14,8 +14,51 @@ AudioDevices& AudioDevices::the()
     return devices;
 }
 
+void AudioDevices::attach_to_audio_server_client(NonnullRefPtr<Audio::SessionClientOfAudioServer> client)
+{
+    if (m_audio_server_client.ptr() == client.ptr())
+        return;
+
+    auto existing_devices_changed_handler = move(client->on_devices_changed);
+    client->on_devices_changed = [existing_devices_changed_handler = move(existing_devices_changed_handler)]() mutable {
+        AudioDevices::the().refresh();
+        if (existing_devices_changed_handler)
+            existing_devices_changed_handler();
+    };
+    m_audio_server_client = move(client);
+    refresh();
+}
+
 void AudioDevices::refresh()
 {
+    if (!m_audio_server_client)
+        return;
+
+    auto result = m_audio_server_client->get_devices(
+        [this](Vector<Audio::DeviceInfo> const& devices) {
+            Vector<AudioDeviceInfo> input_devices;
+            Vector<AudioDeviceInfo> output_devices;
+            input_devices.ensure_capacity(devices.size());
+            output_devices.ensure_capacity(devices.size());
+
+            for (auto const& device : devices) {
+                if (device.type == Audio::DeviceInfo::Type::Input) {
+                    input_devices.append(device);
+                    continue;
+                }
+
+                if (device.type == Audio::DeviceInfo::Type::Output)
+                    output_devices.append(device);
+            }
+
+            m_cached_input_devices = move(input_devices);
+            m_cached_output_devices = move(output_devices);
+            notify_listeners();
+        },
+        [](ByteString const&) {
+        });
+    if (result.is_error())
+        return;
 }
 
 Vector<AudioDeviceInfo> AudioDevices::input_devices() const

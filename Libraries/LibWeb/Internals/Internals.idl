@@ -80,6 +80,8 @@ interface Internals {
 
     InternalGamepad connectVirtualGamepad();
 
+    OhNoesNode createOhNoesNode(BaseAudioContext context, DOMString path);
+
     undefined setHighlightedNode(Node? node);
 
     undefined clearElement(HTMLElement element);

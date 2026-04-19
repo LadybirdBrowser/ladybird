@@ -1,0 +1,52 @@
+/*
+ * Copyright (c) 2026, The Ladybird developers
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/ByteBuffer.h>
+#include <AK/Error.h>
+#include <AK/NonnullOwnPtr.h>
+#include <AK/Span.h>
+#include <AK/Types.h>
+#include <LibWebAudio/Engine/GraphDescription.h>
+#include <LibWebAudio/Engine/GraphResources.h>
+#include <LibWebAudio/SharedAudioBuffer.h>
+
+namespace Web::WebAudio::Render {
+
+struct WireFlags {
+    static constexpr u32 contains_external_resources = 1u << 1;
+};
+
+struct WireGraphBuildResult {
+    GraphDescription description;
+    NonnullOwnPtr<GraphResources> resources;
+
+    u32 flags { 0 };
+    f32 context_sample_rate_hz { 0.0f };
+    u32 param_automation_event_count { 0 };
+};
+
+struct EncodedRenderGraph {
+    ByteBuffer encoded_graph;
+    Vector<SharedAudioBufferBinding> shared_audio_buffers;
+};
+
+// Binary wire encoding for RenderGraphDescription
+ErrorOr<EncodedRenderGraph> encode_render_graph_for_media_server(GraphDescription const&,
+    f32 context_sample_rate,
+    GraphResources const&);
+
+// Decode a wire message into a runnable RenderGraphDescription plus a resource bag.
+//
+// - BufferTable payloads are materialized into resources and referenced by buffer_id.
+// - AudioBufferSource node descriptions contain metadata and buffer_id but omit PCM channels.
+// - MediaElementAudioSource provider_id is kept; the actual provider must be supplied out-of-band.
+ErrorOr<WireGraphBuildResult>
+decode_render_graph_wire_format(ReadonlyBytes bytes,
+    Span<SharedAudioBufferBinding const> shared_audio_buffers = {});
+
+} // namespace Web::WebAudio::Render

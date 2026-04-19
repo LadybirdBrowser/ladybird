@@ -9,6 +9,8 @@
 #include <AK/Atomic.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <LibAudioServer/LibAudioServer.h>
+#include <LibMedia/Audio/AudioDevices.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
@@ -25,6 +27,8 @@ class MediaStreamTrack final : public DOM::EventTarget {
 
 public:
     static GC::Ref<MediaStreamTrack> create(JS::Realm&, Bindings::MediaStreamTrackKind, Optional<String> label = {}, bool muted = false);
+    static GC::Ref<MediaStreamTrack> create_audio_input_track(JS::Realm&, Media::AudioDeviceInfo const&, Optional<String> label = {});
+    static GC::Ref<MediaStreamTrack> create_audio_output_track(JS::Realm&, Media::AudioDeviceInfo const&, Optional<String> label = {});
 
     virtual ~MediaStreamTrack() override = default;
 
@@ -52,6 +56,7 @@ public:
     void set_settings(MediaTrackSettings settings);
 
     Optional<String> device_id() const;
+    Optional<Audio::DeviceHandle> device_handle() const;
     u32 sample_rate_hz() const;
     u32 channel_count() const;
 
@@ -70,6 +75,8 @@ private:
     bool m_enabled { true };
     bool m_muted { false };
     Bindings::MediaStreamTrackState m_state { static_cast<Bindings::MediaStreamTrackState>(0) };
+
+    Optional<Media::AudioDeviceInfo> m_device_info;
 
     MediaTrackCapabilities m_capabilities;
     MediaTrackConstraints m_constraints;

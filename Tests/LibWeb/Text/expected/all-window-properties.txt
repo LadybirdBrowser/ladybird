@@ -20,9 +20,15 @@ AudioDestinationNode
 AudioListener
 AudioNode
 AudioParam
+AudioParamMap
+AudioPlaybackStats
+AudioProcessingEvent
 AudioScheduledSourceNode
+AudioSinkInfo
 AudioTrack
 AudioTrackList
+AudioWorklet
+AudioWorkletNode
 BarProp
 BaseAudioContext
 BeforeUnloadEvent
@@ -112,6 +118,7 @@ Comment
 CompositionEvent
 CompressionStream
 ConstantSourceNode
+ConvolverNode
 CookieChangeEvent
 CookieStore
 CountQueuingStrategy
@@ -276,6 +283,7 @@ IDBRecord
 IDBRequest
 IDBTransaction
 IDBVersionChangeEvent
+IIRFilterNode
 IdleDeadline
 Image
 ImageBitmap
@@ -307,7 +315,10 @@ MediaQueryListEvent
 MediaSource
 MediaSourceHandle
 MediaStream
+MediaStreamAudioDestinationNode
+MediaStreamAudioSourceNode
 MediaStreamTrack
+MediaStreamTrackAudioSourceNode
 MediaStreamTrackEvent
 MessageChannel
 MessageEvent
@@ -538,6 +549,7 @@ VideoTrack
 VideoTrackList
 ViewTransition
 VisualViewport
+WaveShaperNode
 WeakMap
 WeakRef
 WeakSet

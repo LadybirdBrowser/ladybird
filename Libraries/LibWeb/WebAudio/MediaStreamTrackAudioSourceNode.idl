@@ -1,0 +1,9 @@
+// https://webaudio.github.io/web-audio-api/#MediaStreamTrackAudioSourceNode
+[Exposed=Window]
+interface MediaStreamTrackAudioSourceNode : AudioNode {
+    constructor (AudioContext context, MediaStreamTrackAudioSourceOptions options);
+};
+
+dictionary MediaStreamTrackAudioSourceOptions {
+    required MediaStreamTrack mediaStreamTrack;
+};

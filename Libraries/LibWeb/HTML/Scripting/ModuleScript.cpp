@@ -41,6 +41,9 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_javascript_mod
     // 4. Set script's base URL to baseURL.
     auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
 
+    // Keep a copy of the module source for mirroring into other execution environments.
+    script->m_source_text = source;
+
     // FIXME: 5. Set script's fetch options to options.
 
     // 6. Set script's parse error and error to rethrow to null.
@@ -73,6 +76,10 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_from_pre_parsed(
 {
     auto& realm = settings.realm();
     auto script = realm.create<ModuleScript>(move(base_url), filename, settings);
+
+    // Keep the original source text available for cases that need to mirror the module into
+    // another execution environment after the parser has already consumed the pre-parsed form.
+    script->m_source_text = source_code->code().to_byte_string();
 
     script->set_parse_error(JS::js_null());
     script->set_error_to_rethrow(JS::js_null());

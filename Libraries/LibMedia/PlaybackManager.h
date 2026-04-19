@@ -8,11 +8,13 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibAudioServer/SampleSpecification.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/DecoderError.h>
 #include <LibMedia/Export.h>
@@ -89,6 +91,12 @@ public:
     TimeRanges buffered_time_ranges() const;
 
     void set_volume(double);
+
+    using AudioTapCallback = Function<void(ReadonlySpan<float>, Audio::SampleSpecification const&, AK::Duration)>;
+    void set_audio_tap(AudioTapCallback, Optional<Audio::SampleSpecification> override_sample_specification = {});
+    void clear_audio_tap();
+
+    AudioMixingSink* audio_sink() const { return m_audio_sink.ptr(); }
 
     Function<void()> on_metadata_parsed;
     Function<void(DecoderError&&)> on_unsupported_format_error;
@@ -173,6 +181,10 @@ private:
 
     Optional<Track> m_preferred_video_track;
     Optional<Track> m_preferred_audio_track;
+
+    HashMap<Track, bool> m_audio_track_enabled_before_tap;
+    Optional<Track> m_audio_tap_selected_track;
+    bool m_audio_tap_active { false };
 
     AK::Duration m_duration;
 

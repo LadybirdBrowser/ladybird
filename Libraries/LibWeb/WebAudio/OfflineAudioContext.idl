@@ -1,9 +1,12 @@
+// https://webaudio.github.io/web-audio-api/#enumdef-audiocontextrendersizecategory
+enum AudioContextRenderSizeCategory { "default", "hardware" };
+
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContextOptions
 dictionary OfflineAudioContextOptions {
     unsigned long numberOfChannels = 1;
     required unsigned long length;
     required float sampleRate;
-    // FIXME: (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
+    (AudioContextRenderSizeCategory or unsigned long) renderSizeHint = "default";
 };
 
 // https://webaudio.github.io/web-audio-api/#OfflineAudioContext

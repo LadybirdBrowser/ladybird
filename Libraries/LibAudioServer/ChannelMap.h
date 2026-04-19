@@ -1,0 +1,225 @@
+/*
+ * Copyright (c) 2025, Gregory Bertilson <gregory@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Format.h>
+#include <AK/StdLibExtras.h>
+#include <AK/String.h>
+#include <AK/StringBuilder.h>
+#include <AK/TypedTransfer.h>
+#include <AK/Types.h>
+
+namespace Audio {
+
+enum class Channel : u8 {
+    Unknown,
+    FrontLeft,
+    FrontRight,
+    FrontCenter,
+    LowFrequency,
+    BackLeft,
+    BackRight,
+    FrontLeftOfCenter,
+    FrontRightOfCenter,
+    BackCenter,
+    SideLeft,
+    SideRight,
+    TopCenter,
+    TopFrontLeft,
+    TopFrontCenter,
+    TopFrontRight,
+    TopBackLeft,
+    TopBackCenter,
+    TopBackRight,
+    Count,
+};
+
+class ChannelMap {
+public:
+    static constexpr ChannelMap invalid() { return ChannelMap(); }
+
+    static constexpr ChannelMap mono() { return ChannelMap(Channel::FrontCenter); }
+
+    static constexpr ChannelMap stereo() { return ChannelMap(Channel::FrontLeft, Channel::FrontRight); }
+
+    static constexpr ChannelMap quadrophonic()
+    {
+        return ChannelMap(Channel::FrontLeft, Channel::FrontRight, Channel::BackLeft, Channel::BackRight);
+    }
+
+    static constexpr ChannelMap surround_5_1()
+    {
+        return ChannelMap(Channel::FrontLeft, Channel::FrontRight, Channel::FrontCenter, Channel::LowFrequency,
+            Channel::BackLeft, Channel::BackRight);
+    }
+
+    static constexpr ChannelMap surround_7_1()
+    {
+        return ChannelMap(Channel::FrontLeft, Channel::FrontRight, Channel::FrontCenter, Channel::LowFrequency,
+            Channel::BackLeft, Channel::BackRight, Channel::SideLeft, Channel::SideRight);
+    }
+
+    template<typename... Channels>
+    requires(IsSame<Channels, Channel> && ...)
+    constexpr ChannelMap(Channels... channels)
+        : m_channel_count(sizeof...(channels) / sizeof(Channel))
+        , m_channels(channels...)
+    {
+    }
+
+    template<size_t VecCapacity>
+    ChannelMap(Vector<Channel, VecCapacity> const& channels)
+        : ChannelMap(channels.span())
+    {
+    }
+
+    ChannelMap(ReadonlySpan<Channel> channels)
+        : m_channel_count(channels.size())
+    {
+        VERIFY(channels.size() <= capacity());
+        AK::TypedTransfer<Channel>::copy(m_channels, channels.data(), channels.size());
+    }
+
+    bool is_valid() const { return m_channel_count > 0; }
+
+    u8 channel_count() const { return m_channel_count; }
+    Channel channel_at(u8 index) const
+    {
+        VERIFY(index < channel_count());
+        return m_channels[index];
+    }
+
+    static constexpr size_t capacity() { return sizeof(m_channels) / sizeof(*m_channels); }
+
+    [[nodiscard]] constexpr bool operator==(ChannelMap const& other) const
+    {
+        if (channel_count() != other.channel_count())
+            return false;
+        for (u8 i = 0; i < channel_count(); i++) {
+            if (channel_at(i) != other.channel_at(i))
+                return false;
+        }
+        return true;
+    }
+
+    static ChannelMap guess_by_channel_count(u32 channel_count)
+    {
+        if (channel_count == 1)
+            return mono();
+        if (channel_count == 2)
+            return stereo();
+        if (channel_count == 4)
+            return quadrophonic();
+        if (channel_count == 6)
+            return surround_5_1();
+        if (channel_count == 8)
+            return surround_7_1();
+
+        Vector<Channel, 8> channels;
+        channels.resize(channel_count);
+        for (auto& ch : channels)
+            ch = Channel::Unknown;
+        return ChannelMap(channels);
+    }
+
+    static ChannelMap from_layout(Vector<u8> const& channel_layout, u32 channel_count)
+    {
+        if (channel_layout.size() != channel_count)
+            return guess_by_channel_count(channel_count);
+
+        Vector<Channel, 8> channels;
+        channels.resize(channel_count);
+        for (size_t i = 0; i < channel_layout.size(); ++i) {
+            u8 encoded_channel = channel_layout[i];
+            if (encoded_channel >= to_underlying(Channel::Count))
+                channels[i] = Channel::Unknown;
+            else
+                channels[i] = static_cast<Channel>(encoded_channel);
+        }
+        return ChannelMap(channels);
+    }
+
+private:
+    u8 m_channel_count { 0 };
+    Channel m_channels[to_underlying(Channel::Count)];
+};
+
+constexpr StringView audio_channel_to_string(Channel channel)
+{
+    switch (channel) {
+    case Channel::Unknown:
+        return "Unknown"sv;
+    case Channel::FrontLeft:
+        return "FrontLeft"sv;
+    case Channel::FrontRight:
+        return "FrontRight"sv;
+    case Channel::FrontCenter:
+        return "FrontCenter"sv;
+    case Channel::LowFrequency:
+        return "LowFrequency"sv;
+    case Channel::BackLeft:
+        return "BackLeft"sv;
+    case Channel::BackRight:
+        return "BackRight"sv;
+    case Channel::FrontLeftOfCenter:
+        return "FrontLeftOfCenter"sv;
+    case Channel::FrontRightOfCenter:
+        return "FrontRightOfCenter"sv;
+    case Channel::BackCenter:
+        return "BackCenter"sv;
+    case Channel::SideLeft:
+        return "SideLeft"sv;
+    case Channel::SideRight:
+        return "SideRight"sv;
+    case Channel::TopCenter:
+        return "TopCenter"sv;
+    case Channel::TopFrontLeft:
+        return "TopFrontLeft"sv;
+    case Channel::TopFrontCenter:
+        return "TopFrontCenter"sv;
+    case Channel::TopFrontRight:
+        return "TopFrontRight"sv;
+    case Channel::TopBackLeft:
+        return "TopBackLeft"sv;
+    case Channel::TopBackCenter:
+        return "TopBackCenter"sv;
+    case Channel::TopBackRight:
+        return "TopBackRight"sv;
+    case Channel::Count:
+        break;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+} // namespace Audio
+
+namespace AK {
+
+template<>
+struct Formatter<Audio::Channel> : Formatter<StringView> {
+    ErrorOr<void> format(FormatBuilder& builder, Audio::Channel channel)
+    {
+        return Formatter<StringView>::format(builder, Audio::audio_channel_to_string(channel));
+    }
+};
+
+template<>
+struct Formatter<Audio::ChannelMap> : StandardFormatter {
+    static ErrorOr<void> format(FormatBuilder& builder, Audio::ChannelMap channel_map)
+    {
+        TRY(builder.builder().try_append("[ "sv));
+        auto count = channel_map.channel_count();
+        for (u8 i = 0; i < count; i++)
+            TRY(builder.builder().try_appendff("{}, ", channel_map.channel_at(i)));
+        if (count > 0)
+            builder.builder().trim(2);
+        TRY(builder.builder().try_append(" ]"sv));
+        return {};
+    }
+};
+
+} // namespace AK

@@ -196,7 +196,6 @@ public:
                     if (m_exit)
                         break;
                 }
-
                 auto presentation_mode = [this] {
                     Threading::MutexLocker const locker { m_mutex };
                     return m_presentation_mode;

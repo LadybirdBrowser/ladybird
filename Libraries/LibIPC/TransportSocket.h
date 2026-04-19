@@ -61,7 +61,7 @@ public:
 
     void post_message(Vector<u8> const&, Vector<Attachment>& attachments);
 
-    enum class ShouldShutdown {
+    enum class ShouldShutdown : u8 {
         No,
         Yes,
     };
@@ -74,7 +74,7 @@ public:
     ErrorOr<TransportHandle> release_for_transfer();
 
 private:
-    enum class TransferState {
+    enum class TransferState : u8 {
         Continue,
         SocketClosed,
     };
@@ -82,7 +82,7 @@ private:
 
     static ErrorOr<void> send_message(Core::LocalSocket&, ReadonlyBytes& bytes, Vector<int>& unowned_fds);
 
-    enum class IOThreadState {
+    enum class IOThreadState : u8 {
         Running,
         SendPendingMessagesAndStop,
         Stopped,

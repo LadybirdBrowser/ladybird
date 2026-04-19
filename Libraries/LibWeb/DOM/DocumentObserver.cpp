@@ -26,6 +26,7 @@ void DocumentObserver::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_document_became_active);
     visitor.visit(m_document_became_inactive);
     visitor.visit(m_document_completely_loaded);
+    visitor.visit(m_document_will_unload);
     visitor.visit(m_document_readiness_observer);
     visitor.visit(m_document_visibility_state_observer);
     visitor.visit(m_document_page_showing_observer);
@@ -67,6 +68,14 @@ void DocumentObserver::set_document_completely_loaded(Function<void()> callback)
         m_document_completely_loaded = GC::create_function(vm().heap(), move(callback));
     else
         m_document_completely_loaded = nullptr;
+}
+
+void DocumentObserver::set_document_will_unload(Function<void()> callback)
+{
+    if (callback)
+        m_document_will_unload = GC::create_function(vm().heap(), move(callback));
+    else
+        m_document_will_unload = nullptr;
 }
 
 void DocumentObserver::set_document_readiness_observer(Function<void(HTML::DocumentReadyState)> callback)

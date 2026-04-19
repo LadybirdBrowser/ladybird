@@ -214,8 +214,8 @@ WEB_API bool module_type_allowed(EnvironmentSettingsObject const&, StringView mo
 WEB_API void add_module_to_resolved_module_set(EnvironmentSettingsObject&, String const& serialized_base_url, String const& normalized_specifier, Optional<URL::URL> const& as_url);
 
 WEB_API EnvironmentSettingsObject& incumbent_settings_object();
+WEB_API EnvironmentSettingsObject& incumbent_settings_object(JS::VM&);
 WEB_API JS::Realm& incumbent_realm();
-
 JS::Object& incumbent_global_object();
 
 EnvironmentSettingsObject& principal_realm_settings_object(JS::Realm&);

@@ -9,6 +9,5 @@
 namespace Audio {
 
 class AudioConverter;
-class PlaybackStream;
 
 }

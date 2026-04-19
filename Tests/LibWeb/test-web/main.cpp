@@ -14,10 +14,13 @@
 #include "TestRunCapture.h"
 #include "TestWeb.h"
 #include "TestWebView.h"
+#include "WebPlatformTest.h"
 
 #include <AK/ByteBuffer.h>
 #include <AK/Enumerate.h>
 #include <AK/Function.h>
+#include <AK/JsonObject.h>
+#include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
 #include <AK/NumberFormat.h>
 #include <AK/QuickSort.h>
@@ -32,6 +35,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibCore/Process.h>
 #include <LibCore/StandardPaths.h>
+#include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibDiff/Format.h>
 #include <LibDiff/Generator.h>
@@ -61,20 +65,47 @@ static HashMap<WebView::ViewImplementation const*, size_t> s_current_test_index_
 struct TestRunContext {
     Vector<Test>& tests;
     size_t& tests_remaining;
-    size_t& total_tests;
 };
 
 static TestRunContext* s_run_context { nullptr };
+static TestStats s_stats;
+
+static void update_stats(TestResult result);
 
 Vector<ViewDisplayState>& view_states() { return s_view_display_states; }
-size_t total_tests() { return s_run_context ? s_run_context->total_tests : 0; }
 
-static ErrorOr<ByteString> prepare_output_path(Test const& test)
+TestStats const& test_stats() { return s_stats; }
+
+ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
     auto& app = Application::the();
-    auto base_path = LexicalPath::join(app.results_directory, test.safe_relative_path);
-    TRY(Core::Directory::create(base_path.dirname(), Core::Directory::CreateDirectories::Yes));
-    return base_path.string();
+    return ByteString::formatted("{}/{}", app.results_directory, test.safe_relative_path);
+}
+
+static ErrorOr<void> setup_results_directory()
+{
+    auto& app = Application::the();
+    TRY(Core::Directory::create(LexicalPath { app.results_directory }.dirname(), Core::Directory::CreateDirectories::Yes));
+    if (FileSystem::is_directory(app.results_directory)) {
+        auto maybe_stat = Core::System::stat(LexicalPath::join(app.results_directory, "index.html"sv).string());
+        if (maybe_stat.is_error())
+            return {};
+        auto index_stat = maybe_stat.release_value();
+        auto date_str =
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS) || defined(AK_OS_FREEBSD)
+            UnixDateTime::from_unix_timespec(index_stat.st_birthtimespec).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#elif defined(AK_OS_WINDOWS)
+            UnixDateTime::from_seconds_since_epoch(index_stat.st_ctime).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#else
+            UnixDateTime::from_unix_timespec(index_stat.st_ctim).to_byte_string("%Y-%m-%d_at_%H-%M-%S"sv);
+#endif
+        auto archived_results = ByteString::formatted("{}_on_{}", app.results_directory, date_str);
+        while (FileSystem::exists(archived_results))
+            archived_results = ByteString::formatted("{}_", archived_results);
+        TRY(Core::System::rename(app.results_directory, archived_results));
+    }
+    TRY(Core::Directory::create(app.results_directory, Core::Directory::CreateDirectories::Yes));
+    return {};
 }
 
 static bool is_valid_test_name(StringView test_name)
@@ -288,21 +319,33 @@ window.PDFViewerApplication.initializedPromise.then(() => {
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
-    auto& display = Display::the();
 
     bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
     auto const generated_at = UnixDateTime::now();
 
+    size_t wpt_subtest_count = 0;
+    size_t wpt_subtests_passed = 0;
+    for (auto const& test : tests) {
+        if (!test.is_wpt_test || test.subtest_count.value_or(0) == 0)
+            continue;
+        wpt_subtest_count += test.subtest_count.value();
+        wpt_subtests_passed += test.subtests_passed;
+    }
     // Write results.js (as JS to avoid fetch CORS issues with file://)
     StringBuilder js;
     js.append("const RESULTS_DATA = {\n"sv);
-    js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
-        total_tests(),
-        display.fail_count,
-        display.timeout_count,
-        display.crashed_count,
-        display.skipped_count);
-    js.appendff("  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
+    js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {}",
+        s_stats.total_tests,
+        s_stats.fail_count,
+        s_stats.timeout_count,
+        s_stats.crashed_count,
+        s_stats.skipped_count);
+    if (wpt_subtest_count > 0) {
+        js.appendff(", \"wptSubtestsPassed\": {}, \"wptSubtestCount\": {}",
+            wpt_subtests_passed,
+            wpt_subtest_count);
+    }
+    js.appendff(" }},\n  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
     js.appendff("  \"invocationCommandLine\": {},\n", JsonValue(app.invocation_command_line).serialized());
     js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
     js.append("  \"tests\": [\n"sv);
@@ -319,12 +362,20 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
         auto const& test = tests[result.test_index];
         auto base_path = TRY(prepare_output_path(test));
         bool has_std_logs = FileSystem::exists(ByteString::formatted("{}.logs.html", base_path));
+        bool has_wpt_result = test.is_wpt_test
+            && test.mode == TestMode::Text
+            && test.expectation_path.is_empty()
+            && FileSystem::exists(ByteString::formatted("{}.wpt.html", base_path));
 
-        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"hasLogs\": {}",
+        js.appendff("    {{ \"name\": \"{}\", \"result\": \"{}\", \"mode\": \"{}\", \"isWptTest\": {}, \"hasLogs\": {}, \"hasWptResult\": {}",
             test.safe_relative_path,
             test_result_to_string(result.result),
             test_mode_to_string(test.mode),
-            has_std_logs ? "true" : "false");
+            test.is_wpt_test ? "true" : "false",
+            has_std_logs ? "true" : "false",
+            has_wpt_result ? "true" : "false");
+        if (test.is_wpt_test && test.subtest_count.value_or(0) > 0)
+            js.appendff(", \"subtestsPassed\": {}, \"subtestCount\": {}", test.subtests_passed, test.subtest_count.value());
         if ((test.mode == TestMode::Ref || test.mode == TestMode::Screenshot) && test.diff_pixel_error_count > 0)
             js.appendff(", \"pixelErrors\": {}, \"maxChannelDiff\": {}", test.diff_pixel_error_count, test.diff_maximum_error);
         js.append(" }"sv);
@@ -458,7 +509,7 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     context.tests_remaining += variants.size();
 
     // For display, add (variants.size() - 1) since Expanded tests don't count in s_completed_tests
-    context.total_tests += variants.size() - 1;
+    s_stats.total_tests += variants.size() - 1;
 }
 
 static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
@@ -468,6 +519,9 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
         if (test.expectation_path.is_empty()) {
+            if (test.is_wpt_test && test.mode == TestMode::Text)
+                return on_wpt_test_result(test, url);
+
             if (test.mode != TestMode::Crash)
                 outln("{}", test.text);
             return TestResult::Pass;
@@ -539,7 +593,7 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
                 });
             });
         };
-    } else if (test.mode == TestMode::Text) {
+    } else if (test.mode == TestMode::Text && !test.is_wpt_test) {
         // Set up variant detection callback.
         view.on_test_variant_metadata = [&view, &context, test_index, on_test_complete](JsonValue metadata) {
             // Verify this IPC response is for the current test on this view (use index to avoid dangling pointer issues)
@@ -602,6 +656,23 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             test.did_finish_test = true;
 
             if (test.did_finish_loading && test.did_check_variants)
+                on_test_complete();
+        };
+    } else if (test.mode == TestMode::Text && test.is_wpt_test) {
+        view.on_load_finish = [on_test_complete, url, &context, test_index](auto const& loaded_url) {
+            if (!url.equals(loaded_url, URL::ExcludeFragment::Yes))
+                return;
+
+            auto& test = context.tests[test_index];
+            test.did_finish_loading = true;
+            if (test.did_finish_test)
+                on_test_complete();
+        };
+        view.on_test_finish = [&context, test_index, on_test_complete](auto const& text) {
+            auto& test = context.tests[test_index];
+            test.text = text;
+            test.did_finish_test = true;
+            if (test.did_finish_loading)
                 on_test_complete();
         };
     } else if (test.mode == TestMode::Crash) {
@@ -937,20 +1008,24 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
         auto& test = context.tests[test_index];
         test.did_start_test = true;
 
-        auto real_path = MUST(FileSystem::real_path(test.input_path));
-        auto headers_path = ByteString::formatted("{}.headers", real_path);
-
         Optional<URL::URL> url;
-        if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
-            // Some tests need to be served via the echo server so, for example, HTTP headers from .headers files are
-            // sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing cookies).
-            auto echo_server_port = Application::web_content_options().echo_server_port;
-            VERIFY(echo_server_port.has_value());
-            auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
-            VERIFY(relative_path.has_value());
-            url = URL::Parser::basic_parse(ByteString::formatted("http://localhost:{}/static/{}", echo_server_port.value(), relative_path.value())).release_value();
+        if (test.is_wpt_test) {
+            url = wpt_url(test.relative_path);
         } else {
-            url = URL::create_with_file_scheme(real_path).release_value();
+            auto real_path = MUST(FileSystem::real_path(test.input_path));
+            auto headers_path = ByteString::formatted("{}.headers", real_path);
+
+            if (FileSystem::exists(headers_path) || s_loaded_from_http_server.contains_slow(test.input_path)) {
+                // Some tests need to be served via the echo server so, for example, HTTP headers from .headers files are
+                // sent, or so that the resulting HTML document has a HTTP based origin (e.g for testing cookies).
+                auto echo_server_port = Application::web_content_options().echo_server_port;
+                VERIFY(echo_server_port.has_value());
+                auto relative_path = LexicalPath::relative_path(real_path, app.test_root_path);
+                VERIFY(relative_path.has_value());
+                url = URL::Parser::basic_parse(ByteString::formatted("http://localhost:{}/static/{}", echo_server_port.value(), relative_path.value())).release_value();
+            } else {
+                url = URL::create_with_file_scheme(real_path).release_value();
+            }
         }
 
         // Append variant query string if present (variant is "?foo=bar", set_query expects "foo=bar")
@@ -1047,60 +1122,70 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
     Vector<Test> tests;
 
-    // Parse explicit variants from filters (e.g., "test.html?variant=foo")
-    HashMap<ByteString, String> explicit_variants;
-    for (auto& glob : app.test_globs) {
-        if (auto query_pos = glob.find('?'); query_pos.has_value()) {
-            auto base_glob = glob.substring(0, query_pos.value());
-            auto variant = MUST(String::from_utf8(glob.substring_view(query_pos.value())));
-            explicit_variants.set(ByteString::formatted("*{}*", base_glob), variant);
-            glob = ByteString::formatted("*{}*", base_glob);
-        } else {
-            glob = ByteString::formatted("*{}*", glob);
+    if (app.should_collect_regular_tests()) {
+        // Parse explicit variants from filters (e.g., "test.html?variant=foo")
+        HashMap<ByteString, String> explicit_variants;
+        for (auto& glob : app.test_globs) {
+            if (auto query_pos = glob.find('?'); query_pos.has_value()) {
+                auto base_glob = glob.substring(0, query_pos.value());
+                auto variant = MUST(String::from_utf8(glob.substring_view(query_pos.value())));
+                explicit_variants.set(ByteString::formatted("*{}*", base_glob), variant);
+                glob = ByteString::formatted("*{}*", base_glob);
+            } else {
+                glob = ByteString::formatted("*{}*", glob);
+            }
         }
-    }
-    if (app.test_globs.is_empty())
-        app.test_globs.append("*"sv);
+        if (app.test_globs.is_empty() && !app.has_wpt_filters())
+            app.test_globs.append("*"sv);
 
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
-    TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
-    TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
-    TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
-    TRY(collect_screenshot_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
+        TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Layout", app.test_root_path), "."sv, TestMode::Layout));
+        TRY(collect_dump_tests(app, tests, ByteString::formatted("{}/Text", app.test_root_path), "."sv, TestMode::Text));
+        TRY(collect_ref_tests(app, tests, ByteString::formatted("{}/Ref", app.test_root_path), "."sv));
+        TRY(collect_crash_tests(app, tests, ByteString::formatted("{}/Crash", app.test_root_path), "."sv));
+        TRY(collect_screenshot_tests(app, tests, ByteString::formatted("{}/Screenshot", app.test_root_path), "."sv));
 
-    tests.remove_all_matching([&](auto const& test) {
-        static constexpr Array support_file_patterns {
-            "*/wpt-import/*/support/*"sv,
-            "*/wpt-import/*/resources/*"sv,
-            "*/wpt-import/common/*"sv,
-            "*/wpt-import/images/*"sv,
-        };
-        auto normalize_path = [](ByteString const& path) { return path.replace("\\"sv, "/"sv); };
-        auto const test_input_path = normalize_path(test.input_path);
-        auto const test_relative_path = normalize_path(test.relative_path);
-        bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test_input_path.matches(pattern); });
-        bool match_glob = any_of(app.test_globs, [&](auto const& glob) { return test_relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
-        return is_support_file || !match_glob;
-    });
+        tests.remove_all_matching([&](auto const& test) {
+            if (test.is_wpt_test)
+                return false;
 
-    // Apply explicit variants from filters
-    for (auto& test : tests) {
-        for (auto const& [glob, variant] : explicit_variants) {
-            if (test.relative_path.matches(glob, CaseSensitivity::CaseSensitive)) {
-                test.variant = variant;
-                auto variant_suffix = variant.bytes_as_string_view().substring_view(1);
-                test.relative_path = ByteString::formatted("{}?{}", test.relative_path, variant_suffix);
-                test.safe_relative_path = ByteString::formatted("{}@{}", test.safe_relative_path, variant_suffix);
-                auto dir = LexicalPath::dirname(test.expectation_path);
-                auto title = LexicalPath::title(LexicalPath::basename(test.input_path));
-                if (dir.is_empty())
-                    test.expectation_path = ByteString::formatted("{}@{}.txt", title, variant_suffix);
-                else
-                    test.expectation_path = ByteString::formatted("{}/{}@{}.txt", dir, title, variant_suffix);
-                break;
+            static constexpr Array support_file_patterns {
+                "*/wpt-import/*/support/*"sv,
+                "*/wpt-import/*/resources/*"sv,
+                "*/wpt-import/common/*"sv,
+                "*/wpt-import/images/*"sv,
+            };
+            auto normalize_path = [](ByteString const& path) { return path.replace("\\"sv, "/"sv); };
+            auto const test_input_path = normalize_path(test.input_path);
+            auto const test_relative_path = normalize_path(test.relative_path);
+            bool is_support_file = any_of(support_file_patterns, [&](auto pattern) { return test_input_path.matches(pattern); });
+            bool match_glob = !app.test_globs.is_empty() && any_of(app.test_globs, [&](auto const& glob) { return test_relative_path.matches(glob, CaseSensitivity::CaseSensitive); });
+            return is_support_file || !match_glob;
+        });
+
+        // Apply explicit variants from filters
+        for (auto& test : tests) {
+            if (test.is_wpt_test)
+                continue;
+
+            for (auto const& [glob, variant] : explicit_variants) {
+                if (test.relative_path.matches(glob, CaseSensitivity::CaseSensitive)) {
+                    test.variant = variant;
+                    auto variant_suffix = variant.bytes_as_string_view().substring_view(1);
+                    test.relative_path = ByteString::formatted("{}?{}", test.relative_path, variant_suffix);
+                    test.safe_relative_path = ByteString::formatted("{}@{}", test.safe_relative_path, variant_suffix);
+                    auto dir = LexicalPath::dirname(test.expectation_path);
+                    auto title = LexicalPath::title(LexicalPath::basename(test.input_path));
+                    if (dir.is_empty())
+                        test.expectation_path = ByteString::formatted("{}@{}.txt", title, variant_suffix);
+                    else
+                        test.expectation_path = ByteString::formatted("{}/{}@{}.txt", dir, title, variant_suffix);
+                    break;
+                }
             }
         }
     }
+
+    TRY(collect_wpt_tests(tests));
 
     if (app.shuffle)
         shuffle(tests);
@@ -1115,7 +1200,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     }
 
     if (tests.is_empty()) {
-        if (app.test_globs.is_empty())
+        if (app.test_globs.is_empty() && app.wpt_filters.is_empty())
             return Error::from_string_literal("No tests found");
         return Error::from_string_literal("No tests found matching filter");
     }
@@ -1134,8 +1219,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
         }
     }
-    size_t total_tests = tests.size();
-    auto concurrency = min(app.test_concurrency, total_tests);
+    s_stats.total_tests = tests.size();
+    auto concurrency = min(app.test_concurrency, s_stats.total_tests);
     size_t loaded_web_views = 0;
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
@@ -1164,9 +1249,6 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
         s_view_display_states[i].active = false;
     }
 
-    display.begin_run();
-    ScopeGuard clear_live_display = [&] { display.clear_live_display(); };
-
     // Initialize per-view functions (for waking idle views)
     s_view_run_next_test.resize_and_keep_capacity(concurrency);
 
@@ -1174,9 +1256,13 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto tests_remaining = tests.size();
     auto current_test = 0uz;
 
-    TestRunContext context { tests, tests_remaining, total_tests };
+    TestRunContext context { tests, tests_remaining };
     s_run_context = &context;
-    ScopeGuard clear_run_context = [&] { s_run_context = nullptr; };
+    ScopeGuard clear_live_display = [&] {
+        display.clear_live_display();
+        s_run_context = nullptr;
+    };
+    display.begin_run();
 
     Vector<TestCompletion> non_passing_tests;
     bool fail_fast_triggered = false;
@@ -1232,6 +1318,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             test.index = index;
 
             // Mark this view as active (for variant wake-up tracking)
+            s_stats.current_run = test.run_index;
             display.on_test_started(view_id, test, view->web_content_pid());
 
             // Reset promise and attach completion callback
@@ -1258,12 +1345,18 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (is_non_passing_result)
                     non_passing_tests.append(result);
 
-                Display::the().on_test_finished(view_id, test, result.result);
+                update_stats(result.result);
+                Display::the().on_test_finished(view_id, test);
 
                 if (app.fail_fast && !fail_fast_triggered && should_trigger_fail_fast) {
                     fail_fast_triggered = true;
                     auto const pid = view->web_content_pid();
-                    Display::the().on_fail_fast(test, result.result, pid);
+                    Display::the().clear_live_display();
+
+                    if (result.result == TestResult::Timeout)
+                        outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
+                    else
+                        outln("Fail-fast: {}: {}", test_result_to_string(result.result), test.relative_path);
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
@@ -1333,7 +1426,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             outln("Results: file://{}/index.html", app.results_directory);
     }
 
-    return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining;
+    return s_stats.fail_count + s_stats.timeout_count + s_stats.crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)
@@ -1371,6 +1464,33 @@ static void handle_signal(int signal)
             : Error::from_string_view("SIGTERM received"sv));
 }
 
+static void update_stats(TestResult result)
+{
+    auto& stats = s_stats;
+    switch (result) {
+    case TestResult::Pass:
+        ++stats.pass_count;
+        break;
+    case TestResult::Fail:
+        ++stats.fail_count;
+        break;
+    case TestResult::Timeout:
+        ++stats.timeout_count;
+        break;
+    case TestResult::Crashed:
+        ++stats.crashed_count;
+        break;
+    case TestResult::Skipped:
+        ++stats.skipped_count;
+        break;
+    case TestResult::Expanded:
+        // Don't count Expanded as a separate result in stats, it's just a UI state for certain tests.
+        break;
+    }
+    if (result != TestResult::Expanded)
+        stats.completed_tests++;
+}
+
 }
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
@@ -1399,11 +1519,13 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!app->test_root_path.is_empty());
 
     app->test_root_path = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->test_root_path);
+    app->wpt_path = LexicalPath::join(app->test_root_path, "WPT"sv, "wpt"sv).string();
 
     app->results_directory = LexicalPath::absolute_path(TRY(FileSystem::current_working_directory()), app->results_directory);
-    TRY(Core::Directory::create(app->results_directory, Core::Directory::CreateDirectories::Yes));
+    TRY(TestWeb::setup_results_directory());
 
-    TRY(app->launch_test_fixtures());
+    if (!app->test_dry_run)
+        TRY(app->launch_test_fixtures());
 
     return TestWeb::run_tests(theme, window_size);
 }

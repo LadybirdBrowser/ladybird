@@ -12,6 +12,7 @@
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
 #include <AK/Variant.h>
+#include <LibGC/WeakHashSet.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Fetch/Request.h>
@@ -20,6 +21,12 @@
 #include <LibWeb/PerformanceTimeline/PerformanceEntry.h>
 #include <LibWeb/PerformanceTimeline/PerformanceEntryTuple.h>
 #include <LibWeb/WebSockets/WebSocket.h>
+
+namespace Web::WebAudio {
+
+class AudioContext;
+
+}
 
 namespace Web::HTML {
 
@@ -75,6 +82,9 @@ public:
     void forcibly_close_all_event_sources();
 
     void close_all_idb_connections();
+    void register_audio_context(Badge<WebAudio::AudioContext>, GC::Ref<WebAudio::AudioContext>);
+    void unregister_audio_context(Badge<WebAudio::AudioContext>, GC::Ref<WebAudio::AudioContext>);
+    void forcibly_close_all_audio_contexts();
 
     void register_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket>);
     void unregister_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket>);
@@ -149,6 +159,8 @@ private:
     OrderedHashMap<FlyString, PerformanceTimeline::PerformanceEntryTuple> m_performance_entry_buffer_map;
 
     HashTable<GC::Ref<EventSource>> m_registered_event_sources;
+
+    GC::WeakHashSet<WebAudio::AudioContext> m_registered_audio_contexts;
 
     GC::Ptr<HighResolutionTime::Performance> m_performance;
 

@@ -195,6 +195,7 @@ TransportSocket::~TransportSocket()
 void TransportSocket::stop_io_thread(IOThreadState desired_state)
 {
     VERIFY(desired_state == IOThreadState::Stopped || desired_state == IOThreadState::SendPendingMessagesAndStop);
+
     m_io_thread_state.store(desired_state, AK::MemoryOrder::memory_order_release);
     wake_io_thread();
     if (m_io_thread && m_io_thread->needs_to_be_joined())
@@ -309,11 +310,10 @@ ErrorOr<void> TransportSocket::send_message(Core::LocalSocket& socket, ReadonlyB
         }
 
         if (maybe_nwritten.is_error()) {
-            if (auto error = maybe_nwritten.release_error(); error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK || error.code() == EINTR)) {
+            auto error = maybe_nwritten.release_error();
+            if (error.is_errno() && (error.code() == EAGAIN || error.code() == EWOULDBLOCK || error.code() == EINTR))
                 return {};
-            } else {
-                return error;
-            }
+            return error;
         }
 
         bytes_to_write = bytes_to_write.slice(maybe_nwritten.value());

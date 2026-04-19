@@ -1,9 +1,8 @@
 Harness status: OK
 
-Found 319 tests
+Found 327 tests
 
-315 Pass
-4 Fail
+327 Pass
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "Offline createGain"
@@ -16,16 +15,16 @@ Pass	Executing "Offline createOscillator"
 Pass	Executing "Offline createPanner"
 Pass	Executing "Offline createConstantSource"
 Pass	Executing "Offline createBuffer"
-Fail	Executing "Offline createIIRFilter"
-Fail	Executing "Offline createWaveShaper"
-Fail	Executing "Offline createConvolver"
+Pass	Executing "Offline createIIRFilter"
+Pass	Executing "Offline createWaveShaper"
+Pass	Executing "Offline createConvolver"
 Pass	Executing "Offline createAnalyser"
 Pass	Executing "Offline createScriptProcessor"
 Pass	Executing "Offline createPeriodicWave"
 Pass	Executing "Offline createChannelSplitter"
 Pass	Executing "Offline createChannelMerger"
 Pass	Executing "Online createMediaElementSource"
-Fail	Executing "Online createMediaStreamDestination"
+Pass	Executing "Online createMediaStreamDestination"
 Pass	Executing "AudioListener"
 Pass	Executing "verifyTests"
 Pass	Executing "automation"
@@ -238,8 +237,14 @@ Pass	> [Offline createBuffer]
 Pass	  AudioBuffer has no AudioParams as expected
 Pass	< [Offline createBuffer] All assertions passed. (total 1 assertions)
 Pass	> [Offline createIIRFilter] 
+Pass	  IIRFilterNode has no AudioParams as expected
+Pass	< [Offline createIIRFilter] All assertions passed. (total 1 assertions)
 Pass	> [Offline createWaveShaper] 
+Pass	  WaveShaperNode has no AudioParams as expected
+Pass	< [Offline createWaveShaper] All assertions passed. (total 1 assertions)
 Pass	> [Offline createConvolver] 
+Pass	  ConvolverNode has no AudioParams as expected
+Pass	< [Offline createConvolver] All assertions passed. (total 1 assertions)
 Pass	> [Offline createAnalyser] 
 Pass	  AnalyserNode has no AudioParams as expected
 Pass	< [Offline createAnalyser] All assertions passed. (total 1 assertions)
@@ -259,6 +264,8 @@ Pass	> [Online createMediaElementSource]
 Pass	  MediaElementAudioSourceNode has no AudioParams as expected
 Pass	< [Online createMediaElementSource] All assertions passed. (total 1 assertions)
 Pass	> [Online createMediaStreamDestination] 
+Pass	  MediaStreamAudioDestinationNode has no AudioParams as expected
+Pass	< [Online createMediaStreamDestination] All assertions passed. (total 1 assertions)
 Pass	> [AudioListener] 
 Pass	  AudioListener.positionX.minValue is equal to -3.4028234663852886e+38.
 Pass	  AudioListener.positionX.maxValue is equal to 3.4028234663852886e+38.

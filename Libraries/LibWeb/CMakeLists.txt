@@ -1083,31 +1083,69 @@ set(SOURCES
     WebAssembly/WebAssembly.cpp
     WebAssembly/WebAssemblyModule.cpp
     WebAudio/AnalyserNode.cpp
+    WebAudio/AssociatedTaskQueue.cpp
     WebAudio/AudioBuffer.cpp
     WebAudio/AudioBufferSourceNode.cpp
     WebAudio/AudioContext.cpp
+    WebAudio/AudioPlaybackStats.cpp
+    WebAudio/AudioSinkInfo.cpp
+    WebAudio/AudioProcessingEvent.cpp
     WebAudio/AudioDestinationNode.cpp
     WebAudio/AudioListener.cpp
     WebAudio/AudioNode.cpp
     WebAudio/AudioParam.cpp
+    WebAudio/AudioParamMap.cpp
+    WebAudio/AudioParamMapIterator.cpp
     WebAudio/AudioScheduledSourceNode.cpp
+    WebAudio/EngineController.cpp
+    WebAudio/AudioWorklet.cpp
+    WebAudio/AudioWorkletEnvironmentSettingsObject.cpp
+    WebAudio/AudioWorkletGlobalScope.cpp
+    WebAudio/AudioWorkletNode.cpp
+    WebAudio/AudioWorkletProcessor.cpp
+    WebAudio/BackgroundAudioDecoder.cpp
     WebAudio/BaseAudioContext.cpp
     WebAudio/BiquadFilterNode.cpp
     WebAudio/ChannelMergerNode.cpp
     WebAudio/ChannelSplitterNode.cpp
     WebAudio/ConstantSourceNode.cpp
+    WebAudio/ConvolverNode.cpp
     WebAudio/ControlMessageQueue.cpp
     WebAudio/DelayNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
+    WebAudio/IIRFilterNode.cpp
     WebAudio/MediaElementAudioSourceNode.cpp
+    WebAudio/MediaStreamAudioDestinationNode.cpp
+    WebAudio/MediaStreamAudioSourceNode.cpp
+    WebAudio/MediaStreamTrackAudioSourceNode.cpp
+    MediaCapture/MediaDeviceInfo.cpp
+    MediaCapture/MediaDevices.cpp
+    MediaCapture/MediaStream.cpp
+    MediaCapture/MediaStreamTrack.cpp
+    MediaCapture/MediaStreamTrackEvent.cpp
     WebAudio/OfflineAudioCompletionEvent.cpp
     WebAudio/OfflineAudioContext.cpp
     WebAudio/OscillatorNode.cpp
+    WebAudio/OhNoesNode.cpp
     WebAudio/PannerNode.cpp
     WebAudio/PeriodicWave.cpp
+    WebAudio/RenderGraph.cpp
+    WebAudio/GraphBuilder.cpp
     WebAudio/ScriptProcessorNode.cpp
     WebAudio/StereoPannerNode.cpp
+    WebAudio/WaveShaperNode.cpp
+    WebAudio/AudioContextRegistry.cpp
+    WebAudio/OfflineAudioRenderThread.cpp
+        WebAudio/Script/WorkletEventController.cpp
+    WebAudio/SessionRouter.cpp
+        WebAudio/Script/OfflineScriptProcessorHost.cpp
+        WebAudio/Script/RealtimeScriptProcessorHost.cpp
+        WebAudio/Script/RealtimeAudioWorkletProcessorHost.cpp
+        WebAudio/Script/OfflineAudioWorkletProcessorHost.cpp
+        WebAudio/Script/AudioWorkletPageClient.cpp
+        WebAudio/Script/AudioWorkletProcessorInvoker.cpp
+        WebAudio/Script/MessagePortTransport.cpp
     WebDriver/Actions.cpp
     WebDriver/Capabilities.cpp
     WebDriver/Client.cpp
@@ -1248,7 +1286,7 @@ set(GENERATED_SOURCES
 
 ladybird_lib(LibWeb web EXPLICIT_SYMBOL_EXPORT)
 
-target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
+target_link_libraries(LibWeb PRIVATE LibCore LibCompress LibCrypto LibJS LibHTTP LibGfx LibIPC LibRegex LibSyntax LibTextCodec LibUnicode LibMedia LibAudioServer LibWebAudio LibWasm LibXML LibIDL LibURL LibTLS LibRequests LibGC LibThreading skia ${ANGLE_TARGETS} SDL3::SDL3 LibXml2::LibXml2)
 
 if (HAS_FONTCONFIG)
     target_link_libraries(LibWeb PRIVATE Fontconfig::Fontconfig)

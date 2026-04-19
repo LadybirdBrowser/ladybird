@@ -109,8 +109,6 @@ private:
 
     // https://w3c.github.io/media-capabilities/#dom-navigator-mediacapabilities
     GC::Ptr<MediaCapabilitiesAPI::MediaCapabilities> m_media_capabilities;
-
-    // https://w3c.github.io/mediacapture-main/#dom-navigator-mediadevices
     GC::Ptr<MediaCapture::MediaDevices> m_media_devices;
 
     // https://w3c.github.io/webappsec-credential-management/#framework-credential-management

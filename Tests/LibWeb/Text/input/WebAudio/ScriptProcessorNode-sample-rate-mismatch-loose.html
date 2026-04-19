@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="../include.js"></script>
+  <script>
+    'use strict';
+
+    function assert(condition, message) {
+      if (!condition)
+        throw new Error(message);
+    }
+
+    function assertGreaterThan(value, threshold, message) {
+      assert(value > threshold, `${message} (expected > ${threshold}, got ${value})`);
+    }
+
+    function trimEmptyElements(array) {
+      let start = 0;
+      let end = array.length;
+
+      while (start < array.length) {
+        if (array[start] !== 0)
+          break;
+        ++start;
+      }
+
+      while (end > 0) {
+        --end;
+        if (array[end] !== 0)
+          break;
+      }
+
+      return array.subarray(start, end);
+    }
+
+    function makeSineBuffer(context, frequencyHz, durationSeconds, sampleRate) {
+      const length = Math.ceil(durationSeconds * sampleRate);
+      const buffer = context.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+      const w = 2 * Math.PI * frequencyHz;
+      for (let i = 0; i < length; ++i) {
+        const t = i / sampleRate;
+        data[i] = 0.5 * Math.sin(w * t);
+      }
+      return buffer;
+    }
+
+    async function renderOfflineExpected(contextSampleRate, bufferSampleRate) {
+      const durationSeconds = 0.25;
+      const totalFrames = Math.ceil(durationSeconds * contextSampleRate);
+      const offline = new OfflineAudioContext(1, totalFrames, contextSampleRate);
+
+      const buffer = makeSineBuffer(offline, 440, durationSeconds, bufferSampleRate);
+      const src = offline.createBufferSource();
+      src.buffer = buffer;
+      src.connect(offline.destination);
+      src.start();
+
+      const rendered = await offline.startRendering();
+      return trimEmptyElements(rendered.getChannelData(0));
+    }
+
+    async function captureAudioContextThroughScriptProcessor(contextSampleRate, bufferSampleRate) {
+      const durationSeconds = 0.25;
+      const expectedFrames = Math.ceil(durationSeconds * contextSampleRate);
+
+      const context = new AudioContext({ sampleRate: contextSampleRate });
+      await context.resume();
+
+      const buffer = makeSineBuffer(context, 440, durationSeconds, bufferSampleRate);
+      const src = context.createBufferSource();
+      src.buffer = buffer;
+
+      const BUFFER_SIZE = 2048;
+      const sp = context.createScriptProcessor(BUFFER_SIZE, 1, 1);
+
+      let chunks = [];
+      let total = 0;
+
+      sp.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        const output = e.outputBuffer.getChannelData(0);
+        output.set(input);
+
+        chunks.push(new Float32Array(input));
+        total += input.length;
+      };
+
+      src.connect(sp);
+      sp.connect(context.destination);
+
+      src.start();
+
+      // Stop the source after durationSeconds, but also apply a hard timeout so the test
+      // never hangs if we fail to get audioprocess callbacks.
+      src.stop(context.currentTime + durationSeconds);
+
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        if (total >= expectedFrames)
+          break;
+        await timeout(10);
+      }
+
+      sp.onaudioprocess = null;
+      src.disconnect();
+      sp.disconnect();
+      await context.close();
+
+      assertGreaterThan(total, 0, 'captured some ScriptProcessor input');
+
+      const out = new Float32Array(total);
+      let offset = 0;
+      for (const c of chunks) {
+        out.set(c, offset);
+        offset += c.length;
+      }
+
+      return trimEmptyElements(out);
+    }
+
+    function bestAlignmentOffset(expected, actual, maxShift) {
+      const maxCompare = Math.min(8192, expected.length, actual.length);
+      if (maxCompare < 256)
+        return 0;
+
+      let bestShift = 0;
+      let bestMse = Infinity;
+
+      for (let shift = -maxShift; shift <= maxShift; ++shift) {
+        const expectedStart = shift < 0 ? -shift : 0;
+        const actualStart = shift > 0 ? shift : 0;
+        const n = Math.min(maxCompare, expected.length - expectedStart, actual.length - actualStart);
+        if (n <= 0)
+          continue;
+
+        let sumSq = 0;
+        for (let i = 0; i < n; ++i) {
+          const d = expected[expectedStart + i] - actual[actualStart + i];
+          sumSq += d * d;
+        }
+
+        const mse = sumSq / n;
+        if (mse < bestMse) {
+          bestMse = mse;
+          bestShift = shift;
+        }
+      }
+
+      return bestShift;
+    }
+
+    function assertAlignedApproxEquals(expected, actual, epsilon, maxShift, label) {
+      const shift = bestAlignmentOffset(expected, actual, maxShift);
+
+      const expectedStart = shift < 0 ? -shift : 0;
+      const actualStart = shift > 0 ? shift : 0;
+      const n = Math.min(expected.length - expectedStart, actual.length - actualStart);
+
+      assertGreaterThan(n, 256, `${label}: enough samples to compare`);
+
+      let maxAbs = 0;
+      for (let i = 0; i < n; ++i) {
+        const d = Math.abs(expected[expectedStart + i] - actual[actualStart + i]);
+        if (d > maxAbs)
+          maxAbs = d;
+      }
+
+      assert(maxAbs <= epsilon, `${label}: maxAbs=${maxAbs} shift=${shift} epsilon=${epsilon}`);
+    }
+
+    async function runCase(contextSampleRate, bufferSampleRate) {
+      const expected = await renderOfflineExpected(contextSampleRate, bufferSampleRate);
+      const actual = await captureAudioContextThroughScriptProcessor(contextSampleRate, bufferSampleRate);
+
+      assertGreaterThan(expected.length, 0, 'expected has data');
+      assertGreaterThan(actual.length, 0, 'actual has data');
+
+      // Intentionally loose: different engines may use different resamplers.
+      // We only want to catch gross errors (silence, major distortion, wrong rate).
+      const epsilon = 2e-2;
+      assertAlignedApproxEquals(
+        expected,
+        actual,
+        epsilon,
+        256,
+        `ctx=${contextSampleRate}Hz buf=${bufferSampleRate}Hz`
+      );
+    }
+
+    promiseTest(async () => {
+      await runCase(44100, 48000);
+      await runCase(48000, 44100);
+      await runCase(24000, 44100);
+      println('passed');
+    });
+  </script>
+</head>
+<body>
+</body>
+</html>

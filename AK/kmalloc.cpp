@@ -73,7 +73,7 @@ nothrow_t const nothrow;
 #    include <cstddef>
 #    include <cstring>
 
-#    if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
+#    if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__) || !defined(NDEBUG)
 // LeakSanitizer does not reliably trace references stored in mimalloc-managed
 // AK containers, so sanitizer builds fall back to the system allocator.
 #        define AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED 1

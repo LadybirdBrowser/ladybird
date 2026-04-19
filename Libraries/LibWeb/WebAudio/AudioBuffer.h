@@ -12,6 +12,7 @@
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Types.h>
+#include <LibWebAudio/LibWebAudio.h>
 
 namespace Web::WebAudio {
 
@@ -31,6 +32,8 @@ public:
     static WebIDL::ExceptionOr<GC::Ref<AudioBuffer>> construct_impl(JS::Realm&, AudioBufferOptions const&);
 
     virtual ~AudioBuffer() override;
+
+    Render::ResourceID render_resource_id() const;
 
     float sample_rate() const;
     WebIDL::UnsignedLong length() const;
@@ -60,6 +63,8 @@ private:
     // https://webaudio.github.io/web-audio-api/#dom-audiobuffer-sample-rate-slot
     // The sample-rate, in Hz, of this AudioBuffer, a float.
     float m_sample_rate {}; // [[sample rate]]
+
+    mutable Render::ResourceID m_render_resource_id;
 };
 
 }

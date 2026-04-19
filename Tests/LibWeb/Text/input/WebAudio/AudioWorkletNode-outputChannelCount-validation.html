@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        let context = new AudioContext();
+
+        try {
+            await context.audioWorklet.addModule("../../data/AudioWorklet-processor.js");
+
+            try {
+                new AudioWorkletNode(context, "dummy", { numberOfInputs: 1, numberOfOutputs: 2, outputChannelCount: [1] });
+                println("FAIL: length mismatch did not throw");
+            } catch (e) {
+                println("PASS: length mismatch threw " + e.name);
+            }
+
+            try {
+                new AudioWorkletNode(context, "dummy", { outputChannelCount: [0] });
+                println("FAIL: invalid channel count did not throw");
+            } catch (e) {
+                println("PASS: invalid channel count threw " + e.name);
+            }
+
+            try {
+                let node = new AudioWorkletNode(context, "dummy", {
+                    outputChannelCount: [1],
+                    parameterData: { gain: 0.5 },
+                    processorOptions: { foo: 1 }
+                });
+                println("PASS: constructed with extra options: " + (typeof node === "object"));
+            } catch (e) {
+                println("FAIL: valid options threw " + e);
+            }
+        } catch (e) {
+            println("FAIL: " + e);
+        }
+
+        done();
+    });
+</script>

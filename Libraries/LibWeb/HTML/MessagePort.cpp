@@ -331,7 +331,7 @@ void MessagePort::dispatch_pending_messages()
 
     if (m_should_shutdown_on_enable) {
         m_should_shutdown_on_enable = false;
-        queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this] {
+        queue_global_task(m_task_source, relevant_global_object(*this), GC::create_function(heap(), [this] {
             this->close();
         }));
     }
@@ -339,7 +339,7 @@ void MessagePort::dispatch_pending_messages()
 
 void MessagePort::queue_message_task(SerializedTransferRecord&& serialize_with_transfer_result)
 {
-    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*this), GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
+    queue_global_task(m_task_source, relevant_global_object(*this), GC::create_function(heap(), [this, serialize_with_transfer_result = move(serialize_with_transfer_result)]() mutable {
         this->post_message_task_steps(serialize_with_transfer_result);
     }));
 }
