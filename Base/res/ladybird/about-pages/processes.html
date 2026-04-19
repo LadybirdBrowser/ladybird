@@ -26,6 +26,24 @@
                 font-size: 10pt;
             }
 
+            header {
+                display: flex;
+                align-items: center;
+
+                margin-bottom: 20px;
+            }
+
+            header img {
+                width: 48px;
+                height: 48px;
+                margin-right: 10px;
+            }
+
+            header h1 {
+                font-size: 20px;
+                margin: 0;
+            }
+
             table {
                 width: 100%;
                 border-collapse: collapse;
@@ -65,6 +83,14 @@
         </style>
     </head>
     <body>
+        <header>
+            <picture>
+                <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                <img src="resource://icons/128x128/app-browser-dark.png" />
+            </picture>
+            <h1>Ladybird Processes</h1>
+        </header>
+
         <table>
             <thead>
                 <tr>

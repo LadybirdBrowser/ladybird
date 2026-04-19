@@ -2,21 +2,111 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <meta name="color-scheme" content="light dark" />
         <title>About %browser_name%</title>
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
+        <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
-            html {
-                color-scheme: light dark;
+            @media (prefers-color-scheme: light) {
+                :root {
+                    --about-border-color: #dcdde1;
+                    --about-muted-color: #606873;
+                    --about-value-background-color: white;
+                }
             }
-            img {
-                float: left;
-                margin-right: 10px;
-                height: 48px;
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --about-border-color: #3d3d3d;
+                    --about-muted-color: #a0a0a0;
+                    --about-value-background-color: #1d1d1d;
+                }
             }
-            th {
-                text-align: right;
+
+            .summary-card .card-body {
+                display: flex;
+                align-items: center;
+                gap: 16px;
             }
-            td {
+
+            .summary-card img {
+                width: 72px;
+                height: 72px;
+                margin: 0;
+            }
+
+            .summary-title {
+                margin: 0 0 6px 0;
+
+                font-size: 24px;
+                font-weight: 600;
+            }
+
+            .summary-version {
+                color: var(--about-muted-color);
+
+                font-size: 14px;
+            }
+
+            .details {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .detail-row {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+
+                padding: 14px 0;
+                border-bottom: 1px solid var(--about-border-color);
+            }
+
+            .detail-row:first-child {
+                padding-top: 0;
+            }
+
+            .detail-row:last-child {
+                padding-bottom: 0;
+                border-bottom: none;
+            }
+
+            .detail-label {
+                width: 150px;
+                flex-shrink: 0;
+
+                color: var(--about-muted-color);
+
+                font-size: 14px;
+            }
+
+            .detail-value {
+                background-color: var(--about-value-background-color);
+
+                flex: 1;
+                min-width: 0;
+                border: 1px solid var(--about-border-color);
+                border-radius: 4px;
+                padding: 8px 10px;
+
                 font-family: monospace;
+                font-size: 13px;
+                overflow-wrap: break-word;
+            }
+
+            @media (max-width: 600px) {
+                .summary-card .card-body {
+                    align-items: flex-start;
+                }
+
+                .detail-row {
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .detail-label {
+                    width: auto;
+                }
             }
         </style>
     </head>
@@ -28,31 +118,50 @@
             </picture>
             <h1>About %browser_name%</h1>
         </header>
-        <table>
-            <tr>
-                <th>Version:</th>
-                <td>%browser_version%</td>
-            </tr>
-            <tr>
-                <th>Arch:</th>
-                <td>%arch_name%</td>
-            </tr>
-            <tr>
-                <th>Operating System:</th>
-                <td>%os_name%</td>
-            </tr>
-            <tr>
-                <th>User Agent:</th>
-                <td>%user_agent%</td>
-            </tr>
-            <tr>
-                <th>Command Line:</th>
-                <td>%command_line%</td>
-            </tr>
-            <tr>
-                <th>Executable Path:</th>
-                <td>%executable_path%</td>
-            </tr>
-        </table>
+
+        <div class="card summary-card">
+            <div class="card-body">
+                <picture>
+                    <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
+                    <img src="resource://icons/128x128/app-browser-dark.png" />
+                </picture>
+                <div>
+                    <h2 class="summary-title">%browser_name%</h2>
+                    <p class="summary-version">Version %browser_version%</p>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="card-title">Build Details</h3>
+        <div class="card">
+            <div class="card-body details">
+                <div class="detail-row">
+                    <div class="detail-label">Architecture</div>
+                    <div class="detail-value">%arch_name%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Operating System</div>
+                    <div class="detail-value">%os_name%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">User Agent</div>
+                    <div class="detail-value">%user_agent%</div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="card-title">Runtime</h3>
+        <div class="card">
+            <div class="card-body details">
+                <div class="detail-row">
+                    <div class="detail-label">Command Line</div>
+                    <div class="detail-value">%command_line%</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Executable Path</div>
+                    <div class="detail-value">%executable_path%</div>
+                </div>
+            </div>
+        </div>
     </body>
 </html>
