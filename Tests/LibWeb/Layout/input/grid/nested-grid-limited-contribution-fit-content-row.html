@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.outer {
+    display: grid;
+    grid-template-columns: 1fr minmax(auto, 200px) 1fr;
+    background: silver;
+}
+.inner {
+    display: grid;
+    gap: 10px;
+    grid-column: 2;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: min-content 1fr fit-content(0);
+    background: white;
+}
+.span {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    min-height: 100px;
+    background: pink;
+}
+.top {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 70px;
+    background: orange;
+}
+.middle {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 20px;
+    background: green;
+}
+.feed {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    min-height: 50px;
+    overflow: hidden;
+    background: red;
+}
+.feed > div {
+    height: 300px;
+    background: blue;
+}
+</style>
+<div class="outer">
+    <div class="inner">
+        <div class="span"></div>
+        <div class="top"></div>
+        <div class="middle"></div>
+        <div class="feed"><div></div></div>
+    </div>
+</div>

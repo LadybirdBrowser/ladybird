@@ -2461,6 +2461,13 @@ int GridItem::gap_adjusted_column() const
     return column.value() * 2;
 }
 
+bool GridFormattingContext::should_treat_grid_container_maximum_size_as_none(GridDimension dimension) const
+{
+    if (dimension == GridDimension::Column)
+        return should_treat_max_width_as_none(grid_container(), m_available_space->width);
+    return should_treat_max_height_as_none(grid_container(), m_available_space->height);
+}
+
 CSSPixels GridFormattingContext::calculate_grid_container_maximum_size(GridDimension dimension) const
 {
     auto const& computed_values = grid_container().computed_values();
@@ -2569,6 +2576,53 @@ CSSPixels GridFormattingContext::calculate_max_content_contribution(GridItem con
     return min(result, maximum_size);
 }
 
+Optional<CSSPixels> GridFormattingContext::calculate_fixed_max_track_size_limit(GridItem const& item, GridDimension dimension) const
+{
+    // https://drafts.csswg.org/css-grid-2/#algo-spanning-items
+    // For an item spanning multiple tracks, the upper limit used to calculate its limited min-/max-content
+    // contribution is the sum of the fixed max track sizing functions of any tracks it spans, and is applied
+    // if it only spans such tracks.
+    //
+    // https://drafts.csswg.org/css-grid-2#algo-terms
+    // In all cases, treat auto and fit-content() as max-content, except where specified otherwise for fit-content().
+    auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
+
+    CSSPixels result = 0;
+    bool saw_track = false;
+    bool has_limit = true;
+    for_each_spanned_track_by_item(item, dimension, [&](GridTrack const& track) {
+        if (!has_limit)
+            return;
+
+        saw_track = true;
+        auto const& max_track_sizing_function = track.max_track_sizing_function;
+
+        if (max_track_sizing_function.is_fixed(available_size)) {
+            auto const& max_track_size = max_track_sizing_function.css_size();
+            result += max_track_size.to_px(grid_container(), available_size.to_px_or_zero());
+            return;
+        }
+
+        if (max_track_sizing_function.is_fit_content()) {
+            auto const& max_track_size = max_track_sizing_function.css_size();
+            auto const& fit_content_available_space = max_track_size.fit_content_available_space();
+            if (fit_content_available_space.has_value()
+                && (!fit_content_available_space->contains_percentage() || available_size.is_definite())) {
+                result += max_track_size.to_px(grid_container(), available_size.to_px_or_zero());
+                return;
+            }
+        }
+
+        has_limit = false;
+    });
+
+    if (!has_limit)
+        return {};
+    if (!saw_track)
+        return {};
+    return result;
+}
+
 CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(GridItem const& item, GridDimension dimension) const
 {
     // The limited min-content contribution of an item is its min-content contribution,
@@ -2579,19 +2633,10 @@ CSSPixels GridFormattingContext::calculate_limited_min_content_contribution(Grid
     if (min_content_contribution < minimum_contribution)
         return minimum_contribution;
 
-    auto should_treat_max_size_as_none = [&]() {
-        switch (dimension) {
-        case GridDimension::Row:
-            return should_treat_max_height_as_none(grid_container(), m_available_space->height);
-        case GridDimension::Column:
-            return should_treat_max_width_as_none(grid_container(), m_available_space->width);
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }();
+    if (auto fixed_max_track_size_limit = calculate_fixed_max_track_size_limit(item, dimension); fixed_max_track_size_limit.has_value())
+        return max(min(min_content_contribution, fixed_max_track_size_limit.value()), minimum_contribution);
 
-    // FIXME: limit by max track sizing function instead of grid container maximum size
-    if (!should_treat_max_size_as_none) {
+    if (!should_treat_grid_container_maximum_size_as_none(dimension)) {
         auto max_size = calculate_grid_container_maximum_size(dimension);
         if (min_content_contribution > max_size)
             return max_size;
@@ -2610,12 +2655,13 @@ CSSPixels GridFormattingContext::calculate_limited_max_content_contribution(Grid
     if (max_content_contribution < minimum_contribution)
         return minimum_contribution;
 
-    // FIXME: limit by max track sizing function instead of grid container maximum size
-    auto const& available_size = dimension == GridDimension::Column ? m_available_space->width : m_available_space->height;
-    if (!should_treat_max_width_as_none(grid_container(), available_size)) {
-        auto max_width = calculate_grid_container_maximum_size(dimension);
-        if (max_content_contribution > max_width)
-            return max_width;
+    if (auto fixed_max_track_size_limit = calculate_fixed_max_track_size_limit(item, dimension); fixed_max_track_size_limit.has_value())
+        return max(min(max_content_contribution, fixed_max_track_size_limit.value()), minimum_contribution);
+
+    if (!should_treat_grid_container_maximum_size_as_none(dimension)) {
+        auto max_size = calculate_grid_container_maximum_size(dimension);
+        if (max_content_contribution > max_size)
+            return max_size;
     }
 
     return max_content_contribution;

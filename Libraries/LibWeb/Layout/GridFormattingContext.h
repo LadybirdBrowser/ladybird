@@ -362,6 +362,7 @@ private:
     void stretch_auto_tracks(GridDimension);
     void run_track_sizing(GridDimension);
 
+    bool should_treat_grid_container_maximum_size_as_none(GridDimension) const;
     CSSPixels calculate_grid_container_maximum_size(GridDimension) const;
 
     CSSPixels calculate_min_content_size(GridItem const&, GridDimension) const;
@@ -370,6 +371,7 @@ private:
     CSSPixels calculate_min_content_contribution(GridItem const&, GridDimension) const;
     CSSPixels calculate_max_content_contribution(GridItem const&, GridDimension) const;
 
+    Optional<CSSPixels> calculate_fixed_max_track_size_limit(GridItem const&, GridDimension) const;
     CSSPixels calculate_limited_min_content_contribution(GridItem const&, GridDimension) const;
     CSSPixels calculate_limited_max_content_contribution(GridItem const&, GridDimension) const;
 
