@@ -1246,15 +1246,14 @@ GC::Ptr<ShadowRoot> Element::shadow_root_for_bindings() const
 WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams(document()), selectors);
+    auto const& maybe_selectors = document().parse_or_cache_selector_list(selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
         return WebIDL::SyntaxError::create(realm(), "Failed to parse selector"_utf16);
 
     // 3. If the result of match a selector against an element, using s, this, and scoping root this, returns success, then return true; otherwise, return false.
-    auto sel = maybe_selectors.value();
-    for (auto& s : sel) {
+    for (auto const& s : maybe_selectors.value()) {
         SelectorEngine::MatchContext context;
         if (SelectorEngine::matches(s, *this, nullptr, context, static_cast<ParentNode const*>(this)))
             return true;
@@ -1266,7 +1265,7 @@ WebIDL::ExceptionOr<bool> Element::matches(StringView selectors) const
 WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) const
 {
     // 1. Let s be the result of parse a selector from selectors.
-    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams(document()), selectors);
+    auto const& maybe_selectors = document().parse_or_cache_selector_list(selectors);
 
     // 2. If s is failure, then throw a "SyntaxError" DOMException.
     if (!maybe_selectors.has_value())
@@ -1282,7 +1281,7 @@ WebIDL::ExceptionOr<DOM::Element const*> Element::closest(StringView selectors) 
         return false;
     };
 
-    auto const selector_list = maybe_selectors.release_value();
+    auto const& selector_list = maybe_selectors.value();
 
     // 3. Let elements be this’s inclusive ancestors that are elements, in reverse tree order.
     for (auto* element = this; element; element = element->parent_element()) {

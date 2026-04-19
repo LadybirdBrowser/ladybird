@@ -8110,20 +8110,48 @@ void Document::exit_pointer_lock()
     dbgln("FIXME: exit_pointer_lock()");
 }
 
-Optional<CSS::SelectorList> const* Document::cached_query_selector_result(String const& selector_text) const
+static bool contains_named_namespace(CSS::SelectorList const& selectors)
 {
-    auto it = m_selector_query_cache.find(selector_text);
-    if (it == m_selector_query_cache.end())
-        return nullptr;
-    return &it->value;
+    for (auto const& selector : selectors) {
+        for (auto const& compound_selector : selector->compound_selectors()) {
+            for (auto const& simple_selector : compound_selector.simple_selectors) {
+                if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
+                    if (simple_selector.qualified_name().namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
+                        return true;
+                }
+
+                if (simple_selector.value.has<CSS::Selector::SimpleSelector::PseudoClassSelector>()) {
+                    if (contains_named_namespace(simple_selector.pseudo_class().argument_selector_list))
+                        return true;
+                }
+            }
+        }
+    }
+    return false;
 }
 
-void Document::cache_query_selector_result(String selector_text, Optional<CSS::SelectorList> result)
+Optional<CSS::SelectorList> const& Document::parse_or_cache_selector_list(StringView selector_text) const
 {
-    if (m_selector_query_cache.size() >= max_selector_query_cache_size)
+    static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
+
+    auto selector_text_string = MUST(String::from_utf8(selector_text));
+
+    if (auto it = m_selector_query_cache.find(selector_text_string); it != m_selector_query_cache.end())
+        return it->value;
+
+    auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { *this }, selector_text);
+
+    // "Note: Support for namespaces within selectors is not planned and will not be added."
+    if (maybe_selectors.has_value() && contains_named_namespace(maybe_selectors.value()))
+        maybe_selectors.clear();
+
+    if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE)
         m_selector_query_cache.remove(m_selector_query_cache.begin());
 
-    m_selector_query_cache.set(move(selector_text), move(result));
+    m_selector_query_cache.set(selector_text_string, move(maybe_selectors));
+    auto it = m_selector_query_cache.find(selector_text_string);
+    VERIFY(it != m_selector_query_cache.end());
+    return it->value;
 }
 
 }

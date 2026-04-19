@@ -23,26 +23,6 @@ namespace Web::DOM {
 
 GC_DEFINE_ALLOCATOR(ParentNode);
 
-static bool contains_named_namespace(CSS::SelectorList const& selectors)
-{
-    for (auto const& selector : selectors) {
-        for (auto const& compound_selector : selector->compound_selectors()) {
-            for (auto const& simple_selector : compound_selector.simple_selectors) {
-                if (simple_selector.value.has<CSS::Selector::SimpleSelector::QualifiedName>()) {
-                    if (simple_selector.qualified_name().namespace_type == CSS::Selector::SimpleSelector::QualifiedName::NamespaceType::Named)
-                        return true;
-                }
-
-                if (simple_selector.value.has<CSS::Selector::SimpleSelector::PseudoClassSelector>()) {
-                    if (contains_named_namespace(simple_selector.pseudo_class().argument_selector_list))
-                        return true;
-                }
-            }
-        }
-    }
-    return false;
-}
-
 enum class ReturnMatches {
     First,
     All,
@@ -52,37 +32,15 @@ static WebIDL::ExceptionOr<Variant<GC::Ptr<Element>, GC::Ref<NodeList>>> scope_m
 {
     // To scope-match a selectors string selectors against a node, run these steps:
     auto& document = node.document();
-    auto selector_text_string = MUST(String::from_utf8(selector_text));
 
-    CSS::SelectorList const* selectors_ptr = nullptr;
+    // 1. Let s be the result of parse a selector selectors.
+    auto const& maybe_selectors = document.parse_or_cache_selector_list(selector_text);
 
-    // Check the document’s parsed selector cache first.
-    if (auto const* cached = document.cached_query_selector_result(selector_text_string)) {
-        // 2. If s is failure, then throw a "SyntaxError" DOMException.
-        if (!cached->has_value())
-            return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
-        selectors_ptr = &cached->value();
-    } else {
-        // 1. Let s be the result of parse a selector selectors.
-        auto maybe_selectors = parse_selector(CSS::Parser::ParsingParams { document }, selector_text);
+    // 2. If s is failure, then throw a "SyntaxError" DOMException.
+    if (!maybe_selectors.has_value())
+        return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
 
-        // "Note: Support for namespaces within selectors is not planned and will not be added."
-        if (maybe_selectors.has_value() && contains_named_namespace(maybe_selectors.value()))
-            maybe_selectors.clear();
-
-        document.cache_query_selector_result(selector_text_string, move(maybe_selectors));
-
-        auto const* cached_after_insert = document.cached_query_selector_result(selector_text_string);
-        VERIFY(cached_after_insert);
-
-        // 2. If s is failure, then throw a "SyntaxError" DOMException.
-        if (!cached_after_insert->has_value())
-            return WebIDL::SyntaxError::create(node.realm(), "Failed to parse selector"_utf16);
-
-        selectors_ptr = &cached_after_insert->value();
-    }
-
-    auto const& selectors = *selectors_ptr;
+    auto const& selectors = maybe_selectors.value();
 
     // 3. Return the result of match a selector against a tree with s and node’s root using scoping root node.
     GC::Ptr<Element> single_result;
