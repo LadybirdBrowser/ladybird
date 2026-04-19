@@ -33,8 +33,11 @@ ErrorOr<NonnullOwnPtr<Transport>> TransportHandle::create_transport() const
 template<>
 ErrorOr<void> encode(Encoder& encoder, TransportHandle const& handle)
 {
-    VERIFY(MACH_PORT_VALID(handle.m_receive_right.port()));
-    VERIFY(MACH_PORT_VALID(handle.m_send_right.port()));
+    mach_port_t send_port = handle.m_send_right.port();
+    mach_port_t receive_port = handle.m_receive_right.port();
+    if (send_port == MACH_PORT_NULL || send_port == MACH_PORT_DEAD || receive_port == MACH_PORT_NULL || receive_port == MACH_PORT_DEAD)
+        return Error::from_string_literal("TransportHandle::encode: Invalid Mach port(s)");
+
     TRY(encoder.append_attachment(Attachment::from_mach_port(move(handle.m_receive_right), Core::MachPort::MessageRight::MoveReceive)));
     TRY(encoder.append_attachment(Attachment::from_mach_port(move(handle.m_send_right), Core::MachPort::MessageRight::MoveSend)));
     return {};
