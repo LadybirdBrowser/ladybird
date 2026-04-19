@@ -28,6 +28,12 @@ TestRunCapture::TestRunCapture()
     process_manager.on_process_added = [this](WebView::Process& process) {
         setup_output_capture_for_helper_process(process);
     };
+    m_previous_on_process_exited = move(process_manager.on_process_exited);
+    process_manager.on_process_exited = [this](WebView::Process&& process) {
+        consume_helper_capture(process.pid());
+        m_previous_on_process_exited(move(process));
+    };
+
     process_manager.for_each_process([this](WebView::Process& process) {
         setup_output_capture_for_helper_process(process);
     });
@@ -63,6 +69,7 @@ TestRunCapture::~TestRunCapture()
 {
     restore_stderr();
     WebView::Application::process_manager().on_process_added = {};
+    WebView::Application::process_manager().on_process_exited = move(m_previous_on_process_exited);
 }
 
 TestRunCapture::ViewOutputCapture* TestRunCapture::output_capture_for_view(TestWebView const& view)
@@ -124,7 +131,7 @@ void TestRunCapture::setup_output_capture_for_view(TestWebView& view, ViewOutput
 
 void TestRunCapture::begin_test_output_capture(TestWebView& view, Test const& test)
 {
-    m_test_output_captures.remove(&view);
+    destroy_view_capture_of(view);
 
     auto view_capture = make<ViewOutputCapture>();
     ByteString output_path = ByteString::formatted("{}.logs.html", LexicalPath::join(Application::the().results_directory, test.safe_relative_path).string());
@@ -150,7 +157,7 @@ void TestRunCapture::write_test_output(TestWebView const& view)
         return;
 
     (void)capture->output.transfer_to_output_file();
-    m_test_output_captures.remove(&view);
+    destroy_view_capture_of(view);
 }
 
 bool TestRunCapture::write_helper_process_output()
@@ -201,25 +208,19 @@ void TestRunCapture::setup_output_capture_for_helper_process(WebView::Process& p
     auto* helper_capture_ptr = helper_capture.ptr();
 
     if (output_capture.stdout_file) {
-        auto duplicated_fd = Core::System::dup(output_capture.stdout_file->fd());
-        if (!duplicated_fd.is_error()) {
-            helper_capture->stdout_reader = MUST(Core::File::adopt_fd(duplicated_fd.release_value(), Core::File::OpenMode::Read));
-            setup_capture_notifier(helper_capture->stdout_notifier, helper_capture->stdout_reader->fd(), false, [this, capture = helper_capture_ptr](StringView message) {
-                log_helper_message({ capture->type, capture->pid }, STDOUT_FILENO, message);
-            });
-        }
+        helper_capture->stdout_reader = move(output_capture.stdout_file);
+        setup_capture_notifier(helper_capture->stdout_notifier, helper_capture->stdout_reader->fd(), false, [this, capture = helper_capture_ptr](StringView message) {
+            log_helper_message({ capture->type, capture->pid }, STDOUT_FILENO, message);
+        });
     }
     if (output_capture.stderr_file) {
-        auto duplicated_fd = Core::System::dup(output_capture.stderr_file->fd());
-        if (!duplicated_fd.is_error()) {
-            helper_capture->stderr_reader = MUST(Core::File::adopt_fd(duplicated_fd.release_value(), Core::File::OpenMode::Read));
-            setup_capture_notifier(helper_capture->stderr_notifier, helper_capture->stderr_reader->fd(), false, [this, capture = helper_capture_ptr](StringView message) {
-                log_helper_message(
-                    { capture->type, capture->pid },
-                    m_stderr_capture.original_fd.value_or(STDERR_FILENO),
-                    message);
-            });
-        }
+        helper_capture->stderr_reader = move(output_capture.stderr_file);
+        setup_capture_notifier(helper_capture->stderr_notifier, helper_capture->stderr_reader->fd(), false, [this, capture = helper_capture_ptr](StringView message) {
+            log_helper_message(
+                { capture->type, capture->pid },
+                m_stderr_capture.original_fd.value_or(STDERR_FILENO),
+                message);
+        });
     }
     m_helper_output_captures.set(pid, move(helper_capture));
 }
@@ -259,11 +260,50 @@ static bool drain_capture_output(int fd, bool drain_available, Function<void(Str
             on_output(StringView { buffer, nread.value() });
             if (!drain_available)
                 return false;
+
             continue;
         }
 
         return nread.value() == 0;
     }
+}
+
+void TestRunCapture::consume_helper_capture(pid_t pid)
+{
+    auto capture = m_helper_output_captures.take(pid);
+    if (!capture.has_value())
+        return;
+
+    auto helper_capture = capture.release_value();
+
+    helper_capture->stdout_notifier->set_enabled(false);
+    helper_capture->stderr_notifier->set_enabled(false);
+
+    if (helper_capture->stdout_reader) {
+        (void)drain_capture_output(helper_capture->stdout_reader->fd(), true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
+            log_helper_message({ type, pid }, STDOUT_FILENO, message);
+        });
+    }
+    if (helper_capture->stderr_reader) {
+        (void)drain_capture_output(helper_capture->stderr_reader->fd(), true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
+            log_helper_message({ type, pid }, m_stderr_capture.original_fd.value_or(STDERR_FILENO), message);
+        });
+    }
+    helper_capture->stdout_notifier->close();
+    helper_capture->stderr_notifier->close();
+}
+
+void TestRunCapture::destroy_view_capture_of(TestWebView const& view)
+{
+    auto capture = m_test_output_captures.take(&view);
+    if (!capture.has_value())
+        return;
+
+    auto view_capture = capture.release_value();
+    if (view_capture->stdout_notifier)
+        view_capture->stdout_notifier->close();
+    if (view_capture->stderr_notifier)
+        view_capture->stderr_notifier->close();
 }
 
 }

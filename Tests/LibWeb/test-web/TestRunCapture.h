@@ -69,7 +69,10 @@ private:
     void restore_stderr();
     void setup_output_capture_for_helper_process(WebView::Process&);
     void setup_output_capture_for_view(TestWebView&, ViewOutputCapture&);
+    void consume_helper_capture(pid_t pid);
+    void destroy_view_capture_of(TestWebView const& view);
 
+    Function<void(WebView::Process&&)> m_previous_on_process_exited;
     HashMap<TestWebView const*, NonnullOwnPtr<ViewOutputCapture>> m_test_output_captures;
     HashMap<pid_t, NonnullOwnPtr<HelperOutputCapture>> m_helper_output_captures;
     CaptureFile m_helper_output;
