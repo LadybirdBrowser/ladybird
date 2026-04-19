@@ -39,7 +39,7 @@ struct ImmutableBitmapImpl {
     RefPtr<SkiaBackendContext> context;
     sk_sp<SkImage> sk_image;
     SkBitmap sk_bitmap;
-    RefPtr<Gfx::Bitmap> bitmap;
+    RefPtr<Gfx::Bitmap const> bitmap;
     ColorSpace color_space;
 };
 
@@ -280,7 +280,7 @@ static SkAlphaType to_skia_alpha_type(Gfx::AlphaType alpha_type)
     }
 }
 
-NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> const& bitmap, ColorSpace color_space)
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space)
 {
     SkBitmap sk_bitmap;
     auto info = SkImageInfo::Make(bitmap->width(), bitmap->height(), to_skia_color_type(bitmap->format()), to_skia_alpha_type(bitmap->alpha_type()), color_space.color_space<sk_sp<SkColorSpace>>());
@@ -298,17 +298,19 @@ NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> con
     return adopt_ref(*new ImmutableBitmap(make<ImmutableBitmapImpl>(move(impl))));
 }
 
-NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap> const& bitmap, AlphaType alpha_type, ColorSpace color_space)
+NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType alpha_type, ColorSpace color_space)
 {
     // Convert the source bitmap to the right alpha type on a mismatch. We want to do this when converting from a
     // Bitmap to an ImmutableBitmap, since at that point we usually know the right alpha type to use in context.
-    auto source_bitmap = bitmap;
-    if (source_bitmap->alpha_type() != alpha_type) {
-        source_bitmap = MUST(bitmap->clone());
-        source_bitmap->set_alpha_type_destructive(alpha_type);
-    }
+    auto converted_bitmap = [&] -> NonnullRefPtr<Bitmap const> {
+        if (bitmap->alpha_type() == alpha_type)
+            return bitmap;
+        auto new_bitmap = MUST(bitmap->clone());
+        new_bitmap->set_alpha_type_destructive(alpha_type);
+        return new_bitmap;
+    }();
 
-    return create(source_bitmap, move(color_space));
+    return create(converted_bitmap, move(color_space));
 }
 
 NonnullRefPtr<ImmutableBitmap> ImmutableBitmap::create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> const& painting_surface)

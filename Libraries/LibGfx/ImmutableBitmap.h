@@ -49,8 +49,8 @@ struct ExportFlags {
 
 class ImmutableBitmap final : public AtomicRefCounted<ImmutableBitmap> {
 public:
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> const& bitmap, ColorSpace color_space = {});
-    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap> const& bitmap, AlphaType, ColorSpace color_space = {});
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, ColorSpace color_space = {});
+    static NonnullRefPtr<ImmutableBitmap> create(NonnullRefPtr<Bitmap const> const& bitmap, AlphaType, ColorSpace color_space = {});
     static NonnullRefPtr<ImmutableBitmap> create_snapshot_from_painting_surface(NonnullRefPtr<PaintingSurface> const&);
     static ErrorOr<NonnullRefPtr<ImmutableBitmap>> create_from_yuv(NonnullOwnPtr<YUVData>);
 
