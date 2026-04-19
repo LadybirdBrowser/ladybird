@@ -1279,6 +1279,7 @@ void HTMLMediaElement::load_remote_resource(ByteRange const& byte_range)
             // NOTE: We do this step before creating the updateMedia task so that we can invoke the failure callback.
             auto maybe_verify_response_failure = self->verify_response_or_get_failure_reason(response, byte_range);
             if (maybe_verify_response_failure.has_value()) {
+                fetch_data->stream->close();
                 fetch_data->failure_callback(maybe_verify_response_failure.value());
                 return;
             }
@@ -1328,6 +1329,8 @@ void HTMLMediaElement::load_remote_resource(ByteRange const& byte_range)
                     return;
                 if (fetch_generation != weak_self->m_current_fetch_generation)
                     return;
+
+                weak_self->m_remote_fetch_data->stream->close();
                 weak_self->queue_a_media_element_task([self = weak_self.as_nonnull()] {
                     self->process_media_data(FetchingStatus::Interrupted);
                 });
