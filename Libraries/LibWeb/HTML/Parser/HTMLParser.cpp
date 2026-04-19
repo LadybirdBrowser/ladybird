@@ -3144,7 +3144,7 @@ void HTMLParser::handle_in_body(HTMLToken& token)
         // If the stack of open elements has a ruby element in scope, then generate implied end tags, except for rtc elements. If the current node is not now a rtc element or a ruby element, this is a parse error.
         if (m_stack_of_open_elements.has_in_scope(HTML::TagNames::ruby))
             generate_implied_end_tags(HTML::TagNames::rtc);
-        if (current_node()->local_name() != HTML::TagNames::rtc || current_node()->local_name() != HTML::TagNames::ruby)
+        if (current_node()->local_name() != HTML::TagNames::rtc && current_node()->local_name() != HTML::TagNames::ruby)
             log_parse_error();
 
         // Insert an HTML element for the token.
