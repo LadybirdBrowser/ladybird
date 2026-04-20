@@ -40,5 +40,16 @@
         ctx.letterSpacing = "calc(1px + 2px)";
         const width_with_calc_spacing = ctx.measureText("hello").width;
         println(`calc spacing matches 3px: ${width_with_calc_spacing === width_with_spacing}`);
+
+        ctx.font = "20px sans-serif";
+
+        ctx.letterSpacing = "1em";
+        const width_with_relative_spacing = ctx.measureText("hello").width;
+        ctx.letterSpacing = "20px";
+        const width_with_context_font_spacing = ctx.measureText("hello").width;
+
+        println(
+            `em letterSpacing matches context font: ${width_with_relative_spacing === width_with_context_font_spacing}`
+        );
     });
 </script>

@@ -215,6 +215,14 @@ void CanvasTextDrawingStyles<CanvasType>::set_letter_spacing(StringView letter_s
     drawing_state().letter_spacing = parsed.release_nonnull();
 }
 
+template<typename CanvasType>
+float CanvasTextDrawingStyles<CanvasType>::resolved_letter_spacing() const
+{
+    auto absolutized_length = CSS::Length::from_style_value(drawing_state().letter_spacing->absolutized(computation_context_for_drawing_state()), {});
+
+    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
+}
+
 template class CanvasTextDrawingStyles<HTMLCanvasElement>;
 template class CanvasTextDrawingStyles<HTML::OffscreenCanvas>;
 

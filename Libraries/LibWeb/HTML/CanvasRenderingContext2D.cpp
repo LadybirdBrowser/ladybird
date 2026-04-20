@@ -278,20 +278,6 @@ void CanvasRenderingContext2D::allocate_painting_surface_if_needed()
     }
 }
 
-static float resolved_letter_spacing(DrawingState const& drawing_state, HTMLCanvasElement& canvas_element)
-{
-    // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
-    CSS::Length::ResolutionContext context = [&] {
-        if (canvas_element.computed_properties())
-            return CSS::Length::ResolutionContext::for_element(DOM::AbstractElement { canvas_element });
-        return CSS::Length::ResolutionContext::for_document(canvas_element.document());
-    }();
-
-    auto absolutized_length = CSS::Length::from_style_value(drawing_state.letter_spacing->absolutized({ .length_resolution_context = context }), {});
-
-    return static_cast<float>(absolutized_length.absolute_length_to_px().to_double());
-}
-
 Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, float y, Optional<double> max_width)
 {
     if (max_width.has_value() && max_width.value() <= 0)
@@ -301,8 +287,7 @@ Gfx::Path CanvasRenderingContext2D::text_path(Utf16String const& text, float x, 
 
     auto const& font_cascade_list = this->font_cascade_list();
     auto const& font = font_cascade_list->first();
-    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list,
-        resolved_letter_spacing(drawing_state, m_element));
+    auto glyph_runs = Gfx::shape_text({ x, y }, text.utf16_view(), *font_cascade_list, resolved_letter_spacing());
     Gfx::Path path;
     float text_width = 0;
     for (auto const& glyph_run : glyph_runs) {
@@ -820,8 +805,7 @@ CanvasRenderingContext2D::PreparedText CanvasRenderingContext2D::prepare_text(Ut
     auto replaced_text = builder.to_utf16_string();
 
     // 3. Let font be the current font of target, as given by that object's font attribute.
-    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(),
-        resolved_letter_spacing(drawing_state(), m_element));
+    auto glyph_runs = Gfx::shape_text({ 0, 0 }, replaced_text.utf16_view(), *font_cascade_list(), resolved_letter_spacing());
 
     // FIXME: 4. Let language be the target's language.
     // FIXME: 5. If language is "inherit":

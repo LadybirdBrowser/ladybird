@@ -9,3 +9,4 @@ after save+set 20px: 20px
 after restore: 10px
 spacing affects measureText: true
 calc spacing matches 3px: true
+em letterSpacing matches context font: true
