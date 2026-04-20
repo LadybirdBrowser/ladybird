@@ -21,7 +21,7 @@ if (CMAKE_TOOLCHAIN_FILE MATCHES "vcpkg.cmake$")
     set(CMAKE_PROJECT_ladybird_INCLUDE_BEFORE "Meta/CMake/vcpkg/generate_vcpkg_toolchain_variables.cmake")
     if (LADYBIRD_GUI_FRAMEWORK STREQUAL "Qt" OR LADYBIRD_GUI_FRAMEWORK STREQUAL "Gtk")
         string(TOLOWER "${LADYBIRD_GUI_FRAMEWORK}" framework_feature)
-        set(VCPKG_MANIFEST_FEATURES "${framework_feature}")
+        set(VCPKG_MANIFEST_FEATURES "${framework_feature}" CACHE STRING "" FORCE)
     endif()
 endif()
 
