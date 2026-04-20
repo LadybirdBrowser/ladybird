@@ -116,9 +116,12 @@ runs:
           sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${{ inputs.llvm_version }} 100
         fi
 
-        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${{ inputs.llvm_version }} 100
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ inputs.gcc_version }} 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${{ inputs.gcc_version }} 100
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${{ inputs.gcc_version }} 100
+
+        sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${{ inputs.llvm_version }} 100
+        sudo update-alternatives --install /usr/bin/lld lld /usr/bin/lld-${{ inputs.llvm_version }} 100
+        sudo update-alternatives --install /usr/bin/llvm-symbolizer llvm-symbolizer /usr/bin/llvm-symbolizer-${{ inputs.llvm_version }} 100
 
     - name: Install Dependencies
       if: ${{ inputs.os == 'Linux' && inputs.type == 'lint' }}
