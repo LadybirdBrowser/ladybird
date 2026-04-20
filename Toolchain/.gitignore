@@ -1,5 +1,0 @@
-# Created by QEMU build
-config-temp
-config.log
-# For caching the entire toolchain (useful on Travis)
-Cache/

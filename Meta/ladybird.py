@@ -17,12 +17,12 @@ from typing import Optional
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from Meta.build_vcpkg import build_vcpkg
 from Meta.find_compiler import pick_host_compiler
 from Meta.host_platform import HostArchitecture
 from Meta.host_platform import HostSystem
 from Meta.host_platform import Platform
 from Meta.utils import run_command
-from Toolchain.BuildVcpkg import build_vcpkg
 
 
 def main():

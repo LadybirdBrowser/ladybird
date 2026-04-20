@@ -220,7 +220,7 @@ runs:
     - name: 'Install vcpkg'
       if: ${{ inputs.type == 'build' }}
       shell: bash
-      run: ./Toolchain/BuildVcpkg.py
+      run: ./Meta/build_vcpkg.py
 
     - name: 'Export installed versions'
       id: 'export-versions'
