@@ -6,11 +6,10 @@
 
 #include "Display.h"
 #include "Application.h"
+#include "ResourceStats.h"
 
-#include <AK/Enumerate.h>
 #include <AK/QuickSort.h>
 #include <AK/SaturatingMath.h>
-#include <AK/StringBuilder.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibCore/Timer.h>
@@ -27,11 +26,10 @@
 namespace TestWeb {
 
 static constexpr size_t LIVE_DISPLAY_TERMINAL_HEADROOM = 4; // allow for external cruft like tmux panels
-static constexpr size_t LIVE_DISPLAY_STATUS_LINES = 4;      // 2 empty + 1 for status + 1 for progress bar
+static constexpr size_t LIVE_DISPLAY_STATUS_LINES = 5;      // 2 empty + 2 for status + 1 for progress bar
 static size_t s_display_rows = 24;
 
 static ::Test::LiveDisplay s_live_display;
-
 static size_t count_digits(size_t value);
 
 Display& Display::the()
@@ -127,6 +125,8 @@ void Display::print_run_complete(ReadonlySpan<Test> tests,
     outln("Pass: {}, Fail: {}, Skipped: {}, Timeout: {}, Crashed: {}",
         test_stats().pass_count, test_stats().fail_count, test_stats().skipped_count,
         test_stats().timeout_count, test_stats().crashed_count);
+    auto resources = resource_stats(true);
+    outln("fd: {}, pipe: {}, sock: {}, file: {}, shm: {}, other: {}", resources.open_fds, resources.pipes, resources.sockets, resources.files, resources.shared_memory, resources.other);
     outln("==========================================================");
 
     auto& app = Application::the();
@@ -217,12 +217,14 @@ void Display::render_live_display() const
                 }
             });
         }
+
         if (need_hidden_line) {
             t.line([&] {
                 auto label = ByteString::formatted("... {} more views hidden", view_states().size() - num_view_lines);
                 t.label(label, {}, { .prefix = ::Test::LiveDisplay::Gray, .text = ::Test::LiveDisplay::None });
             });
         }
+
         t.lines(
             [] {},
             [&] {
@@ -232,6 +234,16 @@ void Display::render_live_display() const
                     { .label = "Skipped"sv, .color = ::Test::LiveDisplay::Gray, .value = test_stats().skipped_count },
                     { .label = "Timeout"sv, .color = ::Test::LiveDisplay::Yellow, .value = test_stats().timeout_count },
                     { .label = "Crashed"sv, .color = ::Test::LiveDisplay::Magenta, .value = test_stats().crashed_count },
+                });
+            },
+            [&] {
+                t.counter({
+                    { .label = "FD"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().open_fds },
+                    { .label = "Pipe"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().pipes },
+                    { .label = "Sock"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().sockets },
+                    { .label = "File"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().files },
+                    { .label = "SHM"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().shared_memory },
+                    { .label = "Other"sv, .color = ::Test::LiveDisplay::Gray, .value = resource_stats().other },
                 });
             },
             [] {},
