@@ -107,24 +107,32 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     auto& realm = this->realm();
     auto& vm = realm.vm();
 
-    m_poster_frame = nullptr;
-
     // 1. If there is an existing instance of this algorithm running for this video element, abort that instance of
     //    this algorithm without changing the poster frame.
     if (m_fetch_controller)
         m_fetch_controller->stop_fetch();
 
+    static constexpr auto finalize = [](HTMLVideoElement& self, RefPtr<Gfx::Bitmap> poster_frame) {
+        self.m_poster_frame = move(poster_frame);
+        self.m_load_event_delayer.clear();
+        self.m_fetch_controller = nullptr;
+    };
+
     // 2. If the poster attribute's value is the empty string or if the attribute is absent, then there is no poster
     //    frame; return.
-    if (!poster.has_value() || poster->is_empty())
+    if (!poster.has_value() || poster->is_empty()) {
+        finalize(*this, nullptr);
         return {};
+    }
 
     // 3. Let url be the result of encoding-parsing a URL given the poster attribute's value, relative to the element's node document.
     auto url_record = document().encoding_parse_url(*poster);
 
     // 4. If url is failure, then return.
-    if (!url_record.has_value())
+    if (!url_record.has_value()) {
+        finalize(*this, nullptr);
         return {};
+    }
 
     // 5. Let request be a new request whose URL is the resulting URL record, client is the element's node document's
     //    relevant settings object, destination is "image", initiator type is "video", credentials mode is "include",
@@ -142,38 +150,53 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
     m_load_event_delayer.emplace(document());
 
     // 7. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
-    fetch_algorithms_input.process_response = [this](auto response) mutable {
-        ScopeGuard guard { [&] { m_load_event_delayer.clear(); } };
-
-        auto& realm = this->realm();
-        auto& global = document().realm().global_object();
-
-        if (response->is_network_error())
+    fetch_algorithms_input.process_response = [weak_self = GC::Weak(*this)](auto response) {
+        if (!weak_self)
             return;
+        auto& self = *weak_self;
+        auto& realm = self.realm();
+        auto& global = self.document().realm().global_object();
+
+        if (response->is_network_error()) {
+            finalize(self, nullptr);
+            return;
+        }
 
         if (response->type() == Fetch::Infrastructure::Response::Type::Opaque || response->type() == Fetch::Infrastructure::Response::Type::OpaqueRedirect) {
             auto& filtered_response = static_cast<Fetch::Infrastructure::FilteredResponse&>(*response);
             response = filtered_response.internal_response();
         }
 
-        auto on_image_data_read = GC::create_function(heap(), [this](ByteBuffer image_data) mutable {
-            m_fetch_controller = nullptr;
-
+        auto on_image_data_read = GC::create_function(self.heap(), [weak_self](ByteBuffer image_data) {
+            if (!weak_self)
+                return;
             // 6. If an image is thus obtained, the poster frame is that image. Otherwise, there is no poster frame.
             (void)Platform::ImageCodecPlugin::the().decode_image(
                 image_data,
-                [strong_this = GC::Root(*this)](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
+                [weak_self](Web::Platform::DecodedImage& image) -> ErrorOr<void> {
+                    if (!weak_self)
+                        return {};
+                    RefPtr<Gfx::Bitmap> poster_frame;
                     if (!image.frames.is_empty())
-                        strong_this->m_poster_frame = move(image.frames[0].bitmap);
+                        poster_frame = move(image.frames[0].bitmap);
+                    finalize(*weak_self, move(poster_frame));
                     return {};
                 },
-                [](auto&) {});
+                [weak_self](auto&) {
+                    if (!weak_self)
+                        return;
+                    finalize(*weak_self, nullptr);
+                });
         });
 
         VERIFY(response->body());
-        auto empty_algorithm = GC::create_function(heap(), [](JS::Value) { });
+        auto on_body_read_error = GC::create_function(self.heap(), [weak_self](JS::Value) {
+            if (!weak_self)
+                return;
+            finalize(*weak_self, nullptr);
+        });
 
-        response->body()->fully_read(realm, on_image_data_read, empty_algorithm, GC::Ref { global });
+        response->body()->fully_read(realm, on_image_data_read, on_body_read_error, GC::Ref { global });
     };
 
     m_fetch_controller = Fetch::Fetching::fetch(realm, request, Fetch::Infrastructure::FetchAlgorithms::create(vm, move(fetch_algorithms_input)));
