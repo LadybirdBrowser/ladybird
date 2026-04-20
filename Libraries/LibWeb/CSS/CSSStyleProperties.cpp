@@ -634,7 +634,8 @@ static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const& styl
         return style_value;
     if (style_value.is_color()) {
         auto& color_style_value = static_cast<ColorStyleValue const&>(style_value);
-        if (first_is_one_of(color_style_value.color_type(), ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
+        if (auto color_type = color_style_value.color_type();
+            color_type.has_value() && first_is_one_of(*color_type, ColorStyleValue::ColorType::Lab, ColorStyleValue::ColorType::OKLab, ColorStyleValue::ColorType::LCH, ColorStyleValue::ColorType::OKLCH))
             return style_value;
     }
 

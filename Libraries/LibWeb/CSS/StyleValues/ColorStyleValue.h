@@ -44,10 +44,8 @@ public:
         Rec2020,
         XYZD50,
         XYZD65,
-        LightDark, // This is used by LightDarkStyleValue for light-dark(..., ...).
-        ColorMix,
     };
-    ColorType color_type() const { return m_color_type; }
+    Optional<ColorType> color_type() const { return m_color_type; }
     ColorSyntax color_syntax() const { return m_color_syntax; }
 
     static Optional<double> resolve_hue(StyleValue const&, CalculationResolutionContext const&);
@@ -55,7 +53,7 @@ public:
     static Optional<double> resolve_alpha(StyleValue const&, CalculationResolutionContext const&);
 
 protected:
-    explicit ColorStyleValue(ColorType color_type, ColorSyntax color_syntax)
+    explicit ColorStyleValue(Optional<ColorType> color_type, ColorSyntax color_syntax)
         : StyleValue(Type::Color)
         , m_color_type(color_type)
         , m_color_syntax(color_syntax)
@@ -66,7 +64,7 @@ protected:
     void serialize_alpha_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
     void serialize_hue_component(StringBuilder& builder, SerializationMode mode, StyleValue const& component) const;
 
-    ColorType m_color_type;
+    Optional<ColorType> m_color_type;
     ColorSyntax m_color_syntax;
 };
 

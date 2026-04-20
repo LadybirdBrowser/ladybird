@@ -40,7 +40,7 @@ public:
     StyleValue const& alpha() const { return *m_alpha; }
     Optional<FlyString> const& name() const { return m_name; }
 
-    ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(color_type()); }
+    ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
 
     virtual Optional<Color> to_color(ColorResolutionContext) const override;
     virtual ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const override;

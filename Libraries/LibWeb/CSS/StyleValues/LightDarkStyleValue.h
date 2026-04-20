@@ -28,7 +28,7 @@ public:
 
 private:
     LightDarkStyleValue(ValueComparingNonnullRefPtr<StyleValue const> light, ValueComparingNonnullRefPtr<StyleValue const> dark)
-        : ColorStyleValue(ColorStyleValue::ColorType::LightDark, ColorSyntax::Modern)
+        : ColorStyleValue({}, ColorSyntax::Modern)
         , m_properties { .light = move(light), .dark = move(dark) }
     {
     }

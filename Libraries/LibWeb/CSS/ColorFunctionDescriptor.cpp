@@ -10,7 +10,7 @@ namespace Web::CSS {
 
 using ColorType = ColorStyleValue::ColorType;
 
-static constexpr size_t color_type_count = to_underlying(ColorType::ColorMix) + 1;
+static constexpr size_t color_type_count = to_underlying(ColorType::XYZD65) + 1;
 
 namespace {
 

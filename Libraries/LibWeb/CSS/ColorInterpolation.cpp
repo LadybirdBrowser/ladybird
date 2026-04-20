@@ -121,7 +121,10 @@ static MissingComponents extract_missing_components(StyleValue const& style_valu
         return {};
 
     auto const& color = style_value.as_color();
-    switch (color.color_type()) {
+    auto color_type = color.color_type();
+    if (!color_type.has_value())
+        return {};
+    switch (*color_type) {
     case ColorStyleValue::ColorType::HSL: {
         auto const& hsl = as<HSLColorStyleValue>(color);
         return { is_component_none(hsl.h()), is_component_none(hsl.s()), is_component_none(hsl.l()), is_component_none(hsl.alpha()) };
@@ -385,6 +388,9 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return {};
 
     auto const& color = style_value.as_color();
+    auto color_type = color.color_type();
+    if (!color_type.has_value())
+        return {};
     auto resolve_alpha = [&](StyleValue const& alpha_sv) -> Optional<float> {
         auto result = ColorStyleValue::resolve_alpha(alpha_sv, context);
         if (!result.has_value())
@@ -392,7 +398,7 @@ static Optional<Gfx::ColorComponents> style_value_to_color_components(StyleValue
         return static_cast<float>(result.value());
     };
 
-    switch (color.color_type()) {
+    switch (*color_type) {
     case ColorStyleValue::ColorType::HSL: {
         auto const& hsl = as<HSLColorStyleValue>(color);
         auto h = ColorStyleValue::resolve_hue(hsl.h(), context);
@@ -620,8 +626,11 @@ static void mark_powerless_hue_after_conversion(
     StyleValue const& style_value, PolarColorSpace polar_color_space,
     ComponentCategories const& target_categories)
 {
-    if (style_value.is_color() && color_type_matches_polar_space(style_value.as_color().color_type(), polar_color_space))
-        return;
+    if (style_value.is_color()) {
+        auto color_type = style_value.as_color().color_type();
+        if (color_type.has_value() && color_type_matches_polar_space(*color_type, polar_color_space))
+            return;
+    }
 
     bool has_zero_colorfulness = false;
     for (size_t i = 0; i < 3; ++i) {
@@ -676,7 +685,10 @@ static ColorSyntax color_syntax_for_interpolation(StyleValue const& style_value)
         return ColorSyntax::Legacy;
 
     auto const& color = style_value.as_color();
-    switch (color.color_type()) {
+    auto color_type = color.color_type();
+    if (!color_type.has_value())
+        return color.color_syntax();
+    switch (*color_type) {
     case ColorStyleValue::ColorType::RGB:
     case ColorStyleValue::ColorType::HSL:
     case ColorStyleValue::ColorType::HWB:
@@ -688,8 +700,11 @@ static ColorSyntax color_syntax_for_interpolation(StyleValue const& style_value)
 
 static ComponentCategories source_categories_for_interpolation(StyleValue const& style_value)
 {
-    if (style_value.is_color())
-        return categories_for_color_type(style_value.as_color().color_type());
+    if (style_value.is_color()) {
+        if (auto color_type = style_value.as_color().color_type(); color_type.has_value())
+            return categories_for_color_type(*color_type);
+        return { ComponentCategory::NotAnalogous, ComponentCategory::NotAnalogous, ComponentCategory::NotAnalogous };
+    }
     return { ComponentCategory::Red, ComponentCategory::Green, ComponentCategory::Blue };
 }
 
@@ -742,7 +757,7 @@ static Optional<Gfx::ColorComponents> resolve_interpolation_color_to_srgb(
     if (color.native_components.has_value()) {
         color.srgb_components = native_components_to_srgb(
             color.native_components.value(),
-            style_value.as_color().color_type());
+            style_value.as_color().color_type().value());
         return color.srgb_components;
     }
 
@@ -792,7 +807,7 @@ static Gfx::ColorComponents convert_interpolation_color_to_rectangular_space(
     ColorResolutionContext const& color_resolution_context)
 {
     if (color.native_components.has_value() && style_value.is_color()
-        && color_type_matches_rectangular_space(style_value.as_color().color_type(), space)) {
+        && color_type_matches_rectangular_space(style_value.as_color().color_type().value(), space)) {
         return color.native_components.value();
     }
 
@@ -808,7 +823,7 @@ static Gfx::ColorComponents convert_interpolation_color_to_polar_space(
     ColorResolutionContext const& color_resolution_context)
 {
     if (color.native_components.has_value() && style_value.is_color()
-        && color_type_matches_polar_space(style_value.as_color().color_type(), space)) {
+        && color_type_matches_polar_space(style_value.as_color().color_type().value(), space)) {
         return color.native_components.value();
     }
 

@@ -20,7 +20,7 @@ ValueComparingNonnullRefPtr<ColorMixStyleValue const> ColorMixStyleValue::create
 }
 
 ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component)
-    : ColorStyleValue(ColorType::ColorMix, ColorSyntax::Modern)
+    : ColorStyleValue({}, ColorSyntax::Modern)
     , m_properties {
         .color_interpolation_method = move(color_interpolation_method),
         .first_component = move(first_component),
@@ -31,13 +31,10 @@ ColorMixStyleValue::ColorMixStyleValue(RefPtr<StyleValue const> color_interpolat
 
 bool ColorMixStyleValue::equals(StyleValue const& other) const
 {
-    if (type() != other.type())
+    auto const* other_color_mix = as_if<ColorMixStyleValue>(other);
+    if (!other_color_mix)
         return false;
-    auto const& other_color = other.as_color();
-    if (color_type() != other_color.color_type())
-        return false;
-    auto const& other_color_mix = as<ColorMixStyleValue>(other_color);
-    return m_properties == other_color_mix.m_properties;
+    return m_properties == other_color_mix->m_properties;
 }
 
 // https://drafts.csswg.org/css-color-5/#serial-color-mix

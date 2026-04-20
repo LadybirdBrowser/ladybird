@@ -30,13 +30,10 @@ ValueComparingNonnullRefPtr<StyleValue const> LightDarkStyleValue::absolutized(C
 
 bool LightDarkStyleValue::equals(StyleValue const& other) const
 {
-    if (type() != other.type())
+    auto const* other_light_dark = as_if<LightDarkStyleValue>(other);
+    if (!other_light_dark)
         return false;
-    auto const& other_color = other.as_color();
-    if (color_type() != other_color.color_type())
-        return false;
-    auto const& other_light_dark = as<LightDarkStyleValue>(other_color);
-    return m_properties == other_light_dark.m_properties;
+    return m_properties == other_light_dark->m_properties;
 }
 
 void LightDarkStyleValue::serialize(StringBuilder& builder, SerializationMode mode) const

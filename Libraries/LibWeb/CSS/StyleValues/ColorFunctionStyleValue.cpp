@@ -97,7 +97,7 @@ Optional<Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_r
 
     auto [c1, c2, c3, alpha] = *resolved;
 
-    switch (color_type()) {
+    switch (*color_type()) {
     case ColorType::RGB:
         return Color(clamp_to_byte(c1), clamp_to_byte(c2), clamp_to_byte(c3), fraction_to_byte(alpha));
     case ColorType::HSL:
@@ -148,9 +148,6 @@ Optional<Color> ColorFunctionStyleValue::to_color(ColorResolutionContext color_r
         return Color::from_xyz50(c1, c2, c3, alpha);
     case ColorType::XYZD65:
         return Color::from_xyz65(c1, c2, c3, alpha);
-    case ColorType::LightDark:
-    case ColorType::ColorMix:
-        break;
     }
     VERIFY_NOT_REACHED();
 }
@@ -245,14 +242,14 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorFunctionStyleValue::absolutiz
         if (!c1.has_value() || !c2.has_value() || !c3.has_value() || !alpha.has_value())
             VERIFY_NOT_REACHED();
 
-        if (color_type() == ColorType::HSL)
+        if (*color_type() == ColorType::HSL)
             return hsl_to_absolutized_rgb(*c1, *c2, *c3, *alpha);
         return hwb_to_absolutized_rgb(*c1, *c2, *c3, *alpha);
     }
 
     if (absolutized_c1 == m_channels[0] && absolutized_c2 == m_channels[1] && absolutized_c3 == m_channels[2] && absolutized_alpha == m_alpha)
         return *this;
-    return create(color_type(), move(absolutized_c1), move(absolutized_c2), move(absolutized_c3), move(absolutized_alpha), color_syntax(), m_name);
+    return create(*color_type(), move(absolutized_c1), move(absolutized_c2), move(absolutized_c3), move(absolutized_alpha), color_syntax(), m_name);
 }
 
 bool ColorFunctionStyleValue::equals(StyleValue const& other) const
