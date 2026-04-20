@@ -3,7 +3,6 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="color-scheme" content="light dark" />
-        <title>About %browser_name%</title>
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
@@ -116,36 +115,27 @@
                 <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
                 <img src="resource://icons/128x128/app-browser-dark.png" />
             </picture>
-            <h1>About %browser_name%</h1>
+            <h1 id="browser-name"></h1>
         </header>
-
-        <div class="card summary-card">
-            <div class="card-body">
-                <picture>
-                    <source srcset="resource://icons/128x128/app-browser.png" media="(prefers-color-scheme: dark)" />
-                    <img src="resource://icons/128x128/app-browser-dark.png" />
-                </picture>
-                <div>
-                    <h2 class="summary-title">%browser_name%</h2>
-                    <p class="summary-version">Version %browser_version%</p>
-                </div>
-            </div>
-        </div>
 
         <h3 class="card-title">Build Details</h3>
         <div class="card">
             <div class="card-body details">
                 <div class="detail-row">
+                    <div class="detail-label">Version</div>
+                    <div id="browser-version" class="detail-value"></div>
+                </div>
+                <div class="detail-row">
                     <div class="detail-label">Architecture</div>
-                    <div class="detail-value">%arch_name%</div>
+                    <div id="arch" class="detail-value"></div>
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">Operating System</div>
-                    <div class="detail-value">%os_name%</div>
+                    <div id="platform-name" class="detail-value"></div>
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">User Agent</div>
-                    <div class="detail-value">%user_agent%</div>
+                    <div id="user-agent" class="detail-value"></div>
                 </div>
             </div>
         </div>
@@ -155,13 +145,44 @@
             <div class="card-body details">
                 <div class="detail-row">
                     <div class="detail-label">Command Line</div>
-                    <div class="detail-value">%command_line%</div>
+                    <div id="command-line" class="detail-value"></div>
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">Executable Path</div>
-                    <div class="detail-value">%executable_path%</div>
+                    <div id="executable-path" class="detail-value"></div>
                 </div>
             </div>
         </div>
+        <script type="module">
+            const browserName = document.querySelector("#browser-name");
+            const browserVersion = document.querySelector("#browser-version");
+            const arch = document.querySelector("#arch");
+            const platformName = document.querySelector("#platform-name");
+            const userAgent = document.querySelector("#user-agent");
+            const commandLine = document.querySelector("#command-line");
+            const executablePath = document.querySelector("#executable-path");
+
+            function renderVersionInfo(versionInfo) {
+                document.title = `About ${versionInfo?.browserName}`;
+
+                browserName.innerText = document.title;
+                browserVersion.innerText = versionInfo?.browserVersion;
+                arch.innerText = versionInfo?.arch;
+                platformName.innerText = versionInfo?.platformName;
+                userAgent.innerText = navigator.userAgent;
+                commandLine.innerText = versionInfo?.commandLine;
+                executablePath.innerText = versionInfo?.executablePath;
+            }
+
+            document.addEventListener("WebUILoaded", () => {
+                ladybird.sendMessage("loadVersionInfo");
+            });
+
+            document.addEventListener("WebUIMessage", event => {
+                if (event.detail.name === "renderVersionInfo") {
+                    renderVersionInfo(event.detail.data);
+                }
+            });
+        </script>
     </body>
 </html>

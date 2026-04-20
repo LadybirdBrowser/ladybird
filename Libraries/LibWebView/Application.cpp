@@ -335,8 +335,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     };
 
     m_web_content_options = {
-        .command_line = MUST(String::join(' ', m_arguments.strings)),
-        .executable_path = MUST(String::from_byte_string(MUST(Core::System::current_executable_path()))),
         .user_agent_preset = move(user_agent_preset),
         .is_test_mode = enable_test_mode ? IsTestMode::Yes : IsTestMode::No,
         .log_all_js_exceptions = log_all_js_exceptions ? LogAllJSExceptions::Yes : LogAllJSExceptions::No,

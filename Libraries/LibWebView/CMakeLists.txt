@@ -34,6 +34,7 @@ set(SOURCES
     WebUI/BookmarksUI.cpp
     WebUI/ProcessesUI.cpp
     WebUI/SettingsUI.cpp
+    WebUI/VersionUI.cpp
 )
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})

@@ -131,8 +131,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Web::Platform::EventLoopPlugin::install(*new Web::Platform::EventLoopPlugin);
 
-    StringView command_line {};
-    StringView executable_path {};
     auto config_path = ByteString::formatted("{}/ladybird/default-config", WebView::s_ladybird_resource_root);
     StringView mach_server_name {};
     Vector<ByteString> certificates;
@@ -154,8 +152,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool file_origins_are_tuple_origins = false;
 
     Core::ArgsParser args_parser;
-    args_parser.add_option(command_line, "Browser process command line", "command-line", 0, "command_line");
-    args_parser.add_option(executable_path, "Browser process executable path", "executable-path", 0, "executable_path");
     args_parser.add_option(config_path, "Ladybird configuration path", "config-path", 0, "config_path");
     args_parser.add_option(enable_test_mode, "Enable test mode", "test-mode");
     args_parser.add_option(expose_experimental_interfaces, "Expose experimental IDL interfaces", "expose-experimental-interfaces");
@@ -195,9 +191,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         font_provider.set_name_but_fixme_should_create_custom_system_font_provider("FontConfig"_string);
     }
     font_provider.load_all_fonts_from_uri("resource://fonts"sv);
-
-    Web::set_browser_process_command_line(command_line);
-    Web::set_browser_process_executable_path(executable_path);
 
     // Always use the CPU backend for tests, as the GPU backend is not deterministic
     if (force_cpu_painting) {

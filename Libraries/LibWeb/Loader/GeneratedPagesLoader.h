@@ -11,13 +11,7 @@
 
 namespace Web {
 
-WEB_API void set_browser_process_command_line(StringView command_line);
-WEB_API void set_browser_process_executable_path(StringView executable_path);
-
 ErrorOr<String> load_error_page(URL::URL const&, StringView error_message);
-
 ErrorOr<String> load_file_directory_page(URL::URL const&);
-
-ErrorOr<String> load_about_version_page();
 
 }

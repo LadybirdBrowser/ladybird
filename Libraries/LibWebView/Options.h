@@ -168,8 +168,6 @@ enum class FileSchemeUrlsHaveTupleOrigins {
 };
 
 struct WebContentOptions {
-    String command_line;
-    String executable_path;
     Optional<ByteString> config_path {};
     Optional<StringView> user_agent_preset {};
     IsTestMode is_test_mode { IsTestMode::No };

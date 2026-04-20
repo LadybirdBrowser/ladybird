@@ -287,15 +287,6 @@ void ResourceLoader::handle_about_load_request(LoadRequest const& request, Callb
     Requests::RequestTimingInfo timing_info {};
 
     auto serialized_path = URL::percent_decode(url.serialize_path());
-
-    // About version page
-    if (serialized_path == "version") {
-        auto version_page = MUST(load_about_version_page());
-        callback(version_page.bytes(), timing_info, response_headers);
-        return;
-    }
-
-    // Other about static HTML pages
     auto target_file = ByteString::formatted("{}.html", serialized_path);
 
     auto about_directory = MUST(Core::Resource::load_from_uri("resource://ladybird/about-pages"_string));

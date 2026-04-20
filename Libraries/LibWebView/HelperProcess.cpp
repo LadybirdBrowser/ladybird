@@ -87,12 +87,7 @@ static ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_proc
     auto const& browser_options = WebView::Application::browser_options();
     auto const& web_content_options = WebView::Application::web_content_options();
 
-    Vector<ByteString> arguments {
-        "--command-line"sv,
-        web_content_options.command_line.to_byte_string(),
-        "--executable-path"sv,
-        web_content_options.executable_path.to_byte_string(),
-    };
+    Vector<ByteString> arguments;
 
     if (browser_options.headless_mode.has_value())
         arguments.append("--headless"sv);

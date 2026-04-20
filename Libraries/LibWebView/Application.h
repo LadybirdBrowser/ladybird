@@ -87,6 +87,8 @@ public:
     void open_url_in_new_tab(URL::URL const&, Web::HTML::ActivateTab) const;
     void open_bookmark_in_new_tab(String const& bookmark_id, Web::HTML::ActivateTab) const;
 
+    Main::Arguments const& command_line_arguments() const { return m_arguments; }
+
     void add_child_process(Process&&);
 
     // FIXME: Should these methods be part of Application, instead of deferring to ProcessManager?

@@ -226,7 +226,7 @@ inline URL about_version() { return URL::about("version"_string); }
 
 inline bool is_webui_url(URL const& url)
 {
-    return first_is_one_of(url, about_bookmarks(), about_processes(), about_settings());
+    return first_is_one_of(url, about_bookmarks(), about_processes(), about_settings(), about_version());
 }
 
 }
