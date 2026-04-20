@@ -7,6 +7,7 @@
 #include <AK/Optional.h>
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Fetch/Infrastructure/AuthenticationEntry.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
@@ -622,6 +623,53 @@ struct HideCursor {
                                 }
 
                                 m_web_view_bridge->prompt_closed(move(text));
+                                self.dialog = nil;
+                            }];
+    };
+
+    m_web_view_bridge->on_request_sign_in_dialog = [weak_self]() {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+
+        auto* container = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 200, 56)];
+
+        auto* username_label = [NSTextField labelWithString:@"Username:"];
+        [username_label setFrame:NSMakeRect(0, 32, 72, 22)];
+
+        auto* username_field = [[NSTextField alloc] initWithFrame:NSMakeRect(76, 30, 124, 24)];
+
+        auto* password_label = [NSTextField labelWithString:@"Password:"];
+        [password_label setFrame:NSMakeRect(0, 4, 72, 22)];
+
+        auto* password_field = [[NSSecureTextField alloc] initWithFrame:NSMakeRect(76, 2, 124, 24)];
+
+        [container addSubview:username_label];
+        [container addSubview:username_field];
+        [container addSubview:password_label];
+        [container addSubview:password_field];
+
+        self.dialog = [[NSAlert alloc] init];
+        [[self.dialog addButtonWithTitle:@"Sign in"] setTag:NSModalResponseOK];
+        [[self.dialog addButtonWithTitle:@"Cancel"] setTag:NSModalResponseCancel];
+        [self.dialog setMessageText:@"Sign in"];
+        [self.dialog setAccessoryView:container];
+
+        self.dialog.window.initialFirstResponder = username_field;
+
+        [self.dialog beginSheetModalForWindow:[self window]
+                            completionHandler:^(NSModalResponse response) {
+                                Optional<Web::Fetch::Infrastructure::AuthenticationEntry> entry;
+
+                                if (response == NSModalResponseOK) {
+                                    entry = Web::Fetch::Infrastructure::AuthenticationEntry {
+                                        .username = Ladybird::ns_string_to_string([username_field stringValue]),
+                                        .password = Ladybird::ns_string_to_string([password_field stringValue]),
+                                    };
+                                }
+
+                                m_web_view_bridge->sign_in_closed(entry);
                                 self.dialog = nil;
                             }];
     };
