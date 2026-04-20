@@ -6,7 +6,7 @@ pick_host_compiler() {
     local output
     local status
 
-    output=$("${DIR}/find_compiler.py")
+    output=$("${DIR}/find_compiler.py" "$@")
     status=$?
 
     if [[ ${status} -ne 0 ]] ; then

@@ -11,7 +11,6 @@ LADYBIRD_SOURCE_DIR="$(realpath "${DIR}"/../..)"
 
 # shellcheck source=/dev/null
 . "${LADYBIRD_SOURCE_DIR}/Meta/find_compiler.sh"
-
 pick_host_compiler
 
 BUILD_DIR=${BUILD_DIR:-"${LADYBIRD_SOURCE_DIR}/Build"}

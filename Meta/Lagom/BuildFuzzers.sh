@@ -25,12 +25,8 @@ fi
 # FIXME: Replace these CMake invocations with a CMake superbuild?
 echo "Building Lagom Tools..."
 
-# This will export $CC and $CXX.
-find_compiler="../find_compiler.py --clang-only"
-
-if ! eval "${find_compiler}" ; then
-    die "Unable to determine clang compiler"
-fi
+. "../find_compiler.sh"
+pick_host_compiler --clang-only
 
 cmake -S ../.. -GNinja --preset=Distribution -B Build/tools \
     -DLAGOM_TOOLS_ONLY=ON \
