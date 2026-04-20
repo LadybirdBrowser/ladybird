@@ -1,0 +1,24 @@
+<!doctype html>
+<canvas id="canvas" width="40" height="10"></canvas>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        canvas.style.fontSize = "10px";
+
+        const context = canvas.getContext("2d");
+        context.font = "20px sans-serif";
+        context.filter = "drop-shadow(1em 0 0 green)";
+        println(context.filter);
+        context.fillRect(0, 0, 10, 10);
+
+        const elementFontPixel = context.getImageData(15, 5, 1, 1).data;
+        const contextFontPixel = context.getImageData(25, 5, 1, 1).data;
+
+        println(
+            `element font shadow pixel: ${elementFontPixel[0]}, ${elementFontPixel[1]}, ${elementFontPixel[2]}, ${elementFontPixel[3]}`
+        );
+        println(
+            `context font shadow pixel: ${contextFontPixel[0]}, ${contextFontPixel[1]}, ${contextFontPixel[2]}, ${contextFontPixel[3]}`
+        );
+    });
+</script>
