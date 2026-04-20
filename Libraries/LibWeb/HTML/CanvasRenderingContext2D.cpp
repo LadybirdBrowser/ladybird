@@ -1254,20 +1254,7 @@ void CanvasRenderingContext2D::set_filter(String filter)
     auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
 
     if (style_value && style_value->is_filter_value_list()) {
-        auto& document = m_element->document();
-        DOM::AbstractElement abstract_element { *m_element };
-        document.update_style_if_needed_for_element(abstract_element);
-
-        // FIXME: Font relative lengths should be resolved against the context's font, not the canvas element's
-        auto length_resolution_context = m_element->computed_properties()
-            ? CSS::Length::ResolutionContext::for_element(abstract_element)
-            : CSS::Length::ResolutionContext::for_document(document);
-
-        CSS::ComputationContext computation_context {
-            .length_resolution_context = length_resolution_context,
-            .abstract_element = abstract_element,
-        };
-        auto filter_value_list = style_value->absolutized(computation_context)->as_filter_value_list().filter_value_list();
+        auto filter_value_list = style_value->absolutized(computation_context_for_drawing_state())->as_filter_value_list().filter_value_list();
 
         // 4. Set this's current filter to the given value.
         for (auto& item : filter_value_list) {
@@ -1305,6 +1292,9 @@ void CanvasRenderingContext2D::set_filter(String filter)
                     if (drop_shadow.radius) {
                         radius = static_cast<float>(CSS::Length::from_style_value(*drop_shadow.radius, {}).absolute_length_to_px());
                     };
+
+                    DOM::AbstractElement abstract_element { *m_element };
+                    m_element->document().update_style_if_needed_for_element(abstract_element);
 
                     Gfx::Color color = Gfx::Color::Black;
                     if (drop_shadow.color && m_element->computed_properties()) {

@@ -1,0 +1,3 @@
+drop-shadow(1em 0 0 green)
+element font shadow pixel: 0, 0, 0, 0
+context font shadow pixel: 0, 128, 0, 255
