@@ -61,13 +61,16 @@ static HashMap<WebView::ViewImplementation const*, size_t> s_current_test_index_
 struct TestRunContext {
     Vector<Test>& tests;
     size_t& tests_remaining;
-    size_t& total_tests;
 };
 
 static TestRunContext* s_run_context { nullptr };
+static TestStats s_stats;
+
+static void update_stats(TestResult result);
 
 Vector<ViewDisplayState>& view_states() { return s_view_display_states; }
-size_t total_tests() { return s_run_context ? s_run_context->total_tests : 0; }
+
+TestStats const& test_stats() { return s_stats; }
 
 static ErrorOr<ByteString> prepare_output_path(Test const& test)
 {
@@ -288,7 +291,6 @@ window.PDFViewerApplication.initializedPromise.then(() => {
 static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpan<TestCompletion> non_passing_tests)
 {
     auto& app = Application::the();
-    auto& display = Display::the();
 
     bool const has_helper_logs = FileSystem::exists(LexicalPath::join(app.results_directory, "helper-process-logs.html"sv).string());
     auto const generated_at = UnixDateTime::now();
@@ -297,11 +299,11 @@ static ErrorOr<void> generate_result_files(ReadonlySpan<Test> tests, ReadonlySpa
     StringBuilder js;
     js.append("const RESULTS_DATA = {\n"sv);
     js.appendff("  \"summary\": {{ \"total\": {}, \"fail\": {}, \"timeout\": {}, \"crashed\": {}, \"skipped\": {} }},\n",
-        total_tests(),
-        display.fail_count,
-        display.timeout_count,
-        display.crashed_count,
-        display.skipped_count);
+        s_stats.total_tests,
+        s_stats.fail_count,
+        s_stats.timeout_count,
+        s_stats.crashed_count,
+        s_stats.skipped_count);
     js.appendff("  \"generatedAt\": {},\n", generated_at.seconds_since_epoch());
     js.appendff("  \"invocationCommandLine\": {},\n", JsonValue(app.invocation_command_line).serialized());
     js.appendff("  \"hasLogs\": {},\n", has_helper_logs ? "true" : "false");
@@ -458,7 +460,7 @@ static void expand_test_with_variants(TestRunContext& context, size_t base_test_
     context.tests_remaining += variants.size();
 
     // For display, add (variants.size() - 1) since Expanded tests don't count in s_completed_tests
-    context.total_tests += variants.size() - 1;
+    s_stats.total_tests += variants.size() - 1;
 }
 
 static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test, URL::URL const& url)
@@ -1134,8 +1136,8 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             }
         }
     }
-    size_t total_tests = tests.size();
-    auto concurrency = min(app.test_concurrency, total_tests);
+    s_stats.total_tests = tests.size();
+    auto concurrency = min(app.test_concurrency, s_stats.total_tests);
     size_t loaded_web_views = 0;
     Vector<NonnullOwnPtr<TestWebView>> views;
     views.ensure_capacity(concurrency);
@@ -1174,7 +1176,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     auto tests_remaining = tests.size();
     auto current_test = 0uz;
 
-    TestRunContext context { tests, tests_remaining, total_tests };
+    TestRunContext context { tests, tests_remaining };
     s_run_context = &context;
     ScopeGuard clear_run_context = [&] { s_run_context = nullptr; };
 
@@ -1232,6 +1234,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             test.index = index;
 
             // Mark this view as active (for variant wake-up tracking)
+            s_stats.current_run = test.run_index;
             display.on_test_started(view_id, test, view->web_content_pid());
 
             // Reset promise and attach completion callback
@@ -1258,12 +1261,18 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 if (is_non_passing_result)
                     non_passing_tests.append(result);
 
-                Display::the().on_test_finished(view_id, test, result.result);
+                update_stats(result.result);
+                Display::the().on_test_finished(view_id, test);
 
                 if (app.fail_fast && !fail_fast_triggered && should_trigger_fail_fast) {
                     fail_fast_triggered = true;
                     auto const pid = view->web_content_pid();
-                    Display::the().on_fail_fast(test, result.result, pid);
+                    Display::the().clear_live_display();
+
+                    if (result.result == TestResult::Timeout)
+                        outln("Fail-fast: Timeout: {} (pid {})", test.relative_path, pid);
+                    else
+                        outln("Fail-fast: {}: {}", test_result_to_string(result.result), test.relative_path);
 
                     if (s_all_tests_complete)
                         s_all_tests_complete->reject(Error::from_string_literal("Fail-fast"));
@@ -1333,7 +1342,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
             outln("Results: file://{}/index.html", app.results_directory);
     }
 
-    return display.fail_count + display.timeout_count + display.crashed_count + tests_remaining;
+    return s_stats.fail_count + s_stats.timeout_count + s_stats.crashed_count + tests_remaining;
 }
 
 static void handle_signal(int signal)
@@ -1369,6 +1378,33 @@ static void handle_signal(int signal)
     s_all_tests_complete->reject(signal == SIGINT
             ? Error::from_string_view("SIGINT received"sv)
             : Error::from_string_view("SIGTERM received"sv));
+}
+
+static void update_stats(TestResult result)
+{
+    auto& stats = s_stats;
+    switch (result) {
+    case TestResult::Pass:
+        ++stats.pass_count;
+        break;
+    case TestResult::Fail:
+        ++stats.fail_count;
+        break;
+    case TestResult::Timeout:
+        ++stats.timeout_count;
+        break;
+    case TestResult::Crashed:
+        ++stats.crashed_count;
+        break;
+    case TestResult::Skipped:
+        ++stats.skipped_count;
+        break;
+    case TestResult::Expanded:
+        // Don't count Expanded as a separate result in stats, it's just a UI state for certain tests.
+        break;
+    }
+    if (result != TestResult::Expanded)
+        stats.completed_tests++;
 }
 
 }
