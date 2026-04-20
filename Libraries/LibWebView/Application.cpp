@@ -105,12 +105,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         warnln("Unable to increase open file limit: {}", result.error());
 #endif
 
+    m_event_loop = create_platform_event_loop();
+
 #if defined(AK_OS_MACOS)
     m_mach_port_server = make<IPC::MachBootstrapListener>(mach_server_name_for_process("Ladybird"sv, Core::System::getpid()));
     set_mach_server_name(m_mach_port_server->server_port_name());
 
     m_mach_port_server->on_bootstrap_request = [this](IPC::MachBootstrapListener::BootstrapRequest request) {
-        set_process_mach_port(request.pid, move(request.task_port));
+        m_event_loop->deferred_invoke([this, pid = request.pid, task_port = move(request.task_port)]() mutable { set_process_mach_port(pid, move(task_port)); });
         auto result = MUST(m_transport_bootstrap_server.handle_bootstrap_request(request.pid, move(request.reply_port)));
         result.visit(
             [](IPC::TransportBootstrapMachServer::ChildTransportHandled) {
@@ -382,7 +384,6 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
 
     initialize_actions();
 
-    m_event_loop = create_platform_event_loop();
     TRY(launch_services());
 
     return {};

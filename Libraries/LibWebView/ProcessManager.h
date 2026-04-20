@@ -9,7 +9,7 @@
 #include <AK/Function.h>
 #include <AK/JsonValue.h>
 #include <AK/Types.h>
-#include <LibCore/EventLoop.h>
+#include <LibCore/Forward.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Process.h>
@@ -43,12 +43,9 @@ public:
     Function<void(Process&&)> on_process_exited;
 
 private:
-    void verify_event_loop() const;
-
     Core::Platform::ProcessStatistics m_statistics;
     HashMap<pid_t, Process> m_processes;
     ProcessMonitor m_process_monitor;
-    Core::EventLoop* m_creation_event_loop { &Core::EventLoop::current() };
 };
 
 }
