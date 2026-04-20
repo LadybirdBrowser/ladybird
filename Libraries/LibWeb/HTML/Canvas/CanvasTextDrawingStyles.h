@@ -32,6 +32,7 @@ public:
 
     String letter_spacing() const;
     void set_letter_spacing(StringView);
+    float resolved_letter_spacing() const;
 
 protected:
     CanvasTextDrawingStyles() = default;
