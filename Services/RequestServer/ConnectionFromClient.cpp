@@ -227,35 +227,30 @@ int ConnectionFromClient::on_socket_callback(CURL*, int sockfd, int what, void* 
         return 0;
     }
 
-    if (what & CURL_POLL_IN) {
-        client->m_read_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
-            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Read);
-            notifier->on_activation = [client, sockfd, multi] {
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_IN, nullptr);
+    auto update_notifier = [client, sockfd, what](auto& notifiers, Core::NotificationType type, int poll_flag, int select_flag) {
+        if (!(what & poll_flag)) {
+            if (auto notifier = notifiers.get(sockfd); notifier.has_value())
+                notifier.value()->set_enabled(false);
+            return;
+        }
+
+        auto& notifier = notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi, type, select_flag] {
+            auto notifier = Core::Notifier::construct(sockfd, type);
+            notifier->on_activation = [client, sockfd, multi, select_flag] {
+                auto result = curl_multi_socket_action(multi, sockfd, select_flag, nullptr);
                 VERIFY(result == CURLM_OK);
 
                 client->check_active_requests();
             };
 
-            notifier->set_enabled(true);
             return notifier;
         });
-    }
 
-    if (what & CURL_POLL_OUT) {
-        client->m_write_notifiers.ensure(sockfd, [client, sockfd, multi = client->m_curl_multi] {
-            auto notifier = Core::Notifier::construct(sockfd, Core::NotificationType::Write);
-            notifier->on_activation = [client, sockfd, multi] {
-                auto result = curl_multi_socket_action(multi, sockfd, CURL_CSELECT_OUT, nullptr);
-                VERIFY(result == CURLM_OK);
+        notifier->set_enabled(true);
+    };
 
-                client->check_active_requests();
-            };
-
-            notifier->set_enabled(true);
-            return notifier;
-        });
-    }
+    update_notifier(client->m_read_notifiers, Core::NotificationType::Read, CURL_POLL_IN, CURL_CSELECT_IN);
+    update_notifier(client->m_write_notifiers, Core::NotificationType::Write, CURL_POLL_OUT, CURL_CSELECT_OUT);
 
     return 0;
 }
