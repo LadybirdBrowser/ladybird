@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<div role="grid" aria-label="Scores">
+  <div role="rowgroup">
+    <div role="row"><div role="columnheader">Player</div><div role="columnheader">Score</div></div>
+  </div>
+  <div role="rowgroup">
+    <div role="row"><div role="gridcell">Alice</div><div role="gridcell">30</div></div>
+    <div role="row"><div role="gridcell">Bob</div><div role="gridcell">25</div></div>
+  </div>
+</div>
+<div role="treegrid" aria-label="Files">
+  <div role="row" aria-level="1" aria-expanded="true"><div role="gridcell">src</div><div role="gridcell">directory</div></div>
+  <!-- aria-level applies to a row, not to a gridcell: the cell's is an author error and gets no level. -->
+  <div role="row" aria-level="2"><div role="gridcell">main.cpp</div><div role="gridcell" aria-level="3">file</div></div>
+</div>
+</body>
+</html>

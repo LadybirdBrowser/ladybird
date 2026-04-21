@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<a href="#k" id="link">A link</a>
+<p>Plain text after the link.</p>
+<script>
+  // Half a second after the link takes focus, drop it again — so a test can watch focus leave every element and land
+  // on the document, with nothing else on the page having moved it.
+  document.getElementById("link").addEventListener("focus", () => {
+    setTimeout(() => document.getElementById("link").blur(), 500);
+  });
+</script>
+</body>
+</html>
