@@ -22,12 +22,22 @@ class HostSystem(enum.IntEnum):
     BSD = enum.auto()
 
 
-class GUIFramework(enum.StrEnum):
-    # enum.auto() will tolower the values
-    Qt = "Qt"
-    AppKit = "AppKit"
-    Gtk = "Gtk"
-    Android = "Android"
+class GUIFramework(enum.IntEnum):
+    Qt = enum.auto()
+    AppKit = enum.auto()
+    Gtk = enum.auto()
+    Android = enum.auto()
+
+    @classmethod
+    def from_string(cls, gui: str) -> "GUIFramework":
+        try:
+            return cls[gui]
+        except KeyError:
+            # argparse does not catch KeyError, so we return a ValueError for better command line errors.
+            raise ValueError(f"Unknown GUIFramework: {gui!r}") from None
+
+    def __str__(self):
+        return self.name
 
 
 class Platform:

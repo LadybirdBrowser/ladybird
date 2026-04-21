@@ -44,7 +44,9 @@ def main():
     compiler_parser.add_argument("--cc", required=False, default=default_cc)
     compiler_parser.add_argument("--cxx", required=False, default=default_cxx)
     compiler_parser.add_argument("--jobs", "-j", required=False)
-    compiler_parser.add_argument("--gui", required=False, choices=platform.valid_gui_frameworks())
+    compiler_parser.add_argument(
+        "--gui", required=False, type=GUIFramework.from_string, choices=platform.valid_gui_frameworks()
+    )
 
     target_parser = argparse.ArgumentParser(add_help=False)
     target_parser.add_argument("target", nargs=argparse.OPTIONAL)
@@ -235,7 +237,7 @@ def gui_for_build_dir(build_preset_dir: Path) -> Optional[GUIFramework]:
         for line in f:
             if line.startswith("LADYBIRD_GUI_FRAMEWORK:STRING="):
                 try:
-                    return GUIFramework(line.strip().split("=", 1)[1])
+                    return GUIFramework.from_string(line.strip().split("=", 1)[1])
                 except ValueError:
                     return None
     return None
