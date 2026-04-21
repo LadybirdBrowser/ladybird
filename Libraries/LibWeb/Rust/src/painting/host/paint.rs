@@ -38,6 +38,7 @@ pub struct FfiRecordingInputs {
     pub paint_command_cache_read_write: bool,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,
+    pub accessibility_focus_target: crate::layout::node_data::NodeSlotId,
     pub has_inspector_highlight: bool,
     pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
     pub tooltip_color: Color,

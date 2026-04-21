@@ -939,6 +939,13 @@ RefPtr<StyleValue const> ComputedValues::FontValues::font_family_style_value() c
     return animation_style_value(font_family);
 }
 
+FontStyleKeyword ComputedValues::FontValues::font_style_keyword() const
+{
+    if (!font_style.pointer)
+        return FontStyleKeyword::Normal;
+    return animation_style_value(font_style)->as_font_style().font_style();
+}
+
 Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(view_transition_name.pointer);

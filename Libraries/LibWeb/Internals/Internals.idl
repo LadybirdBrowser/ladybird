@@ -129,6 +129,7 @@ interface Internals {
     DOMString getComputedRole(Element element);
     DOMString getComputedLabel(Element element);
     DOMString getComputedAriaLevel(Element element);
+    undefined setAccessibilityFocusTarget(Element element);
     unsigned short getEchoServerPort();
 
     undefined setHSTSPolicy(DOMString domain, unsigned long long maxAge, boolean includeSubDomains);

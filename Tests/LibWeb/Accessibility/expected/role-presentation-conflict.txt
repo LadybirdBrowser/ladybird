@@ -1,0 +1,9 @@
+document
+  generic focused
+    button name="Save"
+      text leaf name="Save"
+    image name="Labelled image"
+    generic name="Labelled div"
+      text leaf name="Div content"
+    button name="No global ARIA"
+      text leaf name="No global ARIA"

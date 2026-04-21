@@ -64,6 +64,8 @@
 #include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLLegendElement.h>
+#include <LibWeb/HTML/HTMLOptGroupElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLScriptElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
@@ -3491,6 +3493,12 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
         }
     }
 
+    // AD-HOC: A DOM mutation can change the accessibility tree, so ask the client to schedule a rebuild whenever
+    // an assistive technology is consuming it. This is independent of DevTools' mutation listener and of whether
+    // any MutationObserver is registered, so it must run before the observer-only bail below.
+    if (page.accessibility_interested())
+        page.client().page_did_change_accessibility_tree();
+
     // OPTIMIZATION: If there are no interested observers, bail without doing any more work.
     if (interested_observers.is_empty() && !page.listen_for_dom_mutations())
         return;
@@ -3584,15 +3592,61 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         if (is<HTML::HTMLScriptElement>(element) || is<HTML::HTMLStyleElement>(element))
             return;
 
+        // A display:contents element generates no layout node of its own, but its children are still rendered. So the
+        // absence of a layout node must not exclude it; its children get flattened into its parent below.
+        auto const* box_values = element->style_group<CSS::ComputedValues::BoxValues>();
+        auto is_display_contents = box_values && CSS::display_from_ffi_display(box_values->display).is_contents();
+        auto const* inherited_box_values = element->style_group<CSS::ComputedValues::InheritedBoxValues>();
+        auto is_visibility_hidden = inherited_box_values
+            && static_cast<CSS::Visibility>(inherited_box_values->visibility) != CSS::Visibility::Visible;
+
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);
             parent.append_child(current_node.ptr());
-            if (has_child_nodes()) {
+
+            // HTMLSelectElement renders its options inside a shadow-DOM popup; the option elements themselves have no
+            // layout_node when the popup is closed — so the usual exclude-from-accessibility check (which bails for
+            // elements without a layout_node) would skip them. Therefore, we visit the select's children directly here,
+            // applying only the exclusions that don't depend on layout. We walk the children rather than
+            // list_of_options() — which would flatten the options, and would lose the grouping an optgroup carries.
+            if (is<HTML::HTMLSelectElement>(*element)) {
+                auto is_excluded = [](DOM::Element const& child) {
+                    return child.is_aria_hidden() || child.has_attribute(HTML::AttributeNames::hidden);
+                };
+                auto append_option = [&](HTML::HTMLOptionElement& option, AccessibilityTreeNode& into) {
+                    if (!is_excluded(option))
+                        into.append_child(AccessibilityTreeNode::create(&option).ptr());
+                };
+
+                for_each_child([&](DOM::Node& child) {
+                    if (auto* option = as_if<HTML::HTMLOptionElement>(child)) {
+                        append_option(*option, *current_node);
+                    } else if (auto* group = as_if<HTML::HTMLOptGroupElement>(child)) {
+                        if (is_excluded(*group))
+                            return IterationDecision::Continue;
+                        auto group_node = AccessibilityTreeNode::create(group);
+                        current_node->append_child(group_node.ptr());
+                        group->for_each_child([&](DOM::Node& group_child) {
+                            if (auto* option = as_if<HTML::HTMLOptionElement>(group_child))
+                                append_option(*option, *group_node);
+                            return IterationDecision::Continue;
+                        });
+                    }
+                    return IterationDecision::Continue;
+                });
+            } else if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
                     child.build_accessibility_tree(*current_node);
                     return IterationDecision::Continue;
                 });
             }
+        } else if ((!element->layout_node() && !is_display_contents) || element->is_aria_hidden() || is_visibility_hidden) {
+            // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
+            // The following elements are not exposed via the accessibility API and user agents MUST NOT include them in
+            // the accessibility tree: Elements, including their descendent elements, that have host language semantics
+            // specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or the HTML
+            // hidden attribute.
+            return;
         } else if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);
@@ -4096,8 +4150,10 @@ ErrorOr<Utf16String> Node::accessible_description(Document const& document) cons
     });
     for (auto id : id_list) {
         if (auto description_element = document.get_element_by_id(id)) {
+            // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
+            // the "text alternative computation" for referenced elements.
             auto description = TRY(
-                description_element->name_or_description(NameOrDescription::Description, document,
+                description_element->name_or_description(NameOrDescription::Name, document,
                     visited_nodes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {

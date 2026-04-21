@@ -1,0 +1,18 @@
+document
+  generic focused
+    list name="Fruits"
+      listitem
+        text leaf name="Apple"
+      listitem
+        text leaf name="Banana"
+      listitem
+        text leaf name="Cherry"
+    list name="Steps"
+      listitem
+        text leaf name="First step"
+      listitem
+        text leaf name="Second step"
+    term
+      text leaf name="Term"
+    definition
+      text leaf name="Definition"
