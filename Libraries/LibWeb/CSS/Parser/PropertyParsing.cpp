@@ -3329,20 +3329,65 @@ RefPtr<StyleValue const> Parser::parse_math_depth_value(TokenStream<ComponentVal
 // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_value(TokenStream<ComponentValue>& tokens)
 {
-    // <visual-box> || <length [0,∞]>
-    // FIXME: Implement the <visual-box> part of this.
+    // <visual-box> || <length>
+    auto parse_visual_box = [this](auto& tokens) -> Optional<Keyword> {
+        auto transaction = tokens.begin_transaction();
+        auto maybe_visual_box = parse_keyword_value(tokens);
+        if (!maybe_visual_box)
+            return {};
 
-    if (auto length = parse_length_value(tokens, non_negative_range)) {
-        return length.release_nonnull();
+        auto keyword = maybe_visual_box->to_keyword();
+        if (keyword != Keyword::ContentBox && keyword != Keyword::PaddingBox && keyword != Keyword::BorderBox)
+            return {};
+
+        transaction.commit();
+        return keyword;
+    };
+
+    RefPtr<StyleValue const> length;
+    Optional<Keyword> visual_box;
+
+    for (size_t i = 0; i < 2; ++i) {
+        tokens.discard_whitespace();
+        if (!tokens.has_next_token())
+            break;
+
+        if (!visual_box.has_value()) {
+            if (auto maybe_visual_box = parse_visual_box(tokens); maybe_visual_box.has_value()) {
+                visual_box = maybe_visual_box.release_value();
+                continue;
+            }
+        }
+
+        if (!length) {
+            if (auto maybe_length = parse_length_value(tokens, infinite_range)) {
+                length = maybe_length.release_nonnull();
+                continue;
+            }
+        }
+
+        return nullptr;
     }
 
-    return nullptr;
+    tokens.discard_whitespace();
+    if (tokens.has_next_token() || (!visual_box.has_value() && !length))
+        return nullptr;
+
+    if (!length)
+        length = LengthStyleValue::create(Length::make_px(0));
+
+    if (!visual_box.has_value() || *visual_box == Keyword::PaddingBox)
+        return length;
+
+    if (length->is_length() && length->as_length().length().raw_value() == 0)
+        return KeywordStyleValue::create(*visual_box);
+
+    return StyleValueList::create({ KeywordStyleValue::create(*visual_box), length.release_nonnull() }, StyleValueList::Separator::Space);
 }
 
 RefPtr<StyleValue const> Parser::parse_overflow_clip_margin_shorthand(PropertyID property_id, TokenStream<ComponentValue>& tokens)
 {
-    // <visual-box> || <length [0,∞]>
-    // FIXME: Implement the <visual-box> part of this.
+    // <visual-box> || <length>
 
     if (auto value = parse_overflow_clip_margin_value(tokens)) {
         auto const& longhands = longhands_for_shorthand(property_id);
