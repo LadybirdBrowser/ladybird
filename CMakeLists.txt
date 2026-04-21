@@ -130,11 +130,6 @@ include(targets)
 add_lagom_library_install_rules(GenericClangPlugin)
 add_lagom_library_install_rules(JSClangPlugin)
 
-# Create mostly empty targets for system libraries we don't need to build for Lagom
-add_library(NoCoverage INTERFACE)
-# "install" these special targets to placate CMake
-install(TARGETS NoCoverage EXPORT LagomTargets)
-
 add_subdirectory(AK)
 add_subdirectory(Libraries)
 
