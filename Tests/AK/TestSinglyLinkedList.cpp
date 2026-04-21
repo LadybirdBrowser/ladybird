@@ -204,3 +204,26 @@ TEST_CASE(singly_linked_list_remove_does_not_leave_dangling_iterator)
     EXPECT(it == list.end());
     EXPECT(list.is_empty());
 }
+
+TEST_CASE(singly_linked_list_remove_consecutive_mid_list_nodes)
+{
+    SinglyLinkedList<int> list;
+    list.append(1);
+    list.append(2);
+    list.append(3);
+    list.append(4);
+
+    auto it = list.begin();
+    ++it;
+    it = list.remove(it);
+    EXPECT_EQ(*it, 3);
+    it = list.remove(it);
+    EXPECT_EQ(*it, 4);
+
+    it = list.begin();
+    EXPECT_EQ(*it, 1);
+    ++it;
+    EXPECT_EQ(*it, 4);
+    ++it;
+    EXPECT(it == list.end());
+}

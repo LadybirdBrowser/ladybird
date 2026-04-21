@@ -281,6 +281,7 @@ public:
         auto* next = node->next;
         new_iterator.m_node = next;
         new_iterator.m_next = next ? next->next : nullptr;
+        new_iterator.m_prev = iterator.m_prev;
         delete node;
         return new_iterator;
     }
