@@ -16,7 +16,6 @@ find . \( \
         -o -name Patches \
         -o -name Ports \
         -o -name Root \
-        -o -name Toolchain \
         -o -name Build \
     \) -prune \
     -o \( \

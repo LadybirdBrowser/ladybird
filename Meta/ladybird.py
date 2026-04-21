@@ -295,7 +295,6 @@ def configure_build_env(platform: Platform, preset: str) -> tuple[Path, Path]:
         sys.exit(1)
 
     vcpkg_root = str(build_root_dir / "vcpkg")
-    os.environ["PATH"] += os.pathsep + str(ladybird_source_dir.joinpath("Toolchain", "Local", "cmake", "bin"))
     os.environ["PATH"] += os.pathsep + vcpkg_root
     os.environ["VCPKG_ROOT"] = vcpkg_root
     if platform.host_architecture == HostArchitecture.riscv64:

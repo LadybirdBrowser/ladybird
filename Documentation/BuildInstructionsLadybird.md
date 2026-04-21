@@ -300,7 +300,7 @@ error: building skia:x64-linux failed with: BUILD_FAILED
 Elapsed time to handle skia:x64-linux: 1.6 s
 
 -- Running vcpkg install - failed
-CMake Error at Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
+CMake Error at Build/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
   vcpkg install failed.  See logs for more information:
   Build/release/vcpkg-manifest-install.log
 Call Stack (most recent call first):

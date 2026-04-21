@@ -47,16 +47,10 @@
                 // Excluding the generated directories keeps your file view clean and speeds up search.
                 "files.exclude": {
                     "**/.git": true,
-                    "Toolchain/Local/**": true,
-                    "Toolchain/Tarballs/**": true,
-                    "Toolchain/Build/**": true,
                     "Build/**": true
                 },
                 "search.exclude": {
                     "**/.git": true,
-                    "Toolchain/Local/**": true,
-                    "Toolchain/Tarballs/**": true,
-                    "Toolchain/Build/**": true,
                     "Build/**": true
                 },
                 // Tab settings

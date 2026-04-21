@@ -102,16 +102,10 @@ These belong in the `.vscode/settings.json` of Ladybird.
     // Excluding the generated directories keeps your file view clean and speeds up search.
     "files.exclude": {
         "**/.git": true,
-        "Toolchain/Local/**": true,
-        "Toolchain/Tarballs/**": true,
-        "Toolchain/Build/**": true,
         "Build/**": true,
     },
     "search.exclude": {
         "**/.git": true,
-        "Toolchain/Local/**": true,
-        "Toolchain/Tarballs/**": true,
-        "Toolchain/Build/**": true,
         "Build/**": true,
     },
     // Force clang-format to respect Ladybird's .clang-format style file. This is not necessary if you're not using the Microsoft C++ extension.
