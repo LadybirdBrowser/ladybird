@@ -497,6 +497,11 @@ public:
     Element const* target_element() const { return m_target_element.ptr(); }
     void set_target_element(GC::Ptr<Element>);
 
+    Vector<GC::Ref<Element>>& autofocus_candidates() { return m_autofocus_candidates; }
+    bool autofocus_processed_flag() const { return m_autofocus_processed_flag; }
+    void set_autofocus_processed_flag(bool value) { m_autofocus_processed_flag = value; }
+    void flush_autofocus_candidates();
+
     void try_to_scroll_to_the_fragment();
     void scroll_to_the_fragment();
     void scroll_to_the_beginning_of_the_document();
@@ -1199,6 +1204,12 @@ private:
 
     GC::Ptr<Element> m_active_element;
     GC::Ptr<Element> m_target_element;
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-candidates
+    Vector<GC::Ref<Element>> m_autofocus_candidates;
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#autofocus-processed-flag
+    bool m_autofocus_processed_flag { false };
 
     bool m_created_for_appropriate_template_contents { false };
     GC::Ptr<Document> m_associated_inert_template_document;

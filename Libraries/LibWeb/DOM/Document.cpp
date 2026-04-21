@@ -597,6 +597,7 @@ void Document::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_focused_area);
     visitor.visit(m_active_element);
     visitor.visit(m_target_element);
+    visitor.visit(m_autofocus_candidates);
     visitor.visit(m_implementation);
     visitor.visit(m_current_script);
     visitor.visit(m_associated_inert_template_document);
@@ -2926,6 +2927,106 @@ void Document::set_target_element(GC::Ptr<Element> element)
     m_target_element = element;
 
     set_needs_repaint();
+}
+
+// https://html.spec.whatwg.org/multipage/interaction.html#flush-autofocus-candidates
+void Document::flush_autofocus_candidates()
+{
+    // 1. If topDocument's autofocus processed flag is true, then return.
+    if (m_autofocus_processed_flag)
+        return;
+
+    // 2. Let candidates be topDocument's autofocus candidates.
+    auto& candidates = m_autofocus_candidates;
+
+    // 3. If candidates is empty, then return.
+    if (candidates.is_empty())
+        return;
+
+    // 4. If topDocument's focused area is not topDocument itself, or topDocument has non-null target element, then:
+    if ((m_focused_area && m_focused_area.ptr() != this) || m_target_element) {
+        // 1. Empty candidates.
+        candidates.clear();
+
+        // 2. Set topDocument's autofocus processed flag to true.
+        m_autofocus_processed_flag = true;
+
+        // 3. Return.
+        return;
+    }
+
+    // 5. While candidates is not empty:
+    while (!candidates.is_empty()) {
+        // 1. Let element be candidates[0].
+        GC::Ref<Element> element = candidates.first();
+
+        // 2. Let doc be element's node document.
+        auto& doc = element->document();
+
+        // 3. If doc is not fully active, then remove element from candidates, and continue.
+        if (!doc.is_fully_active()) {
+            candidates.take_first();
+            continue;
+        }
+
+        // 4. If doc's node navigable's top-level traversable is not the same as topDocument's node navigable, then
+        //    remove element from candidates, and continue.
+        auto doc_navigable = doc.navigable();
+        if (!doc_navigable || doc_navigable->top_level_traversable() != navigable()) {
+            candidates.take_first();
+            continue;
+        }
+
+        // 5. If doc's script-blocking style sheet set is not empty, then return.
+        if (!doc.script_blocking_style_sheet_set().is_empty())
+            return;
+
+        // 6. Remove element from candidates.
+        candidates.take_first();
+
+        // 7. Let inclusiveAncestorDocuments be a list consisting of the active document of doc's inclusive ancestor navigables.
+        GC::RootVector<GC::Ref<Document>> inclusive_ancestor_documents(heap());
+        inclusive_ancestor_documents.append(doc);
+        auto ancestor_navigable = doc_navigable->parent();
+        while (ancestor_navigable) {
+            if (auto active = ancestor_navigable->active_document())
+                inclusive_ancestor_documents.append(*active);
+            ancestor_navigable = ancestor_navigable->parent();
+        }
+
+        // 8. If any Document in inclusiveAncestorDocuments has non-null target element, then continue.
+        auto any_ancestor_has_target = false;
+        for (auto& ancestor : inclusive_ancestor_documents) {
+            if (ancestor->target_element()) {
+                any_ancestor_has_target = true;
+                break;
+            }
+        }
+        if (any_ancestor_has_target)
+            continue;
+
+        // 9. Let target be element.
+        GC::Ptr<Element> target = element;
+
+        // FIXME: 10. If target is not a focusable area, then set target to the result of getting the
+        //            focusable area for target.
+        // AD-HOC: We don't implement "get the focusable area" so for now, treat unconnected and non-focusable elements
+        //         as having no focusable area.
+        if (!target->is_connected() || !target->is_focusable())
+            target = nullptr;
+
+        // 11. If target is not null, then:
+        if (target) {
+            // 1. Empty candidates.
+            candidates.clear();
+
+            // 2. Set topDocument's autofocus processed flag to true.
+            m_autofocus_processed_flag = true;
+
+            // 3. Run the focusing steps for target.
+            HTML::run_focusing_steps(target.ptr());
+        }
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#the-indicated-part-of-the-document

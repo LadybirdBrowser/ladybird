@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="first" autofocus>
+<input id="second" autofocus>
+<script>
+    document.getElementById("first").remove();
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            println(`activeElement.id=${document.activeElement.id}`);
+            done();
+        });
+    });
+</script>

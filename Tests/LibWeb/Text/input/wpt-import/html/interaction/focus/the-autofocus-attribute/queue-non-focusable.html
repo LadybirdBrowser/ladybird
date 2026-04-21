@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<textarea autofocus disabled></textarea>
+<select autofocus></select>
+
+<script>
+'use strict';
+
+promise_test(async () => {
+  const [textarea, select] = document.querySelectorAll('[autofocus]');
+  textarea.disabled = false;
+
+  await waitUntilStableAutofocusState();
+  assert_equals(document.activeElement, textarea);
+  assert_not_equals(document.activeElement, select);
+}, 'If the first autofocus element is not focusable, but becomes focusable before a frame, it should be focused.');
+</script>

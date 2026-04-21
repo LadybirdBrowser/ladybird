@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	If the first autofocus element is not focusable, but becomes focusable before a frame, it should be focused.

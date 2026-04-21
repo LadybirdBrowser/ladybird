@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The first autofocus in the document wins, even if elements are inserted later</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#autofocusing-a-form-control:-the-autofocus-attribute">
+<link rel="author" title="Domenic Denicola" href="d@domenic.me">
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<input autofocus>
+
+<script>
+"use strict";
+
+promise_test(async () => {
+  const input1 = document.querySelector("input");
+  const input2 = document.createElement("input");
+  input2.autofocus = true;
+  document.body.appendChild(input2);
+
+  await waitUntilStableAutofocusState();
+  assert_equals(document.activeElement, input1);
+  assert_not_equals(document.activeElement, input2);
+}, 'The first autofocus in the document wins, even if elements are inserted later.');
+</script>

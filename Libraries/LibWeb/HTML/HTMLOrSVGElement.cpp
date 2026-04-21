@@ -9,7 +9,10 @@
 #include <LibWeb/HTML/Focus.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOrSVGElement.h>
+#include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/HTML/TraversableNavigable.h>
 #include <LibWeb/MathML/MathMLElement.h>
 #include <LibWeb/SVG/SVGElement.h>
 
@@ -107,6 +110,41 @@ void HTMLOrSVGElement<ElementBase>::inserted()
 
         // 2.3. Set element's [[CryptographicNonce]] to nonce.
         m_cryptographic_nonce = nonce;
+    }
+
+    // https://html.spec.whatwg.org/multipage/interaction.html#the-autofocus-attribute
+    if (element.has_attribute(HTML::AttributeNames::autofocus)) {
+        // When an element with the autofocus attribute specified is inserted into a document, run the following steps:
+
+        // FIXME: 1. If the user has indicated (for example, by starting to type in a form control) that they do not
+        //           wish focus to be changed, then optionally return.
+
+        // 2. Let target be the element's node document.
+        auto& target = element.document();
+
+        // 3. If target is not fully active, then return.
+        if (!target.is_fully_active())
+            return;
+
+        // 4. If target's active sandboxing flag set has the sandboxed automatic features browsing
+        //    context flag, then return.
+        if (has_flag(target.active_sandboxing_flag_set(), HTML::SandboxingFlagSet::SandboxedAutomaticFeatures))
+            return;
+
+        // 5. If the allow focus steps given target return false, then return.
+        if (!target.allow_focus())
+            return;
+
+        // 6. Let topDocument be target's node navigable's top-level traversable's active document.
+        auto top_document = target.navigable()->top_level_traversable()->active_document();
+
+        // 7. If topDocument's autofocus processed flag is false, then remove the element from topDocument's autofocus
+        //    candidates, and append the element to topDocument's autofocus candidates.
+        if (!top_document->autofocus_processed_flag()) {
+            auto& candidates = top_document->autofocus_candidates();
+            candidates.remove_first_matching([&element](auto const& other) { return other.ptr() == &element; });
+            candidates.append(GC::Ref { element });
+        }
     }
 }
 

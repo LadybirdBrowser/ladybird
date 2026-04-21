@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="resources/utils.js"></script>
+
+<input autofocus id="i1">
+<input autofocus id="i2">
+<script>
+"use strict";
+
+promise_test(async () => {
+  const input1 = document.querySelector("#i1");
+  const input2 = document.querySelector("#i2");
+  input1.remove();
+  input2.parentNode.insertBefore(input1, input2);
+
+  await waitUntilStableAutofocusState();
+  assert_equals(document.activeElement, input2);
+}, 'The second autofocus element wins if the first autofocus element was ' +
+   'disconnected and reconnected before flushing the autofocus candidates.');
+</script>

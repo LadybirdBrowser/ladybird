@@ -365,7 +365,12 @@ void EventLoop::update_the_rendering()
 
     // FIXME: 6. For each doc of docs, reveal doc.
 
-    // FIXME: 7. For each doc of docs, flush autofocus candidates for doc if its node navigable is a top-level traversable.
+    // 7. For each doc of docs, flush autofocus candidates for doc if its node navigable is a top-level traversable.
+    for (auto& document : docs) {
+        auto navigable = document->navigable();
+        if (navigable && navigable->is_top_level_traversable())
+            document->flush_autofocus_candidates();
+    }
 
     // 8. For each doc of docs, run the resize steps for doc. [CSSOMVIEW]
     for (auto& document : docs) {
