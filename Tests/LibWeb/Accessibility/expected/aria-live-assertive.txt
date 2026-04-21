@@ -1,0 +1,14 @@
+document
+  generic focused
+    generic name="Errors"
+      paragraph
+        text leaf name="Critical error occurred."
+    alert
+      paragraph
+        text leaf name="Session expired."
+    generic name="Updates"
+      paragraph
+        text leaf name="3 new messages."
+    generic
+      paragraph
+        text leaf name="This should not announce."

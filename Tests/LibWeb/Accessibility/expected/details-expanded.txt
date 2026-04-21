@@ -1,0 +1,22 @@
+document
+  generic focused
+    group collapsed
+      button name="Closed"
+        text leaf name="Closed"
+      text leaf name="
+  Hidden content
+"
+    group expanded
+      text leaf name="
+  "
+      button name="Open"
+        text leaf name="Open"
+      text leaf name="
+  Visible content
+"
+    button name="Toggle open" expanded
+      text leaf name="Toggle open"
+    button name="Toggle closed" collapsed
+      text leaf name="Toggle closed"
+    generic expanded
+      text leaf name="Tree open"

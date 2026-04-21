@@ -11,6 +11,7 @@
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/Forward.h>
 
 namespace Web::DOM {
 
@@ -28,6 +29,7 @@ public:
     void append_child(AccessibilityTreeNode* child) { m_children.append(child); }
 
     void serialize_tree_as_json(JsonObjectSerializer<StringBuilder>& object, Document const&) const;
+    void serialize_tree_as_node_data(Vector<WebView::AccessibilityNodeData>& out, Document const&, i64 parent_id = -1) const;
 
 protected:
     virtual void visit_edges(Visitor&) override;

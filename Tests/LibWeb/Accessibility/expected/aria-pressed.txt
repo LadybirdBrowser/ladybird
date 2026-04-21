@@ -1,0 +1,18 @@
+document
+  generic focused
+    text leaf name="
+"
+    button name="Bold (on)" pressed
+      text leaf name="Bold (on)"
+    text leaf name="
+"
+    button name="Italic (off)"
+      text leaf name="Italic (off)"
+    text leaf name="
+"
+    button name="Partial"
+      text leaf name="Partial"
+    text leaf name="
+
+
+"

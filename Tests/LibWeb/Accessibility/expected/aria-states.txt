@@ -1,0 +1,10 @@
+document
+  generic focused
+    button name="Disabled button" disabled
+      text leaf name="Disabled button"
+    button name="Enabled button"
+      text leaf name="Enabled button"
+    textbox name="Active field" editable
+    textbox name="Disabled field" disabled editable
+    button name="ARIA disabled"
+      text leaf name="ARIA disabled"

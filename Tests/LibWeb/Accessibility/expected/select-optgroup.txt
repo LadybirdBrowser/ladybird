@@ -1,0 +1,13 @@
+document
+  generic focused
+    text leaf name="
+"
+    combobox
+      option name="Loose"
+      option name="Apple"
+      option name="Banana" selected
+      option name="Carrot" disabled
+    text leaf name="
+
+
+"

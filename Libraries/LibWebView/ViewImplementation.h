@@ -173,6 +173,9 @@ public:
     Optional<String> remove_session_storage_item(String const& key);
     bool clear_session_storage();
     void inspect_accessibility_tree();
+    void request_accessibility_tree();
+    void perform_accessibility_action(i64 node_id, String action);
+    void perform_accessibility_text_action(i64 node_id, String action, i32 offset_start, i32 offset_end, String text);
     void get_hovered_node_id();
     void start_node_picker(DevTools::DevToolsDelegate::OnNodePickerEvent);
     void stop_node_picker();
@@ -328,6 +331,8 @@ public:
     Function<void(Optional<JsonObject>)> on_received_current_grid;
     Function<void(Optional<JsonObject>)> on_received_current_flexbox;
     Function<void(JsonObject)> on_received_accessibility_tree;
+    Function<void(Vector<AccessibilityNodeData>)> on_accessibility_tree_received;
+    Function<void(i64)> on_accessibility_focus_changed;
     Function<void(Web::UniqueNodeID)> on_received_hovered_node_id;
     Function<void(Mutation)> on_dom_mutation_received;
     Function<void(Optional<Web::UniqueNodeID> const& node_id)> on_finished_editing_dom_node;

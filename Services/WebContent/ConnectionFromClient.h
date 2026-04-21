@@ -127,6 +127,10 @@ private:
     virtual void highlight_grid(u64 page_id, Web::UniqueNodeID node_id, JsonValue options) override;
     virtual void clear_grid_highlight(u64 page_id, Web::UniqueNodeID node_id) override;
     virtual void inspect_accessibility_tree(u64 page_id) override;
+    virtual void request_accessibility_tree(u64 page_id) override;
+    virtual void perform_accessibility_action(u64 page_id, i64 node_id, String action) override;
+    virtual void perform_accessibility_text_action(u64 page_id, i64 node_id, String action, i32 offset_start,
+        i32 offset_end, String text) override;
     virtual void get_hovered_node_id(u64 page_id) override;
     virtual void get_node_id_at_position(u64 page_id, u64 request_id, Web::DevicePixelPoint position) override;
 

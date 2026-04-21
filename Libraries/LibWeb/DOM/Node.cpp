@@ -2941,12 +2941,30 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(&document(), this);
             parent.append_child(current_node);
-            if (has_child_nodes()) {
+
+            // HTMLSelectElement renders its options inside a shadow-DOM popup; the option elements themselves have no
+            // layout_node when the popup is closed — so the usual exclude-from-accessibility check (which bails for
+            // elements without a layout_node) would skip them. Therefore, we visit the options directly here — creating
+            // an accessibility tree node for each one, regardless of its layout state.
+            if (auto const* select = as_if<HTML::HTMLSelectElement>(element)) {
+                for (auto const& option : select->list_of_options()) {
+                    auto option_node = AccessibilityTreeNode::create(&document(), option.ptr());
+                    current_node->append_child(option_node);
+                }
+            } else if (has_child_nodes()) {
                 for_each_child([&current_node](DOM::Node& child) {
                     child.build_accessibility_tree(*current_node);
                     return IterationDecision::Continue;
                 });
             }
+        } else if (!element->layout_node() || element->is_aria_hidden()
+            || (element->computed_properties() && element->computed_properties()->visibility() != CSS::Visibility::Visible)) {
+            // https://www.w3.org/TR/wai-aria-1.2/#tree_exclusion
+            // The following elements are not exposed via the accessibility API and user agents MUST NOT include them in
+            // the accessibility tree: Elements, including their descendent elements, that have host language semantics
+            // specifying that the element is not displayed, such as CSS display:none, visibility:hidden, or the HTML
+            // hidden attribute.
+            return;
         } else if (has_child_nodes()) {
             for_each_child([&parent](DOM::Node& child) {
                 child.build_accessibility_tree(parent);
@@ -3431,8 +3449,10 @@ ErrorOr<String> Node::accessible_description(Document const& document) const
     auto id_list = described_by->bytes_as_string_view().split_view_if(Infra::is_ascii_whitespace);
     for (auto const& id : id_list) {
         if (auto description_element = document.get_element_by_id(MUST(FlyString::from_utf8(id)))) {
+            // Compute the text alternative (name) of the referenced element — not its description. The spec says to use
+            // the "text alternative computation" for referenced elements.
             auto description = TRY(
-                description_element->name_or_description(NameOrDescription::Description, document,
+                description_element->name_or_description(NameOrDescription::Name, document,
                     visited_nodes));
             if (!description.is_empty()) {
                 if (builder.is_empty()) {

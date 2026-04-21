@@ -905,6 +905,8 @@ static inline bool matches_pseudo_class(CSS::Selector::SimpleSelector::PseudoCla
         // FIXME: Match pseudo-elements
         if (target.pseudo_element().has_value())
             return false;
+        if (target.document().accessibility_focus_target() == &target.element())
+            return true;
         return target.element().is_focused() && target.element().should_indicate_focus();
     case CSS::PseudoClass::FocusWithin: {
         // FIXME: Match pseudo-elements
