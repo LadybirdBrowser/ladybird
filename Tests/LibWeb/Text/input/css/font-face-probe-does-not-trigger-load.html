@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    /* Subset face whose unicode-range covers U+0020 — exactly the codepoint used by the
+       "first-available-font" metric probe. A style-only probe must not load this face. */
+    @font-face {
+        font-family: 'ProbeFont';
+        src: url('unused-probe.woff');
+        unicode-range: U+0020-007F;
+    }
+    /* display:none + empty content: style is computed (metric probe fires via the
+       em-length in `height`) but nothing is ever shaped, so no codepoint actually
+       needs to be rendered by ProbeFont. */
+    .probed { font-family: 'ProbeFont'; display: none; height: 1em; }
+</style>
+</head>
+<body>
+<div class="probed"></div>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // Force style resolution. getComputedStyle goes through the same
+        // ComputedProperties::first_available_computed_font(' ') path that used to
+        // eagerly trigger the fetch.
+        getComputedStyle(document.querySelector('.probed')).fontFamily;
+        document.body.offsetHeight;
+        // Give any in-flight font fetch enough time to settle. Before the fix the
+        // metric probe fetches ProbeFont and the fetch fails fast with NetworkError;
+        // after the fix no fetch is ever started.
+        await new Promise(r => setTimeout(r, 50));
+
+        const face = [...document.fonts].find(f => f.family === 'ProbeFont');
+        println(`ProbeFont status: ${face.status}`);
+    });
+</script>
+</body>
+</html>

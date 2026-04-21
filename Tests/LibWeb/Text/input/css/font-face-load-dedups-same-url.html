@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        let fontUrl = new URL(location.href);
+        fontUrl.search = "";
+        fontUrl += "/../../../../Assets/HashSans.woff";
+
+        // Two FontFace objects referencing the exact same src URL. A single variable
+        // woff2 served by Google Fonts is commonly declared under multiple
+        // @font-face rules (one per font-weight), all pointing at the same file.
+        // With URL-keyed dedup in FontComputer, both faces should share a single
+        // in-flight FontLoader so only one network fetch occurs.
+        const faceA = new FontFace("DedupFont", `url(${fontUrl})`, { weight: "400" });
+        const faceB = new FontFace("DedupFont", `url(${fontUrl})`, { weight: "700" });
+
+        await Promise.all([faceA.load(), faceB.load()]);
+
+        println(`faceA.status: ${faceA.status}`);
+        println(`faceB.status: ${faceB.status}`);
+
+        // Use the PerformanceResourceTiming API to count how many resource-timing
+        // entries were recorded for this URL — one means the loaders were deduped,
+        // two means each FontFace kicked off its own fetch.
+        const all = performance.getEntriesByType("resource");
+        const urlStr = String(fontUrl);
+        const matches = all.filter(e => e.name === urlStr || e.name.endsWith("HashSans.woff"));
+        println(`resource entries total: ${all.length}`);
+        println(`resource entries for font url: ${matches.length}`);
+    });
+</script>

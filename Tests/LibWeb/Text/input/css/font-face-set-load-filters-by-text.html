@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('../../../Assets/HashSans.woff');
+        unicode-range: U+0041; /* A */
+    }
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('unused-b.woff');
+        unicode-range: U+0042; /* B */
+    }
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('unused-c.woff');
+        unicode-range: U+0043; /* C */
+    }
+</style>
+</head>
+<body>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const faces = [...document.fonts].filter(f => f.family === 'MultiFont');
+        faces.sort((a, b) => a.unicodeRange.localeCompare(b.unicodeRange));
+
+        // https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
+        // Step 8: "For each font face in matched font faces, if its defined unicode-range
+        // does not include the codepoint of at least one character in text, remove it from
+        // the list." So asking the FontFaceSet to load "A" must only kick off faceA's fetch;
+        // faceB and faceC have disjoint unicode-ranges and must stay unloaded.
+        // The pre-fix behavior is to pull in faceB and faceC too, which reject with
+        // NetworkError — catch so the test does not time out reporting "wrong" output.
+        await document.fonts.load('16px MultiFont', 'A').catch(() => {});
+        await document.fonts.ready;
+
+        println(`MultiFont face count: ${faces.length}`);
+        for (const f of faces)
+            println(`range=${f.unicodeRange} status=${f.status}`);
+    });
+</script>
+</body>
+</html>

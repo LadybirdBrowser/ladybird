@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('../../../Assets/HashSans.woff');
+        unicode-range: U+0041; /* A */
+    }
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('unused-b.woff');
+        unicode-range: U+0042; /* B */
+    }
+    @font-face {
+        font-family: 'MultiFont';
+        src: url('unused-c.woff');
+        unicode-range: U+0043; /* C */
+    }
+    .text { font-family: 'MultiFont', 'SerenitySans'; font-size: 40px; }
+</style>
+</head>
+<body>
+<div class="text">A</div>
+<!-- Text inside a display:none element (a <script> in this case) must not trigger font loads.
+     Here "BBBCCC" sits in a JSON script block and is never laid out; faceB and faceC therefore
+     stay "unloaded" below even though the content contains codepoints in their unicode-ranges. -->
+<script type="application/json" id="blob">{"letters":"BBBCCC","more":"B and C should not be rendered"}</script>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const faces = [...document.fonts].filter(f => f.family === 'MultiFont');
+        faces.sort((a, b) => a.unicodeRange.localeCompare(b.unicodeRange));
+
+        // Force layout so text shaping runs — this is what triggers the render-path
+        // load for faceA once deferral is implemented.
+        document.body.offsetHeight;
+        // Wait for every in-flight @font-face load to settle. At the pre-fix baseline
+        // faceB and faceC are eagerly fetched and then reject with NetworkError; after
+        // the fix only faceA is loaded and ready resolves immediately.
+        await document.fonts.ready;
+
+        println(`MultiFont face count: ${faces.length}`);
+        for (const f of faces)
+            println(`range=${f.unicodeRange} status=${f.status}`);
+    });
+</script>
+</body>
+</html>

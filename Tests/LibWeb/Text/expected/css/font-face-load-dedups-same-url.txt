@@ -1,0 +1,4 @@
+faceA.status: loaded
+faceB.status: loaded
+resource entries total: 3
+resource entries for font url: 2
