@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/Function.h>
+#include <AK/RefCounted.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
 
@@ -23,7 +24,7 @@ public:
     }
 
     size_t size() const { return m_fonts.size(); }
-    bool is_empty() const { return m_fonts.is_empty() && !m_last_resort_font; }
+    bool is_empty() const { return m_fonts.is_empty() && m_pending_faces.is_empty() && !m_last_resort_font; }
     Font const& first() const { return !m_fonts.is_empty() ? *m_fonts.first().font : *m_last_resort_font; }
 
     template<typename Callback>
@@ -35,6 +36,10 @@ public:
 
     void add(NonnullRefPtr<Font const> font);
     void add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges);
+
+    // Register an unloaded face covering `unicode_ranges`. The cascade invokes
+    // `start_load` the first time a rendered codepoint falls within one of the ranges.
+    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<void()> start_load);
 
     void extend(FontCascadeList const& other);
 
@@ -53,6 +58,34 @@ public:
         Optional<RangeData> range_data;
     };
 
+    class PendingFace : public RefCounted<PendingFace> {
+    public:
+        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<void()> start_load)
+            : m_enclosing_range(enclosing)
+            , m_unicode_ranges(move(ranges))
+            , m_start_load(move(start_load))
+        {
+        }
+
+        bool covers(u32 code_point) const
+        {
+            if (!m_enclosing_range.contains(code_point))
+                return false;
+            for (auto const& range : m_unicode_ranges) {
+                if (range.contains(code_point))
+                    return true;
+            }
+            return false;
+        }
+
+        void start_load() { m_start_load(); }
+
+    private:
+        UnicodeRange m_enclosing_range;
+        Vector<UnicodeRange> m_unicode_ranges;
+        Function<void()> m_start_load;
+    };
+
     void set_last_resort_font(NonnullRefPtr<Font> font) { m_last_resort_font = move(font); }
     void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
 
@@ -67,6 +100,7 @@ public:
 private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
+    mutable Vector<NonnullRefPtr<PendingFace>> m_pending_faces;
     SystemFontFallbackCallback m_system_font_fallback_callback;
 
     // OPTIMIZATION: Cache of resolved fonts for ASCII code points. Since m_fonts only grows and the cascade returns

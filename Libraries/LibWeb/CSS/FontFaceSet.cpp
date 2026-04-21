@@ -379,6 +379,11 @@ void FontFaceSet::set_is_pending_on_the_environment(bool is_pending_on_the_envir
         //        Spec issue: https://github.com/w3c/csswg-drafts/issues/13538#issuecomment-3933951987
         if (m_set_entries->set_size() == 0 || (m_is_stuck_on_the_environment && m_loading_fonts.is_empty()))
             switch_to_loaded();
+        // AD-HOC: Also switch when nothing has ever entered the LoadingFonts list — an empty set, or a set whose
+        //         entries all have deferred unicode-ranges that no rendered codepoint matched. Without this the
+        //         ready promise stays pending forever.
+        else if (m_loading_fonts.is_empty())
+            switch_to_loaded();
 
         // 2. If the FontFaceSet is stuck on the environment, unmark it as such.
         m_is_stuck_on_the_environment = false;

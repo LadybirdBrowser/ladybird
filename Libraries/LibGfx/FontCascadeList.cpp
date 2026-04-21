@@ -34,13 +34,45 @@ void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> u
         } });
 }
 
+void FontCascadeList::add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<void()> start_load)
+{
+    if (unicode_ranges.is_empty())
+        return;
+
+    u32 lowest_code_point = 0xFFFFFFFF;
+    u32 highest_code_point = 0;
+    for (auto const& range : unicode_ranges) {
+        lowest_code_point = min(lowest_code_point, range.min_code_point());
+        highest_code_point = max(highest_code_point, range.max_code_point());
+    }
+
+    m_pending_faces.append(adopt_ref(*new PendingFace(
+        UnicodeRange { lowest_code_point, highest_code_point },
+        move(unicode_ranges),
+        move(start_load))));
+}
+
 void FontCascadeList::extend(FontCascadeList const& other)
 {
     m_fonts.extend(other.m_fonts);
+    m_pending_faces.extend(other.m_pending_faces);
 }
 
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
 {
+    // Walk pending entries first: if this codepoint falls in an unloaded face's
+    // unicode-range we kick off the fetch and drop the entry — a fallback font that
+    // happens to cover the codepoint shouldn't prevent the real face from loading.
+    // FontComputer::clear_computed_font_cache() rebuilds the cascade once the fetch
+    // completes, so later shapes pick up the loaded face. Run before the ASCII cache
+    // lookup so a previously-cached codepoint still triggers a newly-added face.
+    m_pending_faces.remove_all_matching([code_point](auto const& pending) {
+        if (!pending->covers(code_point))
+            return false;
+        pending->start_load();
+        return true;
+    });
+
     if (code_point < m_ascii_cache.size()) {
         if (auto const* cached = m_ascii_cache[code_point])
             return *cached;

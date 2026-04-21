@@ -100,6 +100,17 @@ public:
 
     RefPtr<Gfx::FontCascadeList const> font_with_point_size(float point_size, Gfx::FontVariationSettings const&, Gfx::ShapeFeatures const&) const;
 
+    Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
+    bool has_urls() const { return !m_urls.is_empty(); }
+
+    bool has_non_default_unicode_range() const
+    {
+        if (m_unicode_ranges.size() != 1)
+            return true;
+        auto const& range = m_unicode_ranges.first();
+        return range.min_code_point() != 0 || range.max_code_point() != 0x10FFFF;
+    }
+
     Bindings::FontFaceLoadStatus status() const { return m_status; }
 
     GC::Ref<WebIDL::Promise> load();
