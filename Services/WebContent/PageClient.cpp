@@ -727,6 +727,33 @@ void PageClient::did_complete_webdriver_navigation_completion(u64 request_id, We
     maybe_callback.value()(move(response));
 }
 
+void PageClient::page_did_change_active_element(Web::UniqueNodeID node_id)
+{
+    client().async_did_accessibility_focus_change(m_id, static_cast<i64>(node_id.value()));
+}
+
+void PageClient::page_did_change_accessibility_tree()
+{
+    schedule_accessibility_tree_update();
+}
+
+void PageClient::schedule_accessibility_tree_update()
+{
+    if (!page().accessibility_interested())
+        return;
+
+    if (!m_accessibility_update_timer) {
+        m_accessibility_update_timer = Core::Timer::create_single_shot(200, [this] {
+            if (auto* doc = page().top_level_browsing_context().active_document()) {
+                doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
+                client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
+            }
+        });
+    }
+
+    m_accessibility_update_timer->restart();
+}
+
 void PageClient::page_did_finish_test(Utf16String const& text)
 {
     client().async_did_finish_test(m_id, text.to_utf8());
@@ -1433,6 +1460,8 @@ void PageClient::send_dom_mutation(Web::DOM::Node const& target, WebView::Mutati
 {
     mutation.serialized_target = serialize_dom_mutation_target(target);
     client().async_did_mutate_dom(m_id, move(mutation));
+
+    schedule_accessibility_tree_update();
 }
 
 void PageClient::page_did_take_screenshot(Gfx::ShareableBitmap const& screenshot)

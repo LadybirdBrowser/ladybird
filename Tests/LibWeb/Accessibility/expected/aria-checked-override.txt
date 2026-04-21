@@ -1,0 +1,7 @@
+document
+  generic focused
+    checkbox name="Native checkbox" checked
+    switch name="Switch on" checked
+    switch name="Switch off" unchecked
+    checkbox name="Tri-state" mixed
+      text leaf name="Mixed"

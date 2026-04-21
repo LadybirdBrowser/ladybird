@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <form aria-label="Survey">
+        <fieldset>
+            <legend>Personal Information</legend>
+            <label for="fname">First name</label>
+            <input type="text" id="fname" aria-label="First name">
+            <label for="lname">Last name</label>
+            <input type="text" id="lname" aria-label="Last name">
+        </fieldset>
+        <fieldset>
+            <legend>Preferences</legend>
+            <label for="color">Favorite color</label>
+            <select id="color" aria-label="Favorite color">
+                <option>Red</option>
+                <option>Blue</option>
+                <option>Green</option>
+            </select>
+            <label>
+                <input type="checkbox" aria-label="Subscribe to newsletter">
+                Subscribe to newsletter
+            </label>
+        </fieldset>
+        <button type="submit">Submit survey</button>
+    </form>
+</body>
+</html>

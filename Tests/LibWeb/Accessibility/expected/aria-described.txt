@@ -1,0 +1,11 @@
+document
+  generic focused
+    button name="Submit" description="Click to send the form"
+      text leaf name="Submit"
+    paragraph name="Click to send the form"
+      text leaf name="Click to send the form"
+    textbox description="Enter your name" editable
+    paragraph name="Enter your name"
+      text leaf name="Enter your name"
+    button name="Go" description="Direct description"
+      text leaf name="Go"

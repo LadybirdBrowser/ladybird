@@ -1,0 +1,9 @@
+document
+  generic focused
+    combobox
+      option name="United States of America" selected
+      option name="Label attr"
+      option name="Plain text"
+    text leaf name="
+
+"

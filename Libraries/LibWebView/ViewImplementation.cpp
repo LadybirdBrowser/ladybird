@@ -837,6 +837,23 @@ void ViewImplementation::inspect_accessibility_tree()
     client().async_inspect_accessibility_tree(page_id());
 }
 
+void ViewImplementation::request_accessibility_tree()
+{
+    client().async_request_accessibility_tree(page_id());
+}
+
+void ViewImplementation::perform_accessibility_action(i64 node_id, String action)
+{
+    client().async_perform_accessibility_action(page_id(), node_id, move(action));
+}
+
+void ViewImplementation::perform_accessibility_text_action(i64 node_id, String action, i32 offset_start,
+    i32 offset_end, String text)
+{
+    client().async_perform_accessibility_text_action(page_id(), node_id, move(action), offset_start, offset_end,
+        move(text));
+}
+
 void ViewImplementation::get_hovered_node_id()
 {
     client().async_get_hovered_node_id(page_id());

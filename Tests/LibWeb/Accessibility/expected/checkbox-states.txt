@@ -1,0 +1,12 @@
+document
+  generic focused
+    checkbox unchecked
+    checkbox checked
+    checkbox unchecked disabled
+    checkbox checked disabled
+    checkbox name="Custom" checked
+      text leaf name="Custom"
+    checkbox name="Custom2" unchecked
+      text leaf name="Custom2"
+    checkbox name="Tri-state" mixed
+      text leaf name="Tri-state"

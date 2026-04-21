@@ -320,6 +320,11 @@ public:
     bool listen_for_dom_mutations() const { return m_listen_for_dom_mutations; }
     void set_listen_for_dom_mutations(bool listen_for_dom_mutations) { m_listen_for_dom_mutations = listen_for_dom_mutations; }
 
+    // True while an assistive technology is consuming the accessibility tree. Gates whether DOM changes push a
+    // rebuilt tree to the UI, so that only screen-reader users pay for the (whole-tree) rebuild.
+    bool accessibility_interested() const { return m_accessibility_interested; }
+    void set_accessibility_interested(bool accessibility_interested) { m_accessibility_interested = accessibility_interested; }
+
     void enqueue_fullscreen_enter(GC::Ref<DOM::Element>, GC::Ref<DOM::Document>, DOM::RequestFullscreenError, GC::Ref<WebIDL::Promise>);
     void enqueue_fullscreen_exit(GC::Ref<DOM::Document> doc, bool resize, GC::Ref<WebIDL::Promise>);
     void process_pending_fullscreen_operations();
@@ -421,6 +426,7 @@ private:
     URL::URL m_last_find_in_page_url;
 
     bool m_listen_for_dom_mutations { false };
+    bool m_accessibility_interested { false };
     Optional<CSS::PreferredColorScheme> m_preferred_color_scheme_override_for_testing;
 
     struct PendingFullscreenEnter {
@@ -560,6 +566,7 @@ public:
     virtual void page_did_register_download_reader([[maybe_unused]] u64 download_id, [[maybe_unused]] GC::Ref<Streams::ReadableStreamDefaultReader>) { }
     virtual void page_did_unregister_download([[maybe_unused]] u64 download_id) { }
     virtual bool page_is_download_canceled([[maybe_unused]] u64 download_id) const { return false; }
+    virtual void page_did_change_active_element(Web::UniqueNodeID) { }
     virtual void page_did_request_cursor_change(Gfx::Cursor const&) { }
     virtual void page_did_request_context_menu(CSSPixelPoint, ContextMenuForInputEventsTarget) { }
     virtual void page_did_request_link_context_menu(CSSPixelPoint, URL::URL const&, [[maybe_unused]] ByteString const& target, [[maybe_unused]] unsigned modifiers) { }
@@ -664,6 +671,7 @@ public:
 
     virtual void page_did_mutate_dom([[maybe_unused]] Utf16FlyString const& type, [[maybe_unused]] DOM::Node const& target, [[maybe_unused]] DOM::NodeList& added_nodes, [[maybe_unused]] DOM::NodeList& removed_nodes, [[maybe_unused]] GC::Ptr<DOM::Node> previous_sibling, [[maybe_unused]] GC::Ptr<DOM::Node> next_sibling, [[maybe_unused]] Optional<Utf16FlyString> const& attribute_name) { }
     virtual void flush_pending_dom_mutations() { }
+    virtual void page_did_change_accessibility_tree() { }
 
     virtual void page_did_take_screenshot(Gfx::ShareableBitmap const&) { }
 
