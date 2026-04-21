@@ -6,6 +6,7 @@
 
 #include <AK/IPv4Address.h>
 #include <AK/IPv6Address.h>
+#include <LibURL/InternalURLs.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOMURL/DOMURL.h>

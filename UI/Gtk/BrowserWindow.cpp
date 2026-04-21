@@ -6,6 +6,7 @@
 
 #include <AK/Format.h>
 #include <LibCore/EventLoop.h>
+#include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/URL.h>

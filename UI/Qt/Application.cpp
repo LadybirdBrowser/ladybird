@@ -5,16 +5,18 @@
  */
 
 #include <LibCore/ArgsParser.h>
+#include <LibURL/InternalURLs.h>
 #include <LibWebView/URL.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
-#if defined(AK_OS_MACOS)
-#    include <UI/Qt/MacWindow.h>
-#endif
 #include <UI/Qt/Settings.h>
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
+
+#if defined(AK_OS_MACOS)
+#    include <UI/Qt/MacWindow.h>
+#endif
 
 #include <QClipboard>
 #include <QDesktopServices>
