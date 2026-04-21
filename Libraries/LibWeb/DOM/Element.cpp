@@ -1025,8 +1025,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
     auto computed_properties = this->computed_properties();
-    if (!m_cascaded_properties || !computed_properties)
-        return {};
+    VERIFY(m_cascaded_properties);
+    VERIFY(computed_properties);
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
 
