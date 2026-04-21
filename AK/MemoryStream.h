@@ -91,6 +91,7 @@ public:
     static constexpr size_t CHUNK_SIZE = 4096;
 
     void peek_some(Bytes) const;
+    ReadonlyBytes peek_some_contiguous() const;
 
     virtual ErrorOr<Bytes> read_some(Bytes) override;
     virtual ErrorOr<size_t> write_some(ReadonlyBytes) override;
@@ -107,7 +108,7 @@ private:
     // Note: We set the inline buffer capacity to zero to make moving chunks as efficient as possible.
     using Chunk = AK::Detail::ByteBuffer<0>;
 
-    ErrorOr<ReadonlyBytes> next_read_range(size_t read_offset) const;
+    ReadonlyBytes next_read_range(size_t read_offset) const;
     ErrorOr<Bytes> next_write_range();
     void cleanup_unused_chunks();
 

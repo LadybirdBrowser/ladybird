@@ -119,7 +119,7 @@ void AllocatingMemoryStream::peek_some(Bytes bytes) const
 
     auto peek_offset = m_read_offset;
     while (read_bytes < bytes.size()) {
-        auto range = MUST(next_read_range(peek_offset));
+        auto range = next_read_range(peek_offset);
         if (range.size() == 0)
             break;
 
@@ -129,6 +129,11 @@ void AllocatingMemoryStream::peek_some(Bytes bytes) const
     }
 }
 
+ReadonlyBytes AllocatingMemoryStream::peek_some_contiguous() const
+{
+    return next_read_range(m_read_offset);
+}
+
 ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
 {
     size_t read_bytes = 0;
@@ -136,7 +141,7 @@ ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
     while (read_bytes < bytes.size()) {
         VERIFY(m_write_offset >= m_read_offset);
 
-        auto range = TRY(next_read_range(m_read_offset));
+        auto range = next_read_range(m_read_offset);
         if (range.size() == 0)
             break;
 
@@ -236,7 +241,7 @@ ErrorOr<Optional<size_t>> AllocatingMemoryStream::offset_of(ReadonlyBytes needle
     return AK::memmem(search_spans.begin(), search_spans.end(), needle);
 }
 
-ErrorOr<ReadonlyBytes> AllocatingMemoryStream::next_read_range(size_t read_offset) const
+ReadonlyBytes AllocatingMemoryStream::next_read_range(size_t read_offset) const
 {
     VERIFY(m_write_offset >= read_offset);
 
@@ -245,7 +250,7 @@ ErrorOr<ReadonlyBytes> AllocatingMemoryStream::next_read_range(size_t read_offse
     size_t const read_size = min(CHUNK_SIZE - read_offset % CHUNK_SIZE, m_write_offset - read_offset);
 
     if (read_size == 0)
-        return ReadonlyBytes { static_cast<u8*>(nullptr), 0 };
+        return {};
 
     VERIFY(chunk_index < m_chunks.size());
 
