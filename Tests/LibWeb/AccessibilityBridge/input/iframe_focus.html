@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<h1>Focus into an iframe</h1>
+<p><a id="top" href="#top">Top link</a></p>
+<iframe title="Frame"
+        srcdoc="<!DOCTYPE html><body style='font: 16px sans-serif;'><a id='inner' href='#'>Inner link</a></body>">
+</iframe>
+<script>
+  // Focusing the top link hands the focus on, half a second later, into the iframe. A srcdoc iframe shares this
+  // page's origin, so it shares its process too.
+  document.getElementById("top").addEventListener("focus", () => {
+    setTimeout(() => {
+      frames[0].document.getElementById("inner").focus();
+    }, 500);
+  });
+</script>
+</body>
+</html>
