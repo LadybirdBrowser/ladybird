@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+.one {
+  visibility: hidden;
+  color: red;
+  display: none;
+}
+.active.one {
+  visibility: visible;
+  color: green;
+}
+</style>
+<div class="one"><div class="two"><div class="three"><div class="four"></div></div></div></div>
+<script>
+function printStyles(when, element) {
+  const computedStyle = getComputedStyle(element);
+  println(`Visibility ${when}: ${computedStyle["visibility"]}`);
+  println(`Color      ${when}: ${computedStyle["color"]}`);
+}
+
+test(() => {
+  const ancestor = document.querySelector(".one");
+  const descendant = document.querySelector(".four");
+  printStyles("before", descendant);
+  ancestor.classList.add("active");
+  printStyles("after", descendant);
+});
+</script>
