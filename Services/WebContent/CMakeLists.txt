@@ -1,5 +1,4 @@
 include(audio)
-include(SDL3)
 
 set(SOURCES
     ConnectionFromClient.cpp

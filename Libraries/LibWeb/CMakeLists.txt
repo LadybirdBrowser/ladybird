@@ -1,8 +1,4 @@
-include(fontconfig)
 include(libweb_generators)
-include(vulkan)
-include(skia)
-include(SDL3)
 
 set(SOURCES
     Animations/Animatable.cpp

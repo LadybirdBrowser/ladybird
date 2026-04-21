@@ -8,7 +8,6 @@ function(embed_as_string name source_file output source_variable_name)
     if (EMBED_STRING_VIEW_NAMESPACE)
         set(namespace_arg "-s ${EMBED_STRING_VIEW_NAMESPACE}")
     endif()
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
         OUTPUT "${output}"
         COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/Generators/embed_as_string.py" "${source_file}" -o "${output}.tmp" -n "${source_variable_name}" ${namespace_arg}

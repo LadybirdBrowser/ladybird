@@ -1,5 +1,3 @@
-include(fontconfig)
-
 set(SOURCES
     Application.cpp
     Attribute.cpp

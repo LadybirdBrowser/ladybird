@@ -1,6 +1,3 @@
-include(skia)
-include(vulkan)
-
 set(SOURCES
     AffineTransform.cpp
     Bitmap.cpp

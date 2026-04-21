@@ -1,7 +1,5 @@
 include(audio)
 
-include(ffmpeg)
-
 set(SOURCES
     Audio/AudioDevices.cpp
     Containers/Matroska/MatroskaDemuxer.cpp
