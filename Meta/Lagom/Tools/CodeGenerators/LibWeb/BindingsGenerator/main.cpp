@@ -17,6 +17,28 @@
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 
+template<typename GeneratorFunction>
+static ErrorOr<void> write_if_changed(GeneratorFunction generator_function, IDL::Interface const& interface, StringView file_path)
+{
+    StringBuilder output_builder;
+    generator_function(interface, output_builder);
+
+    auto current_file_or_error = Core::File::open(file_path, Core::File::OpenMode::Read);
+    if (current_file_or_error.is_error() && current_file_or_error.error().code() != ENOENT)
+        return current_file_or_error.release_error();
+
+    ByteBuffer current_contents;
+    if (!current_file_or_error.is_error())
+        current_contents = TRY(current_file_or_error.value()->read_until_eof());
+    // Only write to disk if contents have changed
+    if (current_contents != output_builder.string_view().bytes()) {
+        auto output_file = TRY(Core::File::open(file_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
+        TRY(output_file->write_until_depleted(output_builder.string_view().bytes()));
+    }
+
+    return {};
+}
+
 static ErrorOr<void> generate_depfile(StringView depfile_path, ReadonlySpan<ByteString> dependency_paths, ReadonlySpan<ByteString> output_files)
 {
     auto depfile = TRY(Core::File::open_file_or_standard_stream(depfile_path, Core::File::OpenMode::Write));
@@ -131,34 +153,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         }
     }
 
-    StringBuilder output_builder;
-
-    auto write_if_changed = [&](auto generator_function, StringView file_path) -> ErrorOr<void> {
-        (*generator_function)(interface, output_builder);
-
-        auto current_file_or_error = Core::File::open(file_path, Core::File::OpenMode::Read);
-        if (current_file_or_error.is_error() && current_file_or_error.error().code() != ENOENT)
-            return current_file_or_error.release_error();
-
-        ByteBuffer current_contents;
-        if (!current_file_or_error.is_error())
-            current_contents = TRY(current_file_or_error.value()->read_until_eof());
-        // Only write to disk if contents have changed
-        if (current_contents != output_builder.string_view().bytes()) {
-            auto output_file = TRY(Core::File::open(file_path, Core::File::OpenMode::Write | Core::File::OpenMode::Truncate));
-            TRY(output_file->write_until_depleted(output_builder.string_view().bytes()));
-        }
-        // FIXME: Can we add clear_with_capacity to StringBuilder instead of throwing away the allocated buffer?
-        output_builder.clear();
-        return {};
-    };
-
     auto path_prefix = LexicalPath::join(output_path, lexical_path.basename(LexicalPath::StripExtension::Yes));
     auto header_path = ByteString::formatted("{}.h", path_prefix);
     auto implementation_path = ByteString::formatted("{}.cpp", path_prefix);
 
-    TRY(write_if_changed(&IDL::generate_header, header_path));
-    TRY(write_if_changed(&IDL::generate_implementation, implementation_path));
+    TRY(write_if_changed(&IDL::generate_header, interface, header_path));
+    TRY(write_if_changed(&IDL::generate_implementation, interface, implementation_path));
 
     if (!depfile_path.is_empty()) {
         TRY(generate_depfile(depfile_path, parser.imported_files(), { { header_path, implementation_path } }));
