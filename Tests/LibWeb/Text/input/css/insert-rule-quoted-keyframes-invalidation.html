@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="test-style">
+    #target {
+        animation-name: "123fade";
+        animation-duration: 1s;
+        animation-fill-mode: both;
+    }
+</style>
+<div id="target">target</div>
+<script>
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const styleSheet = document.getElementById("test-style").sheet;
+
+        println(`opacity before keyframes: ${getComputedStyle(target).opacity}`);
+        styleSheet.insertRule('@keyframes "123fade" { from { opacity: 0.25; } to { opacity: 0.25; } }', styleSheet.cssRules.length);
+        await animationFrame();
+        println(`opacity after keyframes: ${getComputedStyle(target).opacity}`);
+
+        done();
+    });
+</script>

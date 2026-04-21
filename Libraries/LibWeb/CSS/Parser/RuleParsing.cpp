@@ -515,7 +515,9 @@ GC::Ptr<CSSKeyframesRule> Parser::convert_to_keyframes_rule(AtRule const& rule)
         return {};
     }
 
-    auto name = name_token.to_string();
+    // Store the logical keyframes name instead of the serialized token text so @keyframes "foo" and
+    // animation-name: "foo" compare on the same value.
+    auto name = name_token.is(Token::Type::String) ? name_token.string() : name_token.ident();
 
     GC::RootVector<GC::Ref<CSSRule>> keyframes(realm().heap());
     rule.for_each_as_qualified_rule_list([&](auto& qualified_rule) {
