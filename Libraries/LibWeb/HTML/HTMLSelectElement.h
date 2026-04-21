@@ -106,7 +106,7 @@ public:
 
     void update_selectedness();
 
-    void update_inner_text_element(Badge<HTMLOptionElement>);
+    void clone_selected_option_into_select_button();
 
     bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
 
@@ -148,7 +148,6 @@ private:
     void show_the_picker_if_applicable();
 
     void create_shadow_tree_if_needed();
-    void update_inner_text_element();
     // https://html.spec.whatwg.org/multipage/form-elements.html#send-select-update-notifications
     void send_select_update_notifications();
 

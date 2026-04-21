@@ -54,7 +54,7 @@ void HTMLOptionElement::update_selection_label()
 {
     if (selected()) {
         if (auto* select_element = first_ancestor_of_type<HTMLSelectElement>()) {
-            select_element->update_inner_text_element({});
+            select_element->clone_selected_option_into_select_button();
         }
     }
 }

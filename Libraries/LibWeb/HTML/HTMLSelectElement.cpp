@@ -336,7 +336,7 @@ WebIDL::Long HTMLSelectElement::selected_index() const
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_selected_index(WebIDL::Long index)
 {
     // The selectedIndex setter steps are:
-    ScopeGuard guard { [&]() { update_inner_text_element(); } };
+    ScopeGuard guard { [&]() { clone_selected_option_into_select_button(); } };
 
     // 1. Let firstMatchingOption be null.
     GC::Ptr<HTMLOptionElement> first_matching_option;
@@ -457,7 +457,7 @@ Utf16String HTMLSelectElement::value() const
 WebIDL::ExceptionOr<void> HTMLSelectElement::set_value(Utf16String const& value)
 {
     // The value setter steps are:
-    ScopeGuard guard { [&]() { update_inner_text_element(); } };
+    ScopeGuard guard { [&]() { clone_selected_option_into_select_button(); } };
     update_cached_list_of_options();
 
     // 1. Let firstMatchingOption be null.
@@ -499,7 +499,8 @@ void HTMLSelectElement::send_select_update_notifications()
         // 2. Run update a select's selectedcontent given element.
         MUST(update_selectedcontent());
 
-        // FIXME: 3. Run clone selected option into select button given element.
+        // 3. Run clone selected option into select button given element.
+        clone_selected_option_into_select_button();
 
         // 4. Fire an event named input at element, with the bubbles and composed attributes initialized to true.
         auto input_event = DOM::Event::create(realm(), HTML::EventNames::input);
@@ -659,7 +660,7 @@ void HTMLSelectElement::did_select_item(Optional<u32> const& id)
         }
     }
 
-    update_inner_text_element();
+    clone_selected_option_into_select_button();
     send_select_update_notifications();
 }
 
@@ -733,28 +734,32 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
 
     MUST(border->append_child(*m_chevron_icon_element));
 
-    update_inner_text_element();
+    clone_selected_option_into_select_button();
 }
 
-void HTMLSelectElement::update_inner_text_element(Badge<HTMLOptionElement>)
+// https://html.spec.whatwg.org/multipage/form-elements.html#clone-selected-option-into-select-button
+void HTMLSelectElement::clone_selected_option_into_select_button()
 {
-    update_cached_list_of_options();
-    update_inner_text_element();
-}
+    // To clone selected option into select button, given a select element select:
 
-// FIXME: This needs to be called any time the selected option's children are modified.
-void HTMLSelectElement::update_inner_text_element()
-{
     if (!m_inner_text_element)
         return;
 
-    // Update inner text element to the label of the selected option
-    for (auto const& option_element : m_cached_list_of_options) {
-        if (option_element->selected()) {
-            m_inner_text_element->string_replace_all(Infra::strip_and_collapse_whitespace(Utf16String::from_utf8(option_element->label())));
-            return;
-        }
-    }
+    update_cached_list_of_options();
+
+    // 1. Let option be the first element of select's option list whose selectedness is set to true,
+    //    if such an element exists; otherwise null.
+    auto option = find_value(m_cached_list_of_options, [](auto option) { return option->selected(); });
+
+    // 2. Let text be the empty string.
+    Utf16String text;
+
+    // 3. If option is not null, then set text to option's label.
+    if (option.has_value())
+        text = Utf16String::from_utf8((*option)->label());
+
+    // 4. Set select's select fallback button text to text.
+    m_inner_text_element->string_replace_all(move(text));
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#selectedness-setting-algorithm
@@ -810,10 +815,13 @@ void HTMLSelectElement::update_selectedness()
     }
 
     // 4. If updateSelectedcontent is true, then run update a select's selectedcontent given element.
-    if (should_update_selectedcontent) {
+    if (should_update_selectedcontent)
         MUST(update_selectedcontent());
-        update_inner_text_element();
-    }
+
+    // AD-HOC: The selectedness setting algorithm does not itself refresh the select's fallback button text, but the
+    //         set of selected options may have changed. Run the spec's "clone selected option into select button"
+    //         algorithm so the button stays in sync.
+    clone_selected_option_into_select_button();
 }
 
 bool HTMLSelectElement::is_focusable() const
