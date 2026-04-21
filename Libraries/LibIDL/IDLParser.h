@@ -16,7 +16,7 @@ namespace IDL {
 
 class Parser {
 public:
-    Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths);
+    Parser(ByteString filename, StringView contents, Vector<ByteString> import_base_paths, Context& context);
     Interface& parse();
 
     Vector<ByteString> imported_files() const;
@@ -34,7 +34,7 @@ private:
         Yes,
     };
 
-    Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_path);
+    Parser(Parser* parent, ByteString filename, StringView contents, Vector<ByteString> import_base_path, Context&);
 
     void assert_specific(char ch);
     void assert_string(StringView expected);
@@ -77,9 +77,8 @@ private:
     ByteString filename;
     StringView input;
     LineTrackingLexer lexer;
+    Context& context;
 
-    HashTable<NonnullOwnPtr<Interface>>& top_level_interfaces();
-    HashTable<NonnullOwnPtr<Interface>> interfaces;
     HashMap<ByteString, Interface*>& top_level_resolved_imports();
     HashMap<ByteString, Interface*> resolved_imports;
     Parser* top_level_parser();

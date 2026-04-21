@@ -571,11 +571,12 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     Vector<IDL::Parser> parsers;
     InterfaceSets interface_sets;
+    IDL::Context context;
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
         StringView file_contents = files[i]->bytes();
-        IDL::Parser parser(path, file_contents, lexical_bases);
+        IDL::Parser parser(path, file_contents, lexical_bases, context);
         auto& interface = parser.parse();
         if (interface.name.is_empty()) {
             s_error_string = ByteString::formatted("Interface for file {} missing", path);

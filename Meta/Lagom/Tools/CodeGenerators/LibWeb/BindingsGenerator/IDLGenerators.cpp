@@ -25,7 +25,7 @@ namespace IDL {
 Vector<StringView> g_header_search_paths;
 
 template<typename ParameterType>
-static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
+static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, Context const&, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
 
 // FIXME: Generate this automatically somehow.
 static bool is_platform_object(Type const& type)
@@ -228,11 +228,10 @@ static ByteString cpp_type_name(Type const& type)
     return type.name();
 }
 
-static Interface const* callback_interface_for_type(Interface const& interface, Type const& type)
+static Interface const* callback_interface_for_type(Context const& context, Type const& type)
 {
-    auto const* referenced_interface = interface.referenced_interface(type.name());
-    if (referenced_interface && referenced_interface->is_callback_interface)
-        return referenced_interface;
+    if (auto it = context.interfaces.find(type.name()); it != context.interfaces.end() && it->value->is_callback_interface)
+        return it->value;
     return nullptr;
 }
 
@@ -260,7 +259,7 @@ static bool is_nullable_frozen_array_of_single_type(Type const& type, StringView
     return parameters.first()->name() == type_name;
 }
 
-static ByteString union_type_to_variant(UnionType const& union_type, Interface const& interface)
+static ByteString union_type_to_variant(UnionType const& union_type, Context const& context)
 {
     StringBuilder builder;
     builder.append("Variant<"sv);
@@ -272,7 +271,7 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
         if (type_index > 0)
             builder.append(", "sv);
 
-        auto cpp_type = idl_type_name_to_cpp_type(type, interface);
+        auto cpp_type = idl_type_name_to_cpp_type(type, context);
         builder.append(cpp_type.name);
     }
 
@@ -283,7 +282,7 @@ static ByteString union_type_to_variant(UnionType const& union_type, Interface c
     return builder.to_byte_string();
 }
 
-CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
+CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
 {
     if (is_platform_object(type))
         return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
@@ -291,10 +290,10 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (is_javascript_builtin_buffer_source_type(type))
         return { .name = ByteString::formatted("GC::Root<JS::{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (auto const* callback_interface = callback_interface_for_type(interface, type))
+    if (auto const* callback_interface = callback_interface_for_type(context, type))
         return { .name = ByteString::formatted("GC::Root<{}>", callback_interface->implemented_name), .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (interface.callback_functions.contains(type.name()))
+    if (context.callback_functions.contains(type.name()))
         return { .name = "GC::Root<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (type.is_string()) {
@@ -363,7 +362,7 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
     if (type.name().is_one_of("sequence"sv, "FrozenArray"sv)) {
         auto& parameterized_type = as<ParameterizedType>(type);
         auto& sequence_type = parameterized_type.parameters().first();
-        auto sequence_cpp_type = idl_type_name_to_cpp_type(sequence_type, interface);
+        auto sequence_cpp_type = idl_type_name_to_cpp_type(sequence_type, context);
         auto storage_type_name = sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type);
 
         if (sequence_cpp_type.sequence_storage_type == SequenceStorageType::RootVector)
@@ -376,25 +375,25 @@ CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface)
         auto& parameterized_type = as<ParameterizedType>(type);
         auto& record_key_type = parameterized_type.parameters()[0];
         auto& record_value_type = parameterized_type.parameters()[1];
-        auto record_key_cpp_type = idl_type_name_to_cpp_type(record_key_type, interface);
-        auto record_value_cpp_type = idl_type_name_to_cpp_type(record_value_type, interface);
+        auto record_key_cpp_type = idl_type_name_to_cpp_type(record_key_type, context);
+        auto record_value_cpp_type = idl_type_name_to_cpp_type(record_value_type, context);
 
         return { .name = ByteString::formatted("OrderedHashMap<{}, {}>", record_key_cpp_type.name, record_value_cpp_type.name), .sequence_storage_type = SequenceStorageType::Vector };
     }
 
     if (is<UnionType>(type)) {
         auto& union_type = as<UnionType>(type);
-        return { .name = union_type_to_variant(union_type, interface), .sequence_storage_type = SequenceStorageType::Vector };
+        return { .name = union_type_to_variant(union_type, context), .sequence_storage_type = SequenceStorageType::Vector };
     }
 
     if (!type.is_nullable()) {
-        for (auto& dictionary : interface.dictionaries) {
+        for (auto& dictionary : context.dictionaries) {
             if (type.name() == dictionary.key)
                 return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
         }
     }
 
-    if (interface.enumerations.contains(type.name()))
+    if (context.enumerations.contains(type.name()))
         return { .name = type.name(), .sequence_storage_type = SequenceStorageType::Vector };
 
     dbgln("Unimplemented type for idl_type_name_to_cpp_type: {}{}", type.name(), type.is_nullable() ? "?" : "");
@@ -680,7 +679,7 @@ static void generate_to_integral(SourceGenerator& scoped_generator, ParameterTyp
 }
 
 // https://webidl.spec.whatwg.org/#es-dictionary
-static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interface const& interface, IDL::Dictionary const& dictionary, ByteString dictionary_name)
+static void generate_dictionary_to_cpp(SourceGenerator& generator, Context const& context, IDL::Dictionary const& dictionary, ByteString dictionary_name)
 {
     auto const* current_dictionary = &dictionary;
     auto current_dictionary_name = move(dictionary_name);
@@ -698,8 +697,8 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
         for (auto& member : current_dictionary->members)
             members.append(member);
 
-        if (interface.partial_dictionaries.contains(current_dictionary_name)) {
-            auto& partial_dictionaries = interface.partial_dictionaries.find(current_dictionary_name)->value;
+        if (context.partial_dictionaries.contains(current_dictionary_name)) {
+            auto& partial_dictionaries = context.partial_dictionaries.find(current_dictionary_name)->value;
             for (auto& partial_dictionary : partial_dictionaries)
                 for (auto& member : partial_dictionary.members)
                     members.append(member);
@@ -733,7 +732,7 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
 )~~~");
             }
 
-            generate_to_cpp(generator, member, member_property_value_name, "", member_value_name, interface, !member.required, member.default_value);
+            generate_to_cpp(generator, member, member_property_value_name, "", member_value_name, context, !member.required, member.default_value);
 
             generator.append(R"~~~(
     @cpp_name@.@member_name@ = @member_value_name@;
@@ -747,9 +746,9 @@ static void generate_dictionary_to_cpp(SourceGenerator& generator, IDL::Interfac
         }
         if (current_dictionary->parent_name.is_empty())
             break;
-        VERIFY(interface.dictionaries.contains(current_dictionary->parent_name));
+        VERIFY(context.dictionaries.contains(current_dictionary->parent_name));
         current_dictionary_name = current_dictionary->parent_name;
-        current_dictionary = &interface.dictionaries.find(current_dictionary_name)->value;
+        current_dictionary = &context.dictionaries.find(current_dictionary_name)->value;
     }
 }
 
@@ -1107,7 +1106,7 @@ static void generate_enum_to_cpp(SourceGenerator& scoped_generator, Enumeration 
 }
 
 // https://webidl.spec.whatwg.org/#es-record
-static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& cpp_name, IDL::Interface const& interface, size_t recursion_depth)
+static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& cpp_name, Context const& context, size_t recursion_depth)
 {
     auto record_generator = scoped_generator.fork();
     record_generator.set("recursion_depth", ByteString::number(recursion_depth));
@@ -1131,7 +1130,7 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
     //       4. Set result[typedKey] to typedValue.
     // 5. Return result.
 
-    auto record_cpp_type = IDL::idl_type_name_to_cpp_type(type, interface);
+    auto record_cpp_type = IDL::idl_type_name_to_cpp_type(type, context);
     record_generator.set("record.type", record_cpp_type.name);
 
     // If this is a recursive call to generate_to_cpp, assume that the caller has already handled converting the JS value to an object for us.
@@ -1160,7 +1159,7 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
 )~~~");
 
     IDL::Parameter key_parameter { .type = type.parameters()[0], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), interface, false, {}, false, recursion_depth + 1);
+    generate_to_cpp(record_generator, key_parameter, "key", ByteString::number(recursion_depth), ByteString::formatted("typed_key{}", recursion_depth), context, false, {}, false, recursion_depth + 1);
 
     record_generator.append(R"~~~(
         auto value@recursion_depth@ = TRY(@js_name@@js_suffix@_object.get(property_key@recursion_depth@));
@@ -1168,7 +1167,7 @@ static void generate_record_to_cpp(SourceGenerator& scoped_generator, IDL::Param
 
     // FIXME: Record value types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
     IDL::Parameter value_parameter { .type = type.parameters()[1], .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), interface, false, {}, false, recursion_depth + 1);
+    generate_to_cpp(record_generator, value_parameter, "value", ByteString::number(recursion_depth), ByteString::formatted("typed_value{}", recursion_depth), context, false, {}, false, recursion_depth + 1);
 
     record_generator.append(R"~~~(
         @cpp_name@.set(typed_key@recursion_depth@, typed_value@recursion_depth@);
@@ -1214,7 +1213,7 @@ static void generate_callback_function_to_cpp(SourceGenerator& scoped_generator,
     }
 }
 
-static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, size_t recursion_depth)
+static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::ParameterizedType const& type, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Context const& context, bool optional, Optional<ByteString> optional_default_value, size_t recursion_depth)
 {
     // https://webidl.spec.whatwg.org/#js-sequence
     // https://webidl.spec.whatwg.org/#js-frozen-array
@@ -1233,7 +1232,7 @@ static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::Par
     // 2. Return the result of creating a frozen array from values.
 
     if (optional || type.is_nullable()) {
-        auto sequence_cpp_type = idl_type_name_to_cpp_type(type.parameters().first(), interface);
+        auto sequence_cpp_type = idl_type_name_to_cpp_type(type.parameters().first(), context);
         sequence_generator.set("sequence.type", sequence_cpp_type.name);
         sequence_generator.set("sequence.storage_type", sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type));
 
@@ -1276,7 +1275,7 @@ static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::Par
         return vm.throw_completion<JS::TypeError>(JS::ErrorType::NotIterable, @js_name@@js_suffix@);
 )~~~");
 
-    type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", cpp_name, optional || type.is_nullable() ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), interface, recursion_depth + 1);
+    type.generate_sequence_from_iterable(sequence_generator, ByteString::formatted("{}{}", cpp_name, optional || type.is_nullable() ? "_non_optional" : ""), ByteString::formatted("{}{}", js_name, js_suffix), ByteString::formatted("{}{}_iterator_method{}", js_name, js_suffix, recursion_depth), context, recursion_depth + 1);
 
     if (optional || type.is_nullable()) {
         sequence_generator.append(R"~~~(
@@ -1287,14 +1286,14 @@ static void generate_sequence_to_cpp(SourceGenerator& scoped_generator, IDL::Par
 }
 
 template<typename ParameterType>
-static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
+static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, Context const& context, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
     // https://webidl.spec.whatwg.org/#es-union
 
     auto union_generator = scoped_generator.fork();
 
     auto& union_type = as<IDL::UnionType>(*parameter.type);
-    union_generator.set("union_type", union_type_to_variant(union_type, interface));
+    union_generator.set("union_type", union_type_to_variant(union_type, context));
     union_generator.set("recursion_depth", ByteString::number(recursion_depth));
 
     // NOTE: This is handled out here as we need the dictionary conversion code for the {} optional default value.
@@ -1302,7 +1301,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
     auto types = union_type.flattened_member_types();
 
     RefPtr<Type const> dictionary_type;
-    for (auto& dictionary : interface.dictionaries) {
+    for (auto& dictionary : context.dictionaries) {
         for (auto& type : types) {
             if (type->name() == dictionary.key) {
                 dictionary_type = type;
@@ -1326,7 +1325,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
 
         IDL::Parameter dictionary_parameter { .type = *dictionary_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(dictionary_generator, dictionary_parameter, js_name, js_suffix, "dictionary_union_type"sv, context, false, {}, false, recursion_depth + 1);
 
         dictionary_generator.append(R"~~~(
         return dictionary_union_type;
@@ -1518,7 +1517,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         if (method) {
 )~~~");
 
-        sequence_type->generate_sequence_from_iterable(union_generator, cpp_name, ByteString::formatted("{}{}", js_name, js_suffix), "method", interface, recursion_depth + 1);
+        sequence_type->generate_sequence_from_iterable(union_generator, cpp_name, ByteString::formatted("{}{}", js_name, js_suffix), "method", context, recursion_depth + 1);
 
         union_generator.append(R"~~~(
 
@@ -1549,7 +1548,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     if (record_type) {
         IDL::Parameter record_parameter { .type = *record_type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, record_parameter, js_name, js_suffix, "record_union_type"sv, context, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return record_union_type;
@@ -1558,11 +1557,11 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     // 5. If types includes a callback interface type, then return the result of converting V to that callback interface type.
     for (auto& type : types) {
-        if (!callback_interface_for_type(interface, type))
+        if (!callback_interface_for_type(context, type))
             continue;
 
         IDL::Parameter callback_interface_parameter { .type = *type, .name = cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, callback_interface_parameter, js_name, js_suffix, "callback_interface_union_type"sv, context, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return callback_interface_union_type;
@@ -1610,7 +1609,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), context, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
             return { @js_name@@js_suffix@_number };
@@ -1631,7 +1630,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     bool includes_enumeration = false;
     for (auto& type : types) {
-        if (interface.enumerations.contains(type->name())) {
+        if (context.enumerations.contains(type->name())) {
             includes_enumeration = true;
             break;
         }
@@ -1646,11 +1645,11 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 )~~~");
 
         for (auto& type : types) {
-            if (!interface.enumerations.contains(type->name()))
+            if (!context.enumerations.contains(type->name()))
                 continue;
 
-            auto& enumeration = interface.enumerations.find(type->name())->value;
-            auto enum_type = IDL::idl_type_name_to_cpp_type(*type, interface);
+            auto& enumeration = context.enumerations.find(type->name())->value;
+            auto enum_type = IDL::idl_type_name_to_cpp_type(*type, context);
 
             auto enum_generator = union_generator.fork();
             enum_generator.set("enum.type", enum_type.name);
@@ -1683,7 +1682,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: Currently all string types are converted to String.
 
         IDL::Parameter idl_parameter { .type = *string_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = parameter.extended_attributes };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_string", js_name, js_suffix), context, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_string };
@@ -1712,7 +1711,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_numeric_type_generator, idl_parameter, "x", ByteString::empty(), "x_number", context, false, {}, false, recursion_depth + 1);
 
         union_numeric_type_generator.append(R"~~~(
         return x_number;
@@ -1723,7 +1722,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
         // NOTE: generate_to_cpp doesn't use the parameter name.
         // NOTE: generate_to_cpp will use to_{u32,etc.} which uses to_number internally and will thus use TRY, but it cannot throw as we know we are dealing with a number.
         IDL::Parameter idl_parameter { .type = *numeric_type, .name = parameter.name, .optional_default_value = {}, .extended_attributes = {} };
-        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), interface, false, {}, false, recursion_depth + 1);
+        generate_to_cpp(union_generator, idl_parameter, js_name, js_suffix, ByteString::formatted("{}{}_number", js_name, js_suffix), context, false, {}, false, recursion_depth + 1);
 
         union_generator.append(R"~~~(
         return { @js_name@@js_suffix@_number };
@@ -1822,7 +1821,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 }
 
 template<typename ParameterType>
-static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, IDL::Interface const& interface, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
+static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, Context const& context, bool optional, Optional<ByteString> optional_default_value, bool variadic, size_t recursion_depth)
 {
     auto scoped_generator = generator.fork();
     auto acceptable_cpp_name = make_input_acceptable_cpp(cpp_name);
@@ -1847,7 +1846,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_to_string(scoped_generator, parameter, variadic, optional, optional_default_value);
     } else if (parameter.type->is_boolean() || parameter.type->is_integer()) {
         generate_to_integral(scoped_generator, parameter, optional, optional_default_value);
-    } else if (auto const* callback_interface = callback_interface_for_type(interface, parameter.type)) {
+    } else if (auto const* callback_interface = callback_interface_for_type(context, parameter.type)) {
         generate_callback_interface_to_cpp(scoped_generator, *parameter.type, *callback_interface);
     } else if (IDL::is_platform_object(*parameter.type)) {
         generate_platform_object_to_cpp(scoped_generator, *parameter.type, optional);
@@ -1863,28 +1862,28 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_array_buffer_view_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->name() == "any") {
         generate_any_to_cpp(scoped_generator, optional, optional_default_value, variadic);
-    } else if (interface.enumerations.contains(parameter.type->name())) {
+    } else if (context.enumerations.contains(parameter.type->name())) {
         // NOTE: Attribute setters return undefined instead of throwing when the string doesn't match an enum value.
         ThrowOnInvalidEnumValue throw_on_invalid = ThrowOnInvalidEnumValue::No;
         if constexpr (!IsSame<Attribute, RemoveConst<ParameterType>>)
             throw_on_invalid = ThrowOnInvalidEnumValue::Yes;
-        generate_enum_to_cpp(scoped_generator, interface.enumerations.find(parameter.type->name())->value, throw_on_invalid, optional, optional_default_value);
-    } else if (interface.dictionaries.contains(parameter.type->name())) {
+        generate_enum_to_cpp(scoped_generator, context.enumerations.find(parameter.type->name())->value, throw_on_invalid, optional, optional_default_value);
+    } else if (context.dictionaries.contains(parameter.type->name())) {
         if (optional_default_value.has_value() && optional_default_value != "{}")
             TODO();
         auto dictionary_generator = scoped_generator.fork();
         auto dictionary_name = parameter.type->name();
-        auto& dictionary = interface.dictionaries.find(dictionary_name)->value;
-        generate_dictionary_to_cpp(dictionary_generator, interface, dictionary, dictionary_name);
-    } else if (interface.callback_functions.contains(parameter.type->name())) {
-        auto& callback_function = interface.callback_functions.find(parameter.type->name())->value;
+        auto& dictionary = context.dictionaries.find(dictionary_name)->value;
+        generate_dictionary_to_cpp(dictionary_generator, context, dictionary, dictionary_name);
+    } else if (context.callback_functions.contains(parameter.type->name())) {
+        auto& callback_function = context.callback_functions.find(parameter.type->name())->value;
         generate_callback_function_to_cpp(scoped_generator, *parameter.type, callback_function, optional);
     } else if (parameter.type->name().is_one_of("sequence"sv, "FrozenArray"sv)) {
-        generate_sequence_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), js_name, js_suffix, acceptable_cpp_name, interface, optional, optional_default_value, recursion_depth);
+        generate_sequence_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), js_name, js_suffix, acceptable_cpp_name, context, optional, optional_default_value, recursion_depth);
     } else if (parameter.type->name() == "record") {
-        generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, interface, recursion_depth);
+        generate_record_to_cpp(scoped_generator, as<IDL::ParameterizedType>(*parameter.type), acceptable_cpp_name, context, recursion_depth);
     } else if (is<IDL::UnionType>(*parameter.type)) {
-        generate_union_to_cpp(scoped_generator, parameter, js_name, js_suffix, acceptable_cpp_name, interface, optional, optional_default_value, variadic, recursion_depth);
+        generate_union_to_cpp(scoped_generator, parameter, js_name, js_suffix, acceptable_cpp_name, context, optional, optional_default_value, variadic, recursion_depth);
     } else {
         dbgln("Unimplemented JS-to-C++ conversion: {}", parameter.type->name());
         VERIFY_NOT_REACHED();
@@ -1937,7 +1936,7 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
 )~~~");
         }
 
-        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface, parameter.optional, parameter.optional_default_value, parameter.variadic, 0);
+        generate_to_cpp(generator, parameter, "arg", ByteString::number(argument_index), parameter.name.to_snakecase(), interface.context, parameter.optional, parameter.optional_default_value, parameter.variadic, 0);
         ++argument_index;
     }
 
@@ -1945,14 +1944,14 @@ static void generate_arguments(SourceGenerator& generator, Vector<IDL::Parameter
 }
 
 // https://webidl.spec.whatwg.org/#create-sequence-from-iterable
-void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& generator, ByteString const& cpp_name, ByteString const& iterable_cpp_name, ByteString const& iterator_method_cpp_name, IDL::Interface const& interface, size_t recursion_depth) const
+void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& generator, ByteString const& cpp_name, ByteString const& iterable_cpp_name, ByteString const& iterator_method_cpp_name, IDL::Context const& context, size_t recursion_depth) const
 {
     auto sequence_generator = generator.fork();
     sequence_generator.set("cpp_name", cpp_name);
     sequence_generator.set("iterable_cpp_name", iterable_cpp_name);
     sequence_generator.set("iterator_method_cpp_name", iterator_method_cpp_name);
     sequence_generator.set("recursion_depth", ByteString::number(recursion_depth));
-    auto sequence_cpp_type = idl_type_name_to_cpp_type(parameters().first(), interface);
+    auto sequence_cpp_type = idl_type_name_to_cpp_type(parameters().first(), context);
     sequence_generator.set("sequence.type", sequence_cpp_type.name);
     sequence_generator.set("sequence.storage_type", sequence_storage_type_to_cpp_storage_type_name(sequence_cpp_type.sequence_storage_type));
 
@@ -1992,7 +1991,7 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
 
     // FIXME: Sequences types should be TypeWithExtendedAttributes, which would allow us to get [LegacyNullToEmptyString] here.
     IDL::Parameter parameter { .type = parameters().first(), .name = iterable_cpp_name, .optional_default_value = {}, .extended_attributes = {} };
-    generate_to_cpp(sequence_generator, parameter, "next_item", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), interface, false, {}, false, recursion_depth);
+    generate_to_cpp(sequence_generator, parameter, "next_item", ByteString::number(recursion_depth), ByteString::formatted("sequence_item{}", recursion_depth), context, false, {}, false, recursion_depth);
 
     sequence_generator.append(R"~~~(
     @cpp_name@.append(sequence_item@recursion_depth@);
@@ -2000,7 +1999,7 @@ void IDL::ParameterizedType::generate_sequence_from_iterable(SourceGenerator& ge
 )~~~");
 }
 
-static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, IDL::Interface const& interface, StringView result_expression, size_t recursion_depth = 0, bool is_optional = false, size_t iteration_index = 0)
+static void generate_wrap_statement(SourceGenerator& generator, ByteString const& value, IDL::Type const& type, Context const& context, StringView result_expression, size_t recursion_depth = 0, bool is_optional = false, size_t iteration_index = 0)
 {
     auto scoped_generator = generator.fork();
     scoped_generator.set("value", value);
@@ -2015,8 +2014,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             || type.is_string()
             || type.name().is_one_of("sequence"sv, "FrozenArray"sv)
             || type.is_primitive()
-            || interface.enumerations.contains(type.name())
-            || interface.dictionaries.contains(type.name());
+            || context.enumerations.contains(type.name())
+            || context.dictionaries.contains(type.name());
     }
 
     if (optional_uses_value_access)
@@ -2046,7 +2045,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
 )~~~");
-        } else if (type.is_primitive() || interface.enumerations.contains(type.name()) || interface.dictionaries.contains(type.name())) {
+        } else if (type.is_primitive() || context.enumerations.contains(type.name()) || context.dictionaries.contains(type.name())) {
             generate_optional_integral_type = true;
             scoped_generator.append(R"~~~(
     if (@value@.has_value()) {
@@ -2107,7 +2106,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
         } else {
             scoped_generator.append("JS::Value wrapped_element@recursion_depth@;\n"sv);
-            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), interface, ByteString::formatted("wrapped_element{} =", recursion_depth), recursion_depth + 1);
+            generate_wrap_statement(scoped_generator, ByteString::formatted("element{}", recursion_depth), sequence_generic_type.parameters().first(), context, ByteString::formatted("wrapped_element{} =", recursion_depth), recursion_depth + 1);
         }
 
         scoped_generator.append(R"~~~(
@@ -2145,7 +2144,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
             // 2. Let jsValue be value converted to a JavaScript value.
 )~~~");
-        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], interface, "auto js_value ="sv, recursion_depth + 1);
+        generate_wrap_statement(scoped_generator, "value"sv, parameterized_type.parameters()[1], context, "auto js_value ="sv, recursion_depth + 1);
         scoped_generator.append(R"~~~(
 
             // 3. Let created be ! CreateDataProperty(result, jsKey, jsValue).
@@ -2197,7 +2196,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
         for (size_t current_union_type_index = 0; current_union_type_index < union_types.size(); ++current_union_type_index) {
             auto& current_union_type = union_types.at(current_union_type_index);
-            auto cpp_type = IDL::idl_type_name_to_cpp_type(current_union_type, interface);
+            auto cpp_type = IDL::idl_type_name_to_cpp_type(current_union_type, context);
             union_generator.set("current_type", cpp_type.name);
             union_generator.append(R"~~~(
         [&vm, &realm]([[maybe_unused]] @current_type@ const& visited_union_value@recursion_depth@) -> JS::Value {
@@ -2207,7 +2206,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
 
             // NOTE: While we are using const&, the underlying type for wrappable types in unions is (Nonnull)RefPtr, which are not references.
-            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, interface, "return"sv, recursion_depth + 1);
+            generate_wrap_statement(union_generator, ByteString::formatted("visited_union_value{}", recursion_depth), current_union_type, context, "return"sv, recursion_depth + 1);
 
             // End of current visit lambda.
             // The last lambda cannot have a trailing comma on the closing brace, unless the type includes a nullable type, where an extra lambda will be generated for the Empty case.
@@ -2234,17 +2233,17 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         union_generator.append(R"~~~(
     );
 )~~~");
-    } else if (interface.enumerations.contains(type.name())) {
+    } else if (context.enumerations.contains(type.name())) {
         // Handle Enum? values, which were null-checked above
         if (type.is_nullable() || is_optional)
             scoped_generator.set("value", ByteString::formatted("{}.value()", value));
         scoped_generator.append(R"~~~(
     @result_expression@ JS::PrimitiveString::create(vm, Bindings::idl_enum_to_string(@value@));
 )~~~");
-    } else if (interface.callback_functions.contains(type.name())) {
+    } else if (context.callback_functions.contains(type.name())) {
         // https://webidl.spec.whatwg.org/#es-callback-function
 
-        auto& callback_function = interface.callback_functions.find(type.name())->value;
+        auto& callback_function = context.callback_functions.find(type.name())->value;
 
         // The result of converting an IDL callback function type value to an ECMAScript value is a reference to the same object that the IDL callback function type value represents.
 
@@ -2261,11 +2260,11 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
   @result_expression@ @value_non_optional@->callback;
 )~~~");
         }
-    } else if (callback_interface_for_type(interface, type)) {
+    } else if (callback_interface_for_type(context, type)) {
         scoped_generator.append(R"~~~(
   @result_expression@ @value@->callback().callback;
 )~~~");
-    } else if (interface.dictionaries.contains(type.name())) {
+    } else if (context.dictionaries.contains(type.name())) {
         // https://webidl.spec.whatwg.org/#es-dictionary
         auto dictionary_generator = scoped_generator.fork();
 
@@ -2275,7 +2274,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 )~~~");
 
         auto next_iteration_index = iteration_index + 1;
-        auto* current_dictionary = &interface.dictionaries.find(type.name())->value;
+        auto* current_dictionary = &context.dictionaries.find(type.name())->value;
         while (true) {
             for (auto& member : current_dictionary->members) {
                 dictionary_generator.set("member_key", member.name);
@@ -2305,7 +2304,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
                 }
 
                 next_iteration_index++;
-                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value_non_optional, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, interface, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
+                generate_wrap_statement(dictionary_generator, ByteString::formatted("{}{}{}", value_non_optional, type.is_nullable() ? "->" : ".", member.name.to_snakecase()), member.type, context, ByteString::formatted("{} =", wrapped_value_name), recursion_depth + 1, is_optional, next_iteration_index);
 
                 if (is_optional) {
                     dictionary_generator.append(R"~~~(
@@ -2321,8 +2320,8 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
 
             if (current_dictionary->parent_name.is_empty())
                 break;
-            VERIFY(interface.dictionaries.contains(current_dictionary->parent_name));
-            current_dictionary = &interface.dictionaries.find(current_dictionary->parent_name)->value;
+            VERIFY(context.dictionaries.contains(current_dictionary->parent_name));
+            current_dictionary = &context.dictionaries.find(current_dictionary->parent_name)->value;
         }
 
         dictionary_generator.append(R"~~~(
@@ -2365,7 +2364,7 @@ enum class IsConstructor {
 
 static void generate_return_statement(SourceGenerator& generator, IDL::Type const& return_type, IDL::Interface const& interface)
 {
-    generate_wrap_statement(generator, "retval", return_type, interface, "return"sv);
+    generate_wrap_statement(generator, "retval", return_type, interface.context, "return"sv);
 }
 
 static void generate_variable_statement(SourceGenerator& generator, ByteString const& variable_name, IDL::Type const& value_type, ByteString const& value_name, IDL::Interface const& interface)
@@ -2375,7 +2374,7 @@ static void generate_variable_statement(SourceGenerator& generator, ByteString c
     variable_generator.append(R"~~~(
     JS::Value @variable_name@;
 )~~~");
-    generate_wrap_statement(generator, value_name, value_type, interface, ByteString::formatted("{} = ", variable_name));
+    generate_wrap_statement(generator, value_name, value_type, interface.context, ByteString::formatted("{} = ", variable_name));
 }
 
 static void generate_function(SourceGenerator& generator, IDL::Function const& function, StaticFunction is_static_function, ByteString const& class_name, ByteString const& interface_fully_qualified_name, IDL::Interface const& interface)
@@ -2763,7 +2762,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
         // and calling resolve_overload() entirely, avoiding multiple heap allocations.
         if (effective_overload_set.size() == 1) {
             for (auto const& type : effective_overload_set[0].types) {
-                if (interface.dictionaries.contains(type->name()))
+                if (interface.context.dictionaries.contains(type->name()))
                     dictionary_types.set(type->name());
             }
 
@@ -2794,7 +2793,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@function.name:snakecase@)
                     }
 
                     auto const& type = overload.types[i];
-                    if (interface.dictionaries.contains(type->name()))
+                    if (interface.context.dictionaries.contains(type->name()))
                         dictionary_types.set(type->name());
 
                     types_builder.append(generate_constructor_for_idl_type(overload.types[i]));
@@ -3168,14 +3167,16 @@ static ByteString get_best_value_for_underlying_enum_type(size_t size)
 
 static void generate_dictionaries(SourceGenerator& generator, IDL::Interface const& interface)
 {
-    for (auto const& it : interface.dictionaries) {
-        if (!it.value.is_original_definition)
+    for (auto const& dictionary_name : interface.own_dictionaries) {
+        auto it = interface.context.dictionaries.find(dictionary_name);
+        VERIFY(it != interface.context.dictionaries.end());
+        if (!it->value.is_original_definition)
             continue;
-        if (!it.value.extended_attributes.contains("GenerateToValue"sv))
+        if (!it->value.extended_attributes.contains("GenerateToValue"sv))
             continue;
         auto dictionary_generator = generator.fork();
-        dictionary_generator.set("dictionary.name", make_input_acceptable_cpp(it.key));
-        dictionary_generator.set("dictionary.name:snakecase", make_input_acceptable_cpp(it.key.to_snakecase()));
+        dictionary_generator.set("dictionary.name", make_input_acceptable_cpp(it->key));
+        dictionary_generator.set("dictionary.name:snakecase", make_input_acceptable_cpp(it->key.to_snakecase()));
         dictionary_generator.append(R"~~~(
 JS::Value @dictionary.name:snakecase@_to_value(JS::Realm&, @dictionary.name@ const&);
 JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.name@ const& dictionary)
@@ -3184,8 +3185,8 @@ JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.nam
     @dictionary.name@ copy = dictionary;
 )~~~");
         // FIXME: Support generating wrap statements for lvalues and get rid of the copy above
-        auto dictionary_type = adopt_ref(*new Type(it.key, false));
-        generate_wrap_statement(dictionary_generator, "copy", dictionary_type, interface, "return"sv);
+        auto dictionary_type = adopt_ref(*new Type(it->key, false));
+        generate_wrap_statement(dictionary_generator, "copy", dictionary_type, interface.context, "return"sv);
 
         dictionary_generator.append(R"~~~(
 }
@@ -3193,20 +3194,22 @@ JS::Value @dictionary.name:snakecase@_to_value(JS::Realm& realm, @dictionary.nam
     }
 }
 
-static void generate_enumerations(HashMap<ByteString, Enumeration> const& enumerations, StringBuilder& builder)
+static void generate_enumerations(IDL::Interface const& interface, StringBuilder& builder)
 {
     SourceGenerator generator { builder };
 
-    for (auto const& it : enumerations) {
-        if (!it.value.is_original_definition)
+    for (auto const& enumeration_name : interface.own_enumerations) {
+        auto it = interface.context.enumerations.find(enumeration_name);
+        VERIFY(it != interface.context.enumerations.end());
+        if (!it->value.is_original_definition)
             continue;
         auto enum_generator = generator.fork();
-        enum_generator.set("enum.type.name", it.key);
-        enum_generator.set("enum.underlying_type", get_best_value_for_underlying_enum_type(it.value.translated_cpp_names.size()));
+        enum_generator.set("enum.type.name", it->key);
+        enum_generator.set("enum.underlying_type", get_best_value_for_underlying_enum_type(it->value.translated_cpp_names.size()));
         enum_generator.append(R"~~~(
 enum class @enum.type.name@ : @enum.underlying_type@ {
 )~~~");
-        for (auto const& entry : it.value.translated_cpp_names) {
+        for (auto const& entry : it->value.translated_cpp_names) {
             enum_generator.set("enum.entry", entry.value);
             enum_generator.append(R"~~~(
     @enum.entry@,
@@ -3222,7 +3225,7 @@ inline String idl_enum_to_string(@enum.type.name@ value)
 {
     switch (value) {
 )~~~");
-        for (auto const& entry : it.value.translated_cpp_names) {
+        for (auto const& entry : it->value.translated_cpp_names) {
             enum_generator.set("enum.entry", entry.value);
             enum_generator.set("enum.string", entry.key);
             enum_generator.append(R"~~~(
@@ -3355,7 +3358,7 @@ static void generate_prototype_or_global_mixin_declarations(IDL::Interface const
 
 )~~~");
 
-    generate_enumerations(interface.enumerations, builder);
+    generate_enumerations(interface, builder);
 }
 
 // https://webidl.spec.whatwg.org/#create-an-inheritance-stack
@@ -3479,7 +3482,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
             attribute_generator.append(R"~~~(
     JS::Value @attribute.return_value_name@_wrapped;
 )~~~");
-            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain, ByteString::formatted("{}_wrapped =", return_value_name));
+            generate_wrap_statement(attribute_generator, return_value_name, attribute.type, interface_in_chain.context, ByteString::formatted("{}_wrapped =", return_value_name));
 
             attribute_generator.append(R"~~~(
     MUST(result->create_data_property("@attribute.name@"_utf16_fly_string, @attribute.return_value_name@_wrapped));
@@ -3490,7 +3493,7 @@ static void collect_attribute_values_of_an_inheritance_stack(SourceGenerator& fu
             auto constant_generator = function_generator.fork();
             constant_generator.set("constant.name", constant.name);
 
-            generate_wrap_statement(constant_generator, constant.value, constant.type, interface_in_chain, ByteString::formatted("auto constant_{}_value =", constant.name));
+            generate_wrap_statement(constant_generator, constant.value, constant.type, interface_in_chain.context, ByteString::formatted("auto constant_{}_value =", constant.name));
 
             constant_generator.append(R"~~~(
     MUST(result->create_data_property("@constant.name@"_utf16_fly_string, constant_@constant.name@_value));
@@ -3957,7 +3960,7 @@ void @class_name@::initialize(JS::Realm& realm)
             auto constant_generator = generator.fork();
             constant_generator.set("constant.name", constant.name);
 
-            generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
+            generate_wrap_statement(constant_generator, constant.value, constant.type, interface.context, ByteString::formatted("auto constant_{}_value =", constant.name));
 
             constant_generator.append(R"~~~(
     @define_direct_property@("@constant.name@"_utf16_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);
@@ -4253,7 +4256,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.setter_callback@)
         return;
     }
 
-    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface);
+    generate_to_cpp(attribute_generator, attribute, "value", "", "cpp_value", interface.context);
     if (attribute.extended_attributes.contains("Reflect")) {
         if (attribute.type->name() == "boolean") {
             attribute_generator.append(R"~~~(
@@ -4542,7 +4545,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
                     // 4. If attributeDefinition indicates it is an enumerated attribute and the reflected IDL attribute is defined to be limited to only known values:
                     if (attribute.extended_attributes.contains("Enumerated")) {
                         auto valid_enumerations_type = attribute.extended_attributes.get("Enumerated").value();
-                        auto valid_enumerations = interface.enumerations.get(valid_enumerations_type).value();
+                        auto valid_enumerations = interface.context.enumerations.get(valid_enumerations_type).value();
 
                         auto missing_value_default = valid_enumerations.extended_attributes.get("MissingValueDefault");
                         auto invalid_value_default = valid_enumerations.extended_attributes.get("InvalidValueDefault");
@@ -4611,7 +4614,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
 
                         // 2. Assert: contentAttributeValue corresponds to a state of attributeDefinition.
                         auto valid_enumerations_type = attribute.extended_attributes.get("Enumerated").value();
-                        auto valid_enumerations = interface.enumerations.get(valid_enumerations_type).value();
+                        auto valid_enumerations = interface.context.enumerations.get(valid_enumerations_type).value();
 
                         auto missing_value_default = valid_enumerations.extended_attributes.get("MissingValueDefault");
                         auto invalid_value_default = valid_enumerations.extended_attributes.get("InvalidValueDefault");
@@ -4819,7 +4822,7 @@ JS_DEFINE_NATIVE_FUNCTION(@class_name@::@attribute.getter_callback@)
         }
 
         if (cache_result) {
-            generate_wrap_statement(generator, "retval", *attribute.type, interface, ByteString::formatted("cached_{} =", attribute_generator.get("attribute.cpp_name")));
+            generate_wrap_statement(generator, "retval", *attribute.type, interface.context, ByteString::formatted("cached_{} =", attribute_generator.get("attribute.cpp_name")));
             attribute_generator.append(R"~~~(
     impl->set_cached_@attribute.cpp_name@(cached_@attribute.cpp_name@);
     return cached_@attribute.cpp_name@;
@@ -5702,7 +5705,7 @@ void @constructor_class@::initialize(JS::Realm& realm)
         auto constant_generator = generator.fork();
         constant_generator.set("constant.name", constant.name);
 
-        generate_wrap_statement(constant_generator, constant.value, constant.type, interface, ByteString::formatted("auto constant_{}_value =", constant.name));
+        generate_wrap_statement(constant_generator, constant.value, constant.type, interface.context, ByteString::formatted("auto constant_{}_value =", constant.name));
 
         constant_generator.append(R"~~~(
     define_direct_property("@constant.name@"_utf16_fly_string, constant_@constant.name@_value, JS::Attribute::Enumerable);

@@ -20,7 +20,7 @@ namespace IDL {
 void generate_header(Interface const&, StringBuilder&);
 void generate_implementation(Interface const&, StringBuilder&);
 
-CppType idl_type_name_to_cpp_type(Type const& type, Interface const& interface);
+CppType idl_type_name_to_cpp_type(Type const& type, Context const& context);
 
 extern Vector<StringView> g_header_search_paths;
 

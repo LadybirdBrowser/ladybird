@@ -10,6 +10,41 @@
 
 namespace IDL {
 
+Interface& Context::add_interface(NonnullOwnPtr<Interface> interface)
+{
+    auto& interface_ref = *interface;
+
+    if (!interface_ref.name.is_empty())
+        interfaces.set(interface_ref.name, &interface_ref);
+
+    owned_interfaces.append(move(interface));
+    return interface_ref;
+}
+
+Interface& Context::add_mixin(NonnullOwnPtr<Interface> interface)
+{
+    auto& interface_ref = *interface;
+    mixins.set(interface_ref.name, &interface_ref);
+
+    for (auto& partial_mixin : partial_mixins) {
+        if (partial_mixin->name == interface_ref.name)
+            interface_ref.extend_with_partial_interface(*partial_mixin);
+    }
+
+    owned_mixins.append(move(interface));
+    return interface_ref;
+}
+
+Interface* Context::parsed_module(ByteString const& module_path)
+{
+    for (auto const& interface : owned_interfaces) {
+        if (interface->module_own_path == module_path)
+            return interface.ptr();
+    }
+
+    return nullptr;
+}
+
 ParameterizedType const& Type::as_parameterized() const
 {
     return as<ParameterizedType const>(*this);
@@ -73,7 +108,7 @@ bool Type::is_distinguishable_from(IDL::Interface const& interface, IDL::Type co
     // 1. If one type includes a nullable type and the other type either includes a nullable type,
     //    is a union type with flattened member types including a dictionary type, or is a dictionary type,
     //    return false.
-    if (includes_nullable_type() && (other.includes_nullable_type() || (other.is_union() && any_of(other.as_union().flattened_member_types(), [&interface](auto const& type) { return interface.dictionaries.contains(type->name()); })) || interface.dictionaries.contains(other.name())))
+    if (includes_nullable_type() && (other.includes_nullable_type() || (other.is_union() && any_of(other.as_union().flattened_member_types(), [&interface](auto const& type) { return interface.context.dictionaries.contains(type->name()); })) || interface.context.dictionaries.contains(other.name())))
         return false;
 
     // 2. If both types are either a union type or nullable union type, return true if each member type
@@ -165,7 +200,7 @@ bool Type::is_distinguishable_from(IDL::Interface const& interface, IDL::Type co
         // * Dictionary Types
         // * Record Types
         // FIXME: * Callback Interface Types
-        if (interface.dictionaries.contains(type.name()) || (type.is_parameterized() && type.name() == "record"sv))
+        if (interface.context.dictionaries.contains(type.name()) || (type.is_parameterized() && type.name() == "record"sv))
             return DistinguishabilityCategory::DictionaryLike;
         // FIXME: Frozen array types are included in "sequence-like"
         if (type.is_sequence())
@@ -201,7 +236,7 @@ bool Type::is_json(Interface const& interface) const
         return true;
 
     // - string types,
-    if (is_string() || interface.enumerations.find(m_name) != interface.enumerations.end())
+    if (is_string() || interface.context.enumerations.find(m_name) != interface.context.enumerations.end())
         return true;
 
     // - object,
@@ -225,8 +260,8 @@ bool Type::is_json(Interface const& interface) const
     }
 
     // - typedefs whose type being given a new name is a JSON type,
-    auto typedef_iterator = interface.typedefs.find(m_name);
-    if (typedef_iterator != interface.typedefs.end())
+    auto typedef_iterator = interface.context.typedefs.find(m_name);
+    if (typedef_iterator != interface.context.typedefs.end())
         return typedef_iterator->value.type->is_json(interface);
 
     // - sequence types whose parameterized type is a JSON type,
@@ -244,8 +279,8 @@ bool Type::is_json(Interface const& interface) const
     }
 
     // - dictionary types where the types of all members declared on the dictionary and all its inherited dictionaries are JSON types,
-    auto dictionary_iterator = interface.dictionaries.find(m_name);
-    if (dictionary_iterator != interface.dictionaries.end()) {
+    auto dictionary_iterator = interface.context.dictionaries.find(m_name);
+    if (dictionary_iterator != interface.context.dictionaries.end()) {
         auto const& dictionary = dictionary_iterator->value;
         for (auto const& member : dictionary.members) {
             if (!member.type->is_json(interface))
@@ -292,6 +327,13 @@ bool Type::is_json(Interface const& interface) const
     }
 
     return false;
+}
+
+bool Interface::will_generate_code() const
+{
+    return !name.is_empty()
+        || !own_dictionaries.is_empty()
+        || !own_enumerations.is_empty();
 }
 
 void EffectiveOverloadSet::remove_all_other_entries()

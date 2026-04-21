@@ -98,7 +98,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (import_base_paths.is_empty())
         import_base_paths.append(lexical_path.dirname());
 
-    IDL::Parser parser(path, data, move(import_base_paths));
+    IDL::Context context;
+
+    IDL::Parser parser(path, data, move(import_base_paths), context);
     auto& interface = parser.parse();
 
     // If the interface name is the same as its namespace, qualify the name in the generated code.
