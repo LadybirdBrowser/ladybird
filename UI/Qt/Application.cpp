@@ -32,6 +32,7 @@
 #include <QFormLayout>
 #include <QKeySequence>
 #include <QLineEdit>
+#include <QLoggingCategory>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -185,6 +186,13 @@ public:
         install_appkit_event_capture();
 #endif
         update_chrome_style();
+
+        // Suppress some warnings that end up flooding the console when Orca’s in use. QSpiAccessibleBridge logs both
+        // (1) one-time at startup, a couple warnings for some AT-SPI2 methods it doesn't implement, and (2) for *every*
+        // single Orca navigation action a user makes *every* time, warns about upstream Qt gaps in scroll-related stuff
+        // we can't fix from here. So, this silences all those warnings. But if/when you *do* actually want to see the
+        // messages — to debug Qt's bridge behavior, or whatever — you can override this with QT_LOGGING_RULES.
+        QLoggingCategory::setFilterRules(QStringLiteral("qt.accessibility.atspi=false"));
     }
 
     virtual bool event(QEvent* event) override
