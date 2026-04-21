@@ -151,12 +151,8 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: PaintableSlotId
 
     if phase == PaintPhase::Outline && facts.is_visible {
         let node = recorder.data(paintable).layout_node;
-        let outline = crate::painting::style_queries::outline_data(
-            recorder.layout_arena,
-            node,
-            recorder.inputs.window_is_focused,
-            recorder.inputs.outline_auto_color,
-        );
+        let outline_facts = recorder.paint_host.outline_facts(recorder.layout_node_shell(paintable));
+        let outline = outline::outline_data_for_paint(recorder, node, outline_facts.is_accessibility_focus_target);
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
         for piece_index in piece_indices {
             let piece = &root_pieces[*piece_index as usize];

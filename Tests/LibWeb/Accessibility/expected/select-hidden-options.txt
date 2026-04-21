@@ -1,0 +1,7 @@
+document
+  generic focused
+    combobox
+      option name="RealOption"
+    text leaf name="
+
+"

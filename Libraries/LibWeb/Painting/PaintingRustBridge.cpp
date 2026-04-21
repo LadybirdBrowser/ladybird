@@ -858,6 +858,8 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
         .outline_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiOutlineFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiOutlineFacts facts {};
+            auto const* accessibility_focus_target = layout_node.document().accessibility_focus_target();
+            facts.is_accessibility_focus_target = accessibility_focus_target && layout_node.dom_node() == accessibility_focus_target;
             if (auto const* area_element = as_if<HTML::HTMLAreaElement>(layout_node.document().focused_area().ptr())) {
                 auto const* map_element = area_element->first_ancestor_of_type<HTML::HTMLMapElement>();
                 auto const* image_element = as_if<HTML::HTMLImageElement>(layout_node.dom_node());

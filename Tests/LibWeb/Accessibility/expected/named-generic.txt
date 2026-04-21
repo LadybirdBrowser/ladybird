@@ -1,0 +1,15 @@
+document
+  generic focused
+    generic name="Named section"
+      paragraph
+        text leaf name="Content inside a named div."
+    generic
+      paragraph
+        text leaf name="Content inside an unnamed div."
+    generic name="Named span"
+      text leaf name="Labeled span content"
+    generic
+      text leaf name="Unlabeled span content"
+    group name="Explicit group"
+      paragraph
+        text leaf name="Content inside a group."

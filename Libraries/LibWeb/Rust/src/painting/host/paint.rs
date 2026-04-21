@@ -274,6 +274,7 @@ pub struct FfiOverlayFacts {
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiOutlineFacts {
+    pub is_accessibility_focus_target: bool,
     pub paints_focused_area_outline: bool,
     pub focused_area_path: *mut c_void,
     pub focused_area_color: u32,

@@ -101,6 +101,7 @@ interface Internals {
     Utf16DOMString getComputedRole(Element element);
     Utf16DOMString getComputedLabel(Element element);
     Utf16DOMString getComputedAriaLevel(Element element);
+    undefined setAccessibilityFocusTarget(Element element);
     unsigned short getEchoServerPort();
 
     undefined setHSTSPolicy(Utf16DOMString domain, unsigned long long maxAge, boolean includeSubDomains);

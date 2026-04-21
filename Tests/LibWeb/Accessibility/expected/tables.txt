@@ -1,0 +1,20 @@
+document
+  generic focused
+    table name="User data" rows=3 cols=2
+      rowgroup
+        row name="Name                  Role"
+          columnheader name="Name" cell_row=0 cell_col=0
+            text leaf name="Name"
+          columnheader name="Role" cell_row=0 cell_col=1
+            text leaf name="Role"
+      rowgroup
+        row name="Alice                  Admin"
+          cell name="Alice" cell_row=1 cell_col=0
+            text leaf name="Alice"
+          cell name="Admin" cell_row=1 cell_col=1
+            text leaf name="Admin"
+        row name="Bob                  User"
+          cell name="Bob" cell_row=2 cell_col=0
+            text leaf name="Bob"
+          cell name="User" cell_row=2 cell_col=1
+            text leaf name="User"
