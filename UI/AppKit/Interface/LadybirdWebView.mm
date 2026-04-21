@@ -8,11 +8,13 @@
 #include <Interface/LadybirdWebViewBridge.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/Utilities.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
+#import <Interface/LadybirdAccessibilityElement.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
 #import <Metal/Metal.h>
@@ -20,13 +22,15 @@
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import <Utilities/Conversions.h>
 
+// Private AppKit function that tells VoiceOver focus has changed. VoiceOver then queries us for the focused element.
+extern "C" void NSAccessibilityHandleFocusChanged();
+
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
-// https://developer.apple.com/documentation/appkit/nscursor#1651301
 struct HideCursor {
     HideCursor()
     {
@@ -90,6 +94,9 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @interface LadybirdWebView () <NSDraggingDestination>
 {
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
+
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    NSMutableDictionary<NSNumber*, LadybirdAccessibilityElement*>* m_accessibility_elements;
 
     Optional<HideCursor> m_hidden_cursor;
 
@@ -181,6 +188,10 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         auto display_id = display_id_for_screen([NSScreen mainScreen]);
 
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
+
+        m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+        m_accessibility_elements = [NSMutableDictionary dictionary];
+
         [self setWebViewCallbacks];
 
         [[NSNotificationCenter defaultCenter] addObserver:self
@@ -393,6 +404,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
         if (_status_label != nil) {
             [self.status_label setHidden:YES];
         }
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_load_finish = [weak_self](auto const& url) {
@@ -401,6 +413,76 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
         [self.observer onLoadFinish:url];
+        self->m_web_view_bridge->request_accessibility_tree();
+    };
+
+    m_web_view_bridge->on_accessibility_tree_received = [weak_self](auto nodes) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        self->m_accessibility_manager->update_tree(move(nodes));
+        [self->m_accessibility_elements removeAllObjects];
+        NSAccessibilityPostNotification(self, NSAccessibilityLayoutChangedNotification);
+
+        // Take keyboard first-responder — so AppKit resolves accessibilityFocusedUIElement through this view (and thus
+        // into the AXWebArea). We must transfer focus to the WKWebView after URL-bar Enter — otherwise, VoiceOver stays
+        // on the URL bar even after we post AXLoadComplete.
+        NSWindow* window = [self window];
+        if (window != nil && [window firstResponder] != self)
+            [window makeFirstResponder:self];
+
+        // Locate the AXWebArea element. VoiceOver needs this for moving its cursor into the web content on page load.
+        auto const* root = self->m_accessibility_manager->root();
+        id web_area = root ? [self accessibilityElementForNodeID:root->id] : nil;
+        if (web_area == nil)
+            web_area = self;
+
+        // This is what makes VoiceOver actually move its cursor into the web content (AXWebArea).
+        NSAccessibilityPostNotification(web_area, NSAccessibilityFocusedUIElementChangedNotification);
+        NSAccessibilityPostNotification(web_area, @"AXLoadComplete");
+
+        // Refresh AppKit's cached focused-UI-element on behalf of any AX clients that look it up via the system call.
+        NSAccessibilityHandleFocusChanged();
+    };
+
+    m_accessibility_manager->on_live_region_changed = [weak_self](auto text, auto live_value) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil)
+            return;
+
+        NSString* announcement = [[NSString alloc] initWithBytes:text.bytes().data()
+                                                          length:text.bytes().size()
+                                                        encoding:NSUTF8StringEncoding];
+        if (!announcement || [announcement length] == 0)
+            return;
+
+        NSAccessibilityPriorityLevel priority = (live_value == "assertive"sv)
+            ? NSAccessibilityPriorityHigh
+            : NSAccessibilityPriorityMedium;
+
+        NSAccessibilityPostNotificationWithUserInfo(
+            self,
+            NSAccessibilityAnnouncementRequestedNotification,
+            @{
+                NSAccessibilityAnnouncementKey : announcement,
+                NSAccessibilityPriorityKey : @(priority),
+            });
+    };
+
+    m_web_view_bridge->on_accessibility_focus_changed = [weak_self](i64 node_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self->m_accessibility_manager->is_empty()) {
+            return;
+        }
+        self->m_accessibility_manager->set_focused_node(node_id);
+
+        NSAccessibilityHandleFocusChanged();
+        id focused_element = [self accessibilityElementForNodeID:node_id];
+        if (focused_element) {
+            NSAccessibilityPostNotification(focused_element,
+                NSAccessibilityFocusedUIElementChangedNotification);
+        }
     };
 
     m_web_view_bridge->on_url_change = [weak_self](auto const& url) {
@@ -409,6 +491,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
         [self.observer onURLChange:url];
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_title_change = [weak_self](auto const& title) {
@@ -417,6 +500,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
             return;
         }
         [self.observer onTitleChange:title];
+        [self scheduleAccessibilityTreeRequest];
     };
 
     m_web_view_bridge->on_favicon_change = [weak_self](auto const& bitmap) {
@@ -1579,6 +1663,213 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
     pinch_event.modifiers = Ladybird::ns_modifiers_to_key_modifiers([NSEvent modifierFlags]);
     pinch_event.scale_delta = scale_delta;
     m_web_view_bridge->enqueue_input_event(move(pinch_event));
+}
+
+- (void)scheduleAccessibilityTreeRequest
+{
+    // Debounce: cancel any pending request and schedule a new one. Multiple navigation callbacks may fire in quick
+    // succession; we only need the tree from after the page has finally settled.
+    [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                             selector:@selector(requestAccessibilityTreeNow)
+                                               object:nil];
+    [self performSelector:@selector(requestAccessibilityTreeNow)
+               withObject:nil
+               afterDelay:0.5];
+}
+
+- (void)requestAccessibilityTreeNow
+{
+    m_web_view_bridge->request_accessibility_tree();
+}
+
+#pragma mark - Accessibility parameterized attributes
+
+- (NSArray*)accessibilityParameterizedAttributeNames
+{
+    return @[
+        @"AXUIElementsForSearchPredicate",
+        @"AXUIElementCountForSearchPredicate",
+        @"AXIndexForChildUIElement",
+        @"AXNextTextMarkerForTextMarker",
+        @"AXPreviousTextMarkerForTextMarker",
+        @"AXUIElementForTextMarker",
+        @"AXTextMarkerRangeForUIElement",
+        @"AXLengthForTextMarkerRange",
+        @"AXStringForTextMarkerRange",
+        @"AXAttributedStringForTextMarkerRange",
+        @"AXTextMarkerForPosition",
+    ];
+}
+
+- (id)accessibilityAttributeValue:(NSString*)attribute forParameter:(id)parameter
+{
+    if ([attribute isEqualToString:@"AXIndexForChildUIElement"]) {
+        NSArray* children = [self accessibilityChildren];
+        NSUInteger idx = [children indexOfObjectIdenticalTo:parameter];
+        if (idx != NSNotFound)
+            return @(idx);
+        return nil;
+    }
+
+    // Delegate text-marker queries to the web-content root element
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return nil;
+
+    id rootElement = [self accessibilityElementForNodeID:root->id];
+    if ([rootElement respondsToSelector:@selector(accessibilityAttributeValue:forParameter:)])
+        return [rootElement accessibilityAttributeValue:attribute forParameter:parameter];
+
+    return nil;
+}
+
+#pragma mark - Accessibility
+
+- (BOOL)isAccessibilityElement
+{
+    return YES;
+}
+
+- (NSAccessibilityRole)accessibilityRole
+{
+    return NSAccessibilityScrollAreaRole;
+}
+
+- (NSArray*)accessibilityChildren
+{
+    if (m_accessibility_manager->is_empty())
+        return @[];
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return @[];
+
+    id root_element = [self accessibilityElementForNodeID:root->id];
+    if (!root_element)
+        return @[];
+
+    return @[ root_element ];
+}
+
+- (id)accessibilityHitTest:(NSPoint)point
+{
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    NSRect view_rect = [self accessibilityViewRectForScreenPoint:point];
+    auto content_point = Gfx::IntPoint {
+        static_cast<int>(view_rect.origin.x),
+        static_cast<int>(view_rect.origin.y)
+    };
+
+    auto const* hit = m_accessibility_manager->hit_test(content_point);
+    if (!hit)
+        return self;
+
+    while (hit) {
+        auto role = hit->role.bytes_as_string_view();
+        bool ignored = (role == "generic"sv && hit->name.is_empty())
+            || (role == "paragraph"sv && hit->name.is_empty());
+        if (!ignored)
+            break;
+        if (hit->parent_id == -1)
+            return self;
+        hit = m_accessibility_manager->node(hit->parent_id);
+    }
+
+    if (hit)
+        return [self accessibilityElementForNodeID:hit->id];
+
+    return self;
+}
+
+- (NSArray*)accessibilityChildrenInNavigationOrder
+{
+    return [self accessibilityChildren];
+}
+
+- (id)accessibilityFocusedUIElement
+{
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return self;
+
+    // If a DOM element has focus (e.g. an <input> the user clicked into), then return that element.
+    if (auto focused_id = m_accessibility_manager->focused_node_id(); focused_id.has_value()) {
+        if (id element = [self accessibilityElementForNodeID:*focused_id])
+            return element;
+    }
+
+    // No DOM focus: return the AXWebArea (document root). On page load, VoiceOver expects the focused UI element to be
+    // the AXWebArea, so it can move its cursor into the document and read from the top using AXSelectedTextMarkerRange.
+    // Returning a leaf (heading, link, etc.) instead here causes VoiceOver to think the user already navigated to that
+    // element — which in turns causes VoiceOver to unexpectedly skip the read-from-document-beginning behavior.
+    if (id element = [self accessibilityElementForNodeID:root->id])
+        return element;
+    return self;
+}
+
+- (id)accessibilityElementForNodeID:(int64_t)nodeID
+{
+    NSNumber* key = @(nodeID);
+    LadybirdAccessibilityElement* existing = m_accessibility_elements[key];
+    if (existing)
+        return existing;
+
+    auto const* data = m_accessibility_manager->node(nodeID);
+    if (!data)
+        return nil;
+
+    auto* element = [[LadybirdAccessibilityElement alloc] initWithNodeID:nodeID
+                                                                 manager:m_accessibility_manager.ptr()
+                                                                    view:self];
+    m_accessibility_elements[key] = element;
+    return element;
+}
+
+- (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect
+{
+    // The bounds from WebContent are in CSS pixels, which equal points on macOS. No device-pixel-ratio scaling is
+    // needed — convertRect works in points.
+    NSRect window_rect = [self convertRect:viewRect toView:nil];
+    return [self.window convertRectToScreen:window_rect];
+}
+
+- (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint
+{
+    // Convert screen point to view content coordinates (CSS pixels = points).
+    NSRect screen_rect = NSMakeRect(screenPoint.x, screenPoint.y, 0, 0);
+    NSRect window_rect = [self.window convertRectFromScreen:screen_rect];
+    NSPoint view_point = [self convertPoint:window_rect.origin fromView:nil];
+    return NSMakeRect(view_point.x, view_point.y, 0, 0);
+}
+
+- (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID
+{
+    auto action_string = MUST(String::from_utf8(StringView { [action UTF8String], strlen([action UTF8String]) }));
+    m_web_view_bridge->perform_accessibility_action(nodeID, move(action_string));
+}
+
+- (NSURL*)accessibilityPageURL
+{
+    auto const& url = m_web_view_bridge->url();
+    if (url.scheme().is_empty())
+        return nil;
+    auto serialized = url.serialize();
+    auto* ns_string = [[NSString alloc] initWithBytes:serialized.bytes().data()
+                                               length:serialized.bytes().size()
+                                             encoding:NSUTF8StringEncoding];
+    if (ns_string == nil)
+        return nil;
+    return [NSURL URLWithString:ns_string];
+}
+
+- (BOOL)accessibilityViewIsFirstResponder
+{
+    return [[self window] firstResponder] == self;
 }
 
 @end

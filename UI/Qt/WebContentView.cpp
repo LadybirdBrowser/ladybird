@@ -34,6 +34,12 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WebContentView.h>
 
+#if defined(Q_OS_MACOS)
+#    include "WebContentViewAccessibility.h"
+#elif !defined(Q_OS_WIN)
+#    include "AccessibilityInterface.h"
+#endif
+
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
@@ -126,6 +132,92 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
     });
 
     initialize_client((parent_client == nullptr) ? CreateNewClient::Yes : CreateNewClient::No);
+
+    m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+
+#if defined(Q_OS_MACOS)
+    install_accessibility(this);
+#elif !defined(Q_OS_WIN)
+    static bool accessibility_factory_installed = false;
+    if (!accessibility_factory_installed) {
+        QAccessible::installFactory(accessibility_factory);
+        accessibility_factory_installed = true;
+    }
+#endif
+
+    m_accessibility_request_timer.setSingleShot(true);
+    m_accessibility_request_timer.setInterval(500);
+    QObject::connect(&m_accessibility_request_timer, &QTimer::timeout, this, [this] { request_accessibility_tree(); });
+
+    on_load_finish = [this](auto const&) {
+        m_accessibility_request_timer.stop();
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+        // Reset the document-root focus gate so that *each* page navigation posts a fresh accessibility focus event on
+        // the newly-loaded document. Otherwise, without this reset, only the *first* page load (often an empty default
+        // page) would trigger the gate — and subsequent user-initiated navigations (type URL, Enter) would never let
+        // Orca know that a new document is ready for browse-mode navigation.
+        m_posted_initial_accessibility_focus = false;
+#endif
+        request_accessibility_tree();
+    };
+
+    on_accessibility_tree_received = [this](auto nodes) {
+        m_accessibility_manager->update_tree(AK::move(nodes));
+        m_accessibility_request_timer.stop();
+
+#if defined(Q_OS_MACOS)
+        QTimer::singleShot(100, this, [this] {
+            setFocus(Qt::OtherFocusReason);
+            update_accessibility_tree(this);
+        });
+#elif !defined(Q_OS_WIN)
+        // Prune interfaces for nodes no longer in the tree.
+        QList<i64> stale_ids;
+        for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
+            if (!it.value()->isValid())
+                stale_ids.append(it.key());
+        }
+        for (auto id : stale_ids) {
+            auto* iface = m_accessibility_elements.take(id);
+            QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(iface));
+        }
+
+        // Post a Focus AT-SPI2 event on the document root the first time a tree arrives. This is what lets Orca's
+        // browse-mode commands (H/K/L structural nav) work on page load — without the user having to Tab/click into the
+        // page first. The event is posted unconditionally — even when the address bar has Qt focus — because our Orca
+        // script re-suspends browse-mode commands when it later sees a focus event for an editable chrome widget. So if
+        // the user explicitly focuses the address bar (Ctrl+L, mouse click), typing there still works. Firing this on
+        // every subsequent tree update would be wrong: it would re-focus the document root while the user is
+        // mid-navigation — causing Orca to re-present the current structural-nav target.
+        if (!m_posted_initial_accessibility_focus && m_accessibility_manager && !m_accessibility_manager->is_empty()) {
+            m_posted_initial_accessibility_focus = true;
+            QTimer::singleShot(1000, this, [this] {
+                notify_accessibility_focus_on_document_root();
+            });
+        }
+#endif
+    };
+
+    on_accessibility_focus_changed = [this](i64 node_id) {
+        if (m_accessibility_manager->is_empty())
+            return;
+        m_accessibility_manager->set_focused_node(node_id);
+#if defined(Q_OS_MACOS)
+        Ladybird::post_accessibility_focus_changed(this, node_id);
+#elif !defined(Q_OS_WIN)
+        auto* iface = accessibility_interface_for_node(node_id);
+        if (iface) {
+            QAccessibleEvent focus_event(iface, QAccessible::Focus);
+            QAccessible::updateAccessibility(&focus_event);
+        }
+#endif
+    };
+
+#if defined(Q_OS_MACOS)
+    m_accessibility_manager->on_live_region_changed = [](auto text, auto live_value) {
+        Ladybird::post_accessibility_announcement(text, live_value);
+    };
+#endif
 
     on_ready_to_paint = [this]() {
         schedule_repaint();
@@ -657,6 +749,12 @@ void WebContentView::dropEvent(QDropEvent* event)
 void WebContentView::focusInEvent(QFocusEvent*)
 {
     client().async_set_has_focus(m_client_state.page_index, true);
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    // Notify Orca that the document now has focus. This handles the case where the user navigates from the address bar
+    // to the document area by tabbing or clicking. The 1000ms timer in on_accessibility_tree_received skips this
+    // notification when another widget had focus — so we do it here instead.
+    notify_accessibility_focus_on_document_root();
+#endif
 }
 
 void WebContentView::focusOutEvent(QFocusEvent*)
@@ -835,6 +933,14 @@ void WebContentView::hideEvent(QHideEvent* event)
 {
     WebContentViewBase::hideEvent(event);
     set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+    // When this tab becomes inactive, deregister all its accessibility interfaces from Qt's global registry.
+    for (auto it = m_accessibility_elements.begin(); it != m_accessibility_elements.end(); ++it) {
+        QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(it.value()));
+    }
+    m_accessibility_elements.clear();
+#endif
 }
 
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)
@@ -878,6 +984,31 @@ void WebContentView::update_palette(PaletteMode mode)
 {
     set_page_background_color_to_system_canvas(is_using_dark_system_theme(*this));
     client().async_update_system_theme(m_client_state.page_index, make_system_theme_from_qt_palette(*this, mode));
+}
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+void WebContentView::notify_accessibility_focus_on_document_root()
+{
+    if (m_accessibility_manager && !m_accessibility_manager->is_empty()) {
+        auto const* root = m_accessibility_manager->root();
+        if (root) {
+            // Mark the root as focused in the shared tree data *before* posting the Qt Focus event. Otherwise, state()
+            // reports focused=false and Qt's AT-SPI2 bridge emits the focus event with detail1=0 (focus lost) rather
+            // than detail1=1 (focus gained) — defeating the announcement.
+            m_accessibility_manager->set_focused_node(root->id);
+            auto* root_iface = accessibility_interface_for_node(root->id);
+            if (root_iface) {
+                QAccessibleEvent focus_event(root_iface, QAccessible::Focus);
+                QAccessible::updateAccessibility(&focus_event);
+            }
+        }
+    }
+}
+#endif
+
+void WebContentView::schedule_accessibility_tree_request()
+{
+    m_accessibility_request_timer.start();
 }
 
 void WebContentView::update_screen_rects()
@@ -1299,5 +1430,20 @@ void WebContentView::finish_handling_key_event(Web::KeyEvent const& key_event)
     if (!event.isAccepted())
         QApplication::sendEvent(parent(), &event);
 }
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+QAccessibleInterface* WebContentView::accessibility_interface_for_node(i64 node_id)
+{
+    if (auto* existing = m_accessibility_elements.value(node_id, nullptr))
+        return existing;
+
+    if (!m_accessibility_manager || !m_accessibility_manager->node(node_id))
+        return nullptr;
+
+    auto* iface = new AccessibilityInterface(node_id, m_accessibility_manager.ptr(), this);
+    m_accessibility_elements.insert(node_id, iface);
+    return iface;
+}
+#endif
 
 }
