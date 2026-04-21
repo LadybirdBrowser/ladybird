@@ -1011,6 +1011,19 @@ Optional<JS::Value> HTMLFormElement::item_value(size_t index) const
     return {};
 }
 
+bool HTMLFormElement::is_supported_property_name(FlyString const& name) const
+{
+    // NB: This is a simplified version of ::supported_property_names() that does not require sorting or allocations.
+    for (auto const& candidate : m_associated_elements) {
+        if (is_form_control(*candidate, *this) || is<HTMLImageElement>(*candidate)) {
+            if (first_is_one_of(name, candidate->id(), candidate->name()))
+                return true;
+        }
+    }
+
+    return m_past_names_map.contains(name);
+}
+
 // https://html.spec.whatwg.org/multipage/forms.html#the-form-element:supported-property-names
 Vector<FlyString> HTMLFormElement::supported_property_names() const
 {
