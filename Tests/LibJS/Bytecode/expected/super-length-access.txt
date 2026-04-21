@@ -13,17 +13,17 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
   [  58] InitializeLexicalBinding `A`, src:reg6
-  [  70] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
   [  80] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:false
-  [  90] GetGlobal dst:reg6, `A`
+  [  90] GetGlobal dst:reg5, `A`
   [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
   [  d8] InitializeLexicalBinding `B`, src:reg7
-  [  f0] GetGlobal dst:reg7, `B`
-  [ 108] CallConstruct dst:reg6, callee:reg7, B
-  [ 120] GetById dst:reg7, base:reg6, `m`
-  [ 140] Call dst:reg5, callee:reg7, this_value:reg6, <object>.m
-  [ 160] End value:reg5
+  [  f0] GetGlobal dst:reg5, `B`
+  [ 108] CallConstruct dst:reg6, callee:reg5, B
+  [ 120] GetById dst:reg5, base:reg6, `m`
+  [ 140] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
+  [ 160] End value:reg7
 
 
 B$ea587383 super-length-access.js:7:1

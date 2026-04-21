@@ -12,15 +12,15 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  50] InitializeLexicalBinding `Base`, src:reg6
-  [  68] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  68] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
   [  78] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:false
-  [  88] GetGlobal dst:reg6, `Base`
+  [  88] GetGlobal dst:reg5, `Base`
   [  a0] SetLexicalEnvironment environment:reg4
-  [  a8] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1
+  [  a8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1
   [  c8] InitializeLexicalBinding `Derived`, src:reg7
   [  e0] GetGlobal dst:reg6, `Derived`
-  [  f8] CallConstruct dst:reg5, callee:reg6, Derived, arguments:[Int32(1)]
-  [ 118] End value:reg5
+  [  f8] CallConstruct dst:reg7, callee:reg6, Derived, arguments:[Int32(1)]
+  [ 118] End value:reg7
 
 
 Derived$3808ea25 super-constructor-call.js:4:14

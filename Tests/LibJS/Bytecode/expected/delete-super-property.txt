@@ -17,37 +17,37 @@ block0:
   [  70] Jump target:block3
 
 block1:
-  [  78] Catch dst:reg5
+  [  78] Catch dst:reg6
   [  80] SetLexicalEnvironment environment:reg4
-  [  88] Mov3 dst1:e~0, src1:reg5, dst2:reg6, src2:Undefined, dst3:reg7, src3:reg6
+  [  88] Mov3 dst1:e~0, src1:reg6, dst2:reg5, src2:Undefined, dst3:reg7, src3:reg5
 
 block2:
   [  a8] Jump target:block6
 
 block3:
-  [  b0] Mov dst:reg5, src:Undefined
+  [  b0] Mov dst:reg6, src:Undefined
   [  c0] GetGlobal dst:reg9, `A`
   [  d8] CallConstruct dst:reg8, callee:reg9, A
   [  f0] GetById dst:reg9, base:reg8, `foo`
-  [ 110] Call dst:reg6, callee:reg9, this_value:reg8, <object>.foo
-  [ 130] Mov2 dst1:reg5, src1:reg6, dst2:reg6, src2:reg5
+  [ 110] Call dst:reg5, callee:reg9, this_value:reg8, <object>.foo
+  [ 130] Mov2 dst1:reg6, src1:reg5, dst2:reg5, src2:reg6
   [ 148] Jump target:block2
 
 block4:
-  [ 150] Catch dst:reg5
+  [ 150] Catch dst:reg6
   [ 158] SetLexicalEnvironment environment:reg4
-  [ 160] Mov3 dst1:e~1, src1:reg5, dst2:reg7, src2:Undefined, dst3:reg8, src3:reg7
+  [ 160] Mov3 dst1:e~1, src1:reg6, dst2:reg7, src2:Undefined, dst3:reg9, src3:reg7
 
 block5:
   [ 180] End value:reg7
 
 block6:
-  [ 188] Mov dst:reg5, src:Undefined
+  [ 188] Mov dst:reg6, src:Undefined
   [ 198] GetGlobal dst:reg10, `A`
-  [ 1b0] CallConstruct dst:reg9, callee:reg10, A
-  [ 1c8] GetById dst:reg10, base:reg9, `baz`
-  [ 1e8] Call dst:reg7, callee:reg10, this_value:reg9, <object>.baz
-  [ 208] Mov2 dst1:reg5, src1:reg7, dst2:reg7, src2:reg5
+  [ 1b0] CallConstruct dst:reg8, callee:reg10, A
+  [ 1c8] GetById dst:reg10, base:reg8, `baz`
+  [ 1e8] Call dst:reg7, callee:reg10, this_value:reg8, <object>.baz
+  [ 208] Mov2 dst1:reg6, src1:reg7, dst2:reg7, src2:reg6
   [ 220] End value:reg7
 
 Exception handlers:

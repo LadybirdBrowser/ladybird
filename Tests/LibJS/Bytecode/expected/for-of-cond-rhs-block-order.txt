@@ -29,7 +29,7 @@ block1:
   [  18] End value:Undefined
 
 block2:
-  [  20] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg7, iterator_done:reg8
+  [  20] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg8, iterator_done:reg6
   [  38] JumpIf condition:reg11, true_target:block1, false_target:block8
 
 block3:
@@ -42,20 +42,20 @@ block4:
   [  90] Mov dst:reg5, src:arg1
 
 block5:
-  [  a0] GetGlobal dst:reg7, `Object`
-  [  b8] GetById dst:reg8, base:reg7, `entries` (Object.entries)
+  [  a0] GetGlobal dst:reg6, `Object`
+  [  b8] GetById dst:reg8, base:reg6, `entries` (Object.entries)
   [  d8] NewObject dst:reg9
-  [  e8] Call dst:reg6, callee:reg8, this_value:reg7, Object.entries, arguments:[reg9]
-  [ 110] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg6
+  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, Object.entries, arguments:[reg9]
+  [ 110] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg8, dst_iterator_done:reg6, iterable:reg7
   [ 128] Jump target:block2
 
 block6:
   [ 130] Catch dst:reg9
   [ 138] SetLexicalEnvironment environment:reg4
-  [ 140] Mov dst:reg6, src:Int32(1)
+  [ 140] Mov dst:reg7, src:Int32(1)
 
 block7:
-  [ 150] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block16, false_target:block17
+  [ 150] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block16, false_target:block17
 
 block8:
   [ 168] Mov dst:reg12, src:Bool(false)
@@ -92,12 +92,12 @@ block15:
   [ 278] Jump target:block14
 
 block16:
-  [ 280] IteratorClose iterator_object:reg5, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 280] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:reg9
   [ 298] Throw src:reg9
 
 block17:
-  [ 2a0] IteratorClose iterator_object:reg5, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 2b8] JumpStrictlyEquals lhs:reg6, rhs:Int32(2), true_target:block18, false_target:block19
+  [ 2a0] IteratorClose iterator_object:reg5, iterator_next:reg8, iterator_done:reg6, completion_value:Undefined
+  [ 2b8] JumpStrictlyEquals lhs:reg7, rhs:Int32(2), true_target:block18, false_target:block19
 
 block18:
   [ 2d0] Return value:reg9

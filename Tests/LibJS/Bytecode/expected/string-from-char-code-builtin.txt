@@ -9,7 +9,7 @@ block0:
   [   0] GetGlobal dst:reg6, `String`
   [  18] GetById dst:reg7, base:reg6, `fromCharCode` (String.fromCharCode)
   [  38] CallBuiltinStringFromCharCode dst:reg5, callee:reg7, this_value:reg6, argument:Int32(65), String.fromCharCode
-  [  50] GetGlobal dst:reg7, `String`
-  [  68] GetById dst:reg8, base:reg7, `fromCharCode` (String.fromCharCode)
-  [  88] Call dst:reg6, callee:reg8, this_value:reg7, String.fromCharCode, arguments:[Int32(65), Int32(66)]
-  [  b0] End value:reg6
+  [  50] GetGlobal dst:reg6, `String`
+  [  68] GetById dst:reg8, base:reg6, `fromCharCode` (String.fromCharCode)
+  [  88] Call dst:reg7, callee:reg8, this_value:reg6, String.fromCharCode, arguments:[Int32(65), Int32(66)]
+  [  b0] End value:reg7

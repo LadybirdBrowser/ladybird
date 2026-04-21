@@ -11,9 +11,9 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  50] InitializeLexicalBinding `C`, src:reg6
-  [  68] GetGlobal dst:reg6, `C`
-  [  80] CallConstruct dst:reg5, callee:reg6, C
-  [  98] End value:reg5
+  [  68] GetGlobal dst:reg5, `C`
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] End value:reg6
 
 
 C$f4d17d48 super-for-of-resolve-order.js:3:28

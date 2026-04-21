@@ -45,6 +45,6 @@ block0:
   [  18] Mov dst:reg6, src:arg1
   [  28] Add dst:reg7, lhs:reg5, rhs:Int32(0)
   [  38] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  50] Mov2 dst1:reg5, src1:arg0, dst2:reg6, src2:arg1
-  [  68] PutByValue base:reg5, property:reg6, src:arg1, kind:Normal (imag[reg6])
+  [  50] Mov2 dst1:reg7, src1:arg0, dst2:reg5, src2:arg1
+  [  68] PutByValue base:reg7, property:reg5, src:arg1, kind:Normal (imag[reg5])
   [  80] End value:Undefined

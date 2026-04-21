@@ -39,9 +39,9 @@ block3:
   [  68] JumpLessThan lhs:i~1, rhs:Int32(10), true_target:block1, false_target:block4
 
 block4:
-  [  80] GetGlobal dst:reg6, `parseInt`
-  [  98] Mov dst:reg7, src:a~0
-  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, parseInt, arguments:[reg7]
+  [  80] GetGlobal dst:reg7, `parseInt`
+  [  98] Mov dst:reg10, src:a~0
+  [  a8] Call dst:reg5, callee:reg7, this_value:Undefined, parseInt, arguments:[reg10]
   [  d0] Return value:reg5
 
 block5:
@@ -64,13 +64,13 @@ block9:
   [ 180] Jump target:block11
 
 block10:
-  [ 188] Mov2 dst1:reg6, src1:arg0, dst2:reg7, src2:j~2
-  [ 1a0] GetGlobal dst:reg9, `parseInt`
-  [ 1b8] Mov dst:reg10, src:arg0
+  [ 188] Mov2 dst1:reg10, src1:arg0, dst2:reg6, src2:j~2
+  [ 1a0] GetGlobal dst:reg8, `parseInt`
+  [ 1b8] Mov dst:reg9, src:arg0
   [ 1c8] Sub dst:reg11, lhs:j~2, rhs:Int32(3)
-  [ 1d8] GetByValue dst:reg12, base:reg10, property:reg11 (x[reg11])
-  [ 1f0] Call dst:reg8, callee:reg9, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
-  [ 218] PutByValue base:reg6, property:reg7, src:reg8, kind:Normal (x[reg7])
+  [ 1d8] GetByValue dst:reg12, base:reg9, property:reg11 (x[reg11])
+  [ 1f0] Call dst:reg7, callee:reg8, this_value:Undefined, parseInt, arguments:[reg12, Int32(1)]
+  [ 218] PutByValue base:reg10, property:reg6, src:reg7, kind:Normal (x[reg6])
 
 block11:
   [ 230] Jump target:block6

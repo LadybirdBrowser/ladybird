@@ -12,17 +12,17 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
   [  50] InitializeLexicalBinding `Base`, src:reg6
-  [  68] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  68] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
   [  78] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:false
-  [  88] GetGlobal dst:reg6, `Base`
+  [  88] GetGlobal dst:reg5, `Base`
   [  a0] SetLexicalEnvironment environment:reg4
-  [  a8] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("test")]
+  [  a8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
   [  d0] InitializeLexicalBinding `Derived`, src:reg7
-  [  e8] GetGlobal dst:reg7, `Derived`
-  [ 100] CallConstruct dst:reg6, callee:reg7, Derived
-  [ 118] GetById dst:reg7, base:reg6, `test`
-  [ 138] Call dst:reg5, callee:reg7, this_value:reg6, <object>.test
-  [ 158] End value:reg5
+  [  e8] GetGlobal dst:reg5, `Derived`
+  [ 100] CallConstruct dst:reg6, callee:reg5, Derived
+  [ 118] GetById dst:reg5, base:reg6, `test`
+  [ 138] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
+  [ 158] End value:reg7
 
 
 Derived$1c41db7c super-computed-eval-order.js:4:14

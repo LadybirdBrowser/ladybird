@@ -20,9 +20,9 @@ block1:
   [  58] Jump target:block6
 
 block2:
-  [  60] GetGlobal dst:reg6, `n`
-  [  78] Add dst:reg7, lhs:reg6, rhs:Int32(1)
-  [  88] SetGlobal `n`, src:reg7
+  [  60] GetGlobal dst:reg7, `n`
+  [  78] Add dst:reg6, lhs:reg7, rhs:Int32(1)
+  [  88] SetGlobal `n`, src:reg6
 
 block3:
   [  a0] GetGlobal dst:reg6, `n`
@@ -32,9 +32,9 @@ block4:
   [  d0] End value:reg5
 
 block5:
-  [  d8] GetGlobal dst:reg7, `depth`
-  [  f0] Add dst:reg8, lhs:reg7, rhs:Int32(2)
-  [ 100] SetGlobal `depth`, src:reg8
+  [  d8] GetGlobal dst:reg8, `depth`
+  [  f0] Add dst:reg7, lhs:reg8, rhs:Int32(2)
+  [ 100] SetGlobal `depth`, src:reg7
 
 block6:
   [ 118] GetGlobal dst:reg7, `depth`

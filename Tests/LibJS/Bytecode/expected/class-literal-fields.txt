@@ -47,8 +47,8 @@ block0:
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("x"), element_keys:String("y"), element_keys:String("z"), element_keys:String("w"), element_keys:String("s"), element_keys:String("computed")]
   [  68] Mov dst:A~0, src:reg6
   [  78] ThrowIfTDZ src:A~0
-  [  80] CallConstruct dst:reg5, callee:A~0, A
-  [  98] Return value:reg5
+  [  80] CallConstruct dst:reg6, callee:A~0, A
+  [  98] Return value:reg6
 
 
 A$811c9dc5

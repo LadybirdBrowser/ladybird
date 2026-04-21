@@ -14,9 +14,9 @@ block0:
   [  60] NewRegExp dst:reg5, baz, i
   [  78] Add dst:reg6, lhs:Int32(1), rhs:reg5
   [  88] InitializeLexicalBinding `c`, src:reg6
-  [  a0] GetGlobal dst:reg6, `matchDigits`
-  [  b8] Call dst:reg5, callee:reg6, this_value:Undefined, matchDigits, arguments:[String("abc123")]
-  [  e0] End value:reg5
+  [  a0] GetGlobal dst:reg5, `matchDigits`
+  [  b8] Call dst:reg6, callee:reg5, this_value:Undefined, matchDigits, arguments:[String("abc123")]
+  [  e0] End value:reg6
 
 
 matchDigits$4cca49e8 regex-literals.js:8:5

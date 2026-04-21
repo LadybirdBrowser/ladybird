@@ -11,32 +11,32 @@ block0:
   [  40] GetGlobal dst:reg9, `withTeardown`
   [  58] Call dst:reg8, callee:reg9, this_value:Undefined, withTeardown
   [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg7, `console`
-  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  a0] GetGlobal dst:reg6, `console`
+  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
   [  d8] GetGlobal dst:reg10, `blockTeardown`
   [  f0] Call dst:reg9, callee:reg10, this_value:Undefined, blockTeardown
-  [ 110] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 138] GetGlobal dst:reg7, `console`
-  [ 150] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 110] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 138] GetGlobal dst:reg8, `console`
+  [ 150] GetById dst:reg6, base:reg8, `log` (console.log)
   [ 170] GetGlobal dst:reg10, `forInTeardown`
   [ 188] Call dst:reg9, callee:reg10, this_value:Undefined, forInTeardown
-  [ 1a8] Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 1d0] GetGlobal dst:reg7, `console`
-  [ 1e8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 1a8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 1d0] GetGlobal dst:reg6, `console`
+  [ 1e8] GetById dst:reg8, base:reg6, `log` (console.log)
   [ 208] GetGlobal dst:reg10, `forOfTeardown`
   [ 220] Call dst:reg9, callee:reg10, this_value:Undefined, forOfTeardown
-  [ 240] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 268] GetGlobal dst:reg7, `console`
-  [ 280] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 240] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 268] GetGlobal dst:reg8, `console`
+  [ 280] GetById dst:reg6, base:reg8, `log` (console.log)
   [ 2a0] GetGlobal dst:reg10, `catchTeardown`
   [ 2b8] Call dst:reg9, callee:reg10, this_value:Undefined, catchTeardown
-  [ 2d8] Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 300] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
+  [ 2d8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 300] CreateLexicalEnvironment dst:reg7, parent:reg4, capacity:0
   [ 310] CreateVariable `myName`, is_immutable:true, is_global:false, is_strict:false
-  [ 320] NewFunction dst:reg7, shared_function_data_index:0
-  [ 338] InitializeLexicalBinding `myName`, src:reg7
+  [ 320] NewFunction dst:reg6, shared_function_data_index:0
+  [ 338] InitializeLexicalBinding `myName`, src:reg6
   [ 350] SetLexicalEnvironment environment:reg4
-  [ 358] SetGlobal `namedFn`, src:reg7
+  [ 358] SetGlobal `namedFn`, src:reg6
   [ 370] GetGlobal dst:reg7, `console`
   [ 388] GetById dst:reg8, base:reg7, `log` (console.log)
   [ 3a8] GetGlobal dst:reg10, `namedFn`

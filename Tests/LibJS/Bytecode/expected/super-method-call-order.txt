@@ -21,11 +21,11 @@ block0:
   [ 190] GetGlobal dst:reg6, `obj`
   [ 1a8] GetById dst:reg7, base:reg6, `test` (obj.test)
   [ 1c8] Call dst:reg5, callee:reg7, this_value:reg6, obj.test
-  [ 1e8] GetGlobal dst:reg6, `obj`
-  [ 200] GetById dst:reg7, base:reg6, `x` (obj.x)
-  [ 220] GetGlobal dst:reg6, `obj`
-  [ 238] GetById dst:reg8, base:reg6, `test2` (obj.test2)
-  [ 258] Call dst:reg5, callee:reg8, this_value:reg6, obj.test2
+  [ 1e8] GetGlobal dst:reg7, `obj`
+  [ 200] GetById dst:reg6, base:reg7, `x` (obj.x)
+  [ 220] GetGlobal dst:reg7, `obj`
+  [ 238] GetById dst:reg8, base:reg7, `test2` (obj.test2)
+  [ 258] Call dst:reg5, callee:reg8, this_value:reg7, obj.test2
   [ 278] End value:reg5
 
 

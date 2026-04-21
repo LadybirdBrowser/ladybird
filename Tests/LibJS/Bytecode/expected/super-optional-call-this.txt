@@ -12,17 +12,17 @@ block0:
   [  28] SetLexicalEnvironment environment:reg4
   [  30] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("method")]
   [  58] InitializeLexicalBinding `Base`, src:reg6
-  [  70] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0
+  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0
   [  80] CreateVariable `Foo`, is_immutable:true, is_global:false, is_strict:false
-  [  90] GetGlobal dst:reg6, `Base`
+  [  90] GetGlobal dst:reg5, `Base`
   [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:1, element_keys:[element_keys:String("method")]
+  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("method")]
   [  d8] InitializeLexicalBinding `Foo`, src:reg7
-  [  f0] GetGlobal dst:reg7, `Foo`
-  [ 108] CallConstruct dst:reg6, callee:reg7, Foo
-  [ 120] GetById dst:reg7, base:reg6, `method`
-  [ 140] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-  [ 160] End value:reg5
+  [  f0] GetGlobal dst:reg5, `Foo`
+  [ 108] CallConstruct dst:reg6, callee:reg5, Foo
+  [ 120] GetById dst:reg5, base:reg6, `method`
+  [ 140] Call dst:reg7, callee:reg5, this_value:reg6, <object>.method
+  [ 160] End value:reg7
 
 
 Foo$4b66ae80 super-optional-call-this.js:4:1

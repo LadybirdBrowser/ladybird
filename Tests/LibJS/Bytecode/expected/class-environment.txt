@@ -30,8 +30,8 @@ block0:
   [  58] CallConstruct dst:reg6, callee:C~0, C
   [  70] GetById dst:reg7, base:reg6, `method`
   [  90] Call dst:reg5, callee:reg7, this_value:reg6, <object>.method
-  [  b0] StrictlyEquals dst:reg6, lhs:reg5, rhs:C~0
-  [  c0] Return value:reg6
+  [  b0] StrictlyEquals dst:reg7, lhs:reg5, rhs:C~0
+  [  c0] Return value:reg7
 
 
 Foo$811c9dc5

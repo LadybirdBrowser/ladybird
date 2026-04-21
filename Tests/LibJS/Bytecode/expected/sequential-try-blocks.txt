@@ -43,23 +43,23 @@ block2:
 
 block3:
   [  70] Mov dst:reg5, src:result~2
-  [  80] Add dst:reg6, lhs:reg5, rhs:String("a")
-  [  90] Mov dst:result~2, src:reg6
+  [  80] Add dst:reg7, lhs:reg5, rhs:String("a")
+  [  90] Mov dst:result~2, src:reg7
   [  a0] Throw src:Int32(1)
 
 block4:
-  [  a8] Catch dst:reg5
+  [  a8] Catch dst:reg7
   [  b0] SetLexicalEnvironment environment:reg4
-  [  b8] Mov2 dst1:e~1, src1:reg5, dst2:reg6, src2:result~2
-  [  d0] Add dst:reg7, lhs:reg6, rhs:String("d")
-  [  e0] Mov dst:result~2, src:reg7
+  [  b8] Mov2 dst1:e~1, src1:reg7, dst2:reg5, src2:result~2
+  [  d0] Add dst:reg6, lhs:reg5, rhs:String("d")
+  [  e0] Mov dst:result~2, src:reg6
 
 block5:
   [  f0] Return value:result~2
 
 block6:
-  [  f8] Mov dst:reg5, src:result~2
-  [ 108] Add dst:reg6, lhs:reg5, rhs:String("c")
+  [  f8] Mov dst:reg7, src:result~2
+  [ 108] Add dst:reg6, lhs:reg7, rhs:String("c")
   [ 118] Mov dst:result~2, src:reg6
   [ 128] Throw src:Int32(2)
 

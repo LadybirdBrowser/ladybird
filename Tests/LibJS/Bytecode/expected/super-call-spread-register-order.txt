@@ -12,9 +12,9 @@ block0:
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
   [  68] InitializeLexicalBinding `C`, src:reg7
-  [  80] GetGlobal dst:reg6, `C`
-  [  98] CallConstruct dst:reg5, callee:reg6, C
-  [  b0] End value:reg5
+  [  80] GetGlobal dst:reg5, `C`
+  [  98] CallConstruct dst:reg7, callee:reg5, C
+  [  b0] End value:reg7
 
 
 C$0ec9c92d super-call-spread-register-order.js:3:14

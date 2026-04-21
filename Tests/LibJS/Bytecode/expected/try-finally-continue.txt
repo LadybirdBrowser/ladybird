@@ -10,12 +10,12 @@ block0:
   [  38] GetGlobal dst:reg9, `continueThroughFinally`
   [  50] Call dst:reg8, callee:reg9, this_value:Undefined, continueThroughFinally
   [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] GetGlobal dst:reg7, `console`
-  [  b0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  98] GetGlobal dst:reg6, `console`
+  [  b0] GetById dst:reg8, base:reg6, `log` (console.log)
   [  d0] GetGlobal dst:reg10, `breakThroughFinally`
   [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughFinally
-  [ 108] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 130] End value:reg6
+  [ 108] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 130] End value:reg7
 
 
 continueThroughFinally$8372c35a try-finally-continue.js:2:5
@@ -53,9 +53,9 @@ block5:
   [  70] Mov dst:reg5, src:Int32(1)
 
 block6:
-  [  80] Mov dst:reg7, src:result~1
-  [  90] Add dst:reg8, lhs:reg7, rhs:Int32(10)
-  [  a0] Mov dst:result~1, src:reg8
+  [  80] Mov dst:reg8, src:result~1
+  [  90] Add dst:reg7, lhs:reg8, rhs:Int32(10)
+  [  a0] Mov dst:result~1, src:reg7
   [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block10, false_target:block11
 
 block7:
@@ -126,9 +126,9 @@ block5:
   [  70] Mov dst:reg5, src:Int32(1)
 
 block6:
-  [  80] Mov dst:reg7, src:result~1
-  [  90] Add dst:reg8, lhs:reg7, rhs:Int32(100)
-  [  a0] Mov dst:result~1, src:reg8
+  [  80] Mov dst:reg8, src:result~1
+  [  90] Add dst:reg7, lhs:reg8, rhs:Int32(100)
+  [  a0] Mov dst:result~1, src:reg7
   [  b0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block10, false_target:block11
 
 block7:

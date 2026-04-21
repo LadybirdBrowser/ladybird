@@ -48,8 +48,8 @@ block5:
 block6:
   [  78] GetGlobal dst:reg8, `console`
   [  90] GetById dst:reg9, base:reg8, `log` (console.log)
-  [  b0] Mov dst:reg10, src:i~0
-  [  c0] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer"), reg10]
+  [  b0] Mov dst:reg11, src:i~0
+  [  c0] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[String("outer"), reg11]
   [  e8] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block19, false_target:block20
 
 block7:

@@ -25,13 +25,13 @@ block1:
   [  10] GetGlobal dst:reg6, `Promise`
   [  28] GetById dst:reg7, base:reg6, `resolve` (Promise.resolve)
   [  48] Call dst:reg5, callee:reg7, this_value:reg6, Promise.resolve, arguments:[Int32(42)]
-  [  70] Mov dst:reg6, src:reg0
+  [  70] Mov dst:reg7, src:reg0
   [  80] Await continuation_label:block2, argument:reg5
 
 block2:
-  [  90] Mov dst:reg6, src:reg0
-  [  a0] GetCompletionFields type_dst:reg7, value_dst:reg8, completion:reg6
-  [  b0] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block3, false_target:block4
+  [  90] Mov dst:reg7, src:reg0
+  [  a0] GetCompletionFields type_dst:reg6, value_dst:reg8, completion:reg7
+  [  b0] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block3, false_target:block4
 
 block3:
   [  c8] Await continuation_label:block5, argument:reg8
@@ -41,11 +41,11 @@ block4:
 
 block5:
   [  e0] Mov dst:reg5, src:reg0
-  [  f0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 100] JumpStrictlyEquals lhs:reg6, rhs:Int32(1), true_target:block6, false_target:block7
+  [  f0] GetCompletionFields type_dst:reg7, value_dst:reg6, completion:reg5
+  [ 100] JumpStrictlyEquals lhs:reg7, rhs:Int32(1), true_target:block6, false_target:block7
 
 block6:
-  [ 118] Yield value:reg7
+  [ 118] Yield value:reg6
 
 block7:
-  [ 128] Throw src:reg7
+  [ 128] Throw src:reg6

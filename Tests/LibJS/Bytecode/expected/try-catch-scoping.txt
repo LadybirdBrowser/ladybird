@@ -72,9 +72,9 @@ block1:
 block2:
   [  40] Mov dst:z~2, src:Int32(3)
   [  50] GetGlobal dst:reg8, `console`
-  [  68] GetById dst:reg9, base:reg8, `log` (console.log)
-  [  88] Mov dst:reg10, src:z~2
-  [  98] Call dst:reg7, callee:reg9, this_value:reg8, console.log, arguments:[reg10]
+  [  68] GetById dst:reg10, base:reg8, `log` (console.log)
+  [  88] Mov dst:reg9, src:z~2
+  [  98] Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
   [  c0] JumpStrictlyEquals lhs:reg5, rhs:Int32(0), true_target:block5, false_target:block6
 
 block3:

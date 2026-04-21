@@ -26,9 +26,9 @@ block0:
   [  30] GetByValue dst:reg8, base:reg7, property:Int32(0) (v[Int32(0)])
   [  48] Sub dst:reg7, lhs:reg5, rhs:reg8
   [  58] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
-  [  70] GetByValue dst:reg5, base:arg0, property:Int32(1) (self[Int32(1)])
-  [  88] Mov2 dst1:reg6, src1:Int32(1), dst2:reg7, src2:arg1
-  [  a0] GetByValue dst:reg8, base:reg7, property:Int32(1) (v[Int32(1)])
-  [  b8] Sub dst:reg7, lhs:reg5, rhs:reg8
-  [  c8] PutByValue base:arg0, property:reg6, src:reg7, kind:Normal
+  [  70] GetByValue dst:reg7, base:arg0, property:Int32(1) (self[Int32(1)])
+  [  88] Mov2 dst1:reg5, src1:Int32(1), dst2:reg6, src2:arg1
+  [  a0] GetByValue dst:reg8, base:reg6, property:Int32(1) (v[Int32(1)])
+  [  b8] Sub dst:reg6, lhs:reg7, rhs:reg8
+  [  c8] PutByValue base:arg0, property:reg5, src:reg6, kind:Normal
   [  e0] End value:Undefined

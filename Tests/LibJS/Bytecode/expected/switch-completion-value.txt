@@ -13,16 +13,16 @@ block0:
   [  38] GetGlobal dst:reg9, `eval`
   [  50] CallDirectEval dst:reg8, callee:reg9, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'hello'; let x = 1; }")]
   [  78] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  a0] GetGlobal dst:reg7, `console`
-  [  b8] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  a0] GetGlobal dst:reg6, `console`
+  [  b8] GetById dst:reg8, base:reg6, `log` (console.log)
   [  d8] GetGlobal dst:reg10, `eval`
   [  f0] CallDirectEval dst:reg9, callee:reg10, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'first'; 'second'; }")]
-  [ 118] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 140] GetGlobal dst:reg7, `console`
-  [ 158] GetById dst:reg8, base:reg7, `log` (console.log)
+  [ 118] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 140] GetGlobal dst:reg8, `console`
+  [ 158] GetById dst:reg6, base:reg8, `log` (console.log)
   [ 178] GetGlobal dst:reg10, `eval`
   [ 190] CallDirectEval dst:reg9, callee:reg10, this_value:Undefined, eval, arguments:[String("switch(1) { case 1: 'matched'; break; default: 'default'; }")]
-  [ 1b8] Call dst:reg5, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
+  [ 1b8] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
   [ 1e0] End value:reg5
 
 

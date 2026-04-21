@@ -46,9 +46,9 @@ block1:
   [ 160] InitializeLexicalBinding `i`, src:reg6
 
 block2:
-  [ 178] GetBinding dst:reg6, `i`
-  [ 190] PostfixIncrement dst:reg7, src:reg6
-  [ 1a0] SetLexicalBinding `i`, src:reg6
+  [ 178] GetBinding dst:reg7, `i`
+  [ 190] PostfixIncrement dst:reg6, src:reg7
+  [ 1a0] SetLexicalBinding `i`, src:reg7
 
 block3:
   [ 1b8] GetBinding dst:reg6, `i`

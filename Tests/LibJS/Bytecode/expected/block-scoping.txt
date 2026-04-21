@@ -10,12 +10,12 @@ block0:
   [  38] GetGlobal dst:reg9, `closureOverBlockScope`
   [  50] Call dst:reg8, callee:reg9, this_value:Undefined, closureOverBlockScope
   [  70] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  98] GetGlobal dst:reg7, `console`
-  [  b0] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  98] GetGlobal dst:reg6, `console`
+  [  b0] GetById dst:reg8, base:reg6, `log` (console.log)
   [  d0] GetGlobal dst:reg10, `breakThroughBlockScopes`
   [  e8] Call dst:reg9, callee:reg10, this_value:Undefined, breakThroughBlockScopes
-  [ 108] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg9]
-  [ 130] End value:reg6
+  [ 108] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 130] End value:reg7
 
 
 closureOverBlockScope$4f0633f8 block-scoping.js:2:15

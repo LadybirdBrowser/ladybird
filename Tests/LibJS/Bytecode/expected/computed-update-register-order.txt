@@ -22,9 +22,9 @@ block0:
   [   0] GetByValue dst:reg5, base:arg0, property:Int32(3) (c[Int32(3)])
   [  18] PostfixIncrement dst:reg6, src:reg5
   [  28] PutByValue base:arg0, property:Int32(3), src:reg5, kind:Normal
-  [  40] GetGlobal dst:reg6, `foo`
+  [  40] GetGlobal dst:reg5, `foo`
   [  58] Mov dst:reg7, src:arg0
-  [  68] Call dst:reg5, callee:reg6, this_value:Undefined, foo, arguments:[reg7]
+  [  68] Call dst:reg6, callee:reg5, this_value:Undefined, foo, arguments:[reg7]
   [  90] End value:Undefined
 
 

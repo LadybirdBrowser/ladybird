@@ -12,9 +12,9 @@ block0:
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
   [  68] InitializeLexicalBinding `C`, src:reg7
-  [  80] GetGlobal dst:reg6, `C`
-  [  98] CallConstruct dst:reg5, callee:reg6, C
-  [  b0] End value:reg5
+  [  80] GetGlobal dst:reg5, `C`
+  [  98] CallConstruct dst:reg7, callee:reg5, C
+  [  b0] End value:reg7
 
 
 C$851d2148 super-computed-string-to-id.js:3:14
@@ -29,6 +29,6 @@ block0:
   [   0] NewArray dst:reg5
   [  10] SuperCallWithArgumentArray dst:reg6, arguments:reg5, is_synthetic:false
   [  20] ResolveThisBinding
-  [  28] ResolveSuperBase dst:reg5
-  [  30] PutByIdWithThis base:reg5, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  28] ResolveSuperBase dst:reg6
+  [  30] PutByIdWithThis base:reg6, this_value:this, `foo`, src:Int32(1), kind:Normal
   [  50] End value:Undefined

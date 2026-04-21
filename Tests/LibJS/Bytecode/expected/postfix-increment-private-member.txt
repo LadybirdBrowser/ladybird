@@ -16,10 +16,10 @@ block0:
   [  68] LeavePrivateEnvironment
   [  70] InitializeLexicalBinding `C`, src:reg6
   [  88] GetGlobal dst:reg7, `C`
-  [  a0] CallConstruct dst:reg6, callee:reg7, C
-  [  b8] GetById dst:reg7, base:reg6, `nextId`
-  [  d8] Call dst:reg5, callee:reg7, this_value:reg6, <object>.nextId
-  [  f8] End value:reg5
+  [  a0] CallConstruct dst:reg5, callee:reg7, C
+  [  b8] GetById dst:reg7, base:reg5, `nextId`
+  [  d8] Call dst:reg6, callee:reg7, this_value:reg5, <object>.nextId
+  [  f8] End value:reg6
 
 
 C$811c9dc5

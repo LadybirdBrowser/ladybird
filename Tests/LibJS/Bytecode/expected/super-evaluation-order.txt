@@ -15,19 +15,19 @@ block0:
   [  40] SetLexicalEnvironment environment:reg4
   [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
   [  78] InitializeLexicalBinding `A`, src:reg7
-  [  90] GetGlobal dst:reg7, `A`
-  [  a8] CallConstruct dst:reg6, callee:reg7, A
-  [  c0] GetById dst:reg7, base:reg6, `read`
-  [  e0] Call dst:reg5, callee:reg7, this_value:reg6, <object>.read
+  [  90] GetGlobal dst:reg6, `A`
+  [  a8] CallConstruct dst:reg5, callee:reg6, A
+  [  c0] GetById dst:reg6, base:reg5, `read`
+  [  e0] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
   [ 100] GetGlobal dst:reg8, `A`
-  [ 118] CallConstruct dst:reg7, callee:reg8, A
-  [ 130] GetById dst:reg8, base:reg7, `write`
-  [ 150] Call dst:reg6, callee:reg8, this_value:reg7, <object>.write
-  [ 170] GetGlobal dst:reg8, `A`
-  [ 188] CallConstruct dst:reg7, callee:reg8, A
-  [ 1a0] GetById dst:reg8, base:reg7, `update`
-  [ 1c0] Call dst:reg5, callee:reg8, this_value:reg7, <object>.update
-  [ 1e0] End value:reg5
+  [ 118] CallConstruct dst:reg5, callee:reg8, A
+  [ 130] GetById dst:reg8, base:reg5, `write`
+  [ 150] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
+  [ 170] GetGlobal dst:reg5, `A`
+  [ 188] CallConstruct dst:reg8, callee:reg5, A
+  [ 1a0] GetById dst:reg5, base:reg8, `update`
+  [ 1c0] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
+  [ 1e0] End value:reg7
 
 
 A$3f156142 super-evaluation-order.js:1:1
