@@ -1095,13 +1095,7 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
             continue;
         names.set(entry.name, AK::HashSetExistingEntryBehavior::Keep);
     }
-
-    Vector<FlyString> result;
-    result.ensure_capacity(names.size());
-    for (auto const& name : names)
-        result.unchecked_append(name);
-
-    return result;
+    return names.values();
 }
 
 // https://html.spec.whatwg.org/multipage/forms.html#dom-form-nameditem
