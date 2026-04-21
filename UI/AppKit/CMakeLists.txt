@@ -5,6 +5,7 @@ add_library(ladybird_impl STATIC
     Interface/Autocomplete.mm
     Interface/BookmarkFolder.mm
     Interface/BookmarksBar.mm
+    Interface/LadybirdAccessibilityElement.mm
     Interface/Event.mm
     Interface/InfoBar.mm
     Interface/LadybirdWebView.mm
