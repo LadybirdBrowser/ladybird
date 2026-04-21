@@ -33,12 +33,6 @@ PRAGMA_ONCE_STRING = "#pragma once"
 # We make sure that there's a blank line before and after pragma once
 GOOD_PRAGMA_ONCE_PATTERN = re.compile("(^|\\S\n\n)#pragma once(\n\n\\S.|$)")
 
-# LibC is supposed to be a system library; don't mention the directory.
-BAD_INCLUDE_LIBC = re.compile("# *include <LibC/")
-
-# Serenity C++ code must not use LibC's or libc++'s complex number implementation.
-BAD_INCLUDE_COMPLEX = re.compile("# *include <c[c]?omplex")
-
 # Make sure that all includes are either system includes or immediately resolvable local includes
 ANY_INCLUDE_PATTERN = re.compile('^ *# *include\\b.*[>"](?!\\)).*$', re.M)
 SYSTEM_INCLUDE_PATTERN = re.compile("^ *# *include *<([^>]+)>(?: /[*/].*)?$")
@@ -120,10 +114,6 @@ def run():
             else:
                 # Bad, the '#pragma once' is missing completely.
                 errors_pragma_once_missing.append(filename)
-        if BAD_INCLUDE_LIBC.search(file_content):
-            errors_include_libc.append(filename)
-        if BAD_INCLUDE_COMPLEX.search(file_content):
-            errors_include_bad_complex.append(filename)
         if not is_in_prefix_list(filename, INCLUDE_CHECK_EXCLUDES):
             if include_root := find_matching_prefix(filename, LOCAL_INCLUDE_ROOT_OVERRIDES):
                 local_include_root = pathlib.Path(include_root)
