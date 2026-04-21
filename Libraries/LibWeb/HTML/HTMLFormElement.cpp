@@ -1075,10 +1075,9 @@ Vector<FlyString> HTMLFormElement::supported_property_names() const
     // 5. Sort sourced names by tree order of the element entry of each tuple, sorting entries with the same element by
     //    putting entries whose source is id first, then entries whose source is name, and finally entries whose source
     //    is past, and sorting entries with the same element and source by their age, oldest first.
-    // FIXME: Require less const casts here by changing the signature of DOM::Node::compare_document_position
     quick_sort(sourced_names, [](auto const& lhs, auto const& rhs) -> bool {
         if (lhs.element != rhs.element)
-            return const_cast<DOM::Element*>(lhs.element.ptr())->compare_document_position(const_cast<DOM::Element*>(rhs.element.ptr())) & DOM::Node::DOCUMENT_POSITION_FOLLOWING;
+            return lhs.element->is_before(*rhs.element);
         if (lhs.source != rhs.source)
             return lhs.source < rhs.source;
         return lhs.age < rhs.age;
