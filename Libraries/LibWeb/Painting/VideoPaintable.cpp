@@ -60,10 +60,18 @@ void VideoPaintable::paint(DisplayListRecordingContext& context, PaintPhase phas
     };
 
     auto paint_video_frame = [&]() {
-        auto& source = const_cast<HTML::HTMLMediaElement&>(static_cast<HTML::HTMLMediaElement const&>(video_element)).ensure_external_content_source();
+        auto& source = const_cast<HTML::HTMLVideoElement&>(video_element).ensure_external_content_source();
         auto dst_rect = video_rect.to_type<int>();
         auto current = source.current_bitmap();
-        auto src_size = current ? current->size() : dst_rect.size();
+
+        Gfx::IntSize src_size;
+        if (current)
+            src_size = current->size();
+        else if (video_element.natural_media_size().has_value())
+            src_size = video_element.natural_media_size()->to_type<int>();
+        else
+            return;
+
         auto scaling_mode = to_gfx_scaling_mode(computed_values().image_rendering(), src_size, dst_rect.size());
         context.display_list_recorder().draw_external_content(dst_rect, source, scaling_mode);
     };

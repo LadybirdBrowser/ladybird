@@ -13,6 +13,7 @@
 #include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -79,6 +80,29 @@ Layout::VideoBox const* HTMLVideoElement::layout_node() const
     return static_cast<Layout::VideoBox const*>(Node::layout_node());
 }
 
+void HTMLVideoElement::set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>> dimensions)
+{
+    if (m_intrinsic_video_dimensions == dimensions)
+        return;
+    m_intrinsic_video_dimensions = dimensions;
+
+    // Whenever the natural width or natural height of the video changes (including, for example, because the
+    // selected video track was changed), if the element's readyState attribute is not HAVE_NOTHING,
+    // AD-HOC: We also use this to set the resolution in the steps that advance the ready state to HAVE_METADATA,
+    //         otherwise we could assert the readyState condition, since any other calls should already have metadata.
+    //         Also, the spec is not explicit on whether to fire the event when the element is emptied, but the check
+    //         for HAVE_NOTHING implies that it should not fire in that case. Therefore, skip the event if the
+    //         dimensions are not available. This matches other browsers.
+    if (dimensions.has_value()) {
+        // the user agent must queue a media element task given the media element to fire an event named resize at the media element.
+        queue_a_media_element_task([this] {
+            dispatch_event(DOM::Event::create(this->realm(), HTML::EventNames::resize));
+        });
+    }
+
+    update_natural_dimensions();
+}
+
 // https://html.spec.whatwg.org/multipage/media.html#dom-video-videowidth
 u32 HTMLVideoElement::video_width() const
 {
@@ -87,7 +111,12 @@ u32 HTMLVideoElement::video_width() const
     // is HAVE_NOTHING, then the attributes must return 0.
     if (ready_state() == ReadyState::HaveNothing)
         return 0;
-    return m_video_width;
+    if (m_intrinsic_video_dimensions.has_value())
+        return m_intrinsic_video_dimensions->width();
+    // AD-HOC: If the natural dimensions are not available, return 0. The non-normative text says that it should
+    //         return 0 if the dimensions are not known. The HAVE_NOTHING check is likely assumed to cover this
+    //         possibility.
+    return 0;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-video-videoheight
@@ -98,7 +127,61 @@ u32 HTMLVideoElement::video_height() const
     // is HAVE_NOTHING, then the attributes must return 0.
     if (ready_state() == ReadyState::HaveNothing)
         return 0;
-    return m_video_height;
+    if (m_intrinsic_video_dimensions.has_value())
+        return m_intrinsic_video_dimensions->height();
+    // AD-HOC: If the natural dimensions is not available, return 0. The non-normative text says that it should
+    //         return 0 if the dimensions are not known. The HAVE_NOTHING check is likely assumed to cover this
+    //         possibility.
+    return 0;
+}
+
+void HTMLVideoElement::update_intrinsic_video_dimensions()
+{
+    if (selected_video_track_sink() == nullptr) {
+        set_intrinsic_video_dimensions({});
+        return;
+    }
+
+    auto current_frame = selected_video_track_sink()->current_frame();
+    if (current_frame == nullptr)
+        return;
+
+    auto current_frame_size = current_frame->size().to_type<u32>();
+    if (current_frame_size == m_intrinsic_video_dimensions)
+        return;
+    set_intrinsic_video_dimensions(current_frame_size);
+}
+
+void HTMLVideoElement::update_natural_dimensions()
+{
+    // https://html.spec.whatwg.org/multipage/media.html#concept-video-intrinsic-width
+    // The natural width of a video element's playback area is the natural width of the poster frame, if that is
+    // available and the element currently represents its poster frame; otherwise, it is the natural width of the video
+    // resource, if that is available; otherwise the natural width is missing.
+
+    // The natural height of a video element's playback area is the natural height of the poster frame, if that is
+    // available and the element currently represents its poster frame; otherwise it is the natural height of the video
+    // resource, if that is available; otherwise the natural height is missing.
+    auto natural_dimensions = m_intrinsic_video_dimensions.map([](Gfx::Size<u32> size) { return size.to_type<CSSPixels>(); });
+
+    if (current_representation() == Representation::PosterFrame && m_poster_frame)
+        natural_dimensions = m_poster_frame->size().to_type<CSSPixels>();
+
+    if (natural_dimensions == m_natural_dimensiosn)
+        return;
+
+    set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
+    m_natural_dimensiosn = natural_dimensions;
+}
+
+Optional<Gfx::Size<u32>> HTMLVideoElement::natural_media_size() const
+{
+    return m_intrinsic_video_dimensions;
+}
+
+Optional<CSSPixelSize> HTMLVideoElement::natural_element_size() const
+{
+    return m_natural_dimensiosn;
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#attr-video-poster
@@ -116,6 +199,7 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         self.m_poster_frame = move(poster_frame);
         self.m_load_event_delayer.clear();
         self.m_fetch_controller = nullptr;
+        self.update_natural_dimensions();
     };
 
     // 2. If the poster attribute's value is the empty string or if the attribute is absent, then there is no poster

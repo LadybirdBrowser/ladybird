@@ -33,11 +33,14 @@ public:
     Layout::VideoBox* layout_node();
     Layout::VideoBox const* layout_node() const;
 
-    void set_video_width(u32 video_width) { m_video_width = video_width; }
+    void set_intrinsic_video_dimensions(Optional<Gfx::Size<u32>>);
     u32 video_width() const;
-
-    void set_video_height(u32 video_height) { m_video_height = video_height; }
     u32 video_height() const;
+
+    virtual void update_intrinsic_video_dimensions() override;
+    virtual void update_natural_dimensions() override;
+    Optional<Gfx::Size<u32>> natural_media_size() const;
+    Optional<CSSPixelSize> natural_element_size() const;
 
     RefPtr<Gfx::Bitmap> const& poster_frame() const { return m_poster_frame; }
 
@@ -79,8 +82,8 @@ private:
     VideoFrame m_current_frame;
     RefPtr<Gfx::Bitmap> m_poster_frame;
 
-    u32 m_video_width { 0 };
-    u32 m_video_height { 0 };
+    Optional<Gfx::Size<u32>> m_intrinsic_video_dimensions;
+    Optional<CSSPixelSize> m_natural_dimensiosn;
 
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;

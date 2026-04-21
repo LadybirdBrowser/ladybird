@@ -1,0 +1,13 @@
+initial: videoWidth=0 videoHeight=0
+loadstart: videoWidth=0 videoHeight=0
+resize: videoWidth=854 videoHeight=480
+loadedmetadata: videoWidth=854 videoHeight=480
+--- reloading video ---
+after reload: videoWidth=0 videoHeight=0
+abort: videoWidth=0 videoHeight=0
+emptied: videoWidth=0 videoHeight=0
+loadstart: videoWidth=0 videoHeight=0
+resize: videoWidth=854 videoHeight=480
+loadedmetadata: videoWidth=854 videoHeight=480
+loadeddata: videoWidth=854 videoHeight=480
+after canplaythrough: videoWidth=854 videoHeight=480

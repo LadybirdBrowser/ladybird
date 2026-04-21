@@ -1,0 +1,9 @@
+videoTracks change: selectedIndex=0
+resize: selectedIndex=0 videoWidth=320 videoHeight=240
+loadedmetadata: selectedIndex=0 videoWidth=320 videoHeight=240
+--- selecting track 1 ---
+videoTracks change: selectedIndex=1
+resize: selectedIndex=1 videoWidth=640 videoHeight=480
+--- selecting track 0 ---
+videoTracks change: selectedIndex=0
+resize: selectedIndex=0 videoWidth=320 videoHeight=240

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    function logEvent(name) {
+        println(`${name}: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight}`);
+    }
+
+    for (const name of ["loadedmetadata", "resize", "ended", "seeked"]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/resize-320x240-640x480.webm";
+
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        println("--- play ---");
+        await video.play();
+        await new Promise(resolve => video.addEventListener("ended", resolve, { once: true }));
+
+        println("--- seek to 0 ---");
+        video.currentTime = 0;
+        await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+
+        println("--- seek to end ---");
+        video.currentTime = video.duration;
+        await new Promise(resolve => video.addEventListener("seeked", resolve, { once: true }));
+
+        done();
+    });
+</script>

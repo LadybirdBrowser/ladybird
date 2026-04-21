@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    function logEvent(name) {
+        println(`${name}: selectedIndex=${video.videoTracks.selectedIndex} videoWidth=${video.videoWidth} videoHeight=${video.videoHeight}`);
+    }
+
+    for (const name of ["loadedmetadata", "resize"]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+    video.videoTracks.addEventListener("change", () => println(`videoTracks change: selectedIndex=${video.videoTracks.selectedIndex}`));
+
+    asyncTest(async done => {
+        video.src = "../../../Assets/two-tracks-320x240-640x480.webm";
+
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        const tracks = video.videoTracks;
+        println(`--- selecting track 1 ---`);
+        tracks[1].selected = true;
+        await new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+
+        println(`--- selecting track 0 ---`);
+        tracks[0].selected = true;
+        await new Promise(resolve => video.addEventListener("resize", resolve, { once: true }));
+
+        done();
+    });
+</script>

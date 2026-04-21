@@ -50,12 +50,14 @@ public:
     WebIDL::CallbackType* onremovetrack();
 
 private:
-    explicit VideoTrackList(JS::Realm&);
+    explicit VideoTrackList(JS::Realm&, GC::Ptr<HTMLMediaElement> = nullptr);
 
     virtual void visit_edges(Visitor&) override;
 
     virtual void initialize(JS::Realm&) override;
     virtual JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> internal_get_own_property(JS::PropertyKey const& property_name) const override;
+
+    GC::Ptr<HTMLMediaElement> m_media_element;
 
     Vector<GC::Ref<VideoTrack>> m_video_tracks;
 };

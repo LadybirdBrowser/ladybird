@@ -171,6 +171,9 @@ public:
 
     Painting::ExternalContentSource& ensure_external_content_source();
 
+    virtual void update_intrinsic_video_dimensions() { }
+    virtual void update_natural_dimensions() { }
+
 protected:
     HTMLMediaElement(DOM::Document&, DOM::QualifiedName);
 

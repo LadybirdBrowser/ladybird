@@ -9,14 +9,16 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/VideoTrackListPrototype.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/VideoTrackList.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(VideoTrackList);
 
-VideoTrackList::VideoTrackList(JS::Realm& realm)
+VideoTrackList::VideoTrackList(JS::Realm& realm, GC::Ptr<HTMLMediaElement> media_element)
     : DOM::EventTarget(realm, MayInterfereWithIndexedPropertyAccess::Yes)
+    , m_media_element(media_element)
 {
 }
 
@@ -48,6 +50,8 @@ void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
 {
     m_video_tracks.append(video_track);
     video_track->set_video_track_list({}, this);
+    if (m_media_element)
+        m_media_element->update_natural_dimensions();
 }
 
 void VideoTrackList::remove_all_tracks()
@@ -57,6 +61,8 @@ void VideoTrackList::remove_all_tracks()
         video_track->set_selected(false);
     }
     m_video_tracks.clear();
+    if (m_media_element)
+        m_media_element->update_natural_dimensions();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-videotracklist-gettrackbyid
@@ -131,6 +137,7 @@ WebIDL::CallbackType* VideoTrackList::onremovetrack()
 void VideoTrackList::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_media_element);
     visitor.visit(m_video_tracks);
 }
 

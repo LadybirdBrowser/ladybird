@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<video id="video"></video>
+<script>
+    const video = document.getElementById("video");
+
+    function logEvent(name) {
+        println(`${name}: videoWidth=${video.videoWidth} videoHeight=${video.videoHeight}`);
+    }
+
+    for (const name of ["loadstart", "loadedmetadata", "loadeddata", "resize", "emptied", "abort"]) {
+        video.addEventListener(name, () => logEvent(name));
+    }
+
+    asyncTest(async done => {
+        logEvent("initial");
+        video.src = "../../../Assets/test-webm.webm";
+
+        await new Promise(resolve => video.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        println("--- reloading video ---");
+        video.load();
+        logEvent("after reload");
+
+        await new Promise(resolve => video.addEventListener("canplaythrough", resolve, { once: true }));
+        logEvent("after canplaythrough");
+
+        done();
+    });
+</script>
