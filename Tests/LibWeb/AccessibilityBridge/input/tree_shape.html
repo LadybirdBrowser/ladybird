@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Title text that should *not* appear in the tree</title>
+  <script>var ignored = "no script children either";</script>
+  <style>p { color: black; }</style>
+</head>
+<body style="font: 16px sans-serif; margin: 40px;">
+<div><p>Paragraph inside an unnamed div — div should be hidden.</p></div>
+<div aria-label="named-div"><p>Paragraph inside a named div — div should appear.</p></div>
+<p style="display: none;">Display none — must *not* appear.</p>
+<p style="visibility: hidden;">Visibility hidden — must *not* appear.</p>
+<p aria-hidden="true">Aria-hidden — must *not* appear.</p>
+<div role="none"><p>Presentational role — div hidden, p promoted.</p></div>
+<p hidden>HTML hidden attribute — must *not* appear.</p>
+<p>Visible paragraph that *should* appear.</p>
+</body>
+</html>
