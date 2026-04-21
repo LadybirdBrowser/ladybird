@@ -6,13 +6,14 @@
 
 use super::instruction::Instruction;
 use super::operand::Label;
+use crate::ast::Position;
 
 /// A source map entry mapping a bytecode offset to a source range.
 #[derive(Debug, Clone, Copy)]
 pub struct SourceMapEntry {
     pub bytecode_offset: u32,
-    pub source_start: u32,
-    pub source_end: u32,
+    pub source_start: Position,
+    pub source_end: Position,
 }
 
 /// A basic block in the bytecode generator.

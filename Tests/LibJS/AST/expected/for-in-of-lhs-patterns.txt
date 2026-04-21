@@ -12,10 +12,10 @@ Program (script) @2:1
 │           │  └─ BindingPattern (array)
 │           │     ├─ entry
 │           │     │  └─ alias
-│           │     │     └─ Identifier "a" [variable:0] (var) @4:12
+│           │     │     └─ Identifier "a" [variable:0] (var) @4:11
 │           │     └─ entry
 │           │        └─ alias
-│           │           └─ Identifier "b" [variable:1] (var) @4:15
+│           │           └─ Identifier "b" [variable:1] (var) @4:14
 │           ├─ rhs
 │           │  └─ ObjectExpression @4:20
 │           │     └─ ObjectProperty @4:20
@@ -36,10 +36,10 @@ Program (script) @2:1
 │           │  └─ BindingPattern (object)
 │           │     ├─ entry
 │           │     │  └─ name
-│           │     │     └─ Identifier "x" [variable:0] (var) @10:11
+│           │     │     └─ Identifier "x" [variable:0] (var) @10:10
 │           │     └─ entry
 │           │        └─ name
-│           │           └─ Identifier "y" [variable:1] (var) @10:11
+│           │           └─ Identifier "y" [variable:1] (var) @10:10
 │           ├─ rhs
 │           │  └─ ObjectExpression @10:22
 │           │     └─ ObjectProperty @10:22
@@ -60,10 +60,10 @@ Program (script) @2:1
 │           │  └─ BindingPattern (array)
 │           │     ├─ entry
 │           │     │  └─ alias
-│           │     │     └─ Identifier "a" [variable:0] (var) @16:12
+│           │     │     └─ Identifier "a" [variable:0] (var) @16:11
 │           │     └─ entry
 │           │        └─ alias
-│           │           └─ Identifier "b" [variable:1] (var) @16:15
+│           │           └─ Identifier "b" [variable:1] (var) @16:14
 │           ├─ rhs
 │           │  └─ ArrayExpression @16:20
 │           │     └─ ArrayExpression @16:21
@@ -84,10 +84,10 @@ Program (script) @2:1
 │           │  └─ BindingPattern (object)
 │           │     ├─ entry
 │           │     │  └─ name
-│           │     │     └─ Identifier "x" [variable:0] (var) @22:11
+│           │     │     └─ Identifier "x" [variable:0] (var) @22:10
 │           │     └─ entry
 │           │        └─ name
-│           │           └─ Identifier "y" [variable:1] (var) @22:11
+│           │           └─ Identifier "y" [variable:1] (var) @22:10
 │           ├─ rhs
 │           │  └─ ArrayExpression @22:22
 │           │     └─ ObjectExpression @22:23

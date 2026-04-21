@@ -1,4 +1,4 @@
-$01a3b494 indexed-append-guards.js:1:1
+$01a3b494 indexed-append-guards.js:16:1
   Registers: 11
   Blocks:    7
   Constants:

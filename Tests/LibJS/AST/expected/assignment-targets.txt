@@ -46,10 +46,10 @@ Program (script) @3:1
 │        │     ├─ BindingPattern (array)
 │        │     │  ├─ entry
 │        │     │  │  └─ alias
-│        │     │  │     └─ Identifier "a" [variable:0] (let) @21:7
+│        │     │  │     └─ Identifier "a" [variable:0] (let) @21:6
 │        │     │  └─ entry
 │        │     │     └─ alias
-│        │     │        └─ Identifier "b" [variable:1] (let) @21:10
+│        │     │        └─ Identifier "b" [variable:1] (let) @21:9
 │        │     └─ ArrayExpression @21:14
 │        │        ├─ NumericLiteral 1 @21:15
 │        │        └─ NumericLiteral 2 @21:18

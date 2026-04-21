@@ -1,4 +1,4 @@
-$c0e94b43 chained-member-call.js:1:1
+$c0e94b43 chained-member-call.js:12:1
   Registers: 10
   Blocks:    7
   Constants:

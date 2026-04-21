@@ -16,7 +16,7 @@ use std::rc::Rc;
 use super::basic_block::{BasicBlock, SourceMapEntry};
 use super::instruction::Instruction;
 use super::operand::*;
-use crate::ast::{LocalType, Utf16String};
+use crate::ast::{LocalType, Position, Utf16String};
 use crate::u32_from_usize;
 
 /// Identifies an operand that auto-frees its register when the last
@@ -187,8 +187,8 @@ pub struct Generator {
     pub pending_lhs_name: Option<IdentifierTableIndex>,
 
     // Source location tracking
-    pub current_source_start: u32,
-    pub current_source_end: u32,
+    pub current_source_start: Position,
+    pub current_source_end: Position,
 
     // --- Completion register ---
     pub current_completion_register: Option<ScopedOperand>,
@@ -325,8 +325,16 @@ impl Generator {
             initialized_locals: Vec::new(),
             initialized_arguments: Vec::new(),
             pending_lhs_name: None,
-            current_source_start: 0,
-            current_source_end: 0,
+            current_source_start: Position {
+                line: 0,
+                column: 0,
+                offset: 0,
+            },
+            current_source_end: Position {
+                line: 0,
+                column: 0,
+                offset: 0,
+            },
             current_completion_register: None,
             must_propagate_completion: false,
             accumulator: ScopedOperand {
@@ -1600,8 +1608,16 @@ impl Generator {
                 let instruction_offset = bytecode.len();
                 source_map.push(SourceMapEntry {
                     bytecode_offset: u32_from_usize(instruction_offset),
-                    source_start: 0,
-                    source_end: 0,
+                    source_start: Position {
+                        line: 0,
+                        column: 0,
+                        offset: 0,
+                    },
+                    source_end: Position {
+                        line: 0,
+                        column: 0,
+                        offset: 0,
+                    },
                 });
                 end_instruction.encode(self.strict, &mut bytecode);
             }

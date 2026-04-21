@@ -424,7 +424,10 @@ impl<'a> Lexer<'a> {
             current_code_unit: 0,
             eof: false,
             line_number,
-            line_column,
+            // consume() below will bump line_column by one; pre-decrement so
+            // the post-consume state has line_column equal to the column of
+            // the character at `offset`.
+            line_column: line_column.saturating_sub(1),
             current_token_type: TokenType::Eof,
             regex_is_in_character_class: false,
             allow_html_comments: true,

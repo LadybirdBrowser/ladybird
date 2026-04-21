@@ -1,4 +1,4 @@
-$9814d5bc nested-for-loop-completion.js:1:1
+$9814d5bc nested-for-loop-completion.js:4:1
   Registers: 9
   Blocks:    8
   Constants:

@@ -1,4 +1,4 @@
-$b4733eed invalid-lhs-assignment-no-dead-code.js:1:1
+$b4733eed invalid-lhs-assignment-no-dead-code.js:8:1
   Registers: 10
   Blocks:    4
   Constants:

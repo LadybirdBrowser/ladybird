@@ -113,10 +113,13 @@ static void dump_header(StringBuilder& output, Executable const& executable, boo
     // Find the overall source range covered by this executable.
     u32 source_start = NumericLimits<u32>::max();
     u32 source_end = 0;
+    Optional<Position> first_position;
     for (auto const& entry : executable.source_map) {
-        if (entry.source_record.source_start_offset < entry.source_record.source_end_offset) {
-            source_start = min(source_start, entry.source_record.source_start_offset);
-            source_end = max(source_end, entry.source_record.source_end_offset);
+        if (entry.source_record.start.offset < entry.source_record.end.offset) {
+            source_start = min(source_start, entry.source_record.start.offset);
+            source_end = max(source_end, entry.source_record.end.offset);
+            if (!first_position.has_value() || entry.source_record.start.offset < first_position->offset)
+                first_position = entry.source_record.start;
         }
     }
 
@@ -136,17 +139,16 @@ static void dump_header(StringBuilder& output, Executable const& executable, boo
         output.appendff("{}{}${:08x}{}", white_bold, executable.name, hash, reset);
 
     // Show source location if available.
-    if (source_start < source_end) {
-        auto range = executable.source_code->range_from_offsets(source_start, source_end);
+    if (source_start < source_end && first_position.has_value()) {
         auto filename = executable.source_code->filename();
         if (!filename.is_empty()) {
             // Show just the basename to keep output portable across machines.
             auto last_slash = filename.bytes_as_string_view().find_last('/');
             if (last_slash.has_value())
                 filename = MUST(filename.substring_from_byte_offset(last_slash.value() + 1));
-            output.appendff(" {}:{}:{}", filename, range.start.line, range.start.column);
+            output.appendff(" {}:{}:{}", filename, first_position->line, first_position->column);
         } else {
-            output.appendff(" line {}, column {}", range.start.line, range.start.column);
+            output.appendff(" line {}, column {}", first_position->line, first_position->column);
         }
     }
     output.append('\n');
@@ -353,12 +355,10 @@ Optional<Executable::ExceptionHandlers const&> Executable::exception_handlers_fo
     return *entry;
 }
 
-UnrealizedSourceRange Executable::source_range_at(size_t offset) const
+Optional<SourceRange> Executable::source_range_at(size_t offset) const
 {
     if (offset >= bytecode.size())
         return {};
-    auto it = InstructionStreamIterator(bytecode.span().slice(offset), this);
-    VERIFY(!it.at_end());
     auto* entry = binary_search(source_map, offset, nullptr, [](size_t needle, SourceMapEntry const& entry) -> int {
         if (needle < entry.bytecode_offset)
             return -1;
@@ -368,19 +368,18 @@ UnrealizedSourceRange Executable::source_range_at(size_t offset) const
     });
     if (!entry)
         return {};
-    return UnrealizedSourceRange {
-        .source_code = source_code,
-        .start_offset = entry->source_record.source_start_offset,
-        .end_offset = entry->source_record.source_end_offset,
+    return SourceRange {
+        .code = source_code,
+        .start = entry->source_record.start,
+        .end = entry->source_record.end,
     };
 }
 
 SourceRange const& Executable::get_source_range(u32 program_counter)
 {
     return m_source_range_cache.ensure(program_counter, [&] {
-        auto unrealized = source_range_at(program_counter);
-        if (unrealized.source_code)
-            return unrealized.realize();
+        if (auto source_range = source_range_at(program_counter); source_range.has_value())
+            return *source_range;
         static SourceRange dummy { SourceCode::create({}, {}), {}, {} };
         return dummy;
     });

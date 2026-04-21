@@ -1,4 +1,4 @@
-$abb2d42c for-of-iteration-env-capacity.js:1:1
+$abb2d42c for-of-iteration-env-capacity.js:1:14
   Registers: 13
   Blocks:    10
   Locals:    x~0

@@ -42,8 +42,12 @@ pub struct FFIExceptionHandler {
 #[repr(C)]
 pub struct FFISourceMapEntry {
     pub bytecode_offset: u32,
-    pub source_start: u32,
-    pub source_end: u32,
+    pub source_start_line: u32,
+    pub source_start_column: u32,
+    pub source_start_offset: u32,
+    pub source_end_line: u32,
+    pub source_end_column: u32,
+    pub source_end_offset: u32,
 }
 
 /// A borrowed UTF-16 string slice for passing across FFI.
@@ -482,8 +486,12 @@ pub unsafe fn create_executable(
             .iter()
             .map(|e| FFISourceMapEntry {
                 bytecode_offset: e.bytecode_offset,
-                source_start: e.source_start,
-                source_end: e.source_end,
+                source_start_line: e.source_start.line,
+                source_start_column: e.source_start.column,
+                source_start_offset: e.source_start.offset,
+                source_end_line: e.source_end.line,
+                source_end_column: e.source_end.column,
+                source_end_offset: e.source_end.offset,
             })
             .collect();
 

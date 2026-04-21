@@ -1,4 +1,4 @@
-$7867793e delete-super-eval-order.js:1:1
+$7867793e delete-super-eval-order.js:4:1
   Registers: 10
   Blocks:    4
   Constants:

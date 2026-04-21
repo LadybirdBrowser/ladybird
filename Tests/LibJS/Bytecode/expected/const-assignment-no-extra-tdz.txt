@@ -1,4 +1,4 @@
-$5904f18d const-assignment-no-extra-tdz.js:1:1
+$5904f18d const-assignment-no-extra-tdz.js:5:1
   Registers: 9
   Blocks:    4
   Locals:    e~0

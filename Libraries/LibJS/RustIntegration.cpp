@@ -786,7 +786,18 @@ extern "C" void* rust_create_executable(
     for (size_t i = 0; i < data->source_map_count; ++i) {
         executable->source_map.append({
             data->source_map[i].bytecode_offset,
-            { data->source_map[i].source_start, data->source_map[i].source_end },
+            {
+                .start = {
+                    .line = data->source_map[i].source_start_line,
+                    .column = data->source_map[i].source_start_column,
+                    .offset = data->source_map[i].source_start_offset,
+                },
+                .end = {
+                    .line = data->source_map[i].source_end_line,
+                    .column = data->source_map[i].source_end_column,
+                    .offset = data->source_map[i].source_end_offset,
+                },
+            },
         });
     }
 

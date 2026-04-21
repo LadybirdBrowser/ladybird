@@ -1,4 +1,4 @@
-$fa0f7b9b invalid-lhs-forin-no-dead-code.js:1:1
+$fa0f7b9b invalid-lhs-forin-no-dead-code.js:6:6
   Registers: 11
   Blocks:    6
   Constants:

@@ -63,8 +63,8 @@ pub fn generate_expression(
 ) -> Option<ScopedOperand> {
     let saved_source_start = generator.current_source_start;
     let saved_source_end = generator.current_source_end;
-    generator.current_source_start = expression.range.start.offset;
-    generator.current_source_end = expression.range.end.offset;
+    generator.current_source_start = expression.range.start;
+    generator.current_source_end = expression.range.end;
 
     let result = generate_expression_inner(expression, generator, preferred_dst);
 
@@ -852,8 +852,8 @@ pub fn generate_statement(
 ) -> Option<ScopedOperand> {
     let saved_source_start = generator.current_source_start;
     let saved_source_end = generator.current_source_end;
-    generator.current_source_start = statement.range.start.offset;
-    generator.current_source_end = statement.range.end.offset;
+    generator.current_source_start = statement.range.start;
+    generator.current_source_end = statement.range.end;
 
     let result = match &statement.inner {
         StatementKind::Empty | StatementKind::Error | StatementKind::ErrorDeclaration => None,

@@ -1,4 +1,4 @@
-$a2397124 bigint-truthiness.js:1:1
+$a2397124 bigint-truthiness.js:2:1
   Registers: 6
   Blocks:    1
   Constants:

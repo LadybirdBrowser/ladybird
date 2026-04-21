@@ -137,8 +137,8 @@ struct ObjectPropertyIteratorCache {
 };
 
 struct SourceRecord {
-    u32 source_start_offset {};
-    u32 source_end_offset {};
+    Position start {};
+    Position end {};
 };
 
 struct SourceMapEntry {
@@ -226,7 +226,7 @@ public:
 
     [[nodiscard]] COLD Optional<ExceptionHandlers const&> exception_handlers_for_offset(size_t offset) const;
 
-    [[nodiscard]] UnrealizedSourceRange source_range_at(size_t offset) const;
+    [[nodiscard]] Optional<SourceRange> source_range_at(size_t offset) const;
 
     [[nodiscard]] SourceRange const& get_source_range(u32 program_counter);
 

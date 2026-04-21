@@ -1,4 +1,4 @@
-$400d186a tagged-template-if-register-order.js:1:1
+$400d186a tagged-template-if-register-order.js:2:1
   Registers: 10
   Blocks:    3
   Constants:

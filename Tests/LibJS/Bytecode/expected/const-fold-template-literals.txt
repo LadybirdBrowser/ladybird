@@ -1,4 +1,4 @@
-$dc4cd9dd const-fold-template-literals.js:1:1
+$dc4cd9dd const-fold-template-literals.js:20:1
   Registers: 7
   Blocks:    1
   Constants:

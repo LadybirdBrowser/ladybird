@@ -27,16 +27,4 @@ struct JS_API SourceRange {
     ByteString filename() const { return code->filename().to_byte_string(); }
 };
 
-struct UnrealizedSourceRange {
-    [[nodiscard]] SourceRange realize() const
-    {
-        VERIFY(source_code);
-        return source_code->range_from_offsets(start_offset, end_offset);
-    }
-
-    RefPtr<SourceCode const> source_code;
-    u32 start_offset { 0 };
-    u32 end_offset { 0 };
-};
-
 }
