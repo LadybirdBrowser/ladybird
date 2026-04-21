@@ -31,7 +31,14 @@ namespace Gfx {
 static sk_sp<SkFontMgr> s_font_manager;
 
 struct TypefaceSkia::Impl {
+    Impl(sk_sp<SkTypeface> skia_typeface, std::unique_ptr<SkStreamAsset> stream = {})
+        : skia_typeface(move(skia_typeface))
+        , stream(move(stream))
+    {
+    }
+
     sk_sp<SkTypeface> skia_typeface;
+    std::unique_ptr<SkStreamAsset> stream;
 };
 
 static SkFontMgr& font_manager()
@@ -103,17 +110,12 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::find_typeface_for_code_point(u32 cod
     auto ttc_index = static_cast<u32>(skia_ttc_index);
 
     if (stream && stream->getMemoryBase()) {
-        auto buffer = TRY(ByteBuffer::copy({ static_cast<u8 const*>(stream->getMemoryBase()),
-            stream->getLength() }));
-        auto font_data = FontData::create_from_byte_buffer(move(buffer));
-        auto bytes = font_data->bytes();
-
-        auto result = adopt_ref(*new TypefaceSkia {
-            make<TypefaceSkia::Impl>(skia_typeface),
+        // NB: Safe to reference without copying because we hold on to the stream.
+        ReadonlyBytes bytes { static_cast<u8 const*>(stream->getMemoryBase()), stream->getLength() };
+        return adopt_ref(*new TypefaceSkia {
+            make<TypefaceSkia::Impl>(skia_typeface, std::move(stream)),
             bytes,
             ttc_index });
-        result->m_font_data = move(font_data);
-        return result;
     }
 
     auto data = skia_typeface->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
