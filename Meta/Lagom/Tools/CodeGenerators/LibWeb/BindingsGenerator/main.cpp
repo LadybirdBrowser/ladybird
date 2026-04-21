@@ -17,6 +17,28 @@
 #include <LibIDL/IDLParser.h>
 #include <LibIDL/Types.h>
 
+static ErrorOr<void> generate_depfile(StringView depfile_path, ReadonlySpan<ByteString> dependency_paths, ReadonlySpan<ByteString> output_files)
+{
+    auto depfile = TRY(Core::File::open_file_or_standard_stream(depfile_path, Core::File::OpenMode::Write));
+
+    StringBuilder depfile_builder;
+    bool first_output = true;
+    for (auto const& s : output_files) {
+        if (!first_output)
+            depfile_builder.append(' ');
+
+        depfile_builder.append(s);
+        first_output = false;
+    }
+    depfile_builder.append(':');
+    for (auto const& path : dependency_paths) {
+        depfile_builder.append(" \\\n "sv);
+        depfile_builder.append(path);
+    }
+    depfile_builder.append('\n');
+    return depfile->write_until_depleted(depfile_builder.string_view().bytes());
+}
+
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
     Core::ArgsParser args_parser;
@@ -139,27 +161,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(write_if_changed(&IDL::generate_implementation, implementation_path));
 
     if (!depfile_path.is_empty()) {
-        auto depfile = TRY(Core::File::open_file_or_standard_stream(depfile_path, Core::File::OpenMode::Write));
-
-        StringBuilder depfile_builder;
-        for (StringView s : { header_path, implementation_path }) {
-            if (s.is_empty())
-                continue;
-
-            if (!depfile_prefix.is_empty())
-                depfile_builder.append(LexicalPath::join(depfile_prefix, s).string());
-            else
-                depfile_builder.append(s);
-
-            break;
-        }
-        depfile_builder.append(':');
-        for (auto const& path : parser.imported_files()) {
-            depfile_builder.append(" \\\n "sv);
-            depfile_builder.append(path);
-        }
-        depfile_builder.append('\n');
-        TRY(depfile->write_until_depleted(depfile_builder.string_view().bytes()));
+        TRY(generate_depfile(depfile_path, parser.imported_files(), { { header_path, implementation_path } }));
     }
     return 0;
 }
