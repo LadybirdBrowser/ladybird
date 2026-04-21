@@ -58,6 +58,34 @@ struct Compiler {
 }
 
 impl Compiler {
+    fn append_ascii_char_range(char_ranges: &mut Vec<CharRange>, start: u8, end: u8) {
+        char_ranges.push(CharRange {
+            start: u32::from(start),
+            end: u32::from(end),
+        });
+    }
+
+    fn append_builtin_class_ranges_for_legacy_positive_class(
+        char_ranges: &mut Vec<CharRange>,
+        builtin_class: BuiltinCharacterClass,
+    ) -> bool {
+        match builtin_class {
+            BuiltinCharacterClass::Digit => {
+                Self::append_ascii_char_range(char_ranges, b'0', b'9');
+                true
+            }
+            BuiltinCharacterClass::Word => {
+                // Legacy `\w` is ASCII-only: `[A-Za-z0-9_]`.
+                Self::append_ascii_char_range(char_ranges, b'0', b'9');
+                Self::append_ascii_char_range(char_ranges, b'A', b'Z');
+                Self::append_ascii_char_range(char_ranges, b'_', b'_');
+                Self::append_ascii_char_range(char_ranges, b'a', b'z');
+                true
+            }
+            _ => false,
+        }
+    }
+
     fn new(pattern: &Pattern) -> Self {
         // Registers: 0-1 for group 0, then 2 per capture group.
         let register_count = 2 + pattern.capture_count * 2;
@@ -951,6 +979,7 @@ impl Compiler {
                 let mut has_builtin = false;
 
                 let split_surrogates = !self.program.unicode && !self.program.unicode_sets;
+                let can_inline_builtin_ranges = !cc.negated && !self.program.unicode && !self.program.unicode_sets;
                 for r in ranges {
                     match r {
                         CharacterClassRange::Single(cp) => {
@@ -966,6 +995,12 @@ impl Compiler {
                         CharacterClassRange::Range(lo, hi) => {
                             char_ranges.push(CharRange { start: *lo, end: *hi });
                         }
+                        CharacterClassRange::BuiltinClass(class)
+                            if can_inline_builtin_ranges
+                                && Self::append_builtin_class_ranges_for_legacy_positive_class(
+                                    &mut char_ranges,
+                                    *class,
+                                ) => {}
                         CharacterClassRange::BuiltinClass(_) | CharacterClassRange::UnicodeProperty(_) => {
                             has_builtin = true;
                         }

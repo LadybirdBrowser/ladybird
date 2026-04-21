@@ -201,6 +201,24 @@ TEST_CASE(unicode_ignore_case_word_boundary_literal_preserves_behavior)
     EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::Match);
 }
 
+TEST_CASE(mixed_positive_class_with_word_builtin_preserves_legacy_ignore_case_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("[\\w\\$]+"sv, { .ignore_case = true }));
+
+    EXPECT_EQ(regex.test("AZ_09$"sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.test(u"\u017F"sv, 0), regex::MatchResult::NoMatch);
+    EXPECT_EQ(regex.test(u"\u212A"sv, 0), regex::MatchResult::NoMatch);
+}
+
+TEST_CASE(mixed_positive_class_with_digit_builtin_preserves_behavior)
+{
+    auto regex = MUST(regex::ECMAScriptRegex::compile("[A-Z\\d-]+"sv, { .ignore_case = true }));
+
+    EXPECT_EQ(regex.test("ABC-123"sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.test("abc"sv, 0), regex::MatchResult::Match);
+    EXPECT_EQ(regex.test("!"sv, 0), regex::MatchResult::NoMatch);
+}
+
 TEST_CASE(find_all_returns_non_overlapping_matches)
 {
     auto regex = MUST(regex::ECMAScriptRegex::compile("aba"sv, {}));
