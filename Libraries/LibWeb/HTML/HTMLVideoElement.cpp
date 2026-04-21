@@ -212,8 +212,7 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
     // -> When no video data is available (the element's readyState attribute is either HAVE_NOTHING, or HAVE_METADATA
     //    but no video data has yet been obtained at all, or the element's readyState attribute is any subsequent value
     //    but the media resource does not have a video channel)
-    if (ready_state() == HTML::HTMLMediaElement::ReadyState::HaveNothing
-        || (ready_state() >= HTML::HTMLMediaElement::ReadyState::HaveMetadata && video_tracks()->length() == 0)) {
+    if (ready_state() == ReadyState::HaveNothing || video_tracks()->length() == 0) {
         // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
         return poster_frame() ? Representation::PosterFrame : Representation::TransparentBlack;
     }
