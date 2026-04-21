@@ -5,8 +5,8 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaStreamPrototype.h>
-#include <LibWeb/Bindings/MediaStreamTrackPrototype.h>
+#include <LibWeb/Bindings/MediaStream.h>
+#include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/MediaCapture/MediaStream.h>

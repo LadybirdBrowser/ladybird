@@ -9,7 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <LibWeb/Bindings/MediaStreamTrackPrototype.h>
+#include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>

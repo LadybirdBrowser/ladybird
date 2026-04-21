@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaStreamTrackEventPrototype.h>
+#include <LibWeb/Bindings/MediaStreamTrackEvent.h>
 #include <LibWeb/MediaCapture/MediaStreamTrackEvent.h>
 
 namespace Web::MediaCapture {

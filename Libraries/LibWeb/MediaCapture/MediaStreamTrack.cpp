@@ -6,7 +6,7 @@
 
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaStreamTrackPrototype.h>
+#include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>

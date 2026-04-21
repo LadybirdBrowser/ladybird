@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaDeviceInfoPrototype.h>
+#include <LibWeb/Bindings/MediaDeviceInfo.h>
 #include <LibWeb/MediaCapture/MediaDeviceInfo.h>
 
 namespace Web::MediaCapture {

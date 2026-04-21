@@ -11,8 +11,8 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MediaDeviceInfoPrototype.h>
-#include <LibWeb/Bindings/MediaDevicesPrototype.h>
+#include <LibWeb/Bindings/MediaDeviceInfo.h>
+#include <LibWeb/Bindings/MediaDevices.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/IDLEventListener.h>
