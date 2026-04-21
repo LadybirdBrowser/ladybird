@@ -1635,6 +1635,7 @@ public:
 
         WEB_API Gfx::FontCascadeList const& font_list_value() const;
         RefPtr<StyleValue const> font_family_style_value() const;
+        FontStyleKeyword font_style_keyword() const;
 
         bool operator==(FontValues const& other) const
         {

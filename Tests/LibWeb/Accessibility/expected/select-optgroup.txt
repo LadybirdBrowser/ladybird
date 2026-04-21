@@ -1,0 +1,15 @@
+document
+  generic focused
+    text leaf name="
+"
+    combobox
+      option name="Loose"
+      group name="Fruits"
+        option name="Apple"
+        option name="Banana" selected
+      group name="Vegetables" disabled
+        option name="Carrot" disabled
+    text leaf name="
+
+
+"

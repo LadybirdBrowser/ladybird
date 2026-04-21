@@ -61,8 +61,12 @@ pub(crate) fn paint_phase_mask(
             phases |= PaintPhase::Border.bit();
         }
     }
-    // Images paint focused image-map area outlines independently of their own outline.
-    if kind == Some(NodeKind::ImageBox) || style_queries::outline_geometry(style).is_some() {
+    // Images paint focused image-map area outlines independently of their own outline, and the
+    // assistive-technology focus target paints its ring whether or not it has a CSS outline.
+    if kind == Some(NodeKind::ImageBox)
+        || paintable == recorder.inputs.accessibility_focus_target
+        || style_queries::outline_geometry(style).is_some()
+    {
         phases |= PaintPhase::Outline.bit();
     }
     if kind == Some(NodeKind::Viewport)

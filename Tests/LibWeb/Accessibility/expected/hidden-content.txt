@@ -1,0 +1,13 @@
+document
+  generic focused
+    paragraph
+      text leaf name="Visible"
+    generic
+      text leaf name="
+  "
+      text leaf name="
+  "
+      generic
+        text leaf name="Inner visible"
+      text leaf name="
+"

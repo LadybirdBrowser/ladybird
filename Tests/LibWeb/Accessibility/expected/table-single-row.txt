@@ -1,0 +1,9 @@
+document
+  generic focused
+    table name="Key-value" rows=1 cols=2
+      rowgroup
+        row name="Property              Value"
+          rowheader name="Property" cell_row=0 cell_col=0
+            text leaf name="Property"
+          cell name="Value" cell_row=0 cell_col=1
+            text leaf name="Value"

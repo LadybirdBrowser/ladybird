@@ -17,12 +17,7 @@ use libgfx_rust::{CapStyle, Color, JoinStyle, ShouldAntiAlias};
 
 pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
     let node = paintable;
-    let outline = crate::painting::style_queries::outline_data(
-        recorder.layout_arena,
-        node,
-        recorder.inputs.window_is_focused,
-        recorder.inputs.outline_auto_color.0,
-    );
+    let outline = outline_data_for_paint(recorder, node);
     if outline.is_some() {
         let outline_offset = crate::painting::style_queries::outline_offset(recorder.layout_arena, node);
         let border_box_rect = paintable_geometry::absolute_border_box_rect(recorder.layout_arena, paintable);
@@ -30,6 +25,25 @@ pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: N
         paint_outline(recorder, outline, outline_offset, border_box_rect, border_radii);
     }
     paint_focused_area_outline(recorder, paintable);
+}
+
+// The assistive-technology focus target gets an auto-style ring in place of whatever outline its style computes —
+// so the ring shows on an element with outline: none, and replaces an author outline rather than stacking on it.
+pub(crate) fn outline_data_for_paint(
+    recorder: &PaintRecorder<'_>,
+    node: NodeSlotId,
+) -> Option<crate::painting::style_queries::OutlineData> {
+    if node == recorder.inputs.accessibility_focus_target {
+        return Some(crate::painting::style_queries::auto_outline_data(
+            recorder.inputs.outline_auto_color.0,
+        ));
+    }
+    crate::painting::style_queries::outline_data(
+        recorder.layout_arena,
+        node,
+        recorder.inputs.window_is_focused,
+        recorder.inputs.outline_auto_color.0,
+    )
 }
 
 pub(crate) fn outline_border_geometry(

@@ -484,6 +484,17 @@ pub(crate) fn outline_geometry(style: ComputedValuesView<'_>) -> Option<OutlineG
     Some(OutlineGeometry { line_style, width })
 }
 
+pub(crate) fn auto_outline_data(auto_outline_color: u32) -> OutlineData {
+    OutlineData {
+        color: auto_outline_color,
+        geometry: OutlineGeometry {
+            line_style: line_style::SOLID,
+            width: CssPixels::from_integer(2),
+        },
+        is_auto: true,
+    }
+}
+
 pub(crate) fn outline_data(
     arena: &LayoutNodeArena,
     node: NodeSlotId,

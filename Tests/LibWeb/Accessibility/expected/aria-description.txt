@@ -1,0 +1,9 @@
+document
+  generic focused
+    button name="Submit" description="Click to submit your application."
+      text leaf name="Submit"
+    paragraph name="Click to submit your application."
+      text leaf name="Click to submit your application."
+    textbox name="Username" description="Enter your username" editable
+    link name="Delete account" description="This action cannot be undone" url="file:///delete"
+      text leaf name="Delete account"

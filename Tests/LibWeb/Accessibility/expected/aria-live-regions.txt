@@ -1,0 +1,15 @@
+document
+  generic focused
+    generic name="Status updates"
+      paragraph
+        text leaf name="Waiting for input."
+    alert
+      paragraph
+        text leaf name="Connection lost!"
+    status
+      text leaf name="Current count: 0"
+    log name="Activity log"
+      paragraph
+        text leaf name="User logged in."
+    status name="Result"
+      text leaf name="42"

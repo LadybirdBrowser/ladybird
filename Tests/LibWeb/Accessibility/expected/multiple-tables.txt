@@ -1,0 +1,27 @@
+document
+  generic focused
+    table name="Simple table" rows=2 cols=2
+      rowgroup
+        row name="A1              A2"
+          cell name="A1" cell_row=0 cell_col=0
+            text leaf name="A1"
+          cell name="A2" cell_row=0 cell_col=1
+            text leaf name="A2"
+        row name="B1              B2"
+          cell name="B1" cell_row=1 cell_col=0
+            text leaf name="B1"
+          cell name="B2" cell_row=1 cell_col=1
+            text leaf name="B2"
+    table name="Header table" rows=2 cols=2
+      rowgroup
+        row name="Name                  Value"
+          columnheader name="Name" cell_row=0 cell_col=0
+            text leaf name="Name"
+          columnheader name="Value" cell_row=0 cell_col=1
+            text leaf name="Value"
+      rowgroup
+        row name="Width                  100px"
+          cell name="Width" cell_row=1 cell_col=0
+            text leaf name="Width"
+          cell name="100px" cell_row=1 cell_col=1
+            text leaf name="100px"
