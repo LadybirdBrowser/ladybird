@@ -1025,9 +1025,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_style(bool& did_cha
 CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 {
     auto computed_properties = this->computed_properties();
-    // NB: We use unsafe_layout_node() because we're in the middle of style recalculation
-    //     and layout is inherently stale while recomputing inherited styles.
-    if (!m_cascaded_properties || !computed_properties || !unsafe_layout_node())
+    if (!m_cascaded_properties || !computed_properties)
         return {};
 
     CSS::RequiredInvalidationAfterStyleChange invalidation;
@@ -1090,7 +1088,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_inherited_style()
 
     // NB: unsafe_layout_node() because we're applying recomputed inherited styles during
     //     style recalculation, before layout has been updated.
-    unsafe_layout_node()->apply_style(*computed_properties);
+    if (unsafe_layout_node())
+        unsafe_layout_node()->apply_style(*computed_properties);
     if (invalidation.repaint)
         set_needs_repaint();
     return invalidation;
