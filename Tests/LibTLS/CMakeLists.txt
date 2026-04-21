@@ -4,5 +4,5 @@ set(TEST_SOURCES
 )
 
 foreach(source IN LISTS TEST_SOURCES)
-    lagom_test("${source}" LibTLS LIBS LibTLS LibCrypto WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+    ladybird_test("${source}" LibTLS LIBS LibTLS LibCrypto)
 endforeach()

@@ -1,17 +1,17 @@
 if(WIN32)
     # FIXME: Add support for LibLine on Windows
-    lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJS LibCrypto LibGC)
+    ladybird_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJS LibCrypto LibGC)
 else()
-    lagom_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
-    lagom_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS LibCrypto LibGC)
+    ladybird_utility(js SOURCES js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+    ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS LibCrypto LibGC)
 endif()
 
-lagom_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
-lagom_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
+ladybird_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
+ladybird_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 if (ENABLE_GUI_TARGETS)
-    lagom_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
+    ladybird_utility(image SOURCES image.cpp LIBS LibGfx LibMain)
 endif()
 
 # FIXME: Increase support for building targets on Windows
@@ -19,8 +19,7 @@ if (WIN32)
     return()
 endif()
 
-
-lagom_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
+ladybird_utility(test262-runner SOURCES test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(CheckCSourceCompiles)

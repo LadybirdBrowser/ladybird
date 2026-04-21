@@ -35,7 +35,7 @@ target_link_libraries(requestserverservice PUBLIC LibCore LibDNS LibHTTP LibIPC 
 target_link_libraries(requestserverservice PRIVATE OpenSSL::Crypto OpenSSL::SSL)
 
 if (WIN32)
-    lagom_windows_bin(RequestServer CONSOLE)
+    ladybird_windows_bin(RequestServer CONSOLE)
 endif()
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "SunOS")

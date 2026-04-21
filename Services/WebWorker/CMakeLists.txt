@@ -23,5 +23,5 @@ target_link_libraries(WebWorker PRIVATE webworkerservice OpenSSL::Crypto OpenSSL
 
 if(WIN32)
     target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
-    lagom_windows_bin(WebWorker CONSOLE)
+    ladybird_windows_bin(WebWorker CONSOLE)
 endif()

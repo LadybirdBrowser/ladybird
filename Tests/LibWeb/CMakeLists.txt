@@ -20,7 +20,7 @@ foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibWeb LIBS LibWeb)
 endforeach()
 
-lagom_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
+ladybird_utility(css-tokenizer SOURCES css-tokenizer.cpp LIBS LibFileSystem LibMain LibWeb)
 
 target_link_libraries(TestContentFilter PRIVATE LibURL)
 target_link_libraries(TestFetchURL PRIVATE LibURL)

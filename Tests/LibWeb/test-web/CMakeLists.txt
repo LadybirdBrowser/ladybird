@@ -19,7 +19,7 @@ if (APPLE)
 elseif (WIN32)
     target_link_libraries(test-web PRIVATE LibDevTools)
     target_include_directories(test-web PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
-    lagom_windows_bin(test-web CONSOLE)
+    ladybird_windows_bin(test-web CONSOLE)
 endif()
 
 # FIXME: Add support for running test-web on Windows
