@@ -25,6 +25,8 @@
 #include <QDesktopServices>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileOpenEvent>
 #include <QFormLayout>
@@ -44,6 +46,109 @@
 #endif
 
 namespace Ladybird {
+
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+// Orca 49.7 removed support for the ~/.local/share/orca/orca-scripts/ directory as a means to directly load custom
+// user/app-supplied scripts. We still deliver our custom script there — but to make it work, we plumb into the means
+// Orca *now* uses for loading customer user-supplied scripts: Orca’s orca-customizations.py file. So, in that file, we
+// mark/delimit the block we own — to ensure we don’t change any content outside that (the user’s own manual additions).
+static constexpr QByteArrayView ORCA_CUSTOMIZATIONS_BEGIN_MARKER = "# --- Ladybird-bootstrap-begin ---";
+static constexpr QByteArrayView ORCA_CUSTOMIZATIONS_END_MARKER = "# --- Ladybird-bootstrap-end ---";
+
+static void install_orca_customizations_bootstrap(QString const& orca_dir)
+{
+    QFile bootstrap_resource(QStringLiteral(":/OrcaScripts/orca_customizations_bootstrap.py"));
+    if (!bootstrap_resource.open(QIODevice::ReadOnly))
+        return;
+
+    QByteArray managed_region;
+    managed_region.append(ORCA_CUSTOMIZATIONS_BEGIN_MARKER);
+    managed_region.append('\n');
+    managed_region.append(bootstrap_resource.readAll());
+    if (!managed_region.endsWith('\n'))
+        managed_region.append('\n');
+    managed_region.append(ORCA_CUSTOMIZATIONS_END_MARKER);
+    managed_region.append('\n');
+
+    auto customizations_path = orca_dir + QStringLiteral("/orca-customizations.py");
+
+    QByteArray existing_content;
+    if (QFile::exists(customizations_path)) {
+        QFile existing(customizations_path);
+        if (existing.open(QIODevice::ReadOnly))
+            existing_content = existing.readAll();
+    }
+
+    auto begin_idx = existing_content.indexOf(ORCA_CUSTOMIZATIONS_BEGIN_MARKER);
+    auto end_idx = existing_content.indexOf(ORCA_CUSTOMIZATIONS_END_MARKER);
+
+    QByteArray new_content;
+    if (begin_idx < 0 || end_idx < 0 || end_idx < begin_idx) {
+        new_content = existing_content;
+        if (!new_content.isEmpty() && !new_content.endsWith('\n'))
+            new_content.append('\n');
+        new_content.append(managed_region);
+    } else {
+        auto end_of_end_line = existing_content.indexOf('\n', end_idx);
+        if (end_of_end_line < 0)
+            end_of_end_line = existing_content.size();
+        else
+            ++end_of_end_line;
+        new_content = existing_content.left(begin_idx)
+            + managed_region
+            + existing_content.mid(end_of_end_line);
+    }
+
+    if (new_content == existing_content)
+        return;
+
+    QFile out(customizations_path);
+    if (out.open(QIODevice::WriteOnly))
+        out.write(new_content);
+}
+
+static void install_orca_scripts()
+{
+    static constexpr auto scripts = Array {
+        "__init__.py"sv,
+        "script.py"sv,
+        "script_utilities.py"sv,
+    };
+
+    auto orca_dir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation)
+        + QStringLiteral("/orca");
+    auto dest_dir = QDir(orca_dir + QStringLiteral("/orca-scripts/Ladybird"));
+
+    if (!dest_dir.exists())
+        dest_dir.mkpath(QStringLiteral("."));
+
+    for (auto script_name : scripts) {
+        auto resource_path = QStringLiteral(":/OrcaScripts/Ladybird/%1")
+                                 .arg(QString::fromUtf8(script_name.characters_without_null_termination(), script_name.length()));
+        auto dest_path = dest_dir.filePath(
+            QString::fromUtf8(script_name.characters_without_null_termination(), script_name.length()));
+
+        QFile resource(resource_path);
+        if (!resource.open(QIODevice::ReadOnly))
+            continue;
+
+        auto resource_data = resource.readAll();
+
+        QFile existing(dest_path);
+        if (existing.exists() && existing.open(QIODevice::ReadOnly)) {
+            if (existing.readAll() == resource_data)
+                continue;
+            existing.close();
+        }
+
+        QFile out(dest_path);
+        if (out.open(QIODevice::WriteOnly))
+            out.write(resource_data);
+    }
+
+    install_orca_customizations_bootstrap(orca_dir);
+}
+#endif
 
 #if defined(AK_OS_WINDOWS)
 class NativeWindowsTimeChangeEventFilter : public QAbstractNativeEventFilter {
@@ -251,6 +356,9 @@ Core::EventLoop& Application::create_platform_event_loop()
     if (!browser_options().headless_mode.has_value()) {
         Core::EventLoopManager::install(*new EventLoopManagerQt);
         m_application = make<LadybirdQApplication>(arguments());
+#if !defined(Q_OS_MACOS) && !defined(Q_OS_WIN)
+        install_orca_scripts();
+#endif
     }
 
     auto& event_loop = WebView::Application::create_platform_event_loop();
