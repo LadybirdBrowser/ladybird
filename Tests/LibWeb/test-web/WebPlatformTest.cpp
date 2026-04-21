@@ -11,6 +11,7 @@
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Format.h>
+#include <AK/HashTable.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
@@ -30,6 +31,7 @@
 namespace TestWeb {
 
 static ErrorOr<void> collect_manifest_entries(JsonObject const&, Vector<Test>&, TestMode, StringView prefix = {});
+static ErrorOr<void> collect_test262_source_tests(Vector<Test>& tests, StringView path);
 static ErrorOr<void> write_result(Test const&);
 static TestResult process_test_result(Test&);
 static bool is_valid_test_extension(StringView test_name);
@@ -136,7 +138,14 @@ ErrorOr<void> collect_wpt_tests(Vector<Test>& tests)
         TRY(collect_manifest_entries(*reftest, tests, TestMode::Ref));
     if (Optional<JsonObject const&> crashtest = items.get_object("crashtest"sv); crashtest.has_value())
         TRY(collect_manifest_entries(*crashtest, tests, TestMode::Crash));
-
+    if (Optional<JsonObject const&> test262 = items.get_object("test262"sv); test262.has_value())
+        TRY(collect_manifest_entries(*test262, tests, TestMode::Text));
+    ByteString const test262_source_root = LexicalPath::join(app.wpt_path, "third_party"sv, "test262"sv, "test"sv).string();
+    if (FileSystem::exists(test262_source_root)) {
+        // ADHOC: This filesystem traversal seems necessary because at the moment, the manifest only has
+        // infrastructure/test262
+        TRY(collect_test262_source_tests(tests, test262_source_root));
+    }
     tests.remove_all_matching([&](auto const& test) {
         if (!test.is_wpt_test)
             return false;
@@ -192,9 +201,12 @@ static ErrorOr<void> collect_manifest_entries(
 
         if (!value.is_array())
             return {};
-        auto const input_path = FileSystem::real_path(LexicalPath::join(app.wpt_path, current_path).string());
-        if (input_path.is_error())
+
+        ErrorOr<ByteString> maybe_input_path = FileSystem::real_path(LexicalPath::join(app.wpt_path, current_path).string());
+        if (maybe_input_path.is_error())
             return {};
+
+        ByteString const input_path = maybe_input_path.release_value();
         JsonArray const& generated_tests = value.as_array();
         for (size_t i = 1; i < generated_tests.size(); ++i) {
             JsonValue const& generated_test = generated_tests[i];
@@ -212,7 +224,7 @@ static ErrorOr<void> collect_manifest_entries(
             StringView const sub_path = wpt_path.starts_with('/') ? StringView { wpt_path }.substring_view(1) : StringView { wpt_path };
             ByteString const relative_path = ByteString::formatted("{}{}", WPT_PATH_PREFIX, sub_path);
             ByteString const safe_path = relative_path.replace("?"sv, "@"sv);
-            Test test { mode, input_path.value(), {}, relative_path, safe_path };
+            Test test { mode, input_path, {}, relative_path, safe_path };
             test.is_wpt_test = true;
             tests.append(move(test));
         }
@@ -275,6 +287,126 @@ static bool is_valid_test_extension(StringView test_name)
 {
     static constexpr Array<StringView, 5> VALID { ".htm"sv, ".html"sv, ".svg"sv, ".xhtml"sv, ".xht"sv };
     return AK::any_of(VALID, [&](StringView suffix) { return test_name.ends_with(suffix); });
+}
+
+struct Test262Metadata {
+    bool has_frontmatter { false };
+    bool is_module { false };
+    bool is_only_strict { false };
+};
+
+static void update_test262_flags(StringView flag, Test262Metadata& metadata)
+{
+    StringView const trimmed_flag = flag.trim_whitespace();
+    if (trimmed_flag.equals_ignoring_ascii_case("module"sv))
+        metadata.is_module = true;
+    else if (trimmed_flag.equals_ignoring_ascii_case("onlyStrict"sv))
+        metadata.is_only_strict = true;
+}
+
+static Test262Metadata parse_test262_metadata(StringView file_contents)
+{
+    Test262Metadata metadata;
+
+    Optional<size_t> const frontmatter_start = file_contents.find("/*---"sv);
+    if (!frontmatter_start.has_value())
+        return metadata;
+
+    StringView const frontmatter_and_contents = file_contents.substring_view(*frontmatter_start + 5);
+    Optional<size_t> const frontmatter_end = frontmatter_and_contents.find("---*/"sv);
+    if (!frontmatter_end.has_value())
+        return metadata;
+
+    metadata.has_frontmatter = true;
+    StringView const frontmatter = frontmatter_and_contents.substring_view(0, *frontmatter_end);
+
+    bool parsing_flags_list = false;
+    for (StringView raw_line : frontmatter.lines()) {
+        StringView const line = raw_line.trim_whitespace();
+        if (line.is_empty())
+            continue;
+
+        if (parsing_flags_list) {
+            if (!line.starts_with('-')) {
+                parsing_flags_list = false;
+            } else {
+                update_test262_flags(line.substring_view(1), metadata);
+                continue;
+            }
+        }
+        if (!line.starts_with("flags:"sv))
+            continue;
+
+        StringView const flags = line.substring_view(6).trim_whitespace();
+        if (flags.starts_with('[') && flags.ends_with(']')) {
+            StringView const inline_flags = flags.substring_view(1, flags.length() - 2);
+            for (StringView flag : inline_flags.split_view(','))
+                update_test262_flags(flag, metadata);
+            continue;
+        }
+        parsing_flags_list = true;
+    }
+    return metadata;
+}
+
+static ByteString request_path_for_test262_source(StringView relative_source_path, Test262Metadata const& metadata)
+{
+    VERIFY(relative_source_path.ends_with(".js"sv));
+
+    StringView suffix = ".test262.html"sv;
+    if (metadata.is_module)
+        suffix = ".test262-module.html"sv;
+    else if (metadata.is_only_strict)
+        suffix = ".test262.strict.html"sv;
+
+    return ByteString::formatted("{}{}", relative_source_path.substring_view(0, relative_source_path.length() - 3), suffix);
+}
+
+static ErrorOr<void> collect_test262_source_tests(Vector<Test>& tests, StringView path)
+{
+    HashTable<ByteString> seen_paths;
+    for (auto const& existing_test : tests) {
+        seen_paths.set(existing_test.relative_path);
+    }
+    Function<ErrorOr<void>(StringView)> collect_from_directory = [&](StringView trail) -> ErrorOr<void> {
+        ByteString const directory = trail.is_empty() ? ByteString { path } : ByteString::formatted("{}/{}", path, trail);
+        Core::DirIterator it(directory, Core::DirIterator::Flags::SkipDots);
+
+        while (it.has_next()) {
+            ByteString const name = it.next_path();
+            ByteString const candidate_path = trail.is_empty() ? ByteString::formatted("{}/{}", path, name)
+                                                               : ByteString::formatted("{}/{}/{}", path, trail, name);
+            ByteString const input_path = TRY(FileSystem::real_path(candidate_path));
+
+            if (FileSystem::is_directory(input_path)) {
+                ByteString const next_trail = trail.is_empty() ? name : ByteString::formatted("{}/{}", trail, name);
+                TRY(collect_from_directory(next_trail));
+                continue;
+            }
+
+            if (!name.ends_with(".js"sv) || name.ends_with("_FIXTURE.js"sv))
+                continue;
+
+            NonnullOwnPtr<Core::File> file = TRY(Core::File::open(input_path, Core::File::OpenMode::Read));
+            ByteBuffer const file_contents = TRY(file->read_until_eof());
+            Test262Metadata const metadata = parse_test262_metadata(StringView { file_contents.bytes() });
+            if (!metadata.has_frontmatter)
+                continue;
+
+            ByteString const relative_source_path = LexicalPath::relative_path(input_path, Application::the().wpt_path).release_value();
+            ByteString const relative_path = request_path_for_test262_source(relative_source_path, metadata);
+            ByteString const manifest_relative_path = ByteString::formatted("{}{}", WPT_PATH_PREFIX, relative_path);
+            if (seen_paths.contains(relative_path) || seen_paths.contains(manifest_relative_path))
+                continue;
+
+            seen_paths.set(relative_path);
+            Test test { TestMode::Text, input_path, {}, relative_path, relative_path.replace("?"sv, "@"sv) };
+            test.is_wpt_test = true;
+            tests.append(move(test));
+        }
+        return {};
+    };
+    return collect_from_directory({});
 }
 
 } // namespace TestWeb
