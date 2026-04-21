@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<body style="font: 16px sans-serif; margin: 40px;">
+<h1>Ticking page</h1>
+<p id="status">Tick 0</p>
+<!-- An AT's focus action on this link is what turns the mutation-driven tree updates on. -->
+<p><a id="focus" href="#status">Status</a></p>
+<script>
+  // Faster than WebContent's 200 ms tree-update interval, so the updates have to coalesce rather than wait for a lull.
+  let n = 0;
+  setInterval(() => {
+    document.getElementById("status").textContent = "Tick " + (++n);
+  }, 50);
+</script>
+</body>
+</html>
