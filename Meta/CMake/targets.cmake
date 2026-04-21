@@ -195,10 +195,6 @@ function(ladybird_lib name fs_name)
     lagom_lib(${name} ${fs_name} LIBRARY_TYPE ${LADYBIRD_LIB_TYPE} ${EXPLICIT_SYMBOL_EXPORT} SOURCES ${SOURCES} ${GENERATED_SOURCES})
 endfunction()
 
-macro(add_ladybird_subdirectory path)
-    add_subdirectory("${LADYBIRD_SOURCE_DIR}/${path}" "${CMAKE_CURRENT_BINARY_DIR}/${path}")
-endmacro()
-
 if (NOT TARGET ladybird_codegen_accumulator)
     # Meta target to run all code-gen steps in the build.
     add_custom_target(ladybird_codegen_accumulator)
