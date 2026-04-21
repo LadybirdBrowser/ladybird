@@ -52,8 +52,10 @@ void VideoTrackList::add_track(GC::Ref<VideoTrack> video_track)
 
 void VideoTrackList::remove_all_tracks()
 {
-    for (auto& video_track : m_video_tracks)
+    for (auto& video_track : m_video_tracks) {
+        video_track->set_video_track_list({}, nullptr);
         video_track->set_selected(false);
+    }
     m_video_tracks.clear();
 }
 

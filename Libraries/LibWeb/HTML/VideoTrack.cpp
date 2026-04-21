@@ -63,8 +63,8 @@ void VideoTrack::set_selected(bool selected)
         auto selected_track_was_unselected_without_another_selection = m_selected && !selected;
 
         if (previously_unselected_track_is_selected || selected_track_was_unselected_without_another_selection) {
-            media_element().queue_a_media_element_task([this]() {
-                m_video_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
+            media_element().queue_a_media_element_task([this, video_track_list = m_video_track_list]() {
+                video_track_list->dispatch_event(DOM::Event::create(realm(), HTML::EventNames::change));
             });
         }
     }
