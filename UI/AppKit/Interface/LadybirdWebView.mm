@@ -12,13 +12,16 @@
 #include <LibURL/URL.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWebView/AccessibilityTreeManager.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CrashReport.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
+#include <dlfcn.h>
 
 #import <Application/ApplicationDelegate.h>
 #import <Interface/Event.h>
+#import <Interface/LadybirdAccessibilityElement.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
 #import <Interface/SelectDropdown.h>
@@ -28,13 +31,36 @@
 #import <Utilities/Conversions.h>
 #import <Utilities/DictionaryLookup.h>
 
+// Private AppKit function that tells VoiceOver focus has changed. VoiceOver then queries us for the focused element.
+// NSAccessibilityHandleFocusChanged is private AppKit. Binding it directly would abort the process at first
+// call if a future macOS drops it, so resolve it lazily and simply skip the refresh when it is not there.
+static void handle_accessibility_focus_changed()
+{
+    using HandleFocusChanged = void (*)();
+    static auto const handle_focus_changed = reinterpret_cast<HandleFocusChanged>(dlsym(RTLD_DEFAULT, "NSAccessibilityHandleFocusChanged"));
+    if (handle_focus_changed)
+        handle_focus_changed();
+}
+
+// Whether an assistive technology is using the platform accessibility API, and so whether the web views fetch their
+// accessibility trees at all. VoiceOver counts from the moment it's on, as Chrome's -[BrowserCrApplication
+// voiceOverStateChanged:] turns on its accessibility then. Any other assistive technology counts from its first query
+// into web content — as with WebKit's -[WKAccessibilityWebPageObject accessibilityAttributeValue:], which turns on
+// AXObjectCache at its first call, and Chrome's -[RenderWidgetHostViewCocoa accessibilityRole], which turns on
+// kAXModeBasic for all web content in the process.
+static bool s_assistive_technology_queried_web_content = false;
+
+static bool assistive_technology_present()
+{
+    return s_assistive_technology_queried_web_content || NSWorkspace.sharedWorkspace.isVoiceOverEnabled;
+}
+
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
 
 // Calls to [NSCursor hide] and [NSCursor unhide] must be balanced. We use this struct to ensure
 // we only call [NSCursor hide] once and to ensure that we do call [NSCursor unhide].
-// https://developer.apple.com/documentation/appkit/nscursor#1651301
 struct HideCursor {
     HideCursor()
     {
@@ -122,6 +148,20 @@ static Compositing::DevicePixelPoint node_picker_position_for(Ladybird::WebViewB
     OwnPtr<Ladybird::WebViewBridge> m_web_view_bridge;
     Optional<WakeLock::DisplaySleepInhibitor> m_screen_display_sleep_inhibitor;
 
+    OwnPtr<WebView::AccessibilityTreeManager> m_accessibility_manager;
+    NSMutableDictionary<NSNumber*, LadybirdAccessibilityElement*>* m_accessibility_elements;
+    // Set once the first tree for the current page has taken focus and announced the load, or once an assistive
+    // technology turns up after the load, which has nothing to announce; reset on every load finish.
+    bool m_posted_initial_accessibility_focus;
+    // Set once this view has asked WebContent for the tree; from then on, WebContent pushes every change on its own.
+    bool m_requested_accessibility_tree;
+    // Set when an assistive technology arrives after the page loaded: Its first queries found no tree, and so no
+    // focused element, so the first tree that arrives has AppKit look the focus up again.
+    bool m_report_accessibility_focus_with_next_tree;
+    // The node an AT asked to focus (AXFocused=YES), until WebContent reports the focus change — the view takes first
+    // responder at that point, not before.
+    Optional<i64> m_accessibility_focus_request;
+
     Optional<HideCursor> m_hidden_cursor;
 
     id<MTLDevice> m_metal_device;
@@ -184,6 +224,12 @@ static __weak LadybirdWebView* s_color_panel_owner;
 
 - (void)dealloc
 {
+    // Neutralize any accessibility elements VoiceOver still retains before the tree manager they point into is
+    // destroyed, then tell the accessibility client the subtree is gone. Otherwise a later VoiceOver query
+    // dereferences the freed manager (use-after-free).
+    for (LadybirdAccessibilityElement* element in [m_accessibility_elements allValues])
+        [element invalidate];
+    NSAccessibilityPostNotification(self, NSAccessibilityUIElementDestroyedNotification);
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -226,6 +272,10 @@ static __weak LadybirdWebView* s_color_panel_owner;
         auto display_id = display_id_for_screen([NSScreen mainScreen]);
 
         m_web_view_bridge = MUST(Ladybird::WebViewBridge::create(is_private, move(screen_rects), device_pixel_ratio, maximum_frames_per_second, display_id));
+
+        m_accessibility_manager = make<WebView::AccessibilityTreeManager>();
+        m_accessibility_elements = [NSMutableDictionary dictionary];
+
         [self setWebViewCallbacks];
 
         [[NSNotificationCenter defaultCenter] addObserver:self
@@ -493,10 +543,139 @@ static __weak LadybirdWebView* s_color_panel_owner;
         if (self == nil) {
             return;
         }
-        if (is_loading)
+        if (is_loading) {
             [self.observer onLoadStart];
-        else
+        } else {
             [self.observer onLoadFinish];
+            // A new page: let the first tree that arrives for it take focus and announce the load — if an assistive
+            // technology is there to read it (see assistiveTechnologyQueriedWebContent).
+            self->m_posted_initial_accessibility_focus = false;
+            self->m_report_accessibility_focus_with_next_tree = false;
+            if (assistive_technology_present())
+                [self fetchAccessibilityTree];
+        }
+    };
+
+    m_web_view_bridge->on_accessibility_tree_received = [weak_self](auto nodes) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        self->m_accessibility_manager->update_tree(move(nodes));
+
+        // Keep the element of every node that is still in the tree, so a tree update only costs the elements of the
+        // nodes it removed, rather than discarding and re-creating one for every node on every DOM mutation. Elements
+        // of nodes that are gone get invalidated before they leave the cache: they hold a raw pointer into the
+        // manager, and invalidating them makes sure nothing that still references one can reach it through them.
+        NSMutableArray<NSNumber*>* stale_keys = [NSMutableArray array];
+        for (NSNumber* key in self->m_accessibility_elements) {
+            if (!self->m_accessibility_manager->node([key longLongValue]))
+                [stale_keys addObject:key];
+        }
+        for (NSNumber* key in stale_keys) {
+            [self->m_accessibility_elements[key] invalidate];
+            [self->m_accessibility_elements removeObjectForKey:key];
+        }
+        NSAccessibilityPostNotification(self, NSAccessibilityLayoutChangedNotification);
+
+        // An assistive technology that arrived mid-page got no focused element from its first queries: Have AppKit look
+        // the focus up again now that there's a tree to find it in — as a focus change does. But only while the view is
+        // the key window's first responder, which is when Chrome fires focus events too (RenderWidgetHostViewMac::
+        // AccessibilityHasFocus()); otherwise, AppKit would re-post the focus of whatever else holds it.
+        if (self->m_report_accessibility_focus_with_next_tree && !self->m_accessibility_manager->is_empty()) {
+            self->m_report_accessibility_focus_with_next_tree = false;
+            NSWindow* window = [self window];
+            if (window.isKeyWindow && window.firstResponder == self)
+                handle_accessibility_focus_changed();
+        }
+
+        // Only the first tree for a page takes focus and announces the load. WebContent pushes a fresh tree after
+        // every DOM mutation too, and doing this on each push would yank keyboard focus and VoiceOver's cursor back to
+        // the document root while the user is reading the page or typing into it.
+        if (self->m_posted_initial_accessibility_focus || self->m_accessibility_manager->is_empty())
+            return;
+        self->m_posted_initial_accessibility_focus = true;
+
+        // Take keyboard first-responder — so AppKit resolves accessibilityFocusedUIElement through this view (and
+        // thus into the AXWebArea). Focus has to move into the web view after URL-bar Enter — otherwise, VoiceOver
+        // stays on the URL bar even after we post AXLoadComplete. But only pull keyboard focus in when the user
+        // isn't editing a chrome text field (e.g. typing in the URL bar, where the window's first responder is its
+        // field editor, an NSText); otherwise a tree update arriving mid-typing would yank focus out of the
+        // address bar and into the page.
+        NSWindow* window = [self window];
+        NSResponder* firstResponder = window.firstResponder;
+        if (window != nil && firstResponder != self && ![firstResponder isKindOfClass:[NSText class]])
+            [window makeFirstResponder:self];
+
+        // Locate the AXWebArea element. VoiceOver needs this for moving its cursor into the web content on page load.
+        auto const* root = self->m_accessibility_manager->root();
+        id web_area = root ? [self accessibilityElementForNodeID:root->id] : nil;
+        if (web_area == nil)
+            web_area = self;
+
+        // This is what makes VoiceOver actually move its cursor into the web content (AXWebArea).
+        NSAccessibilityPostNotification(web_area, NSAccessibilityFocusedUIElementChangedNotification);
+        NSAccessibilityPostNotification(web_area, @"AXLoadComplete");
+
+        // Refresh AppKit's cached focused-UI-element on behalf of any AX clients that look it up via the system call.
+        handle_accessibility_focus_changed();
+    };
+
+    m_accessibility_manager->on_live_region_changed = [weak_self](auto text, auto live_value) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil)
+            return;
+
+        NSString* announcement = [[NSString alloc] initWithBytes:text.bytes().data()
+                                                          length:text.bytes().size()
+                                                        encoding:NSUTF8StringEncoding];
+        if (!announcement || [announcement length] == 0)
+            return;
+
+        NSAccessibilityPriorityLevel priority = (live_value == "assertive"sv)
+            ? NSAccessibilityPriorityHigh
+            : NSAccessibilityPriorityMedium;
+
+        NSAccessibilityPostNotificationWithUserInfo(
+            self,
+            NSAccessibilityAnnouncementRequestedNotification,
+            @{
+                NSAccessibilityAnnouncementKey : announcement,
+                NSAccessibilityPriorityKey : @(priority),
+            });
+    };
+
+    m_web_view_bridge->on_accessibility_focus_changed = [weak_self](i64 node_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil || self->m_accessibility_manager->is_empty()) {
+            return;
+        }
+        self->m_accessibility_manager->set_focused_node(node_id);
+
+        // An AT that asked for this focus (AXFocused=YES on the element) gets the keyboard focus along with it, as
+        // WebKit's AccessibilityObject::setFocused() arranges through its chrome client (WebChromeClient::focus(),
+        // PageClientImpl::makeFirstResponder()) — and only an AT's request does: a page script's own focus() never
+        // pulls typing out of the address bar, in WebKit either. Nothing else here waits for the request.
+        auto requested_focus = move(self->m_accessibility_focus_request);
+        if (requested_focus == node_id) {
+            NSWindow* window = [self window];
+            if (window != nil && window.firstResponder != self)
+                [window makeFirstResponder:self];
+        }
+
+        handle_accessibility_focus_changed();
+        // Focus leaving every element lands on the document root, which accessibilityFocusedUIElement now
+        // answers with the AXWebArea — as WebKit's does (focusedObjectForPage()). AppKit, told of the change
+        // just above, posts the AXFocusedUIElementChanged for it on its own; WebKit relies on that alone —
+        // platformHandleFocusedUIElementChanged() only calls NSAccessibilityHandleFocusChanged() — and so do we:
+        // no notification of our own on the web area.
+        if (auto const* root = self->m_accessibility_manager->root(); root && node_id == root->id)
+            return;
+        id focused_element = [self accessibilityElementForNodeID:node_id];
+        if (focused_element) {
+            NSAccessibilityPostNotification(focused_element,
+                NSAccessibilityFocusedUIElementChangedNotification);
+        }
     };
     if (m_web_view_bridge->is_loading())
         m_web_view_bridge->on_loading_state_change(true);
@@ -1886,6 +2065,237 @@ static NSImage* crash_overlay_icon()
     pinch_event.modifiers = Ladybird::ns_modifiers_to_key_modifiers([NSEvent modifierFlags]);
     pinch_event.scale_delta = scale_delta;
     m_web_view_bridge->enqueue_input_event(move(pinch_event));
+}
+
+#pragma mark - Accessibility parameterized attributes
+
+- (NSArray*)accessibilityParameterizedAttributeNames
+{
+    return @[
+        @"AXUIElementsForSearchPredicate",
+        @"AXUIElementCountForSearchPredicate",
+        @"AXIndexForChildUIElement",
+        @"AXNextTextMarkerForTextMarker",
+        @"AXPreviousTextMarkerForTextMarker",
+        @"AXUIElementForTextMarker",
+        @"AXTextMarkerRangeForUIElement",
+        @"AXLengthForTextMarkerRange",
+        @"AXStringForTextMarkerRange",
+        @"AXAttributedStringForTextMarkerRange",
+        @"AXTextMarkerForPosition",
+    ];
+}
+
+- (id)accessibilityAttributeValue:(NSString*)attribute forParameter:(id)parameter
+{
+    [self assistiveTechnologyQueriedWebContent];
+
+    if ([attribute isEqualToString:@"AXIndexForChildUIElement"]) {
+        NSArray* children = [self accessibilityChildren];
+        NSUInteger idx = [children indexOfObjectIdenticalTo:parameter];
+        if (idx != NSNotFound)
+            return @(idx);
+        return nil;
+    }
+
+    // Delegate text-marker queries to the web-content root element
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return nil;
+
+    id rootElement = [self accessibilityElementForNodeID:root->id];
+    if ([rootElement respondsToSelector:@selector(accessibilityAttributeValue:forParameter:)])
+        return [rootElement accessibilityAttributeValue:attribute forParameter:parameter];
+
+    return nil;
+}
+
+#pragma mark - Accessibility
+
+- (void)fetchAccessibilityTree
+{
+    m_requested_accessibility_tree = true;
+    m_web_view_bridge->request_accessibility_tree();
+}
+
+// Each NSAccessibility entry point that reaches into web content calls this first: An assistive technology is reading
+// the page, so fetch its tree. One request is all it takes, since from then on, WebContent pushes every change on its
+// own (ConnectionFromClient::request_accessibility_tree()).
+- (void)assistiveTechnologyQueriedWebContent
+{
+    s_assistive_technology_queried_web_content = true;
+    if (m_requested_accessibility_tree)
+        return;
+    // Fetch the tree without the focus grab and the load announcement that only a page load gets. A page that's still
+    // loading gets both when its load finishes, as usual. For a page that's already loaded, its first tree reports
+    // where the focus is instead.
+    m_posted_initial_accessibility_focus = true;
+    m_report_accessibility_focus_with_next_tree = !m_web_view_bridge->is_loading();
+    [self fetchAccessibilityTree];
+}
+
+- (BOOL)isAccessibilityElement
+{
+    return YES;
+}
+
+- (NSAccessibilityRole)accessibilityRole
+{
+    return NSAccessibilityScrollAreaRole;
+}
+
+- (NSArray*)accessibilityChildren
+{
+    [self assistiveTechnologyQueriedWebContent];
+
+    if (m_accessibility_manager->is_empty())
+        return @[];
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return @[];
+
+    id root_element = [self accessibilityElementForNodeID:root->id];
+    if (!root_element)
+        return @[];
+
+    return @[ root_element ];
+}
+
+- (id)accessibilityHitTest:(NSPoint)point
+{
+    [self assistiveTechnologyQueriedWebContent];
+
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    NSRect view_rect = [self accessibilityViewRectForScreenPoint:point];
+    auto content_point = Gfx::IntPoint {
+        static_cast<int>(view_rect.origin.x),
+        static_cast<int>(view_rect.origin.y)
+    };
+
+    auto const* hit = m_accessibility_manager->hit_test(content_point);
+    if (!hit)
+        return self;
+
+    while (hit) {
+        auto role = hit->role.bytes_as_string_view();
+        bool ignored = (role == "generic"sv && hit->name.is_empty())
+            || (role == "paragraph"sv && hit->name.is_empty());
+        if (!ignored)
+            break;
+        if (hit->parent_id == -1)
+            return self;
+        hit = m_accessibility_manager->node(hit->parent_id);
+    }
+
+    if (hit)
+        return [self accessibilityElementForNodeID:hit->id];
+
+    return self;
+}
+
+- (NSArray*)accessibilityChildrenInNavigationOrder
+{
+    return [self accessibilityChildren];
+}
+
+- (id)accessibilityFocusedUIElement
+{
+    [self assistiveTechnologyQueriedWebContent];
+
+    if (m_accessibility_manager->is_empty())
+        return self;
+
+    auto const* root = m_accessibility_manager->root();
+    if (!root)
+        return self;
+
+    // If a DOM element has focus (e.g. an <input> the user clicked into), then return that element.
+    if (auto focused_id = m_accessibility_manager->focused_node_id(); focused_id.has_value()) {
+        if (id element = [self accessibilityElementForNodeID:*focused_id])
+            return element;
+    }
+
+    // No DOM focus: return the AXWebArea (document root). On page load, VoiceOver expects the focused UI element to be
+    // the AXWebArea, so it can move its cursor into the document and read from the top using AXSelectedTextMarkerRange.
+    // Returning a leaf (heading, link, etc.) instead here causes VoiceOver to think the user already navigated to that
+    // element — which in turns causes VoiceOver to unexpectedly skip the read-from-document-beginning behavior.
+    if (id element = [self accessibilityElementForNodeID:root->id])
+        return element;
+    return self;
+}
+
+- (id)accessibilityElementForNodeID:(int64_t)nodeID
+{
+    NSNumber* key = @(nodeID);
+    LadybirdAccessibilityElement* existing = m_accessibility_elements[key];
+    if (existing)
+        return existing;
+
+    auto const* data = m_accessibility_manager->node(nodeID);
+    if (!data)
+        return nil;
+
+    auto* element = [[LadybirdAccessibilityElement alloc] initWithNodeID:nodeID
+                                                                 manager:m_accessibility_manager.ptr()
+                                                                    view:self];
+    m_accessibility_elements[key] = element;
+    return element;
+}
+
+- (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect
+{
+    // The bounds from WebContent are in CSS pixels, and the view shows the page at its zoom level: WebContent folds
+    // zoom into its device scale, the way Gecko does (nsPresContext::SetFullZoom() refreshes the app-units-per-device-
+    // pixel ratio that LocalAccessible::Bounds() converts with), so a CSS pixel is zoom_level() points. No device-
+    // pixel-ratio scaling on top of that — convertRect works in points. (Blink and WebKit zoom in layout instead, so
+    // their AX bounds come out zoomed already.)
+    auto zoom = m_web_view_bridge->zoom_level();
+    NSRect zoomed_rect = NSMakeRect(viewRect.origin.x * zoom, viewRect.origin.y * zoom, viewRect.size.width * zoom, viewRect.size.height * zoom);
+    NSRect window_rect = [self convertRect:zoomed_rect toView:nil];
+    return [self.window convertRectToScreen:window_rect];
+}
+
+- (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint
+{
+    // The inverse: a screen point to CSS pixels, so points divided by the zoom level.
+    NSRect screen_rect = NSMakeRect(screenPoint.x, screenPoint.y, 0, 0);
+    NSRect window_rect = [self.window convertRectFromScreen:screen_rect];
+    NSPoint view_point = [self convertPoint:window_rect.origin fromView:nil];
+    auto zoom = m_web_view_bridge->zoom_level();
+    return NSMakeRect(view_point.x / zoom, view_point.y / zoom, 0, 0);
+}
+
+- (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID
+{
+    // An AT focusing an element expects the keyboard focus to follow it into the page; the view takes first responder
+    // once WebContent reports the element focused (on_accessibility_focus_changed), not here, since AppKit asks for
+    // the focused element as the first responder changes — and would get the web area now, before the focus lands.
+    if ([action isEqualToString:@"focus"])
+        m_accessibility_focus_request = nodeID;
+    auto action_string = MUST(String::from_utf8(StringView { [action UTF8String], strlen([action UTF8String]) }));
+    m_web_view_bridge->perform_accessibility_action(nodeID, move(action_string));
+}
+
+- (NSURL*)accessibilityPageURL
+{
+    auto const& url = m_web_view_bridge->url();
+    if (url.scheme().is_empty())
+        return nil;
+    auto serialized = url.serialize();
+    auto* ns_string = [[NSString alloc] initWithBytes:serialized.bytes().data()
+                                               length:serialized.bytes().size()
+                                             encoding:NSUTF8StringEncoding];
+    if (ns_string == nil)
+        return nil;
+    return [NSURL URLWithString:ns_string];
+}
+
+- (BOOL)accessibilityViewIsFirstResponder
+{
+    return [[self window] firstResponder] == self;
 }
 
 @end
