@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).animationName;
+        getComputedStyle(triggerElement).animationName;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`
+            :host {
+                animation-name: fade;
+                animation-duration: 1s;
+            }
+        `);
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        addBystanders(document.body, 25);
+        settleAndReset(host);
+
+        sheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", sheet.cssRules.length);
+        getComputedStyle(host).animationName;
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= 1)
+            println(`PASS: bare :host keyframes insertRule only invalidates the host (${invalidations} invalidations)`);
+        else
+            println(`FAIL: bare :host keyframes insertRule only invalidates the host (${invalidations} invalidations)`);
+    });
+</script>

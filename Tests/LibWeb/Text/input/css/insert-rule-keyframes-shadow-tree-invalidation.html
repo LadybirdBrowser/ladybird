@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="document-style"></style>
+<div id="host"></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+
+        shadowRoot.innerHTML = `
+            <style>
+                #target {
+                    animation-name: fade;
+                    animation-duration: 1s;
+                    animation-fill-mode: both;
+                }
+            </style>
+            <div id="target">target</div>
+        `;
+
+        const target = shadowRoot.getElementById("target");
+        const documentStyleSheet = document.getElementById("document-style").sheet;
+
+        println(`opacity before keyframes: ${getComputedStyle(target).opacity}`);
+        documentStyleSheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", documentStyleSheet.cssRules.length);
+        await animationFrame();
+        println(`opacity after keyframes: ${getComputedStyle(target).opacity}`);
+
+        done();
+    });
+</script>

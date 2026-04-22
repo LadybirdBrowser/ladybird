@@ -1,0 +1,6 @@
+slotted before rule: rgb(0, 0, 0)
+slotted after rule: rgb(0, 0, 255)
+inherited before slot rule: rgb(0, 0, 0)
+inherited after slot rule: rgb(255, 0, 0)
+opacity before keyframes: 1
+opacity after keyframes: 0.25

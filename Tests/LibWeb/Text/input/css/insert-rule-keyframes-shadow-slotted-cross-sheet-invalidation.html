@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="slotted" class="item">slotted</span></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const declarationsSheet = new CSSStyleSheet();
+        const keyframesSheet = new CSSStyleSheet();
+
+        shadowRoot.innerHTML = "<slot></slot>";
+        shadowRoot.adoptedStyleSheets = [declarationsSheet, keyframesSheet];
+
+        declarationsSheet.replaceSync(`
+            ::slotted(.item) {
+                animation-name: fade;
+                animation-duration: 1s;
+                animation-fill-mode: both;
+            }
+        `);
+
+        println(`opacity before keyframes insertRule: ${getComputedStyle(slotted).opacity}`);
+        keyframesSheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", keyframesSheet.cssRules.length);
+        await animationFrame();
+        println(`opacity after keyframes insertRule: ${getComputedStyle(slotted).opacity}`);
+        done();
+    });
+</script>

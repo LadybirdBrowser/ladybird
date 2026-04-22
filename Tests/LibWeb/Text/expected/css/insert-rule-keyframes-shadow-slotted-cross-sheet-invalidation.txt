@@ -1,0 +1,2 @@
+opacity before keyframes insertRule: 1
+opacity after keyframes insertRule: 0.25

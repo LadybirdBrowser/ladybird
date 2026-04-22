@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style id="dynamic-style">
+    #target {
+        animation-duration: 1s;
+        animation-name: inserted;
+    }
+</style>
+<div id="target"></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("dynamic-style").sheet;
+
+        println(`before: ${target.getAnimations().length}`);
+
+        sheet.insertRule("@keyframes inserted { from { opacity: 0.25; } to { opacity: 0.75; } }", 1);
+        await animationFrame();
+
+        const animations = target.getAnimations();
+        println(`after: ${animations.length}`);
+        if (animations.length > 0)
+            println(`keyframes: ${animations[0].effect.getKeyframes().length}`);
+
+        done();
+    });
+</script>

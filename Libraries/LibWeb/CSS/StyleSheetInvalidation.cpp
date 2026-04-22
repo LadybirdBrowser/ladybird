@@ -4,12 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/ComputedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/SelectorEngine.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
+#include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StringStyleValue.h>
+#include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -362,6 +367,177 @@ void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet,
         // A dirty shadow subtree can still need follow-up invalidation on the host side for :host(...) and
         // ::slotted(...) matches, so we don't skip shadow roots even when their entire subtree is already marked.
         invalidate_root_for_style_sheet_change(*document_or_shadow_root, invalidation_set, reason);
+    }
+}
+
+static void for_each_tree_affected_by_shadow_root_stylesheet_change(
+    DOM::Node& root,
+    bool include_host,
+    bool include_light_dom_under_shadow_host,
+    Function<void(DOM::Node&)> const& callback)
+{
+    callback(root);
+
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(root)) {
+        auto* host = shadow_root->host();
+        if (!host)
+            return;
+
+        // Slotted selectors only reach the current host subtree, but :host combinators can also reach siblings rooted
+        // alongside the host. A bare :host selector, however, only needs the host itself.
+        if (include_host && include_light_dom_under_shadow_host)
+            callback(host->root());
+        else if (include_host || include_light_dom_under_shadow_host)
+            callback(*host);
+    }
+}
+
+static bool style_value_references_animation_name(StyleValue const& value, FlyString const& animation_name)
+{
+    if (value.is_custom_ident())
+        return value.as_custom_ident().custom_ident() == animation_name;
+    if (value.is_string())
+        return value.as_string().string_value() == animation_name;
+
+    if (!value.is_value_list())
+        return false;
+
+    for (auto const& item : value.as_value_list().values()) {
+        if (item->is_custom_ident() && item->as_custom_ident().custom_ident() == animation_name)
+            return true;
+        if (item->is_string() && item->as_string().string_value() == animation_name)
+            return true;
+    }
+
+    return false;
+}
+
+static bool element_or_pseudo_references_animation_name(DOM::Element const& element, FlyString const& animation_name)
+{
+    auto references_animation_name_in_properties = [&](CSS::ComputedProperties const& computed_properties) {
+        return style_value_references_animation_name(computed_properties.property(PropertyID::AnimationName), animation_name);
+    };
+
+    if (auto computed_properties = element.computed_properties(); computed_properties && references_animation_name_in_properties(*computed_properties))
+        return true;
+
+    for (u8 i = 0; i < to_underlying(CSS::PseudoElement::KnownPseudoElementCount); ++i) {
+        auto pseudo_element = static_cast<CSS::PseudoElement>(i);
+        if (auto computed_properties = element.computed_properties(pseudo_element); computed_properties && references_animation_name_in_properties(*computed_properties))
+            return true;
+    }
+
+    return false;
+}
+
+static void invalidate_elements_affected_by_inserted_keyframes_rule(DOM::Node& root, FlyString const& animation_name)
+{
+    auto invalidate_matching_element = [&](DOM::Element& element) {
+        // A new @keyframes rule only matters for elements or pseudo-elements that were already referencing the
+        // inserted animation-name.
+        if (element_or_pseudo_references_animation_name(element, animation_name))
+            element.set_needs_style_update(true);
+        return TraversalDecision::Continue;
+    };
+
+    if (root.is_document()) {
+        // Document styles are inherited by existing shadow trees too, so document-scoped @keyframes insertions must
+        // walk the shadow-including tree instead of stopping at shadow hosts.
+        root.for_each_shadow_including_inclusive_descendant([&](DOM::Node& node) {
+            if (auto* element = as_if<DOM::Element>(node))
+                return invalidate_matching_element(*element);
+            return TraversalDecision::Continue;
+        });
+        return;
+    }
+
+    root.for_each_in_inclusive_subtree_of_type<DOM::Element>(invalidate_matching_element);
+}
+
+static ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects_for_sheet(CSSStyleSheet const& style_sheet, DOM::ShadowRoot const& shadow_root)
+{
+    ShadowRootStylesheetEffects effects;
+
+    Vector<GC::Ptr<HTML::HTMLSlotElement const>> slots;
+    shadow_root.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](HTML::HTMLSlotElement const& slot) {
+        slots.append(slot);
+        return TraversalDecision::Continue;
+    });
+
+    style_sheet.for_each_effective_style_producing_rule([&](CSSRule const& rule) {
+        if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+            return;
+
+        if (!is<CSSStyleRule>(rule))
+            return;
+
+        auto const& style_rule = as<CSSStyleRule>(rule);
+        for (auto const& selector : style_rule.absolutized_selectors()) {
+            effects.may_match_shadow_host |= selector->contains_pseudo_class(PseudoClass::Host);
+            effects.may_match_light_dom_under_shadow_host |= selector_may_match_light_dom_under_shadow_host(*selector);
+
+            if (!effects.may_affect_assigned_nodes_via_slots && !slots.is_empty()) {
+                for (auto const& slot : slots) {
+                    SelectorEngine::MatchContext context {
+                        .style_sheet_for_rule = style_sheet,
+                        .subject = *slot,
+                        .rule_shadow_root = &shadow_root,
+                    };
+                    if (SelectorEngine::matches(*selector, *slot, shadow_root.host(), context)) {
+                        effects.may_affect_assigned_nodes_via_slots = true;
+                        break;
+                    }
+                }
+            }
+
+            if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+                return;
+        }
+    });
+
+    return effects;
+}
+
+ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(DOM::ShadowRoot const& shadow_root)
+{
+    ShadowRootStylesheetEffects effects;
+
+    shadow_root.for_each_active_css_style_sheet([&](CSSStyleSheet& style_sheet) {
+        auto sheet_effects = determine_shadow_root_stylesheet_effects_for_sheet(style_sheet, shadow_root);
+        effects.may_match_shadow_host |= sheet_effects.may_match_shadow_host;
+        effects.may_match_light_dom_under_shadow_host |= sheet_effects.may_match_light_dom_under_shadow_host;
+        effects.may_affect_assigned_nodes_via_slots |= sheet_effects.may_affect_assigned_nodes_via_slots;
+    });
+
+    return effects;
+}
+
+void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule)
+{
+    for (auto& document_or_shadow_root : style_sheet.owning_documents_or_shadow_roots()) {
+        auto& style_scope = document_or_shadow_root->is_shadow_root()
+            ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
+            : document_or_shadow_root->document().style_scope();
+        style_scope.invalidate_rule_cache();
+
+        if (!document_or_shadow_root->is_shadow_root() && document_or_shadow_root->entire_subtree_needs_style_update())
+            continue;
+
+        bool include_host = false;
+        bool include_light_dom_under_shadow_host = false;
+        if (auto* shadow_root = as_if<DOM::ShadowRoot>(*document_or_shadow_root)) {
+            auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+            include_host = effects.may_match_shadow_host;
+            include_light_dom_under_shadow_host = effects.may_match_light_dom_under_shadow_host;
+        }
+
+        for_each_tree_affected_by_shadow_root_stylesheet_change(
+            *document_or_shadow_root,
+            include_host,
+            include_light_dom_under_shadow_host,
+            [&](DOM::Node& affected_root) {
+                invalidate_elements_affected_by_inserted_keyframes_rule(affected_root, keyframes_rule.name());
+            });
     }
 }
 

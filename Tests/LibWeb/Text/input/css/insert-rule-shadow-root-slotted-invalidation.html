@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="slotted" class="item">slotted</span><span id="inherited">inherited</span></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const inherited = document.getElementById("inherited");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style id="shadow-style">
+                ::slotted(.item) {
+                    animation-name: inserted;
+                    animation-duration: 1s;
+                    animation-fill-mode: both;
+                }
+            </style>
+            <slot></slot>
+        `;
+
+        const styleSheet = shadowRoot.getElementById("shadow-style").sheet;
+
+        println(`slotted before rule: ${getComputedStyle(slotted).color}`);
+        shadowRoot.appendChild(document.createElement("b"));
+        styleSheet.insertRule("::slotted(.item) { color: rgb(0, 0, 255); }", styleSheet.cssRules.length);
+        println(`slotted after rule: ${getComputedStyle(slotted).color}`);
+
+        println(`inherited before slot rule: ${getComputedStyle(inherited).color}`);
+        styleSheet.insertRule("slot { border-color: rgb(0, 0, 0); color: rgb(255, 0, 0); }", styleSheet.cssRules.length);
+        println(`inherited after slot rule: ${getComputedStyle(inherited).color}`);
+
+        println(`opacity before keyframes: ${getComputedStyle(slotted).opacity}`);
+        shadowRoot.appendChild(document.createElement("i"));
+        styleSheet.insertRule("@keyframes inserted { from { opacity: 0.25; } to { opacity: 0.25; } }", styleSheet.cssRules.length);
+        await animationFrame();
+        println(`opacity after keyframes: ${getComputedStyle(slotted).opacity}`);
+
+        done();
+    });
+</script>

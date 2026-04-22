@@ -1,0 +1,2 @@
+opacity before keyframes: 1
+opacity after keyframes: 0.25

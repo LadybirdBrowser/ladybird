@@ -39,6 +39,12 @@ struct StyleSheetInvalidationSet {
     Vector<TrailingUniversalInvalidationRule> trailing_universal_rules;
 };
 
+struct ShadowRootStylesheetEffects {
+    bool may_match_shadow_host { false };
+    bool may_match_light_dom_under_shadow_host { false };
+    bool may_affect_assigned_nodes_via_slots { false };
+};
+
 // Extend `result` with the invalidation effects of `style_rule`'s selectors. Falls back to a whole-subtree
 // invalidation flag inside `result` when a selector is not amenable to targeted invalidation.
 void extend_style_sheet_invalidation_set_with_style_rule(StyleSheetInvalidationSet& result, CSSStyleRule const& style_rule);
@@ -54,8 +60,16 @@ WEB_API bool selector_may_match_light_dom_under_shadow_host(StringView selector_
 // as @property or @keyframes) whose effects are not captured by selector invalidation alone.
 void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidationSet const&, DOM::StyleInvalidationReason, bool force_broad_invalidation = false);
 
+// Summarize how any currently-active stylesheet in `shadow_root` can escape the shadow subtree. Used by mutation
+// paths that need host-side fallout derived from the whole shadow scope rather than a single sheet.
+ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(DOM::ShadowRoot const&);
+
 // Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting
 // `style_rule` into it.
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason);
+
+// Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting
+// `keyframes_rule` into it. Only elements already referencing the inserted animation-name are dirtied.
+void invalidate_owners_for_inserted_keyframes_rule(CSSStyleSheet const& style_sheet, CSSKeyframesRule const& keyframes_rule);
 
 }

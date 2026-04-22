@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="style-sheet">
+    #target {
+        animation-name: fade;
+        animation-duration: 1s;
+    }
+</style>
+<div id="target">target</div>
+<div>bystander 1</div>
+<div>bystander 2</div>
+<div>bystander 3</div>
+<script>
+    function settleAndReset(triggerElement) {
+        // Force style resolution before we observe counters so the inserted
+        // @keyframes rule is the only thing contributing to the measurement.
+        getComputedStyle(triggerElement).animationName;
+        getComputedStyle(triggerElement).animationName;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i + 4}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    test(() => {
+        const target = document.getElementById("target");
+        addBystanders(document.body, 25);
+        const sheet = document.getElementById("style-sheet").sheet;
+        settleAndReset(target);
+        sheet.insertRule("@keyframes fade { from { opacity: 0; } to { opacity: 1; } }", sheet.cssRules.length);
+        getComputedStyle(target).animationName;
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= 1)
+            println(`PASS: keyframes insertRule only invalidates animation users (${invalidations} invalidations)`);
+        else
+            println(`FAIL: keyframes insertRule only invalidates animation users (${invalidations} invalidations)`);
+    });
+</script>
