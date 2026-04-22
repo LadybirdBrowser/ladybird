@@ -27,175 +27,12 @@ Vector<StringView> g_header_search_paths;
 template<typename ParameterType>
 static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter, ByteString const& js_name, ByteString const& js_suffix, ByteString const& cpp_name, Context const&, bool optional = false, Optional<ByteString> optional_default_value = {}, bool variadic = false, size_t recursion_depth = 0);
 
-// FIXME: Generate this automatically somehow.
-static bool is_platform_object(Type const& type)
+// https://webidl.spec.whatwg.org/#dfn-platform-object
+static bool is_platform_object(Context const& context, Type const& type)
 {
-    // NOTE: This is a hand-curated subset of platform object types that are actually relevant
-    // in places where this function is used. If you add IDL code and get compile errors, you
-    // might simply need to add another type here.
-    static constexpr Array types = {
-        "AbortSignal"sv,
-        "Animation"sv,
-        "AnimationEffect"sv,
-        "AnimationTimeline"sv,
-        "Attr"sv,
-        "AudioBuffer"sv,
-        "AudioContext"sv,
-        "AudioListener"sv,
-        "AudioNode"sv,
-        "AudioParam"sv,
-        "AudioScheduledSourceNode"sv,
-        "AudioTrack"sv,
-        "BaseAudioContext"sv,
-        "Blob"sv,
-        "CacheStorage"sv,
-        "CanvasGradient"sv,
-        "CanvasPattern"sv,
-        "CanvasRenderingContext2D"sv,
-        "ClipboardItem"sv,
-        "CloseWatcher"sv,
-        "Credential"sv,
-        "CredentialsContainer"sv,
-        "CryptoKey"sv,
-        "CSSKeywordValue"sv,
-        "CSSNumericArray"sv,
-        "CSSNumericValue"sv,
-        "CSSStyleValue"sv,
-        "CSSTransformComponent"sv,
-        "CSSUnitValue"sv,
-        "CSSUnparsedValue"sv,
-        "CSSVariableReferenceValue"sv,
-        "CustomElementRegistry"sv,
-        "CustomStateSet"sv,
-        "DataTransfer"sv,
-        "Document"sv,
-        "DocumentType"sv,
-        "DOMMatrix"sv,
-        "DOMMatrixReadOnly"sv,
-        "DOMRectReadOnly"sv,
-        "DynamicsCompressorNode"sv,
-        "ElementInternals"sv,
-        "EventTarget"sv,
-        "External"sv,
-        "FederatedCredential"sv,
-        "File"sv,
-        "FileList"sv,
-        "FontFace"sv,
-        "FormData"sv,
-        "Gamepad"sv,
-        "GamepadButton"sv,
-        "GamepadHapticActuator"sv,
-        "HTMLCollection"sv,
-        "IDBCursor"sv,
-        "IDBCursorWithValue"sv,
-        "IDBIndex"sv,
-        "IDBKeyRange"sv,
-        "IDBObjectStore"sv,
-        "IDBRecord"sv,
-        "IDBTransaction"sv,
-        "ImageBitmap"sv,
-        "ImageData"sv,
-        "Instance"sv,
-        "IntersectionObserverEntry"sv,
-        "KeyframeEffect"sv,
-        "MediaKeySystemAccess"sv,
-        "MediaList"sv,
-        "MediaDeviceInfo"sv,
-        "MediaDevices"sv,
-        "MediaSource"sv,
-        "Memory"sv,
-        "MediaStream"sv,
-        "MediaStreamTrack"sv,
-        "MediaStreamTrackEvent"sv,
-        "MessagePort"sv,
-        "Module"sv,
-        "MutationRecord"sv,
-        "NamedNodeMap"sv,
-        "NavigationDestination"sv,
-        "NavigationHistoryEntry"sv,
-        "Node"sv,
-        "OffscreenCanvas"sv,
-        "OffscreenCanvasRenderingContext2D"sv,
-        "Origin"sv,
-        "PasswordCredential"sv,
-        "Path2D"sv,
-        "PerformanceEntry"sv,
-        "PerformanceMark"sv,
-        "PerformanceNavigation"sv,
-        "PeriodicWave"sv,
-        "ReadableStreamBYOBReader"sv,
-        "ReadableStreamDefaultReader"sv,
-        "RadioNodeList"sv,
-        "Range"sv,
-        "ReadableStream"sv,
-        "Request"sv,
-        "Response"sv,
-        "Selection"sv,
-        "ServiceWorkerContainer"sv,
-        "ServiceWorkerRegistration"sv,
-        "SVGLength"sv,
-        "SVGNumber"sv,
-        "SVGTransform"sv,
-        "ShadowRoot"sv,
-        "SourceBuffer"sv,
-        "SpeechGrammar"sv,
-        "SpeechGrammarList"sv,
-        "SpeechRecognition"sv,
-        "SpeechRecognitionAlternative"sv,
-        "SpeechRecognitionPhrase"sv,
-        "SpeechRecognitionResult"sv,
-        "SpeechRecognitionResultList"sv,
-        "SpeechSynthesis"sv,
-        "SpeechSynthesisUtterance"sv,
-        "SpeechSynthesisVoice"sv,
-        "Storage"sv,
-        "Table"sv,
-        "Text"sv,
-        "TextMetrics"sv,
-        "TextTrack"sv,
-        "TimeRanges"sv,
-        "TrustedHTML"sv,
-        "TrustedScript"sv,
-        "TrustedScriptURL"sv,
-        "TrustedTypePolicy"sv,
-        "TrustedTypePolicyFactory"sv,
-        "URLSearchParams"sv,
-        "VTTRegion"sv,
-        "VideoTrack"sv,
-        "VideoTrackList"sv,
-        "ViewTransition"sv,
-        "WebGL2RenderingContext"sv,
-        "WebGLActiveInfo"sv,
-        "WebGLBuffer"sv,
-        "WebGLFramebuffer"sv,
-        "WebGLObject"sv,
-        "WebGLProgram"sv,
-        "WebGLQuery"sv,
-        "WebGLRenderbuffer"sv,
-        "WebGLRenderingContext"sv,
-        "WebGLSampler"sv,
-        "WebGLShader"sv,
-        "WebGLShaderPrecisionFormat"sv,
-        "WebGLSync"sv,
-        "WebGLTexture"sv,
-        "WebGLTransformFeedback"sv,
-        "WebGLUniformLocation"sv,
-        "WebGLVertexArrayObject"sv,
-        "WebGLVertexArrayObjectOES"sv,
-        "Window"sv,
-        "WindowProxy"sv,
-        "WritableStream"sv,
-        "XPathResult"sv,
-        "XRSession"sv,
-        "XRWebGLLayer"sv,
-    };
-    if (type.name().ends_with("Element"sv))
-        return true;
-    if (type.name().ends_with("Event"sv))
-        return true;
-    if (types.span().contains_slow(type.name()))
-        return true;
-    return false;
+    // Platform objects are objects that implement an interface.
+    // NB: WindowProxy is a special case as it is not defined over IDL, but implements the Window interface.
+    return context.interfaces.contains(type.name()) || type.name() == "WindowProxy"sv;
 }
 
 // https://webidl.spec.whatwg.org/#idl-buffer-source-types
@@ -289,7 +126,7 @@ static ByteString union_type_to_variant(UnionType const& union_type, Context con
 
 CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
 {
-    if (is_platform_object(type))
+    if (is_platform_object(context, type))
         return { .name = ByteString::formatted("GC::Root<{}>", type.name()), .sequence_storage_type = SequenceStorageType::RootVector };
 
     if (is_javascript_builtin_buffer_source_type(type))
@@ -1398,7 +1235,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
             [[maybe_unused]] auto& @js_name@@js_suffix@_object = @js_name@@js_suffix@.as_object();
 )~~~");
 
-    bool includes_platform_object = any_of(types, [](auto const& type) { return is_platform_object(type); });
+    bool includes_platform_object = any_of(types, [&context](auto const& type) { return is_platform_object(context, type); });
 
     if (includes_platform_object) {
         // 5. If V is a platform object, then:
@@ -1410,7 +1247,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
         //    1. If types includes an interface type that V implements, then return the IDL value that is a reference to the object V.
         for (auto& type : types) {
-            if (!IDL::is_platform_object(type))
+            if (!IDL::is_platform_object(context, type))
                 continue;
 
             auto union_platform_object_type_generator = union_generator.fork();
@@ -1858,7 +1695,7 @@ static void generate_to_cpp(SourceGenerator& generator, ParameterType& parameter
         generate_to_integral(scoped_generator, parameter, optional, optional_default_value);
     } else if (auto const* callback_interface = callback_interface_for_type(context, parameter.type)) {
         generate_callback_interface_to_cpp(scoped_generator, *parameter.type, *callback_interface);
-    } else if (IDL::is_platform_object(*parameter.type)) {
+    } else if (IDL::is_platform_object(context, *parameter.type)) {
         generate_platform_object_to_cpp(scoped_generator, *parameter.type, optional);
     } else if (parameter.type->is_floating_point()) {
         generate_floating_point_to_cpp(scoped_generator, *parameter.type, optional, optional_default_value);
@@ -2110,7 +1947,7 @@ static void generate_wrap_statement(SourceGenerator& generator, ByteString const
         // If the type is a platform object we currently return a Vector<GC::Root<T>> from the
         // C++ implementation, thus allowing us to unwrap the element (a handle) like below.
         // This might need to change if we switch to a RootVector.
-        if (is_platform_object(sequence_generic_type.parameters().first())) {
+        if (is_platform_object(context, sequence_generic_type.parameters().first())) {
             scoped_generator.append(R"~~~(
         auto* wrapped_element@recursion_depth@ = &(*element@recursion_depth@);
 )~~~");

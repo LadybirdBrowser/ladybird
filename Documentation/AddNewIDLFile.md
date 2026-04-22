@@ -27,6 +27,3 @@ interface CSSRule {
 
 4. Forward declare the generated class in [`LibWeb/Forward.h`](../Libraries/LibWeb/Forward.h):
     - `HTMLDetailsElement` in its namespace.
-
-5. If your type isn't an Event or Element, you will need to add it to [`is_platform_object()`](../Meta/Lagom/Tools/CodeGenerators/LibWeb/BindingsGenerator/IDLGenerators.cpp)
-   so that it can be accepted as an IDL parameter, attribute or return type.
