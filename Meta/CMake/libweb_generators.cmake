@@ -200,7 +200,7 @@ function (generate_html_implementation)
 
     invoke_py_generator(
         "MediaControlsDOM.cpp"
-        "generate-dom-tree.py"
+        "generate_dom_tree.py"
         "${LIBWEB_INPUT_FOLDER}/HTML/MediaControls.html"
         "HTML/MediaControlsDOM.h"
         "HTML/MediaControlsDOM.cpp"

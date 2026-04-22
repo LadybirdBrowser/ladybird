@@ -30,7 +30,7 @@ if(INCLUDE_WASM_SPEC_TESTS)
             get_filename_component(NAME ${PATH} NAME_WLE)
             message(STATUS "Generating test cases for WebAssembly test ${NAME}...")
             execute_process(
-                COMMAND env SKIP_PRETTIER=${SKIP_PRETTIER} bash ${LADYBIRD_SOURCE_DIR}/Meta/generate-libwasm-spec-test.sh "${PATH}" "${CMAKE_CURRENT_BINARY_DIR}/Tests/Spec" "${NAME}" "${WASM_SPEC_TEST_PATH}")
+                COMMAND env SKIP_PRETTIER=${SKIP_PRETTIER} bash ${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_libwasm_spec_test.sh "${PATH}" "${CMAKE_CURRENT_BINARY_DIR}/Tests/Spec" "${NAME}" "${WASM_SPEC_TEST_PATH}")
         endforeach()
         file(REMOVE testsuite-${WASM_SPEC_TEST_COMMIT})
     endif()

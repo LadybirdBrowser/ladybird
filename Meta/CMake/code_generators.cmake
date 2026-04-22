@@ -11,11 +11,11 @@ function(embed_as_string name source_file output source_variable_name)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
         OUTPUT "${output}"
-        COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/embed_as_string.py" "${source_file}" -o "${output}.tmp" -n "${source_variable_name}" ${namespace_arg}
+        COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/Generators/embed_as_string.py" "${source_file}" -o "${output}.tmp" -n "${source_variable_name}" ${namespace_arg}
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${output}.tmp" "${output}"
         COMMAND "${CMAKE_COMMAND}" -E remove "${output}.tmp"
         VERBATIM
-        DEPENDS "${LADYBIRD_SOURCE_DIR}/Meta/embed_as_string.py"
+        DEPENDS "${LADYBIRD_SOURCE_DIR}/Meta/Generators/embed_as_string.py"
         MAIN_DEPENDENCY "${source_file}"
     )
 

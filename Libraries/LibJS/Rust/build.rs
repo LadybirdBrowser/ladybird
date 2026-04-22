@@ -6,7 +6,7 @@
 
 //! Build script that generates Rust bytecode instruction types from Bytecode.def.
 //!
-//! This mirrors Meta/generate-libjs-bytecode-def-derived.py but generates Rust
+//! This mirrors Meta/Generators/generate_libjs_bytecode_def_derived.py but generates Rust
 //! code instead of C++. The generated code lives in $OUT_DIR/instruction_generated.rs
 //! and is included! from src/bytecode/instruction.rs.
 
