@@ -52,6 +52,7 @@ namespace TestWeb {
 
 static Vector<ViewDisplayState> s_view_display_states;
 static Vector<Function<void()>> s_view_run_next_test;
+
 static RefPtr<Core::Promise<Empty>> s_all_tests_complete;
 static Vector<ByteString> s_skipped_tests;
 static Vector<ByteString> s_loaded_from_http_server;
