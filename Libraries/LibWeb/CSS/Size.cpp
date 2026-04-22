@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/CSS/Size.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 
 namespace Web::CSS {
@@ -89,6 +89,8 @@ Size Size::from_style_value(NonnullRefPtr<StyleValue const> const& value)
         switch (value->to_keyword()) {
         case Keyword::Auto:
             return Size::make_auto();
+        case Keyword::FitContent:
+            return Size::make_fit_content();
         case Keyword::MinContent:
             return Size::make_min_content();
         case Keyword::MaxContent:
@@ -99,12 +101,8 @@ Size Size::from_style_value(NonnullRefPtr<StyleValue const> const& value)
             VERIFY_NOT_REACHED();
         }
     }
-    if (value->is_fit_content()) {
-        auto const& fit_content = value->as_fit_content();
-        if (auto length_percentage = fit_content.length_percentage(); length_percentage.has_value())
-            return Size::make_fit_content(length_percentage.release_value());
-        return Size::make_fit_content();
-    }
+    if (value->is_function() && value->as_function().name() == "fit-content"_fly_string)
+        return Size::make_fit_content(LengthPercentage::from_style_value(value->as_function().value()));
 
     if (value->is_calculated())
         return Size::make_calculated(value->as_calculated());

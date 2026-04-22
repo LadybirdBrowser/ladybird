@@ -9,6 +9,7 @@
 #include "GridTrackSize.h"
 #include <AK/String.h>
 #include <LibWeb/CSS/Size.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 
 namespace Web::CSS {
@@ -54,7 +55,13 @@ bool GridSize::is_flexible_length() const
 
 bool GridSize::is_fit_content() const
 {
-    return m_value->is_fit_content();
+    if (m_value->to_keyword() == Keyword::FitContent)
+        return true;
+
+    if (m_value->is_function() && m_value->as_function().name() == "fit-content"_fly_string)
+        return true;
+
+    return false;
 }
 
 bool GridSize::is_max_content() const

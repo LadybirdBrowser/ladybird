@@ -319,7 +319,6 @@ class EasingStyleValue;
 class EdgeStyleValue;
 class ExplicitGridTrack;
 class FilterValueListStyleValue;
-class FitContentStyleValue;
 class Flex;
 class FlexStyleValue;
 class FontComputer;

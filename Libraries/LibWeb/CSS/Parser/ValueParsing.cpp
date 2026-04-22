@@ -44,7 +44,6 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
@@ -3481,14 +3480,14 @@ RefPtr<RadialSizeStyleValue const> Parser::parse_radial_size(TokenStream<Compone
     return RadialSizeStyleValue::create(values);
 }
 
-RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<ComponentValue>& tokens)
+RefPtr<StyleValue const> Parser::parse_fit_content_value(TokenStream<ComponentValue>& tokens)
 {
     auto transaction = tokens.begin_transaction();
     auto& component_value = tokens.consume_a_token();
 
     if (component_value.is_ident("fit-content"sv)) {
         transaction.commit();
-        return FitContentStyleValue::create();
+        return KeywordStyleValue::create(Keyword::FitContent);
     }
 
     if (!component_value.is_function())
@@ -3507,7 +3506,7 @@ RefPtr<FitContentStyleValue const> Parser::parse_fit_content_value(TokenStream<C
         return nullptr;
 
     transaction.commit();
-    return FitContentStyleValue::create(length_percentage_value.release_nonnull());
+    return FunctionStyleValue::create("fit-content"_fly_string, length_percentage_value.release_nonnull());
 }
 
 RefPtr<StyleValue const> Parser::parse_font_style_value(TokenStream<ComponentValue>& tokens)
@@ -4629,7 +4628,7 @@ Optional<ExplicitGridTrack> Parser::parse_grid_track_size(TokenStream<ComponentV
             if (function_tokens.has_next_token())
                 return {};
             transaction.commit();
-            return ExplicitGridTrack(GridSize(FitContentStyleValue::create(maybe_length_percentage.release_nonnull())));
+            return ExplicitGridTrack(GridSize(FunctionStyleValue::create("fit-content"_fly_string, maybe_length_percentage.release_nonnull())));
         }
     }
 

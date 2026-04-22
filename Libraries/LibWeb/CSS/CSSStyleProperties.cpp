@@ -15,7 +15,7 @@
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -317,8 +317,8 @@ static NonnullRefPtr<StyleValue const> style_value_for_size(Size const& size)
         return KeywordStyleValue::create(Keyword::MaxContent);
     if (size.is_fit_content()) {
         if (auto available_space = size.fit_content_available_space(); available_space.has_value())
-            return FitContentStyleValue::create(style_value_for_length_percentage(available_space.release_value()));
-        return FitContentStyleValue::create();
+            return FunctionStyleValue::create("fit-content"_fly_string, style_value_for_length_percentage(available_space.release_value()));
+        return KeywordStyleValue::create(Keyword::FitContent);
     }
     TODO();
 }

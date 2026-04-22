@@ -38,7 +38,6 @@
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>

@@ -367,7 +367,7 @@ private:
     RefPtr<RadialSizeStyleValue const> parse_radial_size(TokenStream<ComponentValue>&);
     RefPtr<StyleValue const> parse_basic_shape_value(TokenStream<ComponentValue>&);
 
-    RefPtr<FitContentStyleValue const> parse_fit_content_value(TokenStream<ComponentValue>&);
+    RefPtr<StyleValue const> parse_fit_content_value(TokenStream<ComponentValue>&);
 
     Optional<Vector<ColorStopListElement>> parse_color_stop_list(TokenStream<ComponentValue>& tokens, auto parse_position);
     Optional<Vector<ColorStopListElement>> parse_linear_color_stop_list(TokenStream<ComponentValue>&);

@@ -22,7 +22,6 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
@@ -1721,18 +1720,6 @@ static RefPtr<StyleValue const> interpolate_value_impl(DOM::Element& element, Ca
 
         return FontStyleStyleValue::create(*keyword_to_font_style_keyword(interpolated_font_style->to_keyword()));
     }
-    case StyleValue::Type::FitContent: {
-        auto const& from_length_percentage = from.as_fit_content().length_percentage_style_value();
-        auto const& to_length_percentage = to.as_fit_content().length_percentage_style_value();
-        if (!from_length_percentage || !to_length_percentage)
-            return {};
-
-        auto interpolated_length_percentage = interpolate_value_impl(element, calculation_context, *from_length_percentage, *to_length_percentage, delta, allow_discrete);
-        if (!interpolated_length_percentage)
-            return {};
-
-        return FitContentStyleValue::create(interpolated_length_percentage.release_nonnull());
-    }
     case StyleValue::Type::Flex: {
         auto interpolated_value = interpolate_raw(from.as_flex().flex().to_fr(), to.as_flex().flex().to_fr(), delta, calculation_context.accepted_ranges_by_type.get(ValueType::Flex));
         return FlexStyleValue::create(Flex::make_fr(interpolated_value));
@@ -2498,18 +2485,6 @@ RefPtr<StyleValue const> composite_value(PropertyID property_id, StyleValue cons
             return EdgeStyleValue::create({}, composited_value);
 
         return {};
-    }
-    case StyleValue::Type::FitContent: {
-        auto underlying_length_percentage = underlying_value.as_fit_content().length_percentage_style_value();
-        auto animated_length_percentage = animated_value.as_fit_content().length_percentage_style_value();
-        if (!underlying_length_percentage || !animated_length_percentage)
-            return {};
-
-        auto composited_length_percentage = composite_value(property_id, *underlying_length_percentage, *animated_length_percentage, composite_operation);
-        if (!composited_length_percentage)
-            return {};
-
-        return FitContentStyleValue::create(composited_length_percentage.release_nonnull());
     }
     case StyleValue::Type::Flex: {
         auto result = composite_raw_values(underlying_value.as_flex().flex().to_fr(), animated_value.as_flex().flex().to_fr());

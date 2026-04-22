@@ -24,7 +24,6 @@
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>

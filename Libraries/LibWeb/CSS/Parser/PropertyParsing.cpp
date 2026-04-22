@@ -34,7 +34,6 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
