@@ -261,8 +261,6 @@ public:
 
         if (has_ascii_storage() && other.has_ascii_storage()) {
             result = __builtin_memcmp(m_string.ascii, other.m_string.ascii, length);
-        } else if (!has_ascii_storage() && !other.has_ascii_storage()) {
-            result = __builtin_memcmp(m_string.utf16, other.m_string.utf16, length * sizeof(char16_t));
         } else {
             for (size_t i = 0; i < length; ++i) {
                 auto this_code_unit = code_unit_at(i);

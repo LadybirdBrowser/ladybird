@@ -482,6 +482,16 @@ TEST_CASE(comparison)
     EXPECT(u"😂"sv > u"😀"sv);
     EXPECT(!(u"😂"sv <= u"😀"sv));
     EXPECT(u"😂"sv >= u"😀"sv);
+
+    EXPECT(u"ÿ"sv < u"Ā"sv);
+    EXPECT(!(u"ÿ"sv > u"Ā"sv));
+    EXPECT(u"Ā"sv > u"ÿ"sv);
+    EXPECT(!(u"Ā"sv < u"ÿ"sv));
+
+    EXPECT(u"❤"sv < u"😀"sv);
+    EXPECT(!(u"❤"sv > u"😀"sv));
+    EXPECT(u"😀"sv > u"❤"sv);
+    EXPECT(!(u"😀"sv < u"❤"sv));
 }
 
 TEST_CASE(equals_ignoring_case)
