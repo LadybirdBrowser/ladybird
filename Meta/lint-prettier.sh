@@ -13,12 +13,12 @@ if [ "$#" -eq "0" ]; then
         git ls-files \
             --exclude-from .prettierignore \
             -- \
-            '*.js' '*.mjs'
+            '*.js' '*.mjs' 'Base/*.html'
     )
 else
     files=()
     for file in "$@"; do
-        if [[ "${file}" == *".js" ]] || [[ "${file}" == *".mjs" ]]; then
+        if [[ "${file}" == *".js" ]] || [[ "${file}" == *".mjs" ]] || [[ "${file}" == "Base"*".html" ]]; then
             files+=("${file}")
         fi
     done
@@ -37,5 +37,5 @@ if (( ${#files[@]} )); then
 
     prettier --check "${files[@]}"
 else
-    echo "No .js or .mjs files to check."
+    echo "No .js, .mjs, or .html files to check."
 fi
