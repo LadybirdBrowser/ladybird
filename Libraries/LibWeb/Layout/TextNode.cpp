@@ -631,10 +631,12 @@ bool TextNode::ChunkIterator::is_at_line_break_opportunity() const
     VERIFY_NOT_REACHED();
 }
 
-Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index) const
+Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index, u32 space_code_point) const
 {
+    auto has_glyph = [&](Gfx::Font const& font) { return font.contains_glyph(space_code_point); };
+
     // 1. Prefer the last non-whitespace font in this node/run.
-    if (m_last_non_whitespace_font && !m_last_non_whitespace_font->is_emoji_font())
+    if (m_last_non_whitespace_font && !m_last_non_whitespace_font->is_emoji_font() && has_glyph(*m_last_non_whitespace_font))
         return *m_last_non_whitespace_font;
 
     // 2. Look ahead to the next non-space to infer the base font of this run.
@@ -642,7 +644,7 @@ Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index) const
         auto cp = m_view.code_point_at(i);
         if (!is_interword_space(cp) && cp != '\t' && cp != '\n') {
             auto const& font = m_font_cascade_list.font_for_code_point(cp);
-            if (!font.is_emoji_font())
+            if (!font.is_emoji_font() && has_glyph(font))
                 return font;
             // Text is coming from an emoji face; we'll fall back to (3).
             break;
@@ -650,8 +652,8 @@ Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index) const
         i = m_grapheme_segmenter.next_boundary(i).value_or(m_view.length_in_code_units());
     }
 
-    // 3. No text around (leading/trailing/all spaces) — pick the first *text* face in the cascade.
-    return m_font_cascade_list.first_text_face();
+    // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
+    return m_font_cascade_list.font_for_code_point(space_code_point);
 }
 
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
@@ -677,7 +679,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
 
     auto const& expected_font_for = [&](u32 cp) -> Gfx::Font const& {
         return is_interword_space(cp)
-            ? font_for_space(m_current_index)
+            ? font_for_space(m_current_index, cp)
             : m_font_cascade_list.font_for_code_point(cp);
     };
 
@@ -749,7 +751,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
                 // Otherwise, commit the whitespace!
                 m_current_index = next_grapheme_boundary();
                 can_break_at_current_position = is_at_line_break_opportunity();
-                auto const& space_font = font_for_space(m_current_index);
+                auto const& space_font = font_for_space(m_current_index, code_point);
                 if (auto result = try_commit_chunk(start_of_chunk, m_current_index, false, broken_on_tab, false, space_font, text_type); result.has_value())
                     return result.release_value();
                 continue;

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: "HashFontNoSpace";
+        src: url("../../Assets/HashSansNoSpace.woff");
+        unicode-range: U+0041-005A;
+    }
+    .subset {
+        font-family: "HashFontNoSpace", "SerenitySans";
+        font-size: 100px;
+    }
+    .fallback-only {
+        font-family: "SerenitySans";
+        font-size: 100px;
+    }
+    span {
+        white-space: pre;
+    }
+</style>
+<script src="include.js"></script>
+<div>
+    <span class="subset" id="letters-only">AB</span>
+    <span class="subset" id="with-space">A B</span>
+    <span class="fallback-only" id="ref-space">&nbsp;</span>
+</div>
+<script>
+    test(() => {
+        // HashFontNoSpace covers only A–Z; the space in "A B" must come from the
+        // SerenitySans fallback, not from HashFontNoSpace's .notdef glyph.
+        let lettersOnlyWidth = document.getElementById("letters-only").getBoundingClientRect().width;
+        let withSpaceWidth = document.getElementById("with-space").getBoundingClientRect().width;
+        let fallbackSpaceWidth = document.getElementById("ref-space").getBoundingClientRect().width;
+
+        let spaceWidth = withSpaceWidth - lettersOnlyWidth;
+        println("space matches fallback: " + (Math.abs(spaceWidth - fallbackSpaceWidth) < 2));
+    });
+</script>
