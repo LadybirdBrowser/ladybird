@@ -80,11 +80,21 @@ FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_de
     , m_family_name(move(family_name))
     , m_unicode_ranges(move(unicode_ranges))
     , m_urls(move(urls))
-    , m_on_load(move(on_load))
 {
+    if (on_load)
+        m_subscribers.append(*on_load);
 }
 
 FontLoader::~FontLoader() = default;
+
+void FontLoader::subscribe(GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>> callback)
+{
+    if (m_has_completed) {
+        callback->function()(m_typeface);
+        return;
+    }
+    m_subscribers.append(callback);
+}
 
 void FontLoader::visit_edges(Visitor& visitor)
 {
@@ -95,7 +105,7 @@ void FontLoader::visit_edges(Visitor& visitor)
     else if (auto* block = m_rule_or_declaration.value.get_pointer<RuleOrDeclaration::StyleDeclaration>())
         visitor.visit(block->parent_rule);
     visitor.visit(m_fetch_controller);
-    visitor.visit(m_on_load);
+    visitor.visit(m_subscribers);
 }
 
 bool FontLoader::is_loading() const
@@ -195,12 +205,11 @@ void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
     if (typeface) {
         m_typeface = typeface.release_nonnull();
         m_font_computer->clear_computed_font_cache(m_family_name);
-        if (m_on_load)
-            m_on_load->function()(m_typeface);
-    } else {
-        if (m_on_load)
-            m_on_load->function()(nullptr);
     }
+    m_has_completed = true;
+    for (auto& callback : m_subscribers)
+        callback->function()(m_typeface);
+    m_subscribers.clear();
     m_fetch_controller = nullptr;
 }
 
@@ -293,6 +302,8 @@ void FontComputer::visit_edges(Visitor& visitor)
     visitor.visit(m_document);
     for (auto& [_, faces] : m_font_faces)
         visitor.visit(faces);
+    for (auto& [_, loader] : m_loaders_by_url)
+        visitor.visit(loader);
 }
 
 RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_ascending(Vector<MatchingFontCandidate> const& candidates, int target_weight, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values, bool inclusive) const
@@ -767,7 +778,16 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         }
     };
 
-    return heap().allocate<FontLoader>(*this, rule_or_declaration, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    auto key = urls.first().to_string();
+    if (auto it = m_loaders_by_url.find(key); it != m_loaders_by_url.end()) {
+        if (on_load)
+            it->value->subscribe(*on_load);
+        return it->value;
+    }
+
+    auto loader = heap().allocate<FontLoader>(*this, rule_or_declaration, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    m_loaders_by_url.set(move(key), loader);
+    return loader;
 }
 
 void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)

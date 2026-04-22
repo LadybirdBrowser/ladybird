@@ -77,6 +77,8 @@ public:
 
     FlyString family_name() const { return m_family_name; }
 
+    void subscribe(GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>);
+
 private:
     virtual void visit_edges(Visitor&) override;
 
@@ -91,7 +93,8 @@ private:
     RefPtr<Gfx::Typeface const> m_typeface;
     Vector<URL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
-    GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> m_on_load;
+    Vector<GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>> m_subscribers;
+    bool m_has_completed { false };
 };
 
 class WEB_API FontComputer final : public GC::Cell {
@@ -139,6 +142,7 @@ private:
     GC::Ref<DOM::Document> m_document;
 
     HashMap<FontFaceKey, Vector<GC::Ref<FontFace>>> m_font_faces;
+    HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
     mutable HashMap<FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;
