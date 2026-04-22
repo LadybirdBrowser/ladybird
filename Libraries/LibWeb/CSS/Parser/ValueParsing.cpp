@@ -69,7 +69,6 @@
 #include <LibWeb/CSS/StyleValues/RectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScrollFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>
@@ -1244,7 +1243,7 @@ RefPtr<StyleValue const> Parser::parse_keyword_value(TokenStream<ComponentValue>
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#funcdef-scroll
-RefPtr<ScrollFunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream<ComponentValue>& tokens)
+RefPtr<FunctionStyleValue const> Parser::parse_scroll_function_value(TokenStream<ComponentValue>& tokens)
 {
     // <scroll()> = scroll( [ <scroller> || <axis> ]? )
     auto transaction = tokens.begin_transaction();
@@ -1252,8 +1251,11 @@ RefPtr<ScrollFunctionStyleValue const> Parser::parse_scroll_function_value(Token
     if (!function_token.is_function("scroll"sv))
         return nullptr;
 
-    Optional<Scroller> scroller;
-    Optional<Axis> axis;
+    StyleValueTuple tuple;
+    tuple.resize_with_default_value(2, nullptr);
+
+    bool has_scroller = false;
+    bool has_axis = false;
 
     auto argument_tokens = TokenStream { function_token.function().value };
 
@@ -1269,33 +1271,34 @@ RefPtr<ScrollFunctionStyleValue const> Parser::parse_scroll_function_value(Token
             return nullptr;
 
         if (auto maybe_scroller = keyword_to_scroller(keyword_value->to_keyword()); maybe_scroller.has_value()) {
-            if (scroller.has_value())
+            if (has_scroller)
                 return nullptr;
 
-            scroller = maybe_scroller;
+            // NB: The default value of <scroller> `nearest` is omitted from the serialization.
+            if (maybe_scroller.value() != Scroller::Nearest)
+                tuple[TupleStyleValue::Indices::ScrollFunction::Scroller] = keyword_value;
+
+            has_scroller = true;
             continue;
         }
 
         if (auto maybe_axis = keyword_to_axis(keyword_value->to_keyword()); maybe_axis.has_value()) {
-            if (axis.has_value())
+            if (has_axis)
                 return nullptr;
 
-            axis = maybe_axis;
+            // NB: The default value of <axis> `block` is omitted from the serialization.
+            if (maybe_axis.value() != Axis::Block)
+                tuple[TupleStyleValue::Indices::ScrollFunction::Axis] = keyword_value;
+
+            has_axis = true;
             continue;
         }
 
         return nullptr;
     }
 
-    // By default, scroll() references the block axis of the nearest ancestor scroll container.
-    if (!scroller.has_value())
-        scroller = Scroller::Nearest;
-
-    if (!axis.has_value())
-        axis = Axis::Block;
-
     transaction.commit();
-    return ScrollFunctionStyleValue::create(scroller.value(), axis.value());
+    return FunctionStyleValue::create("scroll"_fly_string, TupleStyleValue::create(move(tuple)));
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#funcdef-view

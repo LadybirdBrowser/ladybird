@@ -53,6 +53,11 @@ public:
             static constexpr size_t Ordinal = 3;
             static constexpr size_t SlashedZero = 4;
         };
+
+        struct ScrollFunction {
+            static constexpr size_t Scroller = 0;
+            static constexpr size_t Axis = 1;
+        };
     };
 
 private:

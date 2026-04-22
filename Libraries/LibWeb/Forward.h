@@ -385,7 +385,6 @@ class ShadowStyleValue;
 class ShorthandStyleValue;
 class Size;
 class ScrollbarColorStyleValue;
-class ScrollFunctionStyleValue;
 class StringStyleValue;
 class StyleComputer;
 class StylePropertyMap;
