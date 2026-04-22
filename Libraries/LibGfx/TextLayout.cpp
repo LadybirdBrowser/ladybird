@@ -121,7 +121,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
 
     auto it = string.begin();
     auto substring_begin_offset = string.iterator_offset(it);
-    Font const* last_font = &font_cascade_list.font_for_code_point(*it);
+    Font const* last_font = &font_cascade_list.font_for_code_point(*it, FontCascadeList::TriggerPendingLoads::Yes);
     FloatPoint last_position = baseline_start;
 
     auto add_run = [&runs, &last_position, letter_spacing](Utf16View const& string, Font const& font) {
@@ -132,7 +132,7 @@ Vector<NonnullRefPtr<GlyphRun>> shape_text(FloatPoint baseline_start, Utf16View 
 
     while (it != string.end()) {
         auto code_point = *it;
-        auto const* font = &font_cascade_list.font_for_code_point(code_point);
+        auto const* font = &font_cascade_list.font_for_code_point(code_point, FontCascadeList::TriggerPendingLoads::Yes);
         if (font != last_font) {
             auto substring = string.substring_view(substring_begin_offset, string.iterator_offset(it) - substring_begin_offset);
             add_run(substring, *last_font);

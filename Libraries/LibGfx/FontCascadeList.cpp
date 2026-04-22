@@ -58,20 +58,27 @@ void FontCascadeList::extend(FontCascadeList const& other)
     m_pending_faces.extend(other.m_pending_faces);
 }
 
-Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point) const
+Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, TriggerPendingLoads trigger_pending_loads) const
 {
-    // Walk pending entries first: if this codepoint falls in an unloaded face's
-    // unicode-range we kick off the fetch and drop the entry — a fallback font that
-    // happens to cover the codepoint shouldn't prevent the real face from loading.
-    // FontComputer::clear_computed_font_cache() rebuilds the cascade once the fetch
-    // completes, so later shapes pick up the loaded face. Run before the ASCII cache
-    // lookup so a previously-cached codepoint still triggers a newly-added face.
-    m_pending_faces.remove_all_matching([code_point](auto const& pending) {
-        if (!pending->covers(code_point))
-            return false;
-        pending->start_load();
-        return true;
-    });
+    // Only the text-shaping paths pass TriggerPendingLoads::Yes. Probes that don't
+    // lead to a glyph being drawn (the U+0020 check used to compute first-available-
+    // font metrics, for instance) skip this block so they can't initiate a download
+    // for a subset face that happens to cover the probe codepoint.
+    if (trigger_pending_loads == TriggerPendingLoads::Yes) {
+        // Walk pending entries first: if this codepoint falls in an unloaded face's
+        // unicode-range we kick off the fetch and drop the entry — a fallback font
+        // that happens to cover the codepoint shouldn't prevent the real face from
+        // loading. FontComputer::clear_computed_font_cache() rebuilds the cascade
+        // once the fetch completes, so later shapes pick up the loaded face. Run
+        // before the ASCII cache lookup so a previously-cached codepoint still
+        // triggers a newly-added face.
+        m_pending_faces.remove_all_matching([code_point](auto const& pending) {
+            if (!pending->covers(code_point))
+                return false;
+            pending->start_load();
+            return true;
+        });
+    }
 
     if (code_point < m_ascii_cache.size()) {
         if (auto const* cached = m_ascii_cache[code_point])

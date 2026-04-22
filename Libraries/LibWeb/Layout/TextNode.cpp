@@ -643,7 +643,7 @@ Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index, u32 sp
     for (size_t i = at_index; i < m_view.length_in_code_units();) {
         auto cp = m_view.code_point_at(i);
         if (!is_interword_space(cp) && cp != '\t' && cp != '\n') {
-            auto const& font = m_font_cascade_list.font_for_code_point(cp);
+            auto const& font = m_font_cascade_list.font_for_code_point(cp, Gfx::FontCascadeList::TriggerPendingLoads::Yes);
             if (!font.is_emoji_font() && has_glyph(font))
                 return font;
             // Text is coming from an emoji face; we'll fall back to (3).
@@ -653,7 +653,7 @@ Gfx::Font const& TextNode::ChunkIterator::font_for_space(size_t at_index, u32 sp
     }
 
     // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
-    return m_font_cascade_list.font_for_code_point(space_code_point);
+    return m_font_cascade_list.font_for_code_point(space_code_point, Gfx::FontCascadeList::TriggerPendingLoads::Yes);
 }
 
 Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
@@ -680,7 +680,7 @@ Optional<TextNode::Chunk> TextNode::ChunkIterator::next_without_peek()
     auto const& expected_font_for = [&](u32 cp) -> Gfx::Font const& {
         return is_interword_space(cp)
             ? font_for_space(m_current_index, cp)
-            : m_font_cascade_list.font_for_code_point(cp);
+            : m_font_cascade_list.font_for_code_point(cp, Gfx::FontCascadeList::TriggerPendingLoads::Yes);
     };
 
     auto const& font = expected_font_for(current_code_point());
