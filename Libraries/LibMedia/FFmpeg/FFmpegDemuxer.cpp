@@ -229,7 +229,7 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_container_navigator(AVFormatCon
         if (entry_count <= 0)
             return nullptr;
         auto data_offset = avformat_index_get_entry(stream, 0)->pos;
-        return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second);
+        return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second, codec_par->block_align);
     }
 
     return create_container_navigator_from_index(context);
@@ -384,7 +384,26 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     format_context.pb->eof_reached = 0;
     format_context.pb->error = 0;
 
-    if (track_context.is_seekable && av_seek_frame(&format_context, stream.index, av_timestamp, AVSEEK_FLAG_BACKWARD) >= 0)
+    if (m_container_navigator) {
+        auto seek_result = TRY(m_container_navigator->seek_to_timestamp(timestamp));
+        if (seek_result.has<SeekSkipped>()) {
+            return DemuxerSeekResult::KeptCurrentPosition;
+        }
+        if (auto const* seeked = seek_result.get_pointer<SeekedPosition>()) {
+            if (av_seek_frame(&format_context, stream.index, seeked->byte_position, AVSEEK_FLAG_BYTE | AVSEEK_FLAG_BACKWARD) >= 0) {
+                seek_succeeded = true;
+                track_context.pending_timestamp_offset = seeked->timestamp;
+                track_context.timestamp_offset = AK::Duration::zero();
+            }
+        }
+    }
+
+    if (!seek_succeeded) {
+        track_context.pending_timestamp_offset.clear();
+        track_context.timestamp_offset = AK::Duration::zero();
+    }
+
+    if (!seek_succeeded && track_context.is_seekable && av_seek_frame(&format_context, stream.index, av_timestamp, AVSEEK_FLAG_BACKWARD) >= 0)
         seek_succeeded = true;
     if (!seek_succeeded) {
         track_context.is_seekable = false;
@@ -451,9 +470,12 @@ DecoderErrorOr<CodedFrame> FFmpegDemuxer::get_next_sample_for_track(Track const&
         // to wipe the packet afterwards.
         auto packet_data = DECODER_TRY_ALLOC(ByteBuffer::copy(packet.data, packet.size));
 
+        if (track_context.pending_timestamp_offset.has_value() && packet.pts == 0)
+            track_context.timestamp_offset = track_context.pending_timestamp_offset.release_value();
+
         auto flags = (packet.flags & AV_PKT_FLAG_KEY) != 0 ? FrameFlags::Keyframe : FrameFlags::None;
         auto sample = CodedFrame(
-            time_units_to_duration(packet.pts, stream.time_base),
+            track_context.timestamp_offset + time_units_to_duration(packet.pts, stream.time_base),
             time_units_to_duration(packet.duration, stream.time_base),
             flags,
             move(packet_data),
