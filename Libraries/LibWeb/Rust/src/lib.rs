@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#[path = "../../../RustAllocator.rs"]
-mod rust_allocator;
-
 mod css_tokenizer;
 
 use std::ffi::c_void;

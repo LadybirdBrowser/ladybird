@@ -139,6 +139,10 @@ function(lagom_test source)
         target_link_libraries(${LAGOM_TEST_NAME} PRIVATE ${MMAN_LIBRARY})
     endif()
 
+    if (NOT BUILD_SHARED_LIBS)
+        link_rust_runtime(${LAGOM_TEST_NAME})
+    endif()
+
     add_test(
             NAME ${LAGOM_TEST_NAME}
             COMMAND ${LAGOM_TEST_NAME}
@@ -151,6 +155,9 @@ function(lagom_utility name)
 
     add_executable("${name}" ${LAGOM_UTILITY_SOURCES})
     target_link_libraries("${name}" PRIVATE AK LibCore ${LAGOM_UTILITY_LIBS})
+    if (NOT BUILD_SHARED_LIBS)
+        link_rust_runtime(${name})
+    endif()
     lagom_generate_dsym(${name})
 endfunction()
 

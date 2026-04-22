@@ -289,37 +289,7 @@ endif()
 
 target_link_libraries(LibJS PUBLIC JSClangPlugin)
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust FFI_HEADER RustFFI.h)
-target_link_libraries(LibJS PRIVATE libjs_rust)
-if ((LINUX OR BSD) AND NOT BUILD_SHARED_LIBS)
-    # Rust staticlibs each carry the same allocator shim symbols. LibJS can
-    # pull in multiple crates' copies in static ELF links, but they all
-    # forward to the same ladybird_rust_* entry points in AK/kmalloc.cpp.
-    target_link_options(LibJS INTERFACE LINKER:--allow-multiple-definition)
-endif()
-
-# The Rust library and LibJS have a circular dependency (C++ calls Rust
-# entry points, Rust calls C++ callbacks). For static builds, merge the
-# Rust archive into the LibJS archive so all symbols are in one place.
-if(NOT BUILD_SHARED_LIBS)
-    add_custom_command(TARGET LibJS POST_BUILD
-        COMMAND ${CMAKE_AR} -x $<TARGET_FILE:libjs_rust>
-        COMMAND ${CMAKE_AR} -qS $<TARGET_FILE:LibJS> *.o
-        COMMAND ${CMAKE_RANLIB} $<TARGET_FILE:LibJS>
-        COMMAND ${CMAKE_COMMAND} -E remove -f *.o
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp
-        COMMENT "Merging Rust archive into LibJS"
-    )
-    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/rust_merge_tmp)
-
-    # POST_BUILD steps don't track inputs, so when libjs_rust.a changes ninja
-    # leaves liblagom-js.a alone and the merged archive ends up with stale
-    # Rust objects. Force the C++ FFI bridge file to depend on the Rust
-    # archive: when it changes, RustIntegration.cpp recompiles, LibJS gets
-    # re-archived, and POST_BUILD re-merges the fresh Rust objects.
-    get_target_property(_libjs_rust_lib libjs_rust IMPORTED_LOCATION)
-    set_property(SOURCE RustIntegration.cpp APPEND PROPERTY OBJECT_DEPENDS ${_libjs_rust_lib})
-endif()
+import_rust_ffi_crate(LibJS MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libjs_rust_core FFI_HEADER RustFFI.h)
 
 # AsmInterpreter: generate platform-specific assembly from DSL
 # NB: Win64 uses a different ABI (shadow space, different arg registers)

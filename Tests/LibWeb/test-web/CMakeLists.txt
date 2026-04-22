@@ -14,6 +14,10 @@ add_executable(test-web ${SOURCES})
 add_dependencies(test-web ladybird_build_resource_files ImageDecoder RequestServer WebContent WebWorker)
 target_link_libraries(test-web PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibURL LibWeb LibWebView)
 
+if (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(test-web)
+endif()
+
 if (APPLE)
     target_compile_definitions(test-web PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
 elseif (WIN32)

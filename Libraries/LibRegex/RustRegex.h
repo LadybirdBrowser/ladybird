@@ -12,7 +12,7 @@
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
 #include <LibRegex/Export.h>
-#include <RustFFI.h>
+#include <LibRegex/RustFFI.h>
 
 namespace regex {
 

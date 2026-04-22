@@ -29,8 +29,7 @@ ladybird_lib(LibUnicode unicode)
 
 target_link_libraries(LibUnicode PRIVATE ICU::i18n ICU::uc ICU::data)
 
-import_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libunicode_rust FEATURES allocator FFI_HEADER RustFFI.h)
-target_link_libraries(LibUnicode PRIVATE libunicode_rust)
+import_rust_ffi_crate(LibUnicode MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libunicode_rust_core FFI_HEADER RustFFI.h)
 
 # FIXME: Add support for building LibGfx in sanitize
 #   lld-link: error: /failifmismatch: mismatch detected for 'annotate_string':

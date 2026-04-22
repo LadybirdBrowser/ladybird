@@ -21,6 +21,10 @@ add_executable(WebWorker main.cpp)
 target_include_directories(WebWorker PRIVATE ${LADYBIRD_SOURCE_DIR})
 target_link_libraries(WebWorker PRIVATE webworkerservice OpenSSL::Crypto OpenSSL::SSL)
 
+if (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(WebWorker)
+endif()
+
 if(WIN32)
     target_include_directories(WebWorker PRIVATE $<BUILD_INTERFACE:${PTHREAD_INCLUDE_DIR}>)
     lagom_windows_bin(WebWorker CONSOLE)

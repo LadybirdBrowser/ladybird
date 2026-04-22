@@ -67,6 +67,10 @@ target_include_directories(${LADYBIRD_TARGET} ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR})
 target_include_directories(${LADYBIRD_TARGET} ${LADYBIRD_SOURCE_DIR}/Services/)
 
+if (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(ladybird)
+endif()
+
 if(WIN32)
     target_link_libraries(${LADYBIRD_TARGET} LibDevTools)
 endif()

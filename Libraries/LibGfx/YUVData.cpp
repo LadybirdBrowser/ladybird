@@ -7,9 +7,9 @@
 #include <AK/Time.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImmutableBitmap.h>
+#include <LibGfx/RustFFI.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/YUVData.h>
-#include <RustFFI.h>
 
 #include <core/SkColorSpace.h>
 #include <core/SkImage.h>

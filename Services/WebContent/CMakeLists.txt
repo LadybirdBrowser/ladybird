@@ -38,6 +38,12 @@ add_executable(WebContent main.cpp)
 
 target_link_libraries(WebContent PRIVATE webcontentservice LibURL)
 
+if (ANDROID)
+    link_rust_runtime(webcontentservice)
+elseif (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(WebContent)
+endif()
+
 if(WIN32)
     lagom_windows_bin(WebContent CONSOLE)
 endif()

@@ -19,6 +19,8 @@ unsafe extern "C" {
 
 struct LadybirdAllocator;
 
+// Generated runtimes include this once so static links do not get one global
+// allocator shim per Rust crate.
 #[global_allocator]
 static LADYBIRD_ALLOCATOR: LadybirdAllocator = LadybirdAllocator;
 

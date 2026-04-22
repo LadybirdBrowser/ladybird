@@ -1,5 +1,10 @@
 add_executable(test-wasm test-wasm.cpp)
 target_link_libraries(test-wasm AK LibCore LibFileSystem JavaScriptTestRunnerMain LibTest LibWasm LibJS LibCrypto LibGC)
+
+if (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(test-wasm)
+endif()
+
 set(wasm_test_root "${LADYBIRD_SOURCE_DIR}")
 if (INCLUDE_WASM_SPEC_TESTS)
     set(wasm_test_root "${CMAKE_BINARY_DIR}")

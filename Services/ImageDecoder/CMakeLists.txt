@@ -25,6 +25,10 @@ target_include_directories(imagedecoderservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Se
 target_link_libraries(ImageDecoder PRIVATE imagedecoderservice LibCore LibMain LibThreading)
 target_link_libraries(imagedecoderservice PRIVATE LibCore LibGfx LibIPC LibImageDecoderClient LibMain LibThreading)
 
+if (NOT BUILD_SHARED_LIBS)
+    link_rust_runtime(ImageDecoder)
+endif()
+
 if (WIN32)
     lagom_windows_bin(ImageDecoder CONSOLE)
 endif()

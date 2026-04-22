@@ -1,10 +1,10 @@
 [package]
-name = "libgfx_rust"
+name = "libgfx_rust_core"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-crate-type = ["staticlib"]
+crate-type = ["rlib"]
 
 [dependencies]
 yuv = "0.8"
