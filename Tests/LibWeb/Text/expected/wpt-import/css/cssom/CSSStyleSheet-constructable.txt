@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 32 tests
 
-27 Pass
-5 Fail
+29 Pass
+3 Fail
 Pass	document.adoptedStyleSheets should initially have length 0.
 Pass	new CSSStyleSheet produces empty CSSStyleSheet
 Pass	title can be set in the CSSStyleSheet constructor
@@ -21,8 +21,8 @@ Pass	Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when
 Pass	Adding non-constructed stylesheet to AdoptedStyleSheets is not allowed when the owner document of the stylesheet and the AdoptedStyleSheets are in different document trees
 Pass	CSSStyleSheet.replaceSync replaces stylesheet text synchronously
 Pass	CSSStyleSheet.replaceSync correctly updates the style of its adopters synchronously
-Fail	Adopted sheets are ordered after non-adopted sheets in the shadow root
-Fail	Adopted sheets are ordered after non-adopted sheets in the document
+Pass	Adopted sheets are ordered after non-adopted sheets in the shadow root
+Pass	Adopted sheets are ordered after non-adopted sheets in the document
 Pass	Inserting an @import rule through insertRule on a constructed stylesheet throws an exception
 Fail	CSSStyleSheet.replaceSync should not trigger any loads from @import rules
 Pass	CSSStyleSheet.replace allows, but ignores, import rule inside

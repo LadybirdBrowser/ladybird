@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target" class="foo">target</div>
+<div>bystander 1</div>
+<div>bystander 2</div>
+<div>bystander 3</div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i + 4}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    test(() => {
+        const target = document.getElementById("target");
+        addBystanders(document.body, 25);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(".foo { color: rgb(255, 0, 0); }");
+        document.adoptedStyleSheets = [sheet];
+
+        println(`before disable: ${getComputedStyle(target).color}`);
+
+        settleAndReset(target);
+        sheet.disabled = true;
+        println(`after disable: ${getComputedStyle(target).color}`);
+
+        settleAndReset(target);
+        sheet.disabled = false;
+        println(`after re-enable: ${getComputedStyle(target).color}`);
+    });
+</script>

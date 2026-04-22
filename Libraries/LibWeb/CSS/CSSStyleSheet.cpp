@@ -384,6 +384,7 @@ void CSSStyleSheet::set_disabled(bool disabled)
     if (this->disabled() == disabled)
         return;
 
+    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
     auto document = owning_document();
     // When a stylesheet is disabled we stop evaluating its media queries, so both the cached top-level match bit
     // and the MediaList's internal state can go stale across viewport changes. Clear the cache for both
@@ -401,6 +402,8 @@ void CSSStyleSheet::set_disabled(bool disabled)
     } else if (document) {
         document->font_computer().unload_fonts_from_sheet(*this);
     }
+
+    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDisabledStateChange, &previous_sheet_effects);
 }
 
 void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> const& callback) const

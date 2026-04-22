@@ -95,7 +95,7 @@ public:
     void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void invalidate_owners(DOM::StyleInvalidationReason, ShadowRootStylesheetEffects const* previous_sheet_effects = nullptr);
     GC::Ptr<DOM::Document> owning_document() const;
-    void set_disabled(bool);
+    virtual void set_disabled(bool) override;
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;
 
     Optional<FlyString> default_namespace() const;
