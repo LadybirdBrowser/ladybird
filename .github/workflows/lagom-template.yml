@@ -154,20 +154,16 @@ jobs:
           VCPKG_CACHE_SAS: ${{ github.ref == 'refs/heads/master' && secrets.VCPKG_CACHE_SAS || '' }}
           VCPKG_CACHE_MODE: ${{ github.ref == 'refs/heads/master' && 'write' || '' }}
         run: |
-          cmake --preset=Distribution -B "${GITHUB_WORKSPACE}/Build/tools-build" \
-            -DLAGOM_TOOLS_ONLY=ON \
-            -DINSTALL_LAGOM_TOOLS=ON \
-            -DCMAKE_INSTALL_PREFIX="${GITHUB_WORKSPACE}/Build/tools-install" \
-            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
-            -Dpackage=LagomTools
+          cmake --preset=Host_Tools -B "${GITHUB_WORKSPACE}/Build/host-tools-build" \
+            -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python
 
-          ninja -C "${GITHUB_WORKSPACE}/Build/tools-build" install
+          ninja -C "${GITHUB_WORKSPACE}/Build/host-tools-build" install
 
           cmake --preset ${{ inputs.build_preset }} -B Build \
             -DPython3_EXECUTABLE=${{ env.pythonLocation }}/bin/python \
             -DCMAKE_C_COMPILER=${{ steps.build-parameters.outputs.host_cc }} \
             -DCMAKE_CXX_COMPILER=${{ steps.build-parameters.outputs.host_cxx }} \
-            -DCMAKE_PREFIX_PATH="${GITHUB_WORKSPACE}/Build/tools-install"
+            -DLagomTools_DIR=${GITHUB_WORKSPACE}/Build/host-tools/share/LagomTools
 
       # === BUILD ===
 
