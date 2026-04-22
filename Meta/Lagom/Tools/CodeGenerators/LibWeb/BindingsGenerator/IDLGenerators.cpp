@@ -1441,7 +1441,7 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
 
     if (includes_window_proxy) {
         union_generator.append(R"~~~(
-            if (auto* @js_name@@js_suffix@_result = as_if<WindowProxy>(@js_name@@js_suffix@_object))
+            if (auto* @js_name@@js_suffix@_result = as_if<HTML::WindowProxy>(@js_name@@js_suffix@_object))
                 return GC::make_root(*@js_name@@js_suffix@_result);
 )~~~");
     }
