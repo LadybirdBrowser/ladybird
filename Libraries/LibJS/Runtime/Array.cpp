@@ -250,6 +250,12 @@ ThrowCompletionOr<double> compare_array_elements(VM& vm, Value x, Value y, Funct
         return value_number.as_double();
     }
 
+    // OPTIMIZATION: When both operands are already Strings, ToString is the identity, so we can compare their
+    //               UTF-16 views directly. This preserves any cached UTF-16 on the original PrimitiveStrings
+    //               across sort comparisons and skips the ToPrimitive + IsLessThan detour.
+    if (x.is_string() && y.is_string())
+        return x.as_string().utf16_string_view() <=> y.as_string().utf16_string_view();
+
     // 5. Let xString be ? ToString(x).
     auto x_string = PrimitiveString::create(vm, TRY(x.to_string(vm)));
 
