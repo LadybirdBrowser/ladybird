@@ -791,25 +791,22 @@ void Request::transfer_headers_to_client_if_needed()
 
 ErrorOr<void> Request::write_queued_bytes_without_blocking()
 {
-    Vector<u8> bytes_to_send;
-    bytes_to_send.resize(m_response_buffer.used_buffer_size());
-    m_response_buffer.peek_some(bytes_to_send);
-
-    auto write_bytes_to_disk_cache = [&](size_t byte_count) {
+    auto write_bytes_to_disk_cache = [&](ReadonlyBytes bytes) {
         if (!m_cache_entry_writer.has_value())
             return;
 
-        auto bytes_to_write = bytes_to_send.span().slice(0, byte_count);
-
-        if (m_cache_entry_writer->write_data(bytes_to_write).is_error())
+        if (m_cache_entry_writer->write_data(bytes).is_error())
             m_cache_entry_writer.clear();
     };
 
     if (m_type == RequestType::BackgroundRevalidation) {
-        write_bytes_to_disk_cache(bytes_to_send.size());
-        MUST(m_response_buffer.discard(bytes_to_send.size()));
+        while (!m_response_buffer.is_eof()) {
+            auto bytes = m_response_buffer.peek_some_contiguous();
+            write_bytes_to_disk_cache(bytes);
+            MUST(m_response_buffer.discard(bytes.size()));
+        }
 
-        if (m_response_buffer.is_eof() && m_curl_result_code.has_value())
+        if (m_curl_result_code.has_value())
             transition_to_state(State::Complete);
 
         return {};
@@ -825,22 +822,32 @@ ErrorOr<void> Request::write_queued_bytes_without_blocking()
         });
     }
 
-    auto result = m_client_request_pipe->write(bytes_to_send);
-    if (result.is_error()) {
-        if (!first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
-            return result.release_error();
+    while (!m_response_buffer.is_eof()) {
+        auto bytes = m_response_buffer.peek_some_contiguous();
 
-        m_client_writer_notifier->set_enabled(true);
-        return {};
+        auto result = m_client_request_pipe->write(bytes);
+        if (result.is_error()) {
+            if (!first_is_one_of(result.error().code(), EAGAIN, EWOULDBLOCK))
+                return result.release_error();
+
+            m_client_writer_notifier->set_enabled(true);
+            return {};
+        }
+
+        auto written = result.value();
+        write_bytes_to_disk_cache(bytes.slice(0, written));
+        MUST(m_response_buffer.discard(written));
+
+        m_bytes_transferred_to_client += written;
+
+        if (written < bytes.size()) {
+            m_client_writer_notifier->set_enabled(true);
+            return {};
+        }
     }
 
-    write_bytes_to_disk_cache(result.value());
-    MUST(m_response_buffer.discard(result.value()));
-
-    m_bytes_transferred_to_client += result.value();
-
-    m_client_writer_notifier->set_enabled(!m_response_buffer.is_eof());
-    if (m_response_buffer.is_eof() && m_curl_result_code.has_value())
+    m_client_writer_notifier->set_enabled(false);
+    if (m_curl_result_code.has_value())
         transition_to_state(State::Complete);
 
     return {};
