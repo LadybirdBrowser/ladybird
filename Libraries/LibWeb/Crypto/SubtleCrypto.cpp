@@ -416,7 +416,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
     // 1. Let format, algorithm, extractable and usages, be the format, algorithm, extractable
     // and key_usages parameters passed to the importKey() method, respectively.
 
-    Variant<ByteBuffer, Bindings::JsonWebKey, Empty> real_key_data;
+    Variant<ByteBuffer, JsonWebKey, Empty> real_key_data;
     // 2. If format is equal to the string "raw", "pkcs8", or "spki":
     if (format == Bindings::KeyFormat::Raw
         || format == Bindings::KeyFormat::RawPublic
@@ -426,7 +426,7 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
         || format == Bindings::KeyFormat::Pkcs8
         || format == Bindings::KeyFormat::Spki) {
         // 1. If the keyData parameter passed to the importKey() method is a JsonWebKey dictionary, throw a TypeError.
-        if (key_data.has<Bindings::JsonWebKey>()) {
+        if (key_data.has<JsonWebKey>()) {
             return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "BufferSource");
         }
 
@@ -436,12 +436,12 @@ JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> SubtleCrypto::import_key(Binding
 
     if (format == Bindings::KeyFormat::Jwk) {
         // 1. If the keyData parameter passed to the importKey() method is not a JsonWebKey dictionary, throw a TypeError.
-        if (!key_data.has<Bindings::JsonWebKey>()) {
+        if (!key_data.has<JsonWebKey>()) {
             return realm.vm().throw_completion<JS::TypeError>(JS::ErrorType::NotAnObjectOfType, "JsonWebKey");
         }
 
         // 2. Let keyData be the keyData parameter passed to the importKey() method.
-        real_key_data = key_data.get<Bindings::JsonWebKey>();
+        real_key_data = key_data.get<JsonWebKey>();
     }
 
     // NOTE: The spec jumps to 5 here for some reason?
@@ -1091,12 +1091,12 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(Bindings::KeyFormat format, Ke
 
         auto bytes = bytes_or_error.release_value();
 
-        Variant<ByteBuffer, Bindings::JsonWebKey, Empty> key;
+        Variant<ByteBuffer, JsonWebKey, Empty> key;
 
         // 15. If format is equal to the string "jwk":
         if (format == Bindings::KeyFormat::Jwk) {
             // Let key be the result of executing the parse a JWK algorithm, with bytes as the data to be parsed.
-            auto maybe_parsed = Bindings::JsonWebKey::parse(realm, bytes->buffer());
+            auto maybe_parsed = JsonWebKey::parse(realm, bytes->buffer());
             if (maybe_parsed.is_error()) {
                 WebIDL::reject_promise(realm, promise, maybe_parsed.release_error().release_value());
                 return;

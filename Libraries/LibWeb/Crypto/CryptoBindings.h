@@ -13,7 +13,7 @@
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 
 // FIXME: Generate these from IDL
-namespace Web::Bindings {
+namespace Web::Crypto {
 
 // https://w3c.github.io/webcrypto/#JsonWebKey-dictionary
 struct RsaOtherPrimesInfo {

@@ -24,7 +24,7 @@ namespace Web::Crypto {
 
 using AlgorithmIdentifier = Variant<GC::Root<JS::Object>, String>;
 using NamedCurve = String;
-using KeyDataType = Variant<GC::Root<WebIDL::BufferSource>, Bindings::JsonWebKey>;
+using KeyDataType = Variant<GC::Root<WebIDL::BufferSource>, JsonWebKey>;
 
 // https://wicg.github.io/webcrypto-modern-algos/#encapsulation
 struct EncapsulatedKey {

@@ -189,7 +189,7 @@ static WebIDL::ExceptionOr<::Crypto::Certificate::PrivateKey> parse_a_private_ke
     return parse_an_ASN1_structure<::Crypto::Certificate::PrivateKey>(realm, bytes, true);
 }
 
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
+static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_key(JS::Realm& realm, JsonWebKey const& jwk)
 {
     auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
     auto d = TRY(base64_url_uint_decode(realm, *jwk.d));
@@ -208,7 +208,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPrivateKey> parse_jwk_rsa_private_ke
     return ::Crypto::PK::RSAPrivateKey(move(n), move(d), move(e), move(p), move(q), move(dp), move(dq), move(qi));
 }
 
-static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
+static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(JS::Realm& realm, JsonWebKey const& jwk)
 {
     auto e = TRY(base64_url_uint_decode(realm, *jwk.e));
     auto n = TRY(base64_url_uint_decode(realm, *jwk.n));
@@ -216,7 +216,7 @@ static WebIDL::ExceptionOr<::Crypto::PK::RSAPublicKey> parse_jwk_rsa_public_key(
     return ::Crypto::PK::RSAPublicKey(move(n), move(e));
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm, Bindings::JsonWebKey const& jwk)
+static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm, JsonWebKey const& jwk)
 {
     if (!jwk.k.has_value()) {
         return WebIDL::DataError::create(realm, "JWK has no 'k' field"_utf16);
@@ -225,7 +225,7 @@ static WebIDL::ExceptionOr<ByteBuffer> parse_jwk_symmetric_key(JS::Realm& realm,
 }
 
 // https://www.rfc-editor.org/rfc/rfc7517#section-4.3
-static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, Bindings::JsonWebKey const& jwk, Vector<Bindings::KeyUsage> const& usages)
+static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm& realm, JsonWebKey const& jwk, Vector<Bindings::KeyUsage> const& usages)
 {
     // Use of the "key_ops" member is OPTIONAL, unless the application requires its presence.
     if (!jwk.key_ops.has_value())
@@ -1030,9 +1030,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAOAEP::import_key(Web::Crypto::Algorit
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "decrypt" or "unwrapKey", then throw a SyntaxError.
         if (jwk.d.has_value()) {
@@ -1270,7 +1270,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAOAEP::export_key(Bindings::KeyFormat
     // If format is "jwk"
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "RSA".
         jwk.kty = "RSA"_string;
@@ -1613,9 +1613,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSAPSS::import_key(AlgorithmParams const
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
         //    if the d field of jwk is not present and usages contains an entry which is not "verify"
@@ -1852,7 +1852,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSAPSS::export_key(Bindings::KeyFormat 
     // If format is "jwk"
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "RSA".
         jwk.kty = "RSA"_string;
@@ -2190,9 +2190,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> RSASSAPKCS1::import_key(AlgorithmParams 
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field of jwk is present and usages contains an entry which is not "sign", or,
         //    if the d field of jwk is not present and usages contains an entry which is not "verify"
@@ -2429,7 +2429,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> RSASSAPKCS1::export_key(Bindings::KeyFo
     // If format is "jwk"
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "RSA".
         jwk.kty = "RSA"_string;
@@ -2593,9 +2593,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(AlgorithmParams const
         //                Let jwk equal keyData.
         //       ->   Otherwise:
         //                Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         //    2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -2748,7 +2748,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCbc::export_key(Bindings::KeyFormat 
     //    -> If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -2841,10 +2841,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCtr::import_key(AlgorithmParams const
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
 
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -2950,7 +2950,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesCtr::export_key(Bindings::KeyFormat 
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -3161,10 +3161,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesGcm::import_key(AlgorithmParams const
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
 
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -3270,7 +3270,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesGcm::export_key(Bindings::KeyFormat 
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -3511,10 +3511,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesKw::import_key(AlgorithmParams const&
         //         Let jwk equal keyData.
         //    -> Otherwise:
         //         Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
 
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -3618,7 +3618,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesKw::export_key(Bindings::KeyFormat f
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -4364,9 +4364,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(AlgorithmParams const&
     else if (key_format == Bindings::KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign", or,
         //    if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
@@ -4757,7 +4757,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDSA::export_key(Bindings::KeyFormat f
     // 3. If format is "jwt":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to "EC".
         jwk.kty = "EC"_string;
@@ -5350,9 +5350,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(AlgorithmParams const& 
     else if (key_format == Bindings::KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value() && !usages.is_empty()) {
@@ -5703,7 +5703,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ECDH::export_key(Bindings::KeyFormat fo
     // 3. If format is "jwt":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to "EC".
         jwk.kty = "EC"_string;
@@ -6022,9 +6022,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED25519::import_key(
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign",
         //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
@@ -6241,7 +6241,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED25519::export_key(Bindings::KeyFormat
     // 2. If format is "jwk":
     if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk;
+        JsonWebKey jwk;
 
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
@@ -6532,9 +6532,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ED448::import_key(
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and usages contains a value which is not "sign",
         //    or, if the d field is not present and usages contains a value which is not "verify" then throw a SyntaxError.
@@ -6751,7 +6751,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ED448::export_key(Bindings::KeyFormat f
     // 2. If format is "jwk":
     if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk;
+        JsonWebKey jwk;
 
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
@@ -7273,9 +7273,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X25519::import_key([[maybe_unused]] Web:
     else if (key_format == Bindings::KeyFormat::Jwk) {
         // 1. If keyData is a JsonWebKey dictionary: Let jwk equal keyData.
         //    Otherwise: Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "keyData is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value() && !usages.is_empty()) {
@@ -7482,7 +7482,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X25519::export_key(Bindings::KeyFormat 
     // 3. If format is "jwt":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionar1y.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
@@ -7733,7 +7733,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> X448::export_key(Bindings::KeyFormat fo
     // 3. If format is "jwk":
     if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to "OKP".
         jwk.kty = "OKP"_string;
@@ -7888,9 +7888,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> X448::import_key(
         //    Let jwk equal keyData.
         //    Otherwise:
         //    Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the d field is present and if usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
         if (jwk.d.has_value()) {
@@ -8216,9 +8216,9 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(Web::Crypto::AlgorithmP
         //    Let jwk equal keyData.
         //    Otherwise:
         //    Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
-        auto& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"sv)
@@ -8366,7 +8366,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> HMAC::export_key(Bindings::KeyFormat fo
     // If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk {};
+        JsonWebKey jwk {};
 
         // Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -8827,7 +8827,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> MLDSA::import_key(AlgorithmParams const&
         //        Let jwk equal keyData.
         //     => Otherwise:
         //        Throw a DataError.
-        auto* const jwk = key_data.get_pointer<Bindings::JsonWebKey>();
+        auto* const jwk = key_data.get_pointer<JsonWebKey>();
 
         if (!jwk)
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
@@ -9055,7 +9055,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> MLDSA::export_key(Bindings::KeyFormat f
     //   -> If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        auto jwk = Bindings::JsonWebKey {};
+        auto jwk = JsonWebKey {};
 
         // 2. Set the kty attribute of jwk to "AKP".
         jwk.kty = "AKP"_string;
@@ -9968,10 +9968,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ChaCha20Poly1305::import_key(AlgorithmPa
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Invalid JWK key data"_utf16);
 
-        auto const& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -10045,7 +10045,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> ChaCha20Poly1305::export_key(Bindings::
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -10274,10 +10274,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesOcb::import_key(AlgorithmParams const
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Invalid JWK key data"_utf16);
 
-        auto const& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"_string)
@@ -10376,7 +10376,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> AesOcb::export_key(Bindings::KeyFormat 
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;
@@ -10611,10 +10611,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> KMAC::import_key(AlgorithmParams const& 
         //        Let jwk equal keyData.
         //    Otherwise:
         //        Throw a DataError.
-        if (!key_data.has<Bindings::JsonWebKey>())
+        if (!key_data.has<JsonWebKey>())
             return WebIDL::DataError::create(m_realm, "Data is not a JsonWebKey dictionary"_utf16);
 
-        auto const& jwk = key_data.get<Bindings::JsonWebKey>();
+        auto const& jwk = key_data.get<JsonWebKey>();
 
         // 2. If the kty field of jwk is not "oct", then throw a DataError.
         if (jwk.kty != "oct"sv)
@@ -10720,7 +10720,7 @@ WebIDL::ExceptionOr<GC::Ref<JS::Object>> KMAC::export_key(Bindings::KeyFormat fo
     // 2. If format is "jwk":
     else if (format == Bindings::KeyFormat::Jwk) {
         // 1. Let jwk be a new JsonWebKey dictionary.
-        Bindings::JsonWebKey jwk = {};
+        JsonWebKey jwk = {};
 
         // 2. Set the kty attribute of jwk to the string "oct".
         jwk.kty = "oct"_string;

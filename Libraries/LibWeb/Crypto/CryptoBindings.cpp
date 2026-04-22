@@ -13,7 +13,7 @@
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
-namespace Web::Bindings {
+namespace Web::Crypto {
 
 #define JWK_PARSE_STRING_PROPERTY(name)                                      \
     if (auto value = json_object.get_string(#name##sv); value.has_value()) { \
