@@ -853,6 +853,7 @@ public:
         u64 has_match_invocations { 0 };
         u64 has_result_cache_hits { 0 };
         u64 has_result_cache_misses { 0 };
+        u64 full_style_invalidations { 0 };
         u64 style_invalidations { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }

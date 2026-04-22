@@ -606,6 +606,7 @@ JS::Object* Internals::get_style_invalidation_counters()
     object->define_direct_property("hasMatchInvocations"_utf16_fly_string, JS::Value(counters.has_match_invocations), JS::default_attributes);
     object->define_direct_property("hasResultCacheHits"_utf16_fly_string, JS::Value(counters.has_result_cache_hits), JS::default_attributes);
     object->define_direct_property("hasResultCacheMisses"_utf16_fly_string, JS::Value(counters.has_result_cache_misses), JS::default_attributes);
+    object->define_direct_property("fullStyleInvalidations"_utf16_fly_string, JS::Value(counters.full_style_invalidations), JS::default_attributes);
     object->define_direct_property("styleInvalidations"_utf16_fly_string, JS::Value(counters.style_invalidations), JS::default_attributes);
     return object;
 }

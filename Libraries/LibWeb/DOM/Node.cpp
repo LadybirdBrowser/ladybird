@@ -463,6 +463,7 @@ void Node::invalidate_style(StyleInvalidationReason reason)
 
     if (is_document()) {
         auto& document = static_cast<DOM::Document&>(*this);
+        document.style_invalidation_counters().full_style_invalidations++;
         document.set_needs_full_style_update(true);
         return;
     }
