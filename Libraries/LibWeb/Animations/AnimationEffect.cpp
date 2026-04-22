@@ -822,6 +822,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
 
         // Traversal of the subtree is necessary to update the animated properties inherited from the target element.
         target->for_each_in_subtree_of_type<DOM::Element>([&](auto& element) {
+            if (!element.cascaded_properties({}))
+                return TraversalDecision::SkipChildrenAndContinue;
             auto element_invalidation = element.recompute_inherited_style();
             if (element_invalidation.is_none())
                 return TraversalDecision::SkipChildrenAndContinue;

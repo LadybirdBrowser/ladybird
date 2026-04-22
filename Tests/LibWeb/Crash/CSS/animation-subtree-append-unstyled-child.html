@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes anim { from { opacity: 1 } to { opacity: 0.5 } }
+    #target { animation: anim 10s infinite; }
+</style>
+<div id="target"></div>
+<script>
+    const animation = target.getAnimations()[0];
+
+    function waitForAnimationTick() {
+        if (animation.currentTime === null || animation.currentTime === 0) {
+            requestAnimationFrame(waitForAnimationTick);
+            return;
+        }
+
+        target.appendChild(document.createElement("div"));
+        requestAnimationFrame(() => {
+            document.documentElement.classList.remove("test-wait");
+        });
+    }
+
+    requestAnimationFrame(waitForAnimationTick);
+</script>
+</html>
