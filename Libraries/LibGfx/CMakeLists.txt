@@ -148,5 +148,7 @@ if (HAS_VULKAN)
     if (USE_VULKAN_DMABUF_IMAGES)
         pkg_check_modules(LibDRM REQUIRED libdrm)
         target_include_directories(LibGfx PUBLIC ${LibDRM_INCLUDE_DIRS})
+        # PUBLIC so consumers see the same Gfx::SharedImageBuffer layout.
+        target_compile_definitions(LibGfx PUBLIC USE_VULKAN_DMABUF_IMAGES=1)
     endif()
 endif()

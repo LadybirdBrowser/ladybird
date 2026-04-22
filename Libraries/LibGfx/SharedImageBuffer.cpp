@@ -55,6 +55,14 @@ SharedImageBuffer::SharedImageBuffer(NonnullRefPtr<Bitmap> bitmap)
     : m_bitmap(move(bitmap))
 {
 }
+
+#    ifdef USE_VULKAN_DMABUF_IMAGES
+SharedImageBuffer::SharedImageBuffer(LinuxDmaBufHandle&& dmabuf, NonnullRefPtr<Bitmap> bitmap)
+    : m_linux_dmabuf_handle(move(dmabuf))
+    , m_bitmap(move(bitmap))
+{
+}
+#    endif
 #endif
 
 SharedImageBuffer SharedImageBuffer::create(IntSize size)
@@ -81,7 +89,8 @@ SharedImageBuffer SharedImageBuffer::import_from_shared_image(SharedImage shared
         },
         [](LinuxDmaBufHandle& dmabuf) -> SharedImageBuffer {
 #    ifdef USE_VULKAN_DMABUF_IMAGES
-            return SharedImageBuffer(create_bitmap_from_linux_dmabuf(dmabuf));
+            auto bitmap = create_bitmap_from_linux_dmabuf(dmabuf);
+            return SharedImageBuffer(move(dmabuf), move(bitmap));
 #    else
             (void)dmabuf;
             VERIFY_NOT_REACHED();

@@ -8,6 +8,7 @@
 
 #include <AK/Noncopyable.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/Optional.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/SharedImage.h>
 
@@ -34,6 +35,9 @@ public:
 
 #ifdef AK_OS_MACOS
     Core::IOSurfaceHandle const& iosurface_handle() const { return m_iosurface_handle; }
+#elif defined(USE_VULKAN_DMABUF_IMAGES)
+    // Non-empty for dma-buf-backed buffers; lets UI code zero-copy-import the fd.
+    Optional<LinuxDmaBufHandle> const& linux_dmabuf_handle() const { return m_linux_dmabuf_handle; }
 #endif
 
 private:
@@ -42,6 +46,10 @@ private:
     Core::IOSurfaceHandle m_iosurface_handle;
 #else
     explicit SharedImageBuffer(NonnullRefPtr<Bitmap>);
+#    ifdef USE_VULKAN_DMABUF_IMAGES
+    SharedImageBuffer(LinuxDmaBufHandle&&, NonnullRefPtr<Bitmap>);
+    Optional<LinuxDmaBufHandle> m_linux_dmabuf_handle;
+#    endif
 #endif
     NonnullRefPtr<Bitmap> m_bitmap;
 };
