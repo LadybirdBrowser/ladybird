@@ -341,9 +341,10 @@ void CSSStyleSheet::add_owning_document_or_shadow_root(DOM::Node& document_or_sh
     VERIFY(document_or_shadow_root.is_document() || document_or_shadow_root.is_shadow_root());
     m_owning_documents_or_shadow_roots.set(document_or_shadow_root);
 
-    // All owning documents or shadow roots must be part of the same document so we only need to load this style
-    // sheet's fonts against the document of the first
-    if (this->owning_documents_or_shadow_roots().size() == 1)
+    // CSSOM's "add a CSS style sheet" steps bail out once the disabled flag is set, so ownership alone should not
+    // make a disabled sheet observable in the destination document. Delay CSS-connected font activation until the
+    // sheet actually becomes enabled.
+    if (!disabled() && this->owning_documents_or_shadow_roots().size() == 1)
         document_or_shadow_root.document().font_computer().load_fonts_from_sheet(*this);
 
     for (auto const& import_rule : m_import_rules) {
@@ -372,8 +373,23 @@ void CSSStyleSheet::set_disabled(bool disabled)
     if (this->disabled() == disabled)
         return;
 
+    auto document = owning_document();
+    // When a stylesheet is disabled we stop evaluating its media queries, so both the cached top-level match bit
+    // and the MediaList's internal state can go stale across viewport changes. Clear the cache for both
+    // directions, and eagerly refresh on re-enable so subsequent rule-cache rebuilds see the current media state
+    // instead of the pre-disable one.
+    m_did_match = {};
     StyleSheet::set_disabled(disabled);
-    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDisabledStateChange);
+
+    if (!disabled) {
+        if (document) {
+            evaluate_media_queries(*document);
+            document->font_computer().load_fonts_from_sheet(*this);
+            load_pending_image_resources(*document);
+        }
+    } else if (document) {
+        document->font_computer().unload_fonts_from_sheet(*this);
+    }
 }
 
 void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> const& callback) const
@@ -410,6 +426,9 @@ GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
 
 void CSSStyleSheet::load_pending_image_resources(DOM::Document& document)
 {
+    if (disabled())
+        return;
+
     auto pending = move(m_pending_image_values);
     for (auto const& weak_image_value : pending) {
         if (auto* image_value = weak_image_value.ptr())
