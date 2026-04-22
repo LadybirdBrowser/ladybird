@@ -27,13 +27,14 @@ function(compile_ipc source output)
     if (NOT IS_ABSOLUTE ${source})
         set(source ${CMAKE_CURRENT_SOURCE_DIR}/${source})
     endif()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(
         OUTPUT ${output}
-        COMMAND $<TARGET_FILE:Lagom::IPCCompiler> ${source} -o ${output}.tmp
+        COMMAND "${Python3_EXECUTABLE}" "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_ipc_definitions.py" --input ${source} --output ${output}.tmp
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${output}.tmp ${output}
         COMMAND "${CMAKE_COMMAND}" -E remove ${output}.tmp
         VERBATIM
-        DEPENDS Lagom::IPCCompiler
+        DEPENDS "${LADYBIRD_SOURCE_DIR}/Meta/Generators/generate_ipc_definitions.py"
         MAIN_DEPENDENCY ${source}
     )
     get_filename_component(output_name ${output} NAME)
