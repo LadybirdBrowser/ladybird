@@ -33,4 +33,14 @@ TimeRanges ConstantBitrateContainerNavigator::buffered_time_ranges(Vector<MediaS
     return ranges;
 }
 
+DecoderErrorOr<SeekResult> ConstantBitrateContainerNavigator::seek_to_timestamp(AK::Duration timestamp) const
+{
+    timestamp = max(timestamp, AK::Duration::zero());
+    auto byte_offset = timestamp.to_time_units(1, m_bytes_per_second);
+    byte_offset -= byte_offset % static_cast<i64>(m_block_align);
+    auto byte_position = static_cast<i64>(m_first_sample_position) + byte_offset;
+    auto resolved_timestamp = AK::Duration::from_time_units(byte_offset, 1, m_bytes_per_second);
+    return SeekedPosition { byte_position, resolved_timestamp };
+}
+
 }

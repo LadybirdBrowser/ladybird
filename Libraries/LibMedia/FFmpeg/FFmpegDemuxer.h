@@ -76,6 +76,8 @@ private:
         AVPacket* packet { nullptr };
         bool is_seekable { true };
         bool peeked_packet_already { false };
+        Optional<AK::Duration> pending_timestamp_offset;
+        AK::Duration timestamp_offset;
     };
 
     FFmpegDemuxer(NonnullRefPtr<MediaStream> const&);
