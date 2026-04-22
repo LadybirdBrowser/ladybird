@@ -26,7 +26,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FitContentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FontVariantAlternatesFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
@@ -1474,11 +1474,12 @@ Optional<FontVariantAlternates> ComputedProperties::font_variant_alternates() co
             continue;
         }
 
-        if (value->is_font_variant_alternates_function()) {
-            auto const& function = value->as_font_variant_alternates_function();
+        if (value->is_function()) {
+            auto function_type = font_feature_value_type_from_string(value->as_function().name()).release_value();
+            auto const& names = value->as_function().value()->as_value_list().values();
 
-            for (auto const& name : function.names())
-                alternates.font_feature_value_entries.append({ function.function_type(), string_from_style_value(name) });
+            for (auto const& name : names)
+                alternates.font_feature_value_entries.append({ function_type, string_from_style_value(name) });
 
             continue;
         }

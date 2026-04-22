@@ -23,6 +23,8 @@ enum class FontFeatureValueType : u8 {
     Annotation,
 };
 
+Optional<FontFeatureValueType> font_feature_value_type_from_string(FlyString const&);
+
 struct FontFeatureValueKey {
     FontFeatureValueType type;
     FlyString name;

@@ -328,7 +328,6 @@ class FontFace;
 class FontFaceSet;
 class FontSourceStyleValue;
 class FontStyleStyleValue;
-class FontVariantAlternatesFunctionStyleValue;
 class Frequency;
 class FrequencyPercentage;
 class FrequencyStyleValue;

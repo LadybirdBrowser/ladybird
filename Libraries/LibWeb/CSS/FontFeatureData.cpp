@@ -10,6 +10,24 @@
 
 namespace Web::CSS {
 
+Optional<FontFeatureValueType> font_feature_value_type_from_string(FlyString const& string)
+{
+    if (string == "stylistic"_fly_string)
+        return FontFeatureValueType::Stylistic;
+    if (string == "styleset"_fly_string)
+        return FontFeatureValueType::Styleset;
+    if (string == "character-variant"_fly_string)
+        return FontFeatureValueType::CharacterVariant;
+    if (string == "swash"_fly_string)
+        return FontFeatureValueType::Swash;
+    if (string == "ornaments"_fly_string)
+        return FontFeatureValueType::Ornaments;
+    if (string == "annotation"_fly_string)
+        return FontFeatureValueType::Annotation;
+
+    return {};
+}
+
 Gfx::ShapeFeatures FontFeatureData::to_shape_features(HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
 {
     HashMap<FlyString, u8> merged_features;

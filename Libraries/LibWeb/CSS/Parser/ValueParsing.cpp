@@ -48,8 +48,8 @@
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/FontVariantAlternatesFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
@@ -3595,7 +3595,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            stylistic = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::Stylistic, move(feature_value_names));
+            stylistic = FunctionStyleValue::create("stylistic"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3605,7 +3605,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            styleset = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::Styleset, move(feature_value_names));
+            styleset = FunctionStyleValue::create("styleset"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3615,7 +3615,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            character_variant = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::CharacterVariant, move(feature_value_names));
+            character_variant = FunctionStyleValue::create("character-variant"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3625,7 +3625,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            swash = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::Swash, move(feature_value_names));
+            swash = FunctionStyleValue::create("swash"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3635,7 +3635,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            ornaments = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::Ornaments, move(feature_value_names));
+            ornaments = FunctionStyleValue::create("ornaments"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
@@ -3645,7 +3645,7 @@ RefPtr<StyleValue const> Parser::parse_font_variant_alternates_value(TokenStream
                 return nullptr;
 
             transaction.commit();
-            annotation = FontVariantAlternatesFunctionStyleValue::create(FontFeatureValueType::Annotation, move(feature_value_names));
+            annotation = FunctionStyleValue::create("annotation"_fly_string, StyleValueList::create(move(feature_value_names), StyleValueList::Separator::Comma));
             continue;
         }
 
