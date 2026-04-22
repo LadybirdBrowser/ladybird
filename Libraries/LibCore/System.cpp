@@ -142,6 +142,33 @@ ErrorOr<void> munmap(void* address, size_t size)
     return {};
 }
 
+ErrorOr<void*> reserve_address_space(size_t size)
+{
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#ifdef MAP_NORESERVE
+    flags |= MAP_NORESERVE;
+#endif
+    auto* ptr = ::mmap(nullptr, size, PROT_NONE, flags, -1, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    return ptr;
+}
+
+ErrorOr<void> commit_memory(void* address, size_t size)
+{
+    auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    if (ptr == MAP_FAILED)
+        return Error::from_syscall("mmap"sv, errno);
+    return {};
+}
+
+ErrorOr<void> release_address_space(void* address, size_t size)
+{
+    if (::munmap(address, size) < 0)
+        return Error::from_syscall("munmap"sv, errno);
+    return {};
+}
+
 ErrorOr<int> anon_create([[maybe_unused]] size_t size, [[maybe_unused]] int options)
 {
     int fd = -1;
