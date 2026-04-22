@@ -183,9 +183,6 @@ void Shape::visit_edges(Cell::Visitor& visitor)
     if (m_property_key.has_value())
         m_property_key->visit_edges(visitor);
 
-    // NOTE: We don't need to mark the keys in the property table, since they are guaranteed
-    //       to also be marked by the chain of shapes leading up to this one.
-
     visitor.ignore(m_prototype_transitions);
 
     // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
@@ -202,7 +199,22 @@ void Shape::visit_edges(Cell::Visitor& visitor)
 
     visitor.visit(m_prototype_chain_validity);
 
-    if (m_property_table) {
+    // Only dictionary shapes actually need us to mark the keys in m_property_table.
+    //
+    // For non-dictionary shapes, m_property_table is a lazily-built cache of the
+    // transition chain: every key it contains was originally inserted into some
+    // ancestor's m_property_key, and that ancestor is kept alive by m_previous
+    // (which we already visit above). So those keys are guaranteed to be marked
+    // transitively via the chain, and re-marking them here is pure overhead.
+    //
+    // The exception used to be the handful of intrinsic shapes populated via
+    // add_property_without_transition() in Intrinsics.cpp (iterator-result,
+    // function, arguments, regexp-exec-array, ...). Those shapes are not
+    // dictionaries and have no m_previous to reach their property keys through.
+    // However, every key they hold is a vm.names.* string or a well-known
+    // symbol, both of which are strongly rooted by the VM for its entire
+    // lifetime, so skipping them here is safe.
+    if (m_dictionary && m_property_table) {
         for (auto& it : *m_property_table)
             it.key.visit_edges(visitor);
     }
