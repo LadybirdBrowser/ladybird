@@ -318,6 +318,8 @@ void OpenGLContext::allocate_iosurface_painting_surface()
     glBindTexture(m_impl->texture_target == EGL_TEXTURE_RECTANGLE_ANGLE ? GL_TEXTURE_RECTANGLE_ANGLE : GL_TEXTURE_2D, m_impl->color_buffer);
     auto result = eglBindTexImage(m_impl->display, m_impl->surface, EGL_BACK_BUFFER);
     VERIFY(result == EGL_TRUE);
+
+    glViewport(0, 0, m_size.width(), m_size.height());
 }
 #endif
 
