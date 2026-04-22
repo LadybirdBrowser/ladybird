@@ -22,6 +22,7 @@
 namespace Web::CSS {
 
 class CSSImportRule;
+struct ShadowRootStylesheetEffects;
 
 struct CSSStyleSheetInit {
     Optional<String> base_url {};
@@ -92,7 +93,7 @@ public:
     HashTable<GC::Ptr<DOM::Node>> owning_documents_or_shadow_roots() const { return m_owning_documents_or_shadow_roots; }
     void add_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
     void remove_owning_document_or_shadow_root(DOM::Node& document_or_shadow_root);
-    void invalidate_owners(DOM::StyleInvalidationReason);
+    void invalidate_owners(DOM::StyleInvalidationReason, ShadowRootStylesheetEffects const* previous_sheet_effects = nullptr);
     GC::Ptr<DOM::Document> owning_document() const;
     void set_disabled(bool);
     void for_each_owning_style_scope(Function<void(StyleScope&)> const&) const;

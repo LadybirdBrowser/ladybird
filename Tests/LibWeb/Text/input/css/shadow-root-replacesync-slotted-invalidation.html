@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><span id="slotted" class="item">slotted</span></div>
+<script>
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const slotted = document.getElementById("slotted");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const slottedSheet = new CSSStyleSheet();
+        const keyframesSheet = new CSSStyleSheet();
+
+        shadowRoot.innerHTML = "<slot></slot>";
+        shadowRoot.adoptedStyleSheets = [slottedSheet, keyframesSheet];
+
+        slottedSheet.replaceSync(`
+            ::slotted(.item) {
+                color: rgb(0, 0, 255);
+                animation-name: fade;
+                animation-duration: 1s;
+                animation-fill-mode: both;
+            }
+        `);
+        keyframesSheet.replaceSync("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        println(`slotted before replaceSync: ${getComputedStyle(slotted).color}`);
+        await animationFrame();
+        println(`opacity before keyframes replaceSync: ${getComputedStyle(slotted).opacity}`);
+
+        slottedSheet.replaceSync("::slotted(.item) { color: rgb(255, 0, 0); animation-name: fade; animation-duration: 1s; animation-fill-mode: both; }");
+        println(`slotted after replaceSync: ${getComputedStyle(slotted).color}`);
+
+        keyframesSheet.replaceSync("@keyframes fade { from { opacity: 0.5; } to { opacity: 0.5; } }");
+        await animationFrame();
+        println(`opacity after keyframes replaceSync: ${getComputedStyle(slotted).opacity}`);
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+PASS: shadow-local layer-order add stays inside the shadow root (0 invalidations)
+PASS: shadow-local layer-order remove stays inside the shadow root (0 invalidations)

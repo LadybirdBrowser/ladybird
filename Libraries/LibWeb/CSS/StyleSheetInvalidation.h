@@ -64,6 +64,14 @@ void invalidate_root_for_style_sheet_change(DOM::Node& root, StyleSheetInvalidat
 // paths that need host-side fallout derived from the whole shadow scope rather than a single sheet.
 ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(DOM::ShadowRoot const&);
 
+// Slotted light-DOM nodes inherit from their assigned <slot>, so any shadow invalidation that dirties slot elements
+// must also dirty the flattened assignees outside the shadow subtree.
+void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot&);
+
+// Summarize how `style_sheet` can escape the shadow subtree across all shadow roots it is owned by. Used to snapshot
+// the pre-mutation reach of a sheet whose own rules are about to change.
+ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(CSSStyleSheet const&);
+
 // Apply a targeted invalidation to all documents and shadow roots that own `style_sheet` in response to inserting
 // `style_rule` into it.
 void invalidate_owners_for_inserted_style_rule(CSSStyleSheet const& style_sheet, CSSStyleRule const& style_rule, DOM::StyleInvalidationReason);

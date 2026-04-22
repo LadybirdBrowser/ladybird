@@ -1,0 +1,4 @@
+slotted before replaceSync: rgb(0, 0, 255)
+opacity before keyframes replaceSync: 0.25
+slotted after replaceSync: rgb(255, 0, 0)
+opacity after keyframes replaceSync: 0.5

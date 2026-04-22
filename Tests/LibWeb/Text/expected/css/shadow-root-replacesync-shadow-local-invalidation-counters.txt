@@ -1,0 +1,2 @@
+PASS: shadow-local replaceSync ignores matching light-DOM bystanders (0 invalidations)
+PASS: shadow-local replaceSync stays bounded on subsequent updates (0 invalidations)

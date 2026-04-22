@@ -264,7 +264,7 @@ static void invalidate_elements_matching_invalidation_set_and_anchor_rules(
 // Slotted light-DOM nodes inherit from their assigned <slot>. If a targeted
 // shadow-root invalidation dirties the slot itself, we must also dirty the
 // flattened assignees outside the shadow subtree.
-static void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot& shadow_root)
+void invalidate_assigned_elements_for_dirty_slots(DOM::ShadowRoot& shadow_root)
 {
     shadow_root.for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([](HTML::HTMLSlotElement& slot) {
         if (!slot.needs_style_update())
@@ -508,6 +508,27 @@ ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(DOM::Shadow
         effects.may_match_light_dom_under_shadow_host |= sheet_effects.may_match_light_dom_under_shadow_host;
         effects.may_affect_assigned_nodes_via_slots |= sheet_effects.may_affect_assigned_nodes_via_slots;
     });
+
+    return effects;
+}
+
+ShadowRootStylesheetEffects determine_shadow_root_stylesheet_effects(CSSStyleSheet const& style_sheet)
+{
+    ShadowRootStylesheetEffects effects;
+
+    for (auto& document_or_shadow_root : style_sheet.owning_documents_or_shadow_roots()) {
+        auto* shadow_root = as_if<DOM::ShadowRoot>(*document_or_shadow_root);
+        if (!shadow_root)
+            continue;
+
+        auto sheet_effects = determine_shadow_root_stylesheet_effects_for_sheet(style_sheet, *shadow_root);
+        effects.may_match_shadow_host |= sheet_effects.may_match_shadow_host;
+        effects.may_match_light_dom_under_shadow_host |= sheet_effects.may_match_light_dom_under_shadow_host;
+        effects.may_affect_assigned_nodes_via_slots |= sheet_effects.may_affect_assigned_nodes_via_slots;
+
+        if (effects.may_match_shadow_host && effects.may_match_light_dom_under_shadow_host && effects.may_affect_assigned_nodes_via_slots)
+            break;
+    }
 
     return effects;
 }

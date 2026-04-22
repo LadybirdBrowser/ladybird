@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyInvalidationsStayBounded(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const host = document.getElementById("host");
+        for (let i = 0; i < 25; ++i) {
+            const lightDomBystander = document.createElement("span");
+            lightDomBystander.className = "foo";
+            lightDomBystander.textContent = `light bystander ${i}`;
+            host.appendChild(lightDomBystander);
+        }
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<div id="shadow-target" class="foo">shadow target</div>`;
+        const shadowTarget = shadowRoot.getElementById("shadow-target");
+
+        const sheet = new CSSStyleSheet();
+        shadowRoot.adoptedStyleSheets = [sheet];
+
+        settleAndReset(shadowTarget);
+        sheet.replaceSync(".foo { color: rgb(0, 128, 0); }");
+        getComputedStyle(shadowTarget).color;
+        verifyInvalidationsStayBounded("shadow-local replaceSync ignores matching light-DOM bystanders", 2);
+
+        settleAndReset(shadowTarget);
+        sheet.replaceSync(".foo { color: rgb(255, 0, 0); }");
+        getComputedStyle(shadowTarget).color;
+        verifyInvalidationsStayBounded("shadow-local replaceSync stays bounded on subsequent updates", 2);
+    });
+</script>

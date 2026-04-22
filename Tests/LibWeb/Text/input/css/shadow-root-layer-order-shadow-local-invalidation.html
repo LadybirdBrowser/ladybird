@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    function settleAndReset(triggerElement) {
+        getComputedStyle(triggerElement).color;
+        getComputedStyle(triggerElement).color;
+        internals.resetStyleInvalidationCounters();
+    }
+
+    function verifyInvalidationsStayBounded(label, maxInvalidations) {
+        const invalidations = internals.getStyleInvalidationCounters().styleInvalidations;
+        if (invalidations <= maxInvalidations)
+            println(`PASS: ${label} (${invalidations} invalidations)`);
+        else
+            println(`FAIL: ${label} (${invalidations} invalidations)`);
+    }
+
+    test(() => {
+        const host = document.getElementById("host");
+        for (let i = 0; i < 25; ++i) {
+            const bystander = document.createElement("span");
+            bystander.className = "shadow-target";
+            bystander.textContent = `bystander ${i}`;
+            document.body.appendChild(bystander);
+        }
+
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `<div id="target" class="shadow-target">target</div>`;
+        const target = shadowRoot.getElementById("target");
+
+        const baseStyle = document.createElement("style");
+        baseStyle.textContent = `
+            @layer alpha {
+                .shadow-target { color: rgb(255, 0, 0); }
+            }
+
+            @layer beta {
+                .shadow-target { color: rgb(0, 128, 0); }
+            }
+        `;
+        shadowRoot.appendChild(baseStyle);
+
+        const layerOrderStyle = document.createElement("style");
+        layerOrderStyle.textContent = "@layer beta, alpha;";
+
+        settleAndReset(target);
+        shadowRoot.appendChild(layerOrderStyle);
+        getComputedStyle(target).color;
+        verifyInvalidationsStayBounded("shadow-local layer-order add stays inside the shadow root", 4);
+
+        settleAndReset(target);
+        layerOrderStyle.remove();
+        getComputedStyle(target).color;
+        verifyInvalidationsStayBounded("shadow-local layer-order remove stays inside the shadow root", 4);
+    });
+</script>

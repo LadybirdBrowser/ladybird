@@ -187,9 +187,10 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::delete_rule(unsigned index)
         return WebIDL::NotAllowedError::create(realm(), "Can't call delete_rule() on non-modifiable stylesheets."_utf16);
 
     // 3. Remove a CSS rule in the CSS rules at index.
+    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
     auto result = m_rules->remove_a_css_rule(index);
     if (!result.is_exception()) {
-        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule);
+        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetDeleteRule, &previous_sheet_effects);
     }
     return result;
 }
@@ -219,6 +220,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
     // 4. In parallel, do these steps:
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(realm.heap(), [&realm, this, text = move(text), promise = GC::Root(promise)] {
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+        auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
 
         // 1. Let rules be the result of running parse a stylesheet’s contents from text.
         auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
@@ -236,7 +238,7 @@ GC::Ref<WebIDL::Promise> CSSStyleSheet::replace(String text)
 
         // 3. Set sheet’s CSS rules to rules.
         m_rules->set_rules({}, rules_without_import);
-        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace);
+        invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace, &previous_sheet_effects);
 
         // 4. Unset sheet’s disallow modification flag.
         set_disallow_modification(false);
@@ -258,6 +260,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
         return WebIDL::NotAllowedError::create(realm(), "Can't call replaceSync() on non-modifiable stylesheets"_utf16);
 
     // 2. Let rules be the result of running parse a stylesheet’s contents from text.
+    auto previous_sheet_effects = determine_shadow_root_stylesheet_effects(*this);
     auto rules = CSS::Parser::Parser::create(make_parsing_params(), text).parse_as_stylesheet_contents();
 
     // 3. If rules contains one or more @import rules, remove those rules from rules.
@@ -274,7 +277,7 @@ WebIDL::ExceptionOr<void> CSSStyleSheet::replace_sync(StringView text)
 
     // 4. Set sheet’s CSS rules to rules.
     m_rules->set_rules({}, rules_without_import);
-    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace);
+    invalidate_owners(DOM::StyleInvalidationReason::StyleSheetReplace, &previous_sheet_effects);
 
     return {};
 }
@@ -411,14 +414,54 @@ void CSSStyleSheet::for_each_owning_style_scope(Function<void(StyleScope&)> cons
     }
 }
 
-void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason)
+void CSSStyleSheet::invalidate_owners(DOM::StyleInvalidationReason reason, ShadowRootStylesheetEffects const* previous_sheet_effects)
 {
     m_did_match = {};
 
-    for_each_owning_style_scope([&](StyleScope& style_scope) {
+    for (auto& document_or_shadow_root : m_owning_documents_or_shadow_roots) {
+        auto& style_scope = document_or_shadow_root->is_shadow_root()
+            ? as<DOM::ShadowRoot>(*document_or_shadow_root).style_scope()
+            : document_or_shadow_root->document().style_scope();
+
         style_scope.invalidate_rule_cache();
         style_scope.node().invalidate_style(reason);
-    });
+
+        auto* shadow_root = as_if<DOM::ShadowRoot>(style_scope.node());
+        if (!shadow_root)
+            continue;
+
+        invalidate_assigned_elements_for_dirty_slots(*shadow_root);
+
+        auto* host = shadow_root->host();
+        if (!host)
+            continue;
+
+        auto effects = determine_shadow_root_stylesheet_effects(*shadow_root);
+        if (effects.may_match_light_dom_under_shadow_host && !effects.may_match_shadow_host) {
+            host->invalidate_style(reason);
+        } else if (effects.may_match_light_dom_under_shadow_host) {
+            host->root().invalidate_style(reason);
+        } else if (effects.may_affect_assigned_nodes_via_slots) {
+            host->invalidate_style(reason);
+        } else if (effects.may_match_shadow_host) {
+            host->invalidate_style(reason);
+            shadow_root->set_needs_style_update(true);
+        } else if (previous_sheet_effects) {
+            // `replaceSync("")`, `deleteRule()`, or disabling the last host-reaching rule can remove all evidence of
+            // host-side effects from the post-mutation stylesheet set. Fall back to the pre-mutation snapshot so the
+            // host side still gets the right invalidation.
+            if (previous_sheet_effects->may_match_light_dom_under_shadow_host && !previous_sheet_effects->may_match_shadow_host) {
+                host->invalidate_style(reason);
+            } else if (previous_sheet_effects->may_match_light_dom_under_shadow_host) {
+                host->root().invalidate_style(reason);
+            } else if (previous_sheet_effects->may_affect_assigned_nodes_via_slots) {
+                host->invalidate_style(reason);
+            } else if (previous_sheet_effects->may_match_shadow_host) {
+                host->invalidate_style(reason);
+                shadow_root->set_needs_style_update(true);
+            }
+        }
+    }
 }
 
 GC::Ptr<DOM::Document> CSSStyleSheet::owning_document() const
