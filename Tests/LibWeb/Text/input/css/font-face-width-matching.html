@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    /* Reference families, each backed by exactly one real font file. */
+    @font-face {
+        font-family: RefHash;
+        src: url(../../../Assets/HashSans.woff);
+    }
+    @font-face {
+        font-family: RefLato;
+        src: url(../../../Assets/Lato-Bold.ttf);
+    }
+
+    /* A single family with two width variants backed by two visually distinct fonts. */
+    @font-face {
+        font-family: Matched;
+        font-stretch: condensed;
+        src: url(../../../Assets/HashSans.woff);
+    }
+    @font-face {
+        font-family: Matched;
+        font-stretch: normal;
+        src: url(../../../Assets/Lato-Bold.ttf);
+    }
+
+    .sample { font-size: 40px; }
+    .ref-hash { font-family: RefHash; font-stretch: condensed; }
+    .ref-lato { font-family: RefLato; font-stretch: normal; }
+    .target-condensed { font-family: Matched; font-stretch: condensed; }
+    .target-normal { font-family: Matched; font-stretch: normal; }
+</style>
+<span class="sample ref-hash">WWWW</span>
+<span class="sample ref-lato">WWWW</span>
+<span class="sample target-condensed">WWWW</span>
+<span class="sample target-normal">WWWW</span>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        await document.fonts.ready;
+        const width = selector => document.querySelector(selector).offsetWidth;
+        const refHash = width(".ref-hash");
+        const refLato = width(".ref-lato");
+        const condensed = width(".target-condensed");
+        const normal = width(".target-normal");
+
+        println(`reference fonts differ: ${refHash !== refLato}`);
+        println(`condensed uses HashSans: ${condensed === refHash}`);
+        println(`normal uses Lato: ${normal === refLato}`);
+    });
+</script>

@@ -9,6 +9,7 @@
  */
 
 #include "FontComputer.h"
+#include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
@@ -215,8 +216,40 @@ Optional<ByteString> FontLoader::try_load_font_mime_type_essence(Fetch::Infrastr
     return mime_type->essence().to_byte_string();
 }
 
+static unsigned font_width_bucket_from_percentage(double percentage)
+{
+    // Maps a font-width Percentage to the nearest standard Gfx::FontWidth bucket.
+
+    struct Bucket {
+        double percentage;
+        unsigned width;
+    };
+    static constexpr Array<Bucket, 9> buckets = { {
+        { 50.0, Gfx::FontWidth::UltraCondensed },
+        { 62.5, Gfx::FontWidth::ExtraCondensed },
+        { 75.0, Gfx::FontWidth::Condensed },
+        { 87.5, Gfx::FontWidth::SemiCondensed },
+        { 100.0, Gfx::FontWidth::Normal },
+        { 112.5, Gfx::FontWidth::SemiExpanded },
+        { 125.0, Gfx::FontWidth::Expanded },
+        { 150.0, Gfx::FontWidth::ExtraExpanded },
+        { 200.0, Gfx::FontWidth::UltraExpanded },
+    } };
+    auto best = buckets[0];
+    auto best_distance = AK::fabs(percentage - best.percentage);
+    for (size_t i = 1; i < buckets.size(); ++i) {
+        auto distance = AK::fabs(percentage - buckets[i].percentage);
+        if (distance < best_distance) {
+            best_distance = distance;
+            best = buckets[i];
+        }
+    }
+    return best.width;
+}
+
 struct FontComputer::MatchingFontCandidate {
     FontFaceKey key;
+    unsigned width { Gfx::FontWidth::Normal };
     Gfx::Typeface const* system_typeface { nullptr };
 
     [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(HashMap<FontFaceKey, Vector<GC::Ref<FontFace>>> const& font_faces, float point_size, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
@@ -280,15 +313,17 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::find_matching_font_weight_desce
 
 // Partial implementation of the font-matching algorithm: https://www.w3.org/TR/css-fonts-4/#font-matching-algorithm
 // FIXME: This should be replaced by the full CSS font selection algorithm.
-RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
+RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyString const& family_name, int weight, Percentage const& font_width, int slope, float font_size_in_pt, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
 {
     // If a font family match occurs, the user agent assembles the set of font faces in that family and then
     // narrows the set to a single face using other font properties in the order given below.
     Vector<MatchingFontCandidate> matching_family_fonts;
     // FIXME: URL-backed faces with no typeface yet should trigger a load on demand, matching other engines.
     for (auto const& [map_key, faces] : m_font_faces) {
-        if (map_key.family_name.equals_ignoring_ascii_case(family_name))
+        if (map_key.family_name.equals_ignoring_ascii_case(family_name)) {
             matching_family_fonts.empend(map_key);
+            matching_family_fonts.last().width = font_width_bucket_from_percentage(map_key.width);
+        }
     }
     Gfx::FontDatabase::the().for_each_typeface_with_family_name(family_name, [&](Gfx::Typeface const& typeface) {
         matching_family_fonts.append({
@@ -298,6 +333,7 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
                 .weight = { static_cast<int>(typeface.weight()), static_cast<int>(typeface.weight()) },
                 .slope = typeface.slope(),
             },
+            .width = typeface.width(),
             .system_typeface = &typeface,
         });
     });
@@ -305,11 +341,20 @@ RefPtr<Gfx::FontCascadeList const> FontComputer::font_matching_algorithm(FlyStri
     if (matching_family_fonts.is_empty())
         return {};
 
+    // 1. font-width is tried first.
+    auto desired_width = font_width_bucket_from_percentage(font_width.value());
+    auto width_it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
+        [&](auto const& matching_font_candidate) { return matching_font_candidate.width == desired_width; });
+    if (width_it != matching_family_fonts.end()) {
+        matching_family_fonts.remove_all_matching([&](auto const& matching_font_candidate) {
+            return matching_font_candidate.width != desired_width;
+        });
+    }
+
     quick_sort(matching_family_fonts, [](auto const& a, auto const& b) {
         return a.key.weight.min < b.key.weight.min;
     });
-    // FIXME: 1. font-width is tried first.
-    // FIXME: 2. font-style is tried next.
+    // 2. font-style is tried next.
     // We don't have complete support of italic and oblique fonts, so matching on font-style can be simplified to:
     // If a matching slope is found, all faces which don't have that matching slope are excluded from the matching set.
     auto style_it = find_if(matching_family_fonts.begin(), matching_family_fonts.end(),
@@ -478,7 +523,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
                 return result;
         }
 
-        if (auto found_font = font_matching_algorithm(family, weight, slope, font_size_in_pt, variation, font_feature_data, font_feature_values); found_font && !found_font->is_empty())
+        if (auto found_font = font_matching_algorithm(family, weight, font_width, slope, font_size_in_pt, variation, font_feature_data, font_feature_values); found_font && !found_font->is_empty())
             return found_font;
 
         return {};
