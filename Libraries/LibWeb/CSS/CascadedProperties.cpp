@@ -91,6 +91,7 @@ void CascadedProperties::set_property(PropertyID property_id, NonnullRefPtr<Styl
                 .value = value,
             };
             entry.cascade_index = m_next_cascade_index++;
+            entry.source = source;
             return;
         }
     }
