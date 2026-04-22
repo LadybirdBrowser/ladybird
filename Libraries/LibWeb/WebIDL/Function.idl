@@ -1,4 +1,2 @@
 // https://webidl.spec.whatwg.org/#Function
-
-// FIXME: This should be a builtin type.
 callback Function = any (any... arguments);

@@ -24,7 +24,7 @@
 namespace Web::HTML {
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#timerhandler
-using TimerHandler = Variant<GC::Ref<WebIDL::CallbackType>, String>;
+using TimerHandler = Variant<GC::Root<WebIDL::CallbackType>, String>;
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#windoworworkerglobalscope
 class WEB_API WindowOrWorkerGlobalScopeMixin {

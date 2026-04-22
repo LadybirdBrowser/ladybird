@@ -358,9 +358,6 @@ CppType idl_type_name_to_cpp_type(Type const& type, Context const& context)
     if (type.name() == "ArrayBufferView")
         return { .name = "GC::Root<WebIDL::ArrayBufferView>", .sequence_storage_type = SequenceStorageType::RootVector };
 
-    if (type.name() == "Function")
-        return { .name = "GC::Ref<WebIDL::CallbackType>", .sequence_storage_type = SequenceStorageType::RootVector };
-
     if (type.name() == "Promise")
         return { .name = "GC::Root<WebIDL::Promise>", .sequence_storage_type = SequenceStorageType::RootVector };
 
@@ -1500,9 +1497,9 @@ static void generate_union_to_cpp(SourceGenerator& scoped_generator, ParameterTy
     // 9. If IsCallable(V) is true, then:
     //     1. If types includes a callback function type, then return the result of converting V to that callback function type.
     //     2. If types includes object, then return the IDL value that is a reference to the object V.
-    bool includes_callable = any_of(types, [](auto const& type) { return type->name() == "Function"sv; });
+    bool includes_callback_function = any_of(types, [&context](auto const& type) { return context.callback_functions.contains(type->name()); });
 
-    if (includes_callable) {
+    if (includes_callback_function) {
         union_generator.append(R"~~~(
             if (@js_name@@js_suffix@_object.is_function())
                 return vm.heap().allocate<WebIDL::CallbackType>(@js_name@@js_suffix@.as_function(), HTML::incumbent_realm());
