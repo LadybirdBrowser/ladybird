@@ -16,13 +16,13 @@ bool supports_container([[maybe_unused]] Utf16String const& container)
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-capabilities-for-audio-video-type
-Optional<Vector<Bindings::MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<Bindings::MediaKeySystemMediaCapability> requested_capabilities, Bindings::MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
+Optional<Vector<MediaKeySystemMediaCapability>> get_supported_capabilities_for_audio_video_type(KeySystem const& implementation, CapabilitiesType type, Vector<MediaKeySystemMediaCapability> requested_capabilities, MediaKeySystemConfiguration config, MediaKeyRestrictions restrictions)
 {
     // 1. Let local accumulated configuration be a local copy of accumulated configuration.
-    Bindings::MediaKeySystemConfiguration accumulated_configuration = config;
+    MediaKeySystemConfiguration accumulated_configuration = config;
 
     // 2. Let supported media capabilities be an empty sequence of MediaKeySystemMediaCapability dictionaries.
-    Vector<Bindings::MediaKeySystemMediaCapability> supported_media_capabilities;
+    Vector<MediaKeySystemMediaCapability> supported_media_capabilities;
 
     // 3. For each requested media capability in requested media capabilities:
     for (auto& capability : requested_capabilities) {
@@ -143,7 +143,7 @@ bool is_persistent_session_type(Utf16String const& session_type)
 }
 
 // https://w3c.github.io/encrypted-media/#get-consent-status
-ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
+ConsentStatus get_consent_status(MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
 {
     // FIXME: Implement this
     (void)accumulated_configuration;
@@ -156,10 +156,10 @@ ConsentStatus get_consent_status(Bindings::MediaKeySystemConfiguration const& ac
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-configuration-and-consent
-Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const& implementation, Bindings::MediaKeySystemConfiguration const& candidate_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
+Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, MediaKeyRestrictions& restrictions, URL::Origin const& origin)
 {
     // 1. Let accumulated configuration be a new MediaKeySystemConfiguration dictionary.
-    Bindings::MediaKeySystemConfiguration accumulated_configuration;
+    MediaKeySystemConfiguration accumulated_configuration;
 
     // 2. Set the label member of accumulated configuration to equal the label member of candidate configuration.
     accumulated_configuration.label = candidate_configuration.label;
@@ -293,7 +293,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
     // Otherwise:
     else {
         // 1. Set the videoCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.video_capabilities = Vector<Bindings::MediaKeySystemMediaCapability> {};
+        accumulated_configuration.video_capabilities = Vector<MediaKeySystemMediaCapability> {};
     }
 
     // 1. If the audioCapabilities member in candidate configuration is non-empty:
@@ -312,7 +312,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
     // Otherwise:
     else {
         // 1. Set the audioCapabilities member of accumulated configuration to an empty sequence.
-        accumulated_configuration.audio_capabilities = Vector<Bindings::MediaKeySystemMediaCapability> {};
+        accumulated_configuration.audio_capabilities = Vector<MediaKeySystemMediaCapability> {};
     }
 
     // 18. If accumulated configuration's distinctiveIdentifier value is "optional", follow the steps for the first matching condition from the following list:
@@ -373,7 +373,7 @@ Optional<ConsentConfiguration> get_supported_configuration_and_consent(KeySystem
 }
 
 // https://w3c.github.io/encrypted-media/#get-supported-configuration
-Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& implementation, Bindings::MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
+Optional<ConsentConfiguration> get_supported_configuration(KeySystem const& implementation, MediaKeySystemConfiguration const& candidate_configuration, URL::Origin const& origin)
 {
     // 1. Let supported configuration be ConsentDenied.
     Optional<ConsentConfiguration> supported_configuration = ConsentConfiguration { ConsentStatus::ConsentDenied, {} };

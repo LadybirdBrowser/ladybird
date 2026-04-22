@@ -10,7 +10,7 @@
 #include <AK/Types.h>
 #include <LibWeb/Bindings/MediaKeySystemAccess.h>
 
-namespace Web::Bindings {
+namespace Web::EncryptedMediaExtensions {
 
 // https://w3c.github.io/encrypted-media/#dom-mediakeysystemmediacapability
 struct MediaKeySystemMediaCapability {
@@ -30,10 +30,6 @@ struct MediaKeySystemConfiguration {
     Optional<Vector<Utf16String>> session_types;
 };
 
-}
-
-namespace Web::EncryptedMediaExtensions {
-
 struct MediaKeyRestrictions {
     bool distinctive_identifiers { true };
     bool persist_state { true };
@@ -52,7 +48,7 @@ enum ConsentStatus {
 
 struct ConsentConfiguration {
     ConsentStatus status { ConsentStatus::ConsentDenied };
-    Optional<Bindings::MediaKeySystemConfiguration> configuration;
+    Optional<MediaKeySystemConfiguration> configuration;
 };
 
 }

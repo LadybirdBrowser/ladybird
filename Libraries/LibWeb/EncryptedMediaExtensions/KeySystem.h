@@ -18,7 +18,7 @@ public:
     virtual bool supports_init_data_type(Utf16String const& init_data_type) const = 0;
     virtual bool supports_encryption_scheme(Utf16String const& encryption_scheme) const = 0;
     virtual bool supports_robustness(Utf16String const& robustness) const = 0;
-    virtual bool definitely_supports_playback(Utf16String const& container, Utf16String const& media_types, Optional<Utf16String> encryption_scheme, Utf16String const& robustness, Bindings::MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions const& restrictions) const = 0;
+    virtual bool definitely_supports_playback(Utf16String const& container, Utf16String const& media_types, Optional<Utf16String> encryption_scheme, Utf16String const& robustness, MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions const& restrictions) const = 0;
 
 private:
 };
@@ -55,7 +55,7 @@ public:
         return robustness.is_empty();
     }
 
-    virtual bool definitely_supports_playback(Utf16String const& container, Utf16String const& media_types, Optional<Utf16String> encryption_scheme, Utf16String const& robustness, Bindings::MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions const& restrictions) const override
+    virtual bool definitely_supports_playback(Utf16String const& container, Utf16String const& media_types, Optional<Utf16String> encryption_scheme, Utf16String const& robustness, MediaKeySystemConfiguration const& accumulated_configuration, MediaKeyRestrictions const& restrictions) const override
     {
         (void)container;
         (void)media_types;
