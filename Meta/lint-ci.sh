@@ -33,15 +33,11 @@ for cmd in \
     fi
 done
 
-if [ -x ./Build/lagom/bin/IPCMagicLinter ]; then
-    if { git ls-files '*.ipc' | xargs ./Build/lagom/bin/IPCMagicLinter; }; then
-        echo -e "[${GREEN}OK${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
-    else
-        echo -e "[${BOLD_RED}FAIL${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
-        ((FAILURES+=1))
-    fi
+if { git ls-files '*.ipc' | xargs Meta/Linters/lint_ipc.py; }; then
+    echo -e "[${GREEN}OK${NC}]: Meta/Linters/lint_ipc.py"
 else
-    echo -e "[${GREEN}SKIP${NC}]: IPCMagicLinter (in Meta/lint-ci.sh)"
+    echo -e "[${BOLD_RED}FAIL${NC}]: Meta/Linters/lint_ipc.py"
+    ((FAILURES+=1))
 fi
 
 if Meta/Linters/lint_clang_format.py --overwrite-inplace "$@" && git diff --exit-code -- ':*.cpp' ':*.h' ':*.mm'; then
