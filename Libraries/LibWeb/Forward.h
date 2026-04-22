@@ -222,7 +222,6 @@ struct Color;
 namespace Web::CSS {
 
 class AbstractImageStyleValue;
-class AddFunctionStyleValue;
 class AnchorStyleValue;
 class AnchorSizeStyleValue;
 class Angle;

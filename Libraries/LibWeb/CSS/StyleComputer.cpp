@@ -44,7 +44,6 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleSheet.h>
-#include <LibWeb/CSS/StyleValues/AddFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -54,6 +53,7 @@
 #include <LibWeb/CSS/StyleValues/FilterValueListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
@@ -2861,8 +2861,8 @@ NonnullRefPtr<StyleValue const> StyleComputer::compute_math_depth(NonnullRefPtr<
 
     // - If the specified value of math-depth is of the form add(<integer>) then the computed value of
     //   math-depth of the element is its inherited value plus the specified integer.
-    if (absolutized_value->is_add_function())
-        return IntegerStyleValue::create(inherited_math_depth + int_from_style_value(absolutized_value->as_add_function().value()));
+    if (absolutized_value->is_function())
+        return IntegerStyleValue::create(inherited_math_depth + int_from_style_value(absolutized_value->as_function().value()));
 
     // - If the specified value of math-depth is of the form <integer> then the computed value of math-depth
     //   of the element is the specified integer.

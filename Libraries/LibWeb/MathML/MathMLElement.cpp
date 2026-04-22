@@ -9,7 +9,7 @@
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/StyleValues/AddFunctionStyleValue.h>
+#include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -129,7 +129,7 @@ void MathMLElement::apply_presentational_hints(GC::Ref<CSS::CascadedProperties> 
                 if (auto integer_value = parsed_value->to_number<i32>(TrimWhitespace::No); integer_value.has_value()) {
                     auto style_value = [&]() -> NonnullRefPtr<CSS::StyleValue const> {
                         if (string_value[0] == '+' || string_value[0] == '-')
-                            return CSS::AddFunctionStyleValue::create(CSS::IntegerStyleValue::create(integer_value.release_value()));
+                            return CSS::FunctionStyleValue::create("add"_fly_string, CSS::IntegerStyleValue::create(integer_value.release_value()));
 
                         return CSS::IntegerStyleValue::create(integer_value.release_value());
                     }();

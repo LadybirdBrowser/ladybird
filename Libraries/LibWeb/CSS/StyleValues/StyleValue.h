@@ -33,7 +33,6 @@
 namespace Web::CSS {
 
 #define ENUMERATE_CSS_STYLE_VALUE_TYPES                                                                                        \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(AddFunction, add_function, AddFunctionStyleValue)                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Anchor, anchor, AnchorStyleValue)                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(AnchorSize, anchor_size, AnchorSizeStyleValue)                                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Angle, angle, AngleStyleValue)                                                            \
