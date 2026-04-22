@@ -55,6 +55,7 @@ include(check_for_dependencies)
 include(gui_framework)
 include(cmake_options NO_POLICY_SCOPE)
 include(compile_options)
+include(version)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)

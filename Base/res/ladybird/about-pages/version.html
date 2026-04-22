@@ -126,6 +126,10 @@
                     <div id="browser-version" class="detail-value"></div>
                 </div>
                 <div class="detail-row">
+                    <div class="detail-label">Commit</div>
+                    <div id="browser-commit" class="detail-value"></div>
+                </div>
+                <div class="detail-row">
                     <div class="detail-label">Architecture</div>
                     <div id="arch" class="detail-value"></div>
                 </div>
@@ -156,6 +160,7 @@
         <script type="module">
             const browserName = document.querySelector("#browser-name");
             const browserVersion = document.querySelector("#browser-version");
+            const browserCommit = document.querySelector("#browser-commit");
             const arch = document.querySelector("#arch");
             const platformName = document.querySelector("#platform-name");
             const userAgent = document.querySelector("#user-agent");
@@ -167,6 +172,7 @@
 
                 browserName.innerText = document.title;
                 browserVersion.innerText = versionInfo?.browserVersion;
+                browserCommit.innerText = versionInfo?.commitSha;
                 arch.innerText = versionInfo?.arch;
                 platformName.innerText = versionInfo?.platformName;
                 userAgent.innerText = navigator.userAgent;

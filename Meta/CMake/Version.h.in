@@ -1,0 +1,9 @@
+/*
+ * Copyright (c) 2026, Luke Wilde <luke@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#define CURRENT_COMMIT_SHA "@CURRENT_COMMIT_SHA@"
