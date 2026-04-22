@@ -1,0 +1,2 @@
+initial color: rgb(255, 0, 0)
+after adoption color: rgb(0, 128, 0)

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.createElement("div");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        const shadowSpan = document.createElement("span");
+        shadowSpan.textContent = "shadow";
+        shadowRoot.append(shadowSpan);
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("span { color: red; }");
+        shadowRoot.adoptedStyleSheets = [sheet];
+        document.body.append(host);
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        println(`initial color: ${getComputedStyle(shadowSpan).color}`);
+
+        // Schedule a broad shadow-root invalidation by mutating the sheet, then
+        // adopt the host into a new document before style update runs. The
+        // pending dirty flags must survive the adoption so the new computed
+        // style reflects the mutation.
+        sheet.replaceSync("span { color: green; }");
+
+        iframe.contentDocument.adoptNode(host);
+        iframe.contentDocument.body.append(host);
+
+        println(`after adoption color: ${iframe.contentWindow.getComputedStyle(shadowSpan).color}`);
+    });
+</script>

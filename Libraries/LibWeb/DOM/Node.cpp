@@ -1646,14 +1646,26 @@ void Node::set_document(Document& document)
     if (m_document.ptr() == &document)
         return;
 
+    bool const node_needs_style_update = needs_style_update();
+    bool const subtree_needs_style_update = entire_subtree_needs_style_update();
+    bool const descendants_need_style_update = child_needs_style_update();
     m_document = &document;
-
-    if (needs_style_update() || child_needs_style_update()) {
+    if (node_needs_style_update) {
         // NOTE: We unset and reset the "needs style update" flag here.
         //       This ensures that there's a pending style update in the new document
         //       that will eventually assign some style to this node if needed.
         set_needs_style_update(false);
         set_needs_style_update(true);
+    }
+
+    if (subtree_needs_style_update || descendants_need_style_update) {
+        // These broader dirty flags stay set across adoption, but the new ancestor chain has never seen them
+        // propagate. Re-mark ancestors so style update still descends into this adopted subtree.
+        for (auto* ancestor = parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            if (ancestor->m_child_needs_style_update)
+                break;
+            ancestor->m_child_needs_style_update = true;
+        }
     }
 }
 
