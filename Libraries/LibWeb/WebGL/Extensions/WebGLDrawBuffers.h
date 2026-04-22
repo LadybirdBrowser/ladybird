@@ -10,7 +10,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 
-namespace Web::WebGL::Extensions {
+namespace Web::WebGL {
 
 class WebGLDrawBuffers : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WebGLDrawBuffers, Bindings::PlatformObject);

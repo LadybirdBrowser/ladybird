@@ -1357,11 +1357,6 @@ class WebGLTexture;
 class WebGLTransformFeedback;
 class WebGLUniformLocation;
 class WebGLVertexArrayObject;
-
-}
-
-namespace Web::WebGL::Extensions {
-
 class ANGLEInstancedArrays;
 class EXTBlendMinMax;
 class EXTColorBufferFloat;

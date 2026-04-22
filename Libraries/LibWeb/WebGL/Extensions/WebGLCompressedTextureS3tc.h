@@ -9,7 +9,7 @@
 #include <LibWeb/Bindings/PlatformObject.h>
 #include <LibWeb/Forward.h>
 
-namespace Web::WebGL::Extensions {
+namespace Web::WebGL {
 
 class WebGLCompressedTextureS3tc : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(WebGLCompressedTextureS3tc, Bindings::PlatformObject);

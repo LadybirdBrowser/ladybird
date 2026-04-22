@@ -10,7 +10,7 @@
 #include <LibWeb/Bindings/WebGLVertexArrayObjectOES.h>
 #include <LibWeb/WebGL/Extensions/WebGLVertexArrayObjectOES.h>
 
-namespace Web::WebGL::Extensions {
+namespace Web::WebGL {
 
 GC_DEFINE_ALLOCATOR(WebGLVertexArrayObjectOES);
 

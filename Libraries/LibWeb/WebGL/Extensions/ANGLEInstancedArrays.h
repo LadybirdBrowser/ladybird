@@ -10,7 +10,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebGL/Types.h>
 
-namespace Web::WebGL::Extensions {
+namespace Web::WebGL {
 
 class ANGLEInstancedArrays : public Bindings::PlatformObject {
     WEB_PLATFORM_OBJECT(ANGLEInstancedArrays, Bindings::PlatformObject);
