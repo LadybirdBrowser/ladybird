@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Error.h>
+#include <AK/OwnPtr.h>
 #include <AK/Stream.h>
 #include <AK/Vector.h>
 
@@ -86,9 +87,15 @@ private:
 
 /// A stream class that allows for writing to an automatically allocating memory area
 /// and reading back the written data afterwards.
+///
+/// Internally a singly-linked list of fixed-size chunks. Writes append to the tail,
+/// reads/discards consume from the head, so both ends are O(1).
 class AllocatingMemoryStream final : public Stream {
 public:
     static constexpr size_t CHUNK_SIZE = 4096;
+
+    AllocatingMemoryStream() = default;
+    ~AllocatingMemoryStream();
 
     void peek_some(Bytes) const;
     ReadonlyBytes peek_some_contiguous() const;
@@ -105,16 +112,27 @@ public:
     ErrorOr<Optional<size_t>> offset_of(ReadonlyBytes needle) const;
 
 private:
-    // Note: We set the inline buffer capacity to zero to make moving chunks as efficient as possible.
-    using Chunk = AK::Detail::ByteBuffer<0>;
+    struct Chunk {
+        // User-provided default ctor so `new Chunk()` does not zero-init the data array.
+        Chunk() { }
 
-    ReadonlyBytes next_read_range(size_t read_offset) const;
-    ErrorOr<Bytes> next_write_range();
-    void cleanup_unused_chunks();
+        u8 data[CHUNK_SIZE];
+        OwnPtr<Chunk> next;
+    };
 
-    Vector<Chunk> m_chunks;
-    size_t m_read_offset = 0;
-    size_t m_write_offset = 0;
+    ErrorOr<void> append_new_chunk();
+    void pop_head_chunk();
+
+    OwnPtr<Chunk> m_head;
+    Chunk* m_tail { nullptr };
+
+    // Offset into m_head->data for the next read.
+    size_t m_head_read_offset { 0 };
+
+    // Number of bytes written into m_tail->data.
+    size_t m_tail_write_offset { 0 };
+
+    size_t m_used_buffer_size { 0 };
 };
 
 }

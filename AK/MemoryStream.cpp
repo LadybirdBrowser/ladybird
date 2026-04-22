@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/ByteBuffer.h>
 #include <AK/FixedArray.h>
 #include <AK/MemMem.h>
 #include <AK/MemoryStream.h>
@@ -113,84 +112,21 @@ size_t FixedMemoryStream::remaining() const
     return m_bytes.size() - m_offset;
 }
 
-void AllocatingMemoryStream::peek_some(Bytes bytes) const
+AllocatingMemoryStream::~AllocatingMemoryStream()
 {
-    size_t read_bytes = 0;
-
-    auto peek_offset = m_read_offset;
-    while (read_bytes < bytes.size()) {
-        auto range = next_read_range(peek_offset);
-        if (range.size() == 0)
-            break;
-
-        auto copied_bytes = range.copy_trimmed_to(bytes.slice(read_bytes));
-        read_bytes += copied_bytes;
-        peek_offset += copied_bytes;
-    }
+    // Iterative teardown to avoid blowing the stack on long chunk chains.
+    while (m_head)
+        m_head = move(m_head->next);
 }
 
-ReadonlyBytes AllocatingMemoryStream::peek_some_contiguous() const
+size_t AllocatingMemoryStream::used_buffer_size() const
 {
-    return next_read_range(m_read_offset);
-}
-
-ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
-{
-    size_t read_bytes = 0;
-
-    while (read_bytes < bytes.size()) {
-        VERIFY(m_write_offset >= m_read_offset);
-
-        auto range = next_read_range(m_read_offset);
-        if (range.size() == 0)
-            break;
-
-        auto copied_bytes = range.copy_trimmed_to(bytes.slice(read_bytes));
-
-        read_bytes += copied_bytes;
-        m_read_offset += copied_bytes;
-    }
-
-    cleanup_unused_chunks();
-
-    return bytes.trim(read_bytes);
-}
-
-ErrorOr<size_t> AllocatingMemoryStream::write_some(ReadonlyBytes bytes)
-{
-    size_t written_bytes = 0;
-
-    while (written_bytes < bytes.size()) {
-        VERIFY(m_write_offset >= m_read_offset);
-
-        auto range = TRY(next_write_range());
-
-        auto copied_bytes = bytes.slice(written_bytes).copy_trimmed_to(range);
-
-        written_bytes += copied_bytes;
-        m_write_offset += copied_bytes;
-    }
-
-    return written_bytes;
-}
-
-ErrorOr<void> AllocatingMemoryStream::discard(size_t count)
-{
-    VERIFY(m_write_offset >= m_read_offset);
-
-    if (count > used_buffer_size())
-        return Error::from_string_literal("Number of discarded bytes is higher than the number of allocated bytes");
-
-    m_read_offset += count;
-
-    cleanup_unused_chunks();
-
-    return {};
+    return m_used_buffer_size;
 }
 
 bool AllocatingMemoryStream::is_eof() const
 {
-    return used_buffer_size() == 0;
+    return m_used_buffer_size == 0;
 }
 
 bool AllocatingMemoryStream::is_open() const
@@ -202,87 +138,145 @@ void AllocatingMemoryStream::close()
 {
 }
 
-size_t AllocatingMemoryStream::used_buffer_size() const
+ErrorOr<void> AllocatingMemoryStream::append_new_chunk()
 {
-    return m_write_offset - m_read_offset;
+    auto new_chunk = adopt_own_if_nonnull(new (nothrow) Chunk);
+    if (!new_chunk)
+        return Error::from_errno(ENOMEM);
+
+    if (m_tail) {
+        m_tail->next = new_chunk.release_nonnull();
+        m_tail = m_tail->next.ptr();
+    } else {
+        m_head = new_chunk.release_nonnull();
+        m_tail = m_head.ptr();
+    }
+    m_tail_write_offset = 0;
+    return {};
+}
+
+void AllocatingMemoryStream::pop_head_chunk()
+{
+    VERIFY(m_head);
+    if (m_head.ptr() == m_tail) {
+        m_head = nullptr;
+        m_tail = nullptr;
+        m_tail_write_offset = 0;
+    } else {
+        m_head = move(m_head->next);
+    }
+    m_head_read_offset = 0;
+}
+
+ReadonlyBytes AllocatingMemoryStream::peek_some_contiguous() const
+{
+    if (!m_head)
+        return {};
+    auto const end = (m_head.ptr() == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
+    return ReadonlyBytes { m_head->data + m_head_read_offset, end - m_head_read_offset };
+}
+
+void AllocatingMemoryStream::peek_some(Bytes bytes) const
+{
+    size_t read_bytes = 0;
+    auto const* chunk = m_head.ptr();
+    auto chunk_offset = m_head_read_offset;
+
+    while (chunk && read_bytes < bytes.size()) {
+        auto const end = (chunk == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
+        ReadonlyBytes available { chunk->data + chunk_offset, end - chunk_offset };
+
+        auto copied = available.copy_trimmed_to(bytes.slice(read_bytes));
+        read_bytes += copied;
+
+        if (copied < available.size())
+            break;
+
+        chunk = chunk->next.ptr();
+        chunk_offset = 0;
+    }
+}
+
+ErrorOr<Bytes> AllocatingMemoryStream::read_some(Bytes bytes)
+{
+    size_t read_bytes = 0;
+
+    while (read_bytes < bytes.size() && m_head) {
+        auto const end = (m_head.ptr() == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
+        ReadonlyBytes available { m_head->data + m_head_read_offset, end - m_head_read_offset };
+
+        auto copied = available.copy_trimmed_to(bytes.slice(read_bytes));
+        read_bytes += copied;
+        m_head_read_offset += copied;
+        m_used_buffer_size -= copied;
+
+        if (m_head_read_offset == end)
+            pop_head_chunk();
+    }
+
+    return bytes.trim(read_bytes);
+}
+
+ErrorOr<size_t> AllocatingMemoryStream::write_some(ReadonlyBytes bytes)
+{
+    size_t written_bytes = 0;
+
+    while (written_bytes < bytes.size()) {
+        if (!m_tail || m_tail_write_offset == CHUNK_SIZE)
+            TRY(append_new_chunk());
+
+        Bytes tail_remaining { m_tail->data + m_tail_write_offset, CHUNK_SIZE - m_tail_write_offset };
+        auto copied = bytes.slice(written_bytes).copy_trimmed_to(tail_remaining);
+
+        m_tail_write_offset += copied;
+        written_bytes += copied;
+        m_used_buffer_size += copied;
+    }
+
+    return written_bytes;
+}
+
+ErrorOr<void> AllocatingMemoryStream::discard(size_t count)
+{
+    if (count > m_used_buffer_size)
+        return Error::from_string_literal("Number of discarded bytes is higher than the number of allocated bytes");
+
+    m_used_buffer_size -= count;
+
+    while (count > 0) {
+        VERIFY(m_head);
+        auto const end = (m_head.ptr() == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
+        auto const available = end - m_head_read_offset;
+        auto const to_consume = min(available, count);
+
+        m_head_read_offset += to_consume;
+        count -= to_consume;
+
+        if (m_head_read_offset == end)
+            pop_head_chunk();
+    }
+
+    return {};
 }
 
 ErrorOr<Optional<size_t>> AllocatingMemoryStream::offset_of(ReadonlyBytes needle) const
 {
-    VERIFY(m_write_offset >= m_read_offset);
-
-    if (m_chunks.size() == 0)
+    if (!m_head)
         return Optional<size_t> {};
 
-    // Ensure that we don't have empty chunks at the beginning of the stream. Our trimming implementation
-    // assumes this to be the case, since this should be held up by `cleanup_unused_chunks()` at all times.
-    VERIFY(m_read_offset < CHUNK_SIZE);
+    size_t chunk_count = 0;
+    for (auto const* chunk = m_head.ptr(); chunk; chunk = chunk->next.ptr())
+        ++chunk_count;
 
-    auto empty_chunks_at_end = ((m_chunks.size() * CHUNK_SIZE - m_write_offset) / CHUNK_SIZE);
-    auto chunk_count = m_chunks.size() - empty_chunks_at_end;
     auto search_spans = TRY(FixedArray<ReadonlyBytes>::create(chunk_count));
-
-    for (size_t i = 0; i < chunk_count; i++) {
-        search_spans[i] = m_chunks[i].span();
+    size_t i = 0;
+    for (auto const* chunk = m_head.ptr(); chunk; chunk = chunk->next.ptr(), ++i) {
+        auto const start = (chunk == m_head.ptr()) ? m_head_read_offset : 0;
+        auto const end = (chunk == m_tail) ? m_tail_write_offset : CHUNK_SIZE;
+        search_spans[i] = ReadonlyBytes { chunk->data + start, end - start };
     }
 
-    auto used_size_of_last_chunk = m_write_offset % CHUNK_SIZE;
-
-    // The case where the stored write offset is actually the used space is the only case where a result of zero
-    // actually is zero. In other cases (i.e. our write offset is beyond the size of a chunk) the write offset
-    // already points to the beginning of the next chunk, in that case a result of zero indicates "use the last chunk in full".
-    if (m_write_offset >= CHUNK_SIZE && used_size_of_last_chunk == 0)
-        used_size_of_last_chunk = CHUNK_SIZE;
-
-    // Trimming is done first to ensure that we don't unintentionally shift around if the first and last chunks are the same.
-    search_spans[chunk_count - 1] = search_spans[chunk_count - 1].trim(used_size_of_last_chunk);
-    search_spans[0] = search_spans[0].slice(m_read_offset);
-
     return AK::memmem(search_spans.begin(), search_spans.end(), needle);
-}
-
-ReadonlyBytes AllocatingMemoryStream::next_read_range(size_t read_offset) const
-{
-    VERIFY(m_write_offset >= read_offset);
-
-    size_t const chunk_index = read_offset / CHUNK_SIZE;
-    size_t const chunk_offset = read_offset % CHUNK_SIZE;
-    size_t const read_size = min(CHUNK_SIZE - read_offset % CHUNK_SIZE, m_write_offset - read_offset);
-
-    if (read_size == 0)
-        return {};
-
-    VERIFY(chunk_index < m_chunks.size());
-
-    return ReadonlyBytes { m_chunks[chunk_index].data() + chunk_offset, read_size };
-}
-
-ErrorOr<Bytes> AllocatingMemoryStream::next_write_range()
-{
-    VERIFY(m_write_offset >= m_read_offset);
-
-    size_t const chunk_index = m_write_offset / CHUNK_SIZE;
-    size_t const chunk_offset = m_write_offset % CHUNK_SIZE;
-    size_t const write_size = CHUNK_SIZE - m_write_offset % CHUNK_SIZE;
-
-    if (chunk_index >= m_chunks.size())
-        TRY(m_chunks.try_append(TRY(Chunk::create_uninitialized(CHUNK_SIZE))));
-
-    VERIFY(chunk_index < m_chunks.size());
-
-    return Bytes { m_chunks[chunk_index].data() + chunk_offset, write_size };
-}
-
-void AllocatingMemoryStream::cleanup_unused_chunks()
-{
-    VERIFY(m_write_offset >= m_read_offset);
-
-    auto const chunks_to_remove = m_read_offset / CHUNK_SIZE;
-
-    m_chunks.remove(0, chunks_to_remove);
-
-    m_read_offset -= CHUNK_SIZE * chunks_to_remove;
-    m_write_offset -= CHUNK_SIZE * chunks_to_remove;
 }
 
 }
