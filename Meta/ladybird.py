@@ -142,6 +142,9 @@ def main():
         if not args.target and args.command not in ("build", "rebuild"):
             args.target = "ladybird" if platform.host_system == HostSystem.Windows else "Ladybird"
 
+    if args.jobs:
+        os.environ["VCPKG_MAX_CONCURRENCY"] = args.jobs
+
     if args.command == "build":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.gui)
         build_main(build_dir, args.jobs, args.target, args.args)
