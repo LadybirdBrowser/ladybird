@@ -561,14 +561,36 @@ fn emit_instruction(
 
         // call_raw_native pseudo-instruction
         // Indirectly calls ThrowCompletionOr<Value> (*)(VM&) from a register.
-        // Passes the hidden VM* as the sole argument. Result payload lands in
-        // rax (t0) and the Variant index is normalized into rcx (t1).
+        // Result payload lands in rax (t0) and the Variant index is normalized
+        // into rcx (t1).
+        //
+        // x86_64 ABI difference when returning ThrowCompletionOr<Value>:
+        // - SysV (ELF: Linux/BSD): returned in rax/rdx.
+        // - Darwin (Mach-O): returned via sret (hidden pointer in rdi).
+        //
+        // Codegen is split based on the object format to match the ABI.
         "call_raw_native" => {
             if let Some(op) = insn.operands.first() {
                 let func = resolve_op(op, handler, program);
                 w!(out, "    mov r11, {func}");
-                w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
-                w!(out, "    call r11");
+                if matches!(program.object_format, ObjectFormat::MachO) {
+                    // sret: hidden pointer in rdi, VM& in rsi. Reserve a 16-byte
+                    // return slot on the stack; rsp is already 16-byte aligned
+                    // at this point, so sub rsp, 16 preserves the alignment the
+                    // call requires.
+                    w!(out, "    sub rsp, 16");
+                    w!(out, "    mov rdi, rsp");
+                    w!(out, "    mov rsi, QWORD PTR [rbp - 48]");
+                    w!(out, "    call r11");
+                    w!(out, "    mov rax, QWORD PTR [rsp]");
+                    w!(out, "    mov rdx, QWORD PTR [rsp + 8]");
+                    w!(out, "    add rsp, 16");
+                } else {
+                    // Register return: VM& in rdi, result lands in rax (payload)
+                    // and rdx (tag).
+                    w!(out, "    mov rdi, QWORD PTR [rbp - 48]");
+                    w!(out, "    call r11");
+                }
                 w!(out, "    mov rcx, rdx");
             }
         }
