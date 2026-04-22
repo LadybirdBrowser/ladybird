@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 0.5; }
+        to { opacity: 0.5; }
+    }
+</style>
+<div id="host"><span id="slotted" class="item">slotted</span></div>
+<script>
+    test(() => {
+        const slotted = document.getElementById("slotted");
+        const shadowRoot = document.getElementById("host").attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>
+                ::slotted(.item) {
+                    animation-name: fade;
+                    animation-duration: 1s;
+                    animation-fill-mode: both;
+                }
+                @keyframes fade {
+                    from { opacity: 0.25; }
+                    to { opacity: 0.25; }
+                }
+            </style>
+            <slot></slot>
+        `;
+
+        println(`opacity: ${getComputedStyle(slotted).opacity}`);
+    });
+</script>

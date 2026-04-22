@@ -476,7 +476,7 @@ void StyleComputer::cascade_declarations(
     Optional<FlyString> layer_name) const
 {
     AK::FixedBitmap<to_underlying(last_property_id) + 1> seen_properties(false);
-    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration) {
+    auto cascade_style_declaration = [&](CSSStyleProperties const& declaration, GC::Ptr<DOM::ShadowRoot const> source_shadow_root) {
         seen_properties.fill(false);
         for (auto const& property : declaration.properties()) {
             if (important != property.important)
@@ -530,19 +530,22 @@ void StyleComputer::cascade_declarations(
                 } else if (longhand_value.is_revert_layer()) {
                     cascaded_properties.revert_layer_property(longhand_id, important, layer_name);
                 } else {
-                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration);
+                    // Track the exact shadow-root scope that supplied this winning declaration. A constructable
+                    // stylesheet can be adopted into multiple scopes at once, so the declaration object alone is
+                    // not specific enough.
+                    cascaded_properties.set_property(longhand_id, longhand_value, important, cascade_origin, layer_name, declaration, source_shadow_root);
                 }
             });
         }
     };
 
     for (auto const& match : matching_rules) {
-        cascade_style_declaration(match->declaration());
+        cascade_style_declaration(match->declaration(), match->shadow_root);
     }
 
     if (cascade_origin == CascadeOrigin::Author && !abstract_element.pseudo_element().has_value()) {
         if (auto const inline_style = abstract_element.element().inline_style()) {
-            cascade_style_declaration(*inline_style);
+            cascade_style_declaration(*inline_style, nullptr);
         }
     }
 }
@@ -887,8 +890,7 @@ void StyleComputer::collect_animation_into(DOM::AbstractElement abstract_element
     }
 }
 
-// https://drafts.csswg.org/css-animations-1/#animations
-void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, DOM::AbstractElement& abstract_element) const
+void StyleComputer::process_animation_definitions(ComputedProperties const& computed_properties, CascadedProperties const& cascaded_properties, DOM::AbstractElement& abstract_element) const
 {
     auto const& animation_definitions = computed_properties.animations(abstract_element);
 
@@ -905,9 +907,35 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
     for (auto const& animation_properties : animation_definitions) {
         defined_animation_names.set(animation_properties.name);
 
+        auto find_keyframes = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
+            if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, shadow_root)) {
+                if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
+                    return keyframe_set.value();
+            }
+            return {};
+        };
+
+        auto resolve_keyframes = [&]() -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
+            if (auto animation_name_source_shadow_root = cascaded_properties.property_source_shadow_root(PropertyID::AnimationName)) {
+                // The winning animation-name declaration can come from a shadow-root rule even when the animated
+                // element itself is outside that subtree, most notably for :host(...) and ::slotted(...). Resolve
+                // @keyframes in the declaration's scope first so same-named document rules do not win.
+                if (auto keyframe_set = find_keyframes(animation_name_source_shadow_root))
+                    return keyframe_set;
+            }
+
+            if (auto shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root())) {
+                if (auto keyframe_set = find_keyframes(shadow_root))
+                    return keyframe_set;
+            }
+
+            return find_keyframes(nullptr);
+        };
+
         // Changes to the values of animation properties while the animation is running apply as if the animation had
         // those values from when it began
         if (auto const& existing_animation = element_animations->get(animation_properties.name); existing_animation.has_value()) {
+            as<Animations::KeyframeEffect>(*existing_animation.value()->effect()).set_key_frame_set(resolve_keyframes());
             existing_animation.value()->apply_css_properties(animation_properties);
             return;
         }
@@ -923,19 +951,7 @@ void StyleComputer::process_animation_definitions(ComputedProperties const& comp
 
         animation->apply_css_properties(animation_properties);
 
-        auto find_keyframes = [&](GC::Ptr<DOM::ShadowRoot const> shadow_root) -> RefPtr<Animations::KeyframeEffect::KeyFrameSet const> {
-            if (auto const* rule_cache = rule_cache_for_cascade_origin(CascadeOrigin::Author, {}, shadow_root)) {
-                if (auto keyframe_set = rule_cache->rules_by_animation_keyframes.get(animation_properties.name); keyframe_set.has_value())
-                    return keyframe_set.value();
-            }
-            return {};
-        };
-
-        // Look up @keyframes in the element's shadow root first, then fall back to the document-level rules.
-        if (auto shadow_root = as_if<DOM::ShadowRoot>(abstract_element.element().root()))
-            effect->set_key_frame_set(find_keyframes(shadow_root));
-        if (!effect->key_frame_set())
-            effect->set_key_frame_set(find_keyframes(nullptr));
+        effect->set_key_frame_set(resolve_keyframes());
 
         effect->set_target(abstract_element);
         abstract_element.set_has_css_defined_animations();
@@ -2116,7 +2132,7 @@ GC::Ref<ComputedProperties> StyleComputer::compute_properties(DOM::AbstractEleme
     clear_computation_context_caches();
 
     // Add or modify CSS-defined animations
-    process_animation_definitions(computed_style, abstract_element);
+    process_animation_definitions(computed_style, cascaded_properties, abstract_element);
 
     auto animations = abstract_element.element().get_animations_internal(
         Animations::Animatable::GetAnimationsSorted::Yes,
