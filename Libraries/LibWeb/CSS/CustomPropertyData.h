@@ -8,8 +8,10 @@
 
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/NumericLimits.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
+#include <AK/Types.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/Export.h>
 
@@ -25,6 +27,7 @@ public:
         RefPtr<CustomPropertyData const> parent);
 
     StyleProperty const* get(FlyString const& name) const;
+    RefPtr<CustomPropertyData const> inheritable(DOM::Document const&) const;
 
     OrderedHashMap<FlyString, StyleProperty> const& own_values() const { return m_own_values; }
 
@@ -40,6 +43,10 @@ private:
     OrderedHashMap<FlyString, StyleProperty> m_own_values;
     RefPtr<CustomPropertyData const> m_parent;
     u8 m_ancestor_count { 0 };
+    mutable FlatPtr m_cached_inheritable_document_identity { NumericLimits<FlatPtr>::max() };
+    mutable size_t m_cached_inheritable_generation { NumericLimits<size_t>::max() };
+    mutable RefPtr<CustomPropertyData const> m_cached_inheritable_data;
+    mutable bool m_cached_inheritable_is_self { false };
 };
 
 }

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 106 tests
 
-102 Pass
-4 Fail
+103 Pass
+3 Fail
 Pass	Attribute 'syntax' returns expected value for ["<color>"]
 Pass	Attribute 'syntax' returns expected value for ["<color> | none"]
 Pass	Attribute 'syntax' returns expected value for ["<color># | <image> | none"]
@@ -109,4 +109,4 @@ Pass	Non-inherited properties do not inherit
 Pass	Inherited properties inherit
 Pass	Initial values substituted as computed value
 Pass	Non-universal registration are invalid without an initial value
-Fail	Initial value may be omitted for universal registration
+Pass	Initial value may be omitted for universal registration

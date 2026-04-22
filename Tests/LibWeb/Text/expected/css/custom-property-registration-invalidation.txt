@@ -1,0 +1,5 @@
+before @property color: rgb(255, 0, 0)
+after @property color: rgb(0, 128, 0)
+after removing @property color: rgb(255, 0, 0)
+before registerProperty color: rgb(255, 0, 0)
+after registerProperty color: rgb(0, 0, 255)

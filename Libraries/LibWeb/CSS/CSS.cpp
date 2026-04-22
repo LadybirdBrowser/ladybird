@@ -148,6 +148,7 @@ WebIDL::ExceptionOr<void> register_property(JS::VM& vm, PropertyDefinition defin
     };
     // Append registered property to property set.
     property_set.set(registered_property.property_name, registered_property);
+    document.did_change_custom_property_registrations();
 
     return {};
 }

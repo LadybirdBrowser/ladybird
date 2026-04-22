@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const parent = document.createElement("div");
+        parent.style.setProperty("--foo", "rgb(255, 0, 0)");
+
+        const target = document.createElement("div");
+        target.textContent = "target";
+        target.style.color = "var(--foo)";
+        parent.appendChild(target);
+        document.body.appendChild(parent);
+
+        // Give the source document a different registration set but the same
+        // generation count as the destination document. That way the test
+        // catches caches that key only on generation and ignore the document.
+        CSS.registerProperty({
+            name: "--source-only",
+            syntax: "*",
+            inherits: true,
+        });
+
+        println(`before adopt color: ${getComputedStyle(target).color}`);
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        iframe.contentWindow.CSS.registerProperty({
+            name: "--foo",
+            syntax: "<color>",
+            inherits: false,
+            initialValue: "rgb(0, 128, 0)",
+        });
+
+        iframe.contentDocument.adoptNode(parent);
+        iframe.contentDocument.body.appendChild(parent);
+
+        println(`after adopt color: ${iframe.contentWindow.getComputedStyle(target).color}`);
+
+        iframe.contentWindow.CSS.registerProperty({
+            name: "--destination-only",
+            syntax: "*",
+            inherits: true,
+        });
+        println(`after destination generation change color: ${iframe.contentWindow.getComputedStyle(target).color}`);
+        done();
+    });
+</script>

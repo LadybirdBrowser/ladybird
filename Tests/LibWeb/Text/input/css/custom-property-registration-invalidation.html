@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="dynamic-style"></style>
+<div id="parent" style="--foo: rgb(255, 0, 0); --bar: rgb(255, 0, 0);">
+    <div id="foo-target" style="color: var(--foo);"></div>
+    <div id="bar-target" style="color: var(--bar);"></div>
+</div>
+<script>
+    test(() => {
+        const dynamicStyle = document.getElementById("dynamic-style");
+        const fooTarget = document.getElementById("foo-target");
+        const barTarget = document.getElementById("bar-target");
+
+        println(`before @property color: ${getComputedStyle(fooTarget).color}`);
+
+        // This changes only the inheritance semantics of --foo, so it proves
+        // we invalidate inherited custom-property data instead of reusing a
+        // stale cached inheritable view from before the registration existed.
+        dynamicStyle.sheet.insertRule("@property --foo { syntax: '<color>'; inherits: false; initial-value: rgb(0, 128, 0); }");
+        println(`after @property color: ${getComputedStyle(fooTarget).color}`);
+
+        dynamicStyle.sheet.deleteRule(0);
+        println(`after removing @property color: ${getComputedStyle(fooTarget).color}`);
+
+        println(`before registerProperty color: ${getComputedStyle(barTarget).color}`);
+
+        CSS.registerProperty({
+            name: "--bar",
+            syntax: "<color>",
+            inherits: false,
+            initialValue: "rgb(0, 0, 255)",
+        });
+        println(`after registerProperty color: ${getComputedStyle(barTarget).color}`);
+    });
+</script>

@@ -8128,15 +8128,30 @@ NonnullRefPtr<CSS::StyleValue const> Document::custom_property_initial_value(Fly
     return CSS::GuaranteedInvalidStyleValue::create();
 }
 
+void Document::did_change_custom_property_registrations()
+{
+    ++m_custom_property_registration_generation;
+
+    // Custom property registration changes can alter inheritance and initial values even when no selector matching
+    // changes. Registrations only move when a stylesheet containing an @property rule is added/removed or when
+    // CSS.registerProperty() is called, so a full document restyle is cheap enough in practice.
+    invalidate_style(DOM::StyleInvalidationReason::Other);
+}
+
 void Document::build_registered_properties_cache()
 {
-    m_cached_registered_properties_from_css_property_rules.clear_with_capacity();
+    HashMap<FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
     for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& style_sheet) {
         style_sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSS::CSSRule const& rule) {
             if (auto* property_rule = as_if<CSS::CSSPropertyRule>(rule))
-                m_cached_registered_properties_from_css_property_rules.set(property_rule->name(), property_rule->to_registration());
+                cached_registered_properties_from_css_property_rules.set(property_rule->name(), property_rule->to_registration());
         });
     });
+
+    if (cached_registered_properties_from_css_property_rules != m_cached_registered_properties_from_css_property_rules)
+        did_change_custom_property_registrations();
+
+    m_cached_registered_properties_from_css_property_rules = move(cached_registered_properties_from_css_property_rules);
 }
 
 void Document::ensure_cookie_version_index(URL::URL const& new_url, URL::URL const& old_url)

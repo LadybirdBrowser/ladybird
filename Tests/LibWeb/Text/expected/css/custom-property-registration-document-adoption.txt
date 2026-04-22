@@ -1,0 +1,3 @@
+before adopt color: rgb(255, 0, 0)
+after adopt color: rgb(0, 128, 0)
+after destination generation change color: rgb(0, 128, 0)
